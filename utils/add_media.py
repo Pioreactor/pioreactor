@@ -1,7 +1,9 @@
 # add media
+import time
+import configparser
 import click
 import RPi.GPIO as GPIO
-import time
+
 config = configparser.ConfigParser()
 config.read('config.ini')
 
