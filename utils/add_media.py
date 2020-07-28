@@ -13,12 +13,12 @@ config.read('config.ini')
 def add_media(ml):
     GPIO.setmode(GPIO.BCM)
 
-    MEDIA_PIN = config['rpi_pins']['media']
+    MEDIA_PIN = int(config['rpi_pins']['media'])
     GPIO.setup(MEDIA_PIN, GPIO.OUT)
     GPIO.output(MEDIA_PIN, 1)
 
     GPIO.output(MEDIA_PIN, 0)
-    time.sleep(ml / config['pump_calibration']['media_ml_per_second'])
+    time.sleep(ml / float(config['pump_calibration']['media_ml_per_second']))
     GPIO.output(MEDIA_PIN, 1)
 
     return
