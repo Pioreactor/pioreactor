@@ -9,7 +9,7 @@ config.read('config.ini')
 
 
 @click.command()
-@click.argument('ml')
+@click.argument('ml', type=int)
 def add_media(ml):
     GPIO.setmode(GPIO.BCM)
 
@@ -24,4 +24,7 @@ def add_media(ml):
     return
 
 if __name__ == '__main__':
-    add_media()
+    try:
+        add_media()
+    except:
+        GPIO.cleanup()
