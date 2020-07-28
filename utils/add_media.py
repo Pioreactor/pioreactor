@@ -9,8 +9,8 @@ config.read('config.ini')
 
 
 @click.command()
-@click.argument('mL')
-def add_media(mL):
+@click.argument('ml')
+def add_media(ml):
     GPIO.setmode(GPIO.BCM)
 
     MEDIA_PIN = config['rpi_pins']['media']
