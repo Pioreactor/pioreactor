@@ -16,7 +16,7 @@ def take_optical_density():
     publish.single("morbidostat/log", "starting take_optical_density")
 
     try:
-        result = subscribe.simple(TOPIC).payload
+        result = float(subscribe.simple(TOPIC).payload.decode(encoding='UTF-8'))
     except e:
         print(e)
         return
