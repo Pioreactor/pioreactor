@@ -1,10 +1,12 @@
+from statistics import stdev, mean
+import configparser
 import time
+
+from adafruit_ads1x15.analog_in import AnalogIn
+import adafruit_ads1x15.ads1115 as ADS
+from  paho.mqtt import publish
 import board
 import busio
-import adafruit_ads1x15.ads1115 as ADS
-from adafruit_ads1x15.analog_in import AnalogIn
-from  paho.mqtt import publish
-from statistics import stdev, mean
 
 config = configparser.ConfigParser()
 config.read('config.ini')
