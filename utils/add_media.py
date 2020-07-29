@@ -32,6 +32,6 @@ def add_media(ml):
 if __name__ == '__main__':
     try:
         add_media()
-    except as e:
+    except Exception as e:
         print(e)
         GPIO.cleanup()

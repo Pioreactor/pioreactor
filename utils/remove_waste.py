@@ -37,6 +37,6 @@ def remove_waste(ml):
 if __name__ == '__main__':
     try:
         remove_waste()
-    except as e:
+    except Exception as e:
         print(e)
         GPIO.cleanup()
