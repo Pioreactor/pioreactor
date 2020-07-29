@@ -21,7 +21,7 @@ def take_optical_density():
         print(e)
         return
 
-    click.echo(click.style(result, fg='yellow'))
+    click.echo(click.style("   %s" % result, fg='yellow'))
     publish.single("morbidostat/log", "take_optical_density read %s" % result)
 
     return

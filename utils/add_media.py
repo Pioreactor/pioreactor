@@ -28,8 +28,7 @@ def add_media(ml):
     publish.single("morbidostat/log", "finishing add_media: %smL" % ml)
     click.echo(click.style("finished add_media: %smL" % ml, fg='green'))
 
-    # complete successfully
-
+    GPIO.cleanup()
     return
 
 if __name__ == '__main__':

@@ -29,7 +29,7 @@ def remove_waste(ml):
     publish.single("morbidostat/log", "finishing remove_waste: %smL" % ml)
     click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
 
-
+    GPIO.cleanup()
     return
 
 if __name__ == '__main__':
