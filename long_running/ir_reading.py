@@ -51,7 +51,7 @@ while True:
         if sm.mean() is not None:
             publish.single("morbidostat/IR1_moving_average", sm.mean())
             publish.single("morbidostat/IR1_moving_std", sm.std())
-            publish.single("morbidostat/IR1_raw", v)
+            publish.single("morbidostat/IR1_raw", raw_signal)
 
     except Exception as e:
         publish.single("morbidostat/log", "ir_reading.py failed")
