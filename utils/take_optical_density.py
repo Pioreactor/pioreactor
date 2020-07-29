@@ -17,7 +17,7 @@ def take_optical_density():
 
     try:
         result = subscribe.simple(TOPIC, keepalive=10).payload.decode(encoding='UTF-8')
-    except e:
+    except Exception as e:
         click.echo(str(e))
         return
 
