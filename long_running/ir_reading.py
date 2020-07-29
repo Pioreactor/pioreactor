@@ -36,7 +36,7 @@ class MovingStats():
 
 
 
-GAIN = config['ir_reading']['gain']
+GAIN = int(config['ir_reading']['gain'])
 i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c, gain=GAIN)
 chan = AnalogIn(ads, ADS.P0)
