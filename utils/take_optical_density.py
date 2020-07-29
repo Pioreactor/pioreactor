@@ -16,9 +16,9 @@ def take_optical_density():
     publish.single("morbidostat/log", "starting take_optical_density")
 
     try:
-        result = subscribe.simple(TOPIC).payload.decode(encoding='UTF-8')
+        result = subscribe.simple(TOPIC, keepalive=10).payload.decode(encoding='UTF-8')
     except e:
-        print(e)
+        click.echo(str(e))
         return
 
     click.echo(click.style("   %s" % result, fg='yellow'))
@@ -32,4 +32,4 @@ if __name__ == '__main__':
     try:
         take_optical_density()
     except Exception as e:
-        print(e)
+        click.echo(str(e))
