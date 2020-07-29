@@ -16,12 +16,12 @@ def take_optical_density():
     publish.single("morbidostat/log", "starting take_optical_density")
 
     try:
-        result = subscribe.simple(TOPIC)
+        result = subscribe.simple(TOPIC).payload
     except e:
         print(e)
         return
 
-    click.echo(result)
+    click.echo(click.style(result, fg='yellow'))
     publish.single("morbidostat/log", "take_optical_density read %s" % result)
 
     return
