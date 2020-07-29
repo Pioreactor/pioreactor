@@ -1,7 +1,7 @@
 from statistics import stdev, mean
 import configparser
 import time
-
+import click
 from adafruit_ads1x15.analog_in import AnalogIn
 import adafruit_ads1x15.ads1115 as ADS
 from  paho.mqtt import publish
@@ -53,7 +53,8 @@ while True:
             publish.single("morbidostat/IR1_moving_std", sm.std())
             publish.single("morbidostat/IR1_raw", v)
 
-    except Exception:
+    except Exception as e:
         publish.single("morbidostat/log", "ir_reading.py failed")
+        print(e)
         break
 
