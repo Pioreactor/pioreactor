@@ -29,8 +29,6 @@ def remove_waste(ml):
     publish.single("morbidostat/log", "finishing remove_waste: %smL" % ml)
     click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
 
-    # complete successfully
-    publish.single("morbidostat/theoretical_volume", -ml)
 
     return
 

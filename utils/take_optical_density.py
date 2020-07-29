@@ -33,4 +33,3 @@ if __name__ == '__main__':
         take_optical_density()
     except Exception as e:
         print(e)
-        GPIO.cleanup()
