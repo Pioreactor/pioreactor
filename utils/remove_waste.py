@@ -10,7 +10,7 @@ config.read('config.ini')
 
 
 @click.command()
-@click.argument('ml', type=int)
+@click.argument('ml', type=float)
 def remove_waste(ml):
     GPIO.setmode(GPIO.BCM)
 
