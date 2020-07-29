@@ -22,7 +22,7 @@ def take_optical_density():
         return
 
     click.echo(click.style(result, fg='yellow'))
-    publish.single("morbidostat/log", "take_optical_density read %s" % result)
+    publish.single("morbidostat/log", "take_optical_density read %.2f" % result)
 
     return
 
