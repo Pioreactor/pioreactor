@@ -33,6 +33,6 @@ while True:
 
     except Exception as e:
         publish.single("morbidostat/log", "ir_reading.py failed")
-        print(e)
+        raise e
         break
 
