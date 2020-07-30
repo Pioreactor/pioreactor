@@ -36,9 +36,8 @@ class MovingStats():
 
 
 
-GAIN = int(config['ir_reading']['gain'])
 i2c = busio.I2C(board.SCL, board.SDA)
-ads = ADS.ADS1115(i2c, gain=GAIN)
+ads = ADS.ADS1115(i2c)
 chan = AnalogIn(ads, ADS.P0)
 
 sm = MovingStats(lookback=int(config['ir_reading']['lookback']))
@@ -46,7 +45,7 @@ sm = MovingStats(lookback=int(config['ir_reading']['lookback']))
 while True:
     time.sleep(1.0)
     try:
-        raw_signal = chan.value
+        raw_signal = chan.voltage
         sm.update(raw_signal)
         if sm.mean() is not None:
             publish.single("morbidostat/IR1_moving_average", sm.mean())
