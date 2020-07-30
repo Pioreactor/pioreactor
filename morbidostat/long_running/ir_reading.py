@@ -1,3 +1,4 @@
+from morbidostat.utils.streaming import MovingStats
 from statistics import stdev, mean
 import configparser
 import time
@@ -8,7 +9,6 @@ from  paho.mqtt import publish
 import board
 import busio
 
-from .utils.streaming import MovingStats
 
 
 config = configparser.ConfigParser()
