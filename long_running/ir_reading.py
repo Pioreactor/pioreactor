@@ -8,32 +8,11 @@ from  paho.mqtt import publish
 import board
 import busio
 
+from .utils.streaming import MovingStats
+
+
 config = configparser.ConfigParser()
 config.read('config.ini')
-
-
-class MovingStats():
-    def __init__(self, lookback=5):
-        self.values = [None] * lookback
-        self._lookback = lookback
-
-    def update(self, new_value):
-        self.values.pop(0)
-        self.values.append(new_value)
-        assert len(self.values) == self._lookback
-
-    def mean(self):
-        try:
-            return mean(self.values)
-        except:
-            pass
-
-    def std(self):
-        try:
-            return stdev(self.values)
-        except:
-            pass
-
 
 
 i2c = busio.I2C(board.SCL, board.SDA)
