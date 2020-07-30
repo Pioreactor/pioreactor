@@ -1,4 +1,4 @@
-from morbidostat.utils.streaming import MovingStats
+from morbidostat.utils.streaming import LowPassFilter
 from statistics import stdev, mean
 import configparser
 import time
