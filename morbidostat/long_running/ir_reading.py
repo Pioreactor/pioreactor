@@ -19,16 +19,15 @@ i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c)
 chan = AnalogIn(ads, ADS.P0)
 
-sm = MovingStats(lookback=int(config['ir_reading']['lookback']))
+sm = LowPassFilter(60, 0.0001, 1)
 
 while True:
     time.sleep(1.0)
     try:
         raw_signal = chan.voltage
         sm.update(raw_signal)
-        if sm.mean() is not None:
-            publish.single("morbidostat/IR1_moving_average", sm.mean())
-            publish.single("morbidostat/IR1_moving_std", sm.std())
+        if sm.latest_reading is not None:
+            publish.single("morbidostat/IR1_low_ass", sm.latest_reading)
             publish.single("morbidostat/IR1_raw", raw_signal)
 
     except Exception as e:
