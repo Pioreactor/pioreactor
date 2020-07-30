@@ -27,7 +27,7 @@ while True:
         raw_signal = chan.voltage
         sm.update(raw_signal)
         if sm.latest_reading is not None:
-            publish.single("morbidostat/IR1_low_ass", sm.latest_reading)
+            publish.single("morbidostat/IR1_low_pass", sm.latest_reading)
             publish.single("morbidostat/IR1_raw", raw_signal)
 
     except Exception as e:
