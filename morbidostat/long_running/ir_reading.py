@@ -18,7 +18,7 @@ config.read('config.ini')
 
 
 i2c = busio.I2C(board.SCL, board.SDA)
-ads = ADS.ADS1115(i2c, gain=16, data_rate=8)
+ads = ADS.ADS1115(i2c, data_rate=8)
 chan = AnalogIn(ads, ADS.P0)
 
 sm = LowPassFilter(60, 0.0001, 1)
