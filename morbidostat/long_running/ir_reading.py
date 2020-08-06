@@ -21,10 +21,10 @@ i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c, data_rate=8)
 chan = AnalogIn(ads, ADS.P0, ADS.P1)
 
-sm = LowPassFilter(60, 0.0001, 1)
+sm = LowPassFilter(200, 0.0001, 1)
 
 while True:
-    time.sleep(float(config['ir_sampling']['samples_per_second']))
+    time.sleep(1./float(config['ir_sampling']['samples_per_second']))
     try:
         raw_signal = chan.voltage
         sm.update(raw_signal)
