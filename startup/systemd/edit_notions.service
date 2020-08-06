@@ -1,0 +1,10 @@
+[Unit]
+Description=Post new ngrok tcp url to notions.
+After=ngrok.service
+
+[Service]
+Type=idle
+ExecStart=/usr/bin/python3 /home/pi/startup/ngrok_to_notions.py
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,5 @@
+authtoken: <add_your_token_here>
+tunnels:
+  ssh:
+    proto: tcp
+    addr: 22
