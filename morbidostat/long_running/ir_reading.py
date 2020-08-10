@@ -20,7 +20,7 @@ config.read('config.ini')
 i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c, data_rate=8, gain=8)
 chan = AnalogIn(ads, ADS.P0, ADS.P1)
-sampling_rate =  1/float(config['ir_sampling']['samples_per_second'])
+sampling_rate = 1/float(config['ir_sampling']['samples_per_second'])
 
 sm = LowPassFilter(200, 0.0001, sampling_rate)
 
@@ -30,7 +30,7 @@ while True:
     try:
         raw_signal = chan.voltage
         sm.update(raw_signal)
-        if sm.latest_reading is not None and i % 100 == 0
+        if sm.latest_reading is not None and i % 100 == 0:
             publish.single("morbidostat/IR1_low_pass", sm.latest_reading)
             publish.single("morbidostat/IR1_raw", raw_signal)
         print(raw_signal, sm.latest_reading)
