@@ -37,7 +37,7 @@ while True:
         i+=1
 
     except OSError as e:
-        # just pause
+        # just pause, not sure why this happens when add_media o remove_waste are called.
         time.sleep(5.0)
     except Exception as e:
         publish.single("morbidostat/log", "ir_reading.py failed")
