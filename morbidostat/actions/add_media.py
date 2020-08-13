@@ -26,6 +26,7 @@ def add_media(ml):
     GPIO.output(MEDIA_PIN, 1)
 
     publish.single("morbidostat/log", "finishing add_media: %smL" % ml)
+    publish.single("morbidostat/dilution_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
     click.echo(click.style("finished add_media: %smL" % ml, fg='green'))
 
     GPIO.cleanup()

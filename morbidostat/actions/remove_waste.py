@@ -27,6 +27,7 @@ def remove_waste(ml):
     GPIO.output(WASTE_PIN, 1)
 
     publish.single("morbidostat/log", "finishing remove_waste: %smL" % ml)
+    publish.single("morbidostat/dilution_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
     click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
 
     GPIO.cleanup()

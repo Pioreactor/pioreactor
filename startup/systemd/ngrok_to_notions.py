@@ -1,9 +1,18 @@
 # may need to sudo pip3 install notion
 from notion.client import NotionClient
 import requests
+import sleep
 
 r = requests.get("http://localhost:4040/api/tunnels")
-public_url = r.json()['tunnels'][0]['public_url']
+public_url = None
+
+
+while public_url is None:
+    try:
+        public_url = r.json()['tunnels'][0]['public_url']
+    except:
+        sleep(10)
+
 
 
 notions_token = ""
