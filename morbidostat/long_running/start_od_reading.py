@@ -24,6 +24,8 @@ sampling_rate = 1/float(config['od_sampling']['samples_per_second'])
 
 sm = LowPassFilter(200, 0.0001, sampling_rate)
 
+publish.single("morbidostat/log", "starting start_od_reading.py")
+
 i = 0
 while True:
     time.sleep(sampling_rate)
