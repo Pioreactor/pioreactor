@@ -20,13 +20,12 @@ def remove_waste(ml):
 
     # this should be a decorator at some point
     click.echo(click.style("starting remove_waste: %smL" % ml, fg='green'))
-    publish.single("morbidostat/log", "starting remove_waste: %smL" % ml)
 
     GPIO.output(WASTE_PIN, 0)
     time.sleep(ml / float(config['pump_calibration']['waste_ml_per_second']))
     GPIO.output(WASTE_PIN, 1)
 
-    publish.single("morbidostat/log", "finishing remove_waste: %smL" % ml)
+    publish.single("morbidostat/log", "remove_waste: %smL" % ml)
     publish.single("morbidostat/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
     click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
 

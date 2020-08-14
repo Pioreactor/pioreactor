@@ -13,7 +13,6 @@ def take_optical_density():
 
 
     click.echo(click.style("starting take_optical_density", fg='green'))
-    publish.single("morbidostat/log", "starting take_optical_density")
 
     try:
         result = subscribe.simple(TOPIC, keepalive=10).payload.decode(encoding='UTF-8')
@@ -23,7 +22,7 @@ def take_optical_density():
         return
 
     click.echo(click.style("   %.3f" % result, fg='yellow'))
-    publish.single("morbidostat/log", "take_optical_density read %.3f" % result)
+    publish.single("morbidostat/log", "take_optical_density: %.3fV" % result)
 
     return
 

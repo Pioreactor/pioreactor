@@ -19,13 +19,12 @@ def add_media(ml):
     GPIO.output(MEDIA_PIN, 1)
 
     click.echo(click.style("starting add_media: %smL" % ml, fg='green'))
-    publish.single("morbidostat/log", "starting add_media: %smL" % ml)
 
     GPIO.output(MEDIA_PIN, 0)
     time.sleep(ml / float(config['pump_calibration']['media_ml_per_second']))
     GPIO.output(MEDIA_PIN, 1)
 
-    publish.single("morbidostat/log", "finishing add_media: %smL" % ml)
+    publish.single("morbidostat/log", "add_media: %smL" % ml)
     publish.single("morbidostat/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
     click.echo(click.style("finished add_media: %smL" % ml, fg='green'))
 

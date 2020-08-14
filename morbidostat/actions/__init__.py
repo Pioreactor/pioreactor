@@ -1,0 +1,1 @@
+nohup /opt/ngrok/ngrok start --all --config /opt/ngrok/ngrok.yml &
