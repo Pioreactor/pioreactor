@@ -26,11 +26,11 @@ config.read('config.ini')
 def start_optical_density():
 
     morbidostat = "morbidostat1"
-    verbose = False
+    verbose = True
 
 
     i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, data_rate=8, gain=8)
+    ads = ADS.ADS1115(i2c, data_rate=8, gain=4)
     chan = AnalogIn(ads, ADS.P0, ADS.P1)
     sampling_rate = 1/float(config['od_sampling']['samples_per_second'])
     sm = LowPassFilter(200, 0.0001, sampling_rate)
