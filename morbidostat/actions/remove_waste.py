@@ -12,9 +12,12 @@ config.read('config.ini')
 @click.command()
 @click.argument('ml', type=float)
 def remove_waste(ml):
+
+    morbidostat = "morbidostat1"
+
     GPIO.setmode(GPIO.BCM)
 
-    WASTE_PIN = int(config['rpi_pins']['waste'])
+    WASTE_PIN = int(config['rpi_pins']['waste1'])
     GPIO.setup(WASTE_PIN, GPIO.OUT)
     GPIO.output(WASTE_PIN, 1)
 
@@ -25,8 +28,8 @@ def remove_waste(ml):
     time.sleep(ml / float(config['pump_calibration']['waste_ml_per_second']))
     GPIO.output(WASTE_PIN, 1)
 
-    publish.single("morbidostat/log", "remove_waste: %smL" % ml)
-    publish.single("morbidostat/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
+    publish.single(f"{morbidostat}/log", "remove_waste: %smL" % ml)
+    publish.single(f"{morbidostat}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
     click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
 
     GPIO.cleanup()
@@ -37,4 +40,4 @@ if __name__ == '__main__':
         remove_waste()
     except Exception as e:
         print(e)
-        GPIO.cleanup()
+    GPIO.cleanup()

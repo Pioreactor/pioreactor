@@ -12,9 +12,12 @@ config.read('config.ini')
 @click.command()
 @click.argument('ml', type=float)
 def add_media(ml):
+
+    morbidostat = "morbidostat1"
+
     GPIO.setmode(GPIO.BCM)
 
-    MEDIA_PIN = int(config['rpi_pins']['media'])
+    MEDIA_PIN = int(config['rpi_pins']['media1'])
     GPIO.setup(MEDIA_PIN, GPIO.OUT)
     GPIO.output(MEDIA_PIN, 1)
 
@@ -24,8 +27,8 @@ def add_media(ml):
     time.sleep(ml / float(config['pump_calibration']['media_ml_per_second']))
     GPIO.output(MEDIA_PIN, 1)
 
-    publish.single("morbidostat/log", "add_media: %smL" % ml)
-    publish.single("morbidostat/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
+    publish.single(f"{morbidostat}/log", "add_media: %smL" % ml)
+    publish.single(f"{morbidostat}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
     click.echo(click.style("finished add_media: %smL" % ml, fg='green'))
 
     GPIO.cleanup()
@@ -36,4 +39,4 @@ if __name__ == '__main__':
         add_media()
     except Exception as e:
         print(e)
-        GPIO.cleanup()
+    GPIO.cleanup()
