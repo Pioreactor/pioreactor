@@ -23,7 +23,7 @@ config.read('config.ini')
 
 
 @click.command()
-def start_optical_density()
+def start_optical_density():
 
     morbidostat = "morbidostat1"
     verbose = False
