@@ -31,7 +31,7 @@ def remove_waste(ml):
         publish.single(f"{morbidostat}/log", "remove_waste: %smL" % ml)
         publish.single(f"{morbidostat}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
         click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
-    except:
+    except Exception as e:
         publish.single(f"{morbidostat}/error_log", f"{morbidostat} remove_waste.py failed with {str(e)}")
     finally:
         GPIO.cleanup()

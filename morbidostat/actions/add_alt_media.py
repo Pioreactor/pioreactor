@@ -29,7 +29,7 @@ def add_alt_media(ml):
         publish.single(f"{morbidostat}/log", "add_alt_media: %smL" % ml)
         publish.single(f"{morbidostat}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml)
         click.echo(click.style("finished add_alt_media: %smL" % ml, fg='green'))
-    except:
+    except Exception as e:
         publish.single(f"{morbidostat}/error_log", f"{morbidostat} add_alt_media.py failed with {str(e)}")
     finally:
         GPIO.cleanup()
