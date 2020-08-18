@@ -14,7 +14,7 @@ while public_url is None:
     except:
         time.sleep(10)
 
-
+config = configparser.ConfigParser()
 config.read('~/mobidostat/startup/systemd/creds.ini')
 notions_token = config['notions']['token']
 
