@@ -14,30 +14,28 @@ config.read('config.ini')
 def remove_waste(ml):
 
     morbidostat = "morbidostat1"
+    try:
+        GPIO.setmode(GPIO.BCM)
 
-    GPIO.setmode(GPIO.BCM)
+        WASTE_PIN = int(config['rpi_pins']['waste1'])
+        GPIO.setup(WASTE_PIN, GPIO.OUT)
+        GPIO.output(WASTE_PIN, 1)
 
-    WASTE_PIN = int(config['rpi_pins']['waste1'])
-    GPIO.setup(WASTE_PIN, GPIO.OUT)
-    GPIO.output(WASTE_PIN, 1)
+        # this should be a decorator at some point
+        click.echo(click.style("starting remove_waste: %smL" % ml, fg='green'))
 
-    # this should be a decorator at some point
-    click.echo(click.style("starting remove_waste: %smL" % ml, fg='green'))
+        GPIO.output(WASTE_PIN, 0)
+        time.sleep(ml / float(config['pump_calibration']['waste_ml_per_second']))
+        GPIO.output(WASTE_PIN, 1)
 
-    GPIO.output(WASTE_PIN, 0)
-    time.sleep(ml / float(config['pump_calibration']['waste_ml_per_second']))
-    GPIO.output(WASTE_PIN, 1)
-
-    publish.single(f"{morbidostat}/log", "remove_waste: %smL" % ml)
-    publish.single(f"{morbidostat}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
-    click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
-
-    GPIO.cleanup()
+        publish.single(f"{morbidostat}/log", "remove_waste: %smL" % ml)
+        publish.single(f"{morbidostat}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
+        click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
+    except:
+        publish.single(f"{morbidostat}/error_log", f"{morbidostat} remove_waste.py failed with {str(e)}")
+    finally:
+        GPIO.cleanup()
     return
 
 if __name__ == '__main__':
-    try:
-        remove_waste()
-    except Exception as e:
-        print(e)
-    GPIO.cleanup()
+    remove_waste()
