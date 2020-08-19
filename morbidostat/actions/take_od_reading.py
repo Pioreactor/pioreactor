@@ -7,10 +7,10 @@ from  paho.mqtt import subscribe, publish
 
 
 @click.command()
+@click.option('--unit', default="1", help='The morbidostat unit')
 def take_optical_density():
 
-    morbidostat = "morbidostat1"
-    od_topic = f"{morbidostat}/od_low_pass"
+    od_topic = f"morbidostat/{unit}/od_low_pass"
     try:
 
         click.echo(click.style("starting take_optical_density", fg='green'))
@@ -19,9 +19,9 @@ def take_optical_density():
         result = float(result)
 
         click.echo(click.style("   %.3f" % result, fg='yellow'))
-        publish.single(f"{morbidostat}/log", "take_optical_density: %.3fV" % result)
+        publish.single(f"morbidostat/{unit}/log", "take_optical_density: %.3fV" % result)
     except:
-        publish.single(f"{morbidostat}/error_log", f"{morbidostat} take_optical_density.py failed with {str(e)}")
+        publish.single(f"morbidostat/{unit}/error_log", f"{unit} take_optical_density.py failed with {str(e)}")
     return
 
 

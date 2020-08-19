@@ -23,19 +23,19 @@ config.read('config.ini')
 
 
 @click.command()
-def start_optical_density():
+@click.option('--unit', default="1", help='The morbidostat unit')
+def start_optical_density(unit):
 
-    morbidostat = "morbidostat1"
     verbose = True
 
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=4)
     chan = AnalogIn(ads, ADS.P0, ADS.P1)
-    sampling_rate = 1/float(config['od_sampling']['samples_per_second'])
+    sampling_rate = 1/int(config['od_sampling']['samples_per_second'])
     sm = LowPassFilter(int(config['od_sampling']['samples_per_second']), 0.0001, sampling_rate)
 
-    publish.single(f"{morbidostat}/log", "starting start_od_reading.py")
+    publish.single(f"morbidostat/{unit}/log", "starting start_od_reading.py")
 
     i = 0
     while True:
@@ -45,8 +45,8 @@ def start_optical_density():
             sm.update(raw_signal)
 
             if sm.latest_reading is not None and i % int(config['od_sampling']['mqtt_publish_rate']) == 0:
-                publish.single(f"{morbidostat}/od_low_pass", sm.latest_reading)
-                publish.single(f"{morbidostat}/od_raw", raw_signal)
+                publish.single(f"morbidostat/{unit}/od_low_pass", sm.latest_reading)
+                publish.single(f"morbidostat/{unit}/od_raw", raw_signal)
 
             if verbose:
                 print(raw_signal, sm.latest_reading)
@@ -57,8 +57,8 @@ def start_optical_density():
             # just pause, not sure why this happens when add_media or remove_waste are called.
             time.sleep(5.0)
         except Exception as e:
-            publish.single(f"{morbidostat}/log", f"start_od_reading.py failed with {str(e)}")
-            publish.single(f"{morbidostat}/error_log", f"{morbidostat} start_od_reading.py failed with {str(e)}")
+            publish.single(f"morbidostat/{unit}/log", f"start_od_reading.py failed with {str(e)}")
+            publish.single(f"morbidostat/{unit}/error_log", f"{unit} start_od_reading.py failed with {str(e)}")
             raise e
 
 if __name__ == '__main__':

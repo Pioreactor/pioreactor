@@ -10,14 +10,14 @@ config.read('config.ini')
 
 
 @click.command()
+@click.option('--unit', default="1", help='The morbidostat unit')
 @click.argument('ml', type=float)
-def remove_waste(ml):
+def remove_waste(ml, unit):
 
-    morbidostat = "morbidostat1"
     try:
         GPIO.setmode(GPIO.BCM)
 
-        WASTE_PIN = int(config['rpi_pins']['waste1'])
+        WASTE_PIN = int(config['rpi_pins'][f'waste{unit}'])
         GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 1)
 
@@ -28,11 +28,11 @@ def remove_waste(ml):
         time.sleep(ml / float(config['pump_calibration']['waste_ml_per_second']))
         GPIO.output(WASTE_PIN, 1)
 
-        publish.single(f"{morbidostat}/log", "remove_waste: %smL" % ml)
-        publish.single(f"{morbidostat}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
+        publish.single(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml)
+        publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
         click.echo(click.style("finished remove_waste: %smL" % ml, fg='green'))
     except Exception as e:
-        publish.single(f"{morbidostat}/error_log", f"{morbidostat} remove_waste.py failed with {str(e)}")
+        publish.single(f"morbidostat/{unit}/error_log", f"{unit} remove_waste.py failed with {str(e)}")
     finally:
         GPIO.cleanup()
     return

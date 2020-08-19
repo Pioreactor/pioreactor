@@ -10,14 +10,14 @@ config.read('config.ini')
 
 
 @click.command()
+@click.option('--unit', default="1", help='The morbidostat unit')
 @click.argument('ml', type=float)
-def add_media(ml):
+def add_media(ml, unit):
 
-    morbidostat = "morbidostat1"
     try:
         GPIO.setmode(GPIO.BCM)
 
-        MEDIA_PIN = int(config['rpi_pins']['media1'])
+        MEDIA_PIN = int(config['rpi_pins'][f'media{unit}'])
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 1)
 
@@ -27,11 +27,11 @@ def add_media(ml):
         time.sleep(ml / float(config['pump_calibration']['media_ml_per_second']))
         GPIO.output(MEDIA_PIN, 1)
 
-        publish.single(f"{morbidostat}/log", "add_media: %smL" % ml)
-        publish.single(f"{morbidostat}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
+        publish.single(f"morbidostat/{unit}/log", "add_media: %smL" % ml)
+        publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
         click.echo(click.style("finished add_media: %smL" % ml, fg='green'))
     except Exception as e:
-        publish.single(f"{morbidostat}/error_log", f"{morbidostat} add_media.py failed with {str(e)}")
+        publish.single(f"morbidostat/{unit}/error_log", f"{unit} add_media.py failed with {str(e)}")
     finally:
         GPIO.cleanup()
     return
