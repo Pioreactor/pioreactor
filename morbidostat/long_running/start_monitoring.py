@@ -27,7 +27,7 @@ def start_monitoring(unit):
     publish.single(f"morbidostat/{unit}/log", "starting start_monitoring.py")
 
     # first, let's try keeping the culture at a constant OD
-    od_constant = 1.35
+    od_constant = 1.50
 
     while True:
         od = take_od_reading(unit, verbose=0)
