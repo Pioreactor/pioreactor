@@ -34,9 +34,10 @@ def start_monitoring(unit):
 
         if od > od_constant:
             publish.single(f"morbidostat/{unit}/log", "monitor triggered IO event.")
-            delta = 0.5
-            remove_waste(delta, unit)
-            add_media(delta, unit)
+            volume = 0.5
+            remove_waste(volume, unit)
+            time.sleep(2)
+            add_media(volume, unit)
 
         time.sleep(10)
 
