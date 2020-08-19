@@ -26,7 +26,7 @@ def monitoring(target_od, unit):
     """
     turbidostat mode - keep cell density constant
     """
-    od_, odd__ = 0, 0
+    od_, od__ = 0, 0
     publish.single(f"morbidostat/{unit}/log", "starting monitoring.py")
 
     while True:
