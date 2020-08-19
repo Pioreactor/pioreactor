@@ -30,7 +30,7 @@ def start_optical_density(unit):
 
 
     i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, gain=4)
+    ads = ADS.ADS1115(i2c, gain=2)
     chan = AnalogIn(ads, ADS.P0, ADS.P1)
     sampling_rate = 1/int(config['od_sampling']['samples_per_second'])
     sm = LowPassFilter(int(config['od_sampling']['samples_per_second']), 0.0001, sampling_rate)
@@ -55,6 +55,7 @@ def start_optical_density(unit):
 
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
+            publish.single(f"morbidostat/{unit}/error_log", f"{unit} start_od_reading.py failed with {str(e)}. Attempting to continue.")
             time.sleep(5.0)
         except Exception as e:
             publish.single(f"morbidostat/{unit}/log", f"start_od_reading.py failed with {str(e)}")

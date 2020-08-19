@@ -20,7 +20,7 @@ def take_optical_density():
 
         click.echo(click.style("   %.3f" % result, fg='yellow'))
         publish.single(f"morbidostat/{unit}/log", "take_optical_density: %.3fV" % result)
-    except:
+    except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"{unit} take_optical_density.py failed with {str(e)}")
     return
 
