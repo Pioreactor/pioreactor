@@ -27,7 +27,7 @@ def take_od_reading(unit):
 @click.command()
 @click.option('--unit', default="1", help='The morbidostat unit')
 def click_take_od_reading(unit):
-    return take_od_reading(unit):
+    return take_od_reading(unit)
 
 
 if __name__ == '__main__':
