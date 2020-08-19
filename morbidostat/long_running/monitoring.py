@@ -23,7 +23,9 @@ config.read('config.ini')
 @click.option('--unit', default="1", help='The morbidostat unit')
 @click.argument('target_od', type=float)
 def monitoring(target_od, unit):
-
+    """
+    turbidostat mode - keep cell density constant
+    """
     od_, odd__ = 0, 0
     publish.single(f"morbidostat/{unit}/log", "starting monitoring.py")
 
@@ -38,7 +40,7 @@ def monitoring(target_od, unit):
             time.sleep(0.1)
             add_media(volume, unit)
 
-        publish.single(f"morbidostat/{unit}/log", "OD rate of change: {od_-od__:.2f} V/min.")
+        publish.single(f"morbidostat/{unit}/log", f"OD rate of change: {od_-od__:.2f} V/min.")
         od__ = od_
 
 
