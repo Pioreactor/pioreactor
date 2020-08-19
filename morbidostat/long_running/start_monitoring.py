@@ -30,9 +30,7 @@ def start_monitoring(unit):
     od_constant = 1.35
 
     while True:
-        print("here")
         od = take_od_reading(unit)
-        print("here2")
 
         if od > od_constant:
             publish.single(f"morbidostat/{unit}/log", "monitor triggered IO event.")
@@ -42,7 +40,6 @@ def start_monitoring(unit):
 
         time.sleep(10)
 
-        print("here3")
 
 if __name__ == '__main__':
     start_monitoring()

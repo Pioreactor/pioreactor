@@ -9,9 +9,6 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 
 
-@click.command()
-@click.option('--unit', default="1", help='The morbidostat unit')
-@click.argument('ml', type=float)
 def remove_waste(ml, unit):
 
     try:
@@ -37,5 +34,11 @@ def remove_waste(ml, unit):
         GPIO.cleanup()
     return
 
+@click.command()
+@click.option('--unit', default="1", help='The morbidostat unit')
+@click.argument('ml', type=float)
+def click_remove_waste(ml, unit):
+    return remove_waste(ml, unit)
+
 if __name__ == '__main__':
-    remove_waste()
+    click_remove_waste()
