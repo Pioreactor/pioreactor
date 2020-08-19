@@ -31,7 +31,7 @@ def start_monitoring(unit):
 
     while True:
         print("here")
-        od = take_od_reading()
+        od = take_od_reading(unit)
         print("here2")
 
         if od > od_constant:
