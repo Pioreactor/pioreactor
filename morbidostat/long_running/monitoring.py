@@ -38,7 +38,7 @@ def monitoring(target_od, unit):
             time.sleep(0.1)
             add_media(volume, unit)
 
-        publish.single(f"morbidostat/{unit}/log", "OD rate of change: %.3f v/min." % (od_ - od__))
+        publish.single(f"morbidostat/{unit}/log", "OD rate of change: {od_-od__:.2f} V/min.")
         od__ = od_
 
 
