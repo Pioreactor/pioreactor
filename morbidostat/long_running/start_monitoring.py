@@ -21,23 +21,25 @@ config.read('config.ini')
 
 @click.command()
 @click.option('--unit', default="1", help='The morbidostat unit')
-@click.argument('od', type=float)
-def start_monitoring(od, unit):
+@click.argument('target_od', type=float)
+def start_monitoring(target_od, unit):
 
-    verbose = True
+    od_, odd__ = None, None
     publish.single(f"morbidostat/{unit}/log", "starting start_monitoring.py")
 
     while True:
         od_ = take_od_reading(unit, verbose=0)
 
-        if od_ > od:
+        if od_ > target_od:
             publish.single(f"morbidostat/{unit}/log", "monitor triggered IO event.")
             volume = 0.5
             remove_waste(volume, unit)
-            time.sleep(2)
+            time.sleep(0.1)
             add_media(volume, unit)
 
-        time.sleep(15)
+        od__ = od_
+        publish.single(f"morbidostat/{unit}/log", "OD rate of change: %.3f v/min." % (od_ - od__))
+        time.sleep(60)
 
 
 if __name__ == '__main__':
