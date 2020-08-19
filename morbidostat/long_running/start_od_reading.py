@@ -30,7 +30,7 @@ def start_optical_density(unit):
 
 
     i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, gain=1)
+    ads = ADS.ADS1115(i2c, gain=2)
     chan = AnalogIn(ads, ADS.P0, ADS.P1)
     sampling_rate = 1/int(config['od_sampling']['samples_per_second'])
     sm = LowPassFilter(int(config['od_sampling']['samples_per_second']), 0.0001, sampling_rate)
