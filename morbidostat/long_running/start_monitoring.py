@@ -21,25 +21,23 @@ config.read('config.ini')
 
 @click.command()
 @click.option('--unit', default="1", help='The morbidostat unit')
-def start_monitoring(unit):
+@click.argument('od', type=float)
+def start_monitoring(od, unit):
 
     verbose = True
     publish.single(f"morbidostat/{unit}/log", "starting start_monitoring.py")
 
-    # first, let's try keeping the culture at a constant OD
-    od_constant = 1.50
-
     while True:
-        od = take_od_reading(unit, verbose=0)
+        od_ = take_od_reading(unit, verbose=0)
 
-        if od > od_constant:
+        if od_ > od:
             publish.single(f"morbidostat/{unit}/log", "monitor triggered IO event.")
             volume = 0.5
             remove_waste(volume, unit)
             time.sleep(2)
             add_media(volume, unit)
 
-        time.sleep(10)
+        time.sleep(15)
 
 
 if __name__ == '__main__':
