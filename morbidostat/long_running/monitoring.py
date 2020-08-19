@@ -24,10 +24,11 @@ config.read('config.ini')
 @click.argument('target_od', type=float)
 def monitoring(target_od, unit):
 
-    od_, odd__ = None, None
+    od_, odd__ = 0, 0
     publish.single(f"morbidostat/{unit}/log", "starting monitoring.py")
 
     while True:
+        time.sleep(60)
         od_ = take_od_reading(unit, verbose=0)
 
         if od_ > target_od:
@@ -37,9 +38,8 @@ def monitoring(target_od, unit):
             time.sleep(0.1)
             add_media(volume, unit)
 
-        od__ = od_
         publish.single(f"morbidostat/{unit}/log", "OD rate of change: %.3f v/min." % (od_ - od__))
-        time.sleep(60)
+        od__ = od_
 
 
 if __name__ == '__main__':
