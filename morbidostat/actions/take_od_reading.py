@@ -8,7 +8,7 @@ from  paho.mqtt import subscribe, publish
 
 @click.command()
 @click.option('--unit', default="1", help='The morbidostat unit')
-def take_optical_density():
+def take_optical_density(unit):
 
     od_topic = f"morbidostat/{unit}/od_low_pass"
     try:
