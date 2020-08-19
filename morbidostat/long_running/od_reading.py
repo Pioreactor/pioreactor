@@ -2,7 +2,7 @@
 Continuously take an optical density reading (more accurately: a backscatter reading, which is a proxy for OD).
 This script is designed to run in a background process and push data to MQTT.
 
->>> nohup python3 -m morbidostat.long_running.start_od_reading &
+>>> nohup python3 -m morbidostat.long_running.od_reading &
 """
 import configparser
 import time
@@ -24,7 +24,7 @@ config.read('config.ini')
 
 @click.command()
 @click.option('--unit', default="1", help='The morbidostat unit')
-def start_optical_density(unit):
+def od_reading(unit):
 
     verbose = True
 
@@ -35,7 +35,7 @@ def start_optical_density(unit):
     sampling_rate = 1/int(config['od_sampling']['samples_per_second'])
     sm = LowPassFilter(int(config['od_sampling']['samples_per_second']), 0.0001, sampling_rate)
 
-    publish.single(f"morbidostat/{unit}/log", "starting start_od_reading.py")
+    publish.single(f"morbidostat/{unit}/log", "starting od_reading.py")
 
     i = 0
     while True:
@@ -55,13 +55,13 @@ def start_optical_density(unit):
 
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
-            publish.single(f"morbidostat/{unit}/error_log", f"{unit} start_od_reading.py failed with {str(e)}. Attempting to continue.")
+            publish.single(f"morbidostat/{unit}/error_log", f"{unit} od_reading.py failed with {str(e)}. Attempting to continue.")
             time.sleep(5.0)
         except Exception as e:
-            publish.single(f"morbidostat/{unit}/log", f"start_od_reading.py failed with {str(e)}")
-            publish.single(f"morbidostat/{unit}/error_log", f"{unit} start_od_reading.py failed with {str(e)}")
+            publish.single(f"morbidostat/{unit}/log", f"od_reading.py failed with {str(e)}")
+            publish.single(f"morbidostat/{unit}/error_log", f"{unit} od_reading.py failed with {str(e)}")
             raise e
 
 if __name__ == '__main__':
-    start_optical_density()
+    od_reading()
 

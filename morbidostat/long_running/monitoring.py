@@ -22,10 +22,10 @@ config.read('config.ini')
 @click.command()
 @click.option('--unit', default="1", help='The morbidostat unit')
 @click.argument('target_od', type=float)
-def start_monitoring(target_od, unit):
+def monitoring(target_od, unit):
 
     od_, odd__ = None, None
-    publish.single(f"morbidostat/{unit}/log", "starting start_monitoring.py")
+    publish.single(f"morbidostat/{unit}/log", "starting monitoring.py")
 
     while True:
         od_ = take_od_reading(unit, verbose=0)
@@ -43,5 +43,5 @@ def start_monitoring(target_od, unit):
 
 
 if __name__ == '__main__':
-    start_monitoring()
+    monitoring()
 
