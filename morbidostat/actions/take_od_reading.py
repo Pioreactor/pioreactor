@@ -6,8 +6,7 @@ import click
 from  paho.mqtt import subscribe, publish
 
 
-@click.command()
-@click.option('--unit', default="1", help='The morbidostat unit')
+
 def take_od_reading(unit):
 
     od_topic = f"morbidostat/{unit}/od_low_pass"
@@ -25,6 +24,11 @@ def take_od_reading(unit):
     return result
 
 
+@click.command()
+@click.option('--unit', default="1", help='The morbidostat unit')
+def click_take_od_reading(unit):
+    return take_od_reading(unit):
+
 
 if __name__ == '__main__':
-    take_od_reading()
+    click_take_od_reading()
