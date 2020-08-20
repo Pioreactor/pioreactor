@@ -5,14 +5,14 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
     morbidostat_unit       TEXT  NOT NULL,
     od_reading_v           REAL  NOT NULL,
     experiment             TEXT  NOT NULL
-)
+);
 
 CREATE TABLE IF NOT EXISTS od_readings_filtered (
     timestamp              TEXT  NOT NULL,
     morbidostat_unit       TEXT  NOT NULL,
     od_reading_v           REAL  NOT NULL,
     experiment             TEXT  NOT NULL
-)
+);
 
 CREATE TABLE IF NOT EXISTS io_events (
     timestamp              TEXT  NOT NULL,
