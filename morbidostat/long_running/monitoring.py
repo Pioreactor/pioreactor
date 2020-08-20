@@ -76,7 +76,7 @@ def monitoring(target_od, unit, duration):
 
         if latest_od > target_od and k > 1e-6:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
-            continue # TODO remove
+            return # TODO remove
             volume = 0.5
             remove_waste(volume, unit)
             time.sleep(0.1)
