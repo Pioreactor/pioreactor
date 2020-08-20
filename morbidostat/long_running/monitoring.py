@@ -48,7 +48,7 @@ def monitoring(target_od, unit, duration):
         conn = sqlite3.connect('/home/pi/db/morbidostat.sql')
         df = pd.read_sql_query(SQL, conn)
         conn.close()
-        df['x'] = (pd.to_datetime(df['timestamp']) - pd.to_datetime(df['start_time']))/ np.timedelta64(1, 's')
+        df['x'] = (pd.to_datetime(df['timestamp']) - pd.to_datetime(df['start_time'])) / np.timedelta64(1, 's')
         return df[['x', 'od_reading_v']]
 
 
@@ -71,12 +71,11 @@ def monitoring(target_od, unit, duration):
         latest_od = df['od_reading_v'].values[-1]
 
         publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2E" % k)
-        publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.2E" % latest_od)
+        publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3E" % latest_od)
 
 
         if latest_od > target_od and k > 1e-6:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
-            return # TODO remove
             volume = 0.5
             remove_waste(volume, unit)
             time.sleep(0.1)
