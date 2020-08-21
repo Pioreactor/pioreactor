@@ -34,20 +34,24 @@ def monitoring(target_od, unit, duration):
     """
     turbidostat mode - keep cell density constant
     """
-    publish.single(f"morbidostat/{unit}/log", f"starting monitoring.py with at {duration}min intervals")
+    publish.single(f"morbidostat/{unit}/log", f"starting monitoring.py with {duration}min intervals, target OD {target_od}")
 
     def get_recent_observations():
+        # subtract 1 minute because things are a bit wacky post-dilution.
         SQL = f"""
         SELECT
-            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration} minute') as start_time,
+            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-1} minute') as start_time,
             strftime('%Y-%m-%d %H:%M:%f', timestamp) as timestamp,
             od_reading_v
         FROM od_readings_raw
-        WHERE datetime(timestamp) > datetime('now','-{duration} minute')
+        WHERE datetime(timestamp) > datetime('now','-{duration-1} minute')
         """
         conn = sqlite3.connect('/home/pi/db/morbidostat.sql')
         df = pd.read_sql_query(SQL, conn)
         conn.close()
+
+        assert not df.empty, f"Not data retrieved. Check database. {SQL}"
+
         df['x'] = (pd.to_datetime(df['timestamp']) - pd.to_datetime(df['start_time'])) / np.timedelta64(1, 's')
         return df[['x', 'od_reading_v']]
 
@@ -71,7 +75,7 @@ def monitoring(target_od, unit, duration):
         latest_od = df['od_reading_v'].values[-1]
 
         publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2E" % k)
-        publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3E" % latest_od)
+        publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3f" % latest_od)
 
 
         if latest_od > target_od and k > 1e-6:
