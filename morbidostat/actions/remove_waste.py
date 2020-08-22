@@ -24,9 +24,9 @@ def remove_waste(ml, unit):
         while ml_left > 0:
             # hack to reduce voltage jump
             ml_to_add_ = min(0.05, ml_left)
-            GPIO.output(MEDIA_PIN, 0)
+            GPIO.output(WASTE_PIN, 0)
             time.sleep(ml_to_add_ / float(config["pump_calibration"]["waste_ml_per_second"]))
-            GPIO.output(MEDIA_PIN, 1)
+            GPIO.output(WASTE_PIN, 1)
             time.sleep(0.2)
 
         publish.single(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml)
