@@ -21,13 +21,14 @@ def add_media(ml, unit):
         click.echo(click.style("starting add_media: %smL" % ml, fg="green"))
 
         ml_left = ml
-        while ml_left > 0:
+        while ml_left > 1e-3:
             # hack to reduce voltage jump
             ml_to_add_ = min(0.05, ml_left)
             GPIO.output(MEDIA_PIN, 0)
             time.sleep(ml_to_add_ / float(config["pump_calibration"]["media_ml_per_second"]))
             GPIO.output(MEDIA_PIN, 1)
             time.sleep(0.2)
+            ml_left -= ml_to_add_
 
         publish.single(f"morbidostat/{unit}/log", "add_media: %smL" % ml)
         publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
