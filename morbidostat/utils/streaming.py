@@ -1,6 +1,7 @@
 from scipy import signal
 
-class MovingStats():
+
+class MovingStats:
     def __init__(self, lookback=5):
         self.values = [None] * lookback
         self._lookback = lookback
@@ -25,13 +26,12 @@ class MovingStats():
             pass
 
 
-class LowPassFilter():
-
+class LowPassFilter:
     def __init__(self, length_of_filter, low_pass_corner_frequ, time_between_reading):
 
         self._latest_reading = None
-        self.filtwindow = signal.firwin(length_of_filter, low_pass_corner_frequ, fs = 1/time_between_reading)
-        self.window = signal.lfilter_zi(self.filtwindow , 1)
+        self.filtwindow = signal.firwin(length_of_filter, low_pass_corner_frequ, fs=1 / time_between_reading)
+        self.window = signal.lfilter_zi(self.filtwindow, 1)
 
     def update(self, value):
         self._latest_reading, self.window = signal.lfilter(self.filtwindow, 1, [value], zi=self.window)
@@ -39,9 +39,3 @@ class LowPassFilter():
     @property
     def latest_reading(self):
         return self._latest_reading[0]
-
-
-
-
-
-
