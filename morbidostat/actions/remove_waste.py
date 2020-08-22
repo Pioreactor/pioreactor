@@ -20,6 +20,7 @@ def remove_waste(ml, unit):
 
         click.echo(click.style("starting remove_waste: %smL" % ml, fg="green"))
 
+        ml_left = ml
         while ml_left > 0:
             # hack to reduce voltage jump
             ml_to_add_ = min(0.05, ml_left)

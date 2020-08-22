@@ -17,6 +17,7 @@ import busio
 from morbidostat.actions.take_od_reading import take_od_reading
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
+from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from paho.mqtt import publish
 
@@ -82,7 +83,6 @@ def monitoring(target_od, unit, duration):
         """
         turbidostat mode - try to keep cell density constant
         """
-        return # DEBUG
         if latest_od > target_od and rate > 1e-6:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
             volume = 0.5
