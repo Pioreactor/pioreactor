@@ -21,7 +21,6 @@ from morbidostat.utils.timing_and_threading import every
 from  paho.mqtt import publish
 
 
-
 config = configparser.ConfigParser()
 config.read('config.ini')
 
@@ -31,9 +30,6 @@ config.read('config.ini')
 @click.option('--unit', default="1", help='The morbidostat unit')
 @click.option('--duration', default=10, help='Time, in minutes, between every monitor check')
 def monitoring(target_od, unit, duration):
-    """
-    turbidostat mode - keep cell density constant
-    """
     publish.single(f"morbidostat/{unit}/log", f"starting monitoring.py with {duration}min intervals, target OD {target_od}")
 
     def get_recent_observations():
@@ -46,17 +42,18 @@ def monitoring(target_od, unit, duration):
         FROM od_readings_raw
         WHERE datetime(timestamp) > datetime('now','-{duration-1} minute')
         """
-        conn = sqlite3.connect('/home/pi/db/morbidostat.sql')
+        db_location = config['data']['observation_database']
+        conn = sqlite3.connect(db_location)
         df = pd.read_sql_query(SQL, conn)
         conn.close()
 
-        assert not df.empty, f"Not data retrieved. Check database. {SQL}"
+        assert not df.empty, f"Not data retrieved. Check database as {db_location}.\n {SQL}"
 
         df['x'] = (pd.to_datetime(df['timestamp']) - pd.to_datetime(df['start_time'])) / np.timedelta64(1, 's')
         return df[['x', 'od_reading_v']]
 
 
-    def calculate_growth_rate():
+    def calculate_growth_rate(callback=None):
 
         def exponential(x, k, A):
             return A * np.exp(k * x)
@@ -67,18 +64,26 @@ def monitoring(target_od, unit, duration):
         y = df['od_reading_v'].values
 
         try:
-            (k, A), _ = curve_fit(exponential, x, y, [1 / x.mean(), y.mean()])
+            (rate, A), _ = curve_fit(exponential, x, y, [1 / x.mean(), y.mean()])
         except Exception as e:
             publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
             return
 
         latest_od = df['od_reading_v'].values[-1]
 
-        publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2E" % k)
+        publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2E" % rate)
         publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3f" % latest_od)
 
+        if callback:
+            callback(latest_od, rate)
+        return
 
-        if latest_od > target_od and k > 1e-6:
+
+    def turbidostat(latest_od, rate, **args):
+        """
+        turbidostat mode - try to keep cell density constant
+        """
+        if latest_od > target_od and rate > 1e-6:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
             volume = 0.5
             remove_waste(volume, unit)
@@ -86,8 +91,10 @@ def monitoring(target_od, unit, duration):
             add_media(volume, unit)
         return
 
+
+    # main loop
     try:
-        every(duration * 60, calculate_growth_rate)
+        every(duration * 60, calculate_growth_rate, callback=turbidostat)
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
 
