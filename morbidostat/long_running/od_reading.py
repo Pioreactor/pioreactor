@@ -23,8 +23,8 @@ config.read("config.ini")
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
-@click.option("--verbose", default=True, help="print to console")
-def od_reading(unit):
+@click.option("--verbose", default=False, help="print to console")
+def od_reading(unit, verbose):
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)
