@@ -27,11 +27,11 @@ def add_media(ml, unit):
             GPIO.output(MEDIA_PIN, 0)
             time.sleep(ml_to_add_ / float(config["pump_calibration"]["media_ml_per_second"]))
             GPIO.output(MEDIA_PIN, 1)
+            publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml_to_add_)
             time.sleep(0.2)
             ml_left -= ml_to_add_
 
         publish.single(f"morbidostat/{unit}/log", "add_media: %smL" % ml)
-        publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml)
         click.echo(click.style("finished add_media: %smL" % ml, fg="green"))
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"{unit} add_media.py failed with {str(e)}")

@@ -3,3 +3,7 @@ tunnels:
   ssh:
     proto: tcp
     addr: 22
+  http:
+    proto: http
+    region: ap
+    addr: 1880
