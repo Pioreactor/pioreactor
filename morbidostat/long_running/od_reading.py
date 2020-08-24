@@ -15,7 +15,15 @@ import board
 import busio
 
 from morbidostat.utils.streaming import MovingStats, LowPassFilter
-from morbidostat.utils import ADS_GAIN_THRESHOLDS
+
+ADS_GAIN_THRESHOLDS = {
+    2 / 3: (4.096, 6.144),
+    1: (2.048, 4.096),
+    2: (1.024, 2.048),
+    4: (0.512, 1.024),
+    8: (0.256, 0.512),
+    16: (0.0, 0.256)
+}
 
 
 config = configparser.ConfigParser()
@@ -24,7 +32,7 @@ config.read("config.ini")
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
-@click.option("--verbose", default=False, help="print to console")
+@click.option("--verbose", default=False, help="print to stdout")
 def od_reading(unit, verbose):
 
     i2c = busio.I2C(board.SCL, board.SDA)
@@ -59,7 +67,7 @@ def od_reading(unit, verbose):
 
 
             if verbose:
-                print(raw_signal, sm.latest_reading, ads.gain)
+                print(i, raw_signal, sm.latest_reading, ads.gain)
 
             i += 1
 
