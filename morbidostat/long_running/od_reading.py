@@ -14,7 +14,8 @@ from paho.mqtt import publish
 import board
 import busio
 
-from morbidostat.utils.streaming import LowPassFilter
+from morbidostat.utils.streaming import MovingStats, LowPassFilter
+from morbidostat.utils import ADS_GAIN_THRESHOLDS
 
 
 config = configparser.ConfigParser()
@@ -29,24 +30,36 @@ def od_reading(unit, verbose):
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)
     chan = AnalogIn(ads, ADS.P0, ADS.P1)
+
     sampling_rate = 1 / int(config["od_sampling"]["samples_per_second"])
     sm = LowPassFilter(int(config["od_sampling"]["samples_per_second"]), 0.0001, sampling_rate)
+    ma = MovingStats(lookback=20)
 
     publish.single(f"morbidostat/{unit}/log", "starting od_reading.py")
 
-    i = 0
+    i = 1
     while True:
         time.sleep(sampling_rate)
         try:
             raw_signal = chan.voltage
             sm.update(raw_signal)
+            ma.update(raw_signal)
 
+            # publish
             if sm.latest_reading is not None and i % int(config["od_sampling"]["mqtt_publish_rate"]) == 0:
                 publish.single(f"morbidostat/{unit}/od_low_pass", sm.latest_reading)
                 publish.single(f"morbidostat/{unit}/od_raw", raw_signal)
 
+
+            # check if using correct gain
+            if i % 100 == 0 and ma.mean is not None:
+                for gain, (lb, ub) in ADS_GAIN_THRESHOLDS:
+                    if lb <= ma.mean < ub:
+                        ads.gain = gain
+
+
             if verbose:
-                print(raw_signal, sm.latest_reading)
+                print(raw_signal, sm.latest_reading, ads.gain)
 
             i += 1
 
