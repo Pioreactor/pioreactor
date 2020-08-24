@@ -52,9 +52,8 @@ def od_reading(unit, verbose):
 
 
             # check if using correct gain
-            print(i, ma.mean)
             if i % 100 == 0 and ma.mean is not None:
-                for gain, (lb, ub) in ADS_GAIN_THRESHOLDS:
+                for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if lb <= ma.mean < ub:
                         ads.gain = gain
 
