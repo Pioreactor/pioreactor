@@ -1,4 +1,5 @@
 from scipy import signal
+from statistics import *
 
 
 class MovingStats:
