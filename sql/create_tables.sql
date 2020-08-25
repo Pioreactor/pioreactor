@@ -28,7 +28,14 @@ CREATE TABLE IF NOT EXISTS growth_rates (
     rate                   REAL  NOT NULL,
     initial                REAL  NOT NULL,
     morbidostat_unit       TEXT  NOT NULL
-)
+);
+
+CREATE TABLE IF NOT EXISTS logs (
+    timestamp              TEXT  NOT NULL,
+    experiment             TEXT  NOT NULL,
+    message                TEXT  NOT NULL,
+    morbidostat_unit       TEXT  NOT NULL
+);
 
 
 

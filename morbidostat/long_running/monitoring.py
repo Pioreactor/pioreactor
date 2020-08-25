@@ -72,7 +72,7 @@ def monitoring(target_od, unit, duration, volume):
 
         publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2E" % rate)
         publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3f" % latest_od)
-        publish.single(f"morbidostat/{unit}/growth_rate", f'{{"rate": "{rate}", "initial": "{initial_value}"}}')
+        publish.single(f"morbidostat/{unit}/growth_rate", f'test')
 
         latest_od = df["od_reading_v"].values[-10:].mean()
 
