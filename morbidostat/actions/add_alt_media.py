@@ -27,7 +27,7 @@ def add_alt_media(ml, unit):
             # hack to reduce disturbance
             ml_to_add_ = min(0.15, ml_left)
             GPIO.output(ALT_MEDIA_PIN, 0)
-            time.sleep(pump_ml_to_duration(ml_to_add_, *loads(config['pump_calibration']['alt_media_ml_calibraton'])))
+            time.sleep(pump_ml_to_duration(ml_to_add_, *loads(config['pump_calibration']['alt_media_ml_calibration'])))
             GPIO.output(ALT_MEDIA_PIN, 1)
             publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml_to_add_)
             time.sleep(0.1)

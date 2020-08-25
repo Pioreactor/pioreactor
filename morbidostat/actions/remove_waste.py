@@ -26,7 +26,7 @@ def remove_waste(ml, unit):
 
 
         GPIO.output(WASTE_PIN, 0)
-        time.sleep(pump_ml_to_duration(ml, *loads(config['pump_calibration']['waste_ml_calibraton'])))
+        time.sleep(pump_ml_to_duration(ml, *loads(config['pump_calibration']['waste_ml_calibration'])))
         GPIO.output(WASTE_PIN, 1)
         publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
 
