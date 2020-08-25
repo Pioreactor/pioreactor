@@ -22,7 +22,7 @@ ADS_GAIN_THRESHOLDS = {
     2: (1.024, 2.048),
     4: (0.512, 1.024),
     8: (0.256, 0.512),
-    16: (0.0, 0.256)
+    16: (0.0, 0.256),
 }
 
 
@@ -58,13 +58,11 @@ def od_reading(unit, verbose):
                 publish.single(f"morbidostat/{unit}/od_low_pass", sm.latest_reading)
                 publish.single(f"morbidostat/{unit}/od_raw", raw_signal)
 
-
             # check if using correct gain
             if i % 100 == 0 and ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if lb <= ma.mean < ub:
                         ads.gain = gain
-
 
             if verbose:
                 print(i, raw_signal, sm.latest_reading, ads.gain)

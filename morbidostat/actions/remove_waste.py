@@ -24,16 +24,15 @@ def remove_waste(ml, unit):
 
         click.echo(click.style("starting remove_waste: %smL" % ml, fg="green"))
 
-
         GPIO.output(WASTE_PIN, 0)
-        time.sleep(pump_ml_to_duration(ml, *loads(config['pump_calibration']['waste_ml_calibration'])))
+        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"]["waste_ml_calibration"])))
         GPIO.output(WASTE_PIN, 1)
         publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
 
         publish.single(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml)
         click.echo(click.style("finished remove_waste: %smL" % ml, fg="green"))
     except Exception as e:
-        publish.single(f"morbidostat/{unit}/error_log", )
+        publish.single(f"morbidostat/{unit}/error_log",)
         click.echo(click.style(f"{unit} remove_waste.py failed with {str(e)}", fg="red"))
     finally:
         GPIO.cleanup()
