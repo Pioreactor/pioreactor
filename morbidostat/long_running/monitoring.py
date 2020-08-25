@@ -85,7 +85,7 @@ def monitoring(target_od, unit, duration, volume):
         """
         turbidostat mode - try to keep cell density constant
         """
-        if latest_od > target_od and rate > 1e-6:
+        if latest_od > target_od and rate > 1e-7:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
             remove_waste(volume, unit)
             time.sleep(0.1)

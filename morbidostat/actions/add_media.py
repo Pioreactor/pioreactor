@@ -18,7 +18,7 @@ def add_media(ml, unit):
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 1)
 
-        click.echo(click.style("starting add_media: %smL" % ml, fg="green"))
+        click.echo(click.style(f"starting add_media: {ml}mL", fg="green"))
 
         ml_left = ml
         while ml_left > 1e-3:
@@ -32,7 +32,7 @@ def add_media(ml, unit):
             ml_left -= ml_to_add_
 
         publish.single(f"morbidostat/{unit}/log", "add_media: %smL" % ml)
-        click.echo(click.style("finished add_media: %smL" % ml, fg="green"))
+        click.echo(click.style(f"finished add_media: {ml}mL", fg="green"))
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"{unit} add_media.py failed with {str(e)}")
     finally:
