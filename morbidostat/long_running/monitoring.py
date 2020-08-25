@@ -81,7 +81,7 @@ def monitoring(target_od, unit, duration, volume):
             callback(latest_od, rate, initial_value)
         return
 
-    def turbidostat(latest_od, rate, **args):
+    def turbidostat(latest_od, rate, *args):
         """
         turbidostat mode - try to keep cell density constant
         """
@@ -92,13 +92,13 @@ def monitoring(target_od, unit, duration, volume):
             add_media(volume, unit)
         return
 
-    def silent(latest_od, rate, **args):
+    def silent(*args):
         """
         do nothing, ever
         """
         return
 
-    def morbidostat(latest_od, rate, **args):
+    def morbidostat(latest_od, rate, *args):
         """
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to grow resistant.
