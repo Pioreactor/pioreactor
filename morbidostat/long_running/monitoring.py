@@ -91,6 +91,12 @@ def monitoring(target_od, unit, duration, volume):
             add_media(volume, unit)
         return
 
+    def silent(latest_od, rate, **args):
+        """
+        do nothing, ever
+        """
+        return
+
     def morbidostat(latest_od, rate, **args):
         """
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
@@ -111,7 +117,7 @@ def monitoring(target_od, unit, duration, volume):
     # main loop
     ##############################
     try:
-        every(duration * 60, calculate_growth_rate, callback=turbidostat)
+        every(duration * 60, calculate_growth_rate, callback=silent)
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
 
