@@ -1,10 +1,11 @@
 # add alt_media
 import time
 import configparser
-import json
+from json import loads
 import click
 from paho.mqtt import publish
 import RPi.GPIO as GPIO
+from morbidostat.utils import pump_ml_to_duration
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -36,6 +37,8 @@ def add_alt_media(ml, unit):
         click.echo(click.style(f"finished add_alt_media: {ml}mL", fg="green"))
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"{unit} add_alt_media.py failed with {str(e)}")
+        click.echo(click.style(f"{unit} remove_waste.py failed with {str(e)}", fg="red"))
+
     finally:
         GPIO.cleanup()
     return

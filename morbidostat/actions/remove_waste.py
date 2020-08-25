@@ -1,9 +1,13 @@
 # remove waste
 import time
 import configparser
+from json import loads
 import click
 import RPi.GPIO as GPIO
 from paho.mqtt import publish
+
+from morbidostat.utils import pump_ml_to_duration
+
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -29,7 +33,8 @@ def remove_waste(ml, unit):
         publish.single(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml)
         click.echo(click.style("finished remove_waste: %smL" % ml, fg="green"))
     except Exception as e:
-        publish.single(f"morbidostat/{unit}/error_log", f"{unit} remove_waste.py failed with {str(e)}")
+        publish.single(f"morbidostat/{unit}/error_log", )
+        click.echo(click.style(f"{unit} remove_waste.py failed with {str(e)}", fg="red"))
     finally:
         GPIO.cleanup()
     return
