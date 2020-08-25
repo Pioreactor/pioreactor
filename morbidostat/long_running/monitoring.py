@@ -85,7 +85,7 @@ def monitoring(target_od, unit, duration, volume):
         """
         turbidostat mode - try to keep cell density constant
         """
-        if latest_od > target_od and rate > 1e-7:
+        if latest_od > target_od and rate > 1e-10:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
             remove_waste(volume, unit)
             time.sleep(0.1)
@@ -101,7 +101,7 @@ def monitoring(target_od, unit, duration, volume):
     def morbidostat(latest_od, rate, *args):
         """
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
-        of the chemical is diluted slowly over time, allowing the microbes to grow resistant.
+        of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         remove_waste(volume, unit)
         if latest_od > target_od and rate > 0:
