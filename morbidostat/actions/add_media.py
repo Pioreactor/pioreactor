@@ -22,7 +22,7 @@ def add_media(ml, unit):
 
         ml_left = ml
         while ml_left > 1e-3:
-            # hack to reduce voltage jump
+            # hack to reduce disturbance
             ml_to_add_ = min(0.1, ml_left)
             GPIO.output(MEDIA_PIN, 0)
             time.sleep(ml_to_add_ / float(config["pump_calibration"]["media_ml_per_second"]))

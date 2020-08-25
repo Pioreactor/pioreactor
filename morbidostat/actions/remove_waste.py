@@ -20,16 +20,11 @@ def remove_waste(ml, unit):
 
         click.echo(click.style("starting remove_waste: %smL" % ml, fg="green"))
 
-        ml_left = ml
-        while ml_left > 1e-3:
-            # hack to reduce voltage jump
-            ml_to_add_ = min(0.1, ml_left)
-            GPIO.output(WASTE_PIN, 0)
-            time.sleep(ml_to_add_ / float(config["pump_calibration"]["waste_ml_per_second"]))
-            GPIO.output(WASTE_PIN, 1)
-            publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml_to_add_)
-            time.sleep(0.1)
-            ml_left -= ml_to_add_
+
+        GPIO.output(WASTE_PIN, 0)
+        time.sleep(ml / float(config["pump_calibration"]["waste_ml_per_second"]))
+        GPIO.output(WASTE_PIN, 1)
+        publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
 
         publish.single(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml)
         click.echo(click.style("finished remove_waste: %smL" % ml, fg="green"))

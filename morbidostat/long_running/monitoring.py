@@ -30,7 +30,8 @@ config.read("config.ini")
 @click.argument("target_od", type=float)
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=10, help="Time, in minutes, between every monitor check")
-def monitoring(target_od, unit, duration):
+@click.option("--volume", default=0.25, help="the volume to exchange, mL")
+def monitoring(target_od, unit, duration, volume):
     publish.single(
         f"morbidostat/{unit}/log", f"starting monitoring.py with {duration}min intervals, target OD {target_od}"
     )
@@ -56,8 +57,8 @@ def monitoring(target_od, unit, duration):
         return df[["x", "od_reading_v"]]
 
     def calculate_growth_rate(callback=None):
-        def exponential(x, k, A):
-            return A * np.exp(k * x)
+        def exponential(x, rate, initial_value):
+            return initial_value * np.exp(rate * x)
 
         df = get_recent_observations()
 
@@ -65,18 +66,19 @@ def monitoring(target_od, unit, duration):
         y = df["od_reading_v"].values
 
         try:
-            (rate, A), _ = curve_fit(exponential, x, y, [1 / x.mean(), y.mean()])
+            (rate, initial_value), _ = curve_fit(exponential, x, y, [1 / x.mean(), y.mean()])
         except Exception as e:
-            publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
+            publish.single(f"morbidostat/{unit}/error_log", f"Monitor rate calculation failed: {str(e)}")
             return
-
-        latest_od = df["od_reading_v"].values[-1]
 
         publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2E" % rate)
         publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3f" % latest_od)
+        publish.single(f"morbidostat/{unit}/growth_rate", f'{{"rate": "{rate}", "initial": "{initial_value}"}}')
+
+        latest_od = df["od_reading_v"].values[-10:].mean()
 
         if callback:
-            callback(latest_od, rate)
+            callback(latest_od, rate, initial_value)
         return
 
     def turbidostat(latest_od, rate, **args):
@@ -85,13 +87,31 @@ def monitoring(target_od, unit, duration):
         """
         if latest_od > target_od and rate > 1e-6:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
-            volume = 0.5
             remove_waste(volume, unit)
             time.sleep(0.1)
             add_media(volume, unit)
         return
 
+    def morbidostat(latest_od, rate, **args):
+        """
+        morbidostat mode - keep cell density below and threshold using chemical means. The conc.
+        of the chemical is diluted slowly over time, allowing the microbes to grow resistant.
+        """
+        remove_waste(volume, unit)
+        if latest_od > target_od and rate > 0:
+            publish.single(f"morbidostat/{unit}/log", "Monitor triggered drug event.")
+            time.sleep(0.1)
+            add_alt_media(volume, unit)
+        else:
+            publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
+            time.sleep(0.1)
+            add_media(volume, unit)
+        return
+
+
+    ##############################
     # main loop
+    ##############################
     try:
         every(duration * 60, calculate_growth_rate, callback=turbidostat)
     except Exception as e:

@@ -20,5 +20,15 @@ CREATE TABLE IF NOT EXISTS io_events (
     event                  TEXT  NOT NULL,
     volume_change_ml       REAL  NOT NULL,
     morbidostat_unit       TEXT  NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS growth_rates (
+    timestamp              TEXT  NOT NULL,
+    experiment             TEXT  NOT NULL,
+    rate                   REAL  NOT NULL,
+    initial                REAL  NOT NULL,
+    morbidostat_unit       TEXT  NOT NULL
 )
+
+
 
