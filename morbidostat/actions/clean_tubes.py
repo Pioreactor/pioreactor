@@ -10,7 +10,7 @@ from scipy.optimize import curve_fit
 import pandas as pd
 
 import click
-import GPIO
+import RPi.GPIO as GPIO
 import board
 import busio
 
