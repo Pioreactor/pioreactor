@@ -1,9 +1,11 @@
 # add media
 import time
 import configparser
+from json import loads
 import click
 from paho.mqtt import publish
 import RPi.GPIO as GPIO
+from morbidostat.utils import pump_ml_to_duration
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -23,9 +25,9 @@ def add_media(ml, unit):
         ml_left = ml
         while ml_left > 1e-3:
             # hack to reduce disturbance
-            ml_to_add_ = min(0.1, ml_left)
+            ml_to_add_ = min(0.15, ml_left)
             GPIO.output(MEDIA_PIN, 0)
-            time.sleep(ml_to_add_ / float(config["pump_calibration"]["media_ml_per_second"]))
+            time.sleep(pump_ml_to_duration(ml_to_add_, *loads(config['pump_calibration']['media_ml_calibraton'])))
             GPIO.output(MEDIA_PIN, 1)
             publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml_to_add_)
             time.sleep(0.1)

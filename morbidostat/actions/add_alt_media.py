@@ -1,6 +1,7 @@
 # add alt_media
 import time
 import configparser
+import json
 import click
 from paho.mqtt import publish
 import RPi.GPIO as GPIO
@@ -23,9 +24,9 @@ def add_alt_media(ml, unit):
         ml_left = ml
         while ml_left > 1e-3:
             # hack to reduce disturbance
-            ml_to_add_ = min(0.1, ml_left)
+            ml_to_add_ = min(0.15, ml_left)
             GPIO.output(ALT_MEDIA_PIN, 0)
-            time.sleep(ml_to_add_ / float(config["pump_calibration"]["alt_media_ml_per_second"]))
+            time.sleep(pump_ml_to_duration(ml_to_add_, *loads(config['pump_calibration']['alt_media_ml_calibraton'])))
             GPIO.output(ALT_MEDIA_PIN, 1)
             publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml_to_add_)
             time.sleep(0.1)
