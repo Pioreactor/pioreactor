@@ -11,8 +11,8 @@ def every(delay, task, *args, **kwargs):
         time.sleep(max(0, next_time - time.time()))
         try:
             task(*args, **kwargs)
-        except Exception:
-            traceback.print_exc()
+        except Exception as e:
+            raise e
             # in production code you might want to have this instead of course:
             # logger.exception("Problem while executing repetitive task.")
         # skip tasks if we are behind schedule:
