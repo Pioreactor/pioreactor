@@ -18,11 +18,11 @@ from morbidostat.utils.streaming import MovingStats, LowPassFilter
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
-    1: (2.048, 4.096),
-    2: (1.024, 2.048),
-    4: (0.512, 1.024),
-    8: (0.256, 0.512),
-    16: (0.0, 0.256),
+    1:     (2.048, 4.096),
+    2:     (1.024, 2.048),
+    4:     (0.512, 1.024),
+    8:     (0.256, 0.512),
+    16:    (0.0,  0.256),
 }
 
 
@@ -61,7 +61,7 @@ def od_reading(unit, verbose):
             # check if using correct gain
             if i % 100 == 0 and ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if lb <= ma.mean < ub:
+                    if 0.9 * lb <= ma.mean < 0.9 * ub:
                         ads.gain = gain
 
             if verbose:
