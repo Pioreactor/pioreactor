@@ -9,6 +9,7 @@ import sqlite3
 import numpy as np
 from scipy.optimize import curve_fit
 import pandas as pd
+from paho.mqtt import publish
 
 import click
 import board
@@ -18,7 +19,8 @@ from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
-from paho.mqtt import publish
+from morbidostat.utils import current_alt_media_level
+
 
 
 config = configparser.ConfigParser()
@@ -54,6 +56,36 @@ def monitoring(target_od, unit, duration, volume):
 
         df["x"] = (pd.to_datetime(df["timestamp"]) - pd.to_datetime(df["start_time"])) / np.timedelta64(1, "s")
         return df[["x", "od_reading_v"]]
+
+    def get_io_events():
+        SQL = f"""SELECT experiment FROM experiments ORDER BY timestamp DESC LIMIT 1;"""
+        db_location = config["data"]["observation_database"]
+        conn = sqlite3.connect(db_location)
+        df = pd.read_sql_query(SQL, conn)
+        conn.close()
+        assert not df.empty, f"Not data retrieved. Check database as {db_location}.\n {SQL}"
+
+        latest_experiment = df.loc[0, "experiment"]
+
+        SQL = f"""
+        SELECT
+            timestamp,
+            event,
+            volume_change_ml
+        FROM io_events
+        WHERE experiment="{latest_experiment}" and event!="remove_waste"
+        ORDER BY timestamp;
+        """
+        db_location = config["data"]["observation_database"]
+        conn = sqlite3.connect(db_location)
+        df = pd.read_sql_query(SQL, conn)
+        conn.close()
+        assert not df.empty, f"Not data retrieved. Check database as {db_location}.\n {SQL}"
+
+        current_abv = current_alt_media_level(df[["event", "volume_change_ml"]].values.tolist())/12 * 100
+        publish.single(f"morbidostat/{unit}/log", f"Monitor: estimated alt_media {current_abv}%")
+        return
+
 
     def calculate_growth_rate(callback=None):
         def exponential(x, rate, initial_value):
@@ -103,13 +135,16 @@ def monitoring(target_od, unit, duration, volume):
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
-        remove_waste(volume, unit)
         if latest_od > target_od and rate > 0:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered drug event.")
+            time.sleep(0.1)
+            remove_waste(volume, unit)
             time.sleep(0.1)
             add_alt_media(volume, unit)
         else:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
+            time.sleep(0.1)
+            remove_waste(volume, unit)
             time.sleep(0.1)
             add_media(volume, unit)
         return

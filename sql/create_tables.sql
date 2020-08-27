@@ -38,4 +38,8 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 
 
+CREATE TABLE IF NOT EXISTS experiments (
+    timestamp              TEXT  NOT NULL,
+    experiment             TEXT  NOT NULL
+);
 
