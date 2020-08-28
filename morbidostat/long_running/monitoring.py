@@ -38,14 +38,14 @@ def monitoring(target_od, unit, duration, volume):
     )
 
     def get_recent_observations():
-        # subtract 1 minute because things are a bit wacky post-dilution.
+        # subtract a few minutes because things are a bit wacky post-dilution.
         SQL = f"""
         SELECT
-            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-1} minute') as start_time,
+            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-2} minute') as start_time,
             strftime('%Y-%m-%d %H:%M:%f', timestamp) as timestamp,
             od_reading_v
         FROM od_readings_raw
-        WHERE datetime(timestamp) > datetime('now','-{duration-1} minute')
+        WHERE datetime(timestamp) > datetime('now','-{duration-2} minute')
         """
         db_location = config["data"]["observation_database"]
         conn = sqlite3.connect(db_location)
@@ -54,37 +54,8 @@ def monitoring(target_od, unit, duration, volume):
 
         assert not df.empty, f"Not data retrieved. Check database as {db_location}.\n {SQL}"
 
-        df["x"] = (pd.to_datetime(df["timestamp"]) - pd.to_datetime(df["start_time"])) / np.timedelta64(1, "s")
+        df["x"] = (pd.to_datetime(df["timestamp"]) - pd.to_datetime(df["start_time"])) / np.timedelta64(1, "h")
         return df[["x", "od_reading_v"]]
-
-    def get_io_events():
-        SQL = f"""SELECT experiment FROM experiments ORDER BY timestamp DESC LIMIT 1;"""
-        db_location = config["data"]["observation_database"]
-        conn = sqlite3.connect(db_location)
-        df = pd.read_sql_query(SQL, conn)
-        conn.close()
-        assert not df.empty, f"Not data retrieved. Check database as {db_location}.\n {SQL}"
-
-        latest_experiment = df.loc[0, "experiment"]
-
-        SQL = f"""
-        SELECT
-            timestamp,
-            event,
-            volume_change_ml
-        FROM io_events
-        WHERE experiment="{latest_experiment}" and event!="remove_waste"
-        ORDER BY timestamp;
-        """
-        db_location = config["data"]["observation_database"]
-        conn = sqlite3.connect(db_location)
-        df = pd.read_sql_query(SQL, conn)
-        conn.close()
-        assert not df.empty, f"Not data retrieved. Check database as {db_location}.\n {SQL}"
-
-        current_abv = current_alt_media_level(df[["event", "volume_change_ml"]].values.tolist())/12 * 100
-        publish.single(f"morbidostat/{unit}/log", f"Monitor: estimated alt_media {current_abv}%")
-        return
 
 
     def calculate_growth_rate(callback=None):
@@ -104,7 +75,7 @@ def monitoring(target_od, unit, duration, volume):
 
         latest_od = df["od_reading_v"].values[-10:].mean()
 
-        publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2E" % rate)
+        publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2Eh⁻¹" % rate)
         publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3f" % latest_od)
         publish.single(f"morbidostat/{unit}/growth_rate", f'{{"rate": "{rate}", "initial": "{initial_value}"}}')
 
