@@ -41,11 +41,11 @@ def monitoring(target_od, unit, duration, volume):
         # subtract a few minutes because things are a bit wacky post-dilution.
         SQL = f"""
         SELECT
-            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-2} minute') as start_time,
+            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-4} minute') as start_time,
             strftime('%Y-%m-%d %H:%M:%f', timestamp) as timestamp,
             od_reading_v
         FROM od_readings_raw
-        WHERE datetime(timestamp) > datetime('now','-{duration-2} minute')
+        WHERE datetime(timestamp) > datetime('now','-{duration-4} minute')
         """
         db_location = config["data"]["observation_database"]
         conn = sqlite3.connect(db_location)
