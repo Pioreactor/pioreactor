@@ -34,7 +34,6 @@ def add_media(ml, unit):
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"{unit} add_media.py failed with {str(e)}")
         click.echo(click.style(f"{unit} add_media.py failed with {str(e)}", fg="red"))
-        raise e
     finally:
         GPIO.cleanup()
     return

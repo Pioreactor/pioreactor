@@ -40,7 +40,7 @@ def od_reading(unit, verbose):
     chan = AnalogIn(ads, ADS.P0, ADS.P1)
 
     sampling_rate = 1 / int(config["od_sampling"]["samples_per_second"])
-    sm = LowPassFilter(int(config["od_sampling"]["samples_per_second"]), 0.0001, sampling_rate)
+    #sm = LowPassFilter(int(config["od_sampling"]["samples_per_second"]), 0.0001, sampling_rate)
     ma = MovingStats(lookback=20)
 
     publish.single(f"morbidostat/{unit}/log", "starting od_reading.py")
@@ -50,12 +50,12 @@ def od_reading(unit, verbose):
         time.sleep(sampling_rate)
         try:
             raw_signal = chan.voltage
-            sm.update(raw_signal)
+            #sm.update(raw_signal)
             ma.update(raw_signal)
 
             # publish
-            if sm.latest_reading is not None and i % int(config["od_sampling"]["mqtt_publish_rate"]) == 0:
-                publish.single(f"morbidostat/{unit}/od_low_pass", sm.latest_reading)
+            if i % int(config["od_sampling"]["mqtt_publish_rate"]) == 0:
+                #publish.single(f"morbidostat/{unit}/od_low_pass", sm.latest_reading)
                 publish.single(f"morbidostat/{unit}/od_raw", raw_signal)
 
             # check if using correct gain
@@ -65,7 +65,7 @@ def od_reading(unit, verbose):
                         ads.gain = gain
 
             if verbose:
-                print(i, raw_signal, sm.latest_reading, ads.gain)
+                print(i, raw_signal, ads.gain)
 
             i += 1
 
