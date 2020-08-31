@@ -8,7 +8,7 @@ from paho.mqtt import subscribe, publish
 
 def take_od_reading(unit, verbose):
 
-    od_topic = f"morbidostat/{unit}/od_low_pass"
+    od_topic = f"morbidostat/{unit}/od_raw"
     try:
 
         if verbose:

@@ -114,7 +114,7 @@ def monitoring(target_od, unit, duration, volume):
     # main loop
     ##############################
     try:
-        every(duration * 60, calculate_growth_rate, callback=morbidostat)
+        every(duration * 60, calculate_growth_rate, callback=turbidostat)
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
 
