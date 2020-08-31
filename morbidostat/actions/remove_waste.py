@@ -1,16 +1,13 @@
 # remove waste
 import time
-import configparser
 from json import loads
+
 import click
 import RPi.GPIO as GPIO
 from paho.mqtt import publish
 
 from morbidostat.utils import pump_ml_to_duration
-
-
-config = configparser.ConfigParser()
-config.read("config.ini")
+from morbidostat.utils import config
 
 
 def remove_waste(ml, unit):

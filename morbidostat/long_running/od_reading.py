@@ -4,7 +4,6 @@ This script is designed to run in a background process and push data to MQTT.
 
 >>> nohup python3 -m morbidostat.long_running.od_reading &
 """
-import configparser
 import time
 
 import click
@@ -15,6 +14,8 @@ import board
 import busio
 
 from morbidostat.utils.streaming import MovingStats, LowPassFilter
+from morbidostat.utils import config
+
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
@@ -25,9 +26,6 @@ ADS_GAIN_THRESHOLDS = {
     16:    (0.0,  0.256),
 }
 
-
-config = configparser.ConfigParser()
-config.read("config.ini")
 
 
 @click.command()

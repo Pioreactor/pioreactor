@@ -1,14 +1,12 @@
 """
 Continuously monitor the mordibodstat and take action. This is the core of the io algorithm
 """
-import configparser
 import time
 import threading
-import sqlite3
 
 import numpy as np
-from scipy.optimize import curve_fit
 import pandas as pd
+from scipy.optimize import curve_fit
 from paho.mqtt import publish
 
 import click
@@ -19,12 +17,7 @@ from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
-from morbidostat.utils import current_alt_media_level
-
-
-
-config = configparser.ConfigParser()
-config.read("config.ini")
+from morbidostat.utils import config, execute_sql_statement
 
 
 @click.command()
@@ -38,21 +31,18 @@ def monitoring(target_od, unit, duration, volume):
     )
 
     def get_recent_observations():
-        # subtract a few minutes because things are a bit wacky post-dilution.
+        # subtract a few minutes because things are a bit wacky post-dilution. TODO: find out why
         SQL = f"""
         SELECT
-            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-4} minute') as start_time,
+            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-10} minute') as start_time,
             strftime('%Y-%m-%d %H:%M:%f', timestamp) as timestamp,
             od_reading_v
         FROM od_readings_raw
-        WHERE datetime(timestamp) > datetime('now','-{duration-4} minute')
+        WHERE datetime(timestamp) > datetime('now','-{duration-10} minute')
         """
-        db_location = config["data"]["observation_database"]
-        conn = sqlite3.connect(db_location)
-        df = pd.read_sql_query(SQL, conn)
-        conn.close()
+        df = execute_sql_statement(SQL)
 
-        assert not df.empty, f"Not data retrieved. Check database as {db_location}.\n {SQL}"
+        assert not df.empty, f"Not data retrieved. Check database.\n {SQL}"
 
         df["x"] = (pd.to_datetime(df["timestamp"]) - pd.to_datetime(df["start_time"])) / np.timedelta64(1, "h")
         return df[["x", "od_reading_v"]]
@@ -76,7 +66,6 @@ def monitoring(target_od, unit, duration, volume):
         latest_od = df["od_reading_v"].values[-10:].mean()
 
         publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2Eh⁻¹" % rate)
-        publish.single(f"morbidostat/{unit}/log", "Monitor: latest OD %.3f" % latest_od)
         publish.single(f"morbidostat/{unit}/growth_rate", f'{{"rate": "{rate}", "initial": "{initial_value}"}}')
 
 
@@ -90,8 +79,9 @@ def monitoring(target_od, unit, duration, volume):
         """
         if latest_od > target_od and rate > 1e-10:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
+            time.sleep(0.2)
             remove_waste(volume, unit)
-            time.sleep(0.1)
+            time.sleep(0.2)
             add_media(volume, unit)
         return
 
@@ -108,15 +98,15 @@ def monitoring(target_od, unit, duration, volume):
         """
         if latest_od > target_od and rate > 0:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered drug event.")
-            time.sleep(0.1)
+            time.sleep(0.2)
             remove_waste(volume, unit)
-            time.sleep(0.1)
+            time.sleep(0.2)
             add_alt_media(volume, unit)
         else:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
-            time.sleep(0.1)
+            time.sleep(0.2)
             remove_waste(volume, unit)
-            time.sleep(0.1)
+            time.sleep(0.2)
             add_media(volume, unit)
         return
 

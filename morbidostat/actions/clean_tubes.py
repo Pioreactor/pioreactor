@@ -1,6 +1,5 @@
 # clean tubes
 
-import configparser
 import time
 import threading
 import sqlite3
@@ -10,16 +9,14 @@ from scipy.optimize import curve_fit
 import pandas as pd
 
 import click
-import RPi.GPIO as GPIO
 import board
 import busio
-
-
+import RPi.GPIO as GPIO
 from paho.mqtt import publish
 
 
-config = configparser.ConfigParser()
-config.read("config.ini")
+from morbidostat.utils import config
+
 
 
 @click.command()

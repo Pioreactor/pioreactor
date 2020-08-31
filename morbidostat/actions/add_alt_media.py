@@ -5,10 +5,9 @@ from json import loads
 import click
 from paho.mqtt import publish
 import RPi.GPIO as GPIO
-from morbidostat.utils import pump_ml_to_duration
 
-config = configparser.ConfigParser()
-config.read("config.ini")
+from morbidostat.utils import pump_ml_to_duration
+from morbidostat.utils import config
 
 
 def add_alt_media(ml, unit):

@@ -1,14 +1,12 @@
 # add media
 import time
-import configparser
 from json import loads
 import click
 from paho.mqtt import publish
 import RPi.GPIO as GPIO
 from morbidostat.utils import pump_ml_to_duration
+from morbidostat.utils import config
 
-config = configparser.ConfigParser()
-config.read("config.ini")
 
 
 def add_media(ml, unit):

@@ -1,3 +1,12 @@
+import configparser
+import sqlite3
+import pandas as pd
+
+
+config = configparser.ConfigParser()
+config.read("config.ini")
+
+
 def pump_ml_to_duration(ml, rate, bias):
     """
     ml = rate * duration + bias
@@ -7,9 +16,12 @@ def pump_ml_to_duration(ml, rate, bias):
     return duration
 
 
-def execute_sql(SQL):
-    pass
-
+def execute_sql_statement(SQL):
+    db_location = config["data"]["observation_database"]
+    conn = sqlite3.connect(db_location)
+    df = pd.read_sql_query(SQL, conn)
+    conn.close()
+    return df
 
 
 def current_alt_media_level(history):
