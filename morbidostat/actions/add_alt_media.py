@@ -1,6 +1,5 @@
 # add alt_media
 import time
-import configparser
 from json import loads
 import click
 from paho.mqtt import publish

@@ -21,14 +21,12 @@ from morbidostat.utils import config, execute_sql_statement
 
 
 @click.command()
-@click.argument("target_od", type=float)
+@click.argument("mode")
+@click.option("--target_od", default=None, type=float)
 @click.option("--unit", default="1", help="The morbidostat unit")
-@click.option("--duration", default=10, help="Time, in minutes, between every monitor check")
+@click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
-def monitoring(target_od, unit, duration, volume):
-    publish.single(
-        f"morbidostat/{unit}/log", f"starting monitoring.py with {duration}min intervals, target OD {target_od}"
-    )
+def monitoring(mode, target_od, unit, duration, volume):
 
     def get_recent_observations():
         # subtract a few minutes because things are a bit wacky post-dilution. TODO: find out why
@@ -73,12 +71,15 @@ def monitoring(target_od, unit, duration, volume):
             callback(latest_od, rate, initial_value)
         return
 
+    ######################
+    ### modes of operation
+    ######################
     def turbidostat(latest_od, rate, *args):
         """
         turbidostat mode - try to keep cell density constant
         """
         if latest_od > target_od and rate > 1e-10:
-            publish.single(f"morbidostat/{unit}/log", "Monitor triggered IO event.")
+            publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
             time.sleep(0.2)
             remove_waste(volume, unit)
             time.sleep(0.2)
@@ -96,7 +97,7 @@ def monitoring(target_od, unit, duration, volume):
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
-        if latest_od > target_od and rate > 0:
+        if latest_od > target_od and rate > 1e-10:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered drug event.")
             time.sleep(0.2)
             remove_waste(volume, unit)
@@ -110,11 +111,24 @@ def monitoring(target_od, unit, duration, volume):
             add_media(volume, unit)
         return
 
+    callbacks = {
+        'silent': silent,
+        'morbidostat': morbidostat,
+        'turbidostat': turbidostat
+    }
+
+    assert mode in callbacks.keys()
+    assert duration > 10
+
+    publish.single(
+        f"morbidostat/{unit}/log", f"starting {mode} with {duration}min intervals, target OD {target_od}, volume {volume}"
+    )
+
     ##############################
     # main loop
     ##############################
     try:
-        every(duration * 60, calculate_growth_rate, callback=turbidostat)
+        every(duration * 60, calculate_growth_rate, callback=callbacks[mode])
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
 
