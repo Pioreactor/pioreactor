@@ -1,5 +1,5 @@
 """
-Continuously monitor the mordibodstat and take action. This is the core of the io algorithm
+Continuously monitor the bioreactor and take action. This is the core of the io algorithm
 """
 import time
 import threading
@@ -21,7 +21,7 @@ from morbidostat.utils import config, execute_sql_statement
 
 
 @click.command()
-@click.argument("mode")
+@click.argument("mode", help="set the mode of the system: turbidostat, mordibodstat, silent, etc.")
 @click.option("--target_od", default=None, type=float)
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
@@ -72,7 +72,7 @@ def monitoring(mode, target_od, unit, duration, volume):
         return
 
     ######################
-    ### modes of operation
+    # modes of operation
     ######################
     def turbidostat(latest_od, rate, *args):
         """
@@ -114,7 +114,7 @@ def monitoring(mode, target_od, unit, duration, volume):
     callbacks = {
         'silent': silent,
         'morbidostat': morbidostat,
-        'turbidostat': turbidostat
+        'turbidostat': turbidostat,
     }
 
     assert mode in callbacks.keys()
