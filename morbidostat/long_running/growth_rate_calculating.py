@@ -23,7 +23,7 @@ def growth_rate_calculating(unit):
     ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
 
-     while True:
+    while True:
         msg = subscribe.simple([f"morbidostat/{unit}/od_raw", f"morbidostat/{unit}/io_events"])
 
         if msg.topic.endswith("od_raw"):
