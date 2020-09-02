@@ -16,7 +16,10 @@ from morbidostat.utils.streaming import ExtendedKalmanFilter
 @click.option("--unit", default="1", help="The morbidostat unit")
 def growth_rate_calculating(unit):
 
-    initial_state = np.array([1., 1.])
+    # pick a good initialization
+    msg = subscribe.simple([f"morbidostat/{unit}/od_raw"])
+
+    initial_state = np.array([float(msg.payload), 1.])
     initial_covariance = 0.1 * np.eye(2)
     process_noise_covariance = np.array([[0.00001, 0], [0, 1e-13]])
     observation_noise_covariance = 0.2
