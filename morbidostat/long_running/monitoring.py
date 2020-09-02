@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 from paho.mqtt import publish
+import paho.mqtt.subscribe as subscribe
 
 import click
 import board
@@ -21,54 +22,19 @@ from morbidostat.utils import config, execute_sql_statement
 
 
 @click.command()
-@click.argument("mode", help="set the mode of the system: turbidostat, mordibodstat, silent, etc.")
+@click.option("--mode", default="silent", help="set the mode of the system: turbidostat, mordibodstat, silent, etc.")
 @click.option("--target_od", default=None, type=float)
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 def monitoring(mode, target_od, unit, duration, volume):
 
-    def get_recent_observations():
-        # subtract a few minutes because things are a bit wacky post-dilution. TODO: find out why
-        SQL = f"""
-        SELECT
-            strftime('%Y-%m-%d %H:%M:%f', 'now', '-{duration-10} minute') as start_time,
-            strftime('%Y-%m-%d %H:%M:%f', timestamp) as timestamp,
-            od_reading_v
-        FROM od_readings_raw
-        WHERE datetime(timestamp) > datetime('now','-{duration-10} minute')
-        """
-        df = execute_sql_statement(SQL)
-
-        assert not df.empty, f"Not data retrieved. Check database.\n {SQL}"
-
-        df["x"] = (pd.to_datetime(df["timestamp"]) - pd.to_datetime(df["start_time"])) / np.timedelta64(1, "h")
-        return df[["x", "od_reading_v"]]
-
-
-    def calculate_growth_rate(callback=None):
-        def exponential(x, rate, initial_value):
-            return initial_value * np.exp(rate * x)
-
-        df = get_recent_observations()
-
-        x = df["x"].values
-        y = df["od_reading_v"].values
-
-        try:
-            (rate, initial_value), _ = curve_fit(exponential, x, y, [1 / x.mean(), y.mean()])
-        except Exception as e:
-            publish.single(f"morbidostat/{unit}/error_log", f"Monitor rate calculation failed: {str(e)}")
-            return
-
-        latest_od = df["od_reading_v"].values[-10:].mean()
-
-        publish.single(f"morbidostat/{unit}/log", "Monitor: estimated rate %.2Eh⁻¹" % rate)
-        publish.single(f"morbidostat/{unit}/growth_rate", f'{{"rate": "{rate}", "initial": "{initial_value}"}}')
-
+    def get_growth_rate(callback=None):
+        rate = float(subscribe.simple(f"morbidostat/{unit}/growth_rate").payload)
+        latest_od = float(subscribe.simple(f"morbidostat/{unit}/od_filtered").payload)
 
         if callback:
-            callback(latest_od, rate, initial_value)
+            callback(latest_od, rate)
         return
 
     ######################
@@ -128,7 +94,7 @@ def monitoring(mode, target_od, unit, duration, volume):
     # main loop
     ##############################
     try:
-        every(duration * 60, calculate_growth_rate, callback=callbacks[mode])
+        every(duration * 60, get_growth_rate, callback=callbacks[mode])
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
 

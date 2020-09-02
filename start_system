@@ -1,0 +1,3 @@
+#!/bin/bash
+
+python3 -m morbidostat.long_running.growth_rate_calculating
