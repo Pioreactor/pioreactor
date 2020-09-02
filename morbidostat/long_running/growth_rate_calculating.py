@@ -17,7 +17,7 @@ from morbidostat.utils.streaming import ExtendedKalmanFilter
 def growth_rate_calculating(unit):
 
     initial_state = np.array([1., 1.])
-    initial_covariance = np.eye(2)
+    initial_covariance = 0.1 * np.eye(2)
     process_noise_covariance = np.array([[0.00001, 0], [0, 1e-13]])
     observation_noise_covariance = 0.2
     ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
@@ -32,7 +32,10 @@ def growth_rate_calculating(unit):
         elif msg.topic.endswith("io_events"):
             ekf.set_OD_variance_for_next_n_units(0.3, 15)
 
-        print(ekf.state_)
+        # transform the rate, r, into unit per hour.
+        publish.single(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_[0]) * 60 * 60)
+        publish.single(f"morbidostat/{unit}/od_filtered", ekf.state_[1])
+
 
 
 if __name__ == "__main__":
