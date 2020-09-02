@@ -35,6 +35,7 @@ def growth_rate_calculating(unit):
         # transform the rate, r, into unit per hour.
         publish.single(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_[0]) * 60 * 60)
         publish.single(f"morbidostat/{unit}/od_filtered", ekf.state_[1])
+        print(ekf.state_[1], np.log(ekf.state_[0]) * 60 * 60)
 
 
 
