@@ -33,9 +33,9 @@ def growth_rate_calculating(unit):
             ekf.set_OD_variance_for_next_n_units(0.3, 15)
 
         # transform the rate, r, into unit per hour.
-        publish.single(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_[0]) * 60 * 60)
-        publish.single(f"morbidostat/{unit}/od_filtered", ekf.state_[1])
-        print(ekf.state_[1], np.log(ekf.state_[0]) * 60 * 60)
+        publish.single(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_[1]) * 60 * 60)
+        publish.single(f"morbidostat/{unit}/od_filtered", ekf.state_[0])
+        print(ekf.state_[0], np.log(ekf.state_[1]) * 60 * 60)
 
 
 
