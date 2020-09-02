@@ -21,8 +21,8 @@ def growth_rate_calculating(unit):
         msg = subscribe.simple([f"morbidostat/{unit}/od_raw"])
 
         initial_state = np.array([float(msg.payload), 1.])
-        initial_covariance = 0.1 * np.eye(2)
-        process_noise_covariance = np.array([[0.00001, 0], [0, 1e-13]])
+        initial_covariance = np.array([[1e-3, 0], [0, 1e-8]])
+        process_noise_covariance = np.array([[1e-5, 0], [0, 1e-13]])
         observation_noise_covariance = 0.2
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
