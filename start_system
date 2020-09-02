@@ -1,3 +1,5 @@
 #!/bin/bash
-
-python3 -m morbidostat.long_running.growth_rate_calculating
+echo "Starting growth_rate_calculating, od_reading and monitoring processes 🚀"
+nohup python3 -m morbidostat.long_running.od_reading &
+nohup python3 -m morbidostat.long_running.growth_rate_calculating &
+nohup python3 -m morbidostat.long_running.monitoring &

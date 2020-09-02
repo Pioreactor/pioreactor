@@ -97,6 +97,7 @@ def monitoring(mode, target_od, unit, duration, volume):
         every(duration * 60, get_growth_rate, callback=callbacks[mode])
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
+        publish.single(f"morbidostat/{unit}/log", f"Monitor failed: {str(e)}")
 
 
 if __name__ == "__main__":
