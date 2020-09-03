@@ -23,7 +23,7 @@ def growth_rate_calculating(unit):
 
         # empirically picked constants
         initial_covariance = np.array([[1e-3, 0], [0, 1e-8]])
-        process_noise_covariance = np.array([[1e-5, 0], [0, 1e-12]])
+        process_noise_covariance = np.array([[5e-6, 0], [0, 1e-12]])
         observation_noise_covariance = 0.2
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
