@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS logs (
 
 
 CREATE TABLE IF NOT EXISTS experiments (
-    timestamp              TEXT  NOT NULL,
+    timestamp              TEXT  NOT NULL UNIQUE,
     experiment             TEXT  NOT NULL
 );
 

@@ -19,10 +19,11 @@ def growth_rate_calculating(unit):
     try:
         # pick a good initialization
         msg = subscribe.simple([f"morbidostat/{unit}/od_raw"])
-
         initial_state = np.array([float(msg.payload), 1.])
+
+        # empirically picked constants
         initial_covariance = np.array([[1e-3, 0], [0, 1e-8]])
-        process_noise_covariance = np.array([[1e-5, 0], [0, 1e-13]])
+        process_noise_covariance = np.array([[1e-5, 0], [0, 1e-12]])
         observation_noise_covariance = 0.2
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
@@ -34,11 +35,12 @@ def growth_rate_calculating(unit):
                 ekf.update(float(msg.payload))
 
             elif msg.topic.endswith("io_events"):
-                ekf.set_OD_variance_for_next_n_units(0.3, 15)
+                ekf.set_OD_variance_for_next_n_steps(0.2, 2 * 60)
+                continue
 
-            # transform the rate, r, into unit per hour.
-            publish.single(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_[1]) * 60 * 60)
-            publish.single(f"morbidostat/{unit}/od_filtered", ekf.state_[0])
+            # transform the rate, r, into rate per hour: e^{rate t}
+            publish.single(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_.rate) * 60 * 60)
+            publish.single(f"morbidostat/{unit}/od_filtered", ekf.state_.OD)
     except:
         publish.single(f"morbidostat/{unit}/error_log", f"growth_rate_calculating failed: {str(e)}")
         publish.single(f"morbidostat/{unit}/log", f"growth_rate_calculating failed: {str(e)}")
