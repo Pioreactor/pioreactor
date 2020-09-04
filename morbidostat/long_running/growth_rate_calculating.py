@@ -23,8 +23,8 @@ def growth_rate_calculating(unit):
 
         # empirically picked constants
         initial_covariance = np.array([[1e-3, 0], [0, 1e-8]])
-        process_noise_covariance = np.array([[5e-6, 0], [0, 1e-12]])
-        observation_noise_covariance = 0.2
+        process_noise_covariance = np.array([[1e-5, 0], [0, 1e-12]])
+        observation_noise_covariance = 1.
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
 
@@ -35,7 +35,7 @@ def growth_rate_calculating(unit):
                 ekf.update(float(msg.payload))
 
             elif msg.topic.endswith("io_events"):
-                ekf.set_OD_variance_for_next_n_steps(0.2, 2 * 60)
+                ekf.set_OD_variance_for_next_n_steps(0.1, 5 * 60)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate t}

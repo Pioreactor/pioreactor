@@ -63,18 +63,21 @@ def monitoring(mode, target_od, unit, duration, volume):
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
-        if latest_od > target_od and rate > 1e-10:
+        # 0.005 is basically flat.
+        if latest_od > target_od and rate > 0.005:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered drug event.")
             time.sleep(0.2)
             remove_waste(volume, unit)
             time.sleep(0.2)
             add_alt_media(volume, unit)
-        else:
+        elif latest_od < target_od:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
             time.sleep(0.2)
             remove_waste(volume, unit)
             time.sleep(0.2)
             add_media(volume, unit)
+        else:
+            publish.single(f"morbidostat/{unit}/log", "Monitor triggered no event.")
         return
 
     callbacks = {
