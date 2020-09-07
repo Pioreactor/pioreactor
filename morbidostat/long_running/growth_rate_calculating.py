@@ -35,7 +35,7 @@ def growth_rate_calculating(unit):
                 ekf.update(float(msg.payload))
 
             elif msg.topic.endswith("io_events"):
-                ekf.set_OD_variance_for_next_n_steps(0.1, 5 * 60)
+                ekf.set_OD_variance_for_next_n_steps(0.1, 8 * 60)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate t}

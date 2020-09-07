@@ -50,6 +50,8 @@ def monitoring(mode, target_od, unit, duration, volume):
             remove_waste(volume, unit)
             time.sleep(0.2)
             add_media(volume, unit)
+        else:
+            publish.single(f"morbidostat/{unit}/log", "Monitor triggered no event.")
         return
 
     def silent(*args):
@@ -70,14 +72,12 @@ def monitoring(mode, target_od, unit, duration, volume):
             remove_waste(volume, unit)
             time.sleep(0.2)
             add_alt_media(volume, unit)
-        elif latest_od < target_od:
+        else:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
             time.sleep(0.2)
             remove_waste(volume, unit)
             time.sleep(0.2)
             add_media(volume, unit)
-        else:
-            publish.single(f"morbidostat/{unit}/log", "Monitor triggered no event.")
         return
 
     callbacks = {
