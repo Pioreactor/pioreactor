@@ -33,8 +33,8 @@ def clean_tubes(unit, duration):
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, 1)
 
-            click.echo(click.style(f"starting cleaning of {tube}", fg="green"))
-            publish.single(f"morbidostat/{unit}/log", f"starting cleaning of {tube}.")
+            click.echo(click.style(f"starting cleaning of {tube} tube", fg="green"))
+            publish.single(f"morbidostat/{unit}/log", f"starting cleaning of {tube} tube.")
 
             GPIO.output(pin, 0)
             time.sleep(duration)

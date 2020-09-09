@@ -2,6 +2,8 @@
 Continuously monitor the bioreactor and take action. This is the core of the io algorithm
 """
 import time
+import signal
+import sys
 import threading
 
 import numpy as np
@@ -44,7 +46,7 @@ def monitoring(mode, target_od, unit, duration, volume):
         """
         turbidostat mode - try to keep cell density constant
         """
-        if latest_od > target_od and rate > 1e-10:
+        if latest_od > target_od and rate > 0:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
             time.sleep(0.2)
             remove_waste(volume, unit)
@@ -65,9 +67,8 @@ def monitoring(mode, target_od, unit, duration, volume):
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
-        # 0.005 is basically flat.
-        if latest_od > target_od and rate > 0.005:
-            publish.single(f"morbidostat/{unit}/log", "Monitor triggered drug event.")
+        if latest_od > target_od and rate > 0:
+            publish.single(f"morbidostat/{unit}/log", "Monitor triggered alt media event.")
             time.sleep(0.2)
             remove_waste(volume, unit)
             time.sleep(0.2)
@@ -90,7 +91,7 @@ def monitoring(mode, target_od, unit, duration, volume):
     assert duration > 10
 
     publish.single(
-        f"morbidostat/{unit}/log", f"starting {mode} with {duration}min intervals, target OD {target_od}, volume {volume}"
+        f"morbidostat/{unit}/log", f"starting {mode} with {duration}min intervals, target OD {target_od}, volume {volume}."
     )
 
     ##############################
@@ -103,5 +104,10 @@ def monitoring(mode, target_od, unit, duration, volume):
         publish.single(f"morbidostat/{unit}/log", f"Monitor failed: {str(e)}")
 
 
+def terminate():
+    publish.single(f"morbidostat/{unit}/log", f"Monitor terminated.")
+    sys.exit()
+
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, terminate)
     monitoring()
