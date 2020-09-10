@@ -25,7 +25,6 @@ from morbidostat.utils import config, execute_sql_statement
 
 class ControlAlgorithm:
 
-    # init these
     latest_rate = 0
     latest_od = 0
 
@@ -88,6 +87,7 @@ class Morbidostat(ControlAlgorithm):
         self.target_od = target_od
         self.unit = unit
         self.volume = volume
+        self.latest_alt_media_fraction = 0.0
 
     def execute(self):
         """
@@ -104,6 +104,7 @@ class Morbidostat(ControlAlgorithm):
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_alt_media(self.volume, self.unit)
+            self.update_alt_media_fraction(media_delta=0, alt_media_delta=self.volume)
         else:
             publish.single(
                 f"morbidostat/{self.unit}/log", "Monitor triggered dilution event."
@@ -112,6 +113,32 @@ class Morbidostat(ControlAlgorithm):
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
+            self.update_alt_media_fraction(media_delta=self.volume, alt_media_delta=0)
+        return
+
+
+    def update_alt_media_fraction(self, media_delta, alt_media_delta):
+        vial_volume = 12
+        total_delta = media_delta + alt_media_delta
+
+        # current mL
+        alt_media_ml = vial_volume * self.latest_alt_media_fraction
+        media_ml = vial_volume * (1 - self.latest_alt_media_fraction)
+
+        # remove
+        alt_media_ml = alt_media_ml * (1 - total_delta/vial_volume)
+        media_ml = media_ml * (1 - total_delta/vial_volume)
+
+        # add (alt) media
+        alt_media_ml = alt_media_ml + alt_media_delta
+        media_ml = media_ml + media_delta
+
+        self.latest_alt_media_fraction = alt_media_ml / vial_volume
+
+        publish.single(
+            f"morbidostat/{self.unit}/alt_media_fraction", self.latest_alt_media_fraction
+        )
+
         return
 
 
@@ -119,7 +146,7 @@ class Morbidostat(ControlAlgorithm):
 @click.option(
     "--mode",
     default="silent",
-    help="set the mode of the system: turbidostat, mordibodstat, silent, etc.",
+    help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
 )
 @click.option("--target_od", default=None, type=float)
 @click.option("--unit", default="1", help="The morbidostat unit")
