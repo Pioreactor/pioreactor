@@ -129,7 +129,7 @@ def monitoring(mode, target_od, unit, duration, volume):
         "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od),
     }
 
-    assert mode in callbacks.keys()
+    assert mode in algorithms.keys()
     assert duration > 10
 
     publish.single(
