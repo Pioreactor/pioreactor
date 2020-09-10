@@ -35,8 +35,7 @@ class ControlAlgorithm:
         return
 
     def set_OD_measurements(self):
-        self.previous_rate = self.latest_rate
-        self.previous_od = self.previous_od
+        self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
         self.latest_rate = float(
             subscribe.simple(f"morbidostat/{unit}/growth_rate").payload
