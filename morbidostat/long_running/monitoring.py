@@ -24,6 +24,11 @@ from morbidostat.utils import config, execute_sql_statement
 
 
 class ControlAlgorithm:
+
+    # init these
+    latest_rate = 0
+    latest_od = 0
+
     def run(self):
         self.set_OD_measurements()
         self.execute()
@@ -134,7 +139,7 @@ def monitoring(mode, target_od, unit, duration, volume):
 
     publish.single(
         f"morbidostat/{unit}/log",
-        f"starting {mode} with {duration}min intervals, target OD {target_od}, volume {volume}.",
+        f"starting {mode} with {duration}min intervals, target OD {target_od}V, volume {volume}mL.",
     )
 
     ##############################
