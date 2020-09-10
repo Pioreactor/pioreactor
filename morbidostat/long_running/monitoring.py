@@ -38,10 +38,10 @@ class ControlAlgorithm:
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
         self.latest_rate = float(
-            subscribe.simple(f"morbidostat/{unit}/growth_rate").payload
+            subscribe.simple(f"morbidostat/{self.unit}/growth_rate").payload
         )
         self.latest_od = float(
-            subscribe.simple(f"morbidostat/{unit}/od_filtered").payload
+            subscribe.simple(f"morbidostat/{self.unit}/od_filtered").payload
         )
         return
 
@@ -72,14 +72,14 @@ class Turbidostat(ControlAlgorithm):
     def execute(self):
         if self.latest_od > self.target_od and self.latest_rate > 0:
             publish.single(
-                f"morbidostat/{unit}/log", "Monitor triggered dilution event."
+                f"morbidostat/{self.unit}/log", "Monitor triggered dilution event."
             )
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
         else:
-            publish.single(f"morbidostat/{unit}/log", "Monitor triggered no event.")
+            publish.single(f"morbidostat/{self.unit}/log", "Monitor triggered no event.")
         return
 
 
@@ -96,7 +96,7 @@ class Morbidostat(ControlAlgorithm):
         """
         if self.latest_od > self.target_od and self.latest_od > self.previous_od:
             publish.single(
-                f"morbidostat/{unit}/log", "Monitor triggered alt media event."
+                f"morbidostat/{self.unit}/log", "Monitor triggered alt media event."
             )
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
@@ -104,7 +104,7 @@ class Morbidostat(ControlAlgorithm):
             add_alt_media(self.volume, self.unit)
         else:
             publish.single(
-                f"morbidostat/{unit}/log", "Monitor triggered dilution event."
+                f"morbidostat/{self.unit}/log", "Monitor triggered dilution event."
             )
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
