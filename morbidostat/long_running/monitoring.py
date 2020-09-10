@@ -95,6 +95,8 @@ class Morbidostat(ControlAlgorithm):
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         if self.latest_od > self.target_od and self.latest_od > self.previous_od:
+            # if we are above the threshold, and growth rate is greater than dilution rate
+            # the second condition is an approximation of this.
             publish.single(
                 f"morbidostat/{self.unit}/log", "Monitor triggered alt media event."
             )
@@ -127,6 +129,14 @@ class Morbidostat(ControlAlgorithm):
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 def monitoring(mode, target_od, unit, duration, volume):
 
+    def terminate(*args):
+        publish.single(f"morbidostat/{unit}/log", f"Monitor terminated.")
+        sys.exit()
+
+    signal.signal(signal.SIGTERM, terminate)
+
+
+
     algorithms = {
         "silent": Silent(),
         "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od),
@@ -134,7 +144,7 @@ def monitoring(mode, target_od, unit, duration, volume):
     }
 
     assert mode in algorithms.keys()
-    #assert duration > 10
+    assert duration > 10
 
     publish.single(
         f"morbidostat/{unit}/log",
@@ -151,11 +161,7 @@ def monitoring(mode, target_od, unit, duration, volume):
         publish.single(f"morbidostat/{unit}/log", f"Monitor failed: {str(e)}")
 
 
-def terminate(*args):
-    publish.single(f"morbidostat/{unit}/log", f"Monitor terminated.")
-    sys.exit()
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGTERM, terminate)
     monitoring()
