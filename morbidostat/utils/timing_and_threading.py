@@ -1,7 +1,4 @@
-# timing and threading
-
 import time, traceback
-import threading
 
 
 def every(delay, task, *args, **kwargs):

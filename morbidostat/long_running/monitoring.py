@@ -23,90 +23,134 @@ from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils import config, execute_sql_statement
 
 
-@click.command()
-@click.option("--mode", default="silent", help="set the mode of the system: turbidostat, mordibodstat, silent, etc.")
-@click.option("--target_od", default=None, type=float)
-@click.option("--unit", default="1", help="The morbidostat unit")
-@click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
-@click.option("--volume", default=0.25, help="the volume to exchange, mL")
-def monitoring(mode, target_od, unit, duration, volume):
-
-    def get_growth_rate(callback=None):
-        rate = float(subscribe.simple(f"morbidostat/{unit}/growth_rate").payload)
-        latest_od = float(subscribe.simple(f"morbidostat/{unit}/od_filtered").payload)
-
-        if callback:
-            callback(latest_od, rate)
+class ControlAlgorithm:
+    def run(self):
+        self.set_OD_measurements()
+        self.execute()
         return
 
-    ######################
-    # modes of operation
-    ######################
-    def turbidostat(latest_od, rate, *args):
-        """
-        turbidostat mode - try to keep cell density constant
-        """
-        if latest_od > target_od and rate > 0:
-            publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
+    def set_OD_measurements(self):
+        self.previous_rate = self.latest_rate
+        self.previous_od = self.previous_od
+
+        self.latest_rate = float(
+            subscribe.simple(f"morbidostat/{unit}/growth_rate").payload
+        )
+        self.latest_od = float(
+            subscribe.simple(f"morbidostat/{unit}/od_filtered").payload
+        )
+        return
+
+
+######################
+# modes of operation
+######################
+
+
+class Silent(ControlAlgorithm):
+    def __init__(self, **kwargs):
+        return
+
+    def execute(self, *args, **kwargs):
+        return
+
+
+class Turbidostat(ControlAlgorithm):
+    """
+    turbidostat mode - try to keep cell density constant
+    """
+
+    def __init__(self, target_od=None, unit=None, volume=None, **kwargs):
+        self.target_od = target_od
+        self.unit = unit
+        self.volume = volume
+
+    def execute(self):
+        if self.latest_od > self.target_od and self.latest_rate > 0:
+            publish.single(
+                f"morbidostat/{unit}/log", "Monitor triggered dilution event."
+            )
             time.sleep(0.2)
-            remove_waste(volume, unit)
+            remove_waste(self.volume, self.unit)
             time.sleep(0.2)
-            add_media(volume, unit)
+            add_media(self.volume, self.unit)
         else:
             publish.single(f"morbidostat/{unit}/log", "Monitor triggered no event.")
         return
 
-    def silent(*args):
-        """
-        do nothing, ever
-        """
-        return
 
-    def morbidostat(latest_od, rate, *args):
+class Morbidostat(ControlAlgorithm):
+    def __init__(self, target_od=None, unit=None, volume=None, **kwargs):
+        self.target_od = target_od
+        self.unit = unit
+        self.volume = volume
+
+    def execute(self):
         """
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
-        if latest_od > target_od and rate > 0:
-            publish.single(f"morbidostat/{unit}/log", "Monitor triggered alt media event.")
+        if self.latest_od > self.target_od and self.latest_od > self.previous_od:
+            publish.single(
+                f"morbidostat/{unit}/log", "Monitor triggered alt media event."
+            )
             time.sleep(0.2)
-            remove_waste(volume, unit)
+            remove_waste(self.volume, self.unit)
             time.sleep(0.2)
-            add_alt_media(volume, unit)
+            add_alt_media(self.volume, self.unit)
         else:
-            publish.single(f"morbidostat/{unit}/log", "Monitor triggered dilution event.")
+            publish.single(
+                f"morbidostat/{unit}/log", "Monitor triggered dilution event."
+            )
             time.sleep(0.2)
-            remove_waste(volume, unit)
+            remove_waste(self.volume, self.unit)
             time.sleep(0.2)
-            add_media(volume, unit)
+            add_media(self.volume, self.unit)
         return
 
-    callbacks = {
-        'silent': silent,
-        'morbidostat': morbidostat,
-        'turbidostat': turbidostat,
+
+@click.command()
+@click.option(
+    "--mode",
+    default="silent",
+    help="set the mode of the system: turbidostat, mordibodstat, silent, etc.",
+)
+@click.option("--target_od", default=None, type=float)
+@click.option("--unit", default="1", help="The morbidostat unit")
+@click.option(
+    "--duration", default=30, help="Time, in minutes, between every monitor check"
+)
+@click.option("--volume", default=0.25, help="the volume to exchange, mL")
+def monitoring(mode, target_od, unit, duration, volume):
+
+    algorithms = {
+        "silent": Silent(),
+        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od),
+        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od),
     }
 
     assert mode in callbacks.keys()
     assert duration > 10
 
     publish.single(
-        f"morbidostat/{unit}/log", f"starting {mode} with {duration}min intervals, target OD {target_od}, volume {volume}."
+        f"morbidostat/{unit}/log",
+        f"starting {mode} with {duration}min intervals, target OD {target_od}, volume {volume}.",
     )
 
     ##############################
     # main loop
     ##############################
     try:
-        every(duration * 60, get_growth_rate, callback=callbacks[mode])
+        every(duration * 60, algorithms[mode].run)
     except Exception as e:
         publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
         publish.single(f"morbidostat/{unit}/log", f"Monitor failed: {str(e)}")
 
 
-def terminate():
+def terminate(*args):
     publish.single(f"morbidostat/{unit}/log", f"Monitor terminated.")
     sys.exit()
+
 
 if __name__ == "__main__":
     signal.signal(signal.SIGTERM, terminate)

@@ -19,13 +19,12 @@ from morbidostat.utils import config
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
-    1:     (2.048, 4.096),
-    2:     (1.024, 2.048),
-    4:     (0.512, 1.024),
-    8:     (0.256, 0.512),
-    16:    (0.0,  0.256),
+    1: (2.048, 4.096),
+    2: (1.024, 2.048),
+    4: (0.512, 1.024),
+    8: (0.256, 0.512),
+    16: (0.0, 0.256),
 }
-
 
 
 @click.command()
@@ -67,12 +66,18 @@ def od_reading(unit, verbose):
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
             publish.single(
-                f"morbidostat/{unit}/error_log", f"{unit} od_reading.py failed with {str(e)}. Attempting to continue."
+                f"morbidostat/{unit}/error_log",
+                f"{unit} od_reading.py failed with {str(e)}. Attempting to continue.",
             )
             time.sleep(5.0)
         except Exception as e:
-            publish.single(f"morbidostat/{unit}/log", f"od_reading.py failed with {str(e)}")
-            publish.single(f"morbidostat/{unit}/error_log", f"{unit} od_reading.py failed with {str(e)}")
+            publish.single(
+                f"morbidostat/{unit}/log", f"od_reading.py failed with {str(e)}"
+            )
+            publish.single(
+                f"morbidostat/{unit}/error_log",
+                f"{unit} od_reading.py failed with {str(e)}",
+            )
             raise e
 
 
