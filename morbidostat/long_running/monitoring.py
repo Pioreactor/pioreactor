@@ -130,7 +130,7 @@ def monitoring(mode, target_od, unit, duration, volume):
     }
 
     assert mode in algorithms.keys()
-    assert duration > 10
+    #assert duration > 10
 
     publish.single(
         f"morbidostat/{unit}/log",
