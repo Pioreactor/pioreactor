@@ -2,37 +2,29 @@
 import time
 from json import loads
 import click
-from paho.mqtt import publish
 import RPi.GPIO as GPIO
 
 from morbidostat.utils import pump_ml_to_duration
 from morbidostat.utils import config
+from morbidostat.utils.publishing import publish
 
 
-def add_alt_media(ml, unit):
+def add_alt_media(ml, unit, verbose=False):
 
     try:
         GPIO.setmode(GPIO.BCM)
 
         ALT_MEDIA_PIN = int(config["rpi_pins"][f"alt_media{unit}"])
         GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
-        GPIO.output(ALT_MEDIA_PIN, 1)
-
-        click.echo(click.style(f"starting add_alt_media: {ml}mL", fg="green"))
-
+        GPIO.output(ALT_MEDIA_PIN, 1) # TODO: why do I do this? Do I need this line?
         GPIO.output(ALT_MEDIA_PIN, 0)
         time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"]["alt_media_ml_calibration"])))
         GPIO.output(ALT_MEDIA_PIN, 1)
 
-        publish.single(
-            f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml
-        )
-
-        publish.single(f"morbidostat/{unit}/log", f"add_alt_media: {ml}mL")
-        click.echo(click.style(f"finished add_alt_media: {ml}mL", fg="green"))
+        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml, verbose=verbose)
+        publish(f"morbidostat/{unit}/log", f"add_alt_media: {ml}mL", verbose=verbose)
     except Exception as e:
-        publish.single(f"morbidostat/{unit}/error_log", f"{unit} add_alt_media.py failed with {str(e)}")
-        click.echo(click.style(f"{unit} add_alt_media.py failed with {str(e)}", fg="red"))
+        publish(f"morbidostat/{unit}/error_log", f"{unit} add_alt_media.py failed with {str(e)}", verbose=verbose)
 
     finally:
         GPIO.cleanup()
@@ -41,9 +33,10 @@ def add_alt_media(ml, unit):
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
+@click.option("--verbose", default=False, help="print to std out")
 @click.argument("ml", type=float)
-def click_add_alt_media(ml, unit):
-    return add_alt_media(ml, unit)
+def click_add_alt_media(ml, unit, verbose):
+    return add_alt_media(ml, unit, verbose)
 
 
 if __name__ == "__main__":

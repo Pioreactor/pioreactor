@@ -10,6 +10,7 @@ import paho.mqtt.subscribe as subscribe
 
 import click
 from morbidostat.utils.streaming import ExtendedKalmanFilter
+from morbidostat.utils import config
 
 
 @click.command()

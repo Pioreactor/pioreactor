@@ -12,17 +12,17 @@ import click
 import board
 import busio
 import RPi.GPIO as GPIO
-from paho.mqtt import publish
-
 
 from morbidostat.utils import config
+from morbidostat.utils.publishing import publish
 
 
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=50, help="Time, in seconds, to run pumps")
-def clean_tubes(unit, duration):
+@click.option("--verbose", default=False, help="print to std out")
+def clean_tubes(unit, duration, verbose):
 
     GPIO.setmode(GPIO.BCM)
 
@@ -33,19 +33,17 @@ def clean_tubes(unit, duration):
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, 1)
 
-            click.echo(click.style(f"starting cleaning of {tube} tube", fg="green"))
-            publish.single(f"morbidostat/{unit}/log", f"starting cleaning of {tube} tube.")
+            publish(f"morbidostat/{unit}/log", f"starting cleaning of {tube} tube.")
 
             GPIO.output(pin, 0)
             time.sleep(duration)
             GPIO.output(pin, 1)
             time.sleep(0.1)
 
-        publish.single(f"morbidostat/{unit}/log", "finished cleaning cycle.")
+        publish(f"morbidostat/{unit}/log", "finished cleaning cycle.", verbose=verbose)
     except Exception as e:
-        publish.single(f"morbidostat/{unit}/log", f"clean_tubes.py failed with {str(e)}")
-        publish.single(f"morbidostat/{unit}/error_log", f"clean_tubes.py failed with {str(e)}")
-        click.echo(click.style(f"clean_tubes.py failed with {str(e)}", fg="red"))
+        publish(f"morbidostat/{unit}/log", f"clean_tubes.py failed with {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/error_log", f"clean_tubes.py failed with {str(e)}", verbose=verbose)
     finally:
         GPIO.cleanup()
     return

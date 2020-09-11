@@ -4,13 +4,13 @@ from json import loads
 
 import click
 import RPi.GPIO as GPIO
-from paho.mqtt import publish
 
 from morbidostat.utils import pump_ml_to_duration
 from morbidostat.utils import config
+from morbidostat.utils.publishing import publish
 
 
-def remove_waste(ml, unit):
+def remove_waste(ml, unit, verbose=False):
 
     try:
         GPIO.setmode(GPIO.BCM)
@@ -19,18 +19,14 @@ def remove_waste(ml, unit):
         GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 1)
 
-        click.echo(click.style("starting remove_waste: %smL" % ml, fg="green"))
-
         GPIO.output(WASTE_PIN, 0)
         time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"]["waste_ml_calibration"])))
         GPIO.output(WASTE_PIN, 1)
-        publish.single(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml)
+        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml, verbose=verbose)
 
-        publish.single(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml)
-        click.echo(click.style("finished remove_waste: %smL" % ml, fg="green"))
+        publish(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml, verbose=verbose)
     except Exception as e:
-        publish.single(f"morbidostat/{unit}/error_log",)
-        click.echo(click.style(f"{unit} remove_waste.py failed with {str(e)}", fg="red"))
+        publish(f"morbidostat/{unit}/error_log", f"{unit} remove_waste.py failed with {str(e)}", verbose=verbose)
     finally:
         GPIO.cleanup()
     return
@@ -38,9 +34,10 @@ def remove_waste(ml, unit):
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
+@click.option("--verbose", default=False, help="print to std out")
 @click.argument("ml", type=float)
-def click_remove_waste(ml, unit):
-    return remove_waste(ml, unit)
+def click_remove_waste(ml, unit, verbose):
+    return remove_waste(ml, unit, verbose)
 
 
 if __name__ == "__main__":

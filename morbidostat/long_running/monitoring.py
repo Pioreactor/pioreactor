@@ -9,7 +9,6 @@ import threading
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
-from paho.mqtt import publish
 import paho.mqtt.subscribe as subscribe
 
 import click
@@ -20,7 +19,8 @@ from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
-from morbidostat.utils import config, execute_sql_statement
+from morbidostat.utils.pubishing import publish
+from morbidostat.utils import config
 
 
 class ControlAlgorithm:
@@ -70,7 +70,7 @@ class Turbidostat(ControlAlgorithm):
 
     def execute(self):
         if self.latest_od > self.target_od and self.latest_rate > 0:
-            publish.single(
+            publish(
                 f"morbidostat/{self.unit}/log", "Monitor triggered dilution event."
             )
             time.sleep(0.2)
@@ -78,7 +78,9 @@ class Turbidostat(ControlAlgorithm):
             time.sleep(0.2)
             add_media(self.volume, self.unit)
         else:
-            publish.single(f"morbidostat/{self.unit}/log", "Monitor triggered no event.")
+            publish(
+                f"morbidostat/{self.unit}/log", "Monitor triggered no event."
+            )
         return
 
 
@@ -97,7 +99,7 @@ class Morbidostat(ControlAlgorithm):
         if self.latest_od > self.target_od and self.latest_od > self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
-            publish.single(
+            publish(
                 f"morbidostat/{self.unit}/log", "Monitor triggered alt media event."
             )
             time.sleep(0.2)
@@ -106,7 +108,7 @@ class Morbidostat(ControlAlgorithm):
             add_alt_media(self.volume, self.unit)
             self.update_alt_media_fraction(media_delta=0, alt_media_delta=self.volume)
         else:
-            publish.single(
+            publish(
                 f"morbidostat/{self.unit}/log", "Monitor triggered dilution event."
             )
             time.sleep(0.2)
@@ -116,8 +118,8 @@ class Morbidostat(ControlAlgorithm):
             self.update_alt_media_fraction(media_delta=self.volume, alt_media_delta=0)
         return
 
-
     def update_alt_media_fraction(self, media_delta, alt_media_delta):
+        # should this live here, or in another listener...
         vial_volume = 12
         total_delta = media_delta + alt_media_delta
 
@@ -126,8 +128,8 @@ class Morbidostat(ControlAlgorithm):
         media_ml = vial_volume * (1 - self.latest_alt_media_fraction)
 
         # remove
-        alt_media_ml = alt_media_ml * (1 - total_delta/vial_volume)
-        media_ml = media_ml * (1 - total_delta/vial_volume)
+        alt_media_ml = alt_media_ml * (1 - total_delta / vial_volume)
+        media_ml = media_ml * (1 - total_delta / vial_volume)
 
         # add (alt) media
         alt_media_ml = alt_media_ml + alt_media_delta
@@ -135,8 +137,9 @@ class Morbidostat(ControlAlgorithm):
 
         self.latest_alt_media_fraction = alt_media_ml / vial_volume
 
-        publish.single(
-            f"morbidostat/{self.unit}/alt_media_fraction", self.latest_alt_media_fraction
+        publish(
+            f"morbidostat/{self.unit}/alt_media_fraction",
+            self.latest_alt_media_fraction,
         )
 
         return
@@ -155,14 +158,11 @@ class Morbidostat(ControlAlgorithm):
 )
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 def monitoring(mode, target_od, unit, duration, volume):
-
     def terminate(*args):
-        publish.single(f"morbidostat/{unit}/log", f"Monitor terminated.")
+        publish(f"morbidostat/{unit}/log", f"Monitor terminated.")
         sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
-
-
 
     algorithms = {
         "silent": Silent(),
@@ -173,7 +173,7 @@ def monitoring(mode, target_od, unit, duration, volume):
     assert mode in algorithms.keys()
     assert duration > 10
 
-    publish.single(
+    publish(
         f"morbidostat/{unit}/log",
         f"starting {mode} with {duration}min intervals, target OD {target_od}V, volume {volume}mL.",
     )
@@ -184,10 +184,8 @@ def monitoring(mode, target_od, unit, duration, volume):
     try:
         every(duration * 60, algorithms[mode].run)
     except Exception as e:
-        publish.single(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
-        publish.single(f"morbidostat/{unit}/log", f"Monitor failed: {str(e)}")
-
-
+        publish(f"morbidostat/{unit}/error_log", f"Monitor failed: {str(e)}")
+        publish(f"morbidostat/{unit}/log", f"Monitor failed: {str(e)}")
 
 
 if __name__ == "__main__":

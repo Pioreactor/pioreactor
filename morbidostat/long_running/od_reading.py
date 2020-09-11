@@ -9,12 +9,12 @@ import time
 import click
 from adafruit_ads1x15.analog_in import AnalogIn
 import adafruit_ads1x15.ads1115 as ADS
-from paho.mqtt import publish
 import board
 import busio
 
 from morbidostat.utils.streaming import MovingStats
 from morbidostat.utils import config
+from morbidostat.utils.publishing import publish
 
 
 ADS_GAIN_THRESHOLDS = {
@@ -39,7 +39,7 @@ def od_reading(unit, verbose):
     sampling_rate = 1 / int(config["od_sampling"]["samples_per_second"])
     ma = MovingStats(lookback=20)
 
-    publish.single(f"morbidostat/{unit}/log", "starting od_reading.py")
+    publish(f"morbidostat/{unit}/log", "starting od_reading.py", verbose=verbose)
 
     i = 1
     while True:
@@ -50,7 +50,7 @@ def od_reading(unit, verbose):
 
             # publish
             if i % int(config["od_sampling"]["mqtt_publish_rate"]) == 0:
-                publish.single(f"morbidostat/{unit}/od_raw", raw_signal)
+                publish(f"morbidostat/{unit}/od_raw", raw_signal, verbose=verbose)
 
             # check if using correct gain
             if i % 100 == 0 and ma.mean is not None:
@@ -58,25 +58,22 @@ def od_reading(unit, verbose):
                     if 0.9 * lb <= ma.mean < 0.9 * ub:
                         ads.gain = gain
 
-            if verbose:
-                print(i, raw_signal, ads.gain)
-
             i += 1
 
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
-            publish.single(
+            publish(
                 f"morbidostat/{unit}/error_log",
-                f"{unit} od_reading.py failed with {str(e)}. Attempting to continue.",
+                f"{unit} od_reading.py failed with {str(e)}. Attempting to continue.", verbose=verbose
             )
             time.sleep(5.0)
         except Exception as e:
-            publish.single(
-                f"morbidostat/{unit}/log", f"od_reading.py failed with {str(e)}"
+            publish(
+                f"morbidostat/{unit}/log", f"od_reading.py failed with {str(e)}", verbose=verbose
             )
-            publish.single(
+            publish(
                 f"morbidostat/{unit}/error_log",
-                f"{unit} od_reading.py failed with {str(e)}",
+                f"{unit} od_reading.py failed with {str(e)}", verbose=verbose
             )
             raise e
 
