@@ -8,7 +8,6 @@ from morbidostat.utils import config
 from morbidostat.utils.publishing import publish
 
 
-
 def add_media(ml, unit, verbose=False):
 
     try:
@@ -18,17 +17,24 @@ def add_media(ml, unit, verbose=False):
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 1)
 
-
         GPIO.output(MEDIA_PIN, 0)
-        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"]["media_ml_calibration"])))
+        time.sleep(
+            pump_ml_to_duration(ml, *loads(config["pump_calibration"]["media_ml_calibration"]))
+        )
         GPIO.output(MEDIA_PIN, 1)
 
         publish(
-            f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml, verbose=verbose
+            f"morbidostat/{unit}/io_events",
+            '{"volume_change": "%s", "event": "add_media"}' % ml,
+            verbose=verbose,
         )
         publish(f"morbidostat/{unit}/log", "add_media: %smL" % ml, verbose=verbose)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"{unit} add_media.py failed with {str(e)}", verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/error_log",
+            f"{unit} add_media.py failed with {str(e)}",
+            verbose=verbose,
+        )
     finally:
         GPIO.cleanup()
     return
@@ -36,7 +42,7 @@ def add_media(ml, unit, verbose=False):
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
-@click.option("--verbose", default=False, help="print to std out")
+@click.option("--verbose", is_flag=True, help="print to std out")
 @click.argument("ml", type=float)
 def click_add_media(ml, unit, verbose):
     return add_media(ml, unit, verbose)

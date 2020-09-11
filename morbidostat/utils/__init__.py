@@ -22,4 +22,3 @@ def execute_sql_statement(SQL):
     df = pd.read_sql_query(SQL, conn)
     conn.close()
     return df
-

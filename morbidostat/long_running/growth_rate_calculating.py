@@ -4,22 +4,23 @@ import threading
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
-from paho.mqtt import publish
 import paho.mqtt.subscribe as subscribe
 
 
 import click
 from morbidostat.utils.streaming import ExtendedKalmanFilter
 from morbidostat.utils import config
+from morbidostat.utils.publishing import publish
 
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
-def growth_rate_calculating(unit):
+@click.option("--angle", default="135", help="The angle to use")
+def growth_rate_calculating(unit, angle):
 
     try:
         # pick a good initialization
-        msg = subscribe.simple([f"morbidostat/{unit}/od_raw"])
+        msg = subscribe.simple([f"morbidostat/{unit}/od_raw/{angle}"])
         initial_state = np.array([float(msg.payload), 1.0])
 
         # empirically picked constants
@@ -35,7 +36,7 @@ def growth_rate_calculating(unit):
 
         while True:
             msg = subscribe.simple(
-                [f"morbidostat/{unit}/od_raw", f"morbidostat/{unit}/io_events"]
+                [f"morbidostat/{unit}/od_raw/{angle}", f"morbidostat/{unit}/io_events"]
             )
 
             if msg.topic.endswith("od_raw"):
@@ -46,17 +47,11 @@ def growth_rate_calculating(unit):
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate t}
-            publish.single(
-                f"morbidostat/{unit}/growth_rate", np.log(ekf.state_.rate) * 60 * 60
-            )
-            publish.single(f"morbidostat/{unit}/od_filtered", ekf.state_.OD)
+            publish(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_.rate) * 60 * 60)
+            publish(f"morbidostat/{unit}/od_filtered", ekf.state_.OD)
     except:
-        publish.single(
-            f"morbidostat/{unit}/error_log", f"growth_rate_calculating failed: {str(e)}"
-        )
-        publish.single(
-            f"morbidostat/{unit}/log", f"growth_rate_calculating failed: {str(e)}"
-        )
+        publish(f"morbidostat/{unit}/error_log", f"growth_rate_calculating failed: {str(e)}")
+        publish(f"morbidostat/{unit}/log", f"growth_rate_calculating failed: {str(e)}")
 
 
 if __name__ == "__main__":

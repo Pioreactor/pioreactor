@@ -16,15 +16,25 @@ def add_alt_media(ml, unit, verbose=False):
 
         ALT_MEDIA_PIN = int(config["rpi_pins"][f"alt_media{unit}"])
         GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
-        GPIO.output(ALT_MEDIA_PIN, 1) # TODO: why do I do this? Do I need this line?
+        GPIO.output(ALT_MEDIA_PIN, 1)  # TODO: why do I do this? Do I need this line?
         GPIO.output(ALT_MEDIA_PIN, 0)
-        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"]["alt_media_ml_calibration"])))
+        time.sleep(
+            pump_ml_to_duration(ml, *loads(config["pump_calibration"]["alt_media_ml_calibration"]))
+        )
         GPIO.output(ALT_MEDIA_PIN, 1)
 
-        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml, verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/io_events",
+            '{"volume_change": "%s", "event": "add_alt_media"}' % ml,
+            verbose=verbose,
+        )
         publish(f"morbidostat/{unit}/log", f"add_alt_media: {ml}mL", verbose=verbose)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"{unit} add_alt_media.py failed with {str(e)}", verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/error_log",
+            f"{unit} add_alt_media.py failed with {str(e)}",
+            verbose=verbose,
+        )
 
     finally:
         GPIO.cleanup()
@@ -33,7 +43,7 @@ def add_alt_media(ml, unit, verbose=False):
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
-@click.option("--verbose", default=False, help="print to std out")
+@click.option("--verbose", is_flag=True, help="print to std out")
 @click.argument("ml", type=float)
 def click_add_alt_media(ml, unit, verbose):
     return add_alt_media(ml, unit, verbose)

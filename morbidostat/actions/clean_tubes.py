@@ -17,11 +17,10 @@ from morbidostat.utils import config
 from morbidostat.utils.publishing import publish
 
 
-
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=50, help="Time, in seconds, to run pumps")
-@click.option("--verbose", default=False, help="print to std out")
+@click.option("--verbose", is_flag=True, help="print to std out")
 def clean_tubes(unit, duration, verbose):
 
     GPIO.setmode(GPIO.BCM)
@@ -43,11 +42,12 @@ def clean_tubes(unit, duration, verbose):
         publish(f"morbidostat/{unit}/log", "finished cleaning cycle.", verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/log", f"clean_tubes.py failed with {str(e)}", verbose=verbose)
-        publish(f"morbidostat/{unit}/error_log", f"clean_tubes.py failed with {str(e)}", verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/error_log", f"clean_tubes.py failed with {str(e)}", verbose=verbose
+        )
     finally:
         GPIO.cleanup()
     return
-
 
 
 if __name__ == "__main__":

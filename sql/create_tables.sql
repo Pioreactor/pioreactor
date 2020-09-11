@@ -8,6 +8,17 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
     angle                  REAL  NOT NULL
 );
 
+
+CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
+    timestamp              TEXT  NOT NULL,
+    morbidostat_unit       TEXT  NOT NULL,
+    fluoresence_reading_v  REAL  NOT NULL,
+    experiment             TEXT  NOT NULL,
+    ex_nm                  REAL  NOT NULL
+    em_nm                  REAL  NOT NULL
+);
+
+
 CREATE TABLE IF NOT EXISTS od_readings_filtered (
     timestamp              TEXT  NOT NULL,
     morbidostat_unit       TEXT  NOT NULL,

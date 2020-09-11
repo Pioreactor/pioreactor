@@ -36,12 +36,8 @@ class ControlAlgorithm:
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
-        self.latest_rate = float(
-            subscribe.simple(f"morbidostat/{self.unit}/growth_rate").payload
-        )
-        self.latest_od = float(
-            subscribe.simple(f"morbidostat/{self.unit}/od_filtered").payload
-        )
+        self.latest_rate = float(subscribe.simple(f"morbidostat/{self.unit}/growth_rate").payload)
+        self.latest_od = float(subscribe.simple(f"morbidostat/{self.unit}/od_filtered").payload)
         return
 
 
@@ -70,17 +66,13 @@ class Turbidostat(ControlAlgorithm):
 
     def execute(self):
         if self.latest_od > self.target_od and self.latest_rate > 0:
-            publish(
-                f"morbidostat/{self.unit}/log", "Monitor triggered dilution event."
-            )
+            publish(f"morbidostat/{self.unit}/log", "Monitor triggered dilution event.")
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
         else:
-            publish(
-                f"morbidostat/{self.unit}/log", "Monitor triggered no event."
-            )
+            publish(f"morbidostat/{self.unit}/log", "Monitor triggered no event.")
         return
 
 
@@ -99,18 +91,14 @@ class Morbidostat(ControlAlgorithm):
         if self.latest_od > self.target_od and self.latest_od > self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
-            publish(
-                f"morbidostat/{self.unit}/log", "Monitor triggered alt media event."
-            )
+            publish(f"morbidostat/{self.unit}/log", "Monitor triggered alt media event.")
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_alt_media(self.volume, self.unit)
             self.update_alt_media_fraction(media_delta=0, alt_media_delta=self.volume)
         else:
-            publish(
-                f"morbidostat/{self.unit}/log", "Monitor triggered dilution event."
-            )
+            publish(f"morbidostat/{self.unit}/log", "Monitor triggered dilution event.")
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
@@ -138,8 +126,7 @@ class Morbidostat(ControlAlgorithm):
         self.latest_alt_media_fraction = alt_media_ml / vial_volume
 
         publish(
-            f"morbidostat/{self.unit}/alt_media_fraction",
-            self.latest_alt_media_fraction,
+            f"morbidostat/{self.unit}/alt_media_fraction", self.latest_alt_media_fraction,
         )
 
         return
@@ -153,9 +140,7 @@ class Morbidostat(ControlAlgorithm):
 )
 @click.option("--target_od", default=None, type=float)
 @click.option("--unit", default="1", help="The morbidostat unit")
-@click.option(
-    "--duration", default=30, help="Time, in minutes, between every monitor check"
-)
+@click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 def monitoring(mode, target_od, unit, duration, volume):
     def terminate(*args):

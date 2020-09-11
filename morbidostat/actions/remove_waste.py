@@ -20,13 +20,23 @@ def remove_waste(ml, unit, verbose=False):
         GPIO.output(WASTE_PIN, 1)
 
         GPIO.output(WASTE_PIN, 0)
-        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"]["waste_ml_calibration"])))
+        time.sleep(
+            pump_ml_to_duration(ml, *loads(config["pump_calibration"]["waste_ml_calibration"]))
+        )
         GPIO.output(WASTE_PIN, 1)
-        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml, verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/io_events",
+            '{"volume_change": "-%s", "event": "remove_waste"}' % ml,
+            verbose=verbose,
+        )
 
         publish(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml, verbose=verbose)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"{unit} remove_waste.py failed with {str(e)}", verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/error_log",
+            f"{unit} remove_waste.py failed with {str(e)}",
+            verbose=verbose,
+        )
     finally:
         GPIO.cleanup()
     return
@@ -34,7 +44,7 @@ def remove_waste(ml, unit, verbose=False):
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
-@click.option("--verbose", default=False, help="print to std out")
+@click.option("--verbose", is_flag=True, help="print to std out")
 @click.argument("ml", type=float)
 def click_remove_waste(ml, unit, verbose):
     return remove_waste(ml, unit, verbose)
