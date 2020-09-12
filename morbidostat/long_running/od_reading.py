@@ -32,7 +32,7 @@ ADS_GAIN_THRESHOLDS = {
 @click.option(
     "--od_angle_channel",
     multiple=True,
-    default="135,0"
+    default="135,0",
     type=click.STRING,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:

@@ -39,7 +39,8 @@ def growth_rate_calculating(unit, angle, verbose):
 
         while True:
             msg = subscribe.simple(
-                [f"morbidostat/{unit}/od_raw/{angle}", f"morbidostat/{unit}/io_events"], hostname=leader_hostname
+                [f"morbidostat/{unit}/od_raw/{angle}", f"morbidostat/{unit}/io_events"],
+                hostname=leader_hostname,
             )
 
             if msg.topic.endswith("od_raw"):
@@ -50,11 +51,21 @@ def growth_rate_calculating(unit, angle, verbose):
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate t}
-            publish(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_.rate) * 60 * 60, verbose=verbose)
+            publish(
+                f"morbidostat/{unit}/growth_rate",
+                np.log(ekf.state_.rate) * 60 * 60,
+                verbose=verbose,
+            )
             publish(f"morbidostat/{unit}/od_filtered", ekf.state_.OD, verbose=verbose)
     except:
-        publish(f"morbidostat/{unit}/error_log", f"growth_rate_calculating failed: {str(e)}", verbose=verbose)
-        publish(f"morbidostat/{unit}/log", f"growth_rate_calculating failed: {str(e)}", verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/error_log",
+            f"growth_rate_calculating failed: {str(e)}",
+            verbose=verbose,
+        )
+        publish(
+            f"morbidostat/{unit}/log", f"growth_rate_calculating failed: {str(e)}", verbose=verbose
+        )
 
 
 if __name__ == "__main__":

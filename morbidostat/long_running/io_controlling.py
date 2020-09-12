@@ -36,8 +36,16 @@ class ControlAlgorithm:
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
-        self.latest_rate = float(subscribe.simple(f"morbidostat/{self.unit}/growth_rate", hostname=leader_hostname).payload)
-        self.latest_od = float(subscribe.simple(f"morbidostat/{self.unit}/od_filtered", hostname=leader_hostname).payload)
+        self.latest_rate = float(
+            subscribe.simple(
+                f"morbidostat/{self.unit}/growth_rate", hostname=leader_hostname
+            ).payload
+        )
+        self.latest_od = float(
+            subscribe.simple(
+                f"morbidostat/{self.unit}/od_filtered", hostname=leader_hostname
+            ).payload
+        )
         return
 
 
@@ -64,7 +72,6 @@ class Turbidostat(ControlAlgorithm):
         self.unit = unit
         self.volume = volume
         self.duration = duration
-
 
     def execute(self):
         if self.latest_od > self.target_od and self.latest_rate > 0:
@@ -130,8 +137,12 @@ def io_controlling(mode, target_od, unit, duration, volume):
 
     algorithms = {
         "silent": Silent(),
-        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
-        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
+        "morbidostat": Morbidostat(
+            unit=unit, volume=volume, target_od=target_od, duration=duration
+        ),
+        "turbidostat": Turbidostat(
+            unit=unit, volume=volume, target_od=target_od, duration=duration
+        ),
     }
 
     assert mode in algorithms.keys()

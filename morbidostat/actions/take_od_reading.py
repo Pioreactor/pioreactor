@@ -8,7 +8,6 @@ from morbidostat.utils.publishing import publish
 from morbidostat.utils import leader_hostname
 
 
-
 def take_od_reading(unit, angle, verbose):
 
     od_topic = f"morbidostat/{unit}/od_raw/{angle}"

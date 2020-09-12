@@ -19,7 +19,9 @@ def add_media(ml, unit, verbose=False):
 
         GPIO.output(MEDIA_PIN, 0)
         time.sleep(
-            pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"media{unit}_ml_calibration"]))
+            pump_ml_to_duration(
+                ml, *loads(config["pump_calibration"][f"media{unit}_ml_calibration"])
+            )
         )
         GPIO.output(MEDIA_PIN, 1)
 

@@ -15,12 +15,9 @@ from morbidostat.utils import leader_hostname
 VIAL_VOLUME = 12
 
 
-class AltMediaCalculator():
-
-
+class AltMediaCalculator:
     def __init__(self, unit=None, **kwargs):
         self.unit = unit
-
 
     @property
     def latest_alt_media_fraction(self):
@@ -28,7 +25,11 @@ class AltMediaCalculator():
             return self._latest_alt_media_fraction
         else:
             try:
-                msg = subscribe.simple(f"morbidostat/{self.unit}/alt_media_fraction", keepalive=10, hostname=leader_hostname)
+                msg = subscribe.simple(
+                    f"morbidostat/{self.unit}/alt_media_fraction",
+                    keepalive=10,
+                    hostname=leader_hostname,
+                )
                 self._latest_alt_media_fraction = float(msg.payload)
             except:
                 self._latest_alt_media_fraction = 0
@@ -38,12 +39,11 @@ class AltMediaCalculator():
     def latest_alt_media_fraction(self, value):
         self._latest_alt_media_fraction = value
 
-
     def on_message(self, client, userdata, message):
         assert message.topic == f"morbidostat/{self.unit}/io_events"
 
         payload = json.loads(message.payload)
-        volume, event = float(payload['volume']), payload['event']
+        volume, event = float(payload["volume"]), payload["event"]
         if event == "add_media":
             self.update_alt_media_fraction(volume, 0)
         elif event == "add_alt_media":
@@ -71,25 +71,25 @@ class AltMediaCalculator():
         self.latest_alt_media_fraction = alt_media_ml / VIAL_VOLUME
 
         publish(
-            f"morbidostat/{self.unit}/alt_media_fraction", self.latest_alt_media_fraction, retain=True
+            f"morbidostat/{self.unit}/alt_media_fraction",
+            self.latest_alt_media_fraction,
+            retain=True,
         )
 
         return
-
 
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
 def io_listening(mode, target_od, unit, duration, volume):
 
-
     publish(f"morbidostat/{unit}/log", f"starting io_listening")
 
-    subscribe.callback(AltMediaCalculator(unit).on_message, f"morbidostat/{unit}/io_events", hostname=leader_hostname)
-
-
-
-
+    subscribe.callback(
+        AltMediaCalculator(unit).on_message,
+        f"morbidostat/{unit}/io_events",
+        hostname=leader_hostname,
+    )
 
 
 if __name__ == "__main__":
