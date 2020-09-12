@@ -30,20 +30,26 @@ ADS_GAIN_THRESHOLDS = {
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option(
-    "--od_channel_angle",
+    "--od_angle_channel",
     multiple=True,
+    default="135,0"
     type=click.STRING,
-    help="pair of ADC channel,angle for optical density reading. Can be invoked multiple times.",
+    help="""
+pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
+
+--od_angle_channel 135,0 --od_angle_channel 90,1 --od_angle_channel 45,2
+
+""",
 )
 @click.option("--verbose", is_flag=True, help="print to std out")
-def od_reading(unit, verbose, od_channel_angle):
+def od_reading(unit, verbose, od_angle_channel):
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
 
     od_channels = []
-    for input_ in od_channel_angle:
-        channel, angle = input_.split(",")
+    for input_ in od_angle_channel:
+        angle, channel = input_.split(",")
         od_channels.append((angle, AnalogIn(ads, getattr(ADS, "P" + channel))))
 
     sampling_rate = 1 / int(config["od_sampling"]["samples_per_second"])

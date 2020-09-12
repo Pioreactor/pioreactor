@@ -5,6 +5,8 @@ import time
 import click
 from paho.mqtt import subscribe
 from morbidostat.utils.publishing import publish
+from morbidostat.utils import leader_hostname
+
 
 
 def take_od_reading(unit, angle, verbose):
@@ -12,7 +14,7 @@ def take_od_reading(unit, angle, verbose):
     od_topic = f"morbidostat/{unit}/od_raw/{angle}"
     try:
 
-        result = subscribe.simple(od_topic, keepalive=10).payload.decode(encoding="UTF-8")
+        result = subscribe.simple(od_topic, keepalive=10, hostname=leader_hostname).payload
         result = float(result)
 
         publish(f"morbidostat/{unit}/log", "take_od_reading: %.3fV" % result, verbose=verbose)

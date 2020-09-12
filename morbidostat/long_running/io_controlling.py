@@ -6,9 +6,6 @@ import signal
 import sys
 import threading
 
-import numpy as np
-import pandas as pd
-from scipy.optimize import curve_fit
 import paho.mqtt.subscribe as subscribe
 
 import click
@@ -20,7 +17,10 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubishing import publish
-from morbidostat.utils import config
+from morbidostat.utils import leader_hostname
+
+
+VIAL_VOLUME = 12
 
 
 class ControlAlgorithm:
@@ -36,8 +36,8 @@ class ControlAlgorithm:
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
-        self.latest_rate = float(subscribe.simple(f"morbidostat/{self.unit}/growth_rate").payload)
-        self.latest_od = float(subscribe.simple(f"morbidostat/{self.unit}/od_filtered").payload)
+        self.latest_rate = float(subscribe.simple(f"morbidostat/{self.unit}/growth_rate", hostname=leader_hostname).payload)
+        self.latest_od = float(subscribe.simple(f"morbidostat/{self.unit}/od_filtered", hostname=leader_hostname).payload)
         return
 
 
@@ -59,10 +59,12 @@ class Turbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant
     """
 
-    def __init__(self, target_od=None, unit=None, volume=None, **kwargs):
+    def __init__(self, target_od=None, unit=None, volume=None, duration=None, **kwargs):
         self.target_od = target_od
         self.unit = unit
         self.volume = volume
+        self.duration = duration
+
 
     def execute(self):
         if self.latest_od > self.target_od and self.latest_rate > 0:
@@ -77,11 +79,15 @@ class Turbidostat(ControlAlgorithm):
 
 
 class Morbidostat(ControlAlgorithm):
-    def __init__(self, target_od=None, unit=None, volume=None, **kwargs):
+    def __init__(self, target_od=None, unit=None, volume=None, duration=None, **kwargs):
         self.target_od = target_od
         self.unit = unit
         self.volume = volume
-        self.latest_alt_media_fraction = 0.0
+        self.duration_in_minutes = duration
+
+    @property
+    def estimated_hourly_dilution_rate_(self):
+        return (self.volume / VIAL_VOLUME) / (self.duration_in_minutes / 60)
 
     def execute(self):
         """
@@ -96,39 +102,12 @@ class Morbidostat(ControlAlgorithm):
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_alt_media(self.volume, self.unit)
-            self.update_alt_media_fraction(media_delta=0, alt_media_delta=self.volume)
         else:
             publish(f"morbidostat/{self.unit}/log", "Monitor triggered dilution event.")
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
-            self.update_alt_media_fraction(media_delta=self.volume, alt_media_delta=0)
-        return
-
-    def update_alt_media_fraction(self, media_delta, alt_media_delta):
-        # should this live here, or in another listener...
-        vial_volume = 12
-        total_delta = media_delta + alt_media_delta
-
-        # current mL
-        alt_media_ml = vial_volume * self.latest_alt_media_fraction
-        media_ml = vial_volume * (1 - self.latest_alt_media_fraction)
-
-        # remove
-        alt_media_ml = alt_media_ml * (1 - total_delta / vial_volume)
-        media_ml = media_ml * (1 - total_delta / vial_volume)
-
-        # add (alt) media
-        alt_media_ml = alt_media_ml + alt_media_delta
-        media_ml = media_ml + media_delta
-
-        self.latest_alt_media_fraction = alt_media_ml / vial_volume
-
-        publish(
-            f"morbidostat/{self.unit}/alt_media_fraction", self.latest_alt_media_fraction,
-        )
-
         return
 
 
@@ -142,7 +121,7 @@ class Morbidostat(ControlAlgorithm):
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
-def monitoring(mode, target_od, unit, duration, volume):
+def io_controlling(mode, target_od, unit, duration, volume):
     def terminate(*args):
         publish(f"morbidostat/{unit}/log", f"Monitor terminated.")
         sys.exit()
@@ -151,8 +130,8 @@ def monitoring(mode, target_od, unit, duration, volume):
 
     algorithms = {
         "silent": Silent(),
-        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od),
-        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od),
+        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
+        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
     }
 
     assert mode in algorithms.keys()
@@ -174,4 +153,4 @@ def monitoring(mode, target_od, unit, duration, volume):
 
 
 if __name__ == "__main__":
-    monitoring()
+    io_controlling()

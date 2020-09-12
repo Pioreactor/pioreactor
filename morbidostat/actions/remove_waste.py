@@ -21,7 +21,7 @@ def remove_waste(ml, unit, verbose=False):
 
         GPIO.output(WASTE_PIN, 0)
         time.sleep(
-            pump_ml_to_duration(ml, *loads(config["pump_calibration"]["waste_ml_calibration"]))
+            pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"waste{unit}_ml_calibration"]))
         )
         GPIO.output(WASTE_PIN, 1)
         publish(

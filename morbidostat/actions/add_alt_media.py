@@ -19,7 +19,7 @@ def add_alt_media(ml, unit, verbose=False):
         GPIO.output(ALT_MEDIA_PIN, 1)  # TODO: why do I do this? Do I need this line?
         GPIO.output(ALT_MEDIA_PIN, 0)
         time.sleep(
-            pump_ml_to_duration(ml, *loads(config["pump_calibration"]["alt_media_ml_calibration"]))
+            pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"alt_media{unit}_ml_calibration"]))
         )
         GPIO.output(ALT_MEDIA_PIN, 1)
 

@@ -5,6 +5,7 @@ import pandas as pd
 
 config = configparser.ConfigParser()
 config.read("config.ini")
+leader_hostname = config["network"]["leader_hostname"]
 
 
 def pump_ml_to_duration(ml, rate, bias):
