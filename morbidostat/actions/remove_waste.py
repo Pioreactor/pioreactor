@@ -32,7 +32,7 @@ def remove_waste(ml, unit, verbose=False):
             verbose=verbose,
         )
 
-        publish(f"morbidostat/{unit}/log", "remove_waste: %smL" % ml, verbose=verbose)
+        publish(f"morbidostat/{unit}/log", "remove waste: %smL" % ml, verbose=verbose)
     except Exception as e:
         publish(
             f"morbidostat/{unit}/error_log",

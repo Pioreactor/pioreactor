@@ -12,7 +12,7 @@ import adafruit_ads1x15.ads1115 as ADS
 import board
 import busio
 
-from morbidostat.utils.streaming import MovingStats
+from morbidostat.utils.streaming_calculations import MovingStats
 from morbidostat.utils import config
 from morbidostat.utils.publishing import publish
 
@@ -55,7 +55,7 @@ def od_reading(unit, verbose, od_angle_channel):
     sampling_rate = 1 / int(config["od_sampling"]["samples_per_second"])
     ma = MovingStats(lookback=20)
 
-    publish(f"morbidostat/{unit}/log", "starting od_reading.py", verbose=verbose)
+    publish(f"morbidostat/{unit}/log", "[od_reading]: starting", verbose=verbose)
 
     i = 1
     while True:

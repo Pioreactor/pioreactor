@@ -16,13 +16,23 @@ VIAL_VOLUME = 12
 
 
 class AltMediaCalculator:
-    def __init__(self, unit=None, **kwargs):
+    """
+    Computes the fraction of the vial that is from the alt-media vs the regular media.
+
+    Parameters
+    -----------
+    ignore_cache: ignore any retained values in the MQTT bus
+    """
+    def __init__(self, unit=None, ignore_cache=False, **kwargs):
         self.unit = unit
+        self.ignore_cache = ignore_cache
 
     @property
     def latest_alt_media_fraction(self):
         if hasattr(self, "_latest_alt_media_fraction"):
             return self._latest_alt_media_fraction
+        elif self.ignore_cache:
+            self._latest_alt_media_fraction = 0
         else:
             try:
                 msg = subscribe.simple(
@@ -33,7 +43,7 @@ class AltMediaCalculator:
                 self._latest_alt_media_fraction = float(msg.payload)
             except:
                 self._latest_alt_media_fraction = 0
-            return self._latest_alt_media_fraction
+        return self._latest_alt_media_fraction
 
     @latest_alt_media_fraction.setter
     def latest_alt_media_fraction(self, value):
@@ -81,12 +91,13 @@ class AltMediaCalculator:
 
 @click.command()
 @click.option("--unit", default="1", help="The morbidostat unit")
-def io_listening(mode, target_od, unit, duration, volume):
+@click.option("--ignore_cache", is_flag=True, help="ignore the retained MQTT msg")
+def io_listening(unit, clear_cache):
 
-    publish(f"morbidostat/{unit}/log", f"starting io_listening")
+    publish(f"morbidostat/{unit}/log", f"[io_listening]: starting")
 
     subscribe.callback(
-        AltMediaCalculator(unit).on_message,
+        AltMediaCalculator(unit=unit, ignore_cache=ignore_cache).on_message,
         f"morbidostat/{unit}/io_events",
         hostname=leader_hostname,
     )

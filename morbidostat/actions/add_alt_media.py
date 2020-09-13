@@ -30,7 +30,7 @@ def add_alt_media(ml, unit, verbose=False):
             '{"volume_change": "%s", "event": "add_alt_media"}' % ml,
             verbose=verbose,
         )
-        publish(f"morbidostat/{unit}/log", f"add_alt_media: {ml}mL", verbose=verbose)
+        publish(f"morbidostat/{unit}/log", f"add alt media: {ml}mL", verbose=verbose)
     except Exception as e:
         publish(
             f"morbidostat/{unit}/error_log",

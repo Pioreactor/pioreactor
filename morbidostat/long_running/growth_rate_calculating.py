@@ -8,7 +8,7 @@ import paho.mqtt.subscribe as subscribe
 
 
 import click
-from morbidostat.utils.streaming import ExtendedKalmanFilter
+from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.utils import leader_hostname
 from morbidostat.utils.publishing import publish
 
@@ -19,7 +19,7 @@ from morbidostat.utils.publishing import publish
 @click.option("--verbose", is_flag=True, help="Print to std out")
 def growth_rate_calculating(unit, angle, verbose):
 
-    publish(f"morbidostat/{unit}/log", "starting growth_rate_calculating.py", verbose=verbose)
+    publish(f"morbidostat/{unit}/log", "[growth_rate_calculating: starting", verbose=verbose)
 
     try:
         # pick a good initialization
@@ -50,7 +50,7 @@ def growth_rate_calculating(unit, angle, verbose):
                 ekf.set_OD_variance_for_next_n_steps(0.1, 8 * 60)
                 continue
 
-            # transform the rate, r, into rate per hour: e^{rate t}
+            # transform the rate, r, into rate per hour: e^{rate * hours}
             publish(
                 f"morbidostat/{unit}/growth_rate",
                 np.log(ekf.state_.rate) * 60 * 60,
@@ -60,11 +60,11 @@ def growth_rate_calculating(unit, angle, verbose):
     except:
         publish(
             f"morbidostat/{unit}/error_log",
-            f"growth_rate_calculating failed: {str(e)}",
+            f"[growth_rate_calculating]: failed {str(e)}",
             verbose=verbose,
         )
         publish(
-            f"morbidostat/{unit}/log", f"growth_rate_calculating failed: {str(e)}", verbose=verbose
+            f"morbidostat/{unit}/log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose
         )
 
 

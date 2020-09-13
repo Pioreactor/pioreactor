@@ -1,5 +1,4 @@
 # publishing
-
 from paho.mqtt import publish as mqtt_publish
 from morbidostat.utils import leader_hostname
 

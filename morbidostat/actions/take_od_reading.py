@@ -16,7 +16,7 @@ def take_od_reading(unit, angle, verbose):
         result = subscribe.simple(od_topic, keepalive=10, hostname=leader_hostname).payload
         result = float(result)
 
-        publish(f"morbidostat/{unit}/log", "take_od_reading: %.3fV" % result, verbose=verbose)
+        publish(f"morbidostat/{unit}/log", "[take_od_reading]: %.3fV" % result, verbose=verbose)
     except Exception as e:
         publish(
             f"morbidostat/{unit}/error_log",
