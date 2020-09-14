@@ -152,7 +152,7 @@ def io_controlling(mode, target_od, unit, duration, volume, verbose):
     publish(
         f"morbidostat/{unit}/log",
         f"[io_controlling]: starting {mode} with {duration}min intervals, target OD {target_od}V, volume {volume}mL.",
-        verbose=verbose
+        verbose=verbose,
     )
 
     ##############################
@@ -161,7 +161,9 @@ def io_controlling(mode, target_od, unit, duration, volume, verbose):
     try:
         every(duration * 60, algorithms[mode].run)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose
+        )
         publish(f"morbidostat/{unit}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
 
 

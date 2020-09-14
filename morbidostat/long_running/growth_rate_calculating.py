@@ -62,7 +62,9 @@ def growth_rate_calculating(unit, angle, verbose):
             verbose=verbose,
         )
         publish(
-            f"morbidostat/{unit}/log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose
+            f"morbidostat/{unit}/log",
+            f"[growth_rate_calculating]: failed {str(e)}",
+            verbose=verbose,
         )
 
 
