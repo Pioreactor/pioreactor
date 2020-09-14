@@ -128,9 +128,10 @@ class Morbidostat(ControlAlgorithm):
 @click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
-def io_controlling(mode, target_od, unit, duration, volume):
+@click.option("--verbose", is_flag=True)
+def io_controlling(mode, target_od, unit, duration, volume, verbose):
     def terminate(*args):
-        publish(f"morbidostat/{unit}/log", f"[io_controlling]: terminated.")
+        publish(f"morbidostat/{unit}/log", f"[io_controlling]: terminated.", verbose=verbose)
         sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
@@ -151,6 +152,7 @@ def io_controlling(mode, target_od, unit, duration, volume):
     publish(
         f"morbidostat/{unit}/log",
         f"[io_controlling]: starting {mode} with {duration}min intervals, target OD {target_od}V, volume {volume}mL.",
+        verbose=verbose
     )
 
     ##############################
@@ -159,8 +161,8 @@ def io_controlling(mode, target_od, unit, duration, volume):
     try:
         every(duration * 60, algorithms[mode].run)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}")
-        publish(f"morbidostat/{unit}/log", f"[io_controlling]: failed {str(e)}")
+        publish(f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
 
 
 if __name__ == "__main__":
