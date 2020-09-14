@@ -95,7 +95,7 @@ class AltMediaCalculator:
 @click.option("--verbose", is_flag=True, help="print to std.out")
 def io_listening(unit, ignore_cache, verbose):
 
-    publish(f"morbidostat/{unit}/log", f"[io_listening]: starting")
+    publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
 
     subscribe.callback(
         AltMediaCalculator(unit=unit, ignore_cache=ignore_cache).on_message,
