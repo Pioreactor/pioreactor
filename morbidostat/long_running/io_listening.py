@@ -53,7 +53,7 @@ class AltMediaCalculator:
 
     def on_message(self, client, userdata, message):
         print("Here")
-        print(message)
+        print(message.payload)
         assert message.topic == f"morbidostat/{self.unit}/io_events"
         print("Here1")
         payload = json.loads(message.payload)
