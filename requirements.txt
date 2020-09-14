@@ -1,6 +1,9 @@
-numpy
-adafruit-circuitpython-ads1x15
+# numpy, use sudo apt-get install python3-numpy
 
+adafruit-circuitpython-ads1x15
 RPi.GPIO
 click
 paho-mqtt
+
+
+# optional: pandas, scipy

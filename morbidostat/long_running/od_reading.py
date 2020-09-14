@@ -59,7 +59,7 @@ def od_reading(unit, verbose, od_angle_channel):
 
     i = 1
     while True:
-        time.sleep(sampling_rate)
+        cycle_start_time = time.time()
         try:
 
             raw_signals = []
@@ -79,6 +79,10 @@ def od_reading(unit, verbose, od_angle_channel):
                         break
 
             i += 1
+        cycle_end_time = time.time()
+        delta_cycle_time = cycle_end_time - cycle_start_time
+
+        time.sleep(sampling_rate - delta_cycle_time)
 
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
