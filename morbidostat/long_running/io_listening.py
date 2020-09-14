@@ -56,7 +56,7 @@ class AltMediaCalculator:
         try:
             assert message.topic == f"morbidostat/{self.unit}/io_events"
             payload = json.loads(message.payload)
-            volume, event = float(payload["volume"]), payload["event"]
+            volume, event = float(payload["volume_change"]), payload["event"]
             if event == "add_media":
                 self.update_alt_media_fraction(volume, 0)
             elif event == "add_alt_media":
@@ -66,6 +66,7 @@ class AltMediaCalculator:
             else:
                 raise ValueError()
         except:
+            # paho swallows exceptions in callbacks, this spits them back up.
             traceback.print_exc()
             return
 
@@ -104,7 +105,6 @@ class AltMediaCalculator:
 def io_listening(unit, ignore_cache, verbose):
 
     publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
-    print(leader_hostname)
     subscribe.callback(
         AltMediaCalculator(unit=unit, ignore_cache=ignore_cache, verbose=verbose).on_message,
         f"morbidostat/{unit}/io_events",

@@ -89,17 +89,17 @@ def od_reading(unit, verbose, od_angle_channel):
             # just pause, not sure why this happens when add_media or remove_waste are called.
             publish(
                 f"morbidostat/{unit}/error_log",
-                f"{unit} od_reading.py failed with {str(e)}. Attempting to continue.",
+                f"[od_reading] failed with {str(e)}. Attempting to continue.",
                 verbose=verbose,
             )
             time.sleep(5.0)
         except Exception as e:
             publish(
-                f"morbidostat/{unit}/log", f"od_reading.py failed with {str(e)}", verbose=verbose
+                f"morbidostat/{unit}/log", f"[od_reading] failed with {str(e)}", verbose=verbose
             )
             publish(
                 f"morbidostat/{unit}/error_log",
-                f"{unit} od_reading.py failed with {str(e)}",
+                f"[od_reading] failed with {str(e)}",
                 verbose=verbose,
             )
             raise e
