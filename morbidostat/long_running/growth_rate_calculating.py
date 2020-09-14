@@ -19,7 +19,7 @@ from morbidostat.utils.publishing import publish
 @click.option("--verbose", is_flag=True, help="Print to std out")
 def growth_rate_calculating(unit, angle, verbose):
 
-    publish(f"morbidostat/{unit}/log", "[growth_rate_calculating: starting", verbose=verbose)
+    publish(f"morbidostat/{unit}/log", "[growth_rate_calculating]: starting", verbose=verbose)
 
     try:
         # pick a good initialization
@@ -43,10 +43,10 @@ def growth_rate_calculating(unit, angle, verbose):
                 hostname=leader_hostname,
             )
 
-            if msg.topic.endswith("od_raw"):
+            if "od_raw" in msg.topic:
                 ekf.update(float(msg.payload))
 
-            elif msg.topic.endswith("io_events"):
+            elif "io_events" in msg.topic:
                 ekf.set_OD_variance_for_next_n_steps(0.1, 8 * 60)
                 continue
 
@@ -57,7 +57,7 @@ def growth_rate_calculating(unit, angle, verbose):
                 verbose=verbose,
             )
             publish(f"morbidostat/{unit}/od_filtered", ekf.state_.OD, verbose=verbose)
-    except:
+    except Exception as e:
         publish(
             f"morbidostat/{unit}/error_log",
             f"[growth_rate_calculating]: failed {str(e)}",
