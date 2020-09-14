@@ -1,12 +1,6 @@
 # clean tubes
 
 import time
-import threading
-import sqlite3
-
-import numpy as np
-from scipy.optimize import curve_fit
-import pandas as pd
 
 import click
 import board

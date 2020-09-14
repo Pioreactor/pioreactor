@@ -2,8 +2,6 @@ import time
 import threading
 
 import numpy as np
-import pandas as pd
-from scipy.optimize import curve_fit
 import paho.mqtt.subscribe as subscribe
 
 

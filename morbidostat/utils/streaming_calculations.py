@@ -1,4 +1,3 @@
-from scipy import signal
 import numpy as np
 from statistics import *
 from collections import namedtuple
@@ -31,6 +30,7 @@ class MovingStats:
 
 class LowPassFilter:
     def __init__(self, length_of_filter, low_pass_corner_frequ, time_between_reading):
+        from scipy import signal
 
         self._latest_reading = None
         self.filtwindow = signal.firwin(
@@ -39,6 +39,8 @@ class LowPassFilter:
         self.window = signal.lfilter_zi(self.filtwindow, 1)
 
     def update(self, value):
+        from scipy import signal
+
         self._latest_reading, self.window = signal.lfilter(
             self.filtwindow, 1, [value], zi=self.window
         )
