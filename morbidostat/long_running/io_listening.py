@@ -24,7 +24,7 @@ class AltMediaCalculator:
     ignore_cache: ignore any retained values in the MQTT bus
     """
 
-    def __init__(self, unit=None, ignore_cache=False, verbose=verbose, **kwargs):
+    def __init__(self, unit=None, ignore_cache=False, verbose=False, **kwargs):
         self.unit = unit
         self.ignore_cache = ignore_cache
         self.verbose=verbose
