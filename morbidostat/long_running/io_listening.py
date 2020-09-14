@@ -90,7 +90,7 @@ class AltMediaCalculator:
         publish(
             f"morbidostat/{self.unit}/alt_media_fraction",
             self.latest_alt_media_fraction,
-            verbose=verbose,
+            verbose=self.verbose,
             retain=True,
         )
 
