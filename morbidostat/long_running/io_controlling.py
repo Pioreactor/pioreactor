@@ -16,7 +16,7 @@ from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
-from morbidostat.utils.pubishing import publish
+from morbidostat.utils.publishing import publish
 from morbidostat.utils import leader_hostname
 
 

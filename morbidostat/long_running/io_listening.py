@@ -8,7 +8,7 @@ import click
 import board
 import busio
 
-from morbidostat.utils.pubishing import publish
+from morbidostat.utils.publishing import publish
 from morbidostat.utils import leader_hostname
 
 
