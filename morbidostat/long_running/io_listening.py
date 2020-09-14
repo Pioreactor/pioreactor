@@ -2,6 +2,7 @@
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
 import json
+import traceback
 
 import paho.mqtt.subscribe as subscribe
 import click
@@ -52,24 +53,23 @@ class AltMediaCalculator:
         self._latest_alt_media_fraction = value
 
     def on_message(self, client, userdata, message):
-        print("Here")
-        print(message.payload)
-        assert message.topic == f"morbidostat/{self.unit}/io_events"
-        print("Here1")
-        payload = json.loads(message.payload)
-        volume, event = float(payload["volume"]), payload["event"]
-        print("here1")
-        if event == "add_media":
-            self.update_alt_media_fraction(volume, 0)
-        elif event == "add_alt_media":
-            self.update_alt_media_fraction(0, volume)
-        elif event == "remove_waste":
-            pass
-        else:
-            raise ValueError()
+        try:
+            assert message.topic == f"morbidostat/{self.unit}/io_events"
+            payload = json.loads(message.payload)
+            volume, event = float(payload["volume"]), payload["event"]
+            if event == "add_media":
+                self.update_alt_media_fraction(volume, 0)
+            elif event == "add_alt_media":
+                self.update_alt_media_fraction(0, volume)
+            elif event == "remove_waste":
+                pass
+            else:
+                raise ValueError()
+        except:
+            traceback.print_exc()
+            return
 
     def update_alt_media_fraction(self, media_delta, alt_media_delta):
-        print("here2")
 
         total_delta = media_delta + alt_media_delta
 
@@ -84,10 +84,8 @@ class AltMediaCalculator:
         # add (alt) media
         alt_media_ml = alt_media_ml + alt_media_delta
         media_ml = media_ml + media_delta
-        print("here3")
 
         self.latest_alt_media_fraction = alt_media_ml / VIAL_VOLUME
-        print("here4")
 
         publish(
             f"morbidostat/{self.unit}/alt_media_fraction",
@@ -95,7 +93,6 @@ class AltMediaCalculator:
             verbose=verbose,
             retain=True,
         )
-        print("here5")
 
         return
 
