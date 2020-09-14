@@ -52,6 +52,7 @@ class AltMediaCalculator:
         self._latest_alt_media_fraction = value
 
     def on_message(self, client, userdata, message):
+        print("Here")
         assert message.topic == f"morbidostat/{self.unit}/io_events"
 
         payload = json.loads(message.payload)
@@ -105,7 +106,7 @@ class AltMediaCalculator:
 def io_listening(unit, ignore_cache, verbose):
 
     publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
-
+    print(leader_hostname)
     subscribe.callback(
         AltMediaCalculator(unit=unit, ignore_cache=ignore_cache, verbose=verbose).on_message,
         f"morbidostat/{unit}/io_events",
