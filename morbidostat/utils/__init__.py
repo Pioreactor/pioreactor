@@ -1,6 +1,5 @@
 import configparser
 import sqlite3
-import pandas as pd
 
 
 config = configparser.ConfigParser()
@@ -18,6 +17,7 @@ def pump_ml_to_duration(ml, rate, bias):
 
 
 def execute_sql_statement(SQL):
+    import pandas as pd
     db_location = config["data"]["observation_database"]
     conn = sqlite3.connect(db_location)
     df = pd.read_sql_query(SQL, conn)
