@@ -24,9 +24,10 @@ class AltMediaCalculator:
     ignore_cache: ignore any retained values in the MQTT bus
     """
 
-    def __init__(self, unit=None, ignore_cache=False, **kwargs):
+    def __init__(self, unit=None, ignore_cache=False, verbose=verbose, **kwargs):
         self.unit = unit
         self.ignore_cache = ignore_cache
+        self.verbose=verbose
 
     @property
     def latest_alt_media_fraction(self):
@@ -84,6 +85,7 @@ class AltMediaCalculator:
         publish(
             f"morbidostat/{self.unit}/alt_media_fraction",
             self.latest_alt_media_fraction,
+            verbose=verbose,
             retain=True,
         )
 
@@ -99,7 +101,7 @@ def io_listening(unit, ignore_cache, verbose):
     publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
 
     subscribe.callback(
-        AltMediaCalculator(unit=unit, ignore_cache=ignore_cache).on_message,
+        AltMediaCalculator(unit=unit, ignore_cache=ignore_cache, verbose=verbose).on_message,
         f"morbidostat/{unit}/io_events",
         hostname=leader_hostname,
     )
