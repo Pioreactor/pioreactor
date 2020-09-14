@@ -104,4 +104,4 @@ def io_listening(unit, clear_cache):
 
 
 if __name__ == "__main__":
-    io_controlling()
+    io_listening()
