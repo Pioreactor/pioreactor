@@ -39,7 +39,7 @@ def growth_rate_calculating(unit, verbose):
         )
 
         while True:
-            msg = subscribe([f"morbidostat/{unit}/od_raw/od_raw_batched", f"morbidostat/{unit}/io_events"])
+            msg = subscribe([f"morbidostat/{unit}/od_raw_batched", f"morbidostat/{unit}/io_events"])
 
             if "od_raw" in msg.topic:
                 ekf.update(json_to_sorted_list(msg.payload))
