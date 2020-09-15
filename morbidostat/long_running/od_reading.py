@@ -67,7 +67,7 @@ def od_reading(unit, verbose, od_angle_channel):
             for angle, channel in od_channels:
                 raw_signal_ = channel.voltage
                 publish(f"morbidostat/{unit}/od_raw/{angle}", raw_signal_, verbose=verbose)
-                raw_signals["angle"] = raw_signal_
+                raw_signals[angle] = raw_signal_
 
             # publish the batch of data, too, for growth reading
             publish(f"morbidostat/{unit}/od_raw_batched", json.dumps(raw_signals))
