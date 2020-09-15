@@ -40,7 +40,7 @@ def add_alt_media(ml, unit, verbose=False):
 
 
 @click.command()
-@click.option("--unit", default="1", help="The morbidostat unit")
+@click.argument("unit", help="The morbidostat unit")
 @click.option("--verbose", is_flag=True, help="print to std out")
 @click.argument("ml", type=float)
 def click_add_alt_media(ml, unit, verbose):

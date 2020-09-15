@@ -28,7 +28,7 @@ ADS_GAIN_THRESHOLDS = {
 
 
 @click.command()
-@click.option("--unit", default="1", help="The morbidostat unit")
+@click.argument("unit", help="The morbidostat unit")
 @click.option(
     "--od_angle_channel",
     multiple=True,
@@ -52,7 +52,7 @@ def od_reading(unit, verbose, od_angle_channel):
         angle, channel = input_.split(",")
         od_channels.append((angle, AnalogIn(ads, getattr(ADS, "P" + channel))))
 
-    sampling_rate = 1 / int(config["od_sampling"]["samples_per_second"])
+    sampling_rate = 1 / float(config["od_sampling"]["samples_per_second"])
     ma = MovingStats(lookback=20)
 
     publish(f"morbidostat/{unit}/log", "[od_reading]: starting", verbose=verbose)

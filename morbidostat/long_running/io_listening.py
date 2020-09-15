@@ -95,7 +95,7 @@ class AltMediaCalculator:
 
 
 @click.command()
-@click.option("--unit", default="1", help="The morbidostat unit")
+@click.argument("unit", help="The morbidostat unit")
 @click.option("--ignore_cache", is_flag=True, help="ignore the retained MQTT msg")
 @click.option("--verbose", is_flag=True, help="print to std.out")
 def io_listening(unit, ignore_cache, verbose):

@@ -108,11 +108,11 @@ class Morbidostat(ControlAlgorithm):
 
 
 @click.command()
+@click.argument("unit", help="The morbidostat unit")
 @click.option(
     "--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
 )
 @click.option("--target_od", default=None, type=float)
-@click.option("--unit", default="1", help="The morbidostat unit")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 @click.option("--verbose", is_flag=True)

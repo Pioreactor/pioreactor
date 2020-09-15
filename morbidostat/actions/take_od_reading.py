@@ -25,7 +25,7 @@ def take_od_reading(unit, angle, verbose):
 
 
 @click.command()
-@click.option("--unit", default="1", help="The morbidostat unit")
+@click.argument("unit", help="The morbidostat unit")
 @click.option("--angle", default="135", help="angle to read from")
 @click.option("--verbose", is_flag=True, help="print to std out")
 def click_take_od_reading(unit, angle, verbose):
