@@ -5,6 +5,7 @@ This script is designed to run in a background process and push data to MQTT.
 >>> nohup python3 -m morbidostat.long_running.od_reading &
 """
 import time
+import json
 
 import click
 from adafruit_ads1x15.analog_in import AnalogIn
@@ -62,14 +63,17 @@ def od_reading(unit, verbose, od_angle_channel):
         cycle_start_time = time.time()
         try:
 
-            raw_signals = []
+            raw_signals = {}
             for angle, channel in od_channels:
                 raw_signal_ = channel.voltage
                 publish(f"morbidostat/{unit}/od_raw/{angle}", raw_signal_, verbose=verbose)
-                raw_signals.append(raw_signal_)
+                raw_signals["angle"] = raw_signal_
+
+            # publish the batch of data, too, for growth reading
+            publish(f"morbidostat/{unit}/od_raw_batched", json.dumps(raw_signals))
 
             # the max signal should determine the board's gain
-            ma.update(max(raw_signals))
+            ma.update(max(raw_signals.values()))
 
             # check if using correct gain
             if i % 100 == 0 and ma.mean is not None:
