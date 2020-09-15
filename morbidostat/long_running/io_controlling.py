@@ -22,8 +22,8 @@ VIAL_VOLUME = 12
 
 class ControlAlgorithm:
 
-    latest_rate = 0
-    latest_od = 0
+    latest_rate = None
+    latest_od = None
 
     def run(self):
         self.set_OD_measurements()
@@ -90,7 +90,7 @@ class Morbidostat(ControlAlgorithm):
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
-        if self.latest_od > self.target_od and self.latest_od > self.previous_od:
+        if self.previous_od and self.latest_od > self.target_od and self.latest_od > self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
             publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered alt media event.")

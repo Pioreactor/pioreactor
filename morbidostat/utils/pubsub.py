@@ -21,7 +21,6 @@ def publish(topic, message, hostname=leader_hostname, verbose=False, retries=10,
 
         except (ConnectionRefusedError, socket.gaierror) as e:
             # possible that leader is down/restarting, keep trying, but log to local machine.
-
             publish(
                 "error_log",
                 f"Attempt {retry}: Unable to connect to host: {hostname}. {str(e)}",
@@ -44,7 +43,6 @@ def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
 
         except (ConnectionRefusedError, socket.gaierror) as e:
             # possible that leader is down/restarting, keep trying, but log to local machine.
-
             publish(
                 "error_log",
                 f"Attempt {retry}: Unable to connect to host: {hostname}. {str(e)}",
