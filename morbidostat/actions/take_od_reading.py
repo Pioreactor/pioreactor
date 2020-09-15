@@ -3,9 +3,7 @@ Report the next OD reading (from start_od_reading.py) to the console.
 """
 import time
 import click
-from paho.mqtt import subscribe
-from morbidostat.utils.publishing import publish
-from morbidostat.utils import leader_hostname
+from morbidostat.utils.pubsub import publish, subscribe
 
 
 def take_od_reading(unit, angle, verbose):
@@ -13,7 +11,7 @@ def take_od_reading(unit, angle, verbose):
     od_topic = f"morbidostat/{unit}/od_raw/{angle}"
     try:
 
-        result = subscribe.simple(od_topic, keepalive=10, hostname=leader_hostname).payload
+        result = subscribe(od_topic, keepalive=10).payload
         result = float(result)
 
         publish(f"morbidostat/{unit}/log", "[take_od_reading]: %.3fV" % result, verbose=verbose)

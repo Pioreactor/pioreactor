@@ -6,8 +6,6 @@ import signal
 import sys
 import threading
 
-import paho.mqtt.subscribe as subscribe
-
 import click
 import board
 import busio
@@ -16,8 +14,7 @@ from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
-from morbidostat.utils.publishing import publish
-from morbidostat.utils import leader_hostname
+from morbidostat.utils.pubsub import publish, subscribe
 
 
 VIAL_VOLUME = 12
@@ -37,14 +34,10 @@ class ControlAlgorithm:
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
         self.latest_rate = float(
-            subscribe.simple(
-                f"morbidostat/{self.unit}/growth_rate", hostname=leader_hostname
-            ).payload
+            subscribe(f"morbidostat/{self.unit}/growth_rate").payload
         )
         self.latest_od = float(
-            subscribe.simple(
-                f"morbidostat/{self.unit}/od_filtered", hostname=leader_hostname
-            ).payload
+            subscribe(f"morbidostat/{self.unit}/od_filtered").payload
         )
         return
 

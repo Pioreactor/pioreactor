@@ -4,12 +4,12 @@ Continuously monitor the bioreactor and provide summary statistics on what's goi
 import json
 import traceback
 
-import paho.mqtt.subscribe as subscribe
+import paho.mqtt.subscribe as paho_subscribe
 import click
 import board
 import busio
 
-from morbidostat.utils.publishing import publish
+from morbidostat.utils.pubsub import publish, subscribe
 from morbidostat.utils import leader_hostname
 
 
@@ -38,10 +38,8 @@ class AltMediaCalculator:
             self._latest_alt_media_fraction = 0
         else:
             try:
-                msg = subscribe.simple(
-                    f"morbidostat/{self.unit}/alt_media_fraction",
-                    keepalive=10,
-                    hostname=leader_hostname,
+                msg = subscribe(
+                    f"morbidostat/{self.unit}/alt_media_fraction", keepalive=10,
                 )
                 self._latest_alt_media_fraction = float(msg.payload)
             except:
@@ -105,7 +103,7 @@ class AltMediaCalculator:
 def io_listening(unit, ignore_cache, verbose):
 
     publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
-    subscribe.callback(
+    paho_subscribe.callback(
         AltMediaCalculator(unit=unit, ignore_cache=ignore_cache, verbose=verbose).on_message,
         f"morbidostat/{unit}/io_events",
         hostname=leader_hostname,

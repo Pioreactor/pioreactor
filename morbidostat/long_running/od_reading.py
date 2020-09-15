@@ -14,7 +14,7 @@ import busio
 
 from morbidostat.utils.streaming_calculations import MovingStats
 from morbidostat.utils import config
-from morbidostat.utils.publishing import publish
+from morbidostat.utils.pubsub import publish
 
 
 ADS_GAIN_THRESHOLDS = {

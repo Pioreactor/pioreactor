@@ -2,13 +2,11 @@ import time
 import threading
 
 import numpy as np
-import paho.mqtt.subscribe as subscribe
 
 
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
-from morbidostat.utils import leader_hostname
-from morbidostat.utils.publishing import publish
+from morbidostat.utils.pubsub import publish, subscribe
 
 
 @click.command()
@@ -21,7 +19,7 @@ def growth_rate_calculating(unit, angle, verbose):
 
     try:
         # pick a good initialization
-        msg = subscribe.simple([f"morbidostat/{unit}/od_raw/{angle}"], hostname=leader_hostname)
+        msg = subscribe([f"morbidostat/{unit}/od_raw/{angle}"])
         initial_state = np.array([float(msg.payload), 1.0])
 
         # empirically picked constants
@@ -36,10 +34,7 @@ def growth_rate_calculating(unit, angle, verbose):
         )
 
         while True:
-            msg = subscribe.simple(
-                [f"morbidostat/{unit}/od_raw/{angle}", f"morbidostat/{unit}/io_events"],
-                hostname=leader_hostname,
-            )
+            msg = subscribe([f"morbidostat/{unit}/od_raw/{angle}", f"morbidostat/{unit}/io_events"])
 
             if "od_raw" in msg.topic:
                 ekf.update(float(msg.payload))
