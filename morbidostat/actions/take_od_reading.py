@@ -18,7 +18,7 @@ def take_od_reading(unit, angle, verbose):
     except Exception as e:
         publish(
             f"morbidostat/{unit}/error_log",
-            f"{unit} take_od_reading.py failed with {str(e)}",
+            f"[take_od_reading]: failed with {str(e)}",
             verbose=verbose,
         )
     return result

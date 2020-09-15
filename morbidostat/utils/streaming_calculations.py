@@ -51,6 +51,14 @@ class ExtendedKalmanFilter:
     Based on the algorithm in
     https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0181923#pone.0181923.s007
 
+    The idea is that each sensor will evolve like:
+
+    OD_{i, t+1} = OD_{i, t} * r_t
+
+    for all i, t.
+
+    This model is pretty naive (different sensors will behave / saturate differently).
+
     Example
     ---------
 
@@ -75,6 +83,7 @@ class ExtendedKalmanFilter:
         self.observation_noise_covariance = observation_noise_covariance
         self.state_ = initial_state
         self.covariance_ = initial_covariance
+        self.dim = self.state_.shape
 
         self._counter = -1
         self._original_process_noise_variance = self._process_noise_covariance[0, 0]
@@ -85,7 +94,7 @@ class ExtendedKalmanFilter:
             self._predict_covariance(self.state_, self.covariance_),
         )
 
-    def update(self, observation, delta_time=1):
+    def update(self, observation):
         # TODO: incorporate delta_time
         state_prediction, covariance_prediction = self.predict()
         residual_state = observation - state_prediction[:-1]
@@ -93,17 +102,17 @@ class ExtendedKalmanFilter:
         residual_covariance = H @ covariance_prediction @ H.T + self.observation_noise_covariance
         kalman_gain = covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
         self.state_ = state_prediction + kalman_gain @ residual_state
-        self.covariance_ = (np.eye(self.covariance_.shape[0]) - kalman_gain @ H) @ covariance_prediction
+        self.covariance_ = (np.eye(self.dim) - kalman_gain @ H) @ covariance_prediction
         return
 
     def set_OD_variance_for_next_n_steps(self, new_variance, n):
-        d = self.state_.shape[0]
+        d = self.dim
         self._counter = n
         self._process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = new_variance
 
     def process_noise_covariance(self):
         if self._counter == 0:
-            d = self.state_.shape[0]
+            d = self.dim
             self._process_noise_covariance[
                 np.arange(d - 1), np.arange(d - 1)
             ] = self._original_process_noise_variance
@@ -120,7 +129,18 @@ class ExtendedKalmanFilter:
         )
 
     def _jacobian_process(self, state):
-        d = state.shape[0]
+        """
+        The process is
+        [
+            OD_{1, t+1} = OD_{1, t} * r_t
+            OD_{2, t+1} = OD_{2, t} * r_t
+            ...
+            r_{t+1} = r_t
+
+        ]
+
+        """
+        d = self.dim
         J = np.zeros((d, d))
 
         rate = state[-1]
@@ -133,5 +153,8 @@ class ExtendedKalmanFilter:
         return J
 
     def _jacobian_observation(self):
-        d = self.state_.shape[0]
+        """
+        We only observe the ODs
+        """
+        d = self.dim
         return np.eye(d)[: (d - 1)]

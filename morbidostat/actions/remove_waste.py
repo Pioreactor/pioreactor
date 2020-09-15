@@ -7,7 +7,7 @@ import RPi.GPIO as GPIO
 
 from morbidostat.utils import pump_ml_to_duration
 from morbidostat.utils import config
-from morbidostat.utils.publishing import publish
+from morbidostat.utils.pubsub import publish
 
 
 def remove_waste(ml, unit, verbose=False):
@@ -31,7 +31,7 @@ def remove_waste(ml, unit, verbose=False):
         publish(f"morbidostat/{unit}/log", "remove waste: %smL" % ml, verbose=verbose)
     except Exception as e:
         publish(
-            f"morbidostat/{unit}/error_log", f"{unit} remove_waste.py failed with {str(e)}", verbose=verbose,
+            f"morbidostat/{unit}/error_log", f"[remove_waste]: failed with {str(e)}", verbose=verbose,
         )
     finally:
         GPIO.cleanup()

@@ -78,7 +78,7 @@ def od_reading(unit, verbose, od_angle_channel):
             # check if using correct gain
             if i % 100 == 0 and ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if 0.9 * lb <= ma.mean < 0.9 * ub:
+                    if 0.85 * lb <= ma.mean < 0.85 * ub:
                         ads.gain = gain
                         break
 

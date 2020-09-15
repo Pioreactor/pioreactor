@@ -8,7 +8,7 @@ import busio
 import RPi.GPIO as GPIO
 
 from morbidostat.utils import config
-from morbidostat.utils.publishing import publish
+from morbidostat.utils.pubsub import publish
 
 
 @click.command()

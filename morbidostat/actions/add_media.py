@@ -5,7 +5,7 @@ import click
 import RPi.GPIO as GPIO
 from morbidostat.utils import pump_ml_to_duration
 from morbidostat.utils import config
-from morbidostat.utils.publishing import publish
+from morbidostat.utils.pubsub import publish
 
 
 def add_media(ml, unit, verbose=False):
@@ -29,7 +29,7 @@ def add_media(ml, unit, verbose=False):
         publish(f"morbidostat/{unit}/log", "add media: %smL" % ml, verbose=verbose)
     except Exception as e:
         publish(
-            f"morbidostat/{unit}/error_log", f"{unit} add_media.py failed with {str(e)}", verbose=verbose,
+            f"morbidostat/{unit}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose,
         )
     finally:
         GPIO.cleanup()
