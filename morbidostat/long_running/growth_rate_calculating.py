@@ -27,10 +27,7 @@ def growth_rate_calculating(unit, angle, verbose):
         process_noise_covariance = np.array([[1e-5, 0], [0, 1e-12]])
         observation_noise_covariance = 1.0
         ekf = ExtendedKalmanFilter(
-            initial_state,
-            initial_covariance,
-            process_noise_covariance,
-            observation_noise_covariance,
+            initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance,
         )
 
         while True:
@@ -45,21 +42,15 @@ def growth_rate_calculating(unit, angle, verbose):
 
             # transform the rate, r, into rate per hour: e^{rate * hours}
             publish(
-                f"morbidostat/{unit}/growth_rate",
-                np.log(ekf.state_.rate) * 60 * 60,
-                verbose=verbose,
+                f"morbidostat/{unit}/growth_rate", np.log(ekf.state_.rate) * 60 * 60, verbose=verbose,
             )
             publish(f"morbidostat/{unit}/od_filtered", ekf.state_.OD, verbose=verbose)
     except Exception as e:
         publish(
-            f"morbidostat/{unit}/error_log",
-            f"[growth_rate_calculating]: failed {str(e)}",
-            verbose=verbose,
+            f"morbidostat/{unit}/error_log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose,
         )
         publish(
-            f"morbidostat/{unit}/log",
-            f"[growth_rate_calculating]: failed {str(e)}",
-            verbose=verbose,
+            f"morbidostat/{unit}/log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose,
         )
 
 

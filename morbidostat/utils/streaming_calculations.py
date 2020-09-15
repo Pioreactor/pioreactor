@@ -33,17 +33,13 @@ class LowPassFilter:
         from scipy import signal
 
         self._latest_reading = None
-        self.filtwindow = signal.firwin(
-            length_of_filter, low_pass_corner_frequ, fs=1 / time_between_reading
-        )
+        self.filtwindow = signal.firwin(length_of_filter, low_pass_corner_frequ, fs=1 / time_between_reading)
         self.window = signal.lfilter_zi(self.filtwindow, 1)
 
     def update(self, value):
         from scipy import signal
 
-        self._latest_reading, self.window = signal.lfilter(
-            self.filtwindow, 1, [value], zi=self.window
-        )
+        self._latest_reading, self.window = signal.lfilter(self.filtwindow, 1, [value], zi=self.window)
 
     @property
     def latest_reading(self):
@@ -73,11 +69,7 @@ class ExtendedKalmanFilter:
     """
 
     def __init__(
-        self,
-        initial_state,
-        initial_covariance,
-        process_noise_covariance,
-        observation_noise_covariance,
+        self, initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance,
     ):
         assert initial_state.shape[0] == initial_covariance.shape[0] == initial_covariance.shape[1]
         assert process_noise_covariance.shape == initial_covariance.shape
@@ -103,9 +95,7 @@ class ExtendedKalmanFilter:
         residual_covariance = H @ covariance_prediction @ H.T + self.observation_noise_covariance
         kalman_gain = covariance_prediction @ H.T / residual_covariance
         self.state_ = State(*(state_prediction + kalman_gain.reshape(2,) * residual_state))
-        self.covariance_ = (
-            np.eye(self.covariance_.shape[0]) - kalman_gain @ H
-        ) @ covariance_prediction
+        self.covariance_ = (np.eye(self.covariance_.shape[0]) - kalman_gain @ H) @ covariance_prediction
         return
 
     def set_OD_variance_for_next_n_steps(self, new_variance, n):

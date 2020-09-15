@@ -33,12 +33,8 @@ class ControlAlgorithm:
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
-        self.latest_rate = float(
-            subscribe(f"morbidostat/{self.unit}/growth_rate").payload
-        )
-        self.latest_od = float(
-            subscribe(f"morbidostat/{self.unit}/od_filtered").payload
-        )
+        self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/growth_rate").payload)
+        self.latest_od = float(subscribe(f"morbidostat/{self.unit}/od_filtered").payload)
         return
 
 
@@ -113,9 +109,7 @@ class Morbidostat(ControlAlgorithm):
 
 @click.command()
 @click.option(
-    "--mode",
-    default="silent",
-    help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
+    "--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
 )
 @click.option("--target_od", default=None, type=float)
 @click.option("--unit", default="1", help="The morbidostat unit")
@@ -131,12 +125,8 @@ def io_controlling(mode, target_od, unit, duration, volume, verbose):
 
     algorithms = {
         "silent": Silent(),
-        "morbidostat": Morbidostat(
-            unit=unit, volume=volume, target_od=target_od, duration=duration
-        ),
-        "turbidostat": Turbidostat(
-            unit=unit, volume=volume, target_od=target_od, duration=duration
-        ),
+        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
+        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
     }
 
     assert mode in algorithms.keys()
@@ -154,9 +144,7 @@ def io_controlling(mode, target_od, unit, duration, volume, verbose):
     try:
         every(duration * 60, algorithms[mode].run)
     except Exception as e:
-        publish(
-            f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose
-        )
+        publish(f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         publish(f"morbidostat/{unit}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
 
 

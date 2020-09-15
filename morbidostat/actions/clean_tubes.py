@@ -33,14 +33,10 @@ def clean_tubes(unit, duration, verbose):
             GPIO.output(pin, 1)
             time.sleep(0.1)
 
-        publish(
-            f"morbidostat/{unit}/log", "[clean_tubes]: finished cleaning cycle.", verbose=verbose
-        )
+        publish(f"morbidostat/{unit}/log", "[clean_tubes]: finished cleaning cycle.", verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/log", f"[clean_tubes]: failed with {str(e)}", verbose=verbose)
-        publish(
-            f"morbidostat/{unit}/error_log", f"[clean_tubes]: failed with {str(e)}", verbose=verbose
-        )
+        publish(f"morbidostat/{unit}/error_log", f"[clean_tubes]: failed with {str(e)}", verbose=verbose)
     finally:
         GPIO.cleanup()
     return

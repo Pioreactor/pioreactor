@@ -18,11 +18,7 @@ def add_media(ml, unit, verbose=False):
         GPIO.output(MEDIA_PIN, 1)
 
         GPIO.output(MEDIA_PIN, 0)
-        time.sleep(
-            pump_ml_to_duration(
-                ml, *loads(config["pump_calibration"][f"media{unit}_ml_calibration"])
-            )
-        )
+        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"media{unit}_ml_calibration"])))
         GPIO.output(MEDIA_PIN, 1)
 
         publish(
@@ -33,9 +29,7 @@ def add_media(ml, unit, verbose=False):
         publish(f"morbidostat/{unit}/log", "add media: %smL" % ml, verbose=verbose)
     except Exception as e:
         publish(
-            f"morbidostat/{unit}/error_log",
-            f"{unit} add_media.py failed with {str(e)}",
-            verbose=verbose,
+            f"morbidostat/{unit}/error_log", f"{unit} add_media.py failed with {str(e)}", verbose=verbose,
         )
     finally:
         GPIO.cleanup()

@@ -28,7 +28,7 @@ class AltMediaCalculator:
     def __init__(self, unit=None, ignore_cache=False, verbose=False, **kwargs):
         self.unit = unit
         self.ignore_cache = ignore_cache
-        self.verbose=verbose
+        self.verbose = verbose
 
     @property
     def latest_alt_media_fraction(self):
@@ -38,9 +38,7 @@ class AltMediaCalculator:
             self._latest_alt_media_fraction = 0
         else:
             try:
-                msg = subscribe(
-                    f"morbidostat/{self.unit}/alt_media_fraction", keepalive=10,
-                )
+                msg = subscribe(f"morbidostat/{self.unit}/alt_media_fraction", keepalive=10,)
                 self._latest_alt_media_fraction = float(msg.payload)
             except:
                 self._latest_alt_media_fraction = 0

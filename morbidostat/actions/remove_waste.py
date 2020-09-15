@@ -20,11 +20,7 @@ def remove_waste(ml, unit, verbose=False):
         GPIO.output(WASTE_PIN, 1)
 
         GPIO.output(WASTE_PIN, 0)
-        time.sleep(
-            pump_ml_to_duration(
-                ml, *loads(config["pump_calibration"][f"waste{unit}_ml_calibration"])
-            )
-        )
+        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"waste{unit}_ml_calibration"])))
         GPIO.output(WASTE_PIN, 1)
         publish(
             f"morbidostat/{unit}/io_events",
@@ -35,9 +31,7 @@ def remove_waste(ml, unit, verbose=False):
         publish(f"morbidostat/{unit}/log", "remove waste: %smL" % ml, verbose=verbose)
     except Exception as e:
         publish(
-            f"morbidostat/{unit}/error_log",
-            f"{unit} remove_waste.py failed with {str(e)}",
-            verbose=verbose,
+            f"morbidostat/{unit}/error_log", f"{unit} remove_waste.py failed with {str(e)}", verbose=verbose,
         )
     finally:
         GPIO.cleanup()

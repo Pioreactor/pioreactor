@@ -94,13 +94,9 @@ def od_reading(unit, verbose, od_angle_channel):
             )
             time.sleep(5.0)
         except Exception as e:
+            publish(f"morbidostat/{unit}/log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             publish(
-                f"morbidostat/{unit}/log", f"[od_reading] failed with {str(e)}", verbose=verbose
-            )
-            publish(
-                f"morbidostat/{unit}/error_log",
-                f"[od_reading] failed with {str(e)}",
-                verbose=verbose,
+                f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose,
             )
             raise e
 
