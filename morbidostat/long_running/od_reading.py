@@ -28,7 +28,7 @@ ADS_GAIN_THRESHOLDS = {
 
 
 @click.command()
-@click.argument("unit", help="The morbidostat unit")
+@click.argument("unit")
 @click.option(
     "--od_angle_channel",
     multiple=True,

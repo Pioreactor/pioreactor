@@ -39,7 +39,7 @@ def remove_waste(ml, unit, verbose=False):
 
 
 @click.command()
-@click.argument("unit", help="The morbidostat unit")
+@click.argument("unit")
 @click.option("--verbose", is_flag=True, help="print to std out")
 @click.argument("ml", type=float)
 def click_remove_waste(ml, unit, verbose):

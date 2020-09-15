@@ -108,7 +108,7 @@ class Morbidostat(ControlAlgorithm):
 
 
 @click.command()
-@click.argument("unit", help="The morbidostat unit")
+@click.argument("unit")
 @click.option(
     "--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
 )

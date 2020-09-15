@@ -10,7 +10,7 @@ from morbidostat.utils.pubsub import publish, subscribe
 
 
 @click.command()
-@click.argument("unit", help="The morbidostat unit")
+@click.argument("unit")
 @click.option("--angle", default=["135"], mutiple=True, help="The photodiode angle(s) to use")
 @click.option("--verbose", is_flag=True, help="Print to std out")
 def growth_rate_calculating(unit, angle, verbose):

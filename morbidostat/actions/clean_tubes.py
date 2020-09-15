@@ -12,7 +12,7 @@ from morbidostat.utils.publishing import publish
 
 
 @click.command()
-@click.argument("unit", help="The morbidostat unit")
+@click.argument("unit")
 @click.option("--duration", default=50, help="Time, in seconds, to run pumps")
 @click.option("--verbose", is_flag=True, help="print to std out")
 def clean_tubes(unit, duration, verbose):
