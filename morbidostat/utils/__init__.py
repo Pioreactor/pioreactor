@@ -21,7 +21,7 @@ def get_config():
 
 def assert_unit_matches_hostname(unit):
     hostname = get_hostname()
-    assert str(unit) == str(hostname[-1])
+    assert str(unit) == str(hostname[-1]), "Hostname does not match unit"
 
 
 def pump_ml_to_duration(ml, rate, bias):
