@@ -66,6 +66,7 @@ def growth_rate_calculating(unit, verbose):
         publish(
             f"morbidostat/{unit}/log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose,
         )
+        raise(e)
 
 
 if __name__ == "__main__":
