@@ -74,9 +74,6 @@ def od_reading(unit, verbose, od_angle_channel):
 
             # the max signal should determine the board's gain
             ma.update(max(raw_signals.values()))
-            if verbose:
-                print(max(raw_signals.values()))
-                print(ma.mean)
 
             # check if using correct gain
             if i % 100 == 0 and ma.mean is not None:
