@@ -34,7 +34,7 @@ class ControlAlgorithm:
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
 
         self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/growth_rate").payload)
-        self.latest_od = float(subscribe(f"morbidostat/{self.unit}/od_filtered").payload)
+        self.latest_od = float(subscribe(f"morbidostat/{self.unit}/od_filtered/135").payload)
         return
 
 
