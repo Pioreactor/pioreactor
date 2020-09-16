@@ -83,7 +83,7 @@ class ExtendedKalmanFilter:
         self.observation_noise_covariance = observation_noise_covariance
         self.state_ = initial_state
         self.covariance_ = initial_covariance
-        self.dim = self.state_.shape
+        self.dim = self.state_.shape[0]
 
         self._counter = -1
         self._original_process_noise_variance = self._process_noise_covariance[0, 0]
