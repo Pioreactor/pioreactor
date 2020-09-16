@@ -15,7 +15,7 @@ def remove_waste(ml, unit, verbose=False):
     try:
         GPIO.setmode(GPIO.BCM)
 
-        WASTE_PIN = int(config["rpi_pins"][f"waste{unit}"])
+        WASTE_PIN = int(config["rpi_pins"][f"waste"])
         GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 1)
 
@@ -33,6 +33,8 @@ def remove_waste(ml, unit, verbose=False):
         publish(
             f"morbidostat/{unit}/error_log", f"[remove_waste]: failed with {str(e)}", verbose=verbose,
         )
+        raise e
+
     finally:
         GPIO.cleanup()
     return

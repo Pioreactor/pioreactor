@@ -14,7 +14,7 @@ def add_alt_media(ml, unit, verbose=False):
     try:
         GPIO.setmode(GPIO.BCM)
 
-        ALT_MEDIA_PIN = int(config["rpi_pins"][f"alt_media{unit}"])
+        ALT_MEDIA_PIN = int(config["rpi_pins"][f"alt_media"])
         GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
         GPIO.output(ALT_MEDIA_PIN, 1)  # TODO: why do I do this? Do I need this line?
         GPIO.output(ALT_MEDIA_PIN, 0)
@@ -33,7 +33,7 @@ def add_alt_media(ml, unit, verbose=False):
         publish(
             f"morbidostat/{unit}/error_log", f"[add_alt_media]: failed with {str(e)}", verbose=verbose,
         )
-
+        raise e
     finally:
         GPIO.cleanup()
     return

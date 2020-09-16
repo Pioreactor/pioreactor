@@ -13,7 +13,7 @@ def add_media(ml, unit, verbose=False):
     try:
         GPIO.setmode(GPIO.BCM)
 
-        MEDIA_PIN = int(config["rpi_pins"][f"media{unit}"])
+        MEDIA_PIN = int(config["rpi_pins"][f"media"])
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 1)
 
@@ -31,6 +31,7 @@ def add_media(ml, unit, verbose=False):
         publish(
             f"morbidostat/{unit}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose,
         )
+        raise e
     finally:
         GPIO.cleanup()
     return
