@@ -1,5 +1,6 @@
 import sys
 import configparser
+import socket
 
 def get_leader_hostname():
     if "pytest" in sys.modules:
@@ -7,10 +8,20 @@ def get_leader_hostname():
     else:
         return get_config()["network"]["leader_hostname"]
 
+def get_hostname():
+    if "pytest" in sys.modules:
+        return "localhost0"
+    else:
+        return socket.gethostname()
+
 def get_config():
     config = configparser.ConfigParser()
     config.read("config.ini")
     return config
+
+def assert_unit_matches_hostname(unit):
+    hostname = get_hostname()
+    assert str(unit) == str(hostname[-1])
 
 
 def pump_ml_to_duration(ml, rate, bias):

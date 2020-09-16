@@ -15,6 +15,7 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubsub import publish, subscribe
+from morbidostat.utils import assert_unit_matches_hostname
 
 
 VIAL_VOLUME = 12
@@ -122,6 +123,9 @@ def io_controlling(mode, target_od, unit, duration, volume, verbose):
         sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
+
+    assert_unit_matches_hostname(unit)
+
 
     algorithms = {
         "silent": Silent(),
