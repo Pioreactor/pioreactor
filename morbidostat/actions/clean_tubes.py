@@ -22,7 +22,7 @@ def clean_tubes(unit, duration, verbose):
     try:
 
         for tube in ["media", "alt_media", "waste"]:
-            pin = int(config["rpi_pins"][f"{tube}{unit}"])
+            pin = int(config["rpi_pins"][f"{tube}"])
             GPIO.setup(pin, GPIO.OUT)
             GPIO.output(pin, 1)
 
