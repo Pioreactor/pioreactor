@@ -8,7 +8,7 @@ import numpy as np
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import config, assert_unit_matches_hostname
+from morbidostat.utils import config, get_unit_from_hostname
 
 
 def json_to_sorted_dict(json_dict):
@@ -17,10 +17,9 @@ def json_to_sorted_dict(json_dict):
 
 
 @click.command()
-@click.argument("unit")
 @click.option("--verbose", is_flag=True, help="Print to std out")
-def growth_rate_calculating(unit, verbose):
-    assert_unit_matches_hostname(unit)
+def growth_rate_calculating(verbose):
+    unit = get_unit_from_hostname()
 
     publish(f"morbidostat/{unit}/log", "[growth_rate_calculating]: starting", verbose=verbose)
 

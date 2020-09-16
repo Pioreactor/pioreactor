@@ -4,11 +4,12 @@ from json import loads
 import click
 import RPi.GPIO as GPIO
 from morbidostat.utils import pump_ml_to_duration
-from morbidostat.utils import config
+from morbidostat.utils import config, get_unit_from_hostname
 from morbidostat.utils.pubsub import publish
 
 
-def add_media(ml, unit, verbose=False):
+def add_media(ml, verbose=False):
+    unit = get_unit_from_hostname()
 
     try:
         GPIO.setmode(GPIO.BCM)
@@ -38,11 +39,10 @@ def add_media(ml, unit, verbose=False):
 
 
 @click.command()
-@click.argument("unit")
 @click.option("--verbose", is_flag=True, help="print to std out")
 @click.argument("ml", type=float)
-def click_add_media(ml, unit, verbose):
-    return add_media(ml, unit, verbose)
+def click_add_media(ml, verbose):
+    return add_media(ml, verbose)
 
 
 if __name__ == "__main__":

@@ -15,7 +15,7 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import assert_unit_matches_hostname
+from morbidostat.utils import get_unit_from_hostname
 
 
 VIAL_VOLUME = 12
@@ -109,7 +109,6 @@ class Morbidostat(ControlAlgorithm):
 
 
 @click.command()
-@click.argument("unit")
 @click.option(
     "--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
 )
@@ -117,7 +116,10 @@ class Morbidostat(ControlAlgorithm):
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 @click.option("--verbose", is_flag=True)
-def io_controlling(mode, target_od, unit, duration, volume, verbose):
+def io_controlling(mode, target_od, duration, volume, verbose):
+    unit = get_unit_from_hostname()
+
+
     def terminate(*args):
         publish(f"morbidostat/{unit}/log", f"[io_controlling]: terminated.", verbose=verbose)
         sys.exit()

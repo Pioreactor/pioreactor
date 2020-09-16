@@ -10,7 +10,7 @@ import board
 import busio
 
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import leader_hostname, assert_unit_matches_hostname
+from morbidostat.utils import leader_hostname, get_unit_from_hostname
 
 
 
@@ -96,11 +96,10 @@ class AltMediaCalculator:
 
 
 @click.command()
-@click.argument("unit")
 @click.option("--ignore_cache", is_flag=True, help="ignore the retained MQTT msg")
 @click.option("--verbose", is_flag=True, help="print to std.out")
-def io_listening(unit, ignore_cache, verbose):
-    assert_unit_matches_hostname(unit)
+def io_listening(ignore_cache, verbose):
+    unit = get_unit_from_hostname()
     publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
     paho_subscribe.callback(
         AltMediaCalculator(unit=unit, ignore_cache=ignore_cache, verbose=verbose).on_message,

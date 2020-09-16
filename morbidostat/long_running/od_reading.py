@@ -14,7 +14,7 @@ import board
 import busio
 
 from morbidostat.utils.streaming_calculations import MovingStats
-from morbidostat.utils import config, assert_unit_matches_hostname
+from morbidostat.utils import config, get_unit_from_hostname
 from morbidostat.utils.pubsub import publish
 
 
@@ -44,7 +44,7 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 )
 @click.option("--verbose", is_flag=True, help="print to std out")
 def od_reading(unit, verbose, od_angle_channel):
-    assert_unit_matches_hostname(unit)
+    unit = get_unit_from_hostname()
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later

@@ -3,19 +3,14 @@
 import time
 
 import click
-import board
 import busio
 import RPi.GPIO as GPIO
 
-from morbidostat.utils import config
+from morbidostat.utils import config, get_unit_from_hostname
 from morbidostat.utils.pubsub import publish
 
-
-@click.command()
-@click.argument("unit")
-@click.option("--duration", default=50, help="Time, in seconds, to run pumps")
-@click.option("--verbose", is_flag=True, help="print to std out")
-def clean_tubes(unit, duration, verbose):
+def clean_tubes(duration, verbose=False):
+    unit = get_unit_from_hostname()
 
     GPIO.setmode(GPIO.BCM)
 
@@ -41,6 +36,11 @@ def clean_tubes(unit, duration, verbose):
         GPIO.cleanup()
     return
 
+@click.command()
+@click.option("--duration", default=50, help="Time, in seconds, to run pumps")
+@click.option("--verbose", is_flag=True, help="print to std out")
+def click_clean_tubes(duration, verbose):
+    return clean_tubes(duration, verbose)
 
 if __name__ == "__main__":
-    clean_tubes()
+    click_clean_tubes()
