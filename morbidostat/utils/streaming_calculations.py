@@ -130,7 +130,7 @@ class ExtendedKalmanFilter:
 
     def _jacobian_process(self, state):
         """
-        The process is
+        The prediction process is
         [
             OD_{1, t+1} = OD_{1, t} * r_t
             OD_{2, t+1} = OD_{2, t} * r_t

@@ -24,14 +24,19 @@ def get_unit_from_hostname():
     hostname = get_hostname()
 
     if hostname == "leader":
+        # running from the leader Rpi
         return "0"
     elif hostname == "localhost":
-        return "0"
-    elif re.match("morbidostat(\d)", hostname):
+        # running tests
+        return "_testing"
+    elif re.match(r"morbidostat(\d)", hostname):
+        # running from a worker Rpi
         # TODO: turn me into walrus operator
-        return re.match("morbidostat(\d)", hostname).groups()[0]
+        return re.match(r"morbidostat(\d)", hostname).groups()[0]
+    elif hostname == "raspberrypi":
+        raise ValueError("Did you forget to set the hostname?")
     else:
-        return None
+        raise ValueError("Unsure where this is being run from...")
 
 
 def pump_ml_to_duration(ml, rate, bias):
