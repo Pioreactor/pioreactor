@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Continuously take an optical density reading (more accurately: a backscatter reading, which is a proxy for OD).
 This script is designed to run in a background process and push data to MQTT.
@@ -29,7 +30,6 @@ ADS_GAIN_THRESHOLDS = {
 
 
 @click.command()
-@click.argument("unit")
 @click.option(
     "--od_angle_channel",
     multiple=True,
@@ -43,7 +43,7 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 """,
 )
 @click.option("--verbose", is_flag=True, help="print to std out")
-def od_reading(unit, verbose, od_angle_channel):
+def od_reading(verbose, od_angle_channel):
     unit = get_unit_from_hostname()
 
     i2c = busio.I2C(board.SCL, board.SDA)
@@ -93,16 +93,12 @@ def od_reading(unit, verbose, od_angle_channel):
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
             publish(
-                f"morbidostat/{unit}/error_log",
-                f"[od_reading] failed with {str(e)}. Attempting to continue.",
-                verbose=verbose,
+                f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}. Attempting to continue.", verbose=verbose
             )
             time.sleep(5.0)
         except Exception as e:
             publish(f"morbidostat/{unit}/log", f"[od_reading] failed with {str(e)}", verbose=verbose)
-            publish(
-                f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose,
-            )
+            publish(f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             raise e
 
 

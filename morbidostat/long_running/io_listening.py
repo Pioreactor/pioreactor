@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
@@ -11,7 +12,6 @@ import busio
 
 from morbidostat.utils.pubsub import publish, subscribe
 from morbidostat.utils import leader_hostname, get_unit_from_hostname
-
 
 
 VIAL_VOLUME = 12
@@ -39,7 +39,7 @@ class AltMediaCalculator:
             self._latest_alt_media_fraction = 0
         else:
             try:
-                msg = subscribe(f"morbidostat/{self.unit}/alt_media_fraction", keepalive=10,)
+                msg = subscribe(f"morbidostat/{self.unit}/alt_media_fraction", keepalive=10)
                 self._latest_alt_media_fraction = float(msg.payload)
             except:
                 self._latest_alt_media_fraction = 0
@@ -85,12 +85,7 @@ class AltMediaCalculator:
 
         self.latest_alt_media_fraction = alt_media_ml / VIAL_VOLUME
 
-        publish(
-            f"morbidostat/{self.unit}/alt_media_fraction",
-            self.latest_alt_media_fraction,
-            verbose=self.verbose,
-            retain=True,
-        )
+        publish(f"morbidostat/{self.unit}/alt_media_fraction", self.latest_alt_media_fraction, verbose=self.verbose, retain=True)
 
         return
 
@@ -101,6 +96,7 @@ class AltMediaCalculator:
 def io_listening(ignore_cache, verbose):
     unit = get_unit_from_hostname()
     publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
+
     paho_subscribe.callback(
         AltMediaCalculator(unit=unit, ignore_cache=ignore_cache, verbose=verbose).on_message,
         f"morbidostat/{unit}/io_events",

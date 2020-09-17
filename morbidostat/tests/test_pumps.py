@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import pytest
 from morbidostat.actions import add_media, add_alt_media, remove_waste, clean_tubes
 
@@ -19,4 +20,3 @@ def test_pump_io_doesnt_allow_negative():
 
 def test_cleaning():
     clean_tubes.clean_tubes(0.1)
-
