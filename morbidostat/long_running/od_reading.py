@@ -29,7 +29,6 @@ ADS_GAIN_THRESHOLDS = {
 }
 
 
-@killable
 @click.command()
 @click.option(
     "--od_angle_channel",

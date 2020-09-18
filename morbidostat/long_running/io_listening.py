@@ -11,7 +11,7 @@ import board
 import busio
 
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import leader_hostname, get_unit_from_hostname, killable
+from morbidostat.utils import leader_hostname, get_unit_from_hostname, killables
 
 
 VIAL_VOLUME = 12
@@ -90,7 +90,6 @@ class AltMediaCalculator:
         return
 
 
-@killable
 @click.command()
 @click.option("--ignore_cache", is_flag=True, help="ignore the retained MQTT msg")
 @click.option("--verbose", is_flag=True, help="print to std.out")

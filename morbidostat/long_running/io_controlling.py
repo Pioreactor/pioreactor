@@ -109,7 +109,6 @@ class Morbidostat(ControlAlgorithm):
         return
 
 
-@killable
 @click.command()
 @click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
 @click.option("--target_od", default=None, type=float)
