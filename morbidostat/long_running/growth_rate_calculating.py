@@ -18,6 +18,8 @@ def json_to_sorted_dict(json_dict):
 
 def growth_rate_calculating(verbose):
     unit = get_unit_from_hostname()
+    od_reading_rate = float(config["od_sampling"]["samples_per_second"])
+    samples_per_minute = 60 * od_reading_rate
 
     publish(f"morbidostat/{unit}/log", "[growth_rate_calculating]: starting", verbose=verbose)
 
@@ -45,12 +47,11 @@ def growth_rate_calculating(verbose):
                 ekf.update([*json_to_sorted_dict(msg.payload).values()])
 
             elif "io_events" in msg.topic:
-                ekf.set_OD_variance_for_next_n_steps(0.1, 8 * 60)
+                ekf.set_OD_variance_for_next_n_steps(0.1, 8 * samples_per_minute)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate * hours}
-            od_reading_rate = float(config["od_sampling"]["samples_per_second"])
-            publish(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_[-1]) * 60 * 60 * od_reading_rate, verbose=verbose)
+            publish(f"morbidostat/{unit}/growth_rate", np.log(ekf.state_[-1]) * 60 * samples_per_minute, verbose=verbose)
 
             for i, angle in enumerate(angles_and_intial_points):
                 publish(f"morbidostat/{unit}/od_filtered/{angle}", ekf.state_[i], verbose=verbose)
