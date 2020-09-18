@@ -65,7 +65,7 @@ class Turbidostat(ControlAlgorithm):
         self.duration = duration
 
     def execute(self):
-        if self.latest_od > self.target_od and self.latest_rate > 0:
+        if self.latest_od > self.target_od:
             publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered dilution event.")
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
