@@ -5,7 +5,6 @@ import json
 
 import numpy as np
 
-
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.utils.pubsub import publish, subscribe
@@ -30,20 +29,17 @@ def growth_rate_calculating(verbose):
         initial_state = np.array([*angles_and_intial_points.values(), 1.0])
         d = initial_state.shape[0]
 
-        # empirically picked constants
+        initial_covariance = np.diag([1e-3] * (d - 1) + [1e-8])
+
         OD_covariance = 1e-6 * np.ones((d - 1, d - 1))
         OD_covariance[np.arange(d - 1), np.arange(d - 1)] = 1e-3
-
         process_noise_covariance = np.block([[OD_covariance, 1e-9 * np.ones((d - 1, 1))], [1e-9 * np.ones((1, d - 1)), 1e-8]])
 
         observation_noise_covariance = 1e-4 * np.ones(d - 1)  # this is a function of the ADS resolution at a gain
-        initial_covariance = np.diag([1e-3] * (d - 1) + [1e-8])
-
-        observation_noise_covariance = 1.0
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
         while True:
-            msg = subscribe([f"morbidostat/{unit}/od_raw_batched", f"morbidostat/{unit}/io_events", f"morbidostat/{unit}/kill"])
+            msg = subscribe([f"morbidostat/{unit}/od_raw_batched", f"morbidostat/{unit}/io_events"])
 
             if "od_raw" in msg.topic:
                 ekf.update([*json_to_sorted_dict(msg.payload).values()])
@@ -51,9 +47,6 @@ def growth_rate_calculating(verbose):
             elif "io_events" in msg.topic:
                 ekf.set_OD_variance_for_next_n_steps(0.1, 8 * 60)
                 continue
-
-            elif "kill" in msg.topic:
-                return 0
 
             # transform the rate, r, into rate per hour: e^{rate * hours}
             od_reading_rate = float(config["od_sampling"]["samples_per_second"])
