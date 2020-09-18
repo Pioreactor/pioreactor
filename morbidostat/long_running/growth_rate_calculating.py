@@ -68,4 +68,4 @@ def click_growth_rate_calculating(verbose):
 
 
 if __name__ == "__main__":
-    growth_rate_calculating()
+    click_growth_rate_calculating()
