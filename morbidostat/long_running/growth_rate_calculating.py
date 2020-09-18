@@ -33,9 +33,10 @@ def growth_rate_calculating(verbose):
 
         initial_covariance = np.diag([1e-3] * (d - 1) + [1e-8])
 
-        OD_covariance = 1e-6 * np.ones((d - 1, d - 1))
-        OD_covariance[np.arange(d - 1), np.arange(d - 1)] = 1e-3
-        process_noise_covariance = np.block([[OD_covariance, 1e-10 * np.ones((d - 1, 1))], [1e-10 * np.ones((1, d - 1)), 1e-8]])
+        OD_covariance = 1e-12 * np.ones((d - 1, d - 1))
+        OD_covariance[0, 0] = 1e-4
+        OD_covariance[1, 1] = 1e-5
+        process_noise_covariance = np.block([[OD_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), 1e-15]])
 
         observation_noise_covariance = 1e-4 * np.ones(d - 1)  # this is a function of the ADS resolution at a gain
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
