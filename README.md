@@ -33,6 +33,8 @@ The _morbidostat_, a combination of "morbid static", is a bioreactor designed ex
 
 5. Some algae are facultative heterotrophs. A morbidostat can be used to evolve a stronger and faster growing heterotrophic metabolism.
 
+6. Triton Algae Innovations has used directed evolution to evolve heme in algae. They accelerated the process by flashing the microbes with UV light which caused a high mutation rate.
+
 7. Algae can be evolved to produce more carotenoids by changing the light conditions, see [Fu, 2013]
 
 6. Improving yeast culture density, as demonstrated in [Wong, 2018]

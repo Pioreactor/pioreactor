@@ -15,7 +15,7 @@ import board
 import busio
 
 from morbidostat.utils.streaming_calculations import MovingStats
-from morbidostat.utils import config, get_unit_from_hostname
+from morbidostat.utils import config, get_unit_from_hostname, killable
 from morbidostat.utils.pubsub import publish
 
 
@@ -29,6 +29,7 @@ ADS_GAIN_THRESHOLDS = {
 }
 
 
+@killable
 @click.command()
 @click.option(
     "--od_angle_channel",

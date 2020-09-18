@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
     morbidostat_unit       TEXT  NOT NULL,
     od_reading_v           REAL  NOT NULL,
     experiment             TEXT  NOT NULL,
-    angle                  REAL  NOT NULL
+    angle                  TEXT  NOT NULL
 );
 
 
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS od_readings_filtered (
     morbidostat_unit       TEXT  NOT NULL,
     od_reading_v           REAL  NOT NULL,
     experiment             TEXT  NOT NULL,
-    angle                  REAL  NOT NULL
+    angle                  TEXT  NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS io_events (
@@ -54,4 +54,3 @@ CREATE TABLE IF NOT EXISTS experiments (
     timestamp              TEXT  NOT NULL UNIQUE,
     experiment             TEXT  NOT NULL
 );
-

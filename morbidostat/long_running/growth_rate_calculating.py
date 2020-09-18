@@ -8,7 +8,7 @@ import numpy as np
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import config, get_unit_from_hostname
+from morbidostat.utils import config, get_unit_from_hostname, killable
 
 
 def json_to_sorted_dict(json_dict):
@@ -16,7 +16,20 @@ def json_to_sorted_dict(json_dict):
     return {k: float(d[k]) for k in sorted(d, reverse=True)}
 
 
-def growth_rate_calculating(verbose):
+def create_OD_covariance(angles):
+    d = len(angles)
+    variances = {"135": 1e-5, "90": 1e-8}
+
+    OD_covariance = 1e-10 * np.ones((d, d))
+    for i, a in enumerate(angles):
+        for k in variances:
+            if a.startswith(k):
+                OD_covariance[i, i] = variances[k]
+    return OD_covariance
+
+
+@killable()
+def growth_rate_calculating(verbose=False):
     unit = get_unit_from_hostname()
     od_reading_rate = float(config["od_sampling"]["samples_per_second"])
     samples_per_minute = 60 * od_reading_rate
@@ -32,11 +45,11 @@ def growth_rate_calculating(verbose):
         d = initial_state.shape[0]
 
         initial_covariance = np.diag([1e-3] * (d - 1) + [1e-8])
-
-        OD_covariance = 1e-12 * np.ones((d - 1, d - 1))
-        OD_covariance[0, 0] = 1e-4
-        OD_covariance[1, 1] = 1e-5
-        process_noise_covariance = np.block([[OD_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), 1e-15]])
+        OD_covariance = create_OD_covariance(angles_and_intial_points.keys())
+        rate_variance = 1e-15
+        process_noise_covariance = np.block(
+            [[OD_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_variance]]
+        )
 
         observation_noise_covariance = 1e-4 * np.ones(d - 1)  # this is a function of the ADS resolution at a gain
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)

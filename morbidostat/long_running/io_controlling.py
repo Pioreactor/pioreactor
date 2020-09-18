@@ -16,7 +16,7 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import get_unit_from_hostname
+from morbidostat.utils import get_unit_from_hostname, killable
 
 
 VIAL_VOLUME = 12
@@ -109,6 +109,7 @@ class Morbidostat(ControlAlgorithm):
         return
 
 
+@killable
 @click.command()
 @click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
 @click.option("--target_od", default=None, type=float)

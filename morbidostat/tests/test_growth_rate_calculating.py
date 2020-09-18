@@ -16,11 +16,22 @@ class MockMsgBroker:
     def __init__(self, *list_of_msgs):
         self.list_of_msgs = list_of_msgs
         self.counter = 0
+        self.callbacks = []
 
     def next(self):
         msg = self.list_of_msgs[self.counter]
         self.counter += 1
+        if self.counter >= len(self.list_of_msgs):
+            self.counter = 0
+
+        for f, topics in self.callbacks:
+            if msg.topic in topics:
+                f()
+
         return msg
+
+    def add_callback(self, func, topics):
+        self.callbacks.append([func, topics])
 
 
 @pytest.fixture
@@ -36,11 +47,19 @@ def mock_sub(monkeypatch):
 
     def mock_subscribe(*args, **kwargs):
         topics = args[0]
-        return broker.next()
+        while True:
+            msg = broker.next()
+            if msg.topic in topics:
+                return msg
+
+    def mock_callback(func, topics, hostname):
+        broker.add_callback(func, topics)
+        return
 
     monkeypatch.setattr(subscribe, "simple", mock_subscribe)
+    monkeypatch.setattr(subscribe, "callback", mock_callback)
 
 
 def test_subscribing(mock_sub):
-
-    growth_rate_calculating(verbose=False)
+    with pytest.raises(SystemExit):
+        growth_rate_calculating()

@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 import sys
 import configparser
 import socket
+
 
 def get_leader_hostname():
     if "pytest" in sys.modules:
@@ -8,19 +10,23 @@ def get_leader_hostname():
     else:
         return get_config()["network"]["leader_hostname"]
 
+
 def get_hostname():
     if "pytest" in sys.modules:
         return "localhost"
     else:
         return socket.gethostname()
 
+
 def get_config():
     config = configparser.ConfigParser()
     config.read("config.ini")
     return config
 
+
 def get_unit_from_hostname():
     import re
+
     hostname = get_hostname()
 
     if hostname == "leader":
@@ -61,3 +67,25 @@ def execute_sql_statement(SQL):
 
 leader_hostname = get_leader_hostname()
 config = get_config()
+unit = get_unit_from_hostname()
+
+from functools import wraps
+import paho.mqtt.subscribe as paho_subscribe
+
+
+def exit(*args, **kwargs):
+    import sys
+
+    sys.exit()
+
+
+def killable():
+    def logging_decorator(func):
+        @wraps(func)
+        def wrapped_function(*args, **kwargs):
+            paho_subscribe.callback(exit, f"morbidostat/{unit}/kill", hostname=leader_hostname)
+            return func(*args, **kwargs)
+
+        return wrapped_function
+
+    return logging_decorator
