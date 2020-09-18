@@ -35,7 +35,7 @@ def growth_rate_calculating(verbose):
 
         OD_covariance = 1e-6 * np.ones((d - 1, d - 1))
         OD_covariance[np.arange(d - 1), np.arange(d - 1)] = 1e-3
-        process_noise_covariance = np.block([[OD_covariance, 1e-9 * np.ones((d - 1, 1))], [1e-9 * np.ones((1, d - 1)), 1e-8]])
+        process_noise_covariance = np.block([[OD_covariance, 1e-10 * np.ones((d - 1, 1))], [1e-10 * np.ones((1, d - 1)), 1e-8]])
 
         observation_noise_covariance = 1e-4 * np.ones(d - 1)  # this is a function of the ADS resolution at a gain
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
@@ -47,7 +47,7 @@ def growth_rate_calculating(verbose):
                 ekf.update([*json_to_sorted_dict(msg.payload).values()])
 
             elif "io_events" in msg.topic:
-                ekf.set_OD_variance_for_next_n_steps(0.1, 8 * samples_per_minute)
+                ekf.set_OD_variance_for_next_n_steps(0.5, 8 * samples_per_minute)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate * hours}
