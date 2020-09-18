@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Continuously monitor the bioreactor and take action. This is the core of the io algorithm
 """
@@ -109,9 +110,7 @@ class Morbidostat(ControlAlgorithm):
 
 
 @click.command()
-@click.option(
-    "--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
-)
+@click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
 @click.option("--target_od", default=None, type=float)
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
@@ -119,15 +118,11 @@ class Morbidostat(ControlAlgorithm):
 def io_controlling(mode, target_od, duration, volume, verbose):
     unit = get_unit_from_hostname()
 
-
     def terminate(*args):
         publish(f"morbidostat/{unit}/log", f"[io_controlling]: terminated.", verbose=verbose)
         sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
-
-    assert_unit_matches_hostname(unit)
-
 
     algorithms = {
         "silent": Silent(),
