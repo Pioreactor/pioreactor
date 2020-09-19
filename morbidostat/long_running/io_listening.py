@@ -7,8 +7,6 @@ import traceback
 
 import paho.mqtt.subscribe as paho_subscribe
 import click
-import board
-import busio
 
 from morbidostat.utils.pubsub import publish, subscribe
 from morbidostat.utils import leader_hostname, get_unit_from_hostname, killables

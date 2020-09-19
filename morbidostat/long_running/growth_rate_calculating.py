@@ -28,6 +28,7 @@ def create_OD_covariance(angles):
     return OD_covariance
 
 
+@killable
 def growth_rate_calculating(verbose=False):
     unit = get_unit_from_hostname()
     od_reading_rate = float(config["od_sampling"]["samples_per_second"])

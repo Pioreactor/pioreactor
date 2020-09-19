@@ -79,13 +79,10 @@ def exit(*args, **kwargs):
     sys.exit()
 
 
-def killable():
-    def logging_decorator(func):
-        @wraps(func)
-        def wrapped_function(*args, **kwargs):
-            paho_subscribe.callback(exit, f"morbidostat/{unit}/kill", hostname=leader_hostname)
-            return func(*args, **kwargs)
+def killable(func):
+    @wraps(func)
+    def wrapped_function(*args, **kwargs):
+        paho_subscribe.callback(exit, f"morbidostat/{unit}/kill", hostname=leader_hostname)
+        return func(*args, **kwargs)
 
-        return wrapped_function
-
-    return logging_decorator
+    return wrapped_function

@@ -6,10 +6,9 @@ import time
 import signal
 import sys
 import threading
+from enum import Enum
 
 import click
-import board
-import busio
 
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
@@ -22,19 +21,24 @@ from morbidostat.utils import get_unit_from_hostname, killable
 VIAL_VOLUME = 12
 
 
+class Events(Enum):
+    NO_EVENT = 0
+    DILUTION_EVENT = 1
+    ALT_MEDIA_EVENT = 2
+    FLASH_UV = 3
+
+
 class ControlAlgorithm:
 
     latest_rate = None
     latest_od = None
 
-    def run(self):
+    def run(self, counter=None):
         self.set_OD_measurements()
-        self.execute()
-        return
+        return self.execute(counter)
 
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
-
         self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/growth_rate").payload)
         self.latest_od = float(subscribe(f"morbidostat/{self.unit}/od_filtered/135").payload)
         return
@@ -46,11 +50,11 @@ class ControlAlgorithm:
 
 
 class Silent(ControlAlgorithm):
-    def __init__(self, **kwargs):
-        return
+    def __init__(self, unit, *args, **kwargs):
+        self.unit = unit
 
     def execute(self, *args, **kwargs):
-        return
+        return Events.NO_EVENT
 
 
 class Turbidostat(ControlAlgorithm):
@@ -64,19 +68,23 @@ class Turbidostat(ControlAlgorithm):
         self.volume = volume
         self.duration = duration
 
-    def execute(self):
-        if self.latest_od > self.target_od:
+    def execute(self, *args, **kwargs):
+        if self.latest_od >= self.target_od:
             publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered dilution event.")
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
+            return Events.DILUTION_EVENT
         else:
             publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered no event.")
-        return
+            return Events.NO_EVENT
 
 
 class Morbidostat(ControlAlgorithm):
+
+    ALT_MEDIA_EVENT = 2
+
     def __init__(self, target_od=None, unit=None, volume=None, duration=None, **kwargs):
         self.target_od = target_od
         self.unit = unit
@@ -87,12 +95,14 @@ class Morbidostat(ControlAlgorithm):
     def estimated_hourly_dilution_rate_(self):
         return (self.volume / VIAL_VOLUME) / (self.duration_in_minutes / 60)
 
-    def execute(self):
+    def execute(self, *args, **kwargs):
         """
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
-        if self.previous_od and self.latest_od > self.target_od and self.latest_od > self.previous_od:
+        if self.previous_od is None:
+            return Events.NO_EVENT
+        elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
             publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered alt media event.")
@@ -100,22 +110,18 @@ class Morbidostat(ControlAlgorithm):
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_alt_media(self.volume, self.unit)
+            return Events.ALT_MEDIA_EVENT
         else:
             publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered dilution event.")
             time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
-        return
+            return Events.DILUTION_EVENT
 
 
-@click.command()
-@click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
-@click.option("--target_od", default=None, type=float)
-@click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
-@click.option("--volume", default=0.25, help="the volume to exchange, mL")
-@click.option("--verbose", is_flag=True)
-def io_controlling(mode, target_od, duration, volume, verbose):
+@killable
+def io_controlling(mode, target_od, duration, volume, verbose=False):
     unit = get_unit_from_hostname()
 
     def terminate(*args):
@@ -125,13 +131,12 @@ def io_controlling(mode, target_od, duration, volume, verbose):
     signal.signal(signal.SIGTERM, terminate)
 
     algorithms = {
-        "silent": Silent(),
+        "silent": Silent(unit=unit),
         "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
         "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
     }
 
     assert mode in algorithms.keys()
-    assert duration > 10
 
     publish(
         f"morbidostat/{unit}/log",
@@ -143,11 +148,21 @@ def io_controlling(mode, target_od, duration, volume, verbose):
     # main loop
     ##############################
     try:
-        every(duration * 60, algorithms[mode].run)
+        yield from every(duration * 60, algorithms[mode].run)
     except Exception as e:
         publish(f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         publish(f"morbidostat/{unit}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         raise e
+
+
+@click.command()
+@click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
+@click.option("--target_od", default=None, type=float)
+@click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
+@click.option("--volume", default=0.25, help="the volume to exchange, mL")
+@click.option("--verbose", is_flag=True)
+def click_io_controlling(mode, target_od, duration, volume, verbose):
+    return io_controlling(mode, target_od, duration, volume, verbose)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# test_growth_rate_calculating
 import pytest
 
 from morbidostat.long_running.growth_rate_calculating import growth_rate_calculating
@@ -25,18 +24,30 @@ class MockMsgBroker:
             self.counter = 0
 
         for f, topics in self.callbacks:
+            print(f, topics)
             if msg.topic in topics:
                 f()
 
         return msg
 
-    def add_callback(self, func, topics):
+    def _add_callback(self, func, topics):
         self.callbacks.append([func, topics])
+
+    def subscribe(self, *args, **kwargs):
+        topics = args[0]
+        while True:
+            msg = self.next()
+            if msg.topic in topics:
+                return msg
+
+    def callback(self, func, topics, hostname):
+        self._add_callback(func, topics)
+        return
 
 
 @pytest.fixture
 def mock_sub(monkeypatch):
-    broker = MockMsgBroker(
+    mock_broker = MockMsgBroker(
         MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
         MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
         MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
@@ -45,19 +56,8 @@ def mock_sub(monkeypatch):
         MockMQTTMsg("morbidostat/_testing/kill", None),
     )
 
-    def mock_subscribe(*args, **kwargs):
-        topics = args[0]
-        while True:
-            msg = broker.next()
-            if msg.topic in topics:
-                return msg
-
-    def mock_callback(func, topics, hostname):
-        broker.add_callback(func, topics)
-        return
-
-    monkeypatch.setattr(subscribe, "simple", mock_subscribe)
-    monkeypatch.setattr(subscribe, "callback", mock_callback)
+    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
+    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
 
 
 def test_subscribing(mock_sub):
