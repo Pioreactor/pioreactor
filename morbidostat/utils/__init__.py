@@ -76,14 +76,3 @@ def exit(*args, **kwargs):
     import sys
 
     sys.exit()
-
-
-def killable(func):
-    @wraps(func)
-    def wrapped_function(*args, **kwargs):
-        print("here1")
-        paho_subscribe.callback(exit, f"morbidostat/{unit}/kill", hostname=leader_hostname)
-        print("here2")
-        return func(*args, **kwargs)
-
-    return wrapped_function

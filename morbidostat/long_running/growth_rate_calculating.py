@@ -8,7 +8,7 @@ import numpy as np
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import config, get_unit_from_hostname, killable
+from morbidostat.utils import config, get_unit_from_hostname
 
 
 def json_to_sorted_dict(json_dict):
@@ -68,6 +68,7 @@ def growth_rate_calculating(verbose=False):
 
             for i, angle in enumerate(angles_and_intial_points):
                 publish(f"morbidostat/{unit}/od_filtered/{angle}", ekf.state_[i], verbose=verbose)
+                yield
 
     except Exception as e:
         publish(f"morbidostat/{unit}/error_log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose)
@@ -78,7 +79,9 @@ def growth_rate_calculating(verbose=False):
 @click.command()
 @click.option("--verbose", is_flag=True, help="Print to std out")
 def click_growth_rate_calculating(verbose):
-    return growth_rate_calculating(verbose)
+    calculator = growth_rate_calculating(verbose)
+    while True:
+        next(calculator)
 
 
 if __name__ == "__main__":

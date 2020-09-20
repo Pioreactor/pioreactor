@@ -20,11 +20,10 @@ class MockMsgBroker:
     def next(self):
         msg = self.list_of_msgs[self.counter]
         self.counter += 1
-        if self.counter >= len(self.list_of_msgs):
-            self.counter = 0
+        if self.counter > len(self.list_of_msgs):
+            raise StopIteration
 
         for f, topics in self.callbacks:
-            print(f, topics)
             if msg.topic in topics:
                 f()
 
@@ -53,7 +52,6 @@ def mock_sub(monkeypatch):
         MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
         MockMQTTMsg("morbidostat/_testing/io_event", '{"volume_change": "1.5", "event": "add_media"}'),
         MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 1.778586260567034, "90": 1.20944389172032837}'),
-        MockMQTTMsg("morbidostat/_testing/kill", None),
     )
 
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
@@ -61,5 +59,8 @@ def mock_sub(monkeypatch):
 
 
 def test_subscribing(mock_sub):
-    with pytest.raises(SystemExit):
-        growth_rate_calculating()
+    calc = growth_rate_calculating()
+    next(calc)
+    next(calc)
+    next(calc)
+    next(calc)

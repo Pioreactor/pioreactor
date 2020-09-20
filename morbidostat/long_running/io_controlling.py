@@ -15,7 +15,7 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import get_unit_from_hostname, killable
+from morbidostat.utils import get_unit_from_hostname
 
 
 VIAL_VOLUME = 12
@@ -164,7 +164,6 @@ def io_controlling(mode, target_od, duration, volume, verbose=False):
 def click_io_controlling(mode, target_od, duration, volume, verbose):
     controller = io_controlling(mode, target_od, duration, volume, verbose)
     while True:
-        print("here")
         next(controller)
 
 

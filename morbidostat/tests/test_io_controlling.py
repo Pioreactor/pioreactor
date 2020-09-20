@@ -21,8 +21,8 @@ class MockMsgBroker:
     def next(self):
         msg = self.list_of_msgs[self.counter]
         self.counter += 1
-        if self.counter >= len(self.list_of_msgs):
-            self.counter = 0
+        if self.counter > len(self.list_of_msgs):
+            raise StopIteration
 
         for f, topics in self.callbacks:
             if msg.topic in topics:
@@ -49,15 +49,16 @@ def test_silent_algorithm(monkeypatch):
     mock_broker = MockMsgBroker(
         MockMQTTMsg("morbidostat/_testing/growth_rate", "0.01"),
         MockMQTTMsg("morbidostat/_testing/od_filtered/135", "1.0"),
-        MockMQTTMsg("morbidostat/_testing/kill", None),
+        MockMQTTMsg("morbidostat/_testing/growth_rate", "0.02"),
+        MockMQTTMsg("morbidostat/_testing/od_filtered/135", "1.1"),
     )
 
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
-    with pytest.raises(SystemExit):
-        for event in io_controlling("silent", None, 0.001, 0):
-            assert event == Events.NO_EVENT
+    io = io_controlling("silent", None, 0.001, 0)
+    assert next(io) == Events.NO_EVENT
+    assert next(io) == Events.NO_EVENT
 
 
 def test_turbidostat_algorithm(monkeypatch):
