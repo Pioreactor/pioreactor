@@ -162,6 +162,7 @@ def io_controlling(mode, target_od, duration, volume, verbose=False):
 @click.option("--verbose", is_flag=True)
 def click_io_controlling(mode, target_od, duration, volume, verbose):
     while True:
+        print("Here")
         io_controlling(mode, target_od, duration, volume, verbose)
 
 
