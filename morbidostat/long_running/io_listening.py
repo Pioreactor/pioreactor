@@ -88,6 +88,7 @@ class AltMediaCalculator:
         return
 
 
+@killable
 @click.command()
 @click.option("--ignore_cache", is_flag=True, help="ignore the retained MQTT msg")
 @click.option("--verbose", is_flag=True, help="print to std.out")

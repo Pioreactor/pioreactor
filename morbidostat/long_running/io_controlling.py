@@ -121,7 +121,6 @@ class Morbidostat(ControlAlgorithm):
             return Events.DILUTION_EVENT
 
 
-@killable
 def io_controlling(mode, target_od, duration, volume, verbose=False):
     unit = get_unit_from_hostname()
 
