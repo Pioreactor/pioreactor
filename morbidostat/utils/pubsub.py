@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # pubsub
 import socket
 from paho.mqtt import publish as mqtt_publish
@@ -8,13 +9,13 @@ import time
 
 def publish(topic, message, hostname=leader_hostname, verbose=False, retries=10, **mqtt_kwargs):
 
-    current_time = time.strftime("%Y-%m-%d %H:%M:%S")
     retry = 1
     while True:
         try:
             mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
 
             if verbose:
+                current_time = time.strftime("%Y-%m-%d %H:%M:%S")
                 print(f"{current_time} {topic}: {message}")
 
             return
@@ -27,6 +28,8 @@ def publish(topic, message, hostname=leader_hostname, verbose=False, retries=10,
                 hostname="localhost",
                 retain=True,
             )
+
+            current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f"{current_time}: Attempt {retry}: Unable to connect to host: {hostname}. {str(e)}")
             time.sleep(5 * retry)  # linear backoff
             retry += 1
