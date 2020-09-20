@@ -165,4 +165,4 @@ def click_io_controlling(mode, target_od, duration, volume, verbose):
 
 
 if __name__ == "__main__":
-    io_controlling()
+    click_io_controlling()

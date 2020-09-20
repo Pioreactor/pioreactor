@@ -91,7 +91,7 @@ class AltMediaCalculator:
 @click.command()
 @click.option("--ignore_cache", is_flag=True, help="ignore the retained MQTT msg")
 @click.option("--verbose", is_flag=True, help="print to std.out")
-def io_listening(ignore_cache, verbose):
+def click_io_listening(ignore_cache, verbose):
     unit = get_unit_from_hostname()
     publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
 
@@ -103,4 +103,4 @@ def io_listening(ignore_cache, verbose):
 
 
 if __name__ == "__main__":
-    io_listening()
+    click_io_listening()
