@@ -161,7 +161,7 @@ def io_controlling(mode, target_od, duration, volume, verbose=False):
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 @click.option("--verbose", is_flag=True)
 def click_io_controlling(mode, target_od, duration, volume, verbose):
-    return io_controlling(mode, target_od, duration, volume, verbose)
+    yield from io_controlling(mode, target_od, duration, volume, verbose)
 
 
 if __name__ == "__main__":
