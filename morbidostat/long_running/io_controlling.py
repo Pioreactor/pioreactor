@@ -101,6 +101,7 @@ class Morbidostat(ControlAlgorithm):
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         if self.previous_od is None:
+            publish(f"morbidostat/{self.unit}/log", "[io_controlling]: No event.")
             return Events.NO_EVENT
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate

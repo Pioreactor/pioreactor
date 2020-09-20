@@ -7,8 +7,9 @@ def every(delay, task, *args, **kwargs):
     Executing `task` once initially, and then every `delay` seconds later.
 
     Yields the result back to the caller.
+
+    from https://stackoverflow.com/questions/474528/what-is-the-best-way-to-repeatedly-execute-a-function-every-x-seconds
     """
-    # from https://stackoverflow.com/questions/474528/what-is-the-best-way-to-repeatedly-execute-a-function-every-x-seconds
     next_time = time.time() + delay
     counter = 0
     while True:
