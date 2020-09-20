@@ -2,6 +2,8 @@
 import sys
 import configparser
 import socket
+from functools import wraps
+import paho.mqtt.subscribe as paho_subscribe
 
 
 def get_leader_hostname():
@@ -69,9 +71,6 @@ leader_hostname = get_leader_hostname()
 config = get_config()
 unit = get_unit_from_hostname()
 
-from functools import wraps
-import paho.mqtt.subscribe as paho_subscribe
-
 
 def exit(*args, **kwargs):
     import sys
@@ -82,7 +81,9 @@ def exit(*args, **kwargs):
 def killable(func):
     @wraps(func)
     def wrapped_function(*args, **kwargs):
+        print("here1")
         paho_subscribe.callback(exit, f"morbidostat/{unit}/kill", hostname=leader_hostname)
+        print("here2")
         return func(*args, **kwargs)
 
     return wrapped_function
