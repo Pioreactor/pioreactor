@@ -9,7 +9,7 @@ import paho.mqtt.subscribe as paho_subscribe
 import click
 
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import leader_hostname, get_unit_from_hostname, killables
+from morbidostat.utils import leader_hostname, get_unit_from_hostname, killable
 
 
 VIAL_VOLUME = 12
