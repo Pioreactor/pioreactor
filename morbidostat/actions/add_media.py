@@ -11,7 +11,6 @@ from morbidostat.utils.pubsub import publish
 
 def add_media(ml=None, duration=None, duty_cycle=None, verbose=False):
     unit = get_unit_from_hostname()
-    assert 60 <= duty_cycle <= 100
     hz = 100
 
     try:
@@ -22,7 +21,7 @@ def add_media(ml=None, duration=None, duty_cycle=None, verbose=False):
         GPIO.output(MEDIA_PIN, 0)
         pwm = GPIO.PWM(MEDIA_PIN, hz)
 
-        pwm.start(30)
+        pwm.start(duty_cycle)
 
         if ml is not None:
             time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"media{unit}_ml_calibration"])))
