@@ -17,6 +17,7 @@ import busio
 from morbidostat.utils.streaming_calculations import MovingStats
 from morbidostat.utils import config, get_unit_from_hostname
 from morbidostat.utils.pubsub import publish
+from morbidostat.utils.timing_and_threading import every
 
 
 ADS_GAIN_THRESHOLDS = {
@@ -59,11 +60,8 @@ def od_reading(verbose, od_angle_channel):
 
     publish(f"morbidostat/{unit}/log", "[od_reading]: starting", verbose=verbose)
 
-    i = 1
-    while True:
-        cycle_start_time = time.time()
+    def take_reading(counter=None):
         try:
-
             raw_signals = {}
             for angle, channel in od_channels:
                 raw_signal_ = channel.voltage
@@ -77,19 +75,11 @@ def od_reading(verbose, od_angle_channel):
             ma.update(max(raw_signals.values()))
 
             # check if using correct gain
-            if i % 100 == 0 and ma.mean is not None:
+            if counter % 20 == 0 and ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if 0.85 * lb <= ma.mean < 0.85 * ub:
                         ads.gain = gain
                         break
-
-            i += 1
-
-            cycle_end_time = time.time()
-            delta_cycle_time = cycle_end_time - cycle_start_time
-
-            time.sleep(max(sampling_rate - delta_cycle_time, 0))
-
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
             publish(
@@ -100,6 +90,8 @@ def od_reading(verbose, od_angle_channel):
             publish(f"morbidostat/{unit}/log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             publish(f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             raise e
+
+    every(sampling_rate, take_reading)
 
 
 if __name__ == "__main__":
