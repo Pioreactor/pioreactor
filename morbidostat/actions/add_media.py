@@ -16,12 +16,13 @@ def add_media(ml=None, duration=None, duty_cycle=None, verbose=False):
 
     try:
         GPIO.setmode(GPIO.BCM)
+
         MEDIA_PIN = int(config["rpi_pins"]["media"])
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 0)
         pwm = GPIO.PWM(MEDIA_PIN, hz)
 
-        pwm.start(duty_cycle)
+        pwm.start(30)
 
         if ml is not None:
             time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"media{unit}_ml_calibration"])))
