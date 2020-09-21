@@ -101,4 +101,4 @@ def click_od_reading(verbose, od_angle_channel):
 
 
 if __name__ == "__main__":
-    click_od_reading
+    click_od_reading()
