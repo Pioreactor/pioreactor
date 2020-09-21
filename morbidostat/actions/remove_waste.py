@@ -11,19 +11,27 @@ from morbidostat.utils import config, get_unit_from_hostname
 from morbidostat.utils.pubsub import publish
 
 
-def remove_waste(ml, verbose=False):
+def remove_waste(ml=None, duration=None, duty_cycle=None, verbose=False):
     unit = get_unit_from_hostname()
+    hz = 100
 
     try:
         GPIO.setmode(GPIO.BCM)
 
         WASTE_PIN = int(config["rpi_pins"]["waste"])
         GPIO.setup(WASTE_PIN, GPIO.OUT)
-        GPIO.output(WASTE_PIN, 1)
-
         GPIO.output(WASTE_PIN, 0)
-        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"waste{unit}_ml_calibration"])))
-        GPIO.output(WASTE_PIN, 1)
+        pwm = GPIO.PWM(WASTE_PIN, hz)
+
+        pwm.start(duty_cycle)
+
+        if ml is not None:
+            time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"waste{unit}_ml_calibration"])))
+        else:
+            time.sleep(duration)
+
+        pwm.stop()
+        GPIO.output(WASTE_PIN, 0)
         publish(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml, verbose=verbose)
 
         publish(f"morbidostat/{unit}/log", "remove waste: %smL" % ml, verbose=verbose)
@@ -37,10 +45,14 @@ def remove_waste(ml, verbose=False):
 
 
 @click.command()
+@click.option("--ml", type=float)
+@click.option("--duration", type=float)
+@click.option("--duty_cycle", type=int)
 @click.option("--verbose", is_flag=True, help="print to std out")
-@click.argument("ml", type=float)
-def click_remove_waste(ml, verbose):
-    return remove_waste(ml, verbose)
+def click_remove_waste(ml, duration, duty_cycle, verbose):
+    assert (ml is not None) or (duration is not None)
+    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
+    return remove_waste(ml, duration, duty_cycle, verbose)
 
 
 if __name__ == "__main__":
