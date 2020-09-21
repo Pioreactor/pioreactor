@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # add alt_media
 import time
 from json import loads
@@ -15,25 +16,17 @@ def add_alt_media(ml, verbose=False):
     try:
         GPIO.setmode(GPIO.BCM)
 
-        ALT_MEDIA_PIN = int(config["rpi_pins"][f"alt_media"])
+        ALT_MEDIA_PIN = int(config["rpi_pins"]["alt_media"])
         GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
         GPIO.output(ALT_MEDIA_PIN, 1)  # TODO: why do I do this? Do I need this line?
         GPIO.output(ALT_MEDIA_PIN, 0)
-        time.sleep(
-            pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"alt_media{unit}_ml_calibration"]))
-        )
+        time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"alt_media{unit}_ml_calibration"])))
         GPIO.output(ALT_MEDIA_PIN, 1)
 
-        publish(
-            f"morbidostat/{unit}/io_events",
-            '{"volume_change": "%s", "event": "add_alt_media"}' % ml,
-            verbose=verbose,
-        )
+        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml, verbose=verbose)
         publish(f"morbidostat/{unit}/log", f"add alt media: {ml}mL", verbose=verbose)
     except Exception as e:
-        publish(
-            f"morbidostat/{unit}/error_log", f"[add_alt_media]: failed with {str(e)}", verbose=verbose,
-        )
+        publish(f"morbidostat/{unit}/error_log", f"[add_alt_media]: failed with {str(e)}", verbose=verbose)
         raise e
     finally:
         GPIO.cleanup()

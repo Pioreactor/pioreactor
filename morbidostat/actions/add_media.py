@@ -16,7 +16,7 @@ def add_media(ml=None, duration=None, duty_cycle=None, verbose=False):
 
     try:
         GPIO.setmode(GPIO.BCM)
-        MEDIA_PIN = int(config["rpi_pins"][f"media"])
+        MEDIA_PIN = int(config["rpi_pins"]["media"])
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 0)
         pwm = GPIO.PWM(MEDIA_PIN, hz)

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # remove waste
 import time
 from json import loads
@@ -16,24 +17,18 @@ def remove_waste(ml, verbose=False):
     try:
         GPIO.setmode(GPIO.BCM)
 
-        WASTE_PIN = int(config["rpi_pins"][f"waste"])
+        WASTE_PIN = int(config["rpi_pins"]["waste"])
         GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 1)
 
         GPIO.output(WASTE_PIN, 0)
         time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"waste{unit}_ml_calibration"])))
         GPIO.output(WASTE_PIN, 1)
-        publish(
-            f"morbidostat/{unit}/io_events",
-            '{"volume_change": "-%s", "event": "remove_waste"}' % ml,
-            verbose=verbose,
-        )
+        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml, verbose=verbose)
 
         publish(f"morbidostat/{unit}/log", "remove waste: %smL" % ml, verbose=verbose)
     except Exception as e:
-        publish(
-            f"morbidostat/{unit}/error_log", f"[remove_waste]: failed with {str(e)}", verbose=verbose,
-        )
+        publish(f"morbidostat/{unit}/error_log", f"[remove_waste]: failed with {str(e)}", verbose=verbose)
         raise e
 
     finally:
