@@ -11,7 +11,7 @@ from morbidostat.utils.pubsub import publish
 
 def add_media(ml=None, duration=None, duty_cycle=None, verbose=False):
     unit = get_unit_from_hostname()
-    assert 0 <= duty_cycle <= 100
+    assert 60 <= duty_cycle <= 100
     hz = 100
 
     try:
@@ -29,7 +29,7 @@ def add_media(ml=None, duration=None, duty_cycle=None, verbose=False):
             time.sleep(duration)
 
         pwm.stop()
-        GPIO.output(MEDIA_PIN, 1)
+        GPIO.output(MEDIA_PIN, 0)
 
         publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml, verbose=verbose)
         publish(f"morbidostat/{unit}/log", "add media: %smL" % ml, verbose=verbose)
