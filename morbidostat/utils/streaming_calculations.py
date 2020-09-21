@@ -77,6 +77,8 @@ class ExtendedKalmanFilter:
     def __init__(self, initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance):
         assert initial_state.shape[0] == initial_covariance.shape[0] == initial_covariance.shape[1]
         assert process_noise_covariance.shape == initial_covariance.shape
+        assert self._is_positive_definite(process_noise_covariance)
+        assert self._is_positive_definite(initial_covariance)
 
         self._process_noise_covariance = process_noise_covariance
         self.observation_noise_covariance = observation_noise_covariance
@@ -149,3 +151,13 @@ class ExtendedKalmanFilter:
         """
         d = self.dim
         return np.eye(d)[: (d - 1)]
+
+    @staticmethod
+    def _is_positive_definite(A):
+        if np.array_equal(A, A.T):
+            try:
+                return True
+            except np.linalg.LinAlgError:
+                return False
+        else:
+            return False
