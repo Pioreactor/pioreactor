@@ -17,6 +17,13 @@ def test_pump_io_doesnt_allow_negative():
     with pytest.raises(AssertionError):
         remove_waste.remove_waste(ml=-1)
 
+    with pytest.raises(AssertionError):
+        add_media.add_media(duration=-1)
+    with pytest.raises(AssertionError):
+        add_alt_media.add_alt_media(duration=-1)
+    with pytest.raises(AssertionError):
+        remove_waste.remove_waste(duration=-1)
+
 
 def test_cleaning():
     clean_tubes.clean_tubes(0.1)

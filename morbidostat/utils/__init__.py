@@ -3,6 +3,8 @@ import sys
 import configparser
 import socket
 from functools import wraps
+
+import numpy as np
 import paho.mqtt.subscribe as paho_subscribe
 
 
@@ -47,12 +49,11 @@ def get_unit_from_hostname():
         raise ValueError("Unsure where this is being run from...")
 
 
-def pump_ml_to_duration(ml, rate, bias):
+def pump_ml_to_duration(ml, dc, dc_=0, duration_=0, intercept_=0):
     """
-    ml = rate * duration + bias
+    log(ml) = dc_ * log(duty_cycle) + duration_ * log(duration) + intercept_
     """
-    duration = (ml - bias) / rate
-    assert duration >= 0, "pump duration is negative"
+    duration = np.exp(1 / duration_ * (np.log(ml) - dc_ * np.log(dc) - intercept_))
     return duration
 
 

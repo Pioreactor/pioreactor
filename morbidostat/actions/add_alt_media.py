@@ -10,7 +10,7 @@ from morbidostat.utils import config, get_unit_from_hostname
 from morbidostat.utils.pubsub import publish
 
 
-def add_alt_media(ml=None, duration=None, duty_cycle=None, verbose=False):
+def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
     unit = get_unit_from_hostname()
     hz = 100
 
@@ -25,9 +25,11 @@ def add_alt_media(ml=None, duration=None, duty_cycle=None, verbose=False):
         pwm.start(duty_cycle)
 
         if ml is not None:
-            time.sleep(pump_ml_to_duration(ml, *loads(config["pump_calibration"][f"alt_media{unit}_ml_calibration"])))
-        else:
-            time.sleep(duration)
+            assert ml >= 0
+            duration = pump_ml_to_duration(ml, duty_cycle, **loads(config["pump_calibration"][f"alt_media{unit}_ml_calibration"]))
+
+        assert duration >= 0
+        time.sleep(duration)
 
         pwm.stop()
         GPIO.output(ALT_MEDIA_PIN, 0)

@@ -44,8 +44,8 @@ class MockMsgBroker:
         return
 
 
-@pytest.fixture
-def mock_sub(monkeypatch):
+def test_subscribing(monkeypatch):
+
     mock_broker = MockMsgBroker(
         MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
         MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
@@ -57,10 +57,22 @@ def mock_sub(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
 
-
-def test_subscribing(mock_sub):
     calc = growth_rate_calculating()
     next(calc)
     next(calc)
+    next(calc)
+    next(calc)
+
+
+def test_same_angles(monkeypatch):
+    mock_broker = MockMsgBroker(
+        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135A": 0.778586260567034, "135B": 0.20944389172032837}'),
+        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135A": 0.808586260567034, "135B": 0.21944389172032837}'),
+    )
+
+    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
+    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
+
+    calc = growth_rate_calculating()
     next(calc)
     next(calc)
