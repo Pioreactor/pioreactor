@@ -18,7 +18,7 @@ def json_to_sorted_dict(json_dict):
 
 def create_OD_covariance(angles):
     d = len(angles)
-    variances = {"135": 1e-5, "90": 1e-8}
+    variances = {"135": 1e-5, "90": 1e-7}
 
     OD_covariance = 1e-10 * np.ones((d, d))
     for i, a in enumerate(angles):
@@ -46,13 +46,13 @@ def growth_rate_calculating(verbose=False):
         initial_covariance = np.diag([1e-3] * (d - 1) + [1e-8])
         OD_process_covariance = create_OD_covariance(angles_and_intial_points.keys())
         rate_process_variance = (
-            1e-14
+            1e-12
         )  # think of this as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
         process_noise_covariance = np.block(
             [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
         )
 
-        observation_noise_covariance = 1e-4 * np.ones(d - 1)  # this is a function of the ADS resolution at a gain
+        observation_noise_covariance = 1e-3 * np.eye(d - 1)  # TODO: this should be a function of the angle.
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
         while True:

@@ -79,6 +79,7 @@ class ExtendedKalmanFilter:
         assert process_noise_covariance.shape == initial_covariance.shape
         assert self._is_positive_definite(process_noise_covariance)
         assert self._is_positive_definite(initial_covariance)
+        assert self._is_positive_definite(observation_noise_covariance)
 
         self._process_noise_covariance = process_noise_covariance
         self.observation_noise_covariance = observation_noise_covariance
