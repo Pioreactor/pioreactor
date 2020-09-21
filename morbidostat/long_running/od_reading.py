@@ -30,20 +30,6 @@ ADS_GAIN_THRESHOLDS = {
 }
 
 
-@click.command()
-@click.option(
-    "--od_angle_channel",
-    multiple=True,
-    default=["135,0"],
-    type=click.STRING,
-    help="""
-pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
-
---od_angle_channel 135,0 --od_angle_channel 90,1 --od_angle_channel 45,2
-
-""",
-)
-@click.option("--verbose", is_flag=True, help="print to std out")
 def od_reading(verbose, od_angle_channel):
     unit = get_unit_from_hostname()
 
@@ -94,7 +80,25 @@ def od_reading(verbose, od_angle_channel):
     yield from every(sampling_rate, take_reading)
 
 
-if __name__ == "__main__":
-    reader = od_reading()
+@click.command()
+@click.option(
+    "--od_angle_channel",
+    multiple=True,
+    default=["135,0"],
+    type=click.STRING,
+    help="""
+pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
+
+--od_angle_channel 135,0 --od_angle_channel 90,1 --od_angle_channel 45,2
+
+""",
+)
+@click.option("--verbose", is_flag=True, help="print to std out")
+def click_od_reading(verbose, od_angle_channel):
+    reader = od_reading(verbose, od_angle_channel)
     while True:
         next(reader)
+
+
+if __name__ == "__main__":
+    click_od_reading
