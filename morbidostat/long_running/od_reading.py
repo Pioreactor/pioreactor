@@ -91,8 +91,10 @@ def od_reading(verbose, od_angle_channel):
             publish(f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             raise e
 
-    every(sampling_rate, take_reading)
+    yield from every(sampling_rate, take_reading)
 
 
 if __name__ == "__main__":
-    od_reading()
+    reader = od_reading()
+    while True:
+        next(reader)
