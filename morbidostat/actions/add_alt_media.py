@@ -11,6 +11,8 @@ from morbidostat.utils.pubsub import publish
 
 
 def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
+    assert 0 <= duty_cycle <= 100
+
     unit = get_unit_from_hostname()
     hz = 100
 

@@ -59,7 +59,7 @@ def growth_rate_calculating(verbose=False):
             msg = subscribe([f"morbidostat/{unit}/od_raw_batched", f"morbidostat/{unit}/io_events"])
 
             if "od_raw" in msg.topic:
-                ekf.update([*json_to_sorted_dict(msg.payload).values()])
+                ekf.update(np.array([*json_to_sorted_dict(msg.payload).values()]))
 
             elif "io_events" in msg.topic:
                 ekf.scale_OD_variance_for_next_n_steps(100, 8 * samples_per_minute)
