@@ -47,7 +47,7 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
 @click.command()
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
-@click.option("--duty_cycle", type=int)
+@click.option("--duty_cycle", default=33, type=int)
 @click.option("--verbose", is_flag=True, help="print to std out")
 def click_add_alt_media(ml, duration, duty_cycle, verbose):
     assert (ml is not None) or (duration is not None)
