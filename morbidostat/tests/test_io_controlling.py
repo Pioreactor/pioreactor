@@ -2,7 +2,7 @@
 
 import pytest
 
-from morbidostat.long_running.io_controlling import io_controlling, Events
+from morbidostat.long_running.io_controlling import io_controlling, Event
 from paho.mqtt import subscribe
 
 
@@ -57,8 +57,8 @@ def test_silent_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     io = io_controlling("silent", None, 0.001, 0)
-    assert next(io) == Events.NO_EVENT
-    assert next(io) == Events.NO_EVENT
+    assert next(io) == Event.NO_EVENT
+    assert next(io) == Event.NO_EVENT
 
 
 def test_turbidostat_algorithm(monkeypatch):
@@ -79,10 +79,10 @@ def test_turbidostat_algorithm(monkeypatch):
     target_od = 1.0
     algo = io_controlling("turbidostat", target_od=target_od, duration=0.001, volume=0.25)
 
-    assert next(algo) == Events.NO_EVENT
-    assert next(algo) == Events.DILUTION_EVENT
-    assert next(algo) == Events.DILUTION_EVENT
-    assert next(algo) == Events.NO_EVENT
+    assert next(algo) == Event.NO_EVENT
+    assert next(algo) == Event.DILUTION_EVENT
+    assert next(algo) == Event.DILUTION_EVENT
+    assert next(algo) == Event.NO_EVENT
 
 
 def test_morbidostat_algorithm(monkeypatch):
@@ -107,9 +107,9 @@ def test_morbidostat_algorithm(monkeypatch):
     target_od = 1.0
     algo = io_controlling("morbidostat", target_od=target_od, duration=0.001, volume=0.25)
 
-    assert next(algo) == Events.NO_EVENT
-    assert next(algo) == Events.DILUTION_EVENT
-    assert next(algo) == Events.ALT_MEDIA_EVENT
-    assert next(algo) == Events.DILUTION_EVENT
-    assert next(algo) == Events.ALT_MEDIA_EVENT
-    assert next(algo) == Events.DILUTION_EVENT
+    assert next(algo) == Event.NO_EVENT
+    assert next(algo) == Event.DILUTION_EVENT
+    assert next(algo) == Event.ALT_MEDIA_EVENT
+    assert next(algo) == Event.DILUTION_EVENT
+    assert next(algo) == Event.ALT_MEDIA_EVENT
+    assert next(algo) == Event.DILUTION_EVENT

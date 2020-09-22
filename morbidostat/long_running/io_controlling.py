@@ -7,6 +7,7 @@ import signal
 import sys
 import threading
 from enum import Enum
+from typing import Iterator
 
 import click
 
@@ -21,7 +22,7 @@ from morbidostat.utils import get_unit_from_hostname
 VIAL_VOLUME = 12
 
 
-class Events(Enum):
+class Event(Enum):
     NO_EVENT = 0
     DILUTION_EVENT = 1
     ALT_MEDIA_EVENT = 2
@@ -29,6 +30,11 @@ class Events(Enum):
 
 
 class ControlAlgorithm:
+    """
+    This is the super class that algorithms inherit from. The `run` function will
+    execute every N minutes (selected at the start of the program). This calls the `execute` function,
+    which is what subclasses will define.
+    """
 
     latest_rate = None
     latest_od = None
@@ -42,9 +48,15 @@ class ControlAlgorithm:
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
         self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/growth_rate").payload)
-        # TODO: this below line will break with I use 135A and 135B
+        # TODO: this below line will break when I use 135A and 135B
         self.latest_od = float(subscribe(f"morbidostat/{self.unit}/od_filtered/135").payload)
         return
+
+    def execute(self, counter) -> Event:
+        """
+        Should return a member of the Event class (defined above)
+        """
+        raise NotImplementedError
 
 
 ######################
@@ -56,8 +68,8 @@ class Silent(ControlAlgorithm):
     def __init__(self, unit, *args, **kwargs):
         self.unit = unit
 
-    def execute(self, *args, **kwargs):
-        return Events.NO_EVENT
+    def execute(self, *args, **kwargs) -> Event:
+        return Event.NO_EVENT
 
 
 class Turbidostat(ControlAlgorithm):
@@ -71,14 +83,14 @@ class Turbidostat(ControlAlgorithm):
         self.volume = volume
         self.duration = duration
 
-    def execute(self, *args, **kwargs):
+    def execute(self, *args, **kwargs) -> Event:
         if self.latest_od >= self.target_od:
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
-            return Events.DILUTION_EVENT
+            return Event.DILUTION_EVENT
         else:
-            return Events.NO_EVENT
+            return Event.NO_EVENT
 
 
 class Morbidostat(ControlAlgorithm):
@@ -95,28 +107,28 @@ class Morbidostat(ControlAlgorithm):
     def estimated_hourly_dilution_rate_(self):
         return (self.volume / VIAL_VOLUME) / (self.duration_in_minutes / 60)
 
-    def execute(self, *args, **kwargs):
+    def execute(self, *args, **kwargs) -> Event:
         """
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         if self.previous_od is None:
-            return Events.NO_EVENT
+            return Event.NO_EVENT
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_alt_media(self.volume, self.unit)
-            return Events.ALT_MEDIA_EVENT
+            return Event.ALT_MEDIA_EVENT
         else:
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
-            return Events.DILUTION_EVENT
+            return Event.DILUTION_EVENT
 
 
-def io_controlling(mode, target_od, duration, volume, verbose=False):
+def io_controlling(mode, target_od, duration, volume, verbose=False) -> Iterator[Event]:
     unit = get_unit_from_hostname()
 
     def terminate(*args):
