@@ -35,11 +35,14 @@ class ControlAlgorithm:
 
     def run(self, counter=None):
         self.set_OD_measurements()
-        return self.execute(counter)
+        event = self.execute(counter)
+        publish(f"morbidostat/{self.unit}/log", f"[io_controlling]: triggered {event.name}.")
+        return event
 
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
         self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/growth_rate").payload)
+        # TODO: this below line will break with I use 135A and 135B
         self.latest_od = float(subscribe(f"morbidostat/{self.unit}/od_filtered/135").payload)
         return
 
@@ -70,14 +73,11 @@ class Turbidostat(ControlAlgorithm):
 
     def execute(self, *args, **kwargs):
         if self.latest_od >= self.target_od:
-            publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered dilution event.")
-            time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)
             return Events.DILUTION_EVENT
         else:
-            publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered no event.")
             return Events.NO_EVENT
 
 
@@ -101,20 +101,15 @@ class Morbidostat(ControlAlgorithm):
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         if self.previous_od is None:
-            publish(f"morbidostat/{self.unit}/log", "[io_controlling]: No event.")
             return Events.NO_EVENT
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
-            publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered alt media event.")
-            time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_alt_media(self.volume, self.unit)
             return Events.ALT_MEDIA_EVENT
         else:
-            publish(f"morbidostat/{self.unit}/log", "[io_controlling]: triggered dilution event.")
-            time.sleep(0.2)
             remove_waste(self.volume, self.unit)
             time.sleep(0.2)
             add_media(self.volume, self.unit)

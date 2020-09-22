@@ -95,7 +95,7 @@ class ExtendedKalmanFilter:
 
     def update(self, observation):
         # TODO: incorporate delta_time
-        assert observation.shape == self.state_.shape
+        assert observation.shape[0] + 1 == self.state_.shape[0]
         state_prediction, covariance_prediction = self.predict()
         residual_state = observation - state_prediction[:-1]
         H = self._jacobian_observation()
