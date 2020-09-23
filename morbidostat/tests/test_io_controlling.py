@@ -105,7 +105,7 @@ def test_morbidostat_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     target_od = 1.0
-    algo = io_controlling("morbidostat", target_od=target_od, duration=0.001, volume=0.25)
+    algo = io_controlling("morbidostat", target_od=target_od, duration=0.001, volume=0.25, verbose=True)
 
     assert next(algo) == Event.NO_EVENT
     assert next(algo) == Event.DILUTION_EVENT

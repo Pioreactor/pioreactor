@@ -1,6 +1,0 @@
-#!/bin/bash
-echo "Starting growth_rate_calculating, od_reading and io_controlling, io_listening processes 🚀"
-nohup python3 -m morbidostat.long_running.od_reading &
-nohup python3 -m morbidostat.long_running.growth_rate_calculating &
-nohup python3 -m morbidostat.long_running.io_controlling &
-nohup python3 -m morbidostat.long_running.io_listening &

@@ -28,6 +28,9 @@ class Event(Enum):
     ALT_MEDIA_EVENT = 2
     FLASH_UV = 3
 
+    def __str__(self):
+        return self.name.lower().replace("_", " ")
+
 
 class ControlAlgorithm:
     """
@@ -42,7 +45,7 @@ class ControlAlgorithm:
     def run(self, counter=None):
         self.set_OD_measurements()
         event = self.execute(counter)
-        publish(f"morbidostat/{self.unit}/log", f"[io_controlling]: triggered {event.name}.")
+        publish(f"morbidostat/{self.unit}/log", f"[io_controlling]: triggered {event}.", verbose=self.verbose)
         return event
 
     def set_OD_measurements(self):
@@ -65,8 +68,9 @@ class ControlAlgorithm:
 
 
 class Silent(ControlAlgorithm):
-    def __init__(self, unit, *args, **kwargs):
+    def __init__(self, unit, *args, verbose=False, **kwargs):
         self.unit = unit
+        self.verbose = verbose
 
     def execute(self, *args, **kwargs) -> Event:
         return Event.NO_EVENT
@@ -77,11 +81,12 @@ class Turbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant
     """
 
-    def __init__(self, target_od=None, unit=None, volume=None, duration=None, **kwargs):
+    def __init__(self, target_od=None, unit=None, volume=None, duration=None, verbose=False, **kwargs):
         self.target_od = target_od
         self.unit = unit
         self.volume = volume
         self.duration = duration
+        self.verbose = verbose
 
     def execute(self, *args, **kwargs) -> Event:
         if self.latest_od >= self.target_od:
@@ -97,11 +102,12 @@ class Morbidostat(ControlAlgorithm):
 
     ALT_MEDIA_EVENT = 2
 
-    def __init__(self, target_od=None, unit=None, volume=None, duration=None, **kwargs):
+    def __init__(self, target_od=None, unit=None, volume=None, duration=None, verbose=False, **kwargs):
         self.target_od = target_od
         self.unit = unit
         self.volume = volume
         self.duration_in_minutes = duration
+        self.verbose = verbose
 
     @property
     def estimated_hourly_dilution_rate_(self):
@@ -128,7 +134,7 @@ class Morbidostat(ControlAlgorithm):
             return Event.DILUTION_EVENT
 
 
-def io_controlling(mode, target_od, duration, volume, verbose=False) -> Iterator[Event]:
+def io_controlling(mode, target_od, duration, volume, verbose=False, skip_first_run=False) -> Iterator[Event]:
     unit = get_unit_from_hostname()
 
     def terminate(*args):
@@ -138,9 +144,9 @@ def io_controlling(mode, target_od, duration, volume, verbose=False) -> Iterator
     signal.signal(signal.SIGTERM, terminate)
 
     algorithms = {
-        "silent": Silent(unit=unit),
-        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
-        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration),
+        "silent": Silent(unit=unit, verbose=verbose),
+        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration, verbose=verbose),
+        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration, verbose=verbose),
     }
 
     assert mode in algorithms.keys()
@@ -150,6 +156,9 @@ def io_controlling(mode, target_od, duration, volume, verbose=False) -> Iterator
         f"[io_controlling]: starting {mode} with {duration}min intervals, target OD {target_od}V, volume {volume}mL.",
         verbose=verbose,
     )
+
+    if skip_first_run:
+        time.sleep(duration * 60)
 
     ##############################
     # main loop
@@ -167,9 +176,14 @@ def io_controlling(mode, target_od, duration, volume, verbose=False) -> Iterator
 @click.option("--target_od", default=None, type=float)
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
+@click.option(
+    "--skip_first_run",
+    is_flag=True,
+    help="Normally IO will run immediately. Set this flag to wait <duration>min before executing.",
+)
 @click.option("--verbose", is_flag=True)
-def click_io_controlling(mode, target_od, duration, volume, verbose):
-    controller = io_controlling(mode, target_od, duration, volume, verbose)
+def click_io_controlling(mode, target_od, duration, volume, skip_first_run, verbose):
+    controller = io_controlling(mode, target_od, duration, volume, skip_first_run=skip_first_run, verbose=verbose)
     while True:
         next(controller)
 
