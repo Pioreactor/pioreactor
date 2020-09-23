@@ -87,8 +87,13 @@ class ExtendedKalmanFilter:
         self.covariance_ = initial_covariance
         self.dim = self.state_.shape[0]
 
-        self._counter = -1
+        self._OD_scale_counter = -1
+        self._rate_scale_counter = -1
+
         self._original_process_noise_variance = np.diag(self._process_noise_covariance)[: (self.dim - 1)].copy()
+        self._original_rate_noise_variance = self._process_noise_covariance[-1, -1]
+        # when we start the job, artificially increase the initial variance on the rate term to "catch up" to where we might be.
+        self.scale_rate_variance_for_next_n_steps(1e4, 20)
 
     def predict(self):
         return (self._predict_state(self.state_, self.covariance_), self._predict_covariance(self.state_, self.covariance_))
@@ -107,14 +112,23 @@ class ExtendedKalmanFilter:
 
     def scale_OD_variance_for_next_n_steps(self, factor, n):
         d = self.dim
-        self._counter = n
+        self._OD_scale_counter = n
         self._process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = factor * self._original_process_noise_variance
 
+    def scale_rate_variance_for_next_n_steps(self, factor, n):
+        d = self.dim
+        self._rate_scale_counter = n
+        self._process_noise_covariance[-1, -1] = factor * self._original_rate_noise_variance
+
     def process_noise_covariance(self):
-        if self._counter == 0:
+        if self._OD_scale_counter == 0:
             d = self.dim
             self._process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = self._original_process_noise_variance
-        self._counter -= 1
+        self._OD_scale_counter -= 1
+
+        if self._rate_scale_counter == 0:
+            self._process_noise_covariance[-1, -1] = self._original_rate_noise_variance
+        self._rate_scale_counter -= 1
         return self._process_noise_covariance
 
     def _predict_state(self, state, covariance):
