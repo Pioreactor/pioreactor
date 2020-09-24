@@ -92,8 +92,6 @@ class ExtendedKalmanFilter:
 
         self._original_process_noise_variance = np.diag(self._process_noise_covariance)[: (self.dim - 1)].copy()
         self._original_rate_noise_variance = self._process_noise_covariance[-1, -1]
-        # when we start the job, artificially increase the initial variance on the rate term to "catch up" to where we might be.
-        self.scale_rate_variance_for_next_n_steps(1e4, 20)
 
     def predict(self):
         return (self._predict_state(self.state_, self.covariance_), self._predict_covariance(self.state_, self.covariance_))

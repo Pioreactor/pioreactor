@@ -15,7 +15,7 @@ import board
 import busio
 
 from morbidostat.utils.streaming_calculations import MovingStats
-from morbidostat.utils import config, get_unit_from_hostname
+from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
 from morbidostat.utils.pubsub import publish
 from morbidostat.utils.timing_and_threading import every
 
@@ -32,6 +32,7 @@ ADS_GAIN_THRESHOLDS = {
 
 def od_reading(verbose, od_angle_channel):
     unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
@@ -44,18 +45,18 @@ def od_reading(verbose, od_angle_channel):
     sampling_rate = 1 / float(config["od_sampling"]["samples_per_second"])
     ma = MovingStats(lookback=20)
 
-    publish(f"morbidostat/{unit}/log", "[od_reading]: starting", verbose=verbose)
+    publish(f"morbidostat/{unit}/{experiment}/log", "[od_reading]: starting", verbose=verbose)
 
     def take_reading(counter=None):
         try:
             raw_signals = {}
             for angle, channel in od_channels:
                 raw_signal_ = channel.voltage
-                publish(f"morbidostat/{unit}/od_raw/{angle}", raw_signal_, verbose=verbose)
+                publish(f"morbidostat/{unit}/{experiment}/od_raw/{angle}", raw_signal_, verbose=verbose)
                 raw_signals[angle] = raw_signal_
 
             # publish the batch of data, too, for growth reading
-            publish(f"morbidostat/{unit}/od_raw_batched", json.dumps(raw_signals), verbose=verbose)
+            publish(f"morbidostat/{unit}/{experiment}/od_raw_batched", json.dumps(raw_signals), verbose=verbose)
 
             # the max signal should determine the board's gain
             ma.update(max(raw_signals.values()))
@@ -69,12 +70,14 @@ def od_reading(verbose, od_angle_channel):
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
             publish(
-                f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}. Attempting to continue.", verbose=verbose
+                f"morbidostat/{unit}/{experiment}/error_log",
+                f"[od_reading] failed with {str(e)}. Attempting to continue.",
+                verbose=verbose,
             )
             time.sleep(5.0)
         except Exception as e:
-            publish(f"morbidostat/{unit}/log", f"[od_reading] failed with {str(e)}", verbose=verbose)
-            publish(f"morbidostat/{unit}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose)
+            publish(f"morbidostat/{unit}/{experiment}/log", f"[od_reading] failed with {str(e)}", verbose=verbose)
+            publish(f"morbidostat/{unit}/{experiment}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             raise e
 
     yield from every(sampling_rate, take_reading)

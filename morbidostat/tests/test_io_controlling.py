@@ -47,10 +47,10 @@ class MockMsgBroker:
 
 def test_silent_algorithm(monkeypatch):
     mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/growth_rate", "0.01"),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", "1.0"),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", "0.02"),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", "1.1"),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", "0.01"),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", "1.0"),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", "0.02"),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", "1.1"),
     )
 
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
@@ -63,14 +63,14 @@ def test_silent_algorithm(monkeypatch):
 
 def test_turbidostat_algorithm(monkeypatch):
     mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 0.98),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 1.0),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 1.01),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 0.99),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.98),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.0),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
     )
 
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
@@ -87,18 +87,18 @@ def test_turbidostat_algorithm(monkeypatch):
 
 def test_morbidostat_algorithm(monkeypatch):
     mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 0.95),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 0.99),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 1.05),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 1.03),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 1.04),
-        MockMQTTMsg("morbidostat/_testing/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/od_filtered/135", 0.99),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.05),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.03),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.04),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
     )
 
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)

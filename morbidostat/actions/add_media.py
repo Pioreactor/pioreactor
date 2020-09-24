@@ -5,7 +5,7 @@ from json import loads
 import click
 import RPi.GPIO as GPIO
 from morbidostat.utils import pump_ml_to_duration
-from morbidostat.utils import config, get_unit_from_hostname
+from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
 from morbidostat.utils.pubsub import publish
 
 
@@ -13,6 +13,8 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
     assert 0 <= duty_cycle <= 100
 
     unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
+
     hz = 100
 
     try:
@@ -35,10 +37,12 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
         pwm.stop()
         GPIO.output(MEDIA_PIN, 0)
 
-        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml, verbose=verbose)
-        publish(f"morbidostat/{unit}/log", "add media: %smL" % ml, verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml, verbose=verbose
+        )
+        publish(f"morbidostat/{unit}/{experiment}/log", "add media: %smL" % ml, verbose=verbose)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose)
         raise e
     finally:
         GPIO.cleanup()

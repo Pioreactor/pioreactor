@@ -48,6 +48,11 @@ The _morbidostat_, a combination of "morbid static", is a bioreactor designed ex
 4. In [Ekkers, 2020], the authors hint at evolving an _anticipatory_ response. Amazing!
 
 
+### Testing
+
+`py.test` on the command line.
+
+
 
 References
 -------------

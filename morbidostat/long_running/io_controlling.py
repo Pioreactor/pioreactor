@@ -16,7 +16,7 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import get_unit_from_hostname
+from morbidostat.utils import get_unit_from_hostname, get_latest_experiment_name
 
 
 VIAL_VOLUME = 12
@@ -45,14 +45,14 @@ class ControlAlgorithm:
     def run(self, counter=None):
         self.set_OD_measurements()
         event = self.execute(counter)
-        publish(f"morbidostat/{self.unit}/log", f"[io_controlling]: triggered {event}.", verbose=self.verbose)
+        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[io_controlling]: triggered {event}.", verbose=self.verbose)
         return event
 
     def set_OD_measurements(self):
         self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
-        self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/growth_rate").payload)
+        self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/growth_rate").payload)
         # TODO: this below line will break when I use 135A and 135B
-        self.latest_od = float(subscribe(f"morbidostat/{self.unit}/od_filtered/135").payload)
+        self.latest_od = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135").payload)
         return
 
     def execute(self, counter) -> Event:
@@ -68,8 +68,9 @@ class ControlAlgorithm:
 
 
 class Silent(ControlAlgorithm):
-    def __init__(self, unit, *args, verbose=False, **kwargs):
+    def __init__(self, unit, experiment, *args, verbose=False, **kwargs):
         self.unit = unit
+        self.experiment = experiment
         self.verbose = verbose
 
     def execute(self, *args, **kwargs) -> Event:
@@ -81,9 +82,10 @@ class Turbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant
     """
 
-    def __init__(self, target_od=None, unit=None, volume=None, duration=None, verbose=False, **kwargs):
+    def __init__(self, target_od=None, unit=None, volume=None, duration=None, verbose=False, experiment=None, **kwargs):
         self.target_od = target_od
         self.unit = unit
+        self.experiment = experiment
         self.volume = volume
         self.duration = duration
         self.verbose = verbose
@@ -102,9 +104,10 @@ class Morbidostat(ControlAlgorithm):
 
     ALT_MEDIA_EVENT = 2
 
-    def __init__(self, target_od=None, unit=None, volume=None, duration=None, verbose=False, **kwargs):
+    def __init__(self, target_od=None, unit=None, experiment=None, volume=None, duration=None, verbose=False, **kwargs):
         self.target_od = target_od
         self.unit = unit
+        self.experiment = experiment
         self.volume = volume
         self.duration_in_minutes = duration
         self.verbose = verbose
@@ -136,23 +139,28 @@ class Morbidostat(ControlAlgorithm):
 
 def io_controlling(mode, target_od, duration, volume, verbose=False, skip_first_run=False) -> Iterator[Event]:
     unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
 
     def terminate(*args):
-        publish(f"morbidostat/{unit}/log", f"[io_controlling]: terminated.", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: terminated.", verbose=verbose)
         sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
 
     algorithms = {
-        "silent": Silent(unit=unit, verbose=verbose),
-        "morbidostat": Morbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration, verbose=verbose),
-        "turbidostat": Turbidostat(unit=unit, volume=volume, target_od=target_od, duration=duration, verbose=verbose),
+        "silent": Silent(unit=unit, experiment=experiment, verbose=verbose),
+        "morbidostat": Morbidostat(
+            unit=unit, experiment=experiment, volume=volume, target_od=target_od, duration=duration, verbose=verbose
+        ),
+        "turbidostat": Turbidostat(
+            unit=unit, experiment=experiment, volume=volume, target_od=target_od, duration=duration, verbose=verbose
+        ),
     }
 
     assert mode in algorithms.keys()
 
     publish(
-        f"morbidostat/{unit}/log",
+        f"morbidostat/{unit}/{experiment}/log",
         f"[io_controlling]: starting {mode} with {duration}min intervals, target OD {target_od}V, volume {volume}mL.",
         verbose=verbose,
     )
@@ -166,8 +174,8 @@ def io_controlling(mode, target_od, duration, volume, verbose=False, skip_first_
     try:
         yield from every(duration * 60, algorithms[mode].run)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
-        publish(f"morbidostat/{unit}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         raise e
 
 

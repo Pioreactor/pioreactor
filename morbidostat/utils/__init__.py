@@ -5,7 +5,6 @@ import socket
 from functools import wraps
 
 import numpy as np
-import paho.mqtt.subscribe as paho_subscribe
 
 
 def get_leader_hostname():
@@ -46,7 +45,7 @@ def get_unit_from_hostname():
     elif hostname == "raspberrypi":
         raise ValueError("Did you forget to set the hostname?")
     else:
-        raise ValueError("Unsure where this is being run from...")
+        return "unknown"
 
 
 def pump_ml_to_duration(ml, dc, dc_=0, duration_=0, intercept_=0):
@@ -68,12 +67,15 @@ def execute_sql_statement(SQL):
     return df
 
 
+def get_latest_experiment_name():
+    if "pytest" in sys.modules:
+        return "_experiment"
+
+    from morbidostat.utils.pubsub import subscribe
+
+    return subscribe("morbidostat/latest_experiment").msg
+
+
 leader_hostname = get_leader_hostname()
 config = get_config()
 unit = get_unit_from_hostname()
-
-
-def exit(*args, **kwargs):
-    import sys
-
-    sys.exit()

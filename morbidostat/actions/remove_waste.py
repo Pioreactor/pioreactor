@@ -7,7 +7,7 @@ import click
 import RPi.GPIO as GPIO
 
 from morbidostat.utils import pump_ml_to_duration
-from morbidostat.utils import config, get_unit_from_hostname
+from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
 from morbidostat.utils.pubsub import publish
 
 
@@ -15,6 +15,8 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=False):
     assert 0 <= duty_cycle <= 100
 
     unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
+
     hz = 100
 
     try:
@@ -36,11 +38,15 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=False):
 
         pwm.stop()
         GPIO.output(WASTE_PIN, 0)
-        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml, verbose=verbose)
+        publish(
+            f"morbidostat/{unit}/{experiment}/io_events",
+            '{"volume_change": "-%s", "event": "remove_waste"}' % ml,
+            verbose=verbose,
+        )
 
-        publish(f"morbidostat/{unit}/log", "remove waste: %smL" % ml, verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/log", "remove waste: %smL" % ml, verbose=verbose)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"[remove_waste]: failed with {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[remove_waste]: failed with {str(e)}", verbose=verbose)
         raise e
 
     finally:

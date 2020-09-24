@@ -2,7 +2,7 @@
 import pytest
 
 from morbidostat.long_running.growth_rate_calculating import growth_rate_calculating
-from paho.mqtt import subscribe
+from paho.mqtt import subscribe, publish
 
 
 class MockMQTTMsg:
@@ -47,11 +47,11 @@ class MockMsgBroker:
 def test_subscribing(monkeypatch):
 
     mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
-        MockMQTTMsg("morbidostat/_testing/io_event", '{"volume_change": "1.5", "event": "add_media"}'),
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 1.778586260567034, "90": 1.20944389172032837}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/io_event", '{"volume_change": "1.5", "event": "add_media"}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 1.778586260567034, "90": 1.20944389172032837}'),
     )
 
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
@@ -66,8 +66,14 @@ def test_subscribing(monkeypatch):
 
 def test_same_angles(monkeypatch):
     mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135A": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}'),
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135A": 0.808586260567034, "135B": 0.21944389172032837, "90": 0.2}'),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 0.808586260567034, "135B": 0.21944389172032837, "90": 0.2}',
+        ),
     )
 
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
@@ -80,8 +86,8 @@ def test_same_angles(monkeypatch):
 
 def test_mis_shapen_data(monkeypatch):
     mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.778586260567034, "90": 0.1}'),
-        MockMQTTMsg("morbidostat/_testing/od_raw_batched", '{"135": 0.808586260567034}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.1}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.808586260567034}'),
     )
 
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
@@ -92,3 +98,40 @@ def test_mis_shapen_data(monkeypatch):
     with pytest.raises(AssertionError):
         next(calc)
         next(calc)
+
+
+def test_restart(monkeypatch):
+    publish.single("morbidostat/_testing/_experiment/growth_rate", None, retain=True)
+
+    mock_broker = MockMsgBroker(
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 1.808586260567034, "135B": 1.21944389172032837, "90": 1.2}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 2.808586260567034, "135B": 2.21944389172032837, "90": 2.2}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 3.808586260567034, "135B": 3.21944389172032837, "90": 3.2}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 4.808586260567034, "135B": 4.21944389172032837, "90": 4.2}',
+        ),
+    )
+
+    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
+    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
+
+    calc1 = growth_rate_calculating(verbose=True)
+    next(calc1)
+    next(calc1)
+
+    calc2 = growth_rate_calculating(verbose=True)
+    next(calc2)

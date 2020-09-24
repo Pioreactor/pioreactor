@@ -4,6 +4,7 @@ Continuously monitor the bioreactor and provide summary statistics on what's goi
 """
 import json
 import traceback
+import subprocess
 
 import paho.mqtt.subscribe as paho_subscribe
 import click
@@ -15,6 +16,21 @@ from morbidostat.utils import leader_hostname, get_unit_from_hostname
 VIAL_VOLUME = 12
 
 
+def get_initial_alt_media_fraction(experiment, unit):
+    """
+    This is a hack to use a timeout (not available in paho-mqtt) to
+    see if a value is present in the MQTT cache (retained message)
+
+    """
+    test_mqtt = subprocess.run(
+        [f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/alt_media_fraction" -W 3'], shell=True, capture_output=True
+    )
+    if test_mqtt.stdout == b"":
+        return 0
+    else:
+        return float(test_mqtt.stdout.strip())
+
+
 class AltMediaCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
@@ -24,21 +40,18 @@ class AltMediaCalculator:
     ignore_cache: ignore any retained values in the MQTT bus
     """
 
-    def __init__(self, unit=None, ignore_cache=False, verbose=False, **kwargs):
+    def __init__(self, unit=None, experiment=None, verbose=False, **kwargs):
         self.unit = unit
-        self.ignore_cache = ignore_cache
+        self.experiment = experiment
         self.verbose = verbose
 
     @property
     def latest_alt_media_fraction(self):
         if hasattr(self, "_latest_alt_media_fraction"):
             return self._latest_alt_media_fraction
-        elif self.ignore_cache:
-            self._latest_alt_media_fraction = 0
         else:
             try:
-                msg = subscribe(f"morbidostat/{self.unit}/alt_media_fraction", keepalive=10)
-                self._latest_alt_media_fraction = float(msg.payload)
+                self._latest_alt_media_fraction = get_initial_alt_media_fraction()
             except:
                 self._latest_alt_media_fraction = 0
         return self._latest_alt_media_fraction
@@ -49,7 +62,7 @@ class AltMediaCalculator:
 
     def on_message(self, client, userdata, message):
         try:
-            assert message.topic == f"morbidostat/{self.unit}/io_events"
+            assert message.topic == f"morbidostat/{self.unit}/{self.experiment}/io_events"
             payload = json.loads(message.payload)
             volume, event = float(payload["volume_change"]), payload["event"]
             if event == "add_media":
@@ -83,21 +96,27 @@ class AltMediaCalculator:
 
         self.latest_alt_media_fraction = alt_media_ml / VIAL_VOLUME
 
-        publish(f"morbidostat/{self.unit}/alt_media_fraction", self.latest_alt_media_fraction, verbose=self.verbose, retain=True)
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/alt_media_fraction",
+            self.latest_alt_media_fraction,
+            verbose=self.verbose,
+            retain=True,
+        )
 
         return
 
 
 @click.command()
-@click.option("--ignore_cache", is_flag=True, help="ignore the retained MQTT msg")
 @click.option("--verbose", is_flag=True, help="print to std.out")
-def click_io_listening(ignore_cache, verbose):
+def click_io_listening(verbose):
     unit = get_unit_from_hostname()
-    publish(f"morbidostat/{unit}/log", f"[io_listening]: starting", verbose=verbose)
+    experiment = get_latest_experiment_name()
+
+    publish(f"morbidostat/{unit}/{experiment}/log", f"[io_listening]: starting", verbose=verbose)
 
     paho_subscribe.callback(
-        AltMediaCalculator(unit=unit, ignore_cache=ignore_cache, verbose=verbose).on_message,
-        f"morbidostat/{unit}/io_events",
+        AltMediaCalculator(unit=unit, experiment=experiment, verbose=verbose).on_message,
+        f"morbidostat/{unit}/{experiment}/io_events",
         hostname=leader_hostname,
     )
 
