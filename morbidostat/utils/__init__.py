@@ -73,7 +73,7 @@ def get_latest_experiment_name():
 
     from morbidostat.utils.pubsub import subscribe
 
-    return subscribe("morbidostat/latest_experiment").payload
+    return str(subscribe("morbidostat/latest_experiment").payload)
 
 
 leader_hostname = get_leader_hostname()
