@@ -10,7 +10,7 @@ import paho.mqtt.subscribe as paho_subscribe
 import click
 
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import leader_hostname, get_unit_from_hostname, get_latest_experiment_name
+from morbidostat.utils import leader_hostname, get_unit_from_hostname, get_latest_experiment_name, leader_hostname
 
 
 VIAL_VOLUME = 12
@@ -23,7 +23,9 @@ def get_initial_alt_media_fraction(experiment, unit):
 
     """
     test_mqtt = subprocess.run(
-        [f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/alt_media_fraction" -W 3'], shell=True, capture_output=True
+        [f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/alt_media_fraction" -W 3 -h {leader_hostname}'],
+        shell=True,
+        capture_output=True,
     )
     if test_mqtt.stdout == b"":
         return 0
@@ -103,7 +105,7 @@ class AltMediaCalculator:
             retain=True,
         )
 
-        return
+        return self.latest_alt_media_fraction
 
 
 @click.command()

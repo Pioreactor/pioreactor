@@ -9,7 +9,7 @@ import numpy as np
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
+from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name, leader_hostname
 
 
 def json_to_sorted_dict(json_dict):
@@ -35,9 +35,8 @@ def get_initial_rate(experiment, unit):
     see if a value is present in the MQTT cache (retained message)
 
     """
-    test_mqtt = subprocess.run(
-        [f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/growth_rate" -W 3'], shell=True, capture_output=True
-    )
+    command = f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/growth_rate" -W 3 -h {leader_hostname}'
+    test_mqtt = subprocess.run([command], shell=True, capture_output=True)
     if test_mqtt.stdout == b"":
         return 0.0
     else:
