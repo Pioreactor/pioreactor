@@ -16,6 +16,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
     experiment = get_latest_experiment_name()
 
     hz = 100
+    publish(f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml, verbose=verbose)
 
     try:
         GPIO.setmode(GPIO.BCM)
@@ -37,9 +38,6 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
         pwm.stop()
         GPIO.output(MEDIA_PIN, 0)
 
-        publish(
-            f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml, verbose=verbose
-        )
         publish(f"morbidostat/{unit}/{experiment}/log", "add media: %smL" % ml, verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose)

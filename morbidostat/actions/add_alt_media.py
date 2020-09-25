@@ -17,6 +17,10 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
 
     hz = 100
 
+    # the io events should fire first, so that the downstream consumers are alerted that
+    # metrics will change.
+    publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml, verbose=verbose)
+
     try:
         GPIO.setmode(GPIO.BCM)
 
@@ -37,7 +41,6 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
         pwm.stop()
         GPIO.output(ALT_MEDIA_PIN, 0)
 
-        publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml, verbose=verbose)
         publish(f"morbidostat/{unit}/log", f"add alt media: {ml}mL", verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/error_log", f"[add_alt_media]: failed with {str(e)}", verbose=verbose)

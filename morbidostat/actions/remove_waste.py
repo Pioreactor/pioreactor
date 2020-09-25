@@ -18,6 +18,9 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=False):
     experiment = get_latest_experiment_name()
 
     hz = 100
+    publish(
+        f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": "-%s", "event": "remove_waste"}' % ml, verbose=verbose
+    )
 
     try:
         GPIO.setmode(GPIO.BCM)
@@ -38,11 +41,6 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=False):
 
         pwm.stop()
         GPIO.output(WASTE_PIN, 0)
-        publish(
-            f"morbidostat/{unit}/{experiment}/io_events",
-            '{"volume_change": "-%s", "event": "remove_waste"}' % ml,
-            verbose=verbose,
-        )
 
         publish(f"morbidostat/{unit}/{experiment}/log", "remove waste: %smL" % ml, verbose=verbose)
     except Exception as e:
