@@ -53,7 +53,7 @@ class AltMediaCalculator:
             return self._latest_alt_media_fraction
         else:
             try:
-                self._latest_alt_media_fraction = get_initial_alt_media_fraction()
+                self._latest_alt_media_fraction = get_initial_alt_media_fraction(self.experiment, self.unit)
             except:
                 self._latest_alt_media_fraction = 0
         return self._latest_alt_media_fraction
