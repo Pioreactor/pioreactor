@@ -6,7 +6,7 @@ import click
 import RPi.GPIO as GPIO
 
 from morbidostat.utils import pump_ml_to_duration
-from morbidostat.utils import config, get_unit_from_hostname
+from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
 from morbidostat.utils.pubsub import publish
 
 
@@ -14,12 +14,15 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
     assert 0 <= duty_cycle <= 100
 
     unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
 
     hz = 100
 
     # the io events should fire first, so that the downstream consumers are alerted that
     # metrics will change.
-    publish(f"morbidostat/{unit}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml, verbose=verbose)
+    publish(
+        f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": "%s", "event": "add_alt_media"}' % ml, verbose=verbose
+    )
 
     try:
         GPIO.setmode(GPIO.BCM)
@@ -41,9 +44,9 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
         pwm.stop()
         GPIO.output(ALT_MEDIA_PIN, 0)
 
-        publish(f"morbidostat/{unit}/log", f"add alt media: {ml}mL", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/log", f"add alt media: {ml}mL", verbose=verbose)
     except Exception as e:
-        publish(f"morbidostat/{unit}/error_log", f"[add_alt_media]: failed with {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[add_alt_media]: failed with {str(e)}", verbose=verbose)
         raise e
     finally:
         GPIO.cleanup()
