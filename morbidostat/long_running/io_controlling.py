@@ -157,7 +157,7 @@ class Morbidostat(ControlAlgorithm):
             return Event.DILUTION_EVENT
 
 
-def io_controlling(mode, target_od, volume, duration=None, verbose=False, skip_first_run=False) -> Iterator[Event]:
+def io_controlling(mode=None, target_od=None, volume=None, duration=None, verbose=False, skip_first_run=False) -> Iterator[Event]:
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
