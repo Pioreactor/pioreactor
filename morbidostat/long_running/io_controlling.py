@@ -185,6 +185,7 @@ def io_controlling(mode=None, target_od=None, volume=None, duration=None, verbos
     )
 
     if skip_first_run:
+        publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: skipping first run", verbose=verbose)
         time.sleep(duration * 60)
 
     ##############################
