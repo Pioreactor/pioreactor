@@ -46,7 +46,7 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=False):
         pwm.stop()
         GPIO.output(ALT_MEDIA_PIN, 0)
 
-        publish(f"morbidostat/{unit}/{experiment}/log", f"add alt media: {ml}mL", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/log", f"add alt media: {round(ml,2)}mL", verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[add_alt_media]: failed with {str(e)}", verbose=verbose)
         raise e

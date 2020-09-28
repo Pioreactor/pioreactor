@@ -122,6 +122,7 @@ class PIDTurbidostat(ControlAlgorithm):
             remove_waste(ml=volume_to_cycle, verbose=self.verbose)
             time.sleep(0.2)
             add_media(ml=volume_to_cycle, verbose=self.verbose)
+            time.sleep(0.2)
             return Event.DILUTION_EVENT
 
 
@@ -149,11 +150,13 @@ class Morbidostat(ControlAlgorithm):
             remove_waste(ml=self.volume, verbose=self.verbose)
             time.sleep(0.2)
             add_alt_media(ml=self.volume, verbose=self.verbose)
+            time.sleep(0.2)
             return Event.ALT_MEDIA_EVENT
         else:
             remove_waste(ml=self.volume, verbose=self.verbose)
             time.sleep(0.2)
             add_media(ml=self.volume, verbose=self.verbose)
+            time.sleep(0.2)
             return Event.DILUTION_EVENT
 
 

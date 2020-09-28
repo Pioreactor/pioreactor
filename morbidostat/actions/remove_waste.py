@@ -44,7 +44,7 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=False):
         pwm.stop()
         GPIO.output(WASTE_PIN, 0)
 
-        publish(f"morbidostat/{unit}/{experiment}/log", "remove waste: %smL" % ml, verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/log", f"remove waste: {round(ml,2)}mL", verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[remove_waste]: failed with {str(e)}", verbose=verbose)
         raise e

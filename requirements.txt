@@ -4,6 +4,7 @@ adafruit-circuitpython-ads1x15
 RPi.GPIO
 click
 paho-mqtt
+simple-pid
 
 
 # optional: pandas, scipy
