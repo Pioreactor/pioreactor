@@ -52,6 +52,7 @@ def test_subscribing(monkeypatch):
         MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
         MockMQTTMsg("morbidostat/_testing/_experiment/io_event", '{"volume_change": "1.5", "event": "add_media"}'),
         MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 1.778586260567034, "90": 1.20944389172032837}'),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 1.778586260567034, "90": 1.20944389172032837}'),
     )
 
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
@@ -69,6 +70,10 @@ def test_same_angles(monkeypatch):
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
             '{"135A": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"135A": 0.808586260567034, "135B": 0.21944389172032837, "90": 0.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",

@@ -13,6 +13,8 @@ from morbidostat.utils.pubsub import publish
 
 def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=False):
     assert 0 <= duty_cycle <= 100
+    assert (ml is not None) or (duration is not None)
+    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
@@ -58,8 +60,6 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=False):
 @click.option("--duty_cycle", default=33, type=int)
 @click.option("--verbose", is_flag=True, help="print to std out")
 def click_remove_waste(ml, duration, duty_cycle, verbose):
-    assert (ml is not None) or (duration is not None)
-    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
     return remove_waste(ml, duration, duty_cycle, verbose)
 
 

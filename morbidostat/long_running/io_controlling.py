@@ -10,6 +10,7 @@ from enum import Enum
 from typing import Iterator
 
 import click
+from simple_pid import PID
 
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
@@ -42,6 +43,11 @@ class ControlAlgorithm:
     latest_rate = None
     latest_od = None
 
+    def __init__(self, unit=None, experiment=None, verbose=False, **kwargs):
+        self.unit = unit
+        self.verbose = verbose
+        self.experiment = experiment
+
     def run(self, counter=None):
         self.set_OD_measurements()
         event = self.execute(counter)
@@ -68,11 +74,6 @@ class ControlAlgorithm:
 
 
 class Silent(ControlAlgorithm):
-    def __init__(self, unit, experiment, *args, verbose=False, **kwargs):
-        self.unit = unit
-        self.experiment = experiment
-        self.verbose = verbose
-
     def execute(self, *args, **kwargs) -> Event:
         return Event.NO_EVENT
 
@@ -82,35 +83,54 @@ class Turbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant
     """
 
-    def __init__(self, target_od=None, unit=None, volume=None, duration=None, verbose=False, experiment=None, **kwargs):
+    def __init__(self, target_od=None, volume=None, **kwargs):
         self.target_od = target_od
-        self.unit = unit
-        self.experiment = experiment
         self.volume = volume
-        self.duration = duration
-        self.verbose = verbose
+        super(Turbidostat, self).__init__(**kwargs)
 
     def execute(self, *args, **kwargs) -> Event:
         if self.latest_od >= self.target_od:
-            remove_waste(self.volume, self.unit)
+            remove_waste(ml=self.volume)
             time.sleep(0.2)
-            add_media(self.volume, self.unit)
+            add_media(ml=self.volume)
             return Event.DILUTION_EVENT
         else:
             return Event.NO_EVENT
 
 
-class Morbidostat(ControlAlgorithm):
+class PIDTurbidostat(ControlAlgorithm):
+    """
+    turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
-    ALT_MEDIA_EVENT = 2
+    The PID tells use what fraction of max_volume we should limit. For example, of PID
+    returns 0.03, then we should remove 97% of the max volume.
+    """
 
-    def __init__(self, target_od=None, unit=None, experiment=None, volume=None, duration=None, verbose=False, **kwargs):
+    def __init__(self, target_od=None, volume=None, **kwargs):
         self.target_od = target_od
-        self.unit = unit
-        self.experiment = experiment
+        self.max_volume = volume
+        self.od_to_start_diluting = 0.5
+        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None)
+        super(PIDTurbidostat, self).__init__(**kwargs)
+
+    def execute(self, *args, **kwargs) -> Event:
+        if self.latest_od <= self.od_to_start_diluting:
+            return Event.NO_EVENT
+        else:
+            output = self.pid(self.latest_od)
+            volume_to_cycle = (1 - output) * self.max_volume
+            remove_waste(ml=volume_to_cycle, verbose=self.verbose)
+            time.sleep(0.2)
+            add_media(ml=volume_to_cycle, verbose=self.verbose)
+            return Event.DILUTION_EVENT
+
+
+class Morbidostat(ControlAlgorithm):
+    def __init__(self, target_od=None, volume=None, duration=None, **kwargs):
+        self.target_od = target_od
         self.volume = volume
         self.duration_in_minutes = duration
-        self.verbose = verbose
+        super(Morbidostat, self).__init__(**kwargs)
 
     @property
     def estimated_hourly_dilution_rate_(self):
@@ -126,18 +146,18 @@ class Morbidostat(ControlAlgorithm):
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
-            remove_waste(self.volume, self.unit)
+            remove_waste(ml=self.volume, verbose=self.verbose)
             time.sleep(0.2)
-            add_alt_media(self.volume, self.unit)
+            add_alt_media(ml=self.volume, verbose=self.verbose)
             return Event.ALT_MEDIA_EVENT
         else:
-            remove_waste(self.volume, self.unit)
+            remove_waste(ml=self.volume, verbose=self.verbose)
             time.sleep(0.2)
-            add_media(self.volume, self.unit)
+            add_media(ml=self.volume, verbose=self.verbose)
             return Event.DILUTION_EVENT
 
 
-def io_controlling(mode, target_od, duration, volume, verbose=False, skip_first_run=False) -> Iterator[Event]:
+def io_controlling(mode, target_od, volume, duration=None, verbose=False, skip_first_run=False) -> Iterator[Event]:
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
@@ -152,9 +172,8 @@ def io_controlling(mode, target_od, duration, volume, verbose=False, skip_first_
         "morbidostat": Morbidostat(
             unit=unit, experiment=experiment, volume=volume, target_od=target_od, duration=duration, verbose=verbose
         ),
-        "turbidostat": Turbidostat(
-            unit=unit, experiment=experiment, volume=volume, target_od=target_od, duration=duration, verbose=verbose
-        ),
+        "turbidostat": Turbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
+        "pid_turbidostat": PIDTurbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
     }
 
     assert mode in algorithms.keys()
