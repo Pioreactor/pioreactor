@@ -33,6 +33,11 @@ class Event(Enum):
         return self.name.lower().replace("_", " ")
 
 
+def execute_io_action(alt_media_ml=0, media_ml=0, waste_ml=0):
+    assert alt_media_ml + media_ml == waste_ml, "in order to keep same volume, IO should be equal"
+    pass
+
+
 class ControlAlgorithm:
     """
     This is the super class that algorithms inherit from. The `run` function will
@@ -40,7 +45,7 @@ class ControlAlgorithm:
     which is what subclasses will define.
     """
 
-    latest_rate = None
+    latest_growth_rate = None
     latest_od = None
 
     def __init__(self, unit=None, experiment=None, verbose=False, **kwargs):
@@ -55,8 +60,8 @@ class ControlAlgorithm:
         return event
 
     def set_OD_measurements(self):
-        self.previous_rate, self.previous_od = self.latest_rate, self.latest_od
-        self.latest_rate = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/growth_rate").payload)
+        self.previous_rate, self.previous_od = self.latest_growth_rate, self.latest_od
+        self.latest_growth_rate = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/growth_rate").payload)
         # TODO: this below line will break when I use 135A and 135B
         self.latest_od = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135").payload)
         return
@@ -80,7 +85,8 @@ class Silent(ControlAlgorithm):
 
 class Turbidostat(ControlAlgorithm):
     """
-    turbidostat mode - try to keep cell density constant
+    turbidostat mode - try to keep cell density constant. The algorithm should run at
+    near every second (limited by the OD reading rate)
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
@@ -90,9 +96,8 @@ class Turbidostat(ControlAlgorithm):
 
     def execute(self, *args, **kwargs) -> Event:
         if self.latest_od >= self.target_od:
-            remove_waste(ml=self.volume)
-            time.sleep(0.2)
             add_media(ml=self.volume)
+            remove_waste(ml=self.volume)
             return Event.DILUTION_EVENT
         else:
             return Event.NO_EVENT
@@ -103,13 +108,13 @@ class PIDTurbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
     The PID tells use what fraction of max_volume we should limit. For example, of PID
-    returns 0.03, then we should remove 97% of the max volume.
+    returns 0.03, then we should remove 97% of the max volume. Choose max volume to be about 0.5ml.
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
         self.target_od = target_od
         self.max_volume = volume
-        self.od_to_start_diluting = 0.5
+        self.od_to_start_diluting = 0.75 * target_od
         self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None)
         super(PIDTurbidostat, self).__init__(**kwargs)
 
@@ -119,23 +124,60 @@ class PIDTurbidostat(ControlAlgorithm):
         else:
             output = self.pid(self.latest_od)
             volume_to_cycle = (1 - output) * self.max_volume
-            remove_waste(ml=volume_to_cycle, verbose=self.verbose)
-            time.sleep(0.2)
-            add_media(ml=volume_to_cycle, verbose=self.verbose)
-            time.sleep(0.2)
-            return Event.DILUTION_EVENT
+
+            if volume_to_cycle == 0:
+                return Event.NO_EVENT
+            else:
+                add_media(ml=volume_to_cycle, verbose=self.verbose)
+                remove_waste(ml=volume_to_cycle, verbose=self.verbose)
+                return Event.DILUTION_EVENT
+
+
+class PIDMorbidostat(ControlAlgorithm):
+    """
+    As defined in Zhong 2020
+    """
+
+    def __init__(self, target_growth_rate=None, target_od=None, duration=None, volumn=None, **kwargs):
+        super(PIDMorbidostat, self).__init__(**kwargs)
+        self.target_growth_rate = target_growth_rate
+        self.od_to_start_diluting = 0.75 * target_od
+        self.duration = duration
+        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None)
+
+        if volume is not None:
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/log",
+                f"[io_controlling]: Ignoring volume parameter; volume set by target growth rate and duration.",
+                verbose=verbose,
+            )
+
+        self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
+
+    def execute(self, *args, **kwargs) -> Event:
+        """
+        morbidostat mode - keep cell density below and threshold using chemical means. The conc.
+        of the chemical is diluted slowly over time, allowing the microbes to recover.
+        """
+        if self.latest_od <= self.od_to_start_diluting:
+            return Event.NO_EVENT
+        else:
+            fraction_of_media_to_add = self.pid(self.latest_growth_rate)
+            add_media(ml=fraction_of_media_to_add * self.volume, verbose=self.verbose)
+            add_alt_media(ml=(1 - fraction_of_media_to_add) * self.volume, verbose=self.verbose)
+            remove_waste(ml=self.volume, verbose=self.verbose)
+            return Event.ALT_MEDIA_EVENT
 
 
 class Morbidostat(ControlAlgorithm):
-    def __init__(self, target_od=None, volume=None, duration=None, **kwargs):
+    """
+    As defined in Toprak 2013.
+    """
+
+    def __init__(self, target_od=None, volume=None, **kwargs):
         self.target_od = target_od
         self.volume = volume
-        self.duration_in_minutes = duration
         super(Morbidostat, self).__init__(**kwargs)
-
-    @property
-    def estimated_hourly_dilution_rate_(self):
-        return (self.volume / VIAL_VOLUME) / (self.duration_in_minutes / 60)
 
     def execute(self, *args, **kwargs) -> Event:
         """
@@ -147,16 +189,12 @@ class Morbidostat(ControlAlgorithm):
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
-            remove_waste(ml=self.volume, verbose=self.verbose)
-            time.sleep(0.2)
             add_alt_media(ml=self.volume, verbose=self.verbose)
-            time.sleep(0.2)
+            remove_waste(ml=self.volume, verbose=self.verbose)
             return Event.ALT_MEDIA_EVENT
         else:
-            remove_waste(ml=self.volume, verbose=self.verbose)
-            time.sleep(0.2)
             add_media(ml=self.volume, verbose=self.verbose)
-            time.sleep(0.2)
+            remove_waste(ml=self.volume, verbose=self.verbose)
             return Event.DILUTION_EVENT
 
 
@@ -172,11 +210,18 @@ def io_controlling(mode=None, target_od=None, volume=None, duration=None, verbos
 
     algorithms = {
         "silent": Silent(unit=unit, experiment=experiment, verbose=verbose),
-        "morbidostat": Morbidostat(
-            unit=unit, experiment=experiment, volume=volume, target_od=target_od, duration=duration, verbose=verbose
-        ),
+        "morbidostat": Morbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
         "turbidostat": Turbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
         "pid_turbidostat": PIDTurbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
+        "pid_morbidostat": PIDMorbidostat(
+            unit=unit,
+            experiment=experiment,
+            volume=volume,
+            target_od=target_od,
+            duration=duration,
+            target_growth_rate=target_growth_rate,
+            verbose=verbose,
+        ),
     }
 
     assert mode in algorithms.keys()
@@ -205,6 +250,7 @@ def io_controlling(mode=None, target_od=None, volume=None, duration=None, verbos
 @click.command()
 @click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
 @click.option("--target_od", default=None, type=float)
+@click.option("--target_growth_rate", default=None, type=float)
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=0.25, help="the volume to exchange, mL")
 @click.option(
@@ -213,9 +259,15 @@ def io_controlling(mode=None, target_od=None, volume=None, duration=None, verbos
     help="Normally IO will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.option("--verbose", is_flag=True)
-def click_io_controlling(mode, target_od, duration, volume, skip_first_run, verbose):
+def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, skip_first_run, verbose):
     controller = io_controlling(
-        mode=mode, target_od=target_od, duration=duration, volume=volume, skip_first_run=skip_first_run, verbose=verbose
+        mode=mode,
+        target_od=target_od,
+        target_growth_rate=target_growth_rate,
+        duration=duration,
+        volume=volume,
+        skip_first_run=skip_first_run,
+        verbose=verbose,
     )
     while True:
         next(controller)

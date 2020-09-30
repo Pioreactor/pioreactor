@@ -142,3 +142,35 @@ def test_morbidostat_algorithm(monkeypatch):
     assert next(algo) == Event.DILUTION_EVENT
     assert next(algo) == Event.ALT_MEDIA_EVENT
     assert next(algo) == Event.DILUTION_EVENT
+
+
+def test_pid_morbidostat_algorithm(monkeypatch):
+    mock_broker = MockMsgBroker(
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.05),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.03),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.04),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
+    )
+
+    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
+    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
+
+    target_growth_rate = 0.1
+    algo = io_controlling(
+        mode="pid_morbidostat", target_od=0.5, target_growth_rate=target_growth_rate, duration=0.001, volume=0.25, verbose=True
+    )
+
+    assert next(algo) == Event.NO_EVENT
+    assert next(algo) == Event.DILUTION_EVENT
+    assert next(algo) == Event.ALT_MEDIA_EVENT
+    assert next(algo) == Event.DILUTION_EVENT
+    assert next(algo) == Event.ALT_MEDIA_EVENT
+    assert next(algo) == Event.DILUTION_EVENT
