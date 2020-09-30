@@ -138,7 +138,7 @@ class PIDMorbidostat(ControlAlgorithm):
     As defined in Zhong 2020
     """
 
-    def __init__(self, target_growth_rate=None, target_od=None, duration=None, volumn=None, **kwargs):
+    def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)
         self.target_growth_rate = target_growth_rate
         self.od_to_start_diluting = 0.75 * target_od
