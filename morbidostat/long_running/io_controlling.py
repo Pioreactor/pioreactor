@@ -143,7 +143,7 @@ class PIDMorbidostat(ControlAlgorithm):
         self.target_growth_rate = target_growth_rate
         self.od_to_start_diluting = 0.75 * target_od
         self.duration = duration
-        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None)
+        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None)
 
         if volume is not None:
             publish(
