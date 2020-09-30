@@ -100,7 +100,7 @@ class Turbidostat(ControlAlgorithm):
 
     def execute(self, *args, **kwargs) -> Event:
         if self.latest_od >= self.target_od:
-            execute_io_action(media_ml=self.volume, waste_ml=self.volume)
+            self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return Event.DILUTION_EVENT
         else:
             return Event.NO_EVENT
@@ -131,7 +131,7 @@ class PIDTurbidostat(ControlAlgorithm):
             if volume_to_cycle == 0:
                 return Event.NO_EVENT
             else:
-                execute_io_action(media_ml=volume_to_cycle, waste_ml=volume_to_cycle)
+                self.execute_io_action(media_ml=volume_to_cycle, waste_ml=volume_to_cycle)
                 return Event.DILUTION_EVENT
 
 
@@ -165,7 +165,7 @@ class PIDMorbidostat(ControlAlgorithm):
             return Event.NO_EVENT
         else:
             fraction_of_media_to_add = self.pid(self.latest_growth_rate)
-            execute_io_action(
+            self.execute_io_action(
                 alt_media_ml=(1 - fraction_of_media_to_add) * self.volume,
                 media_ml=fraction_of_media_to_add * self.volume,
                 waste_ml=self.volume,
@@ -193,10 +193,10 @@ class Morbidostat(ControlAlgorithm):
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
-            execute_io_action(alt_media_ml=self.volume, waste_ml=self.volume)
+            self.execute_io_action(alt_media_ml=self.volume, waste_ml=self.volume)
             return Event.ALT_MEDIA_EVENT
         else:
-            execute_io_action(media_ml=self.volume, waste_ml=self.volume)
+            self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return Event.DILUTION_EVENT
 
 
