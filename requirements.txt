@@ -6,5 +6,8 @@ click
 paho-mqtt
 simple-pid
 
+# testing
+fake-rpi
+
 
 # optional: pandas, scipy

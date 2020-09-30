@@ -2,7 +2,7 @@
 
 import pytest
 
-from morbidostat.long_running.io_controlling import io_controlling, Event
+from morbidostat.long_running.io_controlling import io_controlling, Event, ControlAlgorithm
 from paho.mqtt import subscribe
 
 
@@ -174,3 +174,8 @@ def test_pid_morbidostat_algorithm(monkeypatch):
     assert next(algo) == Event.DILUTION_EVENT
     assert next(algo) == Event.ALT_MEDIA_EVENT
     assert next(algo) == Event.DILUTION_EVENT
+
+
+def test_execute_io_action():
+    ca = ControlAlgorithm(verbose=True, unit="_testing", experiment="_testing")
+    ca.execute_io_action(media_ml=0.65, alt_media_ml=0.15, waste_ml=0.80)

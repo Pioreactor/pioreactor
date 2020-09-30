@@ -68,13 +68,21 @@ class ControlAlgorithm:
         raise NotImplementedError
 
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
-        assert alt_media_ml + media_ml == waste_ml, "in order to keep same volume, IO should be equal"
-        if alt_media_ml > 0:
-            add_alt_media(alt_media_ml, verbose=self.verbose)
-        if media_ml > 0:
-            add_media(media_ml, verbose=self.verbose)
-        if waste_ml > 0:
-            remove_waste(waste_ml, verbose=self.verbose)
+        assert alt_media_ml + media_ml == waste_ml, "in order to keep same volume, IO should be equal."
+
+        if waste_ml > 0.5:
+            """
+            this can be smarter to minimize noise.
+            """
+            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2)
+            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2)
+        else:
+            if alt_media_ml > 0:
+                add_alt_media(alt_media_ml, verbose=self.verbose)
+            if media_ml > 0:
+                add_media(media_ml, verbose=self.verbose)
+            if waste_ml > 0:
+                remove_waste(waste_ml, verbose=self.verbose)
 
 
 ######################
