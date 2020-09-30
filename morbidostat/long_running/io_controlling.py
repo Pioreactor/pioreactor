@@ -33,11 +33,6 @@ class Event(Enum):
         return self.name.lower().replace("_", " ")
 
 
-def execute_io_action(alt_media_ml=0, media_ml=0, waste_ml=0):
-    assert alt_media_ml + media_ml == waste_ml, "in order to keep same volume, IO should be equal"
-    pass
-
-
 class ControlAlgorithm:
     """
     This is the super class that algorithms inherit from. The `run` function will
@@ -72,6 +67,15 @@ class ControlAlgorithm:
         """
         raise NotImplementedError
 
+    def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
+        assert alt_media_ml + media_ml == waste_ml, "in order to keep same volume, IO should be equal"
+        if alt_media_ml > 0:
+            add_alt_media(alt_media_ml, verbose=self.verbose)
+        if media_ml > 0:
+            add_media(media_ml, verbose=self.verbose)
+        if waste_ml > 0:
+            remove_waste(waste_ml, verbose=self.verbose)
+
 
 ######################
 # modes of operation
@@ -96,8 +100,7 @@ class Turbidostat(ControlAlgorithm):
 
     def execute(self, *args, **kwargs) -> Event:
         if self.latest_od >= self.target_od:
-            add_media(ml=self.volume)
-            remove_waste(ml=self.volume)
+            execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return Event.DILUTION_EVENT
         else:
             return Event.NO_EVENT
@@ -128,8 +131,7 @@ class PIDTurbidostat(ControlAlgorithm):
             if volume_to_cycle == 0:
                 return Event.NO_EVENT
             else:
-                add_media(ml=volume_to_cycle, verbose=self.verbose)
-                remove_waste(ml=volume_to_cycle, verbose=self.verbose)
+                execute_io_action(media_ml=volume_to_cycle, waste_ml=volume_to_cycle)
                 return Event.DILUTION_EVENT
 
 
@@ -163,9 +165,11 @@ class PIDMorbidostat(ControlAlgorithm):
             return Event.NO_EVENT
         else:
             fraction_of_media_to_add = self.pid(self.latest_growth_rate)
-            add_media(ml=fraction_of_media_to_add * self.volume, verbose=self.verbose)
-            add_alt_media(ml=(1 - fraction_of_media_to_add) * self.volume, verbose=self.verbose)
-            remove_waste(ml=self.volume, verbose=self.verbose)
+            execute_io_action(
+                alt_media_ml=(1 - fraction_of_media_to_add) * self.volume,
+                media_ml=fraction_of_media_to_add * self.volume,
+                waste_ml=self.volume,
+            )
             return Event.ALT_MEDIA_EVENT
 
 
@@ -189,12 +193,10 @@ class Morbidostat(ControlAlgorithm):
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
-            add_alt_media(ml=self.volume, verbose=self.verbose)
-            remove_waste(ml=self.volume, verbose=self.verbose)
+            execute_io_action(alt_media_ml=self.volume, waste_ml=self.volume)
             return Event.ALT_MEDIA_EVENT
         else:
-            add_media(ml=self.volume, verbose=self.verbose)
-            remove_waste(ml=self.volume, verbose=self.verbose)
+            execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return Event.DILUTION_EVENT
 
 
