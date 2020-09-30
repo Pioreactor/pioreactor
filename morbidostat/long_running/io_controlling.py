@@ -149,7 +149,7 @@ class PIDMorbidostat(ControlAlgorithm):
             publish(
                 f"morbidostat/{self.unit}/{self.experiment}/log",
                 f"[io_controlling]: Ignoring volume parameter; volume set by target growth rate and duration.",
-                verbose=verbose,
+                verbose=self.verbose,
             )
 
         self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
@@ -198,9 +198,7 @@ class Morbidostat(ControlAlgorithm):
             return Event.DILUTION_EVENT
 
 
-def io_controlling(
-    mode=None, target_od=None, target_growth_rate=None, volume=None, duration=None, verbose=False, skip_first_run=False
-) -> Iterator[Event]:
+def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False, **kwargs) -> Iterator[Event]:
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
@@ -211,19 +209,11 @@ def io_controlling(
     signal.signal(signal.SIGTERM, terminate)
 
     algorithms = {
-        "silent": Silent(unit=unit, experiment=experiment, verbose=verbose),
-        "morbidostat": Morbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
-        "turbidostat": Turbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
-        "pid_turbidostat": PIDTurbidostat(unit=unit, experiment=experiment, volume=volume, target_od=target_od, verbose=verbose),
-        "pid_morbidostat": PIDMorbidostat(
-            unit=unit,
-            experiment=experiment,
-            volume=volume,
-            target_od=target_od,
-            duration=duration,
-            target_growth_rate=target_growth_rate,
-            verbose=verbose,
-        ),
+        "silent": Silent,
+        "morbidostat": Morbidostat,
+        "turbidostat": Turbidostat,
+        "pid_turbidostat": PIDTurbidostat,
+        "pid_morbidostat": PIDMorbidostat,
     }
 
     assert mode in algorithms.keys()
@@ -238,11 +228,15 @@ def io_controlling(
         publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: skipping first run", verbose=verbose)
         time.sleep(duration * 60)
 
+    kwargs["verbose"] = verbose
+    kwargs["duration"] = duration
+    kwargs["unit"] = unit
+    kwargs["experiment"] = experiment
     ##############################
     # main loop
     ##############################
     try:
-        yield from every(duration * 60, algorithms[mode].run)
+        yield from every(duration * 60, algorithms[mode](**kwargs).run)
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
