@@ -220,7 +220,7 @@ def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False
 
     publish(
         f"morbidostat/{unit}/{experiment}/log",
-        f"[io_controlling]: starting {mode} with {duration}min intervals, target OD {target_od}V, volume {volume}mL.",
+        f"[io_controlling]: starting {mode} with {duration}min intervals, metadata: {kwargs}",
         verbose=verbose,
     )
 

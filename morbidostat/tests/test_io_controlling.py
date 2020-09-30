@@ -56,7 +56,7 @@ def test_silent_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
-    io = io_controlling(mode="silent", volume=None, duration=0.001)
+    io = io_controlling(mode="silent", volume=None, duration=0.001, verbose=True)
     assert next(io) == Event.NO_EVENT
     assert next(io) == Event.NO_EVENT
 
@@ -77,7 +77,7 @@ def test_turbidostat_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     target_od = 1.0
-    algo = io_controlling(mode="turbidostat", target_od=target_od, duration=0.001, volume=0.25)
+    algo = io_controlling(mode="turbidostat", target_od=target_od, duration=0.001, volume=0.25, verbose=True)
 
     assert next(algo) == Event.NO_EVENT
     assert next(algo) == Event.DILUTION_EVENT
