@@ -13,7 +13,7 @@ from morbidostat.utils.pubsub import publish, subscribe
 from morbidostat.utils import leader_hostname, get_unit_from_hostname, get_latest_experiment_name, leader_hostname
 
 
-VIAL_VOLUME = 12
+VIAL_VOLUME = 14
 
 
 def get_initial_alt_media_fraction(experiment, unit):

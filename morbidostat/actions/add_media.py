@@ -18,6 +18,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
     experiment = get_latest_experiment_name()
 
     hz = 100
+    # TODO: fix below when duration is set.
     publish(f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": "%s", "event": "add_media"}' % ml, verbose=verbose)
 
     try:
