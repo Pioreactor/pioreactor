@@ -69,7 +69,7 @@ class ControlAlgorithm:
 
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
         assert (
-            alt_media_ml + media_ml == waste_ml
+            abs(alt_media_ml + media_ml - waste_ml) < 0.000_001
         ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
 
         if waste_ml > 0.5:
