@@ -24,8 +24,7 @@ def get_hostname():
 
 def get_config():
     config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../pump_ml_to_durationconfig.ini")
-    print(config_path)
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../config.ini")
     config.read(config_path)
     return config
 
