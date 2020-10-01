@@ -68,7 +68,9 @@ class ControlAlgorithm:
         raise NotImplementedError
 
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
-        assert alt_media_ml + media_ml == waste_ml, "in order to keep same volume, IO should be equal."
+        assert (
+            alt_media_ml + media_ml == waste_ml
+        ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
 
         if waste_ml > 0.5:
             """
@@ -152,7 +154,7 @@ class PIDMorbidostat(ControlAlgorithm):
         super(PIDMorbidostat, self).__init__(**kwargs)
         self.target_growth_rate = target_growth_rate
         self.od_to_start_diluting = 0.75 * target_od
-        self.max_od = 1.15 * target_od
+        self.max_od = 1.20 * target_od
         self.duration = duration
         self.pid = PID(1.07, 1.05, 1.2, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None)
 
