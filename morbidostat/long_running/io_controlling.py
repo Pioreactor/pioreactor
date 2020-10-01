@@ -20,7 +20,7 @@ from morbidostat.utils.pubsub import publish, subscribe
 from morbidostat.utils import get_unit_from_hostname, get_latest_experiment_name
 
 
-VIAL_VOLUME = 12
+VIAL_VOLUME = 14
 
 
 class Event(Enum):
@@ -165,10 +165,6 @@ class PIDMorbidostat(ControlAlgorithm):
         self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
 
     def execute(self, *args, **kwargs) -> Event:
-        """
-        morbidostat mode - keep cell density below and threshold using chemical means. The conc.
-        of the chemical is diluted slowly over time, allowing the microbes to recover.
-        """
         if self.latest_od <= self.od_to_start_diluting:
             return Event.NO_EVENT
         else:

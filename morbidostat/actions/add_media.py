@@ -40,7 +40,11 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
         pwm.stop()
         GPIO.output(MEDIA_PIN, 0)
 
-        publish(f"morbidostat/{unit}/{experiment}/log", f"add media: {round(ml,3)}mL", verbose=verbose)
+        if ml is not None:
+            publish(f"morbidostat/{unit}/{experiment}/log", f"add media: {round(ml,2)}mL", verbose=verbose)
+        else:
+            publish(f"morbidostat/{unit}/{experiment}/log", f"add media: {round(duration,2)}s", verbose=verbose)
+
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose)
         raise e

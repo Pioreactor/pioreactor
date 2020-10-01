@@ -2,6 +2,7 @@
 import sys
 import configparser
 import socket
+import os
 from functools import wraps
 
 import numpy as np
@@ -23,7 +24,9 @@ def get_hostname():
 
 def get_config():
     config = configparser.ConfigParser()
-    config.read("config.ini")
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../pump_ml_to_durationconfig.ini")
+    print(config_path)
+    config.read(config_path)
     return config
 
 
