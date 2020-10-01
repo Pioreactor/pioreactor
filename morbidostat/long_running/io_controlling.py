@@ -152,6 +152,7 @@ class PIDMorbidostat(ControlAlgorithm):
         super(PIDMorbidostat, self).__init__(**kwargs)
         self.target_growth_rate = target_growth_rate
         self.od_to_start_diluting = 0.75 * target_od
+        self.max_od = 1.15 * target_od
         self.duration = duration
         self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None)
 
@@ -169,10 +170,20 @@ class PIDMorbidostat(ControlAlgorithm):
             return Event.NO_EVENT
         else:
             fraction_of_media_to_add = self.pid(self.latest_growth_rate)
+
+            # dilute more if our OD keeps creeping up - we want to stay in the linear range.
+            if self.latest_od > self.max_od:
+                publish(
+                    f"morbidostat/{self.unit}/{self.experiment}/log",
+                    f"[io_controlling]: executing double dilution.",
+                    verbose=self.verbose,
+                )
+                volume = 2 * self.volume
+            else:
+                volume = self.volume
+
             self.execute_io_action(
-                alt_media_ml=(1 - fraction_of_media_to_add) * self.volume,
-                media_ml=fraction_of_media_to_add * self.volume,
-                waste_ml=self.volume,
+                alt_media_ml=(1 - fraction_of_media_to_add) * volume, media_ml=fraction_of_media_to_add * volume, waste_ml=volume
             )
             return Event.ALT_MEDIA_EVENT
 
