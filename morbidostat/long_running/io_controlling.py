@@ -166,7 +166,9 @@ class PIDMorbidostat(ControlAlgorithm):
         if self.latest_od <= self.od_to_start_diluting:
             return Event.NO_EVENT
         else:
-            output = self.pid(self.latest_growth_rate)
+            output = self.pid(
+                self.latest_growth_rate, dt=self.duration
+            )  # duration is measured in minutes, not seconds (as simple_pid would want)
             fraction_of_media_to_add = self.map_to_0_1(output)
 
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.

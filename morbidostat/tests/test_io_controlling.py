@@ -58,8 +58,8 @@ def test_silent_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     io = io_controlling(mode="silent", volume=None, duration=0.001, verbose=True)
-    assert next(io) == events.NoEvent
-    assert next(io) == events.NoEvent
+    assert isinstance(next(io), events.NoEvent)
+    assert isinstance(next(io), events.NoEvent)
 
 
 def test_turbidostat_algorithm(monkeypatch):
