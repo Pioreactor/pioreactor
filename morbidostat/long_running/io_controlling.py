@@ -140,13 +140,18 @@ class PIDMorbidostat(ControlAlgorithm):
     As defined in Zhong 2020
     """
 
+    @staticmethod
+    def map_to_0_1(x):
+        assert -1 <= x <= 1
+        return (x + 1) / 2
+
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)
         self.target_growth_rate = target_growth_rate
         self.od_to_start_diluting = 0.75 * target_od
         self.max_od = 1.20 * target_od
         self.duration = duration
-        self.pid = PID(1.0, 0.5, 0.2, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None)
+        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_growth_rate, output_limits=(-1, 1), sample_time=None)
 
         if volume is not None:
             publish(
@@ -161,7 +166,8 @@ class PIDMorbidostat(ControlAlgorithm):
         if self.latest_od <= self.od_to_start_diluting:
             return Event.NO_EVENT
         else:
-            fraction_of_media_to_add = self.pid(self.latest_growth_rate)
+            output = self.pid(self.latest_growth_rate)
+            fraction_of_media_to_add = self.map_to_0_1(output)
 
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_od > self.max_od:
@@ -178,7 +184,7 @@ class PIDMorbidostat(ControlAlgorithm):
                 alt_media_ml=(1 - fraction_of_media_to_add) * volume, media_ml=fraction_of_media_to_add * volume, waste_ml=volume
             )
             return events.AltMediaEvent(
-                f"PID output={fraction_of_media_to_add:.2f}, alt_media_ml={(1 - fraction_of_media_to_add) * volume:.2f}, media_ml={fraction_of_media_to_add * volume:.2f}"
+                f"PID output={output:.2f}, alt_media_ml={(1 - fraction_of_media_to_add) * volume:.2f}, media_ml={fraction_of_media_to_add * volume:.2f}"
             )
 
 
