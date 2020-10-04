@@ -74,7 +74,7 @@ def growth_rate_calculating(verbose=False):
         process_noise_covariance = np.block(
             [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
         )
-        observation_noise_covariance = 1e-3 * np.eye(d - 1)  # TODO: this should be a function of the angle and gain
+        observation_noise_covariance = 1e-2 * np.eye(d - 1)  # TODO: this should be a function of the angle and gain
 
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 

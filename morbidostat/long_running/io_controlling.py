@@ -18,19 +18,9 @@ from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubsub import publish, subscribe
 from morbidostat.utils import get_unit_from_hostname, get_latest_experiment_name
-
+from morbidostat.long_running import events
 
 VIAL_VOLUME = 14
-
-
-class Event(Enum):
-    NO_EVENT = 0
-    DILUTION_EVENT = 1
-    ALT_MEDIA_EVENT = 2
-    FLASH_UV = 3
-
-    def __str__(self):
-        return self.name.lower().replace("_", " ")
 
 
 class ControlAlgorithm:
@@ -61,7 +51,7 @@ class ControlAlgorithm:
         self.latest_od = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135").payload)
         return
 
-    def execute(self, counter) -> Event:
+    def execute(self, counter) -> events.Event:
         """
         Should return a member of the Event class (defined above)
         """
@@ -69,7 +59,7 @@ class ControlAlgorithm:
 
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
         assert (
-            abs(alt_media_ml + media_ml - waste_ml) < 0.000_001
+            abs(alt_media_ml + media_ml - waste_ml) < 1e-5
         ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
 
         if waste_ml > 0.5:
@@ -93,8 +83,8 @@ class ControlAlgorithm:
 
 
 class Silent(ControlAlgorithm):
-    def execute(self, *args, **kwargs) -> Event:
-        return Event.NO_EVENT
+    def execute(self, *args, **kwargs) -> events.Event:
+        return events.NoEvent("never execute IO events in Silent mode")
 
 
 class Turbidostat(ControlAlgorithm):
@@ -108,12 +98,12 @@ class Turbidostat(ControlAlgorithm):
         self.volume = volume
         super(Turbidostat, self).__init__(**kwargs)
 
-    def execute(self, *args, **kwargs) -> Event:
+    def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od >= self.target_od:
             self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
-            return Event.DILUTION_EVENT
+            return events.DilutionEvent(f"latest OD={self.latest_od:.2f}V >= target OD={self.target_od:.2f}V")
         else:
-            return Event.NO_EVENT
+            return events.NoEvent(f"latest OD={self.latest_od:.2f}V < target OD={self.target_od:.2f}V")
 
 
 class PIDTurbidostat(ControlAlgorithm):
@@ -131,18 +121,18 @@ class PIDTurbidostat(ControlAlgorithm):
         self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None)
         super(PIDTurbidostat, self).__init__(**kwargs)
 
-    def execute(self, *args, **kwargs) -> Event:
+    def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.od_to_start_diluting:
-            return Event.NO_EVENT
+            return events.NoEvent(f"OD less than OD to start diluting, {self.od_to_start_diluting}")
         else:
             output = self.pid(self.latest_od)
             volume_to_cycle = (1 - output) * self.max_volume
 
             if volume_to_cycle == 0:
-                return Event.NO_EVENT
+                return events.NoEvent(f"PID output={output}, so no volume to cycle")
             else:
                 self.execute_io_action(media_ml=volume_to_cycle, waste_ml=volume_to_cycle)
-                return Event.DILUTION_EVENT
+                return events.DilutionEvent(f"PID output={output:.2f}, volume to cycle={volume_to_cycle:.2f}")
 
 
 class PIDMorbidostat(ControlAlgorithm):
@@ -156,7 +146,7 @@ class PIDMorbidostat(ControlAlgorithm):
         self.od_to_start_diluting = 0.75 * target_od
         self.max_od = 1.20 * target_od
         self.duration = duration
-        self.pid = PID(1.07, 1.05, 1.2, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None)
+        self.pid = PID(1.0, 0.5, 0.2, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None)
 
         if volume is not None:
             publish(
@@ -167,7 +157,7 @@ class PIDMorbidostat(ControlAlgorithm):
 
         self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
 
-    def execute(self, *args, **kwargs) -> Event:
+    def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.od_to_start_diluting:
             return Event.NO_EVENT
         else:
@@ -177,7 +167,7 @@ class PIDMorbidostat(ControlAlgorithm):
             if self.latest_od > self.max_od:
                 publish(
                     f"morbidostat/{self.unit}/{self.experiment}/log",
-                    f"[io_controlling]: executing double dilution.",
+                    f"[io_controlling]: executing double dilution since we are above max OD, {self.max_od:.2f}.",
                     verbose=self.verbose,
                 )
                 volume = 2 * self.volume
@@ -187,7 +177,9 @@ class PIDMorbidostat(ControlAlgorithm):
             self.execute_io_action(
                 alt_media_ml=(1 - fraction_of_media_to_add) * volume, media_ml=fraction_of_media_to_add * volume, waste_ml=volume
             )
-            return Event.ALT_MEDIA_EVENT
+            return events.AltMediaEvent(
+                f"PID output={fraction_of_media_to_add:.2f}, alt_media_ml={(1 - fraction_of_media_to_add) * volume:.2f}, media_ml={fraction_of_media_to_add * volume:.2f}"
+            )
 
 
 class Morbidostat(ControlAlgorithm):
@@ -200,24 +192,28 @@ class Morbidostat(ControlAlgorithm):
         self.volume = volume
         super(Morbidostat, self).__init__(**kwargs)
 
-    def execute(self, *args, **kwargs) -> Event:
+    def execute(self, *args, **kwargs) -> events.Event:
         """
         morbidostat mode - keep cell density below and threshold using chemical means. The conc.
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         if self.previous_od is None:
-            return Event.NO_EVENT
+            return events.NoEvent("Skip first event to set parameters")
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
             self.execute_io_action(alt_media_ml=self.volume, waste_ml=self.volume)
-            return Event.ALT_MEDIA_EVENT
+            return events.AltMediaEvent(
+                f"Latest OD, {self.latest_od:.2f} >= Target OD, {self.target_od:.2f} and Latest OD, {self.latest_od:.2f} >= Previous OD, {self.previous_od:.2f}"
+            )
         else:
             self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
-            return Event.DILUTION_EVENT
+            return events.DilutionEvent(
+                f"Latest OD, {self.latest_od:.2f} < Target OD, {self.target_od:.2f} or Latest OD, {self.latest_od:.2f} < Previous OD, {self.previous_od:.2f}"
+            )
 
 
-def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False, **kwargs) -> Iterator[Event]:
+def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 

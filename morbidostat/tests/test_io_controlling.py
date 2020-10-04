@@ -2,7 +2,8 @@
 
 import pytest
 
-from morbidostat.long_running.io_controlling import io_controlling, Event, ControlAlgorithm
+from morbidostat.long_running.io_controlling import io_controlling, ControlAlgorithm
+from morbidostat.long_running import events
 from paho.mqtt import subscribe
 
 
@@ -57,8 +58,8 @@ def test_silent_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     io = io_controlling(mode="silent", volume=None, duration=0.001, verbose=True)
-    assert next(io) == Event.NO_EVENT
-    assert next(io) == Event.NO_EVENT
+    assert next(io) == events.NoEvent
+    assert next(io) == events.NoEvent
 
 
 def test_turbidostat_algorithm(monkeypatch):
@@ -79,10 +80,10 @@ def test_turbidostat_algorithm(monkeypatch):
     target_od = 1.0
     algo = io_controlling(mode="turbidostat", target_od=target_od, duration=0.001, volume=0.25, verbose=True)
 
-    assert next(algo) == Event.NO_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
-    assert next(algo) == Event.NO_EVENT
+    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(next(algo), events.NoEvent)
 
 
 def test_pid_turbidostat_algorithm(monkeypatch):
@@ -107,11 +108,11 @@ def test_pid_turbidostat_algorithm(monkeypatch):
     target_od = 1.0
     algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=0.25, duration=0.01, verbose=True)
 
-    assert next(algo) == Event.NO_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
+    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
 
 
 def test_morbidostat_algorithm(monkeypatch):
@@ -136,12 +137,12 @@ def test_morbidostat_algorithm(monkeypatch):
     target_od = 1.0
     algo = io_controlling(mode="morbidostat", target_od=target_od, duration=0.001, volume=0.25, verbose=True)
 
-    assert next(algo) == Event.NO_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
-    assert next(algo) == Event.ALT_MEDIA_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
-    assert next(algo) == Event.ALT_MEDIA_EVENT
-    assert next(algo) == Event.DILUTION_EVENT
+    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(next(algo), events.DilutionEvent)
 
 
 def test_pid_morbidostat_algorithm(monkeypatch):
@@ -157,14 +158,14 @@ def test_pid_morbidostat_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
-    target_growth_rate = 0.09
+    target_growth_rate = 10
     algo = io_controlling(
         mode="pid_morbidostat", target_od=0.5, target_growth_rate=target_growth_rate, duration=0.1, verbose=True
     )
 
-    assert next(algo) == Event.ALT_MEDIA_EVENT
-    assert next(algo) == Event.ALT_MEDIA_EVENT
-    assert next(algo) == Event.ALT_MEDIA_EVENT
+    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(next(algo), events.AltMediaEvent)
 
 
 def test_execute_io_action():
