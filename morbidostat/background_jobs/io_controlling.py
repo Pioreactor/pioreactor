@@ -118,6 +118,7 @@ class ControlAlgorithm:
             payload = json.loads(message.payload)
             for k, v in payload.items():
                 setattr(self, k, v)
+                publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"Updated {k} to {v}.")
         except:
             traceback.print_exc()
 
@@ -353,7 +354,7 @@ def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False
 @click.option("--target_od", default=None, type=float)
 @click.option("--target_growth_rate", default=None, type=float)
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
-@click.option("--volume", default=0.25, help="the volume to exchange, mL")
+@click.option("--volume", default=None, help="the volume to exchange, mL")
 @click.option(
     "--skip_first_run",
     is_flag=True,

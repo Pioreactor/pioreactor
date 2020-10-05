@@ -150,6 +150,8 @@ def test_morbidostat_algorithm(monkeypatch):
 def test_pid_morbidostat_algorithm(monkeypatch):
     mock_broker = MockMsgBroker(
         MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.08),
+        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.500),
+        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.08),
         MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
         MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.07),
         MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
@@ -163,8 +165,8 @@ def test_pid_morbidostat_algorithm(monkeypatch):
     target_growth_rate = 0.09
     algo = io_controlling(mode="pid_morbidostat", target_od=1.0, target_growth_rate=target_growth_rate, duration=60, verbose=True)
 
-    event = next(algo)
-    assert isinstance(event, events.AltMediaEvent)
+    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(next(algo), events.AltMediaEvent)
     assert isinstance(next(algo), events.AltMediaEvent)
     assert isinstance(next(algo), events.AltMediaEvent)
 
