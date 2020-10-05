@@ -6,6 +6,7 @@ import time
 import signal
 import sys
 import os
+import traceback
 
 import threading
 from enum import Enum
@@ -131,18 +132,15 @@ class ControlAlgorithm:
         def job_callback(client, userdata, message):
             topic = message.topic
             function_to_run = topic.split("/")[-1]
-            print(function_to_run)
             try:
                 getattr(self, function_to_run)(message)
             except:
-                print("here1")
                 traceback.print_exc()
                 publish(
                     f"morbidostat/{self.unit}/{self.experiment}/log",
                     f"No function {function_to_run} found.",
                     verbose=self.verbose,
                 )
-                print("here2")
 
         passive_listener = threading.Thread(
             target=mqtt_subscribe.callback, args=(job_callback, topic), kwargs={"hostname": leader_hostname}, daemon=True
