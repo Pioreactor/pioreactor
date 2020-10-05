@@ -142,6 +142,7 @@ class ControlAlgorithm:
                     f"No function {function_to_run} found.",
                     verbose=self.verbose,
                 )
+                print("here2")
 
         passive_listener = threading.Thread(
             target=mqtt_subscribe.callback, args=(job_callback, topic), kwargs={"hostname": leader_hostname}, daemon=True
