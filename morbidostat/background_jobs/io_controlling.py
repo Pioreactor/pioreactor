@@ -196,7 +196,7 @@ class PIDTurbidostat(ControlAlgorithm):
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.od_to_start_diluting:
-            return events.NoEvent(f"OD less than OD to start diluting, {self.od_to_start_diluting}")
+            return events.NoEvent(f"OD less than OD to start diluting, {self.od_to_start_diluting:.2f}")
         else:
             output = self.pid.update(self.latest_od)
 
@@ -243,7 +243,7 @@ class PIDMorbidostat(ControlAlgorithm):
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.od_to_start_diluting:
-            return events.NO_EVENT
+            return events.NoEvent(f"Latest OD less than OD to start diluting, {self.od_to_start_diluting:.2f}")
         else:
             fraction_of_alt_media_to_add = self.pid.update(
                 self.latest_growth_rate, dt=self.duration
