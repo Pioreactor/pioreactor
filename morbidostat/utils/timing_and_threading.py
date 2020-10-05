@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time, traceback
+import time, traceback, sys
 
 
 def every(delay, task, *args, **kwargs):
@@ -21,6 +21,9 @@ def every(delay, task, *args, **kwargs):
             raise e
             # in production code you might want to have this instead of course:
             # logger.exception("Problem while executing repetitive task.")
-        time.sleep(max(0, next_time - time.time()))
+        if "pytest" in sys.modules:
+            time.sleep(0)
+        else:
+            time.sleep(max(0, next_time - time.time()))
         # skip tasks if we are behind schedule:
         next_time += (time.time() - next_time) // delay * delay + delay
