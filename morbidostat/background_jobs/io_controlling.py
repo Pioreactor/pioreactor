@@ -127,15 +127,15 @@ class ControlAlgorithm:
     def start_passive_listeners(self):
         job_name = os.path.splitext(os.path.basename((__file__)))[0]
         topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/+"
-        print(topic)
 
         def job_callback(client, userdata, message):
-            print("here")
+            topic = message.topic
+            function_to_run = topic.split("/")[-1]
+            print(function_to_run)
             try:
-                topic = message.topic
-                function_to_run = topic.split("/")[-1]
                 getattr(self, function_to_run)(message)
             except:
+                print("here1")
                 traceback.print_exc()
                 publish(
                     f"morbidostat/{self.unit}/{self.experiment}/log",
@@ -147,7 +147,6 @@ class ControlAlgorithm:
             target=mqtt_subscribe.callback, args=(job_callback, topic), kwargs={"hostname": leader_hostname}, daemon=True
         )
         passive_listener.start()
-        print(passive_listener)
 
 
 ######################
