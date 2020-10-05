@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-
-from morbidostat.long_running.io_controlling import io_controlling, ControlAlgorithm
-from morbidostat.long_running import events
 from paho.mqtt import subscribe
+
+from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat
+from morbidostat.long_running import events
+from morbidostat import utils
+from morbidostat.utils import pubsub
 
 
 class MockMQTTMsg:
@@ -170,3 +172,47 @@ def test_pid_morbidostat_algorithm(monkeypatch):
 def test_execute_io_action():
     ca = ControlAlgorithm(verbose=True, unit="_testing", experiment="_testing")
     ca.execute_io_action(media_ml=0.65, alt_media_ml=0.15, waste_ml=0.80)
+
+
+def test_changing_parameters_over_mqtt():
+
+    unit = utils.get_unit_from_hostname()
+    experiment = utils.get_latest_experiment_name()
+
+    target_growth_rate = 0.05
+    algo = PIDMorbidostat(
+        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=True, unit=unit, experiment=experiment
+    )
+    assert algo.target_growth_rate == 0.05
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    algo.run()
+
+    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"target_growth_rate": 0.07}')
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    algo.run()
+
+    assert algo.target_growth_rate == 0.07
+
+
+def test_changing_parameters_over_mqtt_with_unknown_function():
+
+    unit = utils.get_unit_from_hostname()
+    experiment = utils.get_latest_experiment_name()
+
+    target_growth_rate = 0.05
+    algo = PIDMorbidostat(
+        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=True, unit=unit, experiment=experiment
+    )
+    assert algo.target_growth_rate == 0.05
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    algo.run()
+
+    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/blank", '{"target_growth_rate": 0.07}')
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    algo.run()
