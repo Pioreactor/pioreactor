@@ -118,7 +118,9 @@ class ControlAlgorithm:
             payload = json.loads(message.payload)
             for k, v in payload.items():
                 setattr(self, k, v)
-                publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"Updated {k} to {v}.")
+                publish(
+                    f"morbidostat/{self.unit}/{self.experiment}/log", f"Updated {k} to {getattr(self, k)}.", verbose=self.verbose
+                )
         except:
             traceback.print_exc()
 
@@ -133,7 +135,11 @@ class ControlAlgorithm:
                 getattr(self, function_to_run)(message)
             except:
                 traceback.print_exc()
-                publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"No function {function_to_run} found.")
+                publish(
+                    f"morbidostat/{self.unit}/{self.experiment}/log",
+                    f"No function {function_to_run} found.",
+                    verbose=self.verbose,
+                )
 
         passive_listener = threading.Thread(
             target=mqtt_subscribe.callback, args=(job_callback, topic), kwargs={"hostname": leader_hostname}, daemon=True

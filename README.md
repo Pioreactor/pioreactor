@@ -48,9 +48,19 @@ The _morbidostat_, a combination of "morbid static", is a bioreactor designed ex
 4. In [Ekkers, 2020], the authors hint at evolving an _anticipatory_ response. Amazing!
 
 
+### Installation
+
+`make install` should set up what you need. There are further _optional_ optimizations that can be done to make the RPi more performant:
+
+1. `nano /boot/config.txt` add `gpu_mem=16` (or via raspi-config)
+
+2. `sudo nano /etc/rc.local` add `/usr/bin/tvservice -o`
+
+
 ### Testing
 
 `py.test` on the command line.
+
 
 
 

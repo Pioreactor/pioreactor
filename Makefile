@@ -13,3 +13,9 @@ install: install-mqtt install-python
 measure:
     nohup python3 -m morbidostat.background_jobs.od_reading --od_angle_channel 135,0 --od_angle_channel 90,3 &
     nohup python3 -m morbidostat.background_jobs.growth_rate_calculating &
+
+view:
+    ps x | grep python3
+
+test:
+    py.test -s
