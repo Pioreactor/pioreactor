@@ -130,6 +130,7 @@ class ControlAlgorithm:
         print(topic)
 
         def job_callback(client, userdata, message):
+            print("here")
             try:
                 topic = message.topic
                 function_to_run = topic.split("/")[-1]
@@ -146,6 +147,7 @@ class ControlAlgorithm:
             target=mqtt_subscribe.callback, args=(job_callback, topic), kwargs={"hostname": leader_hostname}, daemon=True
         )
         passive_listener.start()
+        print(passive_listener)
 
 
 ######################
