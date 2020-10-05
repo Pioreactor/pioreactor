@@ -54,3 +54,21 @@ CREATE TABLE IF NOT EXISTS experiments (
     timestamp              TEXT  NOT NULL UNIQUE,
     experiment             TEXT  NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS pid_logs (
+    timestamp              TEXT  NOT NULL,
+    morbidostat_unit       TEXT  NOT NULL,
+    experiment             TEXT  NOT NULL,
+    setpoint               REAL  NOT NULL,
+    output_limits_lb       REAL,
+    output_limits_ub       REAL,
+    Kd                     REAL  NOT NULL,
+    Ki                     REAL  NOT NULL,
+    Kp                     REAL  NOT NULL,
+    integral               REAL,
+    proportional           REAL,
+    derivative             REAL,
+    latest_input           REAL  NOT NULL,
+    latest_output          REAL  NOT NULL
+);

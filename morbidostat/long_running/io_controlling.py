@@ -8,9 +8,10 @@ import sys
 import threading
 from enum import Enum
 from typing import Iterator
+import json
 
 import click
-from simple_pid import PID
+from simple_pid import PID as simple_PID
 
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
@@ -21,6 +22,37 @@ from morbidostat.utils import get_unit_from_hostname, get_latest_experiment_name
 from morbidostat.long_running import events
 
 VIAL_VOLUME = 14
+
+
+class PID:
+    # TODO: move to streaming calculations module
+
+    def __init__(self, *args, unit=None, experiment=None, verbose=False, **kwargs):
+        self.pid = simple_PID(*args, **kwargs)
+        self.unit = unit
+        self.experiment = experiment
+        self.verbose = verbose
+
+    def update(self, input_, dt=None):
+        output = self.pid(input_, dt)
+        self.publish_pid_stats()
+        return output
+
+    def publish_pid_stats(self):
+        to_send = {
+            "setpoint": self.pid.setpoint,
+            "output_limits_lb": self.pid.output_limits[0],
+            "output_limits_ub": self.pid.output_limits[1],
+            "Kd": self.pid.Kd,
+            "Ki": self.pid.Ki,
+            "Kp": self.pid.Kp,
+            "integral": self.pid._integral,
+            "proportional": self.pid._proportional,
+            "derivative": self.pid._derivative,
+            "latest_input": self.pid._last_input,
+            "latest_output": self.pid._last_output,
+        }
+        publish(f"morbidostat/{self.unit}/{self.experiment}/pid_log", json.dumps(to_send), verbose=self.verbose)
 
 
 class ControlAlgorithm:
@@ -115,24 +147,35 @@ class PIDTurbidostat(ControlAlgorithm):
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
+        super(PIDTurbidostat, self).__init__(**kwargs)
         self.target_od = target_od
         self.max_volume = volume
         self.od_to_start_diluting = 0.75 * target_od
-        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None)
-        super(PIDTurbidostat, self).__init__(**kwargs)
+        self.pid = PID(
+            0.07,
+            0.05,
+            0.2,
+            setpoint=self.target_od,
+            output_limits=(0, 1),
+            sample_time=None,
+            unit=self.unit,
+            experiment=self.experiment,
+            verbose=self.verbose,
+        )
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.od_to_start_diluting:
             return events.NoEvent(f"OD less than OD to start diluting, {self.od_to_start_diluting}")
         else:
-            output = self.pid(self.latest_od)
+            output = self.pid.update(self.latest_od)
+
             volume_to_cycle = (1 - output) * self.max_volume
 
             if volume_to_cycle == 0:
-                return events.NoEvent(f"PID output={output}, so no volume to cycle")
+                return events.NoEvent(f"PID output={output:.2f}, so no volume to cycle")
             else:
                 self.execute_io_action(media_ml=volume_to_cycle, waste_ml=volume_to_cycle)
-                return events.DilutionEvent(f"PID output={output:.2f}, volume to cycle={volume_to_cycle:.2f}")
+                return events.DilutionEvent(f"PID output={output:.2f}, volume to cycle={volume_to_cycle:.2f}mL")
 
 
 class PIDMorbidostat(ControlAlgorithm):
@@ -140,18 +183,23 @@ class PIDMorbidostat(ControlAlgorithm):
     As defined in Zhong 2020
     """
 
-    @staticmethod
-    def map_to_0_1(x):
-        assert -1 <= x <= 1
-        return (x + 1) / 2
-
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)
         self.target_growth_rate = target_growth_rate
         self.od_to_start_diluting = 0.75 * target_od
         self.max_od = 1.20 * target_od
         self.duration = duration
-        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_growth_rate, output_limits=(-1, 1), sample_time=None)
+        self.pid = PID(
+            -8.00,
+            -0.01,
+            0.0,
+            setpoint=self.target_growth_rate,
+            output_limits=(0, 1),
+            sample_time=None,
+            unit=self.unit,
+            experiment=self.experiment,
+            verbose=self.verbose,
+        )
 
         if volume is not None:
             publish(
@@ -166,10 +214,9 @@ class PIDMorbidostat(ControlAlgorithm):
         if self.latest_od <= self.od_to_start_diluting:
             return Event.NO_EVENT
         else:
-            output = self.pid(
+            fraction_of_alt_media_to_add = self.pid.update(
                 self.latest_growth_rate, dt=self.duration
             )  # duration is measured in minutes, not seconds (as simple_pid would want)
-            fraction_of_media_to_add = self.map_to_0_1(output)
 
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_od > self.max_od:
@@ -182,12 +229,16 @@ class PIDMorbidostat(ControlAlgorithm):
             else:
                 volume = self.volume
 
-            self.execute_io_action(
-                alt_media_ml=(1 - fraction_of_media_to_add) * volume, media_ml=fraction_of_media_to_add * volume, waste_ml=volume
+            alt_media_ml = fraction_of_alt_media_to_add * volume
+            media_ml = (1 - fraction_of_alt_media_to_add) * volume
+
+            self.execute_io_action(alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume)
+            event = events.AltMediaEvent(
+                f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL"
             )
-            return events.AltMediaEvent(
-                f"PID output={output:.2f}, alt_media_ml={(1 - fraction_of_media_to_add) * volume:.2f}, media_ml={fraction_of_media_to_add * volume:.2f}"
-            )
+            event.media_ml = media_ml  # can be used for testing later
+            event.alt_media_ml = alt_media_ml
+            return event
 
 
 class Morbidostat(ControlAlgorithm):

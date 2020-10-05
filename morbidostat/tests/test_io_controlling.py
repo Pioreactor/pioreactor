@@ -160,10 +160,11 @@ def test_pid_morbidostat_algorithm(monkeypatch):
 
     target_growth_rate = 10
     algo = io_controlling(
-        mode="pid_morbidostat", target_od=0.5, target_growth_rate=target_growth_rate, duration=0.1, verbose=True
+        mode="pid_morbidostat", target_od=1.0, target_growth_rate=target_growth_rate, duration=0.1, verbose=True
     )
 
-    assert isinstance(next(algo), events.AltMediaEvent)
+    event = next(algo)
+    assert isinstance(event, events.AltMediaEvent)
     assert isinstance(next(algo), events.AltMediaEvent)
     assert isinstance(next(algo), events.AltMediaEvent)
 
