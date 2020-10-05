@@ -243,7 +243,7 @@ class PIDMorbidostat(ControlAlgorithm):
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.od_to_start_diluting:
-            return Event.NO_EVENT
+            return events.NO_EVENT
         else:
             fraction_of_alt_media_to_add = self.pid.update(
                 self.latest_growth_rate, dt=self.duration
