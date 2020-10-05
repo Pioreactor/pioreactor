@@ -4,7 +4,7 @@ import pytest
 from paho.mqtt import subscribe
 
 from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat
-from morbidostat.long_running import events
+from morbidostat.background_jobs import events
 from morbidostat import utils
 from morbidostat.utils import pubsub
 

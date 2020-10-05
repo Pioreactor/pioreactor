@@ -3,7 +3,7 @@
 Continuously take an optical density reading (more accurately: a backscatter reading, which is a proxy for OD).
 This script is designed to run in a background process and push data to MQTT.
 
->>> nohup python3 -m morbidostat.long_running.od_reading &
+>>> nohup python3 -m morbidostat.background_jobs.od_reading &
 """
 import time
 import json

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 
-from morbidostat.long_running.growth_rate_calculating import growth_rate_calculating
+from morbidostat.background_jobs.growth_rate_calculating import growth_rate_calculating
 from paho.mqtt import subscribe, publish
 
 

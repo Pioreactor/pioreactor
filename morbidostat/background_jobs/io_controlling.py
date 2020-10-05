@@ -23,7 +23,7 @@ from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing_and_threading import every
 from morbidostat.utils.pubsub import publish, subscribe
 from morbidostat.utils import get_unit_from_hostname, get_latest_experiment_name, leader_hostname
-from morbidostat.long_running import events
+from morbidostat.background_jobs import events
 
 VIAL_VOLUME = 14
 
