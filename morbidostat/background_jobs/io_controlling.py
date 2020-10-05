@@ -127,6 +127,7 @@ class ControlAlgorithm:
     def start_passive_listeners(self):
         job_name = os.path.splitext(os.path.basename((__file__)))[0]
         topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/+"
+        print(topic)
 
         def job_callback(client, userdata, message):
             try:
