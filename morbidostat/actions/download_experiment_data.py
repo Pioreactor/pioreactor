@@ -3,6 +3,7 @@
 
 
 from morbidostat.utils import config, get_latest_experiment_name
+import click
 
 
 def download_experiment_data(experiment):
