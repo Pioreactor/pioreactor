@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
-import numpy as np
 from statistics import *
-from collections import namedtuple
+import json
+
+import numpy as np
+from simple_pid import PID as simple_PID
+
+from morbidostat.utils.pubsub import publish
 
 
 class MovingStats:
@@ -175,3 +179,34 @@ class ExtendedKalmanFilter:
                 return False
         else:
             return False
+
+
+class PID:
+    # used in io_controlling classes
+
+    def __init__(self, *args, unit=None, experiment=None, verbose=False, **kwargs):
+        self.pid = simple_PID(*args, **kwargs)
+        self.unit = unit
+        self.experiment = experiment
+        self.verbose = verbose
+
+    def update(self, input_, dt=None):
+        output = self.pid(input_, dt)
+        self.publish_pid_stats()
+        return output
+
+    def publish_pid_stats(self):
+        to_send = {
+            "setpoint": self.pid.setpoint,
+            "output_limits_lb": self.pid.output_limits[0],
+            "output_limits_ub": self.pid.output_limits[1],
+            "Kd": self.pid.Kd,
+            "Ki": self.pid.Ki,
+            "Kp": self.pid.Kp,
+            "integral": self.pid._integral,
+            "proportional": self.pid._proportional,
+            "derivative": self.pid._derivative,
+            "latest_input": self.pid._last_input,
+            "latest_output": self.pid._last_output,
+        }
+        publish(f"morbidostat/{self.unit}/{self.experiment}/pid_log", json.dumps(to_send), verbose=self.verbose)

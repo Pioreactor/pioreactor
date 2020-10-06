@@ -117,15 +117,10 @@ def click_io_listening(verbose):
 
     publish(f"morbidostat/{unit}/{experiment}/log", f"[io_listening]: starting", verbose=verbose)
 
-    alt_media_calculator_thread = threading.Thread(
-        target=paho_subscribe.callback,
-        kwargs={
-            "callback": AltMediaCalculator(unit=unit, experiment=experiment, verbose=verbose).on_message,
-            "topics": f"morbidostat/{unit}/{experiment}/io_events",
-            "hostname": leader_hostname,
-        },
+    subscribe_and_callback(
+        callback=AltMediaCalculator(unit=unit, experiment=experiment, verbose=verbose).on_message,
+        topics=f"morbidostat/{unit}/{experiment}/io_events",
     )
-    alt_media_calculator_thread.start()
 
     while True:
         pass

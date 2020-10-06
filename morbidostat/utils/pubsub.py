@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pubsub
 import socket
+import threading
 from paho.mqtt import publish as mqtt_publish
 from paho.mqtt import subscribe as mqtt_subscribe
 from morbidostat.utils import leader_hostname
@@ -62,3 +63,16 @@ def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
         if retry == retries:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             raise ConnectionRefusedError(f"{current_time}: Unable to connect to host: {hostname}. Exiting.")
+
+
+def subscribe_and_callback(callback, topics, hostname=leader_hostname, **mqtt_kwargs):
+    """
+    Creates a new thread, wrapping around paho's subscribe.callback
+    TODO: what happens when I lose connection to host?
+    """
+    thread = threading.Thread(
+        target=mqtt_subscribe.callback,
+        kwargs={"callback": callback, "topics": topics, "hostname": hostname},  # TODO: wrap this and make error handling better.
+        daemon=True,
+    )
+    thread.start()

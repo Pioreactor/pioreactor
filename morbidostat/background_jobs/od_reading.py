@@ -17,7 +17,7 @@ import busio
 from morbidostat.utils.streaming_calculations import MovingStats
 from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
 from morbidostat.utils.pubsub import publish
-from morbidostat.utils.timing_and_threading import every
+from morbidostat.utils.timing import every
 
 
 ADS_GAIN_THRESHOLDS = {

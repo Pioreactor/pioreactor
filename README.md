@@ -64,6 +64,7 @@ The _morbidostat_, a combination of "morbid static", is a bioreactor designed ex
 
 
 
+
 References
 -------------
 1. Toprak, E., Veres, A., Yildiz, S. et al. Building a morbidostat: an automated continuous-culture device for studying bacterial drug resistance under dynamically sustained drug inhibition. Nat Protoc 8, 555–567 (2013). https://doi.org/10.1038/nprot.2013.021
@@ -85,4 +86,4 @@ Hoffmann SA, Wohltat C, Müller KM, Arndt KM (2017) A user-friendly, low-cost tu
 in the green microalga Dunaliella salina with light-emitting diodes and adaptive laboratory evolution. Appl. Microbiol. Biotechnol.
 97: 2395-2403.
 
-7.  Attfield PV Bell PJL (2006) Use of population genetics to derive nonrecombinant Saccharomyces cerevisiae strains that grow using xylose as a sole carbon source. FEMS Yeast Res6: 862–868.
+7. Attfield PV Bell PJL (2006) Use of population genetics to derive nonrecombinant Saccharomyces cerevisiae strains that grow using xylose as a sole carbon source. FEMS Yeast Res6: 862–868.

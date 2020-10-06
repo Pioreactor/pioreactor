@@ -2,11 +2,7 @@
 """
 Continuously monitor the bioreactor and take action. This is the core of the io algorithm
 """
-import time
-import signal
-import sys
-import os
-import traceback
+import time, signal, sys, os, traceback
 
 import threading
 from enum import Enum
@@ -14,50 +10,18 @@ from typing import Iterator
 import json
 
 import click
-from simple_pid import PID as simple_PID
 from paho.mqtt import subscribe as mqtt_subscribe
-
 
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
-from morbidostat.utils.timing_and_threading import every
-from morbidostat.utils.pubsub import publish, subscribe
+from morbidostat.utils.timing import every
+from morbidostat.utils.pubsub import publish, subscribe, subscribe_and_callback
 from morbidostat.utils import get_unit_from_hostname, get_latest_experiment_name, leader_hostname
 from morbidostat.background_jobs import events
+from morbidostat.utils.streaming_calculations import PID
 
 VIAL_VOLUME = 14
-
-
-class PID:
-    # TODO: move to streaming calculations module
-
-    def __init__(self, *args, unit=None, experiment=None, verbose=False, **kwargs):
-        self.pid = simple_PID(*args, **kwargs)
-        self.unit = unit
-        self.experiment = experiment
-        self.verbose = verbose
-
-    def update(self, input_, dt=None):
-        output = self.pid(input_, dt)
-        self.publish_pid_stats()
-        return output
-
-    def publish_pid_stats(self):
-        to_send = {
-            "setpoint": self.pid.setpoint,
-            "output_limits_lb": self.pid.output_limits[0],
-            "output_limits_ub": self.pid.output_limits[1],
-            "Kd": self.pid.Kd,
-            "Ki": self.pid.Ki,
-            "Kp": self.pid.Kp,
-            "integral": self.pid._integral,
-            "proportional": self.pid._proportional,
-            "derivative": self.pid._derivative,
-            "latest_input": self.pid._last_input,
-            "latest_output": self.pid._last_output,
-        }
-        publish(f"morbidostat/{self.unit}/{self.experiment}/pid_log", json.dumps(to_send), verbose=self.verbose)
 
 
 class ControlAlgorithm:
@@ -118,7 +82,9 @@ class ControlAlgorithm:
         try:
             payload = json.loads(message.payload)
             for k, v in payload.items():
-                setattr(self, k, v)
+                assert hasattr(self, k)
+                # make sure to cast the input to the same value
+                setattr(self, k, type(getattr(self, k))(v))
                 publish(
                     f"morbidostat/{self.unit}/{self.experiment}/log", f"Updated {k} to {getattr(self, k)}.", verbose=self.verbose
                 )
@@ -137,15 +103,12 @@ class ControlAlgorithm:
             except:
                 traceback.print_exc()
                 publish(
-                    f"morbidostat/{self.unit}/{self.experiment}/log",
+                    f"morbidostat/{self.unit}/{self.experiment}/error_log",
                     f"No function {function_to_run} found.",
                     verbose=self.verbose,
                 )
 
-        passive_listener = threading.Thread(
-            target=mqtt_subscribe.callback, args=(job_callback, topic), kwargs={"hostname": leader_hostname}, daemon=True
-        )
-        passive_listener.start()
+        subscribe_and_callback(job_callback, topic)
 
 
 ######################
@@ -345,12 +308,11 @@ def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False
     kwargs["duration"] = duration
     kwargs["unit"] = unit
     kwargs["experiment"] = experiment
-    ##############################
-    # main loop
-    ##############################
+
     try:
         yield from every(duration * 60, algorithms[mode](**kwargs).run)
     except Exception as e:
+        traceback.print_exc()
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         raise e
