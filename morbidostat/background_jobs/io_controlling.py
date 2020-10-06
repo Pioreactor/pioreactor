@@ -323,7 +323,7 @@ def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False
 @click.option("--target_od", default=None, type=float)
 @click.option("--target_growth_rate", default=None, type=float)
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
-@click.option("--volume", default=None, help="the volume to exchange, mL")
+@click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
 @click.option(
     "--skip_first_run",
     is_flag=True,
