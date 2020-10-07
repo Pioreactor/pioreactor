@@ -29,6 +29,10 @@ class ControlAlgorithm:
     This is the super class that algorithms inherit from. The `run` function will
     execute every N minutes (selected at the start of the program). This calls the `execute` function,
     which is what subclasses will define.
+
+    There exist a MQTT callback as well. If you send a message to
+    `morbidostat/<unit>/<experiment>/io_controlling/<function>`, the class will execute <function> and
+    pass in the message (as a message object.) see `set_attr`
     """
 
     latest_growth_rate = None
