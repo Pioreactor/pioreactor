@@ -10,7 +10,7 @@ import time, os, traceback
 import click
 import RPi.GPIO as GPIO
 
-from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
+from morbidostat.utils import config, get_latest_experiment_name, unit
 from morbidostat.utils.pubsub import publish, subscribe_and_callback
 from morbidostat.utils.timing import every
 
@@ -35,6 +35,7 @@ class Stirrer:
 
     def change_duty_cycle(self, new_duty_cycle):
         try:
+            assert 0 <= new_duty_cycle <= 100
             self.duty_cycle = new_duty_cycle
             self.pwm.ChangeDutyCycle(self.duty_cycle)
             publish(
@@ -65,7 +66,6 @@ def stirring(duty_cycle, duration=None, verbose=False):
     # duration is for testing
     assert 0 <= duty_cycle <= 100
 
-    unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
     publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: starting with duty cycle={duty_cycle}", verbose=verbose)
@@ -91,7 +91,7 @@ def stirring(duty_cycle, duration=None, verbose=False):
 
 
 @click.command()
-@click.option("--duty_cycle", default=50, help="set the duty cycle")
+@click.option("--duty_cycle", default=config["stirring"][f"duty_cycle{unit}"], help="set the duty cycle")
 @click.option("--verbose", is_flag=True, help="print to std out")
 def click_stirring(duty_cycle, verbose):
     stirring(duty_cycle, verbose)

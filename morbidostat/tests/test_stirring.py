@@ -18,13 +18,11 @@ def test_change_stirring_mid_cycle():
 
     st = Stirrer(original_dc, unit, exp, verbose=True)
     assert st.duty_cycle == original_dc
+    time.sleep(0.5)
 
     new_dc = 75
-    st.start_stirring()
-    publish("morbidostat/_testing/_experiment/stirring/duty_cycle", new_dc)
+    publish(f"morbidostat/{unit}/{exp}/stirring/duty_cycle", new_dc)
 
-    time.sleep(1.0)
+    time.sleep(0.5)
 
     assert st.duty_cycle == new_dc
-
-    st.stop_stirring()
