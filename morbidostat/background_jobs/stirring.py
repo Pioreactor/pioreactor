@@ -62,13 +62,13 @@ class Stirrer:
         subscribe_and_callback(callback, topic)
 
 
-def stirring(duty_cycle, duration=None, verbose=False):
+def stirring(duty_cycle, verbose=False, duration=None):
     # duration is for testing
     assert 0 <= duty_cycle <= 100
 
     experiment = get_latest_experiment_name()
 
-    publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: starting with duty cycle={duty_cycle}", verbose=verbose)
+    publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: start stirring with duty cycle={duty_cycle}", verbose=verbose)
 
     try:
         stirrer = Stirrer(duty_cycle, unit, experiment)
@@ -94,7 +94,7 @@ def stirring(duty_cycle, duration=None, verbose=False):
 @click.option("--duty_cycle", default=int(config["stirring"][f"duty_cycle{unit}"]), help="set the duty cycle")
 @click.option("--verbose", is_flag=True, help="print to std out")
 def click_stirring(duty_cycle, verbose):
-    stirring(duty_cycle, verbose)
+    stirring(duty_cycle, verbose=verbose)
 
 
 if __name__ == "__main__":
