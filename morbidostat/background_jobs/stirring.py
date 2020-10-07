@@ -47,7 +47,9 @@ class Stirrer:
             traceback.print_exc()
 
     def start_stirring(self):
-        self.pwm.start(self.duty_cycle)
+        self.pwm.start(100)  # get momentum to start
+        time.sleep(1.5)
+        self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
         self.pwm.stop()
