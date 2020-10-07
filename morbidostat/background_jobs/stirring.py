@@ -91,7 +91,7 @@ def stirring(duty_cycle, duration=None, verbose=False):
 
 
 @click.command()
-@click.option("--duty_cycle", default=config["stirring"][f"duty_cycle{unit}"], help="set the duty cycle")
+@click.option("--duty_cycle", default=int(config["stirring"][f"duty_cycle{unit}"]), help="set the duty cycle")
 @click.option("--verbose", is_flag=True, help="print to std out")
 def click_stirring(duty_cycle, verbose):
     stirring(duty_cycle, verbose)
