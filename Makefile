@@ -8,6 +8,7 @@ install-mqtt:
     sudo systemctl enable mosquitto.service
 
 install: install-mqtt install-python
+    python3 setup.py install
     echo "Finished installing"
 
 measure:

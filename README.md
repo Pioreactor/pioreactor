@@ -57,9 +57,12 @@ The _morbidostat_, a combination of "morbid static", is a bioreactor designed ex
 2. `sudo nano /etc/rc.local` add `/usr/bin/tvservice -o`
 
 
+
 ### Testing
 
 `py.test` on the command line.
+
+
 
 
 
