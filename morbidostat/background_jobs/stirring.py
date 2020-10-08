@@ -5,7 +5,7 @@ This script is designed to run in a background process and push data to MQTT.
 
 >>> nohup python3 -m morbidostat.background_jobs.od_reading &
 """
-import time, os, traceback, signal
+import time, os, traceback, signal, sys
 
 import click
 import RPi.GPIO as GPIO
