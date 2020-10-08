@@ -21,7 +21,6 @@ def publish(topic, message, hostname=leader_hostname, verbose=False, retries=10,
                 echo(
                     style(f"{current_time} ", bold=True) + style(f"{topic}: ", fg="bright_blue") + style(f"{message}", fg="green")
                 )
-
             return
 
         except (ConnectionRefusedError, socket.gaierror) as e:

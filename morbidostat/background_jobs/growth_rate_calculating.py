@@ -19,7 +19,7 @@ def json_to_sorted_dict(json_dict):
 
 def create_OD_covariance(angles):
     d = len(angles)
-    variances = {"135": 5e-5, "90": 5e-7}
+    variances = {"135": 1e-5, "90": 1e-7}
 
     OD_covariance = 1e-10 * np.ones((d, d))
     for i, a in enumerate(angles):
@@ -74,7 +74,7 @@ def growth_rate_calculating(verbose=False):
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
-        observation_noise_covariance = 5e-2 * np.eye(d - 1)
+        observation_noise_covariance = 1e-2 * np.eye(d - 1)
 
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 

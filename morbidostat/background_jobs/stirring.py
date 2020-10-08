@@ -18,7 +18,7 @@ GPIO.setmode(GPIO.BCM)
 
 
 class Stirrer:
-    def __init__(self, duty_cycle, unit, experiment, verbose=False, hertz=200, pin=int(config["rpi_pins"]["fan"])):
+    def __init__(self, duty_cycle, unit, experiment, verbose=False, hertz=2000, pin=int(config["rpi_pins"]["fan"])):
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
