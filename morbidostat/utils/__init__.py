@@ -50,12 +50,12 @@ def get_unit_from_hostname():
         return "unknown"
 
 
-def pump_ml_to_duration(ml, dc, dc_=0, duration_=0, intercept_=0):
+def pump_ml_to_duration(ml, duty_cycle, duration_=0):
     """
-    log(ml) = dc_ * log(duty_cycle) + duration_ * log(duration) + intercept_
+    ml: the desired volume
+    duration_ : the coefficient from calibration
     """
-    duration = np.exp(1 / duration_ * (np.log(ml) - dc_ * np.log(dc) - intercept_))
-    return duration
+    return ml / duration_
 
 
 def execute_sql_statement(SQL):
