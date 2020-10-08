@@ -70,7 +70,7 @@ def growth_rate_calculating(verbose=False):
         OD_process_covariance = create_OD_covariance(angles_and_intial_points.keys())
 
         # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
-        rate_process_variance = 5e-12
+        rate_process_variance = 1e-11
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
@@ -85,7 +85,7 @@ def growth_rate_calculating(verbose=False):
                 ekf.update(np.array([*json_to_sorted_dict(msg.payload).values()]))
 
             elif "io_events" in msg.topic:
-                ekf.scale_OD_variance_for_next_n_steps(5e2, 2 * samples_per_minute)
+                ekf.scale_OD_variance_for_next_n_steps(5e2, 3 * samples_per_minute)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate * hours}

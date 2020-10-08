@@ -47,23 +47,38 @@ The _morbidostat_, a combination of "morbid static", is a bioreactor designed ex
 
 4. In [Ekkers, 2020], the authors hint at evolving an _anticipatory_ response. Amazing!
 
+How to use the morbidostat
+---------------------------
 
-### Installation
+### Construction and schematics
+ - coming soon
 
-`make install` should set up what you need. There are further _optional_ optimizations that can be done to make the RPi more performant:
 
-1. `nano /boot/config.txt` add `gpu_mem=16` (or via raspi-config)
+### Software installation
 
-2. `sudo nano /etc/rc.local` add `/usr/bin/tvservice -o`
+1. On your PaspberryPi, git clone this repo (may need to `apt-get install git` first). Navigate into this directory.
+
+2. `make install` should set up what you need. There are further _optional_ optimizations that can be done to make the RaspberryPi more performant:
+
+    1. `nano /boot/config.txt` add `gpu_mem=16` (or via raspi-config)
+    2. `sudo nano /etc/rc.local` add `/usr/bin/tvservice -o`
+
+
+### Running
+
+From the command line (web interface coming soon):
+
+`morbidostat <job or action> <options>`
+
+Running in the background:
+
+`morbidostat <job or action> <options> --background`
 
 
 
 ### Testing
 
 `py.test` on the command line.
-
-
-
 
 
 

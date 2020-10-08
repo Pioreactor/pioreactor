@@ -9,11 +9,7 @@ install-mqtt:
 
 install: install-mqtt install-python
     sudo python3 setup.py install
-    echo "Finished installing"
-
-measure:
-    nohup python3 -m morbidostat.background_jobs.od_reading --od_angle_channel 135,0 --od_angle_channel 90,3 &
-    nohup python3 -m morbidostat.background_jobs.growth_rate_calculating &
+    echo "Finished installing 👍"
 
 view:
     ps x | grep python3
