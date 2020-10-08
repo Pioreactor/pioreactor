@@ -36,6 +36,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
             duration = pump_ml_to_duration(ml, duty_cycle, **loads(config["pump_calibration"][f"media{unit}_ml_calibration"]))
 
         assert duration >= 0
+        print(duration)
         time.sleep(duration)
 
         pwm.stop()
