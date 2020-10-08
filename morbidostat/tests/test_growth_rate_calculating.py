@@ -140,3 +140,37 @@ def test_restart(monkeypatch):
 
     calc2 = growth_rate_calculating(verbose=True)
     next(calc2)
+
+
+def test_skip_180(monkeypatch):
+    publish.single("morbidostat/_testing/_experiment/growth_rate", None, retain=True)
+
+    mock_broker = MockMsgBroker(
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"180": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"180": 1.808586260567034, "135B": 1.21944389172032837, "90": 1.2}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"180": 2.808586260567034, "135B": 2.21944389172032837, "90": 2.2}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"180": 3.808586260567034, "135B": 3.21944389172032837, "90": 3.2}',
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched",
+            '{"180": 4.808586260567034, "135B": 4.21944389172032837, "90": 4.2}',
+        ),
+    )
+
+    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
+    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
+
+    calc1 = growth_rate_calculating(verbose=True)
+    next(calc1)
+    next(calc1)
