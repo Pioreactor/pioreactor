@@ -5,7 +5,7 @@ This script is designed to run in a background process and push data to MQTT.
 
 >>> nohup python3 -m morbidostat.background_jobs.od_reading &
 """
-import time, os, traceback
+import time, os, traceback, signal, sys
 
 import click
 import RPi.GPIO as GPIO
@@ -18,7 +18,8 @@ GPIO.setmode(GPIO.BCM)
 
 
 class Stirrer:
-    def __init__(self, duty_cycle, unit, experiment, verbose=False, hertz=100, pin=int(config["rpi_pins"]["fan"])):
+    def __init__(self, duty_cycle, unit, experiment, verbose=False, hertz=50, pin=int(config["rpi_pins"]["fan"])):
+        assert 0 <= duty_cycle <= 100
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
@@ -47,7 +48,9 @@ class Stirrer:
             traceback.print_exc()
 
     def start_stirring(self):
-        self.pwm.start(self.duty_cycle)
+        self.pwm.start(100)  # get momentum to start
+        time.sleep(0.5)
+        self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
         self.pwm.stop()
@@ -62,13 +65,18 @@ class Stirrer:
         subscribe_and_callback(callback, topic)
 
 
-def stirring(duty_cycle, duration=None, verbose=False):
+def stirring(duty_cycle, verbose=False, duration=None):
     # duration is for testing
-    assert 0 <= duty_cycle <= 100
+
+    def terminate(*args):
+        GPIO.cleanup()
+        sys.exit()
+
+    signal.signal(signal.SIGTERM, terminate)
 
     experiment = get_latest_experiment_name()
 
-    publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: starting with duty cycle={duty_cycle}", verbose=verbose)
+    publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: start stirring with duty cycle={duty_cycle}", verbose=verbose)
 
     try:
         stirrer = Stirrer(duty_cycle, unit, experiment)
@@ -91,10 +99,10 @@ def stirring(duty_cycle, duration=None, verbose=False):
 
 
 @click.command()
-@click.option("--duty_cycle", default=config["stirring"][f"duty_cycle{unit}"], help="set the duty cycle")
+@click.option("--duty_cycle", default=int(config["stirring"][f"duty_cycle{unit}"]), help="set the duty cycle")
 @click.option("--verbose", is_flag=True, help="print to std out")
 def click_stirring(duty_cycle, verbose):
-    stirring(duty_cycle, verbose)
+    stirring(duty_cycle, verbose=verbose)
 
 
 if __name__ == "__main__":

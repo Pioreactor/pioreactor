@@ -14,12 +14,12 @@ from morbidostat.utils import config, get_unit_from_hostname, get_latest_experim
 
 def json_to_sorted_dict(json_dict):
     d = json.loads(json_dict)
-    return {k: float(d[k]) for k in sorted(d, reverse=True)}
+    return {k: float(d[k]) for k in sorted(d, reverse=True) if not k.startswith("180")}
 
 
 def create_OD_covariance(angles):
     d = len(angles)
-    variances = {"135": 5e-5, "90": 5e-7}
+    variances = {"135": 1e-5, "90": 1e-7}
 
     OD_covariance = 1e-10 * np.ones((d, d))
     for i, a in enumerate(angles):
@@ -70,11 +70,11 @@ def growth_rate_calculating(verbose=False):
         OD_process_covariance = create_OD_covariance(angles_and_intial_points.keys())
 
         # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
-        rate_process_variance = 5e-12
+        rate_process_variance = 1e-11
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
-        observation_noise_covariance = 5e-2 * np.eye(d - 1)
+        observation_noise_covariance = 1e-2 * np.eye(d - 1)
 
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
@@ -85,7 +85,7 @@ def growth_rate_calculating(verbose=False):
                 ekf.update(np.array([*json_to_sorted_dict(msg.payload).values()]))
 
             elif "io_events" in msg.topic:
-                ekf.scale_OD_variance_for_next_n_steps(5e2, 2 * samples_per_minute)
+                ekf.scale_OD_variance_for_next_n_steps(5e2, 3 * samples_per_minute)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate * hours}
