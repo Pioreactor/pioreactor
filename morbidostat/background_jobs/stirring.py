@@ -19,6 +19,7 @@ GPIO.setmode(GPIO.BCM)
 
 class Stirrer:
     def __init__(self, duty_cycle, unit, experiment, verbose=False, hertz=2000, pin=int(config["rpi_pins"]["fan"])):
+        assert 0 <= duty_cycle <= 100
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
@@ -66,7 +67,12 @@ class Stirrer:
 
 def stirring(duty_cycle, verbose=False, duration=None):
     # duration is for testing
-    assert 0 <= duty_cycle <= 100
+
+    def terminate(*args):
+        GPIO.cleanup()
+        sys.exit()
+
+    signal.signal(signal.SIGTERM, terminate)
 
     experiment = get_latest_experiment_name()
 
