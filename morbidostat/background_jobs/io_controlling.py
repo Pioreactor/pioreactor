@@ -318,7 +318,6 @@ def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False
     except Exception as e:
         traceback.print_exc()
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
-        publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         raise e
 
 

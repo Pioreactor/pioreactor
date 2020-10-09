@@ -10,7 +10,7 @@ import threading
 import paho.mqtt.subscribe as paho_subscribe
 import click
 
-from morbidostat.utils.pubsub import publish, subscribe
+from morbidostat.utils.pubsub import publish, subscribe, subscribe_and_callback
 from morbidostat.utils import leader_hostname, get_unit_from_hostname, get_latest_experiment_name, leader_hostname
 
 

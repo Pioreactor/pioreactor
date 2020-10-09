@@ -19,7 +19,7 @@ def json_to_sorted_dict(json_dict):
 
 def create_OD_covariance(angles):
     d = len(angles)
-    variances = {"135": 1e-5, "90": 1e-7}
+    variances = {"135": 2e-5, "90": 2e-7}
 
     OD_covariance = 1e-10 * np.ones((d, d))
     for i, a in enumerate(angles):
