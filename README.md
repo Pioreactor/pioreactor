@@ -56,12 +56,13 @@ How to use the morbidostat
 
 ### Software installation
 
-1. On your PaspberryPi, git clone this repo (may need to `apt-get install git` first). Navigate into this directory.
+1. On your RaspberryPi, git clone this repository (may need to `apt-get install git` first). Navigate into this directory.
 
 2. `make install` should set up what you need. There are further _optional_ optimizations that can be done to make the RaspberryPi more performant:
 
     1. `nano /boot/config.txt` add `gpu_mem=16` (or via raspi-config)
     2. `sudo nano /etc/rc.local` add `/usr/bin/tvservice -o`
+    3. safely overclocking
 
 
 ### Running
@@ -70,7 +71,7 @@ From the command line (web interface coming soon):
 
 `morbidostat <job or action> <options>`
 
-Running in the background:
+Running in the background (and append output to `morbidostat.log`)
 
 `morbidostat <job or action> <options> --background`
 

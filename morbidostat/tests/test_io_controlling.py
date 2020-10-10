@@ -3,7 +3,7 @@
 import pytest
 from paho.mqtt import subscribe
 
-from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat
+from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat, PIDTurbidostat
 from morbidostat.background_jobs import events
 from morbidostat import utils
 from morbidostat.utils import pubsub
@@ -197,6 +197,27 @@ def test_changing_parameters_over_mqtt():
     algo.run()
 
     assert algo.target_growth_rate == 0.07
+
+
+def test_changing_volume_over_mqtt():
+
+    unit = utils.get_unit_from_hostname()
+    experiment = utils.get_latest_experiment_name()
+
+    og_volume = 0.5
+    algo = PIDTurbidostat(volume=og_volume, target_od=1.0, duration=0.0001, verbose=True, unit=unit, experiment=experiment)
+    assert algo.max_volume == og_volume
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    algo.run()
+
+    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"max_volume":1.0}')
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    algo.run()
+
+    assert algo.max_volume == 1.0
 
 
 def test_changing_parameters_over_mqtt_with_unknown_function():

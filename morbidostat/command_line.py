@@ -10,21 +10,22 @@ import importlib
 @click.option("--background", is_flag=True)
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
 def cli(job, background, extra_args):
-    from subprocess import run, CalledProcessError
+    from subprocess import Popen, call, CalledProcessError
 
-    extra_args = list(extra_args)
+    extra_args = list(extra_args) + ["--verbose"]
 
     if importlib.util.find_spec(f"morbidostat.background_jobs.{job}"):
         loc = f"morbidostat.background_jobs.{job}"
     else:
         loc = f"morbidostat.actions.{job}"
 
-    command = ["python3", "-m", loc] + extra_args
+    command = ["python3", "-u", "-m", loc] + extra_args
 
     if background:
-        command = ["nohup"] + command + ["&"]
+        command = ["nohup"] + command + [">>", "morbidostat.log", "&"]
+        print("Appending logs to morbidostat.log")
 
-    run(command)
+    call(" ".join(command), shell=True)
 
 
 if __name__ == "__main__":

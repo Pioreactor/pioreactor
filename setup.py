@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 
-with open("reqs/base-requirements.txt") as f:
+with open("requirements.txt") as f:
     REQUIREMENTS = f.read().splitlines()
 
 
@@ -11,7 +11,7 @@ setup(
     license="MIT",
     long_description=open("README.md").read(),
     include_package_data=True,
-    install_requires=REQUIREMENTS,
+    install_requires=["click"],
     package_data={"": ["*.ini"]},
     packages=find_packages(exclude=["*.tests", "*.tests.*", "*benchmarks*"]),
     entry_points="""
