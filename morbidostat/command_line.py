@@ -12,7 +12,7 @@ import importlib
 def cli(job, background, extra_args):
     from subprocess import Popen, call, CalledProcessError
 
-    extra_args = list(extra_args) + ["--verbose"]
+    extra_args = list(extra_args) + ["--verbose", "1"]
 
     if importlib.util.find_spec(f"morbidostat.background_jobs.{job}"):
         loc = f"morbidostat.background_jobs.{job}"

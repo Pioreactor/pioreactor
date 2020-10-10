@@ -8,7 +8,7 @@ from morbidostat.utils.pubsub import publish
 
 
 def test_stirring():
-    stirring(50, verbose=True, duration=0.1)
+    stirring(50, verbose=2, duration=0.1)
 
 
 def test_change_stirring_mid_cycle():
@@ -16,7 +16,7 @@ def test_change_stirring_mid_cycle():
     unit = get_unit_from_hostname()
     exp = get_latest_experiment_name()
 
-    st = Stirrer(original_dc, unit, exp, verbose=True)
+    st = Stirrer(original_dc, unit, exp, verbose=2)
     assert st.duty_cycle == original_dc
     time.sleep(0.5)
 

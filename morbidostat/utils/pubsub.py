@@ -9,14 +9,16 @@ from paho.mqtt import subscribe as mqtt_subscribe
 from morbidostat.utils import leader_hostname
 
 
-def publish(topic, message, hostname=leader_hostname, verbose=False, retries=10, **mqtt_kwargs):
+def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs):
 
     retry = 1
     while True:
         try:
             mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
 
-            if verbose:
+            if verbose == 0:
+                pass
+            elif (verbose == 1 and topic.endswith("log")) or verbose > 1:
                 current_time = time.strftime("%Y-%m-%d %H:%M:%S")
                 echo(
                     style(f"{current_time} ", bold=True) + style(f"{topic}: ", fg="bright_blue") + style(f"{message}", fg="green")

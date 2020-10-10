@@ -38,7 +38,7 @@ class ControlAlgorithm:
     latest_growth_rate = None
     latest_od = None
 
-    def __init__(self, unit=None, experiment=None, verbose=False, **kwargs):
+    def __init__(self, unit=None, experiment=None, verbose=0, **kwargs):
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
@@ -278,7 +278,7 @@ class Morbidostat(ControlAlgorithm):
             )
 
 
-def io_controlling(mode=None, duration=None, verbose=False, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
+def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 

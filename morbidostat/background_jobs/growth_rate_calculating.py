@@ -43,7 +43,7 @@ def get_initial_rate(experiment, unit):
         return float(test_mqtt.stdout.strip())
 
 
-def growth_rate_calculating(verbose=False):
+def growth_rate_calculating(verbose=0):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
@@ -108,7 +108,7 @@ def growth_rate_calculating(verbose=False):
 
 
 @click.command()
-@click.option("--verbose", is_flag=True, help="Print to std out")
+@click.option("--verbose", default=0, help="Print to std out")
 def click_growth_rate_calculating(verbose):
     calculator = growth_rate_calculating(verbose)
     while True:

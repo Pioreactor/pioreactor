@@ -7,7 +7,7 @@ with open("requirements.txt") as f:
 
 setup(
     name="morbidostat",
-    version="0.1dev",
+    version="0.1dev0",
     license="MIT",
     long_description=open("README.md").read(),
     include_package_data=True,

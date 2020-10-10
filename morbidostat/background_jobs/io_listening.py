@@ -43,7 +43,7 @@ class AltMediaCalculator:
     ignore_cache: ignore any retained values in the MQTT bus
     """
 
-    def __init__(self, unit=None, experiment=None, verbose=False, **kwargs):
+    def __init__(self, unit=None, experiment=None, verbose=0, **kwargs):
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
@@ -110,7 +110,7 @@ class AltMediaCalculator:
 
 
 @click.command()
-@click.option("--verbose", is_flag=True, help="print to std.out")
+@click.option("--verbose", default=0, help="print to std.out")
 def click_io_listening(verbose):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
