@@ -9,7 +9,7 @@ from morbidostat.utils import config, get_unit_from_hostname, get_latest_experim
 from morbidostat.utils.pubsub import publish
 
 
-def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
+def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
@@ -60,7 +60,9 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=False):
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--duty_cycle", default=33, type=int)
-@click.option("--verbose", is_flag=True, help="print to std out")
+@click.option(
+    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+)
 def click_add_media(ml, duration, duty_cycle, verbose):
     return add_media(ml, duration, duty_cycle, verbose)
 

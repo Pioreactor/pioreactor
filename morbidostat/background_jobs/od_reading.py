@@ -96,7 +96,9 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 
 """,
 )
-@click.option("--verbose", is_flag=True, help="print to std out")
+@click.option(
+    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+)
 def click_od_reading(verbose, od_angle_channel):
     reader = od_reading(verbose, od_angle_channel)
     while True:

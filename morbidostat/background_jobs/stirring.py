@@ -18,7 +18,7 @@ GPIO.setmode(GPIO.BCM)
 
 
 class Stirrer:
-    def __init__(self, duty_cycle, unit, experiment, verbose=False, hertz=50, pin=int(config["rpi_pins"]["fan"])):
+    def __init__(self, duty_cycle, unit, experiment, verbose=0, hertz=50, pin=int(config["rpi_pins"]["fan"])):
         assert 0 <= duty_cycle <= 100
         self.unit = unit
         self.verbose = verbose
@@ -37,11 +37,12 @@ class Stirrer:
     def change_duty_cycle(self, new_duty_cycle):
         try:
             assert 0 <= new_duty_cycle <= 100
+            old_duty_cycle = self.duty_cycle
             self.duty_cycle = new_duty_cycle
             self.pwm.ChangeDutyCycle(self.duty_cycle)
             publish(
                 f"morbidostat/{self.unit}/{self.experiment}/log",
-                f"[stirring]: changed duty cycle to {self.duty_cycle}",
+                f"[stirring]: changed duty cycle from {old_duty_cycle} to {self.duty_cycle}",
                 verbose=self.verbose,
             )
         except:
@@ -65,7 +66,7 @@ class Stirrer:
         subscribe_and_callback(callback, topic)
 
 
-def stirring(duty_cycle, verbose=False, duration=None):
+def stirring(duty_cycle, verbose=0, duration=None):
     # duration is for testing
 
     def terminate(*args):
@@ -100,7 +101,9 @@ def stirring(duty_cycle, verbose=False, duration=None):
 
 @click.command()
 @click.option("--duty_cycle", default=int(config["stirring"][f"duty_cycle{unit}"]), help="set the duty cycle")
-@click.option("--verbose", is_flag=True, help="print to std out")
+@click.option(
+    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+)
 def click_stirring(duty_cycle, verbose):
     stirring(duty_cycle, verbose=verbose)
 

@@ -59,7 +59,7 @@ def test_silent_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
-    io = io_controlling(mode="silent", volume=None, duration=60, verbose=True)
+    io = io_controlling(mode="silent", volume=None, duration=60, verbose=2)
     assert isinstance(next(io), events.NoEvent)
     assert isinstance(next(io), events.NoEvent)
 
@@ -80,7 +80,7 @@ def test_turbidostat_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     target_od = 1.0
-    algo = io_controlling(mode="turbidostat", target_od=target_od, duration=60, volume=0.25, verbose=True)
+    algo = io_controlling(mode="turbidostat", target_od=target_od, duration=60, volume=0.25, verbose=2)
 
     assert isinstance(next(algo), events.NoEvent)
     assert isinstance(next(algo), events.DilutionEvent)
@@ -108,7 +108,7 @@ def test_pid_turbidostat_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     target_od = 1.0
-    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=0.25, duration=60, verbose=True)
+    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=0.25, duration=60, verbose=2)
 
     assert isinstance(next(algo), events.NoEvent)
     assert isinstance(next(algo), events.DilutionEvent)
@@ -137,7 +137,7 @@ def test_morbidostat_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     target_od = 1.0
-    algo = io_controlling(mode="morbidostat", target_od=target_od, duration=60, volume=0.25, verbose=True)
+    algo = io_controlling(mode="morbidostat", target_od=target_od, duration=60, volume=0.25, verbose=2)
 
     assert isinstance(next(algo), events.NoEvent)
     assert isinstance(next(algo), events.DilutionEvent)
@@ -163,7 +163,7 @@ def test_pid_morbidostat_algorithm(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
 
     target_growth_rate = 0.09
-    algo = io_controlling(mode="pid_morbidostat", target_od=1.0, target_growth_rate=target_growth_rate, duration=60, verbose=True)
+    algo = io_controlling(mode="pid_morbidostat", target_od=1.0, target_growth_rate=target_growth_rate, duration=60, verbose=2)
 
     assert isinstance(next(algo), events.NoEvent)
     assert isinstance(next(algo), events.AltMediaEvent)
@@ -172,7 +172,7 @@ def test_pid_morbidostat_algorithm(monkeypatch):
 
 
 def test_execute_io_action():
-    ca = ControlAlgorithm(verbose=True, unit="_testing", experiment="_testing")
+    ca = ControlAlgorithm(verbose=2, unit="_testing", experiment="_testing")
     ca.execute_io_action(media_ml=0.65, alt_media_ml=0.15, waste_ml=0.80)
 
 
@@ -183,7 +183,7 @@ def test_changing_parameters_over_mqtt():
 
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
-        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=True, unit=unit, experiment=experiment
+        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
     )
     assert algo.target_growth_rate == 0.05
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
@@ -205,7 +205,7 @@ def test_changing_volume_over_mqtt():
     experiment = utils.get_latest_experiment_name()
 
     og_volume = 0.5
-    algo = PIDTurbidostat(volume=og_volume, target_od=1.0, duration=0.0001, verbose=True, unit=unit, experiment=experiment)
+    algo = PIDTurbidostat(volume=og_volume, target_od=1.0, duration=0.0001, verbose=2, unit=unit, experiment=experiment)
     assert algo.max_volume == og_volume
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
     pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
@@ -227,7 +227,7 @@ def test_changing_parameters_over_mqtt_with_unknown_function():
 
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
-        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=True, unit=unit, experiment=experiment
+        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
     )
     assert algo.target_growth_rate == 0.05
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)

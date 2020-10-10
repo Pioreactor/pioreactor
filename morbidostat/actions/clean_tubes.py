@@ -11,7 +11,7 @@ from morbidostat.utils import config, get_unit_from_hostname, get_latest_experim
 from morbidostat.utils.pubsub import publish
 
 
-def clean_tubes(duration, verbose=False):
+def clean_tubes(duration, verbose=0):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
@@ -39,7 +39,9 @@ def clean_tubes(duration, verbose=False):
 
 @click.command()
 @click.option("--duration", default=50, help="Time, in seconds, to run pumps")
-@click.option("--verbose", is_flag=True, help="print to std out")
+@click.option(
+    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+)
 def click_clean_tubes(duration, verbose):
     return clean_tubes(duration, verbose)
 
