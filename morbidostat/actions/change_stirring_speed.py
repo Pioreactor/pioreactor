@@ -20,7 +20,7 @@ def change_stirring_speed(duty_cycle, verbose=0):
 @click.option(
     "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
-def click_change_stirring_speed(ml, duration, duty_cycle, verbose):
+def click_change_stirring_speed(duty_cycle, verbose):
     return change_stirring_speed(duty_cycle, verbose)
 
 
