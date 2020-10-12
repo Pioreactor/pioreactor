@@ -97,7 +97,7 @@ class ExtendedKalmanFilter:
 
         self._original_process_noise_variance = np.diag(self.process_noise_covariance)[: (self.dim - 1)].copy()
         self._original_rate_noise_variance = self.process_noise_covariance[-1, -1]
-        self._original_rate_noise_variance = self.observation_noise_covariance.copy()
+        self._original_observation_noise_covariance = self.observation_noise_covariance.copy()
 
     def predict(self):
         return (self._predict_state(self.state_, self.covariance_), self._predict_covariance(self.state_, self.covariance_))
