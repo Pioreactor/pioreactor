@@ -87,10 +87,13 @@ class ControlAlgorithm:
             payload = json.loads(message.payload)
             for k, v in payload.items():
                 assert hasattr(self, k)
+                previous_value = getattr(self, k)
                 # make sure to cast the input to the same value
-                setattr(self, k, type(getattr(self, k))(v))
+                setattr(self, k, type(previous_value)(v))
                 publish(
-                    f"morbidostat/{self.unit}/{self.experiment}/log", f"Updated {k} to {getattr(self, k)}.", verbose=self.verbose
+                    f"morbidostat/{self.unit}/{self.experiment}/log",
+                    f"Updated {k} from {previous_value} to {getattr(self, k)}.",
+                    verbose=self.verbose,
                 )
         except:
             traceback.print_exc()
@@ -193,7 +196,7 @@ class PIDMorbidostat(ControlAlgorithm):
         super(PIDMorbidostat, self).__init__(**kwargs)
         self.target_growth_rate = target_growth_rate
         self.od_to_start_diluting = 0.75 * target_od
-        self.max_od = 1.20 * target_od
+        self.max_od = 1.1 * target_od
         self.duration = duration
         self.pid = PID(
             -8.00,

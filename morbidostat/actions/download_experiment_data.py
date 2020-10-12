@@ -15,7 +15,7 @@ def download_experiment_data(experiment):
 
     con = sqlite3.connect(config["data"]["observation_database"])
 
-    tables = ["od_readings_raw", "od_readings_filtered", "io_events", "logs", "pid_logs"]
+    tables = ["od_readings_raw", "od_readings_filtered", "io_events", "logs", "pid_logs", "growth_rates"]
 
     for table in tables:
         print(f"exporting {table}.")

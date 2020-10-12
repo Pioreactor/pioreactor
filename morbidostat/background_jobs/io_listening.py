@@ -3,8 +3,10 @@
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
 import json
+import time
 import traceback
 import subprocess
+import signal
 import threading
 
 import paho.mqtt.subscribe as paho_subscribe
@@ -122,8 +124,7 @@ def click_io_listening(verbose):
         topics=f"morbidostat/{unit}/{experiment}/io_events",
     )
 
-    while True:
-        pass
+    signal.pause()
 
 
 if __name__ == "__main__":

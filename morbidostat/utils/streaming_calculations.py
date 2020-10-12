@@ -85,7 +85,7 @@ class ExtendedKalmanFilter:
         assert self._is_positive_definite(initial_covariance)
         assert self._is_positive_definite(observation_noise_covariance)
 
-        self._process_noise_covariance = process_noise_covariance
+        self.process_noise_covariance = process_noise_covariance
         self.observation_noise_covariance = observation_noise_covariance
         self.state_ = initial_state
         self.covariance_ = initial_covariance
@@ -93,15 +93,17 @@ class ExtendedKalmanFilter:
 
         self._OD_scale_counter = -1
         self._rate_scale_counter = -1
+        self._obs_noise_scale_counter = -1
 
-        self._original_process_noise_variance = np.diag(self._process_noise_covariance)[: (self.dim - 1)].copy()
-        self._original_rate_noise_variance = self._process_noise_covariance[-1, -1]
+        self._original_process_noise_variance = np.diag(self.process_noise_covariance)[: (self.dim - 1)].copy()
+        self._original_rate_noise_variance = self.process_noise_covariance[-1, -1]
+        self._original_rate_noise_variance = self.observation_noise_covariance.copy()
 
     def predict(self):
         return (self._predict_state(self.state_, self.covariance_), self._predict_covariance(self.state_, self.covariance_))
 
     def update(self, observation):
-        # TODO: incorporate delta_time
+        self.update_counters()
         assert observation.shape[0] + 1 == self.state_.shape[0]
         state_prediction, covariance_prediction = self.predict()
         residual_state = observation - state_prediction[:-1]
@@ -115,29 +117,36 @@ class ExtendedKalmanFilter:
     def scale_OD_variance_for_next_n_steps(self, factor, n):
         d = self.dim
         self._OD_scale_counter = n
-        self._process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = factor * self._original_process_noise_variance
+        self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = factor * self._original_process_noise_variance
 
     def scale_rate_variance_for_next_n_steps(self, factor, n):
         d = self.dim
         self._rate_scale_counter = n
-        self._process_noise_covariance[-1, -1] = factor * self._original_rate_noise_variance
+        self.process_noise_covariance[-1, -1] = factor * self._original_rate_noise_variance
 
-    def process_noise_covariance(self):
+    def scale_obs_noise_for_next_n_steps(self, factor, n):
+        self._obs_noise_scale_counter = n
+        self.observation_noise_covariance = factor * self._original_observation_noise_covariance
+
+    def update_counters(self):
         if self._OD_scale_counter == 0:
             d = self.dim
-            self._process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = self._original_process_noise_variance
+            self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = self._original_process_noise_variance
         self._OD_scale_counter -= 1
 
         if self._rate_scale_counter == 0:
-            self._process_noise_covariance[-1, -1] = self._original_rate_noise_variance
+            self.process_noise_covariance[-1, -1] = self._original_rate_noise_variance
         self._rate_scale_counter -= 1
-        return self._process_noise_covariance
+
+        if self._obs_noise_scale_counter == 0:
+            self.observation_noise_covariance = self._original_observation_noise_covariance
+        self._obs_noise_scale_counter -= 1
 
     def _predict_state(self, state, covariance):
         return np.array([v * state[-1] for v in state[:-1]] + [state[-1]])
 
     def _predict_covariance(self, state, covariance):
-        return self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T + self.process_noise_covariance()
+        return self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T + self.process_noise_covariance
 
     def _jacobian_process(self, state):
         """
@@ -147,7 +156,6 @@ class ExtendedKalmanFilter:
             OD_{2, t+1} = OD_{2, t} * r_t
             ...
             r_{t+1} = r_t
-
         ]
 
         """
@@ -184,7 +192,7 @@ class ExtendedKalmanFilter:
 class PID:
     # used in io_controlling classes
 
-    def __init__(self, *args, unit=None, experiment=None, verbose=False, **kwargs):
+    def __init__(self, *args, unit=None, experiment=None, verbose=0, **kwargs):
         self.pid = simple_PID(*args, **kwargs)
         self.unit = unit
         self.experiment = experiment

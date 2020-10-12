@@ -50,11 +50,12 @@ class Stirrer:
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
-        time.sleep(0.5)
+        time.sleep(0.25)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
         self.pwm.stop()
+        GPIO.cleanup()
 
     def start_passive_listener_on_duty_cycle(self):
         job_name = os.path.splitext(os.path.basename((__file__)))[0]
@@ -84,8 +85,7 @@ def stirring(duty_cycle, verbose=0, duration=None):
         stirrer.start_stirring()
 
         if duration is None:
-            while True:
-                pass
+            signal.pause()
         else:
             time.sleep(duration)
 

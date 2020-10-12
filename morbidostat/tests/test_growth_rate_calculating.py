@@ -134,11 +134,11 @@ def test_restart(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
 
-    calc1 = growth_rate_calculating(verbose=True)
+    calc1 = growth_rate_calculating(verbose=2)
     next(calc1)
     next(calc1)
 
-    calc2 = growth_rate_calculating(verbose=True)
+    calc2 = growth_rate_calculating(verbose=2)
     next(calc2)
 
 
@@ -171,6 +171,6 @@ def test_skip_180(monkeypatch):
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
     monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
 
-    calc1 = growth_rate_calculating(verbose=True)
+    calc1 = growth_rate_calculating(verbose=2)
     next(calc1)
     next(calc1)
