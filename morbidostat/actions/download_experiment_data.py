@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # download experiment data
 
-
 from morbidostat.utils import config, get_latest_experiment_name
 import click
 

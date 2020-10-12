@@ -35,21 +35,18 @@ class Stirrer:
         self.start_passive_listener_on_duty_cycle()
 
     def change_duty_cycle(self, new_duty_cycle):
-        try:
-            assert 0 <= new_duty_cycle <= 100
-            old_duty_cycle = self.duty_cycle
-            self.duty_cycle = new_duty_cycle
-            self.pwm.ChangeDutyCycle(self.duty_cycle)
-            publish(
-                f"morbidostat/{self.unit}/{self.experiment}/log",
-                f"[stirring]: changed duty cycle from {old_duty_cycle} to {self.duty_cycle}",
-                verbose=self.verbose,
-            )
-        except:
-            traceback.print_exc()
+        assert 0 <= new_duty_cycle <= 100
+        old_duty_cycle = self.duty_cycle
+        self.duty_cycle = new_duty_cycle
+        self.pwm.ChangeDutyCycle(self.duty_cycle)
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/log",
+            f"[stirring]: changed duty cycle from {old_duty_cycle} to {self.duty_cycle}",
+            verbose=self.verbose,
+        )
 
     def start_stirring(self):
-        self.pwm.start(100)  # get momentum to start
+        self.pwm.start(95)  # get momentum to start
         time.sleep(0.25)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
@@ -61,7 +58,7 @@ class Stirrer:
         job_name = os.path.splitext(os.path.basename((__file__)))[0]
         topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/duty_cycle"
 
-        def callback(_, __, msg):
+        def callback(msg):
             self.change_duty_cycle(int(msg.payload))
 
         subscribe_and_callback(callback, topic)
@@ -90,7 +87,6 @@ def stirring(duty_cycle, verbose=0, duration=None):
             time.sleep(duration)
 
     except Exception as e:
-        traceback.print_exc()
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[stirring] failed with {str(e)}", verbose=verbose)
         raise e
     finally:

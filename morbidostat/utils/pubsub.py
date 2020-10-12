@@ -3,6 +3,7 @@
 import socket
 import threading
 import time
+import traceback
 from click import echo, style
 from paho.mqtt import publish as mqtt_publish
 from paho.mqtt import subscribe as mqtt_subscribe
@@ -74,12 +75,26 @@ def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
 
 def subscribe_and_callback(callback, topics, hostname=leader_hostname, **mqtt_kwargs):
     """
-    Creates a new thread, wrapping around paho's subscribe.callback
+    Creates a new thread, wrapping around paho's subscribe.callback. Callbacks only accept a single parameter, message.
+
     TODO: what happens when I lose connection to host?
     """
+
+    def job_callback(actual_callback):
+        def _callback(_, __, message):
+            try:
+                return actual_callback(message)
+            except Exception as e:
+                # TODO: this doesn't always fire...
+                # TODO: better topic
+                traceback.print_exc()
+                publish("error_log", str(e), verbose=1)
+
+        return _callback
+
     thread = threading.Thread(
         target=mqtt_subscribe.callback,
-        kwargs={"callback": callback, "topics": topics, "hostname": hostname},  # TODO: wrap this and make error handling better.
+        kwargs={"callback": job_callback(callback), "topics": topics, "hostname": hostname},
         daemon=True,
     )
     thread.start()

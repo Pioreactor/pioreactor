@@ -83,33 +83,22 @@ class ControlAlgorithm:
         self.latest_od = float(message.payload)
 
     def set_attr(self, message):
-        try:
-            payload = json.loads(message.payload)
-            for k, v in payload.items():
-                assert hasattr(self, k)
-                previous_value = getattr(self, k)
-                # make sure to cast the input to the same value
-                setattr(self, k, type(previous_value)(v))
-                publish(
-                    f"morbidostat/{self.unit}/{self.experiment}/log",
-                    f"Updated {k} from {previous_value} to {getattr(self, k)}.",
-                    verbose=self.verbose,
-                )
-        except:
-            traceback.print_exc()
+        payload = json.loads(message.payload)
+        for k, v in payload.items():
+            assert hasattr(self, k), f"ControlAlgorithm has no attr {k}."
+            previous_value = getattr(self, k)
+            # make sure to cast the input to the same value
+            setattr(self, k, type(previous_value)(v))
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/log",
+                f"Updated {k} from {previous_value} to {getattr(self, k)}.",
+                verbose=self.verbose,
+            )
 
     def start_passive_listeners(self):
-        def job_callback(actual_callback):
-            def _callback(_, __, message):
-                return actual_callback(message)
-
-            return _callback
-
-        subscribe_and_callback(job_callback(self.set_attr), f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_attr")
-        subscribe_and_callback(
-            job_callback(self.set_OD), f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135/A"
-        )  # this is configurable in the future
-        subscribe_and_callback(job_callback(self.set_growth_rate), f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
+        subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_attr")
+        subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135/A")
+        subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
 
 
 ######################
@@ -316,7 +305,6 @@ def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **
         try:
             yield from every(duration * 60, algo.run)
         except Exception as e:
-            traceback.print_exc()
             publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
             raise e
 

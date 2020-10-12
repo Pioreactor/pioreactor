@@ -10,7 +10,8 @@ from morbidostat.utils import pubsub
 
 
 def pause():
-    time.sleep(0.05)
+    # to avoid race conditions
+    time.sleep(0.5)
 
 
 def test_silent_algorithm():
@@ -154,7 +155,7 @@ def test_changing_parameters_over_mqtt():
     algo = PIDMorbidostat(
         target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
     )
-    assert algo.target_growth_rate == 0.05
+    assert algo.target_growth_rate == target_growth_rate
     pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"target_growth_rate": 0.07}')
     pause()
     assert algo.target_growth_rate == 0.07
@@ -182,15 +183,11 @@ def test_changing_volume_over_mqtt():
     assert algo.volume == 1.0
 
 
-def test_changing_parameters_over_mqtt_with_unknown_function():
+def test_changing_parameters_over_mqtt_with_unknown_parameter():
 
     unit = utils.get_unit_from_hostname()
     experiment = utils.get_latest_experiment_name()
 
-    target_growth_rate = 0.05
-    algo = PIDMorbidostat(
-        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
-    )
-    assert algo.target_growth_rate == 0.05
-
-    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/blank", '{"target_growth_rate": 0.07}')
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"garbage": 0.07}')
+    pause()

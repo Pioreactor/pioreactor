@@ -4,7 +4,6 @@ Continuously monitor the bioreactor and provide summary statistics on what's goi
 """
 import json
 import time
-import traceback
 import subprocess
 import signal
 import threading
@@ -65,23 +64,18 @@ class AltMediaCalculator:
     def latest_alt_media_fraction(self, value):
         self._latest_alt_media_fraction = value
 
-    def on_message(self, client, userdata, message):
-        try:
-            assert message.topic == f"morbidostat/{self.unit}/{self.experiment}/io_events"
-            payload = json.loads(message.payload)
-            volume, event = float(payload["volume_change"]), payload["event"]
-            if event == "add_media":
-                self.update_alt_media_fraction(volume, 0)
-            elif event == "add_alt_media":
-                self.update_alt_media_fraction(0, volume)
-            elif event == "remove_waste":
-                pass
-            else:
-                raise ValueError()
-        except:
-            # paho swallows exceptions in callbacks, this spits them back up.
-            traceback.print_exc()
-            return
+    def on_message(self, message):
+        assert message.topic == f"morbidostat/{self.unit}/{self.experiment}/io_events"
+        payload = json.loads(message.payload)
+        volume, event = float(payload["volume_change"]), payload["event"]
+        if event == "add_media":
+            self.update_alt_media_fraction(volume, 0)
+        elif event == "add_alt_media":
+            self.update_alt_media_fraction(0, volume)
+        elif event == "remove_waste":
+            pass
+        else:
+            raise ValueError()
 
     def update_alt_media_fraction(self, media_delta, alt_media_delta):
 
