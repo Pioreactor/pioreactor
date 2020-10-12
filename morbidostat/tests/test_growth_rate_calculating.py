@@ -47,12 +47,22 @@ class MockMsgBroker:
 def test_subscribing(monkeypatch):
 
     mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 0.778586260567034, "90": 0.20944389172032837}'),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched", '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}'
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched", '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}'
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched", '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}'
+        ),
         MockMQTTMsg("morbidostat/_testing/_experiment/io_event", '{"volume_change": "1.5", "event": "add_media"}'),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 1.778586260567034, "90": 1.20944389172032837}'),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_raw_batched", '{"135": 1.778586260567034, "90": 1.20944389172032837}'),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched", '{"135/A": 1.778586260567034, "90/A": 1.20944389172032837}'
+        ),
+        MockMQTTMsg(
+            "morbidostat/_testing/_experiment/od_raw_batched", '{"135/A": 1.778586260567034, "90/A": 1.20944389172032837}'
+        ),
     )
 
     monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
@@ -69,15 +79,15 @@ def test_same_angles(monkeypatch):
     mock_broker = MockMsgBroker(
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}',
+            '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90": 0.1}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 0.808586260567034, "135B": 0.21944389172032837, "90": 0.2}',
+            '{"135/A": 0.808586260567034, "135/B": 0.21944389172032837, "90": 0.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 0.808586260567034, "135B": 0.21944389172032837, "90": 0.2}',
+            '{"135/A": 0.808586260567034, "135/B": 0.21944389172032837, "90": 0.2}',
         ),
     )
 
@@ -111,23 +121,23 @@ def test_restart(monkeypatch):
     mock_broker = MockMsgBroker(
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}',
+            '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90": 0.1}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 1.808586260567034, "135B": 1.21944389172032837, "90": 1.2}',
+            '{"135/A": 1.808586260567034, "135/B": 1.21944389172032837, "90": 1.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 2.808586260567034, "135B": 2.21944389172032837, "90": 2.2}',
+            '{"135/A": 2.808586260567034, "135/B": 2.21944389172032837, "90": 2.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 3.808586260567034, "135B": 3.21944389172032837, "90": 3.2}',
+            '{"135/A": 3.808586260567034, "135/B": 3.21944389172032837, "90": 3.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"135A": 4.808586260567034, "135B": 4.21944389172032837, "90": 4.2}',
+            '{"135/A": 4.808586260567034, "135/B": 4.21944389172032837, "90": 4.2}',
         ),
     )
 
@@ -148,23 +158,23 @@ def test_skip_180(monkeypatch):
     mock_broker = MockMsgBroker(
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"180": 0.778586260567034, "135B": 0.20944389172032837, "90": 0.1}',
+            '{"180/A": 0.778586260567034, "135/A": 0.20944389172032837, "90/A": 0.1}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"180": 1.808586260567034, "135B": 1.21944389172032837, "90": 1.2}',
+            '{"180/A": 1.808586260567034, "135/A": 1.21944389172032837, "90/A": 1.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"180": 2.808586260567034, "135B": 2.21944389172032837, "90": 2.2}',
+            '{"180/A": 2.808586260567034, "135/A": 2.21944389172032837, "90/A": 2.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"180": 3.808586260567034, "135B": 3.21944389172032837, "90": 3.2}',
+            '{"180/A": 3.808586260567034, "135/A": 3.21944389172032837, "90/A": 3.2}',
         ),
         MockMQTTMsg(
             "morbidostat/_testing/_experiment/od_raw_batched",
-            '{"180": 4.808586260567034, "135B": 4.21944389172032837, "90": 4.2}',
+            '{"180/A": 4.808586260567034, "135/A": 4.21944389172032837, "90/A": 4.2}',
         ),
     )
 

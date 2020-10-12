@@ -22,6 +22,7 @@ from morbidostat.background_jobs import events
 from morbidostat.utils.streaming_calculations import PID
 
 VIAL_VOLUME = 14
+JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 class ControlAlgorithm:
@@ -45,22 +46,13 @@ class ControlAlgorithm:
         self.start_passive_listeners()
 
     def run(self, counter=None):
-        self.set_OD_measurements()
+        if (self.latest_growth_rate is None) or (self.latest_od is None):
+            return events.NoEvent("Waiting on MQTT data to come in.")
         event = self.execute(counter)
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[io_controlling]: triggered {event}.", verbose=self.verbose)
         return event
 
-    def set_OD_measurements(self):
-        self.previous_rate, self.previous_od = self.latest_growth_rate, self.latest_od
-        self.latest_growth_rate = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/growth_rate").payload)
-        # TODO: this below line will break when I use 135A and 135B
-        self.latest_od = float(subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135").payload)
-        return
-
     def execute(self, counter) -> events.Event:
-        """
-        Should return a member of the Event class (defined above)
-        """
         raise NotImplementedError
 
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
@@ -82,6 +74,14 @@ class ControlAlgorithm:
             if waste_ml > 0:
                 remove_waste(waste_ml, verbose=self.verbose)
 
+    def set_growth_rate(self, message):
+        self.previous_growth_rate = self.latest_growth_rate
+        self.latest_growth_rate = float(message.payload)
+
+    def set_OD(self, message):
+        self.previous_od = self.latest_od
+        self.latest_od = float(message.payload)
+
     def set_attr(self, message):
         try:
             payload = json.loads(message.payload)
@@ -99,23 +99,17 @@ class ControlAlgorithm:
             traceback.print_exc()
 
     def start_passive_listeners(self):
-        job_name = os.path.splitext(os.path.basename((__file__)))[0]
-        topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/+"
+        def job_callback(actual_callback):
+            def _callback(_, __, message):
+                return actual_callback(message)
 
-        def job_callback(client, userdata, message):
-            topic = message.topic
-            function_to_run = topic.split("/")[-1]
-            try:
-                getattr(self, function_to_run)(message)
-            except:
-                traceback.print_exc()
-                publish(
-                    f"morbidostat/{self.unit}/{self.experiment}/error_log",
-                    f"No function {function_to_run} found.",
-                    verbose=self.verbose,
-                )
+            return _callback
 
-        subscribe_and_callback(job_callback, topic)
+        subscribe_and_callback(job_callback(self.set_attr), f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_attr")
+        subscribe_and_callback(
+            job_callback(self.set_OD), f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135/A"
+        )  # this is configurable in the future
+        subscribe_and_callback(job_callback(self.set_growth_rate), f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
 
 
 ######################
@@ -151,15 +145,15 @@ class PIDTurbidostat(ControlAlgorithm):
     """
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
-    The PID tells use what fraction of max_volume we should limit. For example, of PID
-    returns 0.03, then we should remove 97% of the max volume. Choose max volume to be about 0.5ml.
+    The PID tells use what fraction of volume we should limit. For example, of PID
+    returns 0.03, then we should remove 97% of the volume. Choose volume to be about 0.5ml - 1.0ml.
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(PIDTurbidostat, self).__init__(**kwargs)
         self.target_od = target_od
-        self.max_volume = volume
-        self.od_to_start_diluting = 0.75 * target_od
+        self.volume = volume
+        self.min_od = 0.75 * target_od
         self.pid = PID(
             0.07,
             0.05,
@@ -173,12 +167,12 @@ class PIDTurbidostat(ControlAlgorithm):
         )
 
     def execute(self, *args, **kwargs) -> events.Event:
-        if self.latest_od <= self.od_to_start_diluting:
-            return events.NoEvent(f"OD less than OD to start diluting, {self.od_to_start_diluting:.2f}")
+        if self.latest_od <= self.min_od:
+            return events.NoEvent(f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}")
         else:
             output = self.pid.update(self.latest_od)
 
-            volume_to_cycle = (1 - output) * self.max_volume
+            volume_to_cycle = (1 - output) * self.volume
 
             if volume_to_cycle == 0:
                 return events.NoEvent(f"PID output={output:.2f}, so no volume to cycle")
@@ -195,7 +189,7 @@ class PIDMorbidostat(ControlAlgorithm):
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)
         self.target_growth_rate = target_growth_rate
-        self.od_to_start_diluting = 0.75 * target_od
+        self.min_od = 0.75 * target_od
         self.max_od = 1.1 * target_od
         self.duration = duration
         self.pid = PID(
@@ -220,8 +214,8 @@ class PIDMorbidostat(ControlAlgorithm):
         self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        if self.latest_od <= self.od_to_start_diluting:
-            return events.NoEvent(f"Latest OD less than OD to start diluting, {self.od_to_start_diluting:.2f}")
+        if self.latest_od <= self.min_od:
+            return events.NoEvent(f"Latest OD less than OD to start diluting, {self.min_od:.2f}")
         else:
             fraction_of_alt_media_to_add = self.pid.update(
                 self.latest_growth_rate, dt=self.duration
@@ -316,18 +310,23 @@ def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **
     kwargs["unit"] = unit
     kwargs["experiment"] = experiment
 
-    try:
-        yield from every(duration * 60, algorithms[mode](**kwargs).run)
-    except Exception as e:
-        traceback.print_exc()
-        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
-        raise e
+    algo = algorithms[mode](**kwargs)
+
+    def _gen():
+        try:
+            yield from every(duration * 60, algo.run)
+        except Exception as e:
+            traceback.print_exc()
+            publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
+            raise e
+
+    return _gen()
 
 
 @click.command()
 @click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
 @click.option("--target_od", default=None, type=float)
-@click.option("--target_growth_rate", default=None, type=float)
+@click.option("--target_growth_rate", default=None, type=float, help="used in PIDMorbidostat only")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
 @click.option(

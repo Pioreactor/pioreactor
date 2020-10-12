@@ -3,10 +3,29 @@
 Continuously take an optical density reading (more accurately: a backscatter reading, which is a proxy for OD).
 This script is designed to run in a background process and push data to MQTT.
 
->>> nohup python3 -m morbidostat.background_jobs.od_reading &
+>>> morbidostat od_reading --background
+
+
+Topics published to
+
+    morbidostat/<unit>/<experiment>/od_raw/<angle>/<label>
+
+Ex:
+
+    morbidostat/1/trial15/od_raw/135/A
+
+
+Also published to
+
+    morbidostat/<unit>/<experiment>/od_raw_batched
+
+
+
 """
 import time
 import json
+import string
+from collections import Counter
 
 import click
 from adafruit_ads1x15.analog_in import AnalogIn
@@ -37,10 +56,18 @@ def od_reading(verbose, od_angle_channel):
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
 
+    angle_counter = Counter()
     od_channels = []
     for input_ in od_angle_channel:
         angle, channel = input_.split(",")
-        od_channels.append((angle, AnalogIn(ads, getattr(ADS, "P" + channel))))
+
+        # We split input of the form ["135,x", "135,y", "90,z"] into the form
+        # "135/A", "135/B", "90/A"
+        angle_counter.update([angle])
+        angle_label = str(angle) + "/" + string.ascii_uppercase[angle_counter[angle] - 1]
+
+        ai = AnalogIn(ads, getattr(ADS, "P" + channel))
+        od_channels.append((angle_label, ai))
 
     sampling_rate = 1 / float(config["od_sampling"]["samples_per_second"])
     ma = MovingStats(lookback=20)
@@ -50,10 +77,10 @@ def od_reading(verbose, od_angle_channel):
     def take_reading(counter=None):
         try:
             raw_signals = {}
-            for angle, channel in od_channels:
+            for (angle_label, channel) in od_channels:
                 raw_signal_ = channel.voltage
-                publish(f"morbidostat/{unit}/{experiment}/od_raw/{angle}", raw_signal_, verbose=verbose)
-                raw_signals[angle] = raw_signal_
+                publish(f"morbidostat/{unit}/{experiment}/od_raw/{angle_label}", raw_signal_, verbose=verbose)
+                raw_signals[angle_label] = raw_signal_
 
             # publish the batch of data, too, for growth reading
             publish(f"morbidostat/{unit}/{experiment}/od_raw_batched", json.dumps(raw_signals), verbose=verbose)
@@ -76,7 +103,6 @@ def od_reading(verbose, od_angle_channel):
             )
             time.sleep(5.0)
         except Exception as e:
-            publish(f"morbidostat/{unit}/{experiment}/log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             publish(f"morbidostat/{unit}/{experiment}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose)
             raise e
 

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import time
 import pytest
 from paho.mqtt import subscribe
 
@@ -9,165 +9,134 @@ from morbidostat import utils
 from morbidostat.utils import pubsub
 
 
-class MockMQTTMsg:
-    def __init__(self, topic, payload):
-        self.payload = payload
-        self.topic = topic
+def pause():
+    time.sleep(0.05)
 
 
-class MockMsgBroker:
-    def __init__(self, *list_of_msgs):
-        self.list_of_msgs = list_of_msgs
-        self.counter = 0
-        self.callbacks = []
-
-    def next(self):
-        msg = self.list_of_msgs[self.counter]
-        self.counter += 1
-        if self.counter > len(self.list_of_msgs):
-            raise StopIteration
-
-        for f, topics in self.callbacks:
-            if msg.topic in topics:
-                f()
-
-        return msg
-
-    def _add_callback(self, func, topics):
-        self.callbacks.append([func, topics])
-
-    def subscribe(self, *args, **kwargs):
-        topics = args[0]
-        while True:
-            msg = self.next()
-            if msg.topic in topics:
-                return msg
-
-    def callback(self, func, topics, hostname):
-        self._add_callback(func, topics)
-        return
-
-
-def test_silent_algorithm(monkeypatch):
-    mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", "0.01"),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", "1.0"),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", "0.02"),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", "1.1"),
-    )
-
-    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
-    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
-
+def test_silent_algorithm():
     io = io_controlling(mode="silent", volume=None, duration=60, verbose=2)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", "0.01")
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", "1.0")
+    pause()
     assert isinstance(next(io), events.NoEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", "0.02")
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", "1.1")
+    pause()
     assert isinstance(next(io), events.NoEvent)
 
 
-def test_turbidostat_algorithm(monkeypatch):
-    mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.98),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.0),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
-    )
-
-    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
-    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
-
+def test_turbidostat_algorithm():
     target_od = 1.0
     algo = io_controlling(mode="turbidostat", target_od=target_od, duration=60, volume=0.25, verbose=2)
 
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.98)
+    pause()
     assert isinstance(next(algo), events.NoEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.0)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.01)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.99)
+    pause()
     assert isinstance(next(algo), events.NoEvent)
 
 
-def test_pid_turbidostat_algorithm(monkeypatch):
-    mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.20),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.8),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.88),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.97),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
-    )
-
-    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
-    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
+def test_pid_turbidostat_algorithm():
 
     target_od = 1.0
     algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=0.25, duration=60, verbose=2)
 
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01, verbose=100)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.20, verbose=100)
+    pause()
     assert isinstance(next(algo), events.NoEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.81)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.88)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.95)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.97)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
 
 
-def test_morbidostat_algorithm(monkeypatch):
-    mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.05),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.03),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 1.04),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.01),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.99),
-    )
-
-    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
-    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
-
+def test_morbidostat_algorithm():
     target_od = 1.0
     algo = io_controlling(mode="morbidostat", target_od=target_od, duration=60, volume=0.25, verbose=2)
 
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.95)
+    pause()
     assert isinstance(next(algo), events.NoEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.99)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.05)
+    pause()
     assert isinstance(next(algo), events.AltMediaEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.03)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.04)
+    pause()
     assert isinstance(next(algo), events.AltMediaEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.01)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.99)
+    pause()
     assert isinstance(next(algo), events.DilutionEvent)
 
 
-def test_pid_morbidostat_algorithm(monkeypatch):
-    mock_broker = MockMsgBroker(
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.08),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.500),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.08),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.07),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
-        MockMQTTMsg("morbidostat/_testing/_experiment/growth_rate", 0.065),
-        MockMQTTMsg("morbidostat/_testing/_experiment/od_filtered/135", 0.95),
-    )
-
-    monkeypatch.setattr(subscribe, "callback", mock_broker.callback)
-    monkeypatch.setattr(subscribe, "simple", mock_broker.subscribe)
-
+def test_pid_morbidostat_algorithm():
     target_growth_rate = 0.09
     algo = io_controlling(mode="pid_morbidostat", target_od=1.0, target_growth_rate=target_growth_rate, duration=60, verbose=2)
 
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.08)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.500)
+    pause()
     assert isinstance(next(algo), events.NoEvent)
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.08)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.95)
+    pause()
     assert isinstance(next(algo), events.AltMediaEvent)
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.07)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.95)
+    pause()
     assert isinstance(next(algo), events.AltMediaEvent)
+    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.065)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 0.95)
+    pause()
     assert isinstance(next(algo), events.AltMediaEvent)
 
 
@@ -186,16 +155,8 @@ def test_changing_parameters_over_mqtt():
         target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
     )
     assert algo.target_growth_rate == 0.05
-    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
-    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
-    algo.run()
-
     pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"target_growth_rate": 0.07}')
-
-    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
-    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
-    algo.run()
-
+    pause()
     assert algo.target_growth_rate == 0.07
 
 
@@ -206,18 +167,19 @@ def test_changing_volume_over_mqtt():
 
     og_volume = 0.5
     algo = PIDTurbidostat(volume=og_volume, target_od=1.0, duration=0.0001, verbose=2, unit=unit, experiment=experiment)
-    assert algo.max_volume == og_volume
+    assert algo.volume == og_volume
+
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
-    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.0)
     algo.run()
 
     pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"max_volume":1.0}')
 
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
-    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
+    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.0)
     algo.run()
 
-    assert algo.max_volume == 1.0
+    assert algo.volume == 1.0
 
 
 def test_changing_parameters_over_mqtt_with_unknown_function():
@@ -230,12 +192,5 @@ def test_changing_parameters_over_mqtt_with_unknown_function():
         target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
     )
     assert algo.target_growth_rate == 0.05
-    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
-    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
-    algo.run()
 
     pubsub.publish("morbidostat/_testing/_experiment/io_controlling/blank", '{"target_growth_rate": 0.07}')
-
-    pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
-    pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135", 1.0)
-    algo.run()

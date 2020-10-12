@@ -97,8 +97,8 @@ def growth_rate_calculating(verbose=0):
                 retain=True,
             )
 
-            for i, angle in enumerate(angles_and_intial_points):
-                publish(f"morbidostat/{unit}/{experiment}/od_filtered/{angle}", ekf.state_[i], verbose=verbose)
+            for i, angle_label in enumerate(angles_and_intial_points):
+                publish(f"morbidostat/{unit}/{experiment}/od_filtered/{angle_label}", ekf.state_[i], verbose=verbose)
 
             yield
 

@@ -6,7 +6,7 @@ from morbidostat.utils import config, get_latest_experiment_name
 import click
 
 
-def download_experiment_data(experiment):
+def download_experiment_data(experiment, output):
     import pandas as pd
     import sqlite3
 
@@ -26,15 +26,16 @@ def download_experiment_data(experiment):
             con,
         )
 
-        df.to_csv(f"/home/pi/db/export_{table}.csv.dump.gz", compression="gzip", index=False)
+        df.to_csv(f"{output}/export_{table}.csv.dump.gz", compression="gzip", index=False)
 
     return
 
 
 @click.command()
 @click.option("--experiment", default="current")
-def click_download_experiment_data(experiment):
-    return download_experiment_data(experiment)
+@click.option("--output", default="/home/pi/db")
+def click_download_experiment_data(experiment, output):
+    return download_experiment_data(experiment, output)
 
 
 if __name__ == "__main__":
