@@ -51,6 +51,14 @@ def pump_ml_to_duration(ml, duty_cycle, duration_=0):
     return ml / duration_
 
 
+def pump_duration_to_ml(duration, duty_cycle, duration_=0):
+    """
+    duration: the desired volume
+    duration_ : the coefficient from calibration
+    """
+    return duration * duration_
+
+
 def execute_sql_statement(SQL):
     import pandas as pd
     import sqlite3

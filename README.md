@@ -60,7 +60,7 @@ How to use the morbidostat
 
 1. On your RaspberryPi, git clone this repository (may need to `apt-get install git` first). Navigate into this directory.
 
-2. `make install-leader` should set up what you need.
+2. `make install-leader` should set up what you need. If installing on a worker (not leader), run `make install`
 
 ### Running
 
@@ -76,7 +76,7 @@ Running in the background (and append output to `morbidostat.log`)
 
 ### Testing
 
-`py.test` on the command line.
+`make test` on the command line.
 
 
 

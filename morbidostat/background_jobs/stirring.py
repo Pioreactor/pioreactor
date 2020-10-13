@@ -66,7 +66,6 @@ class Stirrer:
         subscribe_and_callback(callback, topic)
 
 
-@log_start(unit, experiment)
 @log_stop(unit, experiment)
 def stirring(duty_cycle, verbose=0, duration=None):
     # duration is for testing

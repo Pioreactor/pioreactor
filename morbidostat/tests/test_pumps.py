@@ -11,6 +11,10 @@ def test_pump_io():
     add_alt_media(ml=0.1)
     remove_waste(ml=0.1)
 
+    add_media(duration=0.1)
+    add_alt_media(duration=0.1)
+    remove_waste(duration=0.1)
+
 
 def test_pump_io_doesnt_allow_negative():
     with pytest.raises(AssertionError):

@@ -68,11 +68,13 @@ class ControlAlgorithm:
             self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2)
         else:
             if alt_media_ml > 0:
-                add_alt_media(alt_media_ml, verbose=self.verbose)
+                add_alt_media(ml=alt_media_ml, verbose=self.verbose)
             if media_ml > 0:
-                add_media(media_ml, verbose=self.verbose)
+                add_media(ml=media_ml, verbose=self.verbose)
             if waste_ml > 0:
-                remove_waste(waste_ml, verbose=self.verbose)
+                remove_waste(ml=waste_ml, verbose=self.verbose)
+                # run remove_waste for an additional second to keep volume constant (at the length of the waste tube)
+                remove_waste(duration=1, verbose=self.verbose)
 
     def set_growth_rate(self, message):
         self.previous_growth_rate = self.latest_growth_rate
