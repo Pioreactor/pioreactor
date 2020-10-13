@@ -11,7 +11,7 @@ import importlib
 def cli(job, background, extra_args):
     from subprocess import Popen, call, CalledProcessError
 
-    extra_args = list(extra_args) + ["--verbose", "-v"]
+    extra_args = list(extra_args)
 
     if importlib.util.find_spec(f"morbidostat.background_jobs.{job}"):
         loc = f"morbidostat.background_jobs.{job}"
@@ -21,9 +21,10 @@ def cli(job, background, extra_args):
     command = ["python3", "-u", "-m", loc] + extra_args
 
     if background:
-        command = ["nohup"] + command + [">>", "morbidostat.log", "&"]
+        command = ["nohup"] + command + ["-v", ">>", "morbidostat.log", "&"]
         print("Appending logs to morbidostat.log")
 
+    print(" ".join(command))
     call(" ".join(command), shell=True)
 
 
