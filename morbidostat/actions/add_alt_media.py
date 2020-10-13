@@ -6,8 +6,8 @@ import click
 import RPi.GPIO as GPIO
 
 from morbidostat.utils import pump_ml_to_duration
-from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
-from morbidostat.utils.pubsub import publish
+from morbidostat.utils import config, unit, experiment
+from morbidostat.pubsub import publish
 
 
 def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=0):
@@ -15,10 +15,12 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=0):
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
-    unit = get_unit_from_hostname()
-    experiment = get_latest_experiment_name()
-
     hz = 100
+    if ml is not None:
+        assert ml >= 0
+        duration = pump_ml_to_duration(ml, duty_cycle, **loads(config["pump_calibration"][f"alt_media{unit}_ml_calibration"]))
+
+    assert duration >= 0
 
     # the io events should fire first, so that the downstream consumers are alerted that
     # metrics will change.
@@ -35,15 +37,9 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=0):
         pwm = GPIO.PWM(ALT_MEDIA_PIN, hz)
 
         pwm.start(duty_cycle)
-
-        if ml is not None:
-            assert ml >= 0
-            duration = pump_ml_to_duration(ml, duty_cycle, **loads(config["pump_calibration"][f"alt_media{unit}_ml_calibration"]))
-
-        assert duration >= 0
         time.sleep(duration)
-
         pwm.stop()
+
         GPIO.output(ALT_MEDIA_PIN, 0)
 
         if ml is not None:

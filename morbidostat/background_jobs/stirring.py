@@ -10,8 +10,8 @@ import time, os, traceback, signal, sys
 import click
 import RPi.GPIO as GPIO
 
-from morbidostat.utils import config, get_latest_experiment_name, unit
-from morbidostat.utils.pubsub import publish, subscribe_and_callback
+from morbidostat.utils import config, experiment, unit, log_start, log_stop
+from morbidostat.pubsub import publish, subscribe_and_callback
 from morbidostat.utils.timing import every
 
 GPIO.setmode(GPIO.BCM)
@@ -64,6 +64,8 @@ class Stirrer:
         subscribe_and_callback(callback, topic)
 
 
+@log_start(unit, experiment)
+@log_stop(unit, experiment)
 def stirring(duty_cycle, verbose=0, duration=None):
     # duration is for testing
 
@@ -72,8 +74,6 @@ def stirring(duty_cycle, verbose=0, duration=None):
         sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
-
-    experiment = get_latest_experiment_name()
 
     publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: start stirring with duty cycle={duty_cycle}", verbose=verbose)
 

@@ -3,9 +3,46 @@ import sys
 import configparser
 import socket
 import os
+import signal
 from functools import wraps
 
 import numpy as np
+
+
+def log_start(unit, experiment):
+    def actual_decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            from morbidostat.pubsub import publish
+
+            func_name = func.__name__
+            publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: starting.", verbose=1)
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return actual_decorator
+
+
+def log_stop(unit, experiment):
+    def actual_decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            from morbidostat.pubsub import publish
+
+            func_name = func.__name__
+
+            def terminate(*args):
+                publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: terminated.", verbose=verbose)
+                sys.exit()
+
+            signal.signal(signal.SIGTERM, terminate)
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return actual_decorator
 
 
 def get_leader_hostname():
@@ -73,7 +110,7 @@ def get_latest_experiment_name():
     if "pytest" in sys.modules:
         return "_experiment"
 
-    from morbidostat.utils.pubsub import subscribe
+    from morbidostat.pubsub import subscribe
 
     return str(subscribe("morbidostat/latest_experiment").payload, "utf-8")
 
@@ -81,3 +118,4 @@ def get_latest_experiment_name():
 leader_hostname = get_leader_hostname()
 config = get_config()
 unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()

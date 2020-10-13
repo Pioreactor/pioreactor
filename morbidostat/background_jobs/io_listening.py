@@ -11,8 +11,8 @@ import threading
 import paho.mqtt.subscribe as paho_subscribe
 import click
 
-from morbidostat.utils.pubsub import publish, subscribe, subscribe_and_callback
-from morbidostat.utils import leader_hostname, get_unit_from_hostname, get_latest_experiment_name, leader_hostname
+from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
+from morbidostat.utils import unit, experiment, log_start, log_stop, leader_hostname
 
 
 VIAL_VOLUME = 14
@@ -105,20 +105,21 @@ class AltMediaCalculator:
         return self.latest_alt_media_fraction
 
 
-@click.command()
-@click.option("--verbose", default=0, help="print to std.out")
-def click_io_listening(verbose):
-    unit = get_unit_from_hostname()
-    experiment = get_latest_experiment_name()
-
-    publish(f"morbidostat/{unit}/{experiment}/log", f"[io_listening]: starting", verbose=verbose)
-
+@log_start(unit, experiment)
+@log_stop(unit, experiment)
+def io_listening(verbose):
     subscribe_and_callback(
         callback=AltMediaCalculator(unit=unit, experiment=experiment, verbose=verbose).on_message,
         topics=f"morbidostat/{unit}/{experiment}/io_events",
     )
 
     signal.pause()
+
+
+@click.command()
+@click.option("--verbose", default=0, help="print to std.out")
+def click_io_listening(verbose):
+    io_listening(verbose)
 
 
 if __name__ == "__main__":

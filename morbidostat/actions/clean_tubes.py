@@ -7,14 +7,11 @@ import click
 import busio
 import RPi.GPIO as GPIO
 
-from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
-from morbidostat.utils.pubsub import publish
+from morbidostat.utils import config, unit, experiment
+from morbidostat.pubsub import publish
 
 
 def clean_tubes(duration, verbose=0):
-    unit = get_unit_from_hostname()
-    experiment = get_latest_experiment_name()
-
     GPIO.setmode(GPIO.BCM)
 
     try:

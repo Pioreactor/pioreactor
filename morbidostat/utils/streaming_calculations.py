@@ -5,7 +5,7 @@ import json
 import numpy as np
 from simple_pid import PID as simple_PID
 
-from morbidostat.utils.pubsub import publish
+from morbidostat.pubsub import publish
 
 
 class MovingStats:

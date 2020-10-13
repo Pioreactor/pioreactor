@@ -8,8 +8,8 @@ import numpy as np
 
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
-from morbidostat.utils.pubsub import publish, subscribe
-from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name, leader_hostname
+from morbidostat.pubsub import publish, subscribe
+from morbidostat.utils import config, unit, experiment, leader_hostname, log_start, log_stop
 
 
 def json_to_sorted_dict(json_dict):
@@ -43,14 +43,12 @@ def get_initial_rate(experiment, unit):
         return float(test_mqtt.stdout.strip())
 
 
+@log_start(unit, experiment)
+@log_stop(unit, experiment)
 def growth_rate_calculating(verbose=0):
-    unit = get_unit_from_hostname()
-    experiment = get_latest_experiment_name()
 
     od_reading_rate = float(config["od_sampling"]["samples_per_second"])
     samples_per_minute = 60 * od_reading_rate
-
-    publish(f"morbidostat/{unit}/{experiment}/log", "[growth_rate_calculating]: starting", verbose=verbose)
 
     try:
         # pick good initializations

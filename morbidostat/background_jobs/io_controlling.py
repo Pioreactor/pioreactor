@@ -10,14 +10,13 @@ from typing import Iterator
 import json
 
 import click
-from paho.mqtt import subscribe as mqtt_subscribe
 
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing import every
-from morbidostat.utils.pubsub import publish, subscribe, subscribe_and_callback
-from morbidostat.utils import get_unit_from_hostname, get_latest_experiment_name, leader_hostname
+from morbidostat.pubsub import publish, subscribe_and_callback
+from morbidostat.utils import unit, experiment, log_start, log_stop
 from morbidostat.background_jobs import events
 from morbidostat.utils.streaming_calculations import PID
 
@@ -264,16 +263,9 @@ class Morbidostat(ControlAlgorithm):
             )
 
 
+@log_start(unit, experiment)
+@log_stop(unit, experiment)
 def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
-    unit = get_unit_from_hostname()
-    experiment = get_latest_experiment_name()
-
-    def terminate(*args):
-        publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: terminated.", verbose=verbose)
-        sys.exit()
-
-    signal.signal(signal.SIGTERM, terminate)
-
     algorithms = {
         "silent": Silent,
         "morbidostat": Morbidostat,

@@ -6,7 +6,7 @@ from paho.mqtt import subscribe
 from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat, PIDTurbidostat
 from morbidostat.background_jobs import events
 from morbidostat import utils
-from morbidostat.utils import pubsub
+from morbidostat import pubsub
 
 
 def pause():
@@ -175,6 +175,7 @@ def test_changing_volume_over_mqtt():
     algo.run()
 
     pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"max_volume":1.0}')
+    pause()
 
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
     pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.0)

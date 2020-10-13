@@ -34,8 +34,8 @@ import board
 import busio
 
 from morbidostat.utils.streaming_calculations import MovingStats
-from morbidostat.utils import config, get_unit_from_hostname, get_latest_experiment_name
-from morbidostat.utils.pubsub import publish
+from morbidostat.utils import unit, experiment, log_start, log_stop, config
+from morbidostat.pubsub import publish
 from morbidostat.utils.timing import every
 
 
@@ -49,9 +49,9 @@ ADS_GAIN_THRESHOLDS = {
 }
 
 
+@log_start(unit, experiment)
+@log_stop(unit, experiment)
 def od_reading(verbose, od_angle_channel):
-    unit = get_unit_from_hostname()
-    experiment = get_latest_experiment_name()
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
@@ -71,8 +71,6 @@ def od_reading(verbose, od_angle_channel):
 
     sampling_rate = 1 / float(config["od_sampling"]["samples_per_second"])
     ma = MovingStats(lookback=20)
-
-    publish(f"morbidostat/{unit}/{experiment}/log", "[od_reading]: starting", verbose=verbose)
 
     def take_reading(counter=None):
         try:
