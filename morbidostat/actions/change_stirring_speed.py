@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import click
 
-from morbidostat.utils import unit, experiment
+from morbidostat.whoami import unit, experiment
 from morbidostat.pubsub import publish
 
 
@@ -13,9 +13,9 @@ def change_stirring_speed(duty_cycle, verbose=0):
 
 
 @click.command()
-@click.option("--duty_cycle", type=int)
+@click.option("--duty-cycle", type=int)
 @click.option(
-    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+    "--verbose", "-v", count=True, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
 def click_change_stirring_speed(duty_cycle, verbose):
     return change_stirring_speed(duty_cycle, verbose)

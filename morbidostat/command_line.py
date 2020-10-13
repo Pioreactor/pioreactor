@@ -1,18 +1,17 @@
 # -*- coding: utf-8 -*-
 # command line
 import click
-import morbidostat
 import importlib
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument("job")
-@click.option("--background", is_flag=True)
+@click.option("--background", "-b", is_flag=True)
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
 def cli(job, background, extra_args):
     from subprocess import Popen, call, CalledProcessError
 
-    extra_args = list(extra_args) + ["--verbose", "1"]
+    extra_args = list(extra_args) + ["--verbose", "-v"]
 
     if importlib.util.find_spec(f"morbidostat.background_jobs.{job}"):
         loc = f"morbidostat.background_jobs.{job}"

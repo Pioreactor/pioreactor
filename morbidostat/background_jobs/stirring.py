@@ -10,7 +10,9 @@ import time, os, traceback, signal, sys
 import click
 import RPi.GPIO as GPIO
 
-from morbidostat.utils import config, experiment, unit, log_start, log_stop
+from morbidostat.utils import log_start, log_stop
+from morbidostat.whoami import unit, experiment
+from morbidostat.config import config
 from morbidostat.pubsub import publish, subscribe_and_callback
 from morbidostat.utils.timing import every
 
@@ -96,9 +98,9 @@ def stirring(duty_cycle, verbose=0, duration=None):
 
 
 @click.command()
-@click.option("--duty_cycle", default=int(config["stirring"][f"duty_cycle{unit}"]), help="set the duty cycle")
+@click.option("--duty-cycle", default=int(config["stirring"][f"duty_cycle{unit}"]), help="set the duty cycle")
 @click.option(
-    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+    "--verbose", "-v", count=True, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
 def click_stirring(duty_cycle, verbose):
     stirring(duty_cycle, verbose=verbose)

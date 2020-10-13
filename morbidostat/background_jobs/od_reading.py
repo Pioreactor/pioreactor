@@ -34,7 +34,9 @@ import board
 import busio
 
 from morbidostat.utils.streaming_calculations import MovingStats
-from morbidostat.utils import unit, experiment, log_start, log_stop, config
+from morbidostat.utils import log_start, log_stop
+from morbidostat.whoami import unit, experiment
+from morbidostat.config import config
 from morbidostat.pubsub import publish
 from morbidostat.utils.timing import every
 
@@ -109,19 +111,19 @@ def od_reading(verbose, od_angle_channel):
 
 @click.command()
 @click.option(
-    "--od_angle_channel",
+    "--od-angle-channel",
     multiple=True,
     default=["135,0"],
     type=click.STRING,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
 
---od_angle_channel 135,0 --od_angle_channel 90,1 --od_angle_channel 45,2
+--od-angle-channel 135,0 --od-angle-channel 90,1 --od-angle-channel 45,2
 
 """,
 )
 @click.option(
-    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+    "--verbose", "-v", count=True, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
 def click_od_reading(verbose, od_angle_channel):
     reader = od_reading(verbose, od_angle_channel)

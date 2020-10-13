@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys
-import configparser
 import socket
 import os
 import signal
 from functools import wraps
-
 import numpy as np
 
 
@@ -45,48 +43,6 @@ def log_stop(unit, experiment):
     return actual_decorator
 
 
-def get_leader_hostname():
-    if "pytest" in sys.modules:
-        return "localhost"
-    else:
-        return get_config()["network"]["leader_hostname"]
-
-
-def get_hostname():
-    if "pytest" in sys.modules:
-        return "localhost"
-    else:
-        return socket.gethostname()
-
-
-def get_config():
-    config = configparser.ConfigParser()
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../config.ini")
-    config.read(config_path)
-    return config
-
-
-def get_unit_from_hostname():
-    import re
-
-    hostname = get_hostname()
-
-    if hostname == "leader":
-        # running from the leader Rpi
-        return "0"
-    elif hostname == "localhost":
-        # running tests
-        return "_testing"
-    elif re.match(r"morbidostat(\d)", hostname):
-        # running from a worker Rpi
-        # TODO: turn me into walrus operator
-        return re.match(r"morbidostat(\d)", hostname).groups()[0]
-    elif hostname == "raspberrypi":
-        raise ValueError("Did you forget to set the hostname?")
-    else:
-        return "unknown"
-
-
 def pump_ml_to_duration(ml, duty_cycle, duration_=0):
     """
     ml: the desired volume
@@ -104,18 +60,3 @@ def execute_sql_statement(SQL):
     df = pd.read_sql_query(SQL, conn)
     conn.close()
     return df
-
-
-def get_latest_experiment_name():
-    if "pytest" in sys.modules:
-        return "_experiment"
-
-    from morbidostat.pubsub import subscribe
-
-    return str(subscribe("morbidostat/latest_experiment").payload, "utf-8")
-
-
-leader_hostname = get_leader_hostname()
-config = get_config()
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()

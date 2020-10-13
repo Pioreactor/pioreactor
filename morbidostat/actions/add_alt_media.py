@@ -6,7 +6,8 @@ import click
 import RPi.GPIO as GPIO
 
 from morbidostat.utils import pump_ml_to_duration
-from morbidostat.utils import config, unit, experiment
+from morbidostat.whoami import unit, experiment
+from morbidostat.config import config
 from morbidostat.pubsub import publish
 
 
@@ -59,9 +60,9 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=0):
 @click.command()
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
-@click.option("--duty_cycle", default=33, type=int)
+@click.option("--duty-cycle", default=33, type=int)
 @click.option(
-    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+    "--verbose", "-v", count=True, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
 def click_add_alt_media(ml, duration, duty_cycle, verbose):
     return add_alt_media(ml, duration, duty_cycle, verbose)

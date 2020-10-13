@@ -7,7 +7,8 @@ import click
 import busio
 import RPi.GPIO as GPIO
 
-from morbidostat.utils import config, unit, experiment
+from morbidostat.config import config
+from morbidostat.whoami import unit, experiment
 from morbidostat.pubsub import publish
 
 
@@ -37,7 +38,7 @@ def clean_tubes(duration, verbose=0):
 @click.command()
 @click.option("--duration", default=50, help="Time, in seconds, to run pumps")
 @click.option(
-    "--verbose", default=0, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
+    "--verbose", "-v", count=True, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
 def click_clean_tubes(duration, verbose):
     return clean_tubes(duration, verbose)

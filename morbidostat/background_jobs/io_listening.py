@@ -12,7 +12,9 @@ import paho.mqtt.subscribe as paho_subscribe
 import click
 
 from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
-from morbidostat.utils import unit, experiment, log_start, log_stop, leader_hostname
+from morbidostat.utils import log_start, log_stop
+from morbidostat.whoami import unit, experiment
+from morbidostat.config import leader_hostname
 
 
 VIAL_VOLUME = 14
@@ -117,7 +119,7 @@ def io_listening(verbose):
 
 
 @click.command()
-@click.option("--verbose", default=0, help="print to std.out")
+@click.option("--verbose", "-v", count=True, help="print to std.out")
 def click_io_listening(verbose):
     io_listening(verbose)
 

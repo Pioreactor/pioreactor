@@ -3,7 +3,7 @@
 import time
 import pytest
 from morbidostat.background_jobs.stirring import stirring, Stirrer
-from morbidostat.utils import unit, experiment as exp
+from morbidostat.whoami import unit, experiment as exp
 from morbidostat.pubsub import publish
 
 

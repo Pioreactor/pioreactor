@@ -7,7 +7,7 @@ import traceback
 from click import echo, style
 from paho.mqtt import publish as mqtt_publish
 from paho.mqtt import subscribe as mqtt_subscribe
-from morbidostat.utils import leader_hostname
+from morbidostat.config import leader_hostname
 
 
 def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs):
@@ -86,9 +86,10 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, **mqtt_kw
                 return actual_callback(message)
             except Exception as e:
                 # TODO: this doesn't always fire...
-                # TODO: better topic
                 traceback.print_exc()
-                publish("error_log", str(e), verbose=1)
+                from morbidostat.whoami import unit, experiment
+
+                publish(f"morbidostat/{unit}/{experiment}/error_log", str(e), verbose=1)
 
         return _callback
 

@@ -2,7 +2,7 @@
 # conftest.py
 
 import pytest
-from morbidostat.utils import config
+from morbidostat.config import config
 
 
 # Replace libraries by fake RPi ones

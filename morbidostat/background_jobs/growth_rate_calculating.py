@@ -9,7 +9,9 @@ import numpy as np
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.pubsub import publish, subscribe
-from morbidostat.utils import config, unit, experiment, leader_hostname, log_start, log_stop
+from morbidostat.utils import log_start, log_stop
+from morbidostat.whoami import unit, experiment
+from morbidostat.config import config, leader_hostname
 
 
 def json_to_sorted_dict(json_dict):
@@ -107,7 +109,7 @@ def growth_rate_calculating(verbose=0):
 
 
 @click.command()
-@click.option("--verbose", default=0, help="Print to std out")
+@click.option("--verbose", "-v", count=True, help="Print to std out")
 def click_growth_rate_calculating(verbose):
     calculator = growth_rate_calculating(verbose)
     while True:

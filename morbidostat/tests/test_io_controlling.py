@@ -5,7 +5,7 @@ from paho.mqtt import subscribe
 
 from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat, PIDTurbidostat
 from morbidostat.background_jobs import events
-from morbidostat import utils
+from morbidostat.whoami import unit, experiment
 from morbidostat import pubsub
 
 
@@ -148,9 +148,6 @@ def test_execute_io_action():
 
 def test_changing_parameters_over_mqtt():
 
-    unit = utils.get_unit_from_hostname()
-    experiment = utils.get_latest_experiment_name()
-
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
         target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
@@ -163,9 +160,6 @@ def test_changing_parameters_over_mqtt():
 
 def test_changing_volume_over_mqtt():
 
-    unit = utils.get_unit_from_hostname()
-    experiment = utils.get_latest_experiment_name()
-
     og_volume = 0.5
     algo = PIDTurbidostat(volume=og_volume, target_od=1.0, duration=0.0001, verbose=2, unit=unit, experiment=experiment)
     assert algo.volume == og_volume
@@ -174,7 +168,7 @@ def test_changing_volume_over_mqtt():
     pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", 1.0)
     algo.run()
 
-    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"max_volume":1.0}')
+    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"volume":1.0}')
     pause()
 
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", 0.05)
@@ -185,9 +179,6 @@ def test_changing_volume_over_mqtt():
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
-
-    unit = utils.get_unit_from_hostname()
-    experiment = utils.get_latest_experiment_name()
 
     algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"garbage": 0.07}')

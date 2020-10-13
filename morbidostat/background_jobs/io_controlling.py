@@ -16,7 +16,8 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing import every
 from morbidostat.pubsub import publish, subscribe_and_callback
-from morbidostat.utils import unit, experiment, log_start, log_stop
+from morbidostat.utils import log_start, log_stop
+from morbidostat.whoami import unit, experiment
 from morbidostat.background_jobs import events
 from morbidostat.utils.streaming_calculations import PID
 
@@ -263,7 +264,6 @@ class Morbidostat(ControlAlgorithm):
             )
 
 
-@log_start(unit, experiment)
 @log_stop(unit, experiment)
 def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
     algorithms = {
@@ -305,16 +305,16 @@ def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **
 
 @click.command()
 @click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
-@click.option("--target_od", default=None, type=float)
-@click.option("--target_growth_rate", default=None, type=float, help="used in PIDMorbidostat only")
+@click.option("--target-od", default=None, type=float)
+@click.option("--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
 @click.option(
-    "--skip_first_run",
+    "--skip-first-run",
     is_flag=True,
     help="Normally IO will run immediately. Set this flag to wait <duration>min before executing.",
 )
-@click.option("--verbose", is_flag=True)
+@click.option("--verbose", "-v", is_flag=True)
 def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, skip_first_run, verbose):
     controller = io_controlling(
         mode=mode,

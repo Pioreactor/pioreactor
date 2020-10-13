@@ -60,12 +60,7 @@ How to use the morbidostat
 
 1. On your RaspberryPi, git clone this repository (may need to `apt-get install git` first). Navigate into this directory.
 
-2. `make install-leader` should set up what you need. There are further _optional_ optimizations that can be done to make the RaspberryPi more performant:
-
-    1. `nano /boot/config.txt` add `gpu_mem=16` (or via raspi-config)
-    2. `sudo nano /etc/rc.local` add `/usr/bin/tvservice -o`
-    3. safely overclocking
-
+2. `make install-leader` should set up what you need.
 
 ### Running
 
