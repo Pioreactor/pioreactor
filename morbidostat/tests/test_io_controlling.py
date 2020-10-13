@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
 import pytest
-from paho.mqtt import subscribe
 
 from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat, PIDTurbidostat
 from morbidostat.background_jobs import events

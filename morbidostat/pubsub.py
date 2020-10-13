@@ -87,6 +87,7 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, **mqtt_kw
             except Exception as e:
                 # TODO: this doesn't always fire...
                 traceback.print_exc()
+
                 from morbidostat.whoami import unit, experiment
 
                 publish(f"morbidostat/{unit}/{experiment}/error_log", str(e), verbose=1)

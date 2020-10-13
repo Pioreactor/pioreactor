@@ -8,7 +8,6 @@ import subprocess
 import signal
 import threading
 
-import paho.mqtt.subscribe as paho_subscribe
 import click
 
 from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
