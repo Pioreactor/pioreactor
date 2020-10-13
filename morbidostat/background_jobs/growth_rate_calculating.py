@@ -86,7 +86,6 @@ def growth_rate_calculating(verbose=0):
 
             elif "io_events" in msg.topic:
                 ekf.scale_OD_variance_for_next_n_steps(1e3, 3 * samples_per_minute)
-                ekf.scale_obs_noise_for_next_n_steps(2, 3 * samples_per_minute)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate * hours}
