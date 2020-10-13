@@ -21,7 +21,7 @@ def json_to_sorted_dict(json_dict):
 
 def create_OD_covariance(angles):
     d = len(angles)
-    variances = {"135": 2e-5, "90": 2e-7}
+    variances = {"135": 1e-5, "90": 1e-7, "45": 1e-7}
 
     OD_covariance = 1e-10 * np.ones((d, d))
     for i, a in enumerate(angles):
@@ -72,7 +72,7 @@ def growth_rate_calculating(verbose=0):
         # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
         rate_process_variance = 1e-11
         process_noise_covariance = np.block(
-            [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
+            [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
         )
         observation_noise_covariance = 1e-2 * np.eye(d - 1)
 
