@@ -16,10 +16,10 @@ install-db:
 	sqlite3 morbidostat.sqlite '.read sql/create_tables.sql'
 
 configure-rpi:
-	sudo echo "gpu_mem=16" >> /boot/config.txt
-	sudo echo "dtparam=i2c_arm=on" >> /boot/config.txt
-	sudo echo "i2c-dev" >> /etc/modules
-	sudo echo "/usr/bin/tvservice -o" >> /etc/rc.local
+	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
+	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
+	echo "i2c-dev"               | sudo tee /etc/modules -a
+	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
 install-leader: install install-db
 	bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
