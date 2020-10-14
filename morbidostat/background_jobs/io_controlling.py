@@ -47,8 +47,9 @@ class ControlAlgorithm:
 
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):
-            return events.NoEvent("Waiting on MQTT data to come in.")
-        event = self.execute(counter)
+            event = events.NoEvent("Waiting on MQTT data to come in.")
+        else:
+            event = self.execute(counter)
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[io_controlling]: triggered {event}.", verbose=self.verbose)
         return event
 
