@@ -14,16 +14,18 @@ from morbidostat.pubsub import publish
 
 def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
     assert 0 <= duty_cycle <= 100
-    assert (ml is not None) or (duration is not None)
-    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
+    assert (ml is not None) or (duration is not None), "Input either ml or duration"
+    assert not ((ml is not None) and (duration is not None)), "Only input ml or duration"
 
     hz = 100
     if ml is not None:
+        user_submitted_ml = True
         assert ml >= 0
         duration = pump_ml_to_duration(ml, duty_cycle, **loads(config["pump_calibration"][f"waste{unit}_ml_calibration"]))
     elif duration is not None:
+        user_submitted_ml = False
+        assert duration >= 0
         ml = pump_duration_to_ml(duration, duty_cycle, **loads(config["pump_calibration"][f"waste{unit}_ml_calibration"]))
-    assert duration >= 0
 
     publish(
         f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": -%0.4f, "event": "remove_waste"}' % ml, verbose=verbose
@@ -43,7 +45,7 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
 
         GPIO.output(WASTE_PIN, 0)
 
-        if ml is not None:
+        if user_submitted_ml:
             publish(f"morbidostat/{unit}/{experiment}/log", f"remove waste: {round(ml,2)}mL", verbose=verbose)
         else:
             publish(f"morbidostat/{unit}/{experiment}/log", f"remove waste: {round(duration,2)}s", verbose=verbose)

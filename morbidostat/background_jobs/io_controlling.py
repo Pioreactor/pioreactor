@@ -47,7 +47,7 @@ class ControlAlgorithm:
 
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):
-            time.sleep(10)
+            time.sleep(10)  # wait some time for data to arrive, and try again.
             return self.run()
 
         event = self.execute(counter)

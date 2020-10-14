@@ -31,7 +31,7 @@ def log_stop(unit, experiment):
             func_name = func.__name__
 
             def terminate(*args):
-                publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: terminated.", verbose=verbose)
+                publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: terminated.", verbose=2)
                 sys.exit()
 
             signal.signal(signal.SIGTERM, terminate)

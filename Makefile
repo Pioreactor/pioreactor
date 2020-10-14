@@ -1,6 +1,6 @@
 install-python:
-	sudo apt-get update & sudo apt install python3-pip
-	sudo apt-get install python3-numpy
+	sudo apt-get update & sudo apt install -y python3-pip
+	sudo apt-get install -y python3-numpy
 	pip3 install -r requirements.txt
 
 install-mqtt:
@@ -16,10 +16,10 @@ install-db:
 	sqlite3 morbidostat.sqlite '.read sql/create_tables.sql'
 
 configure-rpi:
-	echo "gpu_mem=16" >> /boot/config.txt
-	echo "dtparam=i2c_arm=on" >> /boot/config.txt
-	echo "i2c-dev" >> /etc/modules
-	echo "/usr/bin/tvservice -o" >> /etc/rc.local
+	sudo echo "gpu_mem=16" >> /boot/config.txt
+	sudo echo "dtparam=i2c_arm=on" >> /boot/config.txt
+	sudo echo "i2c-dev" >> /etc/modules
+	sudo echo "/usr/bin/tvservice -o" >> /etc/rc.local
 
 install-leader: install install-db
 	bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
