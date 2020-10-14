@@ -316,7 +316,7 @@ def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **
     is_flag=True,
     help="Normally IO will run immediately. Set this flag to wait <duration>min before executing.",
 )
-@click.option("--verbose", "-v", is_flag=True)
+@click.option("--verbose", "-v", count=True, help="print to std.out")
 def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, skip_first_run, verbose):
     controller = io_controlling(
         mode=mode,

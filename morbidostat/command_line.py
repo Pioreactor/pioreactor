@@ -24,7 +24,6 @@ def cli(job, background, extra_args):
         command = ["nohup"] + command + ["-v", ">>", "morbidostat.log", "&"]
         print("Appending logs to morbidostat.log")
 
-    print(" ".join(command))
     call(" ".join(command), shell=True)
 
 

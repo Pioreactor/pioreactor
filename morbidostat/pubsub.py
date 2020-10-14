@@ -11,7 +11,6 @@ from morbidostat.config import leader_hostname
 
 
 def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs):
-    print(verbose, "here")
     retry = 1
     while True:
         try:
