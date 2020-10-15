@@ -7,6 +7,12 @@ install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
 	sudo systemctl enable mosquitto.service
 
+install-i2c:
+	sudo apt-get install -y python-smbus
+	sudo apt-get install -y i2c-tools
+	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
+	echo "i2c-dev"               | sudo tee /etc/modules -a
+
 install: install-python install-mqtt configure-rpi
 	sudo python3 setup.py install
 
@@ -17,8 +23,6 @@ install-db:
 
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
-	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
-	echo "i2c-dev"               | sudo tee /etc/modules -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
 install-leader: install install-db

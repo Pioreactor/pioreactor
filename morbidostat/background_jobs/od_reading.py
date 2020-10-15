@@ -113,7 +113,7 @@ def od_reading(verbose, od_angle_channel):
 @click.option(
     "--od-angle-channel",
     multiple=True,
-    default=["135,0"],
+    default=list(config["od_config"].values()),
     type=click.STRING,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
@@ -125,8 +125,8 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 @click.option(
     "--verbose", "-v", count=True, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
-def click_od_reading(verbose, od_angle_channel):
-    reader = od_reading(verbose, od_angle_channel)
+def click_od_reading(od_angle_channel, verbose):
+    reader = od_reading(od_angle_channel, verbose)
     while True:
         next(reader)
 

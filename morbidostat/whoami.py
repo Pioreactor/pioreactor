@@ -2,6 +2,7 @@
 import re
 import sys
 import socket
+from morbidostat.config import leader_hostname
 
 
 def get_latest_experiment_name():
@@ -38,6 +39,10 @@ def get_unit_from_hostname():
         raise ValueError("Did you forget to set the hostname?")
     else:
         return "unknown"
+
+
+def am_I_leader():
+    return get_unit_from_hostname() == leader_hostname
 
 
 unit = get_unit_from_hostname()

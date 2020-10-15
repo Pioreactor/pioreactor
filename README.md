@@ -62,6 +62,11 @@ How to use the morbidostat
 
 2. `make install-leader` should set up what you need. If installing on a worker (not leader), run `make install`
 
+ - [ ] add leader to `/etc/hosts`
+ - [ ] change password
+ - [ ] push ssh keys?
+ - [ ] tell leader
+
 ### Running
 
 From the command line (web interface coming soon):

@@ -71,8 +71,10 @@ class ControlAlgorithm:
         else:
             if alt_media_ml > 0:
                 add_alt_media(ml=alt_media_ml, verbose=self.verbose)
+                time.sleep(2.5)  # allow time for the addition to mix
             if media_ml > 0:
                 add_media(ml=media_ml, verbose=self.verbose)
+                time.sleep(2.5)  # allow time for the addition to mix
             if waste_ml > 0:
                 remove_waste(ml=waste_ml, verbose=self.verbose)
                 # run remove_waste for an additional second to keep volume constant (at the length of the waste tube)

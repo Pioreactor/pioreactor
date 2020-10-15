@@ -2,21 +2,27 @@
 # command line
 import click
 import importlib
+from subprocess import call
+from morbidostat.whoami import am_I_leader
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
-@click.argument("job")
+@click.argument("job", help="job name")
 @click.option("--background", "-b", is_flag=True)
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
 def cli(job, background, extra_args):
-    from subprocess import Popen, call, CalledProcessError
+
+    if am_I_leader():
+        print("leader is not suppose to run morbidostat commands.")
 
     extra_args = list(extra_args)
 
     if importlib.util.find_spec(f"morbidostat.background_jobs.{job}"):
         loc = f"morbidostat.background_jobs.{job}"
-    else:
+    elif importlib.util.find_spec(f"morbidostat.actions.{job}"):
         loc = f"morbidostat.actions.{job}"
+    else:
+        raise ValueError(f"Job {job} not found")
 
     command = ["python3", "-u", "-m", loc] + extra_args
 

@@ -54,8 +54,6 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
         raise e
 
     finally:
-        # sleep to buffer future IO events
-        time.sleep(1.5)
         GPIO.cleanup()
     return
 
