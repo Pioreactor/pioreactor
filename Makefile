@@ -13,8 +13,14 @@ install-i2c:
 	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
 	echo "i2c-dev"               | sudo tee /etc/modules -a
 
-install: install-python install-mqtt configure-rpi
+install: install-python install-mqtt configure-rpi systemd
 	sudo python3 setup.py install
+
+systemd:
+    cp /home/pi/morbidostat/startup/systemd/morbidostat.service /lib/systemd/system/morbidostat.service
+    chmod 644 /lib/systemd/system/morbidostat.service
+    sudo systemctl daemon-reload
+    sudo systemctl enable morbidostat.service
 
 install-db:
 	sudo apt-get install -y sqlite3
