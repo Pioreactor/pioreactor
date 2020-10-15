@@ -6,6 +6,7 @@ User=pi
 WorkingDirectory=/home/pi/morbidostat
 ExecStart=mb od_reading -b
 Restart=always
+Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 
 [Install]
 WantedBy=multi-user.target
