@@ -26,10 +26,16 @@ install-nodered:
 	sudo systemctl enable nodered.service
 
 systemd:
-	sudo cp /home/pi/morbidostat/startup/systemd/morbidostat.service /lib/systemd/system/morbidostat.service
-	sudo chmod 644 /lib/systemd/system/morbidostat.service
+	sudo cp /home/pi/morbidostat/startup/systemd/stirring.service /lib/systemd/system/stirring.service
+	sudo cp /home/pi/morbidostat/startup/systemd/od_reading.service /lib/systemd/system/od_reading.service
+	sudo cp /home/pi/morbidostat/startup/systemd/growth_rate_calculating.service /lib/systemd/system/growth_rate_calculating.service
+	sudo chmod 644 /lib/systemd/system/stirring.service
+	sudo chmod 644 /lib/systemd/system/growth_rate_calculating.service
+	sudo chmod 644 /lib/systemd/system/od_reading.service
 	sudo systemctl daemon-reload
-	sudo systemctl enable morbidostat.service
+	sudo systemctl enable od_reading.service
+	sudo systemctl enable stirring.service
+	sudo systemctl enable growth_rate_calculating.service
 
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
