@@ -16,14 +16,14 @@ install-i2c:
 install-worker: install-python install-mqtt configure-rpi systemd
 	sudo python3 setup.py install
 
-install-nodered:
-	bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
-	sudo systemctl enable nodered.service
-
 install-db:
 	sudo apt-get install -y sqlite3
 	sqlite3 /home/pi/db/morbidostat.sqlite
 	sqlite3 morbidostat.sqlite '.read sql/create_tables.sql'
+
+install-nodered:
+	bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
+	sudo systemctl enable nodered.service
 
 systemd:
 	cp /home/pi/morbidostat/startup/systemd/morbidostat.service /lib/systemd/system/morbidostat.service
