@@ -6,7 +6,7 @@ After=network-online.target
 [Service]
 User=pi
 WorkingDirectory=/home/pi/morbidostat
-ExecStart=/usr/bin/python3 /usr/local/bin/mb od_reading -b
+ExecStart=mb od_reading -b && mb stirring -b && mb growth_rate_calculating -b
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 KillMode=none
