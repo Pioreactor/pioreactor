@@ -26,10 +26,10 @@ install-db:
 	sqlite3 morbidostat.sqlite '.read sql/create_tables.sql'
 
 systemd:
-    cp /home/pi/morbidostat/startup/systemd/morbidostat.service /lib/systemd/system/morbidostat.service
-    chmod 644 /lib/systemd/system/morbidostat.service
-    sudo systemctl daemon-reload
-    sudo systemctl enable morbidostat.service
+	cp /home/pi/morbidostat/startup/systemd/morbidostat.service /lib/systemd/system/morbidostat.service
+	chmod 644 /lib/systemd/system/morbidostat.service
+	sudo systemctl daemon-reload
+	sudo systemctl enable morbidostat.service
 
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
