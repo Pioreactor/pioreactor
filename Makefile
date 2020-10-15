@@ -26,8 +26,8 @@ install-nodered:
 	sudo systemctl enable nodered.service
 
 systemd:
-	cp /home/pi/morbidostat/startup/systemd/morbidostat.service /lib/systemd/system/morbidostat.service
-	chmod 644 /lib/systemd/system/morbidostat.service
+	sudo cp /home/pi/morbidostat/startup/systemd/morbidostat.service /lib/systemd/system/morbidostat.service
+	sudo chmod 644 /lib/systemd/system/morbidostat.service
 	sudo systemctl daemon-reload
 	sudo systemctl enable morbidostat.service
 
