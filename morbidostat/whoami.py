@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import re
 import sys
+import os
 import socket
 from morbidostat.config import leader_hostname
 
 
 def get_latest_experiment_name():
-    if "pytest" in sys.modules:
+    if "pytest" in sys.modules or os.environ.get("TESTING"):
         return "_experiment"
 
     from morbidostat.pubsub import subscribe

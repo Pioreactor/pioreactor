@@ -53,7 +53,7 @@ ADS_GAIN_THRESHOLDS = {
 
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
-def od_reading(verbose, od_angle_channel):
+def od_reading(od_angle_channel, verbose):
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
