@@ -23,7 +23,7 @@ def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **m
                 )
             return
 
-        except (ConnectionRefusedError, socket.gaierror) as e:
+        except (ConnectionRefusedError, socket.gaierror, OSError) as e:
             # possible that leader is down/restarting, keep trying, but log to local machine.
             publish(
                 "error_log",
@@ -50,7 +50,7 @@ def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
         try:
             return mqtt_subscribe.simple(topics, hostname=hostname, **mqtt_kwargs)
 
-        except (ConnectionRefusedError, socket.gaierror) as e:
+        except (ConnectionRefusedError, socket.gaierror, OSError) as e:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
 
             # possible that leader is down/restarting, keep trying, but log to local machine.
