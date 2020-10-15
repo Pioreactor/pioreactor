@@ -14,6 +14,7 @@ def cli(job, background, extra_args):
 
     if am_I_leader():
         print("leader is not suppose to run morbidostat commands.")
+        return
 
     extra_args = list(extra_args)
 
@@ -31,6 +32,7 @@ def cli(job, background, extra_args):
         print("Appending logs to morbidostat.log")
 
     call(" ".join(command), shell=True)
+    return
 
 
 if __name__ == "__main__":
