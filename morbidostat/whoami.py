@@ -43,8 +43,7 @@ def get_unit_from_hostname():
 
 
 def am_I_leader():
-    print(get_unit_from_hostname(), leader_hostname)
-    return get_unit_from_hostname() == leader_hostname
+    return get_hostname() == leader_hostname
 
 
 unit = get_unit_from_hostname()
