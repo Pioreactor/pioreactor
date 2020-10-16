@@ -114,6 +114,7 @@ class ControlAlgorithm:
             )
 
     def set_pause(self, message):
+        # TODO: test this
         self.pause = int(message.payload)
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[io_controlling]: pause={self.pause}", verbose=self.verbose)
 
