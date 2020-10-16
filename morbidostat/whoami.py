@@ -28,7 +28,7 @@ def get_unit_from_hostname():
 
     if hostname == "leader":
         # running from the leader Rpi
-        return "0"
+        return "leader"
     elif hostname == "localhost":
         # running tests
         return "_testing"
@@ -43,7 +43,6 @@ def get_unit_from_hostname():
 
 
 def am_I_leader():
-    print(get_hostname(), leader_hostname)
     return get_hostname() == leader_hostname
 
 
