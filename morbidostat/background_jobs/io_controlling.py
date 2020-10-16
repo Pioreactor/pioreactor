@@ -34,6 +34,7 @@ class ControlAlgorithm:
     There exist a MQTT callback as well. If you send a message to
     `morbidostat/<unit>/<experiment>/io_controlling/<function>`, the class will execute <function> and
     pass in the message (as a message object.) see `set_attr`
+
     """
 
     latest_growth_rate = None
@@ -43,9 +44,13 @@ class ControlAlgorithm:
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
+        self.pause = 0
         self.start_passive_listeners()
 
     def run(self, counter=None):
+        if self.pause == 1:
+            return events.NoEvent("Paused. Set `pause` to 0 to start again.")
+
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             time.sleep(10)  # wait some time for data to arrive, and try again.
             return self.run()
@@ -57,17 +62,24 @@ class ControlAlgorithm:
     def execute(self, counter) -> events.Event:
         raise NotImplementedError
 
-    def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
+    def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0, log=True):
         assert (
             abs(alt_media_ml + media_ml - waste_ml) < 1e-5
         ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
+
+        if log:
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/io_batched",
+                json.dumps({"alt_media_ml": alt_media_ml, "media_ml": media_ml, "waste_ml": waste_ml}),
+                verbose=self.verbose,
+            )
 
         if waste_ml > 0.5:
             """
             this can be smarter to minimize noise.
             """
-            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2)
-            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2)
+            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2, log=False)
+            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2, log=False)
         else:
             if alt_media_ml > 0:
                 add_alt_media(ml=alt_media_ml, verbose=self.verbose)
@@ -101,8 +113,13 @@ class ControlAlgorithm:
                 verbose=self.verbose,
             )
 
+    def set_pause(self, message):
+        self.pause = int(message.payload)
+        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[io_controlling]: pause={self.pause}", verbose=self.verbose)
+
     def start_passive_listeners(self):
         subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_attr")
+        subscribe_and_callback(self.set_pause, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_pause")
         subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135/A")
         subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
 

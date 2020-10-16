@@ -24,6 +24,7 @@ Also published to
 """
 import time
 import json
+import os
 import string
 from collections import Counter
 
@@ -37,7 +38,7 @@ from morbidostat.utils.streaming_calculations import MovingStats
 from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
-from morbidostat.pubsub import publish
+from morbidostat.pubsub import publish, subscribe_and_callback
 from morbidostat.utils.timing import every
 
 
@@ -50,14 +51,80 @@ ADS_GAIN_THRESHOLDS = {
     16: (-1, 0.256),
 }
 
+JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+
+
+class ODReader:
+    """
+    Parameters
+    -----------
+
+    od_channels: list of (label, ADS channel), ex: [("90/A", 0), ("90/B", 1), ...]
+
+    """
+
+    def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
+        self.unit = unit
+        self.experiment = experiment
+        self.verbose = verbose
+        self.ma = MovingStats(lookback=20)
+        self.ads = ads
+        self.od_channels = {}
+
+        for (label, channel) in od_channels:
+            ai = AnalogIn(ads, getattr(self.ADS, "P" + channel))
+            self.od_channels[label] = ai
+
+        self.pause = 0
+
+    def take_reading(self, counter=None):
+        while self.pause == 1:
+            time.sleep(0.5)
+
+        try:
+            raw_signals = {}
+            for (angle_label, ads_channel) in self.od_channels.items():
+                raw_signal_ = ads_channel.voltage
+                publish(f"morbidostat/{self.unit}/{self.experiment}/od_raw/{angle_label}", raw_signal_, verbose=self.verbose)
+                raw_signals[angle_label] = raw_signal_
+
+            # publish the batch of data, too, for growth reading
+            publish(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched", json.dumps(raw_signals), verbose=self.verbose)
+
+            # the max signal should determine the board's gain
+            self.ma.update(max(raw_signals.values()))
+
+            # check if using correct gain
+            if counter % 20 == 0 and self.ma.mean is not None:
+                for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
+                    if 0.85 * lb <= self.ma.mean < 0.85 * ub:
+                        self.ads.gain = gain
+                        break
+        except OSError as e:
+            # just pause, not sure why this happens when add_media or remove_waste are called.
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/error_log",
+                f"[od_reading] failed with {str(e)}. Attempting to continue.",
+                verbose=self.verbose,
+            )
+            time.sleep(5.0)
+        except Exception as e:
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[od_reading] failed with {str(e)}", verbose=self.verbose
+            )
+            raise e
+
+    def set_pause(self, message):
+        self.pause = int(message.payload)
+        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[od_reading]: pause={self.pause}", verbose=self.verbose)
+
+    def start_passive_listeners(self):
+        subscribe_and_callback(self.set_pause, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/pause")
+
 
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def od_reading(od_angle_channel, verbose):
-
-    i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
-
     angle_counter = Counter()
     od_channels = []
     for input_ in od_angle_channel:
@@ -68,45 +135,14 @@ def od_reading(od_angle_channel, verbose):
         angle_counter.update([angle])
         angle_label = str(angle) + "/" + string.ascii_uppercase[angle_counter[angle] - 1]
 
-        ai = AnalogIn(ads, getattr(ADS, "P" + channel))
-        od_channels.append((angle_label, ai))
+        od_channels.append((angle_label, channel))
 
     sampling_rate = 1 / float(config["od_sampling"]["samples_per_second"])
-    ma = MovingStats(lookback=20)
 
-    def take_reading(counter=None):
-        try:
-            raw_signals = {}
-            for (angle_label, channel) in od_channels:
-                raw_signal_ = channel.voltage
-                publish(f"morbidostat/{unit}/{experiment}/od_raw/{angle_label}", raw_signal_, verbose=verbose)
-                raw_signals[angle_label] = raw_signal_
+    i2c = busio.I2C(board.SCL, board.SDA)
+    ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
 
-            # publish the batch of data, too, for growth reading
-            publish(f"morbidostat/{unit}/{experiment}/od_raw_batched", json.dumps(raw_signals), verbose=verbose)
-
-            # the max signal should determine the board's gain
-            ma.update(max(raw_signals.values()))
-
-            # check if using correct gain
-            if counter % 20 == 0 and ma.mean is not None:
-                for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if 0.85 * lb <= ma.mean < 0.85 * ub:
-                        ads.gain = gain
-                        break
-        except OSError as e:
-            # just pause, not sure why this happens when add_media or remove_waste are called.
-            publish(
-                f"morbidostat/{unit}/{experiment}/error_log",
-                f"[od_reading] failed with {str(e)}. Attempting to continue.",
-                verbose=verbose,
-            )
-            time.sleep(5.0)
-        except Exception as e:
-            publish(f"morbidostat/{unit}/{experiment}/error_log", f"[od_reading] failed with {str(e)}", verbose=verbose)
-            raise e
-
-    yield from every(sampling_rate, take_reading)
+    yield from every(sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading)
 
 
 @click.command()
