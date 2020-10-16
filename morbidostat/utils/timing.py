@@ -26,4 +26,5 @@ def every(delay, task, *args, **kwargs):
         else:
             time.sleep(max(0, next_time - time.time()))
         # skip tasks if we are behind schedule:
-        next_time += (time.time() - next_time) // delay * delay + delay
+        # next_time += (time.time() - next_time) // delay * delay + delay
+        next_time += time.time() + delay
