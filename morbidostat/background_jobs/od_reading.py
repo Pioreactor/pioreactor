@@ -72,7 +72,7 @@ class ODReader:
         self.od_channels = {}
 
         for (label, channel) in od_channels:
-            ai = AnalogIn(ads, getattr(self.ads, "P" + channel))
+            ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
             self.od_channels[label] = ai
 
         self.pause = 0
