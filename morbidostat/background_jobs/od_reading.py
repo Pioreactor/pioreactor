@@ -76,6 +76,7 @@ class ODReader:
             self.od_channels[label] = ai
 
         self.pause = 0
+        self.start_passive_listeners()
 
     def take_reading(self, counter=None):
         while self.pause == 1:
