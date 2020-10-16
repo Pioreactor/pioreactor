@@ -1,5 +1,5 @@
 [Unit]
-Description=In case of an RPi power-cycle mid-experiment, start up the important services again.
+Description=In case of an RPi power-cycle mid-experiment, start up stirring.
 Wants=network-online.target
 After=network-online.target
 

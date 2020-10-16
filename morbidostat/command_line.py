@@ -3,6 +3,7 @@
 import click
 import importlib
 from subprocess import call
+from morbidostat.whoami import am_I_leader
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
@@ -10,7 +11,6 @@ from subprocess import call
 @click.option("--background", "-b", is_flag=True)
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
 def cli(job, background, extra_args):
-    from morbidostat.whoami import am_I_leader
 
     if am_I_leader():
         print("leader is not suppose to run morbidostat commands.")

@@ -60,7 +60,7 @@ How to use the morbidostat
 
 1. On your RaspberryPi, git clone this repository (may need to `apt-get install git` first). Navigate into this directory.
 
-2. `make install-leader` should set up what you need. If installing on a worker (not leader), run `make install`
+2. `make install-leader` should set up what you need. If installing on a worker (not leader), run `make install-worker`
 
  - [ ] add leader to `/etc/hosts`
  - [ ] change password
@@ -71,12 +71,11 @@ How to use the morbidostat
 
 From the command line (web interface coming soon):
 
-`morbidostat <job or action> <options>`
+`mb <job or action> <options>`
 
 Running in the background (and append output to `morbidostat.log`)
 
-`morbidostat <job or action> <options> --background`
-
+`mb <job or action> <options> --background`
 
 
 ### Testing

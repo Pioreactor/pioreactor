@@ -28,7 +28,6 @@ def clean_tubes(duration, verbose=0):
 
         publish(f"morbidostat/{unit}/{experiment}/log", "[clean_tubes]: finished cleaning cycle.", verbose=verbose)
     except Exception as e:
-        publish(f"morbidostat/{unit}/{experiment}/log", f"[clean_tubes]: failed with {str(e)}", verbose=verbose)
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[clean_tubes]: failed with {str(e)}", verbose=verbose)
     finally:
         GPIO.cleanup()

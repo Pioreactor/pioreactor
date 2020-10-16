@@ -2,10 +2,6 @@
 import re
 
 
-def split_on_uppercase(s):
-    return filter(None, re.split("([A-Z][^A-Z]*)", s))
-
-
 class Event:
 
     message = None
@@ -18,8 +14,12 @@ class Event:
 
     def human_readable_name(self):
         name = type(self).__name__
-        split = list(split_on_uppercase(name))
+        split = list(self.split_on_uppercase(name))
         return " ".join(map(lambda s: s.lower(), split))
+
+    @staticmethod
+    def split_on_uppercase(s):
+        return filter(None, re.split("([A-Z][^A-Z]*)", s))
 
 
 class NoEvent(Event):
