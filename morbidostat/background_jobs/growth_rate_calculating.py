@@ -130,6 +130,7 @@ def growth_rate_calculating(verbose=0):
                         f"morbidostat/{unit}/{experiment}/od_normalization_factors",
                         json.dumps(od_normalization_factors),
                         verbose=verbose,
+                        retain=True,
                     )
 
             else:
