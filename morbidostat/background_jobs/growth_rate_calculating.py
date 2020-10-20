@@ -121,7 +121,7 @@ def growth_rate_calculating(verbose=0):
 
             if od_normalization_factors is None:
                 for i, angle_label in enumerate(angles_and_intial_points):
-                    c[angle_label].append(ekf.state_[i])
+                    first_N_observations[angle_label].append(ekf.state_[i])
                 if counter == 20:
                     od_normalization_factors = {
                         angle_label: median(first_N_observations[angle_label]) for angle_label in angles_and_intial_points.keys()
