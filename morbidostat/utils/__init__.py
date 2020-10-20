@@ -4,8 +4,16 @@ import socket
 import os
 import signal
 import json
+from collections import namedtuple
 from functools import wraps
 import numpy as np
+
+
+def split_topic_for_setting(topic):
+    SetAttrSplitTopic = namedtuple("SetAttrSplitTopic", ["unit", "experiment", "job_name", "attr"])
+    v = topic.split("/")
+    assert len(v) == 6, "something is wrong"
+    return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
 def log_start(unit, experiment):
@@ -16,7 +24,6 @@ def log_start(unit, experiment):
 
             func_name = func.__name__
             publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: starting.", verbose=1)
-            publish(f"morbidostat/{unit}/{experiment}/{func_name}_settings", json.dumps(kwargs), verbose=1, retain=True)
             return func(*args, **kwargs)
 
         return wrapper

@@ -15,15 +15,19 @@ from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
 from morbidostat.pubsub import publish, subscribe_and_callback
 from morbidostat.utils.timing import every
+from morbidostat.background_jobs import BackgroundJob
 
 GPIO.setmode(GPIO.BCM)
+JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-class Stirrer:
+class Stirrer(BackgroundJob):
     """
-    Send message to "morbidostat/{unit}/{experiment}/stirring/set_duty_cycle" to change the stirring speed.
+    Send message to "morbidostat/{unit}/{experiment}/stirring/duty_cycle/set" to change the stirring speed.
     Send a "-1" to revert to original speed, as defined in config.ini.
     """
+
+    publish_out = ["duty_cycle"]
 
     def __init__(self, duty_cycle, unit, experiment, verbose=0, hertz=50, pin=int(config["rpi_pins"]["fan"])):
         assert 0 <= duty_cycle <= 100
@@ -33,25 +37,16 @@ class Stirrer:
 
         self.hertz = hertz
         self.pin = pin
-        self.duty_cycle = duty_cycle
+        self._duty_cycle = duty_cycle
+        self._pause = 0
 
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, 0)
 
         self.pwm = GPIO.PWM(self.pin, self.hertz)
-        self.start_passive_listener_on_duty_cycle()
 
-    def change_duty_cycle(self, new_duty_cycle):
-        if new_duty_cycle < 0:
-            new_duty_cycle = int(config["stirring"][f"duty_cycle{unit}"])
-        old_duty_cycle = self.duty_cycle
-        self.duty_cycle = new_duty_cycle
-        self.pwm.ChangeDutyCycle(self.duty_cycle)
-        publish(
-            f"morbidostat/{self.unit}/{self.experiment}/log",
-            f"[stirring]: changed duty cycle from {old_duty_cycle} to {self.duty_cycle}",
-            verbose=self.verbose,
-        )
+        super(Stirrer, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
+        self.start_passive_listeners()
 
     def start_stirring(self):
         self.pwm.start(90)  # get momentum to start
@@ -62,23 +57,27 @@ class Stirrer:
         self.pwm.stop()
         GPIO.cleanup()
 
-    def start_passive_listener_on_duty_cycle(self):
-        job_name = os.path.splitext(os.path.basename((__file__)))[0]
-        set_topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/set_duty_cycle"
-        pause_topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/pause"
+    @property
+    def duty_cycle(self):
+        return self._duty_cycle
 
-        def set_callback(msg):
-            self.change_duty_cycle(int(msg.payload))
+    @duty_cycle.setter
+    def duty_cycle(self, value):
+        if value < 0:
+            value = int(config["stirring"][f"duty_cycle{unit}"])
+        self._duty_cycle = value
+        self.pwm.ChangeDutyCycle(self.duty_cycle)
 
-        def pause_callback(msg):
-            msg = int(msg.payload)
-            if msg == 0:
-                self.change_duty_cycle(-1)
-            elif msg == 1:
-                self.change_duty_cycle(0)
+    @property
+    def pause(self):
+        return self._pause
 
-        subscribe_and_callback(set_callback, set_topic)
-        subscribe_and_callback(pause_callback, pause_topic)
+    @pause.setter
+    def pause(self, value):
+        if value == 0:
+            self.duty_cycle = -1
+        elif value == 1:
+            self.duty_cycle = 0
 
 
 @log_start(unit, experiment)

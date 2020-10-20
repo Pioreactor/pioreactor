@@ -12,8 +12,22 @@ def pause():
     time.sleep(0.5)
 
 
-def test_stirring():
+def test_stirring_runs():
     stirring(50, verbose=2, duration=0.1)
+
+
+def test_pausing_stirring_mid_cycle():
+    original_dc = 50
+
+    st = Stirrer(original_dc, unit, exp, verbose=2)
+    assert st.duty_cycle == original_dc
+    pause()
+
+    publish(f"morbidostat/{unit}/{exp}/stirring/pause/set", 1)
+
+    pause()
+
+    assert st.duty_cycle == 0
 
 
 def test_change_stirring_mid_cycle():
@@ -24,7 +38,7 @@ def test_change_stirring_mid_cycle():
     pause()
 
     new_dc = 75
-    publish(f"morbidostat/{unit}/{exp}/stirring/duty_cycle", new_dc)
+    publish(f"morbidostat/{unit}/{exp}/stirring/duty_cycle/set", new_dc)
 
     pause()
 

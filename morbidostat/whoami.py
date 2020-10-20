@@ -8,7 +8,7 @@ from morbidostat.config import leader_hostname
 
 def get_latest_experiment_name():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
-        return "_experiment"
+        return "_testing_experiment"
 
     from morbidostat.pubsub import subscribe
 
@@ -31,7 +31,7 @@ def get_unit_from_hostname():
         return "leader"
     elif hostname == "localhost":
         # running tests
-        return "_testing"
+        return "_testing_unit"
     elif re.match(r"morbidostat(\d)", hostname):
         # running from a worker Rpi
         # TODO: turn me into walrus operator

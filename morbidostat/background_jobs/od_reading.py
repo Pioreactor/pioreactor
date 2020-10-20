@@ -40,7 +40,7 @@ from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
 from morbidostat.pubsub import publish, subscribe_and_callback
 from morbidostat.utils.timing import every
-
+from morbidostat.background_jobs import BackgroundJob
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
@@ -54,7 +54,7 @@ ADS_GAIN_THRESHOLDS = {
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-class ODReader:
+class ODReader(BackgroundJob):
     """
     Parameters
     -----------
@@ -62,6 +62,8 @@ class ODReader:
     od_channels: list of (label, ADS channel), ex: [("90/A", 0), ("90/B", 1), ...]
 
     """
+
+    publish_out = ["pause"]
 
     def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
         self.unit = unit
@@ -76,6 +78,8 @@ class ODReader:
             self.od_channels[label] = ai
 
         self.pause = 0
+
+        super(ODReader, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
     def take_reading(self, counter=None):
@@ -119,13 +123,6 @@ class ODReader:
                 f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[od_reading] failed with {str(e)}", verbose=self.verbose
             )
             raise e
-
-    def set_pause(self, message):
-        self.pause = int(message.payload)
-        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[od_reading]: pause={self.pause}", verbose=self.verbose)
-
-    def start_passive_listeners(self):
-        subscribe_and_callback(self.set_pause, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/pause")
 
 
 @log_start(unit, experiment)

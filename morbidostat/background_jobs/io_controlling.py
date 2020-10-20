@@ -16,36 +16,35 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.utils.timing import every
 from morbidostat.pubsub import publish, subscribe_and_callback
-from morbidostat.utils import log_start, log_stop
+from morbidostat.utils import log_start, log_stop, split_topic_for_setting
 from morbidostat.whoami import unit, experiment
 from morbidostat.background_jobs import events
 from morbidostat.utils.streaming_calculations import PID
+from morbidostat.background_jobs import BackgroundJob
 
 VIAL_VOLUME = 14
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-class ControlAlgorithm:
+class ControlAlgorithm(BackgroundJob):
     """
     This is the super class that algorithms inherit from. The `run` function will
     execute every N minutes (selected at the start of the program). This calls the `execute` function,
     which is what subclasses will define.
-
-    There exist a MQTT callback as well. If you send a message to
-    `morbidostat/<unit>/<experiment>/io_controlling/<function>`, the class will execute <function> and
-    pass in the message (as a message object.) see `set_attr`
-
     """
 
     latest_growth_rate = None
     latest_od = None
+    publish_out = ["pause", "volume", "target_od", "target_growth_rate", "sensor"]
 
-    def __init__(self, unit=None, experiment=None, verbose=0, sensor=None, **kwargs):
+    def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
         self.sensor = sensor
         self.pause = 0
+
+        super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
     def run(self, counter=None):
@@ -53,6 +52,7 @@ class ControlAlgorithm:
             return events.NoEvent("Paused. Set `pause` to 0 to start again.")
 
         if (self.latest_growth_rate is None) or (self.latest_od is None):
+            print(self.latest_growth_rate, self.latest_od)
             time.sleep(10)  # wait some time for data to arrive, and try again.
             return self.run()
 
@@ -101,30 +101,11 @@ class ControlAlgorithm:
         self.previous_od = self.latest_od
         self.latest_od = float(message.payload)
 
-    def set_attr(self, message):
-        payload = json.loads(message.payload)
-        for k, v in payload.items():
-            assert hasattr(self, k), f"ControlAlgorithm has no attr {k}."
-            previous_value = getattr(self, k)
-            # make sure to cast the input to the same value
-            setattr(self, k, type(previous_value)(v))
-            publish(
-                f"morbidostat/{self.unit}/{self.experiment}/log",
-                f"Updated {k} from {previous_value} to {getattr(self, k)}.",
-                verbose=self.verbose,
-            )
-
-    def set_pause(self, message):
-        # TODO: test this
-        self.pause = int(message.payload)
-        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[io_controlling]: pause={self.pause}", verbose=self.verbose)
-
     def start_passive_listeners(self):
-        subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_attr")
-        subscribe_and_callback(self.set_pause, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/pause")
-
         subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{self.sensor}")
         subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
+
+        super(ControlAlgorithm, self).start_passive_listeners()
 
 
 ######################
@@ -164,22 +145,13 @@ class PIDTurbidostat(ControlAlgorithm):
     returns 0.03, then we should remove 97% of the volume. Choose volume to be about 0.5ml - 1.0ml.
     """
 
-    def __init__(self, target_od=None, volume=None, **kwargs):
-        super(PIDTurbidostat, self).__init__(**kwargs)
+    def __init__(self, target_od=None, volume=None, verbose=0, **kwargs):
         self.target_od = target_od
         self.volume = volume
         self.min_od = 0.75 * target_od
-        self.pid = PID(
-            0.07,
-            0.05,
-            0.2,
-            setpoint=self.target_od,
-            output_limits=(0, 1),
-            sample_time=None,
-            unit=self.unit,
-            experiment=self.experiment,
-            verbose=self.verbose,
-        )
+        self.verbose = verbose
+        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
+        super(PIDTurbidostat, self).__init__(verbose=self.verbose, **kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -201,22 +173,14 @@ class PIDMorbidostat(ControlAlgorithm):
     As defined in Zhong 2020
     """
 
-    def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, **kwargs):
-        super(PIDMorbidostat, self).__init__(**kwargs)
+    def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
         self.target_growth_rate = target_growth_rate
         self.min_od = 0.75 * target_od
         self.max_od = 1.1 * target_od
         self.duration = duration
+        self.verbose = verbose
         self.pid = PID(
-            -8.00,
-            -0.01,
-            0.0,
-            setpoint=self.target_growth_rate,
-            output_limits=(0, 1),
-            sample_time=None,
-            unit=self.unit,
-            experiment=self.experiment,
-            verbose=self.verbose,
+            -8.00, -0.01, 0.0, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
 
         if volume is not None:
@@ -227,6 +191,7 @@ class PIDMorbidostat(ControlAlgorithm):
             )
 
         self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
+        super(PIDMorbidostat, self).__init__(verbose=self.verbose, **kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
