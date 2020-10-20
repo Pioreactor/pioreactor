@@ -15,7 +15,7 @@ def pause():
 
 def test_silent_algorithm():
     io = io_controlling(mode="silent", volume=None, duration=60, verbose=2)
-
+    pause()
     pubsub.publish("morbidostat/_testing/_experiment/growth_rate", "0.01")
     pubsub.publish("morbidostat/_testing/_experiment/od_filtered/135/A", "1.0")
     pause()
@@ -179,6 +179,20 @@ def test_changing_volume_over_mqtt():
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
 
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     pubsub.publish("morbidostat/_testing/_experiment/io_controlling/set_attr", '{"garbage": 0.07}')
     pause()
+
+
+def test_pause_in_io_controlling():
+
+    algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    pause()
+    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/pause", 1)
+    pause()
+    assert algo.pause == 1
+    assert isinstance(algo.run(), events.NoEvent)
+
+    pubsub.publish("morbidostat/_testing/_experiment/io_controlling/pause", 0)
+    pause()
+    assert algo.pause == 0

@@ -275,7 +275,7 @@ class Morbidostat(ControlAlgorithm):
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         if self.previous_od is None:
-            return events.NoEvent("Skip first event to set parameters")
+            return events.NoEvent("Skip first event to wait for OD readings.")
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
@@ -290,8 +290,10 @@ class Morbidostat(ControlAlgorithm):
             )
 
 
+@log_start(unit, experiment)
 @log_stop(unit, experiment)
-def io_controlling(mode=None, duration=None, verbose=0, sensor=None, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
+def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
+
     algorithms = {
         "silent": Silent,
         "morbidostat": Morbidostat,

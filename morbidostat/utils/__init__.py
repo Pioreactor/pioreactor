@@ -3,6 +3,7 @@ import sys
 import socket
 import os
 import signal
+import json
 from functools import wraps
 import numpy as np
 
@@ -15,6 +16,7 @@ def log_start(unit, experiment):
 
             func_name = func.__name__
             publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: starting.", verbose=1)
+            publish(f"morbidostat/{unit}/{experiment}/{func_name}_settings", json.dumps(kwargs), verbose=1, retain=True)
             return func(*args, **kwargs)
 
         return wrapper

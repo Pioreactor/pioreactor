@@ -81,8 +81,9 @@ class Stirrer:
         subscribe_and_callback(pause_callback, pause_topic)
 
 
+@log_start(unit, experiment)
 @log_stop(unit, experiment)
-def stirring(duty_cycle, verbose=0, duration=None):
+def stirring(duty_cycle=None, duration=None, verbose=0):
     # duration is for testing
 
     def terminate(*args):
@@ -117,7 +118,7 @@ def stirring(duty_cycle, verbose=0, duration=None):
     "--verbose", "-v", count=True, help="print to std. out (may be redirected to morbidostat.log). Increasing values log more."
 )
 def click_stirring(duty_cycle, verbose):
-    stirring(duty_cycle, verbose=verbose)
+    stirring(duty_cycle=duty_cycle, verbose=verbose)
 
 
 if __name__ == "__main__":
