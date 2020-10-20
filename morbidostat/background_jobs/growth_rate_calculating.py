@@ -54,7 +54,6 @@ def get_od_normalization_factors(experiment, unit):
     see if a value is present in the MQTT cache (retained message)
 
     TODO: this is dangerous and can be hijacked
-
     """
     command = f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/od_normalization_factors" -W 3 -h {leader_hostname}'
     test_mqtt = subprocess.run([command], shell=True, capture_output=True)
@@ -121,6 +120,7 @@ def growth_rate_calculating(verbose=0):
 
             if od_normalization_factors is None:
                 for i, angle_label in enumerate(angles_and_intial_points):
+                    # this kills me. What I want is a 1d numpy array with string indexing.
                     first_N_observations[angle_label].append(ekf.state_[i])
                 if counter == 20:
                     od_normalization_factors = {
@@ -147,7 +147,6 @@ def growth_rate_calculating(verbose=0):
 
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose)
-        publish(f"morbidostat/{unit}/{experiment}/log", f"[growth_rate_calculating]: failed {str(e)}", verbose=verbose)
         raise (e)
 
 

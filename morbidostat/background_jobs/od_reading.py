@@ -98,7 +98,7 @@ class ODReader:
             # check if using correct gain
             if counter % 20 == 0 and self.ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if 0.85 * lb <= self.ma.mean < 0.85 * ub:
+                    if (0.85 * lb <= self.ma.mean < 0.85 * ub) and (self.ads.gain != gain):
                         self.ads.gain = gain
                         publish(
                             f"morbidostat/{self.unit}/{self.experiment}/log",
