@@ -3,6 +3,7 @@ import time
 import threading
 import json
 import subprocess
+from statistics import median
 
 import numpy as np
 
@@ -36,11 +37,29 @@ def get_initial_rate(experiment, unit):
     This is a hack to use a timeout (not available in paho-mqtt) to
     see if a value is present in the MQTT cache (retained message)
 
+    TODO: this is dangerous and can be hijacked
+
     """
     command = f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/growth_rate" -W 3 -h {leader_hostname}'
     test_mqtt = subprocess.run([command], shell=True, capture_output=True)
     if test_mqtt.stdout == b"":
         return 0.0
+    else:
+        return float(test_mqtt.stdout.strip())
+
+
+def get_od_normalization_factors(experiment, unit):
+    """
+    This is a hack to use a timeout (not available in paho-mqtt) to
+    see if a value is present in the MQTT cache (retained message)
+
+    TODO: this is dangerous and can be hijacked
+
+    """
+    command = f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/od_normalization_factors" -W 3 -h {leader_hostname}'
+    test_mqtt = subprocess.run([command], shell=True, capture_output=True)
+    if test_mqtt.stdout == b"":
+        return None
     else:
         return float(test_mqtt.stdout.strip())
 
@@ -55,11 +74,14 @@ def growth_rate_calculating(verbose=0):
     try:
         # pick good initializations
         latest_od = subscribe(f"morbidostat/{unit}/{experiment}/od_raw_batched")
+        angles_and_intial_points = json_to_sorted_dict(latest_od.payload)
 
         # growth rate in MQTT is hourly, convert back to multiplicative
         initial_rate = np.exp(get_initial_rate(experiment, unit) / 60 / samples_per_minute)
 
-        angles_and_intial_points = json_to_sorted_dict(latest_od.payload)
+        c = {angle_label: [] for angle_label in angles_and_intial_points.keys()}
+        od_normalization_factors = get_od_normalization_factors(experiment, unit)
+
         initial_state = np.array([*angles_and_intial_points.values(), initial_rate])
         d = initial_state.shape[0]
 
@@ -78,6 +100,7 @@ def growth_rate_calculating(verbose=0):
 
         ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
+        counter = 0
         while True:
             msg = subscribe([f"morbidostat/{unit}/{experiment}/od_raw_batched", f"morbidostat/{unit}/{experiment}/io_events"])
 
@@ -96,8 +119,28 @@ def growth_rate_calculating(verbose=0):
                 retain=True,
             )
 
-            for i, angle_label in enumerate(angles_and_intial_points):
-                publish(f"morbidostat/{unit}/{experiment}/od_filtered/{angle_label}", ekf.state_[i], verbose=verbose)
+            if od_normalization_factors is None:
+                for i, angle_label in enumerate(angles_and_intial_points):
+                    first_N_observations[angle_label].append(ekf.state_[i])
+                if counter == 20:
+                    od_normalization_factors = {
+                        angle_label: median(first_N_observations[angle_label]) for angle_label in angles_and_intial_points.keys()
+                    }
+                    publish(
+                        f"morbidostat/{unit}/{experiment}/od_normalization_factors",
+                        json.dumps(od_normalization_factors),
+                        verbose=verbose,
+                    )
+
+            else:
+                for i, angle_label in enumerate(angles_and_intial_points):
+                    publish(
+                        f"morbidostat/{unit}/{experiment}/od_filtered/{angle_label}",
+                        ekf.state_[i] / od_normalization_factors[angle_label],
+                        verbose=verbose,
+                    )
+
+            counter += 1
 
             yield
 
