@@ -79,7 +79,7 @@ def growth_rate_calculating(verbose=0):
         # growth rate in MQTT is hourly, convert back to multiplicative
         initial_rate = np.exp(get_initial_rate(experiment, unit) / 60 / samples_per_minute)
 
-        c = {angle_label: [] for angle_label in angles_and_intial_points.keys()}
+        first_N_observations = {angle_label: [] for angle_label in angles_and_intial_points.keys()}
         od_normalization_factors = get_od_normalization_factors(experiment, unit)
 
         initial_state = np.array([*angles_and_intial_points.values(), initial_rate])
@@ -121,7 +121,7 @@ def growth_rate_calculating(verbose=0):
 
             if od_normalization_factors is None:
                 for i, angle_label in enumerate(angles_and_intial_points):
-                    first_N_observations[angle_label].append(ekf.state_[i])
+                    c[angle_label].append(ekf.state_[i])
                 if counter == 20:
                     od_normalization_factors = {
                         angle_label: median(first_N_observations[angle_label]) for angle_label in angles_and_intial_points.keys()
