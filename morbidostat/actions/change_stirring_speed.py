@@ -8,7 +8,7 @@ from morbidostat.pubsub import publish
 def change_stirring_speed(duty_cycle, unit, verbose=0):
     assert 0 <= duty_cycle <= 100
 
-    publish(f"morbidostat/{unit}/{experiment}/stirring/duty_cycle", duty_cycle, verbose=verbose)
+    publish(f"morbidostat/{unit}/{experiment}/stirring/set_duty_cycle", duty_cycle, verbose=verbose)
     return
 
 

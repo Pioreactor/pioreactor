@@ -40,10 +40,11 @@ class ControlAlgorithm:
     latest_growth_rate = None
     latest_od = None
 
-    def __init__(self, unit=None, experiment=None, verbose=0, **kwargs):
+    def __init__(self, unit=None, experiment=None, verbose=0, sensor=None, **kwargs):
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
+        self.sensor = sensor
         self.pause = 0
         self.start_passive_listeners()
 
@@ -120,8 +121,9 @@ class ControlAlgorithm:
 
     def start_passive_listeners(self):
         subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_attr")
-        subscribe_and_callback(self.set_pause, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/set_pause")
-        subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/135/A")
+        subscribe_and_callback(self.set_pause, f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/pause")
+
+        subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{self.sensor}")
         subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
 
 
@@ -289,7 +291,7 @@ class Morbidostat(ControlAlgorithm):
 
 
 @log_stop(unit, experiment)
-def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
+def io_controlling(mode=None, duration=None, verbose=0, sensor=None, skip_first_run=False, **kwargs) -> Iterator[events.Event]:
     algorithms = {
         "silent": Silent,
         "morbidostat": Morbidostat,
@@ -314,6 +316,7 @@ def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **
     kwargs["duration"] = duration
     kwargs["unit"] = unit
     kwargs["experiment"] = experiment
+    kwargs["sensor"] = sensor
 
     algo = algorithms[mode](**kwargs)
 
@@ -333,13 +336,14 @@ def io_controlling(mode=None, duration=None, verbose=0, skip_first_run=False, **
 @click.option("--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only")
 @click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
+@click.option("--sensor", default="135/A")
 @click.option(
     "--skip-first-run",
     is_flag=True,
     help="Normally IO will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.option("--verbose", "-v", count=True, help="print to std.out")
-def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, skip_first_run, verbose):
+def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run, verbose):
     controller = io_controlling(
         mode=mode,
         target_od=target_od,
@@ -347,6 +351,7 @@ def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, 
         duration=duration,
         volume=volume,
         skip_first_run=skip_first_run,
+        sensor=sensor,
         verbose=verbose,
     )
     while True:

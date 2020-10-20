@@ -96,10 +96,15 @@ class ODReader:
             self.ma.update(max(raw_signals.values()))
 
             # check if using correct gain
-            if counter % 20 == 0 and self.ma.mean is not None:
+            if counter % 15 == 0 and self.ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if 0.85 * lb <= self.ma.mean < 0.85 * ub:
                         self.ads.gain = gain
+                        publish(
+                            f"morbidostat/{self.unit}/{self.experiment}/log",
+                            f"ADC gain updated to {self.ads.gain}.",
+                            verbose=self.verbose,
+                        )
                         break
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.

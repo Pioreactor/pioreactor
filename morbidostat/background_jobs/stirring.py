@@ -20,6 +20,11 @@ GPIO.setmode(GPIO.BCM)
 
 
 class Stirrer:
+    """
+    Send message to "morbidostat/{unit}/{experiment}/stirring/set_duty_cycle" to change the stirring speed.
+    Send a "-1" to revert to original speed, as defined in config.ini.
+    """
+
     def __init__(self, duty_cycle, unit, experiment, verbose=0, hertz=50, pin=int(config["rpi_pins"]["fan"])):
         assert 0 <= duty_cycle <= 100
         self.unit = unit
@@ -37,7 +42,8 @@ class Stirrer:
         self.start_passive_listener_on_duty_cycle()
 
     def change_duty_cycle(self, new_duty_cycle):
-        assert 0 <= new_duty_cycle <= 100
+        if new_duty_cycle < 0:
+            new_duty_cycle = int(config["stirring"][f"duty_cycle{unit}"])
         old_duty_cycle = self.duty_cycle
         self.duty_cycle = new_duty_cycle
         self.pwm.ChangeDutyCycle(self.duty_cycle)
@@ -48,7 +54,7 @@ class Stirrer:
         )
 
     def start_stirring(self):
-        self.pwm.start(95)  # get momentum to start
+        self.pwm.start(90)  # get momentum to start
         time.sleep(0.25)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
@@ -58,12 +64,21 @@ class Stirrer:
 
     def start_passive_listener_on_duty_cycle(self):
         job_name = os.path.splitext(os.path.basename((__file__)))[0]
-        topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/duty_cycle"
+        set_topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/set_duty_cycle"
+        pause_topic = f"morbidostat/{self.unit}/{self.experiment}/{job_name}/pause"
 
-        def callback(msg):
+        def set_callback(msg):
             self.change_duty_cycle(int(msg.payload))
 
-        subscribe_and_callback(callback, topic)
+        def pause_callback(msg):
+            msg = int(msg.payload)
+            if msg == 0:
+                self.change_duty_cycle(-1)
+            elif msg == 1:
+                self.change_duty_cycle(0)
+
+        subscribe_and_callback(set_callback, set_topic)
+        subscribe_and_callback(pause_callback, pause_topic)
 
 
 @log_stop(unit, experiment)

@@ -65,7 +65,8 @@ How to use the morbidostat
  - [ ] add leader to `/etc/hosts`
  - [ ] change password
  - [ ] push ssh keys?
- - [ ] tell leader
+ - [ ] tell leader about unit, and tell unit about leader
+ - [ ] add websockets to leader mqtt: https://pypi.org/project/paho-mqtt/
 
 ### Running
 
