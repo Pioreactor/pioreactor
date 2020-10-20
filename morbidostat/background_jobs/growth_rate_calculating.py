@@ -61,7 +61,7 @@ def get_od_normalization_factors(experiment, unit):
     if test_mqtt.stdout == b"":
         return None
     else:
-        return float(test_mqtt.stdout.strip())
+        return json.loads(test_mqtt.stdout.strip())
 
 
 @log_start(unit, experiment)
