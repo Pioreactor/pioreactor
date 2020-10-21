@@ -20,7 +20,7 @@ def checksum_config_file(s):
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip().split(" ")[0]
     assert (
         checksum_worker == checksum_leader
-    ), f"checksum on config.ini failed, {checksum_worker}, {checksum_leader}. Try running `mba setup` first."
+    ), f"checksum on config.ini failed, {checksum_worker}, {checksum_leader}. Try running `mba sync` first."
 
 
 def checksum_git(s):
@@ -30,14 +30,14 @@ def checksum_git(s):
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
     assert (
         checksum_worker == checksum_leader
-    ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Try running `mba setup` first."
+    ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Try running `mba sync` first."
 
 
-def setup_workers(extra_args):
+def sync_workers(extra_args):
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
-    setup = "sudo python3 setup.py install"
-    command = " && ".join([cd, gitp, setup])
+    sync = "sudo python3 sync.py install"
+    command = " && ".join([cd, gitp, sync])
 
     confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
     if confirm != "Y":
@@ -93,11 +93,11 @@ def run_mb_command(job, extra_args):
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
 def cli(job, extra_args):
     if not am_I_leader():
-        print("workers cannot run morbidostat-all commands.")
+        print("workers cannot run morbidostat-all commands. Try `mb` instead.")
         return
 
-    if job == "setup":
-        return setup_workers(extra_args)
+    if job == "sync":
+        return sync_workers(extra_args)
     else:
         return run_mb_command(job, extra_args)
 

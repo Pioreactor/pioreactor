@@ -15,3 +15,5 @@
 7. Attributes from background jobs are published under `morbidostat/<unit>/<experiment>/<job_name>/<attr>`, following the Homie convention. This way, downstream consumers can listen for changes on these topics and update if needed (ex: the webui can show status of `pause`, `stir_rate` etc.)
 
 7. Because of differences between the sensitivity of the sensors, strength of the LED, and other uncontrollable factors, we normalize the implied OD reading by the median of the first 20 values observed. This means the implied OD reading will start at or near 1, and scale from there. This makes choosing a single target OD across multiple units easier.
+
+8. The leader runs all the units with the `mba` command, and individual workers run with the `mb` command.

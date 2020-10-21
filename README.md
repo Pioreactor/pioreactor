@@ -70,13 +70,19 @@ How to use the morbidostat
 
 ### Running
 
-From the command line (web interface coming soon):
+From the worker's command line:
 
 `mb <job or action> <options>`
 
 Running in the background (and append output to `morbidostat.log`)
 
 `mb <job or action> <options> --background`
+
+If you have many workers, you can run
+
+`mba <job or action> <options>`
+
+to execute all of them.
 
 
 ### Testing

@@ -13,7 +13,7 @@ from morbidostat.whoami import am_I_leader
 def cli(job, background, extra_args):
 
     if am_I_leader():
-        print("leader is not suppose to run morbidostat commands.")
+        print("leader is not suppose to run morbidostat worker commands. Try `mba` instead.")
         return
 
     extra_args = list(extra_args)
