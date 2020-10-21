@@ -36,7 +36,7 @@ def setup_workers(extra_args):
     setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, touch, setup])
 
-    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n").strip()
+    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
     if confirm != "Y":
         return
 
@@ -45,9 +45,11 @@ def setup_workers(extra_args):
 
     for unit in UNITS:
         s.connect(unit, username="pi")
-        s.exec_command(command)
-        # checksum_git(s)
-        # checksum_config_file(s)
+        (stdin, stdout, stderr) = s.exec_command(gitp)
+        for line in stdout.readlines():
+            print(unit + ":" + line)
+        for line in stderr.readlines():
+            print(unit + ":" + line)
         s.close()
 
 
@@ -57,7 +59,7 @@ def run_mb_command(job, extra_args):
     command = ["mb", job] + extra_args + ["-b"]
     command = " ".join(command)
 
-    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n").strip()
+    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
     if confirm != "Y":
         return
 
