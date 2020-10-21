@@ -46,8 +46,6 @@ def setup_workers(extra_args):
         print(f"Executing on {unit}.")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
-        checksum_config_file(s)
-        checksum_git(s)
         s.close()
 
 
@@ -66,13 +64,6 @@ def run_mb_command(job, extra_args):
 
     for unit in UNITS:
         s.connect(unit, username="pi")
-
-        try:
-            checksum_config_file(s)
-            checksum_git(s)
-        except AssertionError as e:
-            print(e)
-            continue
 
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
