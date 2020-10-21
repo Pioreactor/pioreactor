@@ -46,7 +46,7 @@ def setup_workers(extra_args):
     for unit in UNITS:
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(touch)
-        (stdin, stdout, stderr) = s.exec_command(gitp)
+        (stdin, stdout, stderr) = s.exec_command(command)
         for line in stdout.readlines():
             print(unit + ":" + line)
         for line in stderr.readlines():
