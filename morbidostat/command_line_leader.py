@@ -18,7 +18,7 @@ def checksum_config_file(s):
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0].split(" ")[0]
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip().split(" ")[0]
-    assert checksum_worker == checksum_leader, "checksum on config.ini failed"
+    assert checksum_worker == checksum_leader, f"checksum on config.ini failed, {s}"
 
 
 def checksum_git(s):
@@ -26,14 +26,15 @@ def checksum_git(s):
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0]
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
-    assert checksum_worker == checksum_leader, "checksum on git failed"
+    assert checksum_worker == checksum_leader, f"checksum on git failed, {s}"
 
 
 def setup_workers(extra_args):
     cd = "cd ~/morbidostat"
+    touch = "touch here.leader"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
-    command = " && ".join([cd, gitp, setup])
+    command = " && ".join([cd, touch, gitp, setup])
 
     confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n").strip()
     if confirm != "Y":
