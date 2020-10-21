@@ -43,9 +43,13 @@ def setup_workers(extra_args):
     s.load_system_host_keys()
 
     for unit in UNITS:
-        print(f"Executing on {unit}.")
+        print(f"Excuting on {unit}.")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
+        for line in stderr.readlines():
+            pass
+        checksum_config_file(s)
+        checksum_git(s)
         s.close()
 
 
@@ -64,6 +68,13 @@ def run_mb_command(job, extra_args):
 
     for unit in UNITS:
         s.connect(unit, username="pi")
+
+        try:
+            checksum_config_file(s)
+            checksum_git(s)
+        except AssertionError as e:
+            print(e)
+            continue
 
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
