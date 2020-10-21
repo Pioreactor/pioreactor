@@ -32,7 +32,7 @@ def checksum_git(s):
 def setup_workers(extra_args):
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
-    setup = "sudo3 python setup.py install"
+    setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, setup])
 
     confirm = input(f"Confirm running `{command}` on units? Y/n").strip()
@@ -85,7 +85,6 @@ def run_mb_command(job, extra_args):
 @click.argument("job")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
 def cli(job, extra_args):
-
     if not am_I_leader():
         print("workers are not suppose to run morbidostat-all commands.")
         return
