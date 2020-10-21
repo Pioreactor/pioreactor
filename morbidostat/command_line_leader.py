@@ -31,10 +31,10 @@ def checksum_git(s):
 
 def setup_workers(extra_args):
     cd = "cd ~/morbidostat"
-    touch = "touch here.leader"
+    touch = "touch here2.leader"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
-    command = " && ".join([cd, touch, gitp, setup])
+    command = " && ".join([cd, gitp, touch, setup])
 
     confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n").strip()
     if confirm != "Y":
