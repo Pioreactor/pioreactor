@@ -18,7 +18,9 @@ def checksum_config_file(s):
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0].split(" ")[0].strip()
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip().split(" ")[0]
-    assert checksum_worker == checksum_leader, f"checksum on config.ini failed"
+    assert (
+        checksum_worker == checksum_leader
+    ), f"checksum on config.ini failed, {checksum_worker}, {checksum_leader}. Try running `mba setup` first."
 
 
 def checksum_git(s):
@@ -26,7 +28,9 @@ def checksum_git(s):
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0].strip()
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
-    assert checksum_worker == checksum_leader, f"checksum on git failed, {checksum_worker}, {checksum_leader}"
+    assert (
+        checksum_worker == checksum_leader
+    ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Try running `mba setup` first."
 
 
 def setup_workers(extra_args):
@@ -46,6 +50,8 @@ def setup_workers(extra_args):
         print(f"Executing on {unit}...")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
+        for line in stderr.readlines():
+            pass
         checksum_config_file(s)
         checksum_git(s)
         s.close()
@@ -87,7 +93,7 @@ def run_mb_command(job, extra_args):
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
 def cli(job, extra_args):
     if not am_I_leader():
-        print("workers are not suppose to run morbidostat-all commands.")
+        print("workers cannot run morbidostat-all commands.")
         return
 
     if job == "setup":
