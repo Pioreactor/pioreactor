@@ -17,7 +17,7 @@ def checksum_config_file(s):
     cksum_command = "cksum ~/morbidostat/morbidostat/config.ini"
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0].split(" ")[0]
-    checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).strip().split(" ")[0]
+    checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip().split(" ")[0]
     assert checksum_worker == checksum_leader, "checksum on config.ini failed"
 
 
@@ -25,7 +25,7 @@ def checksum_git(s):
     cksum_command = "cd ~/morbidostat/ && git rev-parse HEAD"
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0]
-    checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).strip()
+    checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
     assert checksum_worker == checksum_leader, "checksum on git failed"
 
 
