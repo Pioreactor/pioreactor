@@ -265,8 +265,6 @@ function UnitCard(props) {
     </Card>
   )};
 
-
-
   return (
     <Card className={classes.root} variant={!isActive ? "outlined" : null}>
       <CardContent className={classes.content}>

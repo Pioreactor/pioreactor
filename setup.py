@@ -16,7 +16,8 @@ setup(
     packages=find_packages(exclude=["*.tests", "*.tests.*", "*benchmarks*"]),
     entry_points="""
         [console_scripts]
-        morbidostat=morbidostat.command_line:cli
-        mb=morbidostat.command_line:cli
+        morbidostat=morbidostat.command_line_worker:cli
+        mb=morbidostat.command_line_worker:cli
+        mba=morbidostat.command_line_leader:cli
     """,
 )

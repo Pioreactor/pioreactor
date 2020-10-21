@@ -13,7 +13,7 @@ def download_experiment_data(experiment, output):
     import sqlite3
 
     if not whoami.am_I_leader():
-        print("This command must be run on leader node, not worker.")
+        print(f"This command should be run on the {config.leader_hostname} node, not worker.")
         return
 
     if experiment == "current":

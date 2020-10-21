@@ -11,7 +11,7 @@ from morbidostat.config import leader_hostname
 
 
 def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs):
-    retry = 1
+    retry_count = 1
     while True:
         try:
             mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
@@ -25,41 +25,35 @@ def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **m
 
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout) as e:
             # possible that leader is down/restarting, keep trying, but log to local machine.
-            publish(
-                "error_log",
-                f"Attempt {retry}: Unable to connect to host: {hostname}. {str(e)}",
-                hostname="localhost",
-                retain=True,
-            )
-
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             echo(
                 style(f"{current_time}:", fg="white")
-                + style(f"Attempt {retry}: Unable to connect to host: {hostname}. {str(e)}", fg="red")
+                + style(f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}", fg="red")
             )
-            time.sleep(5 * retry)  # linear backoff
-            retry += 1
+            time.sleep(5 * retry_count)  # linear backoff
+            retry_count += 1
 
-        if retry == retries:
+        if retry_count == retries:
             raise ConnectionRefusedError(f"{current_time}: Unable to connect to host: {hostname}. Exiting.")
 
 
 def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
-    retry = 1
+    retry_count = 1
     while True:
         try:
             return mqtt_subscribe.simple(topics, hostname=hostname, **mqtt_kwargs)
 
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout) as e:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-
             # possible that leader is down/restarting, keep trying, but log to local machine.
-            publish("error_log", f"Attempt {retry}: Unable to connect to host: {hostname}. {str(e)}", hostname="localhost")
-            print(f"{current_time}: Attempt {retry}: Unable to connect to host: {hostname}. {str(e)}")
-            time.sleep(5 * retry)  # linear backoff
-            retry += 1
+            echo(
+                style(f"{current_time}:", fg="white")
+                + style(f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}", fg="red")
+            )
+            time.sleep(5 * retry_count)  # linear backoff
+            retry_count += 1
 
-        if retry == retries:
+        if retry_count == retries:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             raise ConnectionRefusedError(f"{current_time}: Unable to connect to host: {hostname}. Exiting.")
 
