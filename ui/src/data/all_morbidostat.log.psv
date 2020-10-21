@@ -1,0 +1,19 @@
+message|timestamp|topic|unit
+[io_controlling]: executing double dilution since we are above max OD, 1.10.|Oct 14 15:02:58.356|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add alt media: 0.02mL|Oct 14 15:02:58.641|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add media: 0.33mL|Oct 14 15:03:00.435|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 0.35mL|Oct 14 15:03:02.451|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 1s|Oct 14 15:03:04.991|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add alt media: 0.02mL|Oct 14 15:03:06.582|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add media: 0.33mL|Oct 14 15:03:08.579|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 0.35mL|Oct 14 15:03:10.616|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 1s|Oct 14 15:03:13.145|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add alt media: 0.02mL|Oct 14 15:03:14.701|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add media: 0.33mL|Oct 14 15:03:16.701|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 0.35mL|Oct 14 15:03:18.732|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 1s|Oct 14 15:03:21.270|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add alt media: 0.02mL|Oct 14 15:03:22.827|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+add media: 0.33mL|Oct 14 15:03:24.827|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 0.35mL|Oct 14 15:03:26.847|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+remove waste: 1s|Oct 14 15:03:29.393|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2
+[io_controlling]: triggered alt media event: PID output=0.06, alt_media_ml=0.09mL, media_ml=1.31mL.|Oct 14 15:03:30.912|morbidostat/2/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/log|2

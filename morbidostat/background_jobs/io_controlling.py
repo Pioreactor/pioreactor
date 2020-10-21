@@ -90,7 +90,7 @@ class ControlAlgorithm(BackgroundJob):
                 time.sleep(2.5)  # allow time for the addition to mix
             if waste_ml > 0:
                 remove_waste(ml=waste_ml, verbose=self.verbose)
-                # run remove_waste for an additional second to keep volume constant (at the length of the waste tube)
+                # run remove_waste for an additional second to keep volume constant (determined by the length of the waste tube)
                 remove_waste(duration=1, verbose=self.verbose)
 
     def set_growth_rate(self, message):
@@ -115,7 +115,7 @@ class ControlAlgorithm(BackgroundJob):
 
 class Silent(ControlAlgorithm):
     def execute(self, *args, **kwargs) -> events.Event:
-        return events.NoEvent("never execute IO events in Silent mode")
+        return events.NoEvent("Never execute IO events in Silent mode")
 
 
 class Turbidostat(ControlAlgorithm):

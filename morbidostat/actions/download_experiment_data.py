@@ -41,7 +41,7 @@ def download_experiment_data(experiment, output):
 
 @click.command()
 @click.option("--experiment", default="current")
-@click.option("--output", default="/home/pi/db")
+@click.option("--output", default="/home/pi/exports/")
 def click_download_experiment_data(experiment, output):
     return download_experiment_data(experiment, output)
 

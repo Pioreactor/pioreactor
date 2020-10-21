@@ -1,0 +1,38 @@
+{
+  "rpi_pins": {
+    "media": "22",
+    "waste": "27",
+    "alt_media": "17",
+    "fan": "4"
+  },
+  "pump_calibration": {
+    "media2_ml_calibration": "{\"duration_\": 0.6919}",
+    "waste2_ml_calibration": "{\"duration_\": 0.7141}",
+    "alt_media2_ml_calibration": "{\"duration_\": 0.64000}",
+    "media1_ml_calibration": "{\"duration_\": 0.6644}",
+    "waste1_ml_calibration": "{\"duration_\": 0.5600}",
+    "alt_media1_ml_calibration": "{\"duration_\": 0.6674}",
+    "media_testing_ml_calibration": "{\"duration_\": 1}",
+    "waste_testing_ml_calibration": "{\"duration_\": 1}",
+    "alt_media_testing_ml_calibration": "{\"duration_\": 1}"
+  },
+  "stirring": {
+    "duty_cycle1": "32",
+    "duty_cycle2": "15",
+    "duty_cycle3": "-1",
+    "duty_cycle_testing": "50"
+  },
+  "od_config": {
+    "od_sensor1": "135,0",
+    "od_sensor2": "135,3"
+  },
+  "od_sampling": {
+    "samples_per_second": "0.2"
+  },
+  "data": {
+    "observation_database": "/home/pi/db/morbidostat.sql"
+  },
+  "network": {
+    "leader_hostname": "leader"
+  }
+}

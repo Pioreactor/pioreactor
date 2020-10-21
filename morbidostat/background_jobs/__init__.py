@@ -6,6 +6,14 @@ from morbidostat.pubsub import publish
 
 class BackgroundJob:
 
+    """
+    This class handles the fanning out of class attributes, and the setting of those attributes. Use
+    `morbidostat/<unit>/<experiment>/<job_name>/<attr>/set` to set an attribute.
+
+    `publish_out` is a list  of variables that will be sent to the broker on initialization and retained.
+
+    """
+
     publish_out = []
 
     def __init__(self, job_name, verbose=0, experiment=None, unit=None):

@@ -38,7 +38,6 @@ class Stirrer(BackgroundJob):
         self.hertz = hertz
         self.pin = pin
         self._duty_cycle = duty_cycle
-        self._pause = 0
 
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, 0)
@@ -67,17 +66,6 @@ class Stirrer(BackgroundJob):
             value = int(config["stirring"][f"duty_cycle{unit}"])
         self._duty_cycle = value
         self.pwm.ChangeDutyCycle(self.duty_cycle)
-
-    @property
-    def pause(self):
-        return self._pause
-
-    @pause.setter
-    def pause(self, value):
-        if value == 0:
-            self.duty_cycle = -1
-        elif value == 1:
-            self.duty_cycle = 0
 
 
 @log_start(unit, experiment)
