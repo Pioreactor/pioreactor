@@ -31,10 +31,9 @@ def checksum_git(s):
 
 def setup_workers(extra_args):
     cd = "cd ~/morbidostat"
-    touch = "touch here2.leader"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
-    command = " && ".join([cd, gitp, touch, setup])
+    command = " && ".join([cd, gitp, setup])
 
     confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
     if confirm != "Y":
@@ -45,12 +44,11 @@ def setup_workers(extra_args):
 
     for unit in UNITS:
         s.connect(unit, username="pi")
-        (stdin, stdout, stderr) = s.exec_command(touch)
         (stdin, stdout, stderr) = s.exec_command(command)
-        for line in stdout.readlines():
-            print(unit + ":" + line)
         for line in stderr.readlines():
             print(unit + ":" + line)
+        # checksum_config_file(s)
+        # checksum_git(s)
         s.close()
 
 
@@ -78,7 +76,7 @@ def run_mb_command(job, extra_args):
             continue
 
         (stdin, stdout, stderr) = s.exec_command(command)
-        for line in stdout.readlines():
+        for line in stderr.readlines():
             print(unit + ":" + line)
         s.close()
 
