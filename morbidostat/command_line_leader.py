@@ -35,7 +35,7 @@ def setup_workers(extra_args):
     setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, setup])
 
-    confirm = input(f"Confirm running `{command}` on units? Y/n").strip()
+    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n").strip()
     if confirm != "Y":
         return
 
@@ -56,7 +56,7 @@ def run_mb_command(job, extra_args):
     command = ["mb", job] + extra_args + ["-b"]
     command = " ".join(command)
 
-    confirm = input(f"Confirm running `{command}` on units? Y/n").strip()
+    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n").strip()
     if confirm != "Y":
         return
 
