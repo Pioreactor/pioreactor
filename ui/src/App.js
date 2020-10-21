@@ -30,7 +30,7 @@ const themeLight = createMuiTheme({
 const useStyles = makeStyles({
   root: {
     minWidth: 100,
-    marginTop: "30px"
+    marginTop: "15px"
   },
   title: {
     fontSize: 14,
@@ -70,7 +70,7 @@ function ExperimentSummary(props){
   const classes = useStyles();
 
   return(
-    <Card className={classes.root} variant="outlined">
+    <Card className={classes.root}>
       <CardContent className={classes.cardContent}>
         <Typography className={classes.title} color="textSecondary" gutterBottom>
           Experiment
@@ -122,10 +122,11 @@ class Chart extends React.Component {
       }
     }
     return (
+      <Card>
       <VictoryChart
         title={this.props.title}
         domainPadding={10}
-        padding={{left: 100, right:80, bottom: 50, top: 50}}
+        padding={{left: 70, right:80, bottom: 50, top: 50}}
         width={600} height={300}
         responsive={false}
         theme={VictoryTheme.material}
@@ -149,7 +150,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         <VictoryAxis
           dependentAxis
           label={this.props.yAxisLabel}
-          axisLabelComponent={<VictoryLabel  dy={-50} style={{fontSize: 15 * this.props.fontScale, padding:10}}/>}
+          axisLabelComponent={<VictoryLabel  dy={-40} style={{fontSize: 15 * this.props.fontScale, padding:10}}/>}
           style={{
             tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
           }}
@@ -184,6 +185,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         />
       {lines}
     </VictoryChart>
+    </Card>
     )
   }
 }
@@ -218,11 +220,12 @@ class ODChart extends React.Component {
         )
     }
     return (
+      <Card>
       <VictoryChart
         title={this.props.title}
         domainPadding={10}
-        padding={{left: 110, right:20, bottom: 90, top: 20}}
-        width={600} height={300}
+        padding={{left: 110, right:20, bottom: 100, top: 20}}
+        width={600}
         responsive={false}
         theme={VictoryTheme.material}
         containerComponent={
@@ -237,14 +240,14 @@ ${Math.round(d.datum.y * 1000)/1000}`}
           />
         }
         >
-        <VictoryLabel text={this.props.title} x={350} y={10} textAnchor="middle" style={{fontSize: 13 * this.props.fontScale}}/>
+        <VictoryLabel text={this.props.title} x={350} y={20} textAnchor="middle" style={{fontSize: 13 * this.props.fontScale}}/>
         <VictoryAxis
           tickFormat={(mt) => mt.format(display_ts_format)}
           tickValues={linspace(x_y_data[0][0]['x'], x_y_data[0].slice(-1)[0]['x'] + 100000, 6).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
           style={{
             tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
           }}
-          offsetY={80}
+          offsetY={100}
         />
         <VictoryAxis
           dependentAxis
@@ -254,7 +257,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
             tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
           }}
         />
-        <VictoryLegend x={200} y={260}
+        <VictoryLegend x={200} y={290}
           borderPadding={{right: 10}}
           orientation="horizontal"
           style={{
@@ -285,6 +288,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         />
       {lines}
     </VictoryChart>
+    </Card>
     )
   }
 }
@@ -304,22 +308,29 @@ class App extends React.Component {
 
           <Grid item xs={12}><Header /></Grid>
 
-          <Grid item container xs={7} direction="row">
+          <Grid item container xs={7} direction="row" spacing={0}>
             <Grid item xs={1}/>
             <Grid item xs={11}><ExperimentSummary/></Grid>
-            <Grid item xs={12}>
-              <Chart chart_data={chart_growth_rate} fontScale={1.} title="Growth rate" yAxisLabel="Growth rate, h⁻¹"/>
+
+            <Grid item xs={1}/>
+            <Grid item xs={11}>
+              <Chart chart_data={chart_growth_rate} fontScale={1.} title="Implied growth rate" yAxisLabel="Growth rate, h⁻¹"/>
             </Grid>
 
-            <Grid item xs={12}>
-              <Chart chart_data={chart_growth_rate} fontScale={1.} title="Alternate media fraction" yAxisLabel="Fraction"/>
+            <Grid item xs={1}/>
+            <Grid item xs={11}>
+              <Chart chart_data={chart_growth_rate} fontScale={1.} title="Fraction of volume that is alternative media" yAxisLabel="Fraction"/>
             </Grid>
 
-            <Grid item xs={6}>
-              <ODChart chart_data={chart_data135} fontScale={1.6} title="135° optical density" yAxisLabel="Optical density (AU)"/>
-            </Grid>
-            <Grid item xs={6}>
-              <ODChart chart_data={chart_data90} fontScale={1.6} title="90° optical density" yAxisLabel="Optical density (AU)"/>
+            <Grid item xs={1}/>
+            <Grid item container xs={11} direction="row" spacing={0}>
+              <Grid item xs={6}>
+                <ODChart chart_data={chart_data135} fontScale={1.7} title="135° optical density" yAxisLabel="Optical density (AU)"/>
+              </Grid>
+              <Grid item xs={6}>
+                <ODChart chart_data={chart_data90} fontScale={1.7} title="90° optical density" yAxisLabel="Optical density (AU)"/>
+              </Grid>
+
             </Grid>
           </Grid>
 
@@ -327,7 +338,10 @@ class App extends React.Component {
             <Grid item xs={1}/>
             <Grid item xs={5}><UnitCards units={[1,3,5]}/></Grid>
             <Grid item xs={5}><UnitCards units={[2,4,6]}/></Grid>
-            <Grid item xs={11}>
+            <Grid item xs={1}/>
+
+            <Grid item xs={1}/>
+            <Grid item xs={10}>
               <LogTable logs={log_data} />
             </Grid>
             <Grid item xs={1}/>

@@ -94,10 +94,10 @@ class UnitSettingDisplay extends React.Component {
 
   constructor(props) {
     super(props);
-    this.state = {msg: this.props.default};
+    this.state = {msg: this.props.default, isActive: this.props.isActive};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
-
+    console.log(this.state.isActive)
   }
 
   componentDidMount() {
@@ -123,7 +123,7 @@ class UnitSettingDisplay extends React.Component {
         return <div style={{color: "#4caf50"}}>On </div>
       }
       else{
-        return <div style={{color: "#f44336"}}>Off </div>
+        return <div style={{color: this.state.isActive ? "#f44336" : "grey"}}> Off </div>
       }
     }
     else{
@@ -204,8 +204,8 @@ function UnitCard(props) {
         <Typography variant="body2" component="p">
           Pause or start the optical density reading. This will also pause downstream jobs that rely on optical density readings, like growth rates.
         </Typography>
-        <Button disableElevation color="secondary" onClick={setPauseState("od_reading", 1)}>Pause OD reading</Button>
-        <Button disableElevation color="primary" onClick={setPauseState("od_reading", 0)}>Restart OD reading</Button>
+        <Button disableElevation color="secondary" onClick={setPauseState("od_reading", 1)}>Pause</Button>
+        <Button disableElevation color="primary" onClick={setPauseState("od_reading", 0)}>Restart</Button>
       <Divider className={classes.divider} />
         <Typography color="textSecondary" gutterBottom>
           Input/Output Events
@@ -213,8 +213,8 @@ function UnitCard(props) {
         <Typography variant="body2" component="p">
           Pause media input/output events from occuring, or restart them.
         </Typography>
-        <Button disableElevation color="secondary" onClick={setPauseState("io_controlling", 1)}>Pause IO events</Button>
-        <Button disableElevation color="primary" onClick={setPauseState("io_controlling", 0)}>Restart IO events</Button>
+        <Button disableElevation color="secondary" onClick={setPauseState("io_controlling", 1)}>Pause</Button>
+        <Button disableElevation color="primary" onClick={setPauseState("io_controlling", 0)}>Restart</Button>
       <Divider  className={classes.divider} />
         <Typography color="textSecondary" gutterBottom>
           Stirring
@@ -236,7 +236,7 @@ function UnitCard(props) {
         <Typography className={classes.footnote} color="textSecondary">
           Default values are defined in the <code>config.ini</code> file.
         </Typography>
-      <Divider  className={classes.divider} />
+      <Divider className={classes.divider} />
         <Typography color="textSecondary" gutterBottom>
           Volume per dilution
         </Typography>
@@ -246,7 +246,7 @@ function UnitCard(props) {
         <TextField size="small" id="io_controlling/volume" label="mL" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
       <Divider  className={classes.divider} />
       <Typography color="textSecondary" gutterBottom>
-          Target Optical Density
+          Target optical density
         </Typography>
         <Typography variant="body2" component="p">
           Change the target optical density.
@@ -254,12 +254,12 @@ function UnitCard(props) {
         <TextField size="small" id="io_controlling/target_od" label="optical density" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
       <Divider  className={classes.divider} />
       <Typography color="textSecondary" gutterBottom>
-          Target Growth Rate
+          Target growth rate
         </Typography>
         <Typography variant="body2" component="p">
           Change the target growth rate - only applicable in <code>morbidostat</code> mode.
         </Typography>
-        <TextField size="small" id="io_controlling/target_growth_rate" label="growth rate" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
+        <TextField size="small" id="io_controlling/target_growth_rate" label="h⁻¹" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
       <Divider  className={classes.divider} />
      </CardContent>
     </Card>
@@ -275,23 +275,23 @@ function UnitCard(props) {
         </Typography>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Stirring:</Typography>
-          <UnitSettingDisplay default={0} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Optical density reading:</Typography>
-          <UnitSettingDisplay className={classes.alignRight} isBinaryPause job="od_reading" attr="pause" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} isBinaryPause job="od_reading" attr="pause" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">IO events:</Typography>
-          <UnitSettingDisplay className={classes.alignRight} isBinaryPause job="io_controlling" attr="pause" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isActive={isActive} className={classes.alignRight} isBinaryPause job="io_controlling" attr="pause" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target optical density:</Typography>
-          <UnitSettingDisplay default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target growth rate: </Typography>
-          <UnitSettingDisplay default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
         </div>
       </CardContent>
       <CardActions>
