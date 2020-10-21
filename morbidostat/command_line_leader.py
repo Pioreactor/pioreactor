@@ -26,7 +26,7 @@ def checksum_git(s):
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0]
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
-    assert checksum_worker == checksum_leader, f"checksum on git failed"
+    assert checksum_worker == checksum_leader, f"checksum on git failed, {checksum_worker}, {checksum_leader}"
 
 
 def setup_workers(extra_args):
