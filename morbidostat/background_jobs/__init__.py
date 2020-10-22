@@ -52,7 +52,7 @@ class BackgroundJob:
 
     def set_currently_active_and_last_will(self):
         topic = f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/active"
-        last_will = {"topic": topic, "payload": 0, "qos": QOS.EXACTLY_ONCE, retain: True}
+        last_will = {"topic": topic, "payload": 0, "qos": QOS.EXACTLY_ONCE, "retain": True}
         publish(topic, 1, qos=QOS.EXACTLY_ONCE, will=last_will, retain=True)
 
     def start_passive_listeners(self):
