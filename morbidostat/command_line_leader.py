@@ -91,15 +91,18 @@ def run_mb_command(job, units, y, extra_args):
     s.load_system_host_keys()
 
     for unit in units:
-        print(f"Executing on {unit}...")
         s.connect(unit, username="pi")
 
         try:
             checksum_git(s)
         except AssertionError as e:
             print(e)
-            continue
+            return
+        s.close()
 
+    for unit in units:
+        print(f"Executing on {unit}...")
+        s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
             print(unit + ":" + line)
