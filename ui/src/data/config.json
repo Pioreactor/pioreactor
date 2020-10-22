@@ -17,9 +17,9 @@
     "alt_media_testing_ml_calibration": "{\"duration_\": 1}"
   },
   "stirring": {
-    "duty_cycle1": "32",
+    "duty_cycle1": "30",
     "duty_cycle2": "15",
-    "duty_cycle3": "-1",
+    "duty_cycle3": "30",
     "duty_cycle_testing": "50"
   },
   "od_config": {

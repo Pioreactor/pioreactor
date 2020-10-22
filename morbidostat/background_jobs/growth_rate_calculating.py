@@ -48,7 +48,7 @@ def get_initial_rate(experiment, unit):
         return float(test_mqtt.stdout.strip())
 
 
-def get_od_normalization_factors(experiment, unit):
+def get_od_normalization_factors(experiment, unit, desired_angles):
     """
     This is a hack to use a timeout (not available in paho-mqtt) to
     see if a value is present in the MQTT cache (retained message)
@@ -60,7 +60,11 @@ def get_od_normalization_factors(experiment, unit):
     if test_mqtt.stdout == b"":
         return None
     else:
-        return json.loads(test_mqtt.stdout.strip())
+        propsed_factors = json.loads(test_mqtt.stdout.strip())
+        for angle in desired_angles:
+            if angle not in propsed_factors:
+                return None
+        return propsed_factors
 
 
 @log_start(unit, experiment)
@@ -79,7 +83,7 @@ def growth_rate_calculating(verbose=0):
         initial_rate = np.exp(get_initial_rate(experiment, unit) / 60 / samples_per_minute)
 
         first_N_observations = {angle_label: [] for angle_label in angles_and_intial_points.keys()}
-        od_normalization_factors = get_od_normalization_factors(experiment, unit)
+        od_normalization_factors = get_od_normalization_factors(experiment, unit, angles_and_intial_points.keys())
 
         initial_state = np.array([*angles_and_intial_points.values(), initial_rate])
         d = initial_state.shape[0]
