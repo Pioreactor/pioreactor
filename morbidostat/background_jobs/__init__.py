@@ -33,6 +33,11 @@ class BackgroundJob:
         previous_value = getattr(self, attr)
         # make sure to cast the input to the same value
         setattr(self, attr, type(previous_value)(new_value))
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/log",
+            f"Updated {self.job_name}.{attr} from {previous_value} to {getattr(self, attr)}.",
+            verbose=self.verbose,
+        )
         self.publish_attr(attr)
 
     def publish_initialized_attrs(self):

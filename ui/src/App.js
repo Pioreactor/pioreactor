@@ -293,10 +293,10 @@ ${Math.round(d.datum.y * 1000)/1000}`}
   }
 }
 
-const chart_data90 = require('./data/chart_data90.json')[0];
-const chart_data135 = require('./data/chart_data135.json')[0];
+const chart_data90 = require('./data/implied_90.json')[0];
+const chart_data135 = require('./data/implied_135.json')[0];
 const chart_growth_rate = require('./data/implied_growth_rate.json')[0];
-const log_data = require('./data/all_morbidostat.log.json');
+const listOfLogs = require('./data/all_morbidostat.log.json');
 
 class App extends React.Component {
   render() {
@@ -342,7 +342,7 @@ class App extends React.Component {
 
             <Grid item xs={1}/>
             <Grid item xs={10}>
-              <LogTable logs={log_data} />
+              <LogTable listOfLogs={listOfLogs} />
             </Grid>
             <Grid item xs={1}/>
           </Grid>

@@ -21,29 +21,57 @@ const useStyles = makeStyles({
   }
 });
 
-function LogTable(props) {
-    const classes = useStyles();
+class LogTable extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {listOfLogs: this.props.listOfLogs};
+    this.onConnect = this.onConnect.bind(this);
+    this.onMessageArrived = this.onMessageArrived.bind(this);
+    console.log(this.state.isUnitActive)
+  }
+
+  componentDidMount() {
+    // need to have unique clientIds
+    this.client = new Client("leader.local", 9001, "webui-logtable");
+    this.client.connect({'onSuccess': this.onConnect});
+    this.client.onMessageArrived = this.onMessageArrived;
+  }
+
+  onConnect() {
+      this.client.subscribe("morbidostat/+/" + "Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0" + "/log")
+  }
+
+  onMessageArrived(message) {
+      this.state.listOfLogs.pop()
+      const unit = message.topic.split("/")[1]
+      this.state.listOfLogs.unshift({timestamp: "Oct 22 10:06:45.217", unit: unit, message: message.payloadString})
+      this.setState({
+        listOfLogs: this.state.listOfLogs
+      });
+  }
+
+  render(){
     return (
       <Card>
         <TableContainer style={{ height: "500px", width: "100%", overflowY: "scroll"}}>
           <Table stickyHeader size="small" aria-label="log table">
              <TableHead>
               <TableRow>
-                <TableCell align="center" colSpan={3} className={classes.headerCell}> Event logs </TableCell>
+                <TableCell align="center" colSpan={3} className=""> Event logs </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className={classes.tightCell, classes.headerCell}>Timestamp</TableCell>
-                <TableCell className={classes.tightCell, classes.headerCell}>Message</TableCell>
-                <TableCell className={classes.tightCell, classes.headerCell}>Unit</TableCell>
+                <TableCell className="">Timestamp</TableCell>
+                <TableCell className="">Message</TableCell>
+                <TableCell className="">Unit</TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
-              {props.logs.map((log, i) => (
+              {this.state.listOfLogs.map((log, i) => (
                 <TableRow key={i}>
-                  <TableCell className={classes.tightCell}> {moment(log['timestamp'], 'MMM D HH:mm:ss.SSS').format('HH:mm:ss')} </TableCell>
-                  <TableCell className={classes.tightCell}> {log.message} </TableCell>
-                  <TableCell className={classes.tightCell}>{log.unit}</TableCell>
+                  <TableCell className=""> {moment(log.timestamp, 'MMM D HH:mm:ss.SSS').format('HH:mm:ss')} </TableCell>
+                  <TableCell className=""> {log.message} </TableCell>
+                  <TableCell className="">{log.unit}</TableCell>
                 </TableRow>
                 ))
               }
@@ -51,7 +79,8 @@ function LogTable(props) {
           </Table>
         </TableContainer>
       </Card>
-)}
+  )}
+}
 
 
 
