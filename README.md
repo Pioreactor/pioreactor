@@ -66,7 +66,7 @@ How to use the morbidostat
  - [ ] change password
  - [ ] push ssh keys?
  - [ ] tell leader about unit, and tell unit about leader
- - [ ] add websockets to leader mqtt: https://pypi.org/project/paho-mqtt/
+ - [ ] add websockets to leader mqtt
 
 ### Running
 
@@ -78,7 +78,7 @@ Running in the background (and append output to `morbidostat.log`)
 
 `mb <job or action> <options> --background`
 
-If you have many workers, you can run
+If you have many workers, you can run from the leader
 
 `mba <job or action> <options>`
 

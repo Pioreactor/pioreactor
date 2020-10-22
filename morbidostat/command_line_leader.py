@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
-# command line for running the same command on all workers,
-# > mba od_reading
-# > mba stirring
+"""
+command line for running the same command on all workers,
+
+> mba od_reading
+> mba stirring
+> mba sync
+> mba kill
+"""
+
 import importlib
 from subprocess import run
 import hashlib
@@ -30,7 +36,7 @@ def checksum_git(s):
     checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
     assert (
         checksum_worker == checksum_leader
-    ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Try running `mba sync` first."
+    ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `mba sync`"
 
 
 def sync_workers(extra_args):
@@ -50,10 +56,32 @@ def sync_workers(extra_args):
         print(f"Executing on {unit}...")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
+        # this pass line seems to be necessary
         for line in stderr.readlines():
             pass
         checksum_config_file(s)
         checksum_git(s)
+        s.close()
+
+
+def kill_workers(extra_args):
+    kill = "pkill python"
+    command = " && ".join([kill])
+
+    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
+    if confirm != "Y":
+        return
+
+    s = paramiko.SSHClient()
+    s.load_system_host_keys()
+
+    for unit in UNITS:
+        print(f"Executing on {unit}...")
+        s.connect(unit, username="pi")
+        (stdin, stdout, stderr) = s.exec_command(command)
+        # this pass line seems to be necessary
+        for line in stderr.readlines():
+            pass
         s.close()
 
 
@@ -98,6 +126,8 @@ def cli(job, extra_args):
 
     if job == "sync":
         return sync_workers(extra_args)
+    elif job == "kill":
+        return kill_workers(extra_args)
     else:
         return run_mb_command(job, extra_args)
 

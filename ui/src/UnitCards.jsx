@@ -156,14 +156,9 @@ function UnitCard(props) {
     const defaultStirring = config['stirring']["duty_cycle" + unitNumber]
 
     // MQTT
-    var client = new Client("localhost", 9001, "webui");
+    var client = new Client("localhost", 9001,  "webui" + Math.random());
 
-    client.connect({onSuccess:onConnect});
-
-    function onConnect() {
-      console.log("onConnect");
-    }
-
+    client.connect();
 
     function setPauseState(job, state) {
       return function () {

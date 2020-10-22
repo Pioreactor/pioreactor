@@ -26,7 +26,7 @@ systemd:
 	sudo systemctl enable growth_rate_calculating.service
 
 install-mobrbidostat:
-	pip3 install -r requirements.txt
+	pip3 install -r requirments/requirements.txt
 	sudo python3 setup.py install
 
 install-worker: install-python install-mqtt configure-rpi systemd install-i2c install-mobrbidostat
@@ -45,7 +45,7 @@ configure-rpi:
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
 install-leader: install-python install-mqtt configure-rpi install-db install-nodered install-mobrbidostat
-	pip3 install pandas
+	pip3 install -r requirments/requirements_leader.txt
 
 view:
 	ps x | grep python3

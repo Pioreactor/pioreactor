@@ -1,0 +1,4 @@
+-r requirements.txt
+-r requirements_leader.txt
+pytest
+fake-rpi

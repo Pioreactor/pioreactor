@@ -5,10 +5,6 @@ RPi.GPIO
 click
 paho-mqtt
 simple-pid
-paramiko
 
 # testing
 fake-rpi
-
-
-# optional: pandas, scipy

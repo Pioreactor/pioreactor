@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 
-with open("requirements.txt") as f:
+with open("requirements/requirements.txt") as f:
     REQUIREMENTS = f.read().splitlines()
 
 
@@ -10,13 +10,12 @@ setup(
     version="0.1.dev0",
     license="MIT",
     long_description=open("README.md").read(),
-    install_requires=["click"],
+    install_requires=REQUIREMENTS,
     include_package_data=True,
     package_data={"morbidostat": ["config.ini"]},
     packages=find_packages(exclude=["*.tests", "*.tests.*", "*benchmarks*"]),
     entry_points="""
         [console_scripts]
-        morbidostat=morbidostat.command_line_worker:cli
         mb=morbidostat.command_line_worker:cli
         mba=morbidostat.command_line_leader:cli
     """,
