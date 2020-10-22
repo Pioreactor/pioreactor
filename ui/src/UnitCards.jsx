@@ -126,7 +126,7 @@ class UnitSettingDisplay extends React.Component {
           return <div style={{color: "#4caf50"}}> On </div>
         }
         else if (this.state.msg === "0") {
-          return <div style={{color: "#f44336"}}> On </div>
+          return <div style={{color: "#f44336"}}> Off </div>
         }
         else{
           return <div style={{color: "grey"}}> {this.state.msg} </div>
