@@ -19,16 +19,6 @@ from morbidostat.whoami import am_I_leader
 UNITS = ["morbidostat1", "morbidostat2", "morbidostat3"]
 
 
-def checksum_config_file(s):
-    cksum_command = "cksum ~/morbidostat/morbidostat/config.ini"
-    (stdin, stdout, stderr) = s.exec_command(cksum_command)
-    checksum_worker = stdout.readlines()[0].split(" ")[0].strip()
-    checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip().split(" ")[0]
-    assert (
-        checksum_worker == checksum_leader
-    ), f"checksum on config.ini failed, {checksum_worker}, {checksum_leader}. Try running `mba sync` first."
-
-
 def checksum_git(s):
     cksum_command = "cd ~/morbidostat/ && git rev-parse HEAD"
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
@@ -61,7 +51,6 @@ def sync_workers(y, extra_args):
         # this pass line seems to be necessary
         for line in stderr.readlines():
             pass
-        checksum_config_file(s)
         checksum_git(s)
         s.close()
 
@@ -106,7 +95,6 @@ def run_mb_command(job, y, extra_args):
         s.connect(unit, username="pi")
 
         try:
-            checksum_config_file(s)
             checksum_git(s)
         except AssertionError as e:
             print(e)
