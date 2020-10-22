@@ -40,6 +40,7 @@ class BackgroundJob:
         for attr in self.publish_out:
             if hasattr(self, attr):
                 self.publish_attr(attr)
+        self.publish_attr("active")
 
     def publish_attr(self, attr):
         publish(
@@ -51,9 +52,15 @@ class BackgroundJob:
         )
 
     def set_currently_active_and_last_will(self):
-        topic = f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/active"
-        last_will = {"topic": topic, "payload": 0, "qos": QOS.EXACTLY_ONCE, "retain": True}
-        publish(topic, 1, qos=QOS.EXACTLY_ONCE, will=last_will, retain=True)
+        publish(topic, 1, qos=QOS.EXACTLY_ONCE, retain=True, will=last_will)
 
     def start_passive_listeners(self):
-        subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set")
+        # also starts the last will
+        last_will = {
+            "topic": f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/active",
+            "payload": 0,
+            "qos": QOS.EXACTLY_ONCE,
+            "retain": True,
+        }
+
+        subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set", will=last_will)
