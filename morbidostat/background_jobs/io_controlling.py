@@ -35,21 +35,20 @@ class ControlAlgorithm(BackgroundJob):
 
     latest_growth_rate = None
     latest_od = None
-    publish_out = ["pause", "volume", "target_od", "target_growth_rate", "sensor"]
+    publish_out = ["volume", "target_od", "target_growth_rate", "sensor"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         self.unit = unit
         self.verbose = verbose
         self.experiment = experiment
         self.sensor = sensor
-        self.pause = 0
 
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
     def run(self, counter=None):
-        if self.pause == 1:
-            return events.NoEvent("Paused. Set `pause` to 0 to start again.")
+        if self.active == 0:
+            return events.NoEvent("Paused. Set `active` to 0 to start again.")
 
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             print(self.latest_growth_rate, self.latest_od)

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from morbidostat.pubsub import subscribe_and_callback
 from morbidostat import utils
-from morbidostat.pubsub import publish
+from morbidostat.pubsub import publish, QOS
 
 
 class BackgroundJob:
@@ -21,7 +21,9 @@ class BackgroundJob:
         self.verbose = verbose
         self.experiment = experiment
         self.unit = unit
+        self.active = 1
         self.publish_initialized_attrs()
+        self.set_currently_active_and_last_will()
 
     def set_attr(self, message):
         new_value = message.payload
@@ -32,27 +34,26 @@ class BackgroundJob:
         previous_value = getattr(self, attr)
         # make sure to cast the input to the same value
         setattr(self, attr, type(previous_value)(new_value))
-        publish(
-            f"morbidostat/{self.unit}/{self.experiment}/log",
-            f"Updated {self.job_name}.{attr} from {previous_value} to {getattr(self, attr)}.",
-            verbose=self.verbose,
-        )
+        self.publish_attr(attr)
+
+    def publish_initialized_attrs(self):
+        for attr in self.publish_out:
+            if hasattr(self, attr):
+                self.publish_attr(attr)
+
+    def publish_attr(self, attr):
         publish(
             f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
             getattr(self, attr),
             verbose=self.verbose,
             retain=True,
+            qos=QOS.EXACTLY_ONCE,
         )
 
-    def publish_initialized_attrs(self):
-        for attr in self.publish_out:
-            if hasattr(self, attr):
-                publish(
-                    f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                    getattr(self, attr),
-                    verbose=self.verbose,
-                    retain=True,
-                )
+    def set_currently_active_and_last_will(self):
+        topic = f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/active"
+        last_will = {"topic": topic, "payload": 0, "qos": QOS.EXACTLY_ONCE}
+        publish(topic, 1, qos=QOS.EXACTLY_ONCE, will=last_will)
 
     def start_passive_listeners(self):
         subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set")

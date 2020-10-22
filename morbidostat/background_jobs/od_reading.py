@@ -63,8 +63,6 @@ class ODReader(BackgroundJob):
 
     """
 
-    publish_out = ["pause"]
-
     def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
         self.unit = unit
         self.experiment = experiment
@@ -77,13 +75,11 @@ class ODReader(BackgroundJob):
             ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
             self.od_channels[label] = ai
 
-        self.pause = 0
-
         super(ODReader, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
     def take_reading(self, counter=None):
-        while self.pause == 1:
+        while self.active == 0:
             time.sleep(0.5)
 
         try:

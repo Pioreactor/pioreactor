@@ -10,7 +10,7 @@ import threading
 
 import click
 
-from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
+from morbidostat.pubsub import publish, subscribe_and_callback, QOS
 from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
@@ -101,6 +101,7 @@ class AltMediaCalculator:
             self.latest_alt_media_fraction,
             verbose=self.verbose,
             retain=True,
+            qos=QOS.AT_LEAST_ONCE,
         )
 
         return self.latest_alt_media_fraction

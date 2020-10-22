@@ -94,15 +94,15 @@ class UnitSettingDisplay extends React.Component {
 
   constructor(props) {
     super(props);
-    this.state = {msg: this.props.default, isActive: this.props.isActive};
+    this.state = {msg: this.props.default, isUnitActive: this.props.isUnitActive};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
-    console.log(this.state.isActive)
+    console.log(this.state.isUnitActive)
   }
 
   componentDidMount() {
     // need to have unique clientIds
-    this.client = new Client("localhost", 9001, "webui" + Math.random());
+    this.client = new Client("leader.local", 9001, "webui" + Math.random());
     this.client.connect({'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;
   }
@@ -118,12 +118,12 @@ class UnitSettingDisplay extends React.Component {
   }
 
   render(){
-    if (this.props.isBinaryPause) {
-      if (this.state.msg === "0"){
+    if (this.props.isBinaryActive) {
+      if (this.state.msg === "1"){
         return <div style={{color: "#4caf50"}}>On </div>
       }
       else{
-        return <div style={{color: this.state.isActive ? "#f44336" : "grey"}}> Off </div>
+        return <div style={{color: this.state.isUnitActive ? "#f44336" : "grey"}}> Off </div>
       }
     }
     else{
@@ -138,7 +138,7 @@ class UnitSettingDisplay extends React.Component {
 function UnitCard(props) {
   const classes = useStyles();
   const unitName = props.name;
-  const isActive = props.isActive
+  const isUnitActive = props.isUnitActive
   const unitNumber = unitName.slice(-1);
   const [modalStyle] = React.useState(getModalStyle);
   const [open, setOpen] = React.useState(false);
@@ -156,22 +156,24 @@ function UnitCard(props) {
     const defaultStirring = config['stirring']["duty_cycle" + unitNumber]
 
     // MQTT
-    var client = new Client("localhost", 9001,  "webui" + Math.random());
+    var client = new Client("leader.local", 9001,  "webui" + Math.random());
 
     client.connect();
 
-    function setPauseState(job, state) {
+    function setActiveState(job, state) {
       return function () {
         var message = new Message(String(state));
-        message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job + "/pause";
-        client.send(message);
+        message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job + "/active/set";
+        message.qos = 2
+        client.publish(message);
       };
     }
 
     function setMorbidostatJobState(job_attr, value) {
         var message = new Message(String(value));
-        message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job_attr ;
-        client.send(message);
+        message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job_attr + "/set" ;
+        message.qos = 2
+        client.publish(message);
     }
 
     function setMorbidostatJobStateOnEnter(e) {
@@ -199,8 +201,8 @@ function UnitCard(props) {
         <Typography variant="body2" component="p">
           Pause or start the optical density reading. This will also pause downstream jobs that rely on optical density readings, like growth rates.
         </Typography>
-        <Button disableElevation color="secondary" onClick={setPauseState("od_reading", 1)}>Pause</Button>
-        <Button disableElevation color="primary" onClick={setPauseState("od_reading", 0)}>Restart</Button>
+        <Button disableElevation color="secondary" onClick={setActiveState("od_reading", 0)}>Pause</Button>
+        <Button disableElevation color="primary" onClick={setActiveState("od_reading", 1)}>Restart</Button>
       <Divider className={classes.divider} />
         <Typography color="textSecondary" gutterBottom>
           Input/Output Events
@@ -208,8 +210,8 @@ function UnitCard(props) {
         <Typography variant="body2" component="p">
           Pause media input/output events from occuring, or restart them.
         </Typography>
-        <Button disableElevation color="secondary" onClick={setPauseState("io_controlling", 1)}>Pause</Button>
-        <Button disableElevation color="primary" onClick={setPauseState("io_controlling", 0)}>Restart</Button>
+        <Button disableElevation color="secondary" onClick={setActiveState("io_controlling", 0)}>Pause</Button>
+        <Button disableElevation color="primary" onClick={setActiveState("io_controlling", 1)}>Restart</Button>
       <Divider  className={classes.divider} />
         <Typography color="textSecondary" gutterBottom>
           Stirring
@@ -261,34 +263,34 @@ function UnitCard(props) {
   )};
 
   return (
-    <Card className={classes.root} variant={!isActive ? "outlined" : null}>
+    <Card className={classes.root} variant={!isUnitActive ? "outlined" : null}>
       <CardContent className={classes.content}>
-        <Typography className={isActive ? classes.unitTitle : classes.unitTitleDisable}>
+        <Typography className={isUnitActive ? classes.unitTitle : classes.unitTitleDisable}>
           {unitName}
         </Typography>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Stirring:</Typography>
-          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Optical density reading:</Typography>
-          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} isBinaryPause job="od_reading" attr="pause" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">IO events:</Typography>
-          <UnitSettingDisplay isActive={isActive} className={classes.alignRight} isBinaryPause job="io_controlling" attr="pause" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isUnitActive={isUnitActive} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target optical density:</Typography>
-          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target growth rate: </Typography>
-          <UnitSettingDisplay isActive={isActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
+          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
         </div>
       </CardContent>
       <CardActions>
-        <Button size="small" color="primary" disabled={!isActive} onClick={handleOpen}>Settings</Button>
+        <Button size="small" color="primary" disabled={!isUnitActive} onClick={handleOpen}>Settings</Button>
           <Modal
             open={open}
             onClose={handleClose}
@@ -309,7 +311,7 @@ function UnitCards(props) {
     return (
     <div>
       {props.units.map((unit) =>
-      <UnitCard name={"morbidostat" + unit} isActive={[1, 2, 3].includes(unit)} />
+      <UnitCard name={"morbidostat" + unit} isUnitActive={[1, 2, 3].includes(unit)} />
     )}
     </div>
     )

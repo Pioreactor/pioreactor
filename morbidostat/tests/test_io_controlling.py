@@ -190,11 +190,11 @@ def test_pause_in_io_controlling():
 
     algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     pause()
-    pubsub.publish("morbidostat/_testing_unit/_testing_experiment/io_controlling/pause/set", 1)
+    pubsub.publish("morbidostat/_testing_unit/_testing_experiment/io_controlling/active/set", 1)
     pause()
-    assert algo.pause == 1
+    assert algo.active == 1
     assert isinstance(algo.run(), events.NoEvent)
 
-    pubsub.publish("morbidostat/_testing_unit/_testing_experiment/io_controlling/pause/set", 0)
+    pubsub.publish("morbidostat/_testing_unit/_testing_experiment/io_controlling/active/set", 0)
     pause()
-    assert algo.pause == 0
+    assert algo.active == 0

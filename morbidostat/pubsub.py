@@ -2,12 +2,19 @@
 # pubsub
 import socket
 import threading
+from enum import Enum
 import time
 import traceback
 from click import echo, style
 from paho.mqtt import publish as mqtt_publish
 from paho.mqtt import subscribe as mqtt_subscribe
 from morbidostat.config import leader_hostname
+
+
+class QOS(Enum):
+    AT_MOST_ONCE = 0
+    AT_LEAST_ONCE = 1
+    EXACTLY_ONCE = 2
 
 
 def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs):
