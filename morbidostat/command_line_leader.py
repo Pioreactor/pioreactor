@@ -40,6 +40,7 @@ def checksum_git(s):
 
 
 def sync_workers(extra_args):
+    # parallelize thisF
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
     sync = "sudo python3 setup.py install"

@@ -2,7 +2,6 @@
 # pubsub
 import socket
 import threading
-from enum import Enum
 import time
 import traceback
 from click import echo, style
@@ -11,7 +10,7 @@ from paho.mqtt import subscribe as mqtt_subscribe
 from morbidostat.config import leader_hostname
 
 
-class QOS(Enum):
+class QOS:
     AT_MOST_ONCE = 0
     AT_LEAST_ONCE = 1
     EXACTLY_ONCE = 2
