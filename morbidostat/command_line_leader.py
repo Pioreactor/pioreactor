@@ -123,7 +123,7 @@ def cli(job, y, units, extra_args):
     elif job == "kill":
         return kill_workers(units, y, extra_args)
     else:
-        return run_mb_command(units, job, y, extra_args)
+        return run_mb_command(job, units, y, extra_args)
 
 
 if __name__ == "__main__":
