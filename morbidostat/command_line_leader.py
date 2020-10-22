@@ -43,7 +43,7 @@ def sync_workers(units, y, extra_args):
     s = paramiko.SSHClient()
     s.load_system_host_keys()
 
-    for unit in unit:
+    for unit in units:
         print(f"Executing on {unit}...")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
