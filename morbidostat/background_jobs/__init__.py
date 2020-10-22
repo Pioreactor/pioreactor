@@ -23,7 +23,6 @@ class BackgroundJob:
         self.unit = unit
         self.active = 1
         self.publish_initialized_attrs()
-        self.set_currently_active_and_last_will()
 
     def set_attr(self, message):
         new_value = message.payload
@@ -50,9 +49,6 @@ class BackgroundJob:
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
-
-    def set_currently_active_and_last_will(self):
-        publish(topic, 1, qos=QOS.EXACTLY_ONCE, retain=True, will=last_will)
 
     def start_passive_listeners(self):
         # also starts the last will
