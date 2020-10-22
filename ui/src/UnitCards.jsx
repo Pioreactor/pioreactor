@@ -97,7 +97,6 @@ class UnitSettingDisplay extends React.Component {
     this.state = {msg: this.props.default, isUnitActive: this.props.isUnitActive};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
-    console.log(this.state.isUnitActive)
   }
 
   componentDidMount() {
@@ -108,7 +107,7 @@ class UnitSettingDisplay extends React.Component {
   }
 
   onConnect() {
-      this.client.subscribe("morbidostat/" + this.props.unitNumber + "/" + "Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0" + "/" + this.props.job + "/" + this.props.attr)
+      this.client.subscribe("morbidostat/" + this.props.unitNumber + "/" + "Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0" + "/" + this.props.job + "/" + this.props.attr, {qos: 1})
   }
 
   onMessageArrived(message) {
@@ -119,11 +118,19 @@ class UnitSettingDisplay extends React.Component {
 
   render(){
     if (this.props.isBinaryActive) {
-      if (this.state.msg === "1"){
-        return <div style={{color: "#4caf50"}}>On </div>
+      if (!this.state.isUnitActive) {
+        return <div style={{color: "grey"}}> {this.state.msg} </div>
       }
-      else{
-        return <div style={{color: this.state.isUnitActive ? "#f44336" : "grey"}}> Off </div>
+      else {
+        if (this.state.msg === "1"){
+          return <div style={{color: "#4caf50"}}> On </div>
+        }
+        else if (this.state.msg === "0") {
+          return <div style={{color: "#f44336"}}> On </div>
+        }
+        else{
+          return <div style={{color: "grey"}}> {this.state.msg} </div>
+        }
       }
     }
     else{
@@ -281,8 +288,8 @@ function UnitCard(props) {
           <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">IO events:</Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
+          <Typography className={classes.alignLeft} color="textPrimary">IO events:</Typography>
+          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target optical density:</Typography>

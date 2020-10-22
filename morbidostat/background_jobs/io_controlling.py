@@ -174,8 +174,9 @@ class PIDMorbidostat(ControlAlgorithm):
 
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
         self.target_growth_rate = target_growth_rate
-        self.min_od = 0.75 * target_od
-        self.max_od = 1.1 * target_od
+        self.target_od = target_od
+        self.min_od = 0.75 * self.target_od
+        self.max_od = 1.1 * self.target_od
         self.duration = duration
         self.verbose = verbose
         self.pid = PID(

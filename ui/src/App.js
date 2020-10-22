@@ -207,8 +207,11 @@ class ODChart extends React.Component {
     let min_timestamp = moment(x_y_data[0][0]['x'], 'x')
     let max_timestamp = moment(x_y_data[0].slice(-1)[0]['x'], 'x')
     let delta_ts = max_timestamp.diff(min_timestamp, 'hours')
-    let display_ts_format = ((delta_ts >= 16)
-      ?  ((delta_ts >= 72) ? 'DD HH' : 'dd HH:mm') : 'H:mm'
+    let axis_display_ts_format = ((delta_ts >= 16)
+      ?  ((delta_ts >= 5 * 24) ? 'MMM DD' : 'dd HH:mm') : 'H:mm'
+    )
+    let tooltip_display_ts_format = ((delta_ts >= 16)
+      ?  ((delta_ts >= 5 * 24) ? 'MMM DD HH:mm' : 'dd HH:mm') : 'H:mm'
     )
 
     for (let i = 0; i < nLines; i++) {
@@ -237,7 +240,7 @@ class ODChart extends React.Component {
         theme={VictoryTheme.material}
         containerComponent={
           <VictoryVoronoiContainer
-            labels={(d) => `${moment(d.datum.x, 'x').format(display_ts_format)}
+            labels={(d) => `${moment(d.datum.x, 'x').format(tooltip_display_ts_format)}
 ${Math.round(d.datum.y * 1000)/1000}`}
             labelComponent={<VictoryTooltip
               cornerRadius={0}
@@ -249,7 +252,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         >
         <VictoryLabel text={this.props.title} x={350} y={20} textAnchor="middle" style={{fontSize: 13 * this.props.fontScale}}/>
         <VictoryAxis
-          tickFormat={(mt) => mt.format(display_ts_format)}
+          tickFormat={(mt) => mt.format(axis_display_ts_format)}
           tickValues={linspace(x_y_data[0][0]['x'], x_y_data[0].slice(-1)[0]['x'] + 100000, 6).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
           style={{
             tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
