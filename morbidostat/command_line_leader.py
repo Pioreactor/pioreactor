@@ -16,7 +16,7 @@ import click
 import paramiko
 from morbidostat.whoami import am_I_leader
 
-UNITS = ["morbidostat2", "morbidostat3"]
+UNITS = ["morbidostat1", "morbidostat2", "morbidostat3"]
 
 
 def checksum_config_file(s):
