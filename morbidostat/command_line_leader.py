@@ -39,16 +39,17 @@ def checksum_git(s):
     ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `mba sync`"
 
 
-def sync_workers(extra_args):
+def sync_workers(y, extra_args):
     # parallelize thisF
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
     sync = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, sync])
 
-    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
-    if confirm != "Y":
-        return
+    if not y:
+        confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
+        if confirm != "Y":
+            return
 
     s = paramiko.SSHClient()
     s.load_system_host_keys()
@@ -65,13 +66,14 @@ def sync_workers(extra_args):
         s.close()
 
 
-def kill_workers(extra_args):
+def kill_workers(y, extra_args):
     kill = "pkill python"
     command = " && ".join([kill])
 
-    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
-    if confirm != "Y":
-        return
+    if not y:
+        confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
+        if confirm != "Y":
+            return
 
     s = paramiko.SSHClient()
     s.load_system_host_keys()
@@ -86,15 +88,16 @@ def kill_workers(extra_args):
         s.close()
 
 
-def run_mb_command(job, extra_args):
+def run_mb_command(job, y, extra_args):
     extra_args = list(extra_args)
 
     command = ["mb", job] + extra_args + ["-b"]
     command = " ".join(command)
 
-    confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
-    if confirm != "Y":
-        return
+    if not y:
+        confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
+        if confirm != "Y":
+            return
 
     s = paramiko.SSHClient()
     s.load_system_host_keys()
@@ -119,18 +122,19 @@ def run_mb_command(job, extra_args):
 
 @click.command(context_settings=dict(ignore_unknown_options=True))
 @click.argument("job")
+@click.option("-y", is_flag=True, help="skip asking for confirmation")
 @click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def cli(job, extra_args):
+def cli(job, y, extra_args):
     if not am_I_leader():
         print("workers cannot run morbidostat-all commands. Try `mb` instead.")
         return
 
     if job == "sync":
-        return sync_workers(extra_args)
+        return sync_workers(y, extra_args)
     elif job == "kill":
-        return kill_workers(extra_args)
+        return kill_workers(y, extra_args)
     else:
-        return run_mb_command(job, extra_args)
+        return run_mb_command(job, y, extra_args)
 
 
 if __name__ == "__main__":

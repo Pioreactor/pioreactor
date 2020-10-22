@@ -269,8 +269,12 @@ function UnitCard(props) {
           {unitName}
         </Typography>
         <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Stirring:</Typography>
+          <Typography className={classes.alignLeft}  color="textPrimary">Stirring speed:</Typography>
           <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
+        </div>
+        <div className={classes.textbox}>
+          <Typography className={classes.alignLeft}  color="textPrimary">Stirring:</Typography>
+          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="stirring" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Optical density reading:</Typography>
