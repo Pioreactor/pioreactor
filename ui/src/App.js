@@ -293,9 +293,10 @@ ${Math.round(d.datum.y * 1000)/1000}`}
   }
 }
 
-const chart_data90 = require('./data/implied_90.json')[0];
-const chart_data135 = require('./data/implied_135.json')[0];
-const chart_growth_rate = require('./data/implied_growth_rate.json')[0];
+const chartData90 = require('./data/implied_90.json')[0];
+const chartData135 = require('./data/implied_135.json')[0];
+const chartGrowthRate = require('./data/implied_growth_rate.json')[0];
+const chartAltMediaFraction = require('./data/alt_media_fraction.json')[0];
 const listOfLogs = require('./data/all_morbidostat.log.json');
 
 class App extends React.Component {
@@ -314,21 +315,21 @@ class App extends React.Component {
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chart_data={chart_growth_rate} fontScale={1.} title="Implied growth rate" yAxisLabel="Growth rate, h⁻¹"/>
+              <Chart chart_data={chartGrowthRate} fontScale={1.} title="Implied growth rate" yAxisLabel="Growth rate, h⁻¹"/>
             </Grid>
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chart_data={chart_growth_rate} fontScale={1.} title="Fraction of volume that is alternative media" yAxisLabel="Fraction"/>
+              <Chart chart_data={chartAltMediaFraction} fontScale={1.} title="Fraction of volume that is alternative media" yAxisLabel="Fraction"/>
             </Grid>
 
             <Grid item xs={1}/>
             <Grid item container xs={11} direction="row" spacing={0}>
               <Grid item xs={6}>
-                <ODChart chart_data={chart_data135} fontScale={1.7} title="135° optical density" yAxisLabel="Optical density (AU)"/>
+                <ODChart chart_data={chartData135} fontScale={1.7} title="135° optical density" yAxisLabel="Optical density (AU)"/>
               </Grid>
               <Grid item xs={6}>
-                <ODChart chart_data={chart_data90} fontScale={1.7} title="90° optical density" yAxisLabel="Optical density (AU)"/>
+                <ODChart chart_data={chartData90} fontScale={1.7} title="90° optical density" yAxisLabel="Optical density (AU)"/>
               </Grid>
 
             </Grid>
