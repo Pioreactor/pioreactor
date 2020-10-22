@@ -42,7 +42,7 @@ def checksum_git(s):
 def sync_workers(extra_args):
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
-    sync = "sudo python3 sync.py install"
+    sync = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, sync])
 
     confirm = input(f"Confirm running `{command}` on {UNITS}? Y/n: ").strip()
