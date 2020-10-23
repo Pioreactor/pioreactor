@@ -19,7 +19,7 @@ from morbidostat.utils import log_start, log_stop
 from morbidostat.utils.timing import every
 from morbidostat.utils.streaming_calculations import PID
 from morbidostat.whoami import unit, experiment
-from morbidostat.background_jobs.alt_media_calculator import AltMediaCalculator
+from morbidostat.background_jobs.utils.alt_media_calculator import AltMediaCalculator
 from morbidostat.background_jobs.utils import events
 from morbidostat.background_jobs import BackgroundJob
 
@@ -48,6 +48,7 @@ class ControlAlgorithm(BackgroundJob):
 
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
+        self.active == 1
 
     def run(self, counter=None):
         if self.active == 0:

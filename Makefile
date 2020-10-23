@@ -26,7 +26,7 @@ systemd:
 	sudo systemctl enable growth_rate_calculating.service
 
 install-mobrbidostat:
-	pip3 install -r requirments/requirements.txt
+	pip3 install -r requirments/requirements_worker.txt
 	sudo python3 setup.py install
 
 install-worker: install-python install-mqtt configure-rpi systemd install-i2c install-mobrbidostat
