@@ -41,9 +41,8 @@ class BackgroundJob:
         setattr(self, attr, type(previous_value)(new_value))
         publish(
             f"morbidostat/{self.unit}/{self.experiment}/log",
-            f"Updated {self.job_name}.{attr} from {previous_value} to {getattr(self, attr)}.",
+            f"[{self.job_name}] Updated {attr} from {previous_value} to {getattr(self, attr)}.",
             verbose=self.verbose,
-            qos=QOS.EXACTLY_ONCE,
         )
         self.publish_attr(attr)
 
