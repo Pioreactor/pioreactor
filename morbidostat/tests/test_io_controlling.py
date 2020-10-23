@@ -3,7 +3,7 @@ import time
 import pytest
 
 from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat, PIDTurbidostat
-from morbidostat.background_jobs import events
+from morbidostat.background_jobs.utils import events
 from morbidostat.whoami import unit, experiment
 from morbidostat import pubsub
 
@@ -189,13 +189,11 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter():
 def test_pause_in_io_controlling():
 
     algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
-    assert algo.active == 1
     pause()
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/active/set", 1)
-    pause()
-    assert algo.active == 1
-    assert isinstance(algo.run(), events.NoEvent)
-
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/active/set", 0)
     pause()
     assert algo.active == 0
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/active/set", 1)
+    pause()
+    assert algo.active == 1

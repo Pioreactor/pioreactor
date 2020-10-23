@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
+from collections import namedtuple
 from morbidostat.pubsub import subscribe_and_callback
 from morbidostat import utils
 from morbidostat.pubsub import publish, QOS
+
+
+def split_topic_for_setting(topic):
+    SetAttrSplitTopic = namedtuple("SetAttrSplitTopic", ["unit", "experiment", "job_name", "attr"])
+    v = topic.split("/")
+    assert len(v) == 6, "something is wrong"
+    return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
 class BackgroundJob:
@@ -14,8 +22,6 @@ class BackgroundJob:
 
     """
 
-    publish_out = []
-
     def __init__(self, job_name, verbose=0, experiment=None, unit=None):
         self.job_name = job_name
         self.verbose = verbose
@@ -26,7 +32,7 @@ class BackgroundJob:
 
     def set_attr(self, message):
         new_value = message.payload
-        info_from_topic = utils.split_topic_for_setting(message.topic)
+        info_from_topic = split_topic_for_setting(message.topic)
         attr = info_from_topic.attr
 
         assert hasattr(self, attr), f"{self.job_name} has no attr {attr}."

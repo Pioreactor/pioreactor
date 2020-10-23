@@ -43,12 +43,10 @@ class ControlAlgorithm(BackgroundJob):
         self.verbose = verbose
         self.experiment = experiment
         self.sensor = sensor
-        self.active = 1
         self.alt_media_calculator = AltMediaCalculator()
 
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
-        self.active == 1
 
     def run(self, counter=None):
         if self.active == 0:

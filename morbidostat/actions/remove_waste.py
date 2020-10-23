@@ -9,7 +9,7 @@ import RPi.GPIO as GPIO
 from morbidostat.utils import pump_ml_to_duration, pump_duration_to_ml
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
-from morbidostat.pubsub import publish
+from morbidostat.pubsub import publish, QOS
 
 
 def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
@@ -28,7 +28,10 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
         ml = pump_duration_to_ml(duration, duty_cycle, **loads(config["pump_calibration"][f"waste{unit}_ml_calibration"]))
 
     publish(
-        f"morbidostat/{unit}/{experiment}/io_events", '{"volume_change": -%0.4f, "event": "remove_waste"}' % ml, verbose=verbose
+        f"morbidostat/{unit}/{experiment}/io_events",
+        '{"volume_change": -%0.4f, "event": "remove_waste"}' % ml,
+        verbose=verbose,
+        qos=QOS.EXACTLY_ONCE,
     )
 
     try:

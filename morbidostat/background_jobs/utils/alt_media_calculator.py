@@ -31,8 +31,8 @@ class AltMediaCalculator:
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
+        self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
         self.start_passive_listeners()
-        self.latest_alt_media_fraction = get_initial_alt_media_fraction()
 
     def on_io_event(self, message):
         payload = json.loads(message.payload)
@@ -94,4 +94,6 @@ class AltMediaCalculator:
             return float(test_mqtt.stdout.strip())
 
     def start_passive_listeners(self):
-        subscribe_and_callback(callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events")
+        subscribe_and_callback(
+            callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
+        )
