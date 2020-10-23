@@ -1,5 +1,5 @@
 import React from 'react';
-import {VictoryChart, VictoryLabel, VictoryAxis, VictoryTheme, VictoryLine, VictoryLegend, VictoryVoronoiContainer, VictoryTooltip} from 'victory';
+import {VictoryChart, VictoryLabel, VictoryAxis, VictoryTheme, VictoryLine, VictoryLegend, createContainer, VictoryVoronoiContainer, VictoryTooltip} from 'victory';
 import moment from 'moment';
 import {Client, Message} from 'paho-mqtt';
 
@@ -96,11 +96,12 @@ class Chart extends React.Component {
     let names = this.props.chart_data["series"];
     let nLines = names.length;
     let x_y_data = this.props.chart_data["data"];
+    let interpolation = this.props.interpolation
     let nPoints = x_y_data[0].length
 
-    let min_timestamp = moment(x_y_data[0][0]['x'], 'x')
-    let max_timestamp = moment(x_y_data[0].slice(-1)[0]['x'], 'x')
-    let delta_ts = max_timestamp.diff(min_timestamp, 'hours')
+    let min_timestamp = x_y_data[0][0]['x']
+    let max_timestamp = x_y_data[0].slice(-1)[0]['x']
+    let delta_ts = moment(max_timestamp, 'x').diff(moment(min_timestamp,'x'), 'hours')
     let axis_display_ts_format = ((delta_ts >= 16)
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD' : 'dd HH:mm') : 'H:mm'
     )
@@ -108,18 +109,20 @@ class Chart extends React.Component {
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD HH:mm' : 'dd HH:mm') : 'H:mm'
     )
 
+    const VictoryZoomVoronoiContainer = createContainer("zoom", "voronoi");
 
     for (let i = 0; i < nLines; i++) {
       let name = names[i]
       if (name === "1") {
         lines.push(
             <VictoryLine
+              interpolation={interpolation}
               key={name}
               style={{
                 data: { stroke: colors[name], strokeWidth: 2 },
                 parent: { border: "1px solid #ccc"}
               }}
-              data={x_y_data[i].filter((x, i) => i % 3 === 0)}
+              data={x_y_data[i]}
               x="x"
               y="y"
             />
@@ -136,7 +139,7 @@ class Chart extends React.Component {
         responsive={false}
         theme={VictoryTheme.material}
         containerComponent={
-          <VictoryVoronoiContainer
+          <VictoryZoomVoronoiContainer
             labels={(d) => `${moment(d.datum.x, 'x').format(tooltip_display_ts_format)}
 ${Math.round(d.datum.y * 1000)/1000}`}
             labelComponent={<VictoryTooltip cornerRadius={0} flyoutStyle={{fill: "white", "stroke": "#90a4ae", strokeWidth: 1.5}}/>}
@@ -146,7 +149,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         <VictoryLabel text={this.props.title} x={300} y={30} textAnchor="middle" style={{fontSize: 15 * this.props.fontScale}}/>
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
-          tickValues={linspace(x_y_data[0][0]['x'], x_y_data[0].slice(-1)[0]['x'] + 100000, 6).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
+          tickValues={linspace(min_timestamp, max_timestamp + 100000, 7).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
           style={{
             tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
           }}
@@ -169,24 +172,6 @@ ${Math.round(d.datum.y * 1000)/1000}`}
             data: { stroke: "black", strokeWidth: 1 },
           }}
           data={names.map((n, i) => ({name: n, symbol: {fill: colors[n]}}))}
-          events={[
-            {
-              target: "data",
-              eventHandlers: {
-                onClick: () => {
-                  return [{
-                    mutation: (props) => {
-                      return props.style.fill === "white" ?
-                      {style: {fill: colors[props.datum.name], stroke: "black", strokeWidth: 1}} :
-                      {style: {fill: "white", stroke: "black", strokeWidth: 1 }}
-                    }
-                  }]
-                }
-              }
-            }
-
-
-            ]}
         />
       {lines}
     </VictoryChart>
@@ -204,15 +189,17 @@ class ODChart extends React.Component {
     let x_y_data = this.props.chart_data["data"];
     let nPoints = x_y_data[0].length
 
-    let min_timestamp = moment(x_y_data[0][0]['x'], 'x')
-    let max_timestamp = moment(x_y_data[0].slice(-1)[0]['x'], 'x')
-    let delta_ts = max_timestamp.diff(min_timestamp, 'hours')
+    let min_timestamp = x_y_data[0][0]['x']
+    let max_timestamp = x_y_data[0].slice(-1)[0]['x']
+    let delta_ts = moment(max_timestamp, 'x').diff(moment(min_timestamp,'x'), 'hours')
     let axis_display_ts_format = ((delta_ts >= 16)
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD' : 'dd HH:mm') : 'H:mm'
     )
     let tooltip_display_ts_format = ((delta_ts >= 16)
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD HH:mm' : 'dd HH:mm') : 'H:mm'
     )
+    const VictoryZoomVoronoiContainer = createContainer("zoom", "voronoi");
+
 
     for (let i = 0; i < nLines; i++) {
       let name = names[i]
@@ -223,7 +210,7 @@ class ODChart extends React.Component {
               data: { stroke: colors[name], strokeWidth: 3 },
               parent: { border: "1px solid #ccc"}
             }}
-            data={x_y_data[i].filter((x, i) => i % Math.round(nPoints/80) === 0)}
+            data={x_y_data[i]}
             x="x"
             y="y"
           />
@@ -239,7 +226,7 @@ class ODChart extends React.Component {
         responsive={false}
         theme={VictoryTheme.material}
         containerComponent={
-          <VictoryVoronoiContainer
+          <VictoryZoomVoronoiContainer
             labels={(d) => `${moment(d.datum.x, 'x').format(tooltip_display_ts_format)}
 ${Math.round(d.datum.y * 1000)/1000}`}
             labelComponent={<VictoryTooltip
@@ -253,7 +240,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         <VictoryLabel text={this.props.title} x={350} y={20} textAnchor="middle" style={{fontSize: 13 * this.props.fontScale}}/>
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
-          tickValues={linspace(x_y_data[0][0]['x'], x_y_data[0].slice(-1)[0]['x'] + 100000, 6).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
+          tickValues={linspace(min_timestamp, max_timestamp + 100000, 6).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
           style={{
             tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
           }}
@@ -277,24 +264,6 @@ ${Math.round(d.datum.y * 1000)/1000}`}
           }}
           gutter={30}
           data={names.map((n, i) => ({name: n, symbol: {fill: colors[n]}}))}
-          events={[
-            {
-              target: "data",
-              eventHandlers: {
-                onClick: () => {
-                  return [{
-                    mutation: (props) => {
-                      return props.style.fill === "white" ?
-                      {style: {fill: colors[props.datum.name], stroke: "black", strokeWidth: 1}} :
-                      {style: {fill: "white", stroke: "black", strokeWidth: 1 }}
-                    }
-                  }]
-                }
-              }
-            }
-
-
-            ]}
         />
       {lines}
     </VictoryChart>
@@ -325,12 +294,12 @@ class App extends React.Component {
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chart_data={chartGrowthRate} fontScale={1.} title="Implied growth rate" yAxisLabel="Growth rate, h⁻¹"/>
+              <Chart chart_data={chartGrowthRate} interpolation="natural" fontScale={1.} title="Implied growth rate" yAxisLabel="Growth rate, h⁻¹"/>
             </Grid>
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chart_data={chartAltMediaFraction} fontScale={1.} title="Fraction of volume that is alternative media" yAxisLabel="Fraction"/>
+              <Chart chart_data={chartAltMediaFraction} interpolation="stepAfter" fontScale={1.} title="Fraction of volume that is alternative media" yAxisLabel="Fraction"/>
             </Grid>
 
             <Grid item xs={1}/>

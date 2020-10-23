@@ -171,15 +171,15 @@ function UnitCard(props) {
       return function () {
         var message = new Message(String(state));
         message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job + "/active/set";
-        message.qos = 2
-        client.publish(message);
+        message.qos = 1
+      client.publish(message);
       };
     }
 
     function setMorbidostatJobState(job_attr, value) {
         var message = new Message(String(value));
         message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job_attr + "/set" ;
-        message.qos = 2
+        message.qos = 1
         client.publish(message);
     }
 

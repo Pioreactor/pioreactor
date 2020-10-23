@@ -3,7 +3,7 @@ import React from 'react'
 import {Client, Message} from 'paho-mqtt';
 import moment from 'moment';
 
-import {makeStyles} from '@material-ui/styles';
+import {withStyles} from '@material-ui/styles';
 import Card from '@material-ui/core/Card';
 import Table from '@material-ui/core/Table';
 import TableBody from '@material-ui/core/TableBody';
@@ -12,12 +12,16 @@ import TableContainer from '@material-ui/core/TableContainer';
 import TableHead from '@material-ui/core/TableHead';
 import TableRow from '@material-ui/core/TableRow';
 
-const useStyles = makeStyles({
+const useStyles = theme => ({
   tightCell: {
-    padding: "8px 8px 6px 6px"
+    padding: "8px 8px 6px 6px",
+    fontSize: 13,
   },
   headerCell: {
     fontWeight: "bold"
+  },
+  tightRight: {
+    textAlign: "right"
   }
 });
 
@@ -51,27 +55,28 @@ class LogTable extends React.Component {
   }
 
   render(){
+    const { classes } = this.props;
     return (
       <Card>
         <TableContainer style={{ height: "500px", width: "100%", overflowY: "scroll"}}>
           <Table stickyHeader size="small" aria-label="log table">
              <TableHead>
               <TableRow>
-                <TableCell align="center" colSpan={3} className=""> Event logs </TableCell>
+                <TableCell align="center" colSpan={3} className={[classes.headerCell, classes.tightCell].join(" ")}> Event logs </TableCell>
               </TableRow>
               <TableRow>
-                <TableCell className="">Timestamp</TableCell>
-                <TableCell className="">Message</TableCell>
-                <TableCell className="">Unit</TableCell>
+                <TableCell className={[classes.headerCell, classes.tightCell].join(" ")}>Timestamp</TableCell>
+                <TableCell className={[classes.headerCell, classes.tightCell].join(" ")}>Message</TableCell>
+                <TableCell className={[classes.headerCell, classes.tightCell].join(" ")}>Unit</TableCell>
               </TableRow>
             </TableHead>
 
             <TableBody>
               {this.state.listOfLogs.map((log, i) => (
                 <TableRow key={i}>
-                  <TableCell className=""> {moment(log.timestamp, 'MMM D HH:mm:ss.SSS').format('HH:mm:ss')} </TableCell>
-                  <TableCell className=""> {log.message} </TableCell>
-                  <TableCell className="">{log.unit}</TableCell>
+                  <TableCell className={classes.tightCell}> {moment(log.timestamp, 'MMM D HH:mm:ss.SSS').format('HH:mm:ss')} </TableCell>
+                  <TableCell className={classes.tightCell}> {log.message} </TableCell>
+                  <TableCell className={[classes.tightCell, classes.tightRight].join(" ")}>{log.unit}</TableCell>
                 </TableRow>
                 ))
               }
@@ -84,4 +89,4 @@ class LogTable extends React.Component {
 
 
 
-export default LogTable;
+export default withStyles(useStyles)(LogTable);
