@@ -111,7 +111,7 @@ def growth_rate_calculating(verbose=0):
                 ekf.update(np.array([*json_to_sorted_dict(msg.payload).values()]))
 
             elif "io_events" in msg.topic:
-                ekf.scale_OD_variance_for_next_n_steps(1e3, 3 * samples_per_minute)
+                ekf.scale_OD_variance_for_next_n_steps(5e3, 2 * samples_per_minute)
                 continue
 
             # transform the rate, r, into rate per hour: e^{rate * hours}

@@ -14,12 +14,13 @@ import click
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
-from morbidostat.utils.timing import every
 from morbidostat.pubsub import publish, subscribe_and_callback
-from morbidostat.utils import log_start, log_stop, split_topic_for_setting
-from morbidostat.whoami import unit, experiment
-from morbidostat.background_jobs import events
+from morbidostat.utils import log_start, log_stop
+from morbidostat.utils.timing import every
 from morbidostat.utils.streaming_calculations import PID
+from morbidostat.whoami import unit, experiment
+from morbidostat.background_jobs.alt_media_calculator import AltMediaCalculator
+from morbidostat.background_jobs.utils import events
 from morbidostat.background_jobs import BackgroundJob
 
 VIAL_VOLUME = 14
@@ -42,6 +43,8 @@ class ControlAlgorithm(BackgroundJob):
         self.verbose = verbose
         self.experiment = experiment
         self.sensor = sensor
+        self.active = 1
+        self.alt_media_calculator = AltMediaCalculator()
 
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
@@ -68,6 +71,7 @@ class ControlAlgorithm(BackgroundJob):
         ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
 
         if log:
+            # TODO: this is not being stored or used.
             publish(
                 f"morbidostat/{self.unit}/{self.experiment}/io_batched",
                 json.dumps({"alt_media_ml": alt_media_ml, "media_ml": media_ml, "waste_ml": waste_ml}),

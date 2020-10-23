@@ -69,11 +69,11 @@ class ODReader(BackgroundJob):
         self.verbose = verbose
         self.ma = MovingStats(lookback=20)
         self.ads = ads
-        self.od_channels = {}
+        self.od_channels_to_analog_in = {}
 
         for (label, channel) in od_channels:
             ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
-            self.od_channels[label] = ai
+            self.od_channels_to_analog_in[label] = ai
 
         super(ODReader, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
@@ -84,10 +84,19 @@ class ODReader(BackgroundJob):
 
         try:
             raw_signals = {}
-            for (angle_label, ads_channel) in self.od_channels.items():
+            for (angle_label, ads_channel) in self.od_channels_to_analog_in.items():
                 raw_signal_ = ads_channel.voltage
                 publish(f"morbidostat/{self.unit}/{self.experiment}/od_raw/{angle_label}", raw_signal_, verbose=self.verbose)
                 raw_signals[angle_label] = raw_signal_
+
+                # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
+                # also damage the ADC). We'll alert the user if the voltage gets higher than 2.5V, which is well above anything normal.
+                if raw_signal_ > 2.5:
+                    publish(
+                        f"morbidostat/{self.unit}/{self.experiment}/log",
+                        f"OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V.",
+                        verbose=self.verbose,
+                    )
 
             # publish the batch of data, too, for growth reading
             publish(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched", json.dumps(raw_signals), verbose=self.verbose)

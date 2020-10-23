@@ -15,25 +15,7 @@ from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
 
-
 VIAL_VOLUME = 14
-
-
-def get_initial_alt_media_fraction(experiment, unit):
-    """
-    This is a hack to use a timeout (not available in paho-mqtt) to
-    see if a value is present in the MQTT cache (retained message)
-
-    """
-    test_mqtt = subprocess.run(
-        [f'mosquitto_sub -t "morbidostat/{unit}/{experiment}/alt_media_fraction" -W 3 -h {leader_hostname}'],
-        shell=True,
-        capture_output=True,
-    )
-    if test_mqtt.stdout == b"":
-        return 0
-    else:
-        return float(test_mqtt.stdout.strip())
 
 
 class AltMediaCalculator:
@@ -49,24 +31,10 @@ class AltMediaCalculator:
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
+        self.start_passive_listeners()
+        self.latest_alt_media_fraction = get_initial_alt_media_fraction()
 
-    @property
-    def latest_alt_media_fraction(self):
-        if hasattr(self, "_latest_alt_media_fraction"):
-            return self._latest_alt_media_fraction
-        else:
-            try:
-                self._latest_alt_media_fraction = get_initial_alt_media_fraction(self.experiment, self.unit)
-            except:
-                self._latest_alt_media_fraction = 0
-        return self._latest_alt_media_fraction
-
-    @latest_alt_media_fraction.setter
-    def latest_alt_media_fraction(self, value):
-        self._latest_alt_media_fraction = value
-
-    def on_message(self, message):
-        assert message.topic == f"morbidostat/{self.unit}/{self.experiment}/io_events"
+    def on_io_event(self, message):
         payload = json.loads(message.payload)
         volume, event = float(payload["volume_change"]), payload["event"]
         if event == "add_media":
@@ -76,7 +44,7 @@ class AltMediaCalculator:
         elif event == "remove_waste":
             pass
         else:
-            raise ValueError()
+            raise ValueError("Unknown event type")
 
     def update_alt_media_fraction(self, media_delta, alt_media_delta):
 
@@ -106,23 +74,24 @@ class AltMediaCalculator:
 
         return self.latest_alt_media_fraction
 
+    def get_initial_alt_media_fraction(self):
+        """
+        This is a hack to use a timeout (not available in paho-mqtt) to
+        see if a value is present in the MQTT cache (retained message)
 
-@log_start(unit, experiment)
-@log_stop(unit, experiment)
-def io_listening(verbose):
-    subscribe_and_callback(
-        callback=AltMediaCalculator(unit=unit, experiment=experiment, verbose=verbose).on_message,
-        topics=f"morbidostat/{unit}/{experiment}/io_events",
-    )
+        Maybe I can use subscribe_and_callback and wait in the callback for a message?
 
-    signal.pause()
+        """
+        test_mqtt = subprocess.run(
+            [f'mosquitto_sub -t "morbidostat/{self.unit}/{self.experiment}/alt_media_fraction" -W 3 -h {leader_hostname}'],
+            shell=True,
+            capture_output=True,
+            universal_newlines=True,
+        )
+        if test_mqtt.stdout == "":
+            return 0.0
+        else:
+            return float(test_mqtt.stdout.strip())
 
-
-@click.command()
-@click.option("--verbose", "-v", count=True, help="print to std.out")
-def click_io_listening(verbose):
-    io_listening(verbose)
-
-
-if __name__ == "__main__":
-    click_io_listening()
+    def start_passive_listeners(self):
+        subscribe_and_callback(callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events")
