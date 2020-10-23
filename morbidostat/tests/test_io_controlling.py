@@ -9,7 +9,7 @@ from morbidostat import pubsub
 
 
 def pause():
-    # to avoid race conditions
+    # to avoid race conditions when updating state
     time.sleep(0.5)
 
 

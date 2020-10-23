@@ -107,7 +107,7 @@ class UnitSettingDisplay extends React.Component {
   }
 
   onConnect() {
-      this.client.subscribe("morbidostat/" + this.props.unitNumber + "/" + "Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0" + "/" + this.props.job + "/" + this.props.attr, {qos: 1})
+      this.client.subscribe("morbidostat/" + this.props.unitNumber + "/" + "Trial-16-e149d09a68f64045bd6f162dcf28f15c" + "/" + this.props.job + "/" + this.props.attr, {qos: 1})
   }
 
   onMessageArrived(message) {
@@ -170,7 +170,7 @@ function UnitCard(props) {
     function setActiveState(job, state) {
       return function () {
         var message = new Message(String(state));
-        message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job + "/active/set";
+        message.destinationName = "morbidostat/" + unitNumber + "/Trial-16-e149d09a68f64045bd6f162dcf28f15c/" + job + "/active/set";
         message.qos = 1
       client.publish(message);
       };
@@ -178,7 +178,7 @@ function UnitCard(props) {
 
     function setMorbidostatJobState(job_attr, value) {
         var message = new Message(String(value));
-        message.destinationName = "morbidostat/" + unitNumber + "/Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0/" + job_attr + "/set" ;
+        message.destinationName = "morbidostat/" + unitNumber + "/Trial-16-e149d09a68f64045bd6f162dcf28f15c/" + job_attr + "/set" ;
         message.qos = 1
         client.publish(message);
     }

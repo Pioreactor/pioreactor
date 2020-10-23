@@ -148,7 +148,7 @@ def od_reading(od_angle_channel, verbose):
     sampling_rate = 1 / float(config["od_sampling"]["samples_per_second"])
 
     i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, gain=2)  # we change the gain dynamically later
+    ads = ADS.ADS1115(i2c, gain=8)  # we can the gain dynamically later
 
     yield from every(sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading)
 

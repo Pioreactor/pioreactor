@@ -42,13 +42,13 @@ class LogTable extends React.Component {
   }
 
   onConnect() {
-      this.client.subscribe("morbidostat/+/" + "Trial-14-d29bfbaee0dd4fb28348c8cb3532cdd0" + "/log")
+      this.client.subscribe("morbidostat/+/" + "Trial-16-e149d09a68f64045bd6f162dcf28f15c" + "/log")
   }
 
   onMessageArrived(message) {
       this.state.listOfLogs.pop()
       const unit = message.topic.split("/")[1]
-      this.state.listOfLogs.unshift({timestamp: "Oct 22 10:06:45.217", unit: unit, message: message.payloadString})
+      this.state.listOfLogs.unshift({timestamp: moment().format("MMM D HH:mm:ss.SSS"), unit: unit, message: message.payloadString})
       this.setState({
         listOfLogs: this.state.listOfLogs
       });
