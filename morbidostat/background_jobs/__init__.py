@@ -43,6 +43,7 @@ class BackgroundJob:
             f"morbidostat/{self.unit}/{self.experiment}/log",
             f"Updated {self.job_name}.{attr} from {previous_value} to {getattr(self, attr)}.",
             verbose=self.verbose,
+            qos=QOS.EXACTLY_ONCE,
         )
         self.publish_attr(attr)
 

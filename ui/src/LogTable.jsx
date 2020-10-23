@@ -31,7 +31,6 @@ class LogTable extends React.Component {
     this.state = {listOfLogs: this.props.listOfLogs};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
-    console.log(this.state.isUnitActive)
   }
 
   componentDidMount() {
