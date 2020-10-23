@@ -322,7 +322,7 @@ function UnitCards(props) {
     return (
     <div>
       {props.units.map((unit) =>
-      <UnitCard name={"morbidostat" + unit} isUnitActive={[1, 2, 3].includes(unit)} />
+      <UnitCard key={"morbidostat" + unit} name={"morbidostat" + unit} isUnitActive={[1, 2, 3].includes(unit)} />
     )}
     </div>
     )
