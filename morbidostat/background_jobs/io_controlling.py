@@ -58,7 +58,7 @@ class ControlAlgorithm(BackgroundJob):
             return self.run()
 
         event = self.execute(counter)
-        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[io_controlling]: triggered {event}.", verbose=self.verbose)
+        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{JOB_NAME}]: triggered {event}.", verbose=self.verbose)
         return event
 
     def execute(self, counter) -> events.Event:
@@ -189,7 +189,7 @@ class PIDMorbidostat(ControlAlgorithm):
         if volume is not None:
             publish(
                 f"morbidostat/{self.unit}/{self.experiment}/log",
-                f"[io_controlling]: Ignoring volume parameter; volume set by target growth rate and duration.",
+                f"[{JOB_NAME}]: Ignoring volume parameter; volume set by target growth rate and duration.",
                 verbose=self.verbose,
             )
 
@@ -208,7 +208,7 @@ class PIDMorbidostat(ControlAlgorithm):
             if self.latest_od > self.max_od:
                 publish(
                     f"morbidostat/{self.unit}/{self.experiment}/log",
-                    f"[io_controlling]: executing double dilution since we are above max OD, {self.max_od:.2f}.",
+                    f"[{JOB_NAME}]: executing double dilution since we are above max OD, {self.max_od:.2f}.",
                     verbose=self.verbose,
                 )
                 volume = 2 * self.volume
@@ -274,12 +274,12 @@ def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_fir
 
     publish(
         f"morbidostat/{unit}/{experiment}/log",
-        f"[io_controlling]: starting {mode} with {duration}min intervals, metadata: {kwargs}",
+        f"[{JOB_NAME}]: starting {mode} with {duration}min intervals, metadata: {kwargs}",
         verbose=verbose,
     )
 
     if skip_first_run:
-        publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: skipping first run", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/log", f"[{JOB_NAME}]: skipping first run", verbose=verbose)
         time.sleep(duration * 60)
 
     kwargs["verbose"] = verbose
@@ -294,7 +294,7 @@ def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_fir
         try:
             yield from every(duration * 60, algo.run)
         except Exception as e:
-            publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
+            publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {str(e)}", verbose=verbose)
             raise e
 
     return _gen()

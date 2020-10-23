@@ -96,7 +96,7 @@ class ODReader(BackgroundJob):
                 if raw_signal_ > 2.5:
                     publish(
                         f"morbidostat/{self.unit}/{self.experiment}/log",
-                        f"OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V.",
+                        f"[{JOB_NAME}] OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V.",
                         verbose=self.verbose,
                     )
 
@@ -113,7 +113,7 @@ class ODReader(BackgroundJob):
                         self.ads.gain = gain
                         publish(
                             f"morbidostat/{self.unit}/{self.experiment}/log",
-                            f"ADC gain updated to {self.ads.gain}.",
+                            f"[{JOB_NAME}] ADC gain updated to {self.ads.gain}.",
                             verbose=self.verbose,
                         )
                         break
@@ -121,13 +121,13 @@ class ODReader(BackgroundJob):
             # just pause, not sure why this happens when add_media or remove_waste are called.
             publish(
                 f"morbidostat/{self.unit}/{self.experiment}/error_log",
-                f"[od_reading] failed with {str(e)}. Attempting to continue.",
+                f"[{JOB_NAME}] failed with {str(e)}. Attempting to continue.",
                 verbose=self.verbose,
             )
             time.sleep(5.0)
         except Exception as e:
             publish(
-                f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[od_reading] failed with {str(e)}", verbose=self.verbose
+                f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[{JOB_NAME}] failed with {str(e)}", verbose=self.verbose
             )
             raise e
 
