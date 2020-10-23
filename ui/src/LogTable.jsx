@@ -42,7 +42,7 @@ class LogTable extends React.Component {
   }
 
   onConnect() {
-      this.client.subscribe("morbidostat/+/" + "Trial-16-e149d09a68f64045bd6f162dcf28f15c" + "/log")
+      this.client.subscribe("morbidostat/+/" + "Trial-18-e149d09a68f64045bd6f162dcf28f15c" + "/log")
   }
 
   onMessageArrived(message) {
