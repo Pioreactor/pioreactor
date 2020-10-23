@@ -63,6 +63,8 @@ class ODReader(BackgroundJob):
 
     """
 
+    publish_out = []
+
     def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
         self.unit = unit
         self.experiment = experiment

@@ -33,7 +33,8 @@ def sync_workers(units, y, extra_args):
     # parallelize thisF
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
-    command = " && ".join([cd, gitp])
+    setup = "sudo python3 setup.py install"
+    command = " && ".join([cd, gitp, setup])
 
     if not y:
         confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
