@@ -94,6 +94,7 @@ class AltMediaCalculator:
             return float(test_mqtt.stdout.strip())
 
     def start_passive_listeners(self):
+        print(f"morbidostat/{self.unit}/{self.experiment}/io_events")
         subscribe_and_callback(
             callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
         )

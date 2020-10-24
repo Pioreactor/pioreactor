@@ -43,7 +43,7 @@ class ControlAlgorithm(BackgroundJob):
         self.verbose = verbose
         self.experiment = experiment
         self.sensor = sensor
-        self.alt_media_calculator = AltMediaCalculator()
+        self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
 
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
