@@ -53,7 +53,6 @@ class ControlAlgorithm(BackgroundJob):
             return events.NoEvent("Paused. Set `active` to 0 to start again.")
 
         if (self.latest_growth_rate is None) or (self.latest_od is None):
-            print(self.latest_growth_rate, self.latest_od)
             time.sleep(10)  # wait some time for data to arrive, and try again.
             return self.run()
 
