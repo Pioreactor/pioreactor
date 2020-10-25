@@ -24,11 +24,7 @@ class GrowthRateCalculator(BackgroundJob):
     publish_out = []
 
     def __init__(self, unit, experiment, verbose=0):
-        self.verbose = verbose
-        self.experiment = experiment
-        self.unit = unit
-
-        super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=self.verbose, unit=unit, experiment=experiment)
+        super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
     @staticmethod
@@ -83,8 +79,6 @@ class GrowthRateCalculator(BackgroundJob):
                     return None
             return propsed_factors
 
-    @log_start(unit, experiment)
-    @log_stop(unit, experiment)
     def run(self):
 
         od_reading_rate = float(config["od_sampling"]["samples_per_second"])
@@ -178,12 +172,18 @@ class GrowthRateCalculator(BackgroundJob):
             raise (e)
 
 
-@click.command()
-@click.option("--verbose", "-v", count=True, help="Print to std out")
-def click_growth_rate_calculating(verbose):
+@log_start(unit, experiment)
+@log_stop(unit, experiment)
+def growth_rate_calcluating(verbose):
     calculator = GrowthRateCalculator(verbose)
     while True:
         calculator.run()
+
+
+@click.command()
+@click.option("--verbose", "-v", count=True, help="Print to std out")
+def click_growth_rate_calculating(verbose):
+    growth_rate_calcluating(verbose)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import React from 'react'
 
-import {Client, Message} from 'paho-mqtt';
+import {Client} from 'paho-mqtt';
 import moment from 'moment';
 
 import {withStyles} from '@material-ui/styles';

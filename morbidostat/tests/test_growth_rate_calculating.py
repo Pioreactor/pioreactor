@@ -13,6 +13,7 @@ class MockMQTTMsg:
 
 
 class MockMsgBroker:
+    # TODO: remove this.
     def __init__(self, *list_of_msgs):
         self.list_of_msgs = list_of_msgs
         self.counter = 0
@@ -40,7 +41,7 @@ class MockMsgBroker:
             if msg.topic in topics:
                 return msg
 
-    def callback(self, func, topics, hostname):
+    def callback(self, func, topics, hostname="localhost", **kwargs):
         self._add_callback(func, topics)
         return
 

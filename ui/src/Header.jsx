@@ -1,6 +1,5 @@
 import React from 'react'
-import {AppBar, Toolbar, IconButton, Typography} from '@material-ui/core';
-import WhatshotIcon from '@material-ui/icons/Whatshot';
+import {AppBar, Toolbar, Typography} from '@material-ui/core';
 import {makeStyles} from '@material-ui/styles';
 import Button from '@material-ui/core/Button';
 

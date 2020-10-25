@@ -28,9 +28,13 @@ class BackgroundJob:
         self.experiment = experiment
         self.unit = unit
         self.active = 1
-        self.publish_initialized_attrs()
 
-    def set_attr(self, message):
+    def __setattr__(self, name, value):
+        super(BackgroundJob, self).__setattr__(name, value)
+        if (name in self.publish_out and hasattr(self, name)) or name == "active":  # clean this up
+            self.publish_attr(name)
+
+    def set_attr_from_message(self, message):
         new_value = message.payload
         info_from_topic = split_topic_for_setting(message.topic)
         attr = info_from_topic.attr
@@ -44,13 +48,6 @@ class BackgroundJob:
             f"[{self.job_name}] Updated {attr} from {previous_value} to {getattr(self, attr)}.",
             verbose=self.verbose,
         )
-        self.publish_attr(attr)
-
-    def publish_initialized_attrs(self):
-        for attr in self.publish_out:
-            if hasattr(self, attr):
-                self.publish_attr(attr)
-        self.publish_attr("active")
 
     def publish_attr(self, attr):
         publish(
@@ -70,4 +67,6 @@ class BackgroundJob:
             "retain": True,
         }
 
-        subscribe_and_callback(self.set_attr, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set", will=last_will)
+        subscribe_and_callback(
+            self.set_attr_from_message, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set", will=last_will
+        )

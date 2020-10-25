@@ -87,7 +87,8 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, **mqtt_kw
 
     thread = threading.Thread(
         target=mqtt_subscribe.callback,
-        kwargs={"callback": job_callback(callback), "topics": topics, "hostname": hostname, **mqtt_kwargs},
+        args=(job_callback(callback), topics),
+        kwargs={"hostname": hostname, **mqtt_kwargs},
         daemon=True,
     )
     thread.start()

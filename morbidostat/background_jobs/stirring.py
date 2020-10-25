@@ -30,21 +30,16 @@ class Stirrer(BackgroundJob):
     publish_out = ["duty_cycle"]
 
     def __init__(self, duty_cycle, unit, experiment, verbose=0, hertz=50, pin=int(config["rpi_pins"]["fan"])):
-        assert 0 <= duty_cycle <= 100
-        self.unit = unit
-        self.verbose = verbose
-        self.experiment = experiment
-
         self.hertz = hertz
         self.pin = pin
+        self.pwm = GPIO.PWM(self.pin, self.hertz)
         self._duty_cycle = duty_cycle
+
+        super(Stirrer, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
 
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, 0)
 
-        self.pwm = GPIO.PWM(self.pin, self.hertz)
-
-        super(Stirrer, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
     def start_stirring(self):
@@ -54,7 +49,19 @@ class Stirrer(BackgroundJob):
 
     def stop_stirring(self):
         self.pwm.stop()
-        GPIO.cleanup()
+
+    @property
+    def active(self):
+        return int(self.duty_cycle > 0)
+
+    @active.setter
+    def active(self, value):
+        if value == 0:
+            self.stop_stirring()
+            self.duty_cycle = 0
+        elif value == 1:
+            self.duty_cycle = int(config["stirring"][f"duty_cycle{unit}"])
+            self.start_stirring()
 
     @property
     def duty_cycle(self):
@@ -62,14 +69,10 @@ class Stirrer(BackgroundJob):
 
     @duty_cycle.setter
     def duty_cycle(self, value):
-        if value < 0:
-            value = int(config["stirring"][f"duty_cycle{unit}"])
         self._duty_cycle = value
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
 
-@log_start(unit, experiment)
-@log_stop(unit, experiment)
 def stirring(duty_cycle=None, duration=None, verbose=0):
     # duration is for testing
 
@@ -94,7 +97,6 @@ def stirring(duty_cycle=None, duration=None, verbose=0):
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[stirring] failed with {str(e)}", verbose=verbose)
         raise e
     finally:
-        stirrer.stop_stirring()
         GPIO.cleanup()
     return
 

@@ -27,6 +27,14 @@ VIAL_VOLUME = 14
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
+def brief_pause():
+    if "pytest" in sys.modules or os.environ.get("TESTING"):
+        return
+    else:
+        time.sleep(2.5)
+        return
+
+
 class ControlAlgorithm(BackgroundJob):
     """
     This is the super class that algorithms inherit from. The `run` function will
@@ -39,13 +47,11 @@ class ControlAlgorithm(BackgroundJob):
     publish_out = ["volume", "target_od", "target_growth_rate", "sensor"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
-        self.unit = unit
-        self.verbose = verbose
-        self.experiment = experiment
+        super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
+
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
 
-        super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
     def run(self, counter=None):
@@ -85,10 +91,10 @@ class ControlAlgorithm(BackgroundJob):
         else:
             if alt_media_ml > 0:
                 add_alt_media(ml=alt_media_ml, verbose=self.verbose)
-                time.sleep(2.5)  # allow time for the addition to mix
+                brief_pause()  # allow time for the addition to mix
             if media_ml > 0:
                 add_media(ml=media_ml, verbose=self.verbose)
-                time.sleep(2.5)  # allow time for the addition to mix
+                brief_pause()  # allow time for the addition to mix
             if waste_ml > 0:
                 remove_waste(ml=waste_ml, verbose=self.verbose)
                 # run remove_waste for an additional second to keep volume constant (determined by the length of the waste tube)
@@ -126,9 +132,9 @@ class Turbidostat(ControlAlgorithm):
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
+        super(Turbidostat, self).__init__(**kwargs)
         self.target_od = target_od
         self.volume = volume
-        super(Turbidostat, self).__init__(**kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od >= self.target_od:
@@ -147,12 +153,12 @@ class PIDTurbidostat(ControlAlgorithm):
     """
 
     def __init__(self, target_od=None, volume=None, verbose=0, **kwargs):
+        super(PIDTurbidostat, self).__init__(verbose=verbose, **kwargs)
         self.target_od = target_od
         self.volume = volume
         self.min_od = 0.75 * target_od
         self.verbose = verbose
         self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
-        super(PIDTurbidostat, self).__init__(verbose=self.verbose, **kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -175,6 +181,7 @@ class PIDMorbidostat(ControlAlgorithm):
     """
 
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
+        super(PIDMorbidostat, self).__init__(verbose=verbose, **kwargs)
         self.target_growth_rate = target_growth_rate
         self.target_od = target_od
         self.min_od = 0.75 * self.target_od
@@ -193,7 +200,6 @@ class PIDMorbidostat(ControlAlgorithm):
             )
 
         self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
-        super(PIDMorbidostat, self).__init__(verbose=self.verbose, **kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -232,9 +238,9 @@ class Morbidostat(ControlAlgorithm):
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
+        super(Morbidostat, self).__init__(**kwargs)
         self.target_od = target_od
         self.volume = volume
-        super(Morbidostat, self).__init__(**kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
         """

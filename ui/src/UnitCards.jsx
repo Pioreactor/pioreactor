@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React  from 'react';
 
 import {Client, Message} from 'paho-mqtt';
 
@@ -8,13 +8,10 @@ import CardActions from '@material-ui/core/CardActions';
 import CardContent from '@material-ui/core/CardContent';
 import Button from '@material-ui/core/Button';
 import Typography from '@material-ui/core/Typography';
-import FiberManualRecordIcon from '@material-ui/icons/FiberManualRecord';
-import { green } from '@material-ui/core/colors';
 import Modal from '@material-ui/core/Modal';
 import Divider from '@material-ui/core/Divider';
 import Slider from '@material-ui/core/Slider';
 import TextField from '@material-ui/core/TextField';
-import { styled } from '@material-ui/core/styles';
 
 const useStyles = makeStyles({
   root: {
@@ -280,12 +277,12 @@ function UnitCard(props) {
           <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Stirring:</Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="stirring" attr="active" unitNumber={unitNumber}/>
-        </div>
-        <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Optical density reading:</Typography>
           <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
+        </div>
+        <div className={classes.textbox}>
+          <Typography className={classes.alignLeft}  color="textPrimary">Growth rate:</Typography>
+          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="growth_rate_calculating" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft} color="textPrimary">IO events:</Typography>
@@ -318,7 +315,6 @@ function UnitCard(props) {
 
 
 function UnitCards(props) {
-    const classes = useStyles();
     return (
     <div>
       {props.units.map((unit) =>
