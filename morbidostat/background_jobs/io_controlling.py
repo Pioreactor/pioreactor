@@ -55,6 +55,7 @@ class ControlAlgorithm(BackgroundJob):
         self.start_passive_listeners()
 
     def run(self, counter=None):
+        ## TODO: need to check when latest reading came in, else, this will just keep running.
         if self.active == 0:
             return events.NoEvent("Paused. Set `active` to 0 to start again.")
 

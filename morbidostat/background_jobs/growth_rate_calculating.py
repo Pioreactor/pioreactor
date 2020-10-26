@@ -63,7 +63,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         """
         command = f'mosquitto_sub -t "morbidostat/{self.unit}/{self.experiment}/growth_rate" -W 3 -h {leader_hostname}'
-        test_mqtt = subprocess.run([command], shell=True, capture_output=True, universal_output=True)
+        test_mqtt = subprocess.run([command], shell=True, capture_output=True, universal_newlines=True)
         if test_mqtt.stdout == "":
             return 0.0
         else:
@@ -79,7 +79,7 @@ class GrowthRateCalculator(BackgroundJob):
         command = (
             f'mosquitto_sub -t "morbidostat/{self.unit}/{self.experiment}/od_normalization_factors" -W 3 -h {leader_hostname}'
         )
-        test_mqtt = subprocess.run([command], shell=True, capture_output=True, universal_output=True)
+        test_mqtt = subprocess.run([command], shell=True, capture_output=True, universal_newlines=True)
         if test_mqtt.stdout == "":
             return None
         else:
