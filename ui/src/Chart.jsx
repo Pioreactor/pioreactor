@@ -48,21 +48,20 @@ class Chart extends React.Component {
 
     for (let i = 0; i < nLines; i++) {
       let name = names[i]
-      if (name === "1") {
-        lines.push(
-            <VictoryLine
-              interpolation={interpolation}
-              key={name}
-              style={{
-                data: { stroke: colors[name], strokeWidth: 2 },
-                parent: { border: "1px solid #ccc"}
-              }}
-              data={x_y_data[i]}
-              x="x"
-              y="y"
-            />
-          )
-      }
+      lines.push(
+          <VictoryLine
+            interpolation={interpolation}
+            key={name}
+            style={{
+              data: { stroke: colors[name], strokeWidth: 2 },
+              parent: { border: "1px solid #ccc"}
+            }}
+            data={x_y_data[i]}
+            x="x"
+            y="y"
+          />
+        )
+
     }
     return (
       <Card>

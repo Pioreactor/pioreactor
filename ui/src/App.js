@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 import Grid from '@material-ui/core/Grid';
 import Card from '@material-ui/core/Card';
@@ -31,9 +31,9 @@ const chartData135 = require('./data/implied_135.json')[0];
 const chartGrowthRate = require('./data/implied_growth_rate.json')[0];
 const chartAltMediaFraction = require('./data/alt_media_fraction.json')[0];
 const listOfLogs = require('./data/all_morbidostat.log.json');
+//console.log(import('./data/all_morbidostat.log.json'));
 
-class App extends React.Component {
-  render() {
+function App() {
     return (
     <MuiThemeProvider theme={themeLight}>
       <CssBaseline />
@@ -94,6 +94,5 @@ class App extends React.Component {
       </div>
     </MuiThemeProvider>
     )
-  }
 }
 export default App;

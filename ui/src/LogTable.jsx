@@ -36,22 +36,25 @@ class LogTable extends React.Component {
 
   componentDidMount() {
     // need to have unique clientIds
-    this.client = new Client("leader.local", 9001, "webui-logtable");
+    this.client = new Client("leader.local", 9001, "webui-logtable" + Math.random());
     this.client.connect({'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;
   }
 
   onConnect() {
+      console.log("log table connected")
       this.client.subscribe(["morbidostat", "+", this.experiment, "log"].join("/"))
   }
 
   onMessageArrived(message) {
-      this.state.listOfLogs.pop()
-      const unit = message.topic.split("/")[1]
-      this.state.listOfLogs.unshift({timestamp: moment().format("MMM D HH:mm:ss.SSS"), unit: unit, message: message.payloadString})
-      this.setState({
-        listOfLogs: this.state.listOfLogs
-      });
+    console.log(message)
+    this.state.listOfLogs.pop()
+    const unit = message.topic.split("/")[1]
+    // TODO: make the log table spit out unix timestamps
+    this.state.listOfLogs.unshift({timestamp: moment().format("MMM D HH:mm:ss.SSS"), unit: unit, message: message.payloadString})
+    this.setState({
+      listOfLogs: this.state.listOfLogs
+    });
   }
 
   render(){

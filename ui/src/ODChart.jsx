@@ -86,7 +86,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         <VictoryLabel text={this.props.title} x={350} y={20} textAnchor="middle" style={{fontSize: 13 * this.props.fontScale}}/>
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
-          tickValues={linspace(min_timestamp, max_timestamp + 100000, 6).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
+          tickValues={linspace(min_timestamp, max_timestamp + 100000, 4).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
           style={{
             tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
           }}
