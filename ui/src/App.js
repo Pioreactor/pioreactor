@@ -1,17 +1,13 @@
 import React from "react";
 
 import Grid from '@material-ui/core/Grid';
-import Card from '@material-ui/core/Card';
-import CardContent from '@material-ui/core/CardContent';
-import Button from '@material-ui/core/Button';
-
-
 import Header from "./Header"
 import UnitCards from "./UnitCards"
 import LogTable from "./LogTable"
 import ExperimentSummary from "./ExperimentSummary"
 import Chart from "./Chart"
 import ODChart from "./ODChart"
+import AllUnitsCard from "./AllUnitsCard"
 
 import CssBaseline from "@material-ui/core/CssBaseline";
 import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles";
@@ -75,15 +71,7 @@ function App() {
             <Grid item xs={1}/>
 
             <Grid item xs={1}/>
-            <Grid item xs={10}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Button variant="outlined" color="secondary">
-                  Stop all processes
-                  </Button>
-                </CardContent>
-              </Card>
-            </Grid>
+            <Grid item xs={10}><AllUnitsCard/></Grid>
             <Grid item xs={1}/>
 
             <Grid item xs={1}/>

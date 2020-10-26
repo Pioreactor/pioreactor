@@ -98,7 +98,6 @@ class GrowthRateCalculator(BackgroundJob):
             # pick good initializations
             latest_od = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
             angles_and_intial_points = self.json_to_sorted_dict(latest_od.payload)
-            print("here1")
 
             # growth rate in MQTT is hourly, convert back to multiplicative
             initial_rate = np.exp(self.get_initial_rate() / 60 / samples_per_minute)
@@ -126,7 +125,6 @@ class GrowthRateCalculator(BackgroundJob):
 
             counter = 0
             while self.active:
-                print("here2")
                 msg = subscribe(
                     [
                         f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched",
@@ -140,7 +138,6 @@ class GrowthRateCalculator(BackgroundJob):
                 elif "io_events" in msg.topic:
                     ekf.scale_OD_variance_for_next_n_steps(5e3, 2 * samples_per_minute)
                     continue
-                print("here3")
 
                 # transform the rate, r, into rate per hour: e^{rate * hours}
                 publish(
@@ -187,9 +184,9 @@ class GrowthRateCalculator(BackgroundJob):
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def growth_rate_calculating(verbose):
-    calculator = GrowthRateCalculator(verbose=verbose, unit=unit, experiment=experiment)
+    calculator = GrowthRateCalculator(verbose=verbose, unit=unit, experiment=experiment).run()
     while True:
-        calculator.run()
+        next(calculator)
 
 
 @click.command()
