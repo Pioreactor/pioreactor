@@ -19,3 +19,5 @@
 8. The leader runs all the units with the `mba` command, and individual workers run with the `mb` command.
 
 9. SQLite works well for a database for the storage of IoT data. I never will have more than one user, it can store and read json data, and has good documentation.
+
+10. The io_controlling will not execute if the latest readings are over 5 minutes old.

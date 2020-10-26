@@ -197,3 +197,16 @@ def test_pause_in_io_controlling():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/active/set", 1)
     pause()
     assert algo.active == 1
+
+
+def test_old_readings_will_not_execute_io():
+    algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo.latest_growth_rate = 1
+    algo.latest_od = 1
+
+    algo.latest_od_timestamp = time.time() - 10 * 60
+    algo.latest_growth_rate_timestamp = time.time() - 4 * 60
+
+    assert algo.most_stale_time == algo.latest_od_timestamp
+
+    assert isinstance(algo.run(), events.NoEvent)

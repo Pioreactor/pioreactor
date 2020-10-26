@@ -8,6 +8,7 @@ import threading
 from enum import Enum
 from typing import Iterator
 import json
+import time
 
 import click
 
@@ -44,6 +45,8 @@ class ControlAlgorithm(BackgroundJob):
 
     latest_growth_rate = None
     latest_od = None
+    latest_od_timestamp = None
+    latest_growth_rate_timestamp = None
     publish_out = ["volume", "target_od", "target_growth_rate", "sensor"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
@@ -55,13 +58,17 @@ class ControlAlgorithm(BackgroundJob):
         self.start_passive_listeners()
 
     def run(self, counter=None):
-        ## TODO: need to check when latest reading came in, else, this will just keep running.
         if self.active == 0:
             return events.NoEvent("Paused. Set `active` to 0 to start again.")
 
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             time.sleep(10)  # wait some time for data to arrive, and try again.
             return self.run()
+
+        if (time.time() - self.most_stale_time) > 5 * 60:
+            return events.NoEvent(
+                "Readings are too stale (over 5 minutes old) - is od_reading and growth_rate_calculating running?"
+            )
 
         event = self.execute(counter)
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{JOB_NAME}]: triggered {event}.", verbose=self.verbose)
@@ -104,10 +111,16 @@ class ControlAlgorithm(BackgroundJob):
     def set_growth_rate(self, message):
         self.previous_growth_rate = self.latest_growth_rate
         self.latest_growth_rate = float(message.payload)
+        self.latest_growth_rate_timestamp = time.time()
 
     def set_OD(self, message):
         self.previous_od = self.latest_od
         self.latest_od = float(message.payload)
+        self.latest_od_timestamp = time.time()
+
+    @property
+    def most_stale_time(self):
+        return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def start_passive_listeners(self):
         subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{self.sensor}")
