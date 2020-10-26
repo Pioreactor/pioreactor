@@ -5,9 +5,6 @@ import json
 import numpy as np
 from simple_pid import PID as simple_PID
 
-from morbidostat.pubsub import publish
-from morbidostat.whoami import unit, experiment
-
 
 class MovingStats:
     def __init__(self, lookback=5):
@@ -193,18 +190,24 @@ class ExtendedKalmanFilter:
 class PID:
     # used in io_controlling classes
 
-    def __init__(self, *args, unit=unit, experiment=experiment, verbose=0, **kwargs):
+    def __init__(self, *args, unit=None, experiment=None, verbose=0, **kwargs):
+
+        from morbidostat.whoami import unit, experiment
+
         self.pid = simple_PID(*args, **kwargs)
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
 
     def update(self, input_, dt=None):
+
         output = self.pid(input_, dt)
         self.publish_pid_stats()
         return output
 
     def publish_pid_stats(self):
+        from morbidostat.pubsub import publish
+
         to_send = {
             "setpoint": self.pid.setpoint,
             "output_limits_lb": self.pid.output_limits[0],

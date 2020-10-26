@@ -25,7 +25,6 @@ Here's what I should do with this class.
     The class listens to the topics (ind.) in the background, and publishes from there
     The threads update the state variable / EKF.
 
-
 """
 
 

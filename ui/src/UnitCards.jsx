@@ -201,7 +201,7 @@ function UnitCard(props) {
       </Typography>
       <Divider  className={classes.divider} />
         <Typography color="textSecondary" gutterBottom>
-          Optical Density Reading
+          Optical density reading
         </Typography>
         <Typography variant="body2" component="p">
           Pause or start the optical density reading. This will also pause downstream jobs that rely on optical density readings, like growth rates.
@@ -209,8 +209,17 @@ function UnitCard(props) {
         <Button disableElevation color="secondary" onClick={setActiveState("od_reading", 0)}>Pause</Button>
         <Button disableElevation color="primary" onClick={setActiveState("od_reading", 1)}>Restart</Button>
       <Divider className={classes.divider} />
+      <Typography color="textSecondary" gutterBottom>
+          Growth rate calculating
+        </Typography>
+        <Typography variant="body2" component="p">
+          Pause or start the calculating the implied growth rate and smooted optical densities.
+        </Typography>
+        <Button disableElevation color="secondary" onClick={setActiveState("growth_rate_calculating", 0)}>Pause</Button>
+        <Button disableElevation color="primary" onClick={setActiveState("growth_rate_calculating", 1)}>Restart</Button>
+      <Divider className={classes.divider} />
         <Typography color="textSecondary" gutterBottom>
-          Input/Output Events
+          Input/output events
         </Typography>
         <Typography variant="body2" component="p">
           Pause media input/output events from occuring, or restart them.
@@ -243,7 +252,7 @@ function UnitCard(props) {
           Volume per dilution
         </Typography>
         <Typography variant="body2" component="p">
-          Change the volume per dilution.
+          Change the volume per dilution. Typical values are between 0.0mL and 1.5mL.
         </Typography>
         <TextField size="small" id="io_controlling/volume" label="mL" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
       <Divider  className={classes.divider} />
@@ -251,7 +260,7 @@ function UnitCard(props) {
           Target optical density
         </Typography>
         <Typography variant="body2" component="p">
-          Change the target optical density.
+          Change the target optical density. Typical values are between 1.0 and 2.5 (arbitrary units)
         </Typography>
         <TextField size="small" id="io_controlling/target_od" label="optical density" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
       <Divider  className={classes.divider} />
@@ -259,7 +268,7 @@ function UnitCard(props) {
           Target growth rate
         </Typography>
         <Typography variant="body2" component="p">
-          Change the target growth rate - only applicable in <code>morbidostat</code> mode.
+          Change the target hourly growth rate - only applicable in <code>morbidostat</code> mode. Typical values are between 0.0h⁻¹ and 0.4h⁻¹.
         </Typography>
         <TextField size="small" id="io_controlling/target_growth_rate" label="h⁻¹" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
       <Divider  className={classes.divider} />
