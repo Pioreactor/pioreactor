@@ -19,6 +19,16 @@ from morbidostat.background_jobs import BackgroundJob
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
+"""
+Here's what I should do with this class.
+    Make it a thin wrapper around EKF.
+    The class listens to the topics (ind.) in the background, and publishes from there
+    The threads update the state variable / EKF.
+
+
+"""
+
+
 class GrowthRateCalculator(BackgroundJob):
 
     publish_out = []
@@ -88,6 +98,7 @@ class GrowthRateCalculator(BackgroundJob):
             # pick good initializations
             latest_od = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
             angles_and_intial_points = self.json_to_sorted_dict(latest_od.payload)
+            print("here1")
 
             # growth rate in MQTT is hourly, convert back to multiplicative
             initial_rate = np.exp(self.get_initial_rate() / 60 / samples_per_minute)
@@ -105,7 +116,7 @@ class GrowthRateCalculator(BackgroundJob):
             OD_process_covariance = self.create_OD_covariance(angles_and_intial_points.keys())
 
             # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
-            rate_process_variance = 5e-10
+            rate_process_variance = 1e-10
             process_noise_covariance = np.block(
                 [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
             )
@@ -115,6 +126,7 @@ class GrowthRateCalculator(BackgroundJob):
 
             counter = 0
             while self.active:
+                print("here2")
                 msg = subscribe(
                     [
                         f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched",
@@ -128,6 +140,7 @@ class GrowthRateCalculator(BackgroundJob):
                 elif "io_events" in msg.topic:
                     ekf.scale_OD_variance_for_next_n_steps(5e3, 2 * samples_per_minute)
                     continue
+                print("here3")
 
                 # transform the rate, r, into rate per hour: e^{rate * hours}
                 publish(
@@ -160,10 +173,9 @@ class GrowthRateCalculator(BackgroundJob):
                             ekf.state_[i] / od_normalization_factors[angle_label],
                             verbose=self.verbose,
                         )
+                        yield (angle_label, ekf.state_[i] / od_normalization_factors[angle_label])
 
                 counter += 1
-
-                yield
 
         except Exception as e:
             publish(
@@ -174,7 +186,7 @@ class GrowthRateCalculator(BackgroundJob):
 
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
-def growth_rate_calcluating(verbose):
+def growth_rate_calculating(verbose):
     calculator = GrowthRateCalculator(verbose)
     while True:
         calculator.run()
@@ -183,7 +195,7 @@ def growth_rate_calcluating(verbose):
 @click.command()
 @click.option("--verbose", "-v", count=True, help="Print to std out")
 def click_growth_rate_calculating(verbose):
-    growth_rate_calcluating(verbose)
+    growth_rate_calculating(verbose)
 
 
 if __name__ == "__main__":

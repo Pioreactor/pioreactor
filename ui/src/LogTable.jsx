@@ -31,6 +31,7 @@ class LogTable extends React.Component {
     this.state = {listOfLogs: this.props.listOfLogs};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
+    this.experiment = "Trial-20-e149d09a68f64045bd6f162dcf28f15c"
   }
 
   componentDidMount() {
@@ -41,7 +42,7 @@ class LogTable extends React.Component {
   }
 
   onConnect() {
-      this.client.subscribe("morbidostat/+/" + "Trial-20-e149d09a68f64045bd6f162dcf28f15c" + "/log")
+      this.client.subscribe(["morbidostat", "+", this.experiment, "log"].join("/"))
   }
 
   onMessageArrived(message) {

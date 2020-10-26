@@ -14,6 +14,7 @@ from morbidostat.pubsub import publish, subscribe_and_callback, QOS
 from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
+from typing import Optional
 
 VIAL_VOLUME = 14
 
@@ -27,7 +28,7 @@ class AltMediaCalculator:
     ignore_cache: ignore any retained values in the MQTT bus
     """
 
-    def __init__(self, unit=None, experiment=None, verbose=0, **kwargs):
+    def __init__(self, unit: Optional[str] = None, experiment: Optional[str] = None, verbose: int = 0, **kwargs) -> None:
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
@@ -74,7 +75,7 @@ class AltMediaCalculator:
 
         return self.latest_alt_media_fraction
 
-    def get_initial_alt_media_fraction(self):
+    def get_initial_alt_media_fraction(self) -> float:
         """
         This is a hack to use a timeout (not available in paho-mqtt) to
         see if a value is present in the MQTT cache (retained message)
@@ -93,8 +94,7 @@ class AltMediaCalculator:
         else:
             return float(test_mqtt.stdout.strip())
 
-    def start_passive_listeners(self):
-        print(f"morbidostat/{self.unit}/{self.experiment}/io_events")
+    def start_passive_listeners(self) -> None:
         subscribe_and_callback(
             callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
         )

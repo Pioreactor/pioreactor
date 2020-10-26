@@ -3,6 +3,7 @@ from collections import namedtuple
 from morbidostat.pubsub import subscribe_and_callback
 from morbidostat import utils
 from morbidostat.pubsub import publish, QOS
+from typing import Optional, Union
 
 
 def split_topic_for_setting(topic):
@@ -22,14 +23,14 @@ class BackgroundJob:
 
     """
 
-    def __init__(self, job_name, verbose=0, experiment=None, unit=None):
+    def __init__(self, job_name: str, verbose: int = 0, experiment: Optional[str] = None, unit: Optional[str] = None) -> None:
         self.job_name = job_name
         self.verbose = verbose
         self.experiment = experiment
         self.unit = unit
         self.active = 1
 
-    def __setattr__(self, name, value):
+    def __setattr__(self, name: str, value: Union[int, str]) -> None:
         super(BackgroundJob, self).__setattr__(name, value)
         if (name in self.publish_out and hasattr(self, name)) or name == "active":  # clean this up
             self.publish_attr(name)
@@ -49,7 +50,7 @@ class BackgroundJob:
             verbose=self.verbose,
         )
 
-    def publish_attr(self, attr):
+    def publish_attr(self, attr: str) -> None:
         publish(
             f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
             getattr(self, attr),
@@ -58,7 +59,7 @@ class BackgroundJob:
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         # also starts the last will
         last_will = {
             "topic": f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/active",

@@ -104,7 +104,7 @@ class UnitSettingDisplay extends React.Component {
   }
 
   onConnect() {
-      this.client.subscribe("morbidostat/" + this.props.unitNumber + "/" + "Trial-20-e149d09a68f64045bd6f162dcf28f15c" + "/" + this.props.job + "/" + this.props.attr, {qos: 1})
+      this.client.subscribe(["morbidostat", this.props.unitNumber, this.props.experiment, this.props.job, this.props.attr].join("/"), {qos: 1})
   }
 
   onMessageArrived(message) {
@@ -144,6 +144,7 @@ function UnitCard(props) {
   const unitName = props.name;
   const isUnitActive = props.isUnitActive
   const unitNumber = unitName.slice(-1);
+  const experiment = "Trial-20-e149d09a68f64045bd6f162dcf28f15c"
   const [modalStyle] = React.useState(getModalStyle);
   const [open, setOpen] = React.useState(false);
 
@@ -159,7 +160,7 @@ function UnitCard(props) {
     const config = require('./data/config.json');
     const defaultStirring = config['stirring']["duty_cycle" + unitNumber]
 
-    // MQTT
+    // MQTT - client ids should be unique
     var client = new Client("leader.local", 9001,  "webui" + Math.random());
 
     client.connect();
@@ -167,15 +168,15 @@ function UnitCard(props) {
     function setActiveState(job, state) {
       return function () {
         var message = new Message(String(state));
-        message.destinationName = "morbidostat/" + unitNumber + "/Trial-20-e149d09a68f64045bd6f162dcf28f15c/" + job + "/active/set";
+        message.destinationName = ["morbidostat", unitNumber, experiment, job, "active", "set"].join("/");
         message.qos = 1
-      client.publish(message);
+        client.publish(message);
       };
     }
 
     function setMorbidostatJobState(job_attr, value) {
         var message = new Message(String(value));
-        message.destinationName = "morbidostat/" + unitNumber + "/Trial-20-e149d09a68f64045bd6f162dcf28f15c/" + job_attr + "/set" ;
+        message.destinationName = ["morbidostat", unitNumber, experiment, job_attr, "set"].join("/");
         message.qos = 1
         client.publish(message);
     }
@@ -274,27 +275,27 @@ function UnitCard(props) {
         </Typography>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Stirring speed:</Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Optical density reading:</Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Growth rate:</Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="growth_rate_calculating" attr="active" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="growth_rate_calculating" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft} color="textPrimary">IO events:</Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target optical density:</Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target growth rate: </Typography>
-          <UnitSettingDisplay isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
         </div>
       </CardContent>
       <CardActions>
