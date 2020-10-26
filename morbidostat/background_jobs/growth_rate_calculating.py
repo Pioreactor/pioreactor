@@ -187,7 +187,7 @@ class GrowthRateCalculator(BackgroundJob):
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def growth_rate_calculating(verbose):
-    calculator = GrowthRateCalculator(verbose, unit=unit, experiment=experiment)
+    calculator = GrowthRateCalculator(verbose=verbose, unit=unit, experiment=experiment)
     while True:
         calculator.run()
 
