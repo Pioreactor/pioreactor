@@ -71,6 +71,7 @@ class Stirrer(BackgroundJob):
     def duty_cycle(self, value):
         self._duty_cycle = value
         self.pwm.ChangeDutyCycle(self.duty_cycle)
+        self.publish_attr("active")
 
 
 def stirring(duty_cycle=None, duration=None, verbose=0):
