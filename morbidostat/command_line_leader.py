@@ -56,6 +56,7 @@ def sync_workers(units, y, extra_args):
 
 
 def kill_workers(units, y, extra_args):
+
     kill = "pkill python"
     command = " && ".join([kill])
 

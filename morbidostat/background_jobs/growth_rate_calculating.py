@@ -33,7 +33,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     publish_out = []
 
-    def __init__(self, unit, experiment, verbose=0):
+    def __init__(self, unit=None, experiment=None, verbose=0):
         super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.start_passive_listeners()
 
@@ -187,7 +187,7 @@ class GrowthRateCalculator(BackgroundJob):
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def growth_rate_calculating(verbose):
-    calculator = GrowthRateCalculator(verbose)
+    calculator = GrowthRateCalculator(verbose, unit=unit, experiment=experiment)
     while True:
         calculator.run()
 
