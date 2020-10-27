@@ -37,7 +37,9 @@ class MedianFirstN:
                 if self.counter[key] == self.N:
                     self.reduced_data[key] = median(self.raw_data[key])
                     # publish
-                    publish(f"morbidostat/{unit}/{experiment}/od_normalization_factors", json.dumps(reduced_data), retain=True)
+                    publish(
+                        f"morbidostat/{unit}/{experiment}/od_normalization_factors", json.dumps(self.reduced_data), retain=True
+                    )
 
     def __getitem__(self, key):
         if self.counter[key] < self.N:

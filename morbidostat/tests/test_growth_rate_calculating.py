@@ -3,7 +3,7 @@ import pytest
 import json
 import time
 
-from morbidostat.background_jobs.growth_rate_calculating import GrowthRateCalculator
+from morbidostat.background_jobs.growth_rate_calculating import GrowthRateCalculator, MedianFirstN
 from morbidostat.pubsub import subscribe, publish
 from morbidostat.whoami import unit, experiment
 
@@ -115,3 +115,19 @@ def test_skip_180():
     pause()
 
     assert "180/A" not in calc.angles
+
+
+def test_MedianFirstN():
+
+    m = MedianFirstN(N=3)
+    m.update({"d": 1, "t": 2})
+    m.update({"d": 1, "t": 3})
+    m.update({"d": 1, "t": 4})
+    assert m.reduced_data == {"d": 1, "t": 3}
+
+
+def test_MedianFirstN_from_dict():
+
+    m = MedianFirstN.from_dict({"d": 1, "t": 2})
+    assert m["d"] == 1
+    assert m["t"] == 2
