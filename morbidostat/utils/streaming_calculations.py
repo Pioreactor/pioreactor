@@ -101,6 +101,7 @@ class ExtendedKalmanFilter:
         return (self._predict_state(self.state_, self.covariance_), self._predict_covariance(self.state_, self.covariance_))
 
     def update(self, observation):
+        observation = np.asarray(observation)
         self.update_counters()
         assert observation.shape[0] + 1 == self.state_.shape[0]
         state_prediction, covariance_prediction = self.predict()

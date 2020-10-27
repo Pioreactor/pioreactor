@@ -3,6 +3,8 @@ import time
 import threading
 import json
 import os
+import signal
+from collections import defaultdict
 import subprocess
 from statistics import median
 
@@ -10,7 +12,7 @@ import numpy as np
 
 import click
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
-from morbidostat.pubsub import publish, subscribe
+from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
 from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config, leader_hostname
@@ -19,13 +21,34 @@ from morbidostat.background_jobs import BackgroundJob
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-"""
-Here's what I should do with this class.
-    Make it a thin wrapper around EKF.
-    The class listens to the topics (ind.) in the background, and publishes from there
-    The threads update the state variable / EKF.
+class MedianFirstN:
+    def __init__(self, N=20):
+        self.N = N
+        self.counter = defaultdict(lambda: 0)
+        self.raw_data = defaultdict(list)
+        self.reduced_data = {}
 
-"""
+    def update(self, data):
+        for key, v in data.items():
+            if self.counter[key] < self.N:
+                self.counter[key] += 1
+                self.raw_data[key].append(v)
+
+                if self.counter[key] == self.N:
+                    self.reduced_data[key] = median(self.raw_data[key])
+
+    def __getitem__(self, key):
+        if self.counter[key] < self.N:
+            return None
+        else:
+            return self.reduced_data[key]
+
+    @classmethod
+    def from_dict(cls, dict_):
+        m = MedianFirstN()
+        m.reduced_data = dict_
+        m.counter = defaultdict(lambda: 0, [(k, m.N) for k in dict_])
+        return m
 
 
 class GrowthRateCalculator(BackgroundJob):
@@ -34,7 +57,119 @@ class GrowthRateCalculator(BackgroundJob):
 
     def __init__(self, unit=None, experiment=None, verbose=0):
         super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
+        self.initial_growth_rate = 0.0
+        self.od_normalization_factors = MedianFirstN(N=20)
+        self.ekf = None
+        self.samples_per_minute = 60 * float(config["od_sampling"]["samples_per_second"])
+
         self.start_passive_listeners()
+
+    def initialize_extended_kalman_filter(self, angles_and_initial_points):
+
+        # growth rate in MQTT is hourly, convert back to multiplicative
+        initial_rate = self.exp_rate_to_multiplicative_rate(self.initial_growth_rate)
+        initial_state = np.array([*angles_and_initial_points.values(), initial_rate])
+
+        d = initial_state.shape[0]
+
+        # empirically selected
+        initial_covariance = np.block(
+            [[1e-5 * np.ones((d - 1, d - 1)), 1e-8 * np.ones((d - 1, 1))], [1e-8 * np.ones((1, d - 1)), 1e-8]]
+        )
+        OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
+
+        # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
+        rate_process_variance = 1e-10
+        process_noise_covariance = np.block(
+            [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
+        )
+        observation_noise_covariance = 1e-3 * np.eye(d - 1)
+
+        return ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
+
+    def set_initial_growth_rate(self, message):
+        self.initial_growth_rate = float(message.payload)
+
+    def set_od_normalization_factors(self, message):
+        seed = json.loads(message.payload)
+        self.od_normalization_factors = MedianFirstN.from_dict(seed)
+
+    def set_initial_od_and_init_ekf(self, message):
+        angles_and_intial_points = self.json_to_sorted_dict(message.payload)
+        self.ekf = self.initialize_extended_kalman_filter(angles_and_intial_points)
+        self.angles = angles_and_intial_points.keys()
+
+    @property
+    def state_(self):
+        return self.ekf.state_
+
+    def multiplicative_rate_to_exp_rate(self, mrate):
+        return np.log(mrate) * 60 * self.samples_per_minute
+
+    def exp_rate_to_multiplicative_rate(self, erate):
+        return np.exp(erate / 60 / self.samples_per_minute)
+
+    def update_ekf_variance_after_io_event(self, message):
+        self.ekf.scale_OD_variance_for_next_n_steps(5e3, 2 * self.samples_per_minute)
+
+    def update_state_from_observation(self, message):
+        if not self.active:
+            return
+
+        if self.ekf is None:
+            # pass to wait for state to initialize
+            return
+
+        try:
+            observations = self.json_to_sorted_dict(message.payload)
+            print(list(observations.values()))
+            self.ekf.update(list(observations.values()))
+            self.od_normalization_factors.update(observations)
+
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/growth_rate",
+                self.multiplicative_rate_to_exp_rate(self.state_[-1]),
+                verbose=self.verbose,
+                retain=True,
+            )
+
+            for i, angle_label in enumerate(self.angles):
+                if self.od_normalization_factors[angle_label]:
+                    publish(
+                        f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{angle_label}",
+                        self.state_[i] / self.od_normalization_factors[angle_label],
+                        verbose=self.verbose,
+                    )
+
+            return
+
+        except Exception as e:
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/error_log",
+                f"[{JOB_NAME}]: failed {e}. Skipping.",
+                verbose=self.verbose,
+            )
+
+    def start_passive_listeners(self):
+        # initialize states
+        subscribe_and_callback(
+            self.set_initial_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=3, max_msgs=1
+        )
+        subscribe_and_callback(
+            self.set_od_normalization_factors,
+            f"morbidostat/{self.unit}/{self.experiment}/od_normalization_factors",
+            timeout=3,
+            max_msgs=1,
+        )
+        subscribe_and_callback(
+            self.set_initial_od_and_init_ekf, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched", timeout=3, max_msgs=1
+        )
+
+        # process incoming data
+        subscribe_and_callback(self.update_state_from_observation, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
+        subscribe_and_callback(self.update_ekf_variance_after_io_event, f"morbidostat/{self.unit}/{self.experiment}/io_events")
+
+        super(GrowthRateCalculator, self).start_passive_listeners()
 
     @staticmethod
     def json_to_sorted_dict(json_dict):
@@ -53,139 +188,13 @@ class GrowthRateCalculator(BackgroundJob):
                     OD_covariance[i, i] = variances[k]
         return OD_covariance
 
-    def get_initial_rate(self):
-        """
-        This is a hack to use a timeout (not available in paho-mqtt) to
-        see if a value is present in the MQTT cache (retained message)
-
-        TODO: this is dangerous and can be hijacked
-
-        """
-        command = f'mosquitto_sub -t "morbidostat/{self.unit}/{self.experiment}/growth_rate" -W 3 -h {leader_hostname}'
-        test_mqtt = subprocess.run([command], shell=True, capture_output=True, universal_newlines=True)
-        if test_mqtt.stdout == "":
-            return 0.0
-        else:
-            return float(test_mqtt.stdout.strip())
-
-    def get_od_normalization_factors(self, desired_angles):
-        """
-        This is a hack to use a timeout (not available in paho-mqtt) to
-        see if a value is present in the MQTT cache (retained message)
-
-        TODO: this is dangerous and can be hijacked
-        """
-        command = (
-            f'mosquitto_sub -t "morbidostat/{self.unit}/{self.experiment}/od_normalization_factors" -W 3 -h {leader_hostname}'
-        )
-        test_mqtt = subprocess.run([command], shell=True, capture_output=True, universal_newlines=True)
-        if test_mqtt.stdout == "":
-            return None
-        else:
-            propsed_factors = json.loads(test_mqtt.stdout.strip())
-            for angle in desired_angles:
-                if angle not in propsed_factors:
-                    return None
-            return propsed_factors
-
-    def run(self):
-
-        od_reading_rate = float(config["od_sampling"]["samples_per_second"])
-        samples_per_minute = 60 * od_reading_rate
-
-        try:
-            # pick good initializations
-            latest_od = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
-            angles_and_intial_points = self.json_to_sorted_dict(latest_od.payload)
-
-            # growth rate in MQTT is hourly, convert back to multiplicative
-            initial_rate = np.exp(self.get_initial_rate() / 60 / samples_per_minute)
-
-            first_N_observations = {angle_label: [] for angle_label in angles_and_intial_points.keys()}
-            od_normalization_factors = self.get_od_normalization_factors(angles_and_intial_points.keys())
-
-            initial_state = np.array([*angles_and_intial_points.values(), initial_rate])
-            d = initial_state.shape[0]
-
-            # empirically selected
-            initial_covariance = np.block(
-                [[1e-5 * np.ones((d - 1, d - 1)), 1e-8 * np.ones((d - 1, 1))], [1e-8 * np.ones((1, d - 1)), 1e-8]]
-            )
-            OD_process_covariance = self.create_OD_covariance(angles_and_intial_points.keys())
-
-            # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
-            rate_process_variance = 1e-10
-            process_noise_covariance = np.block(
-                [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
-            )
-            observation_noise_covariance = 1e-3 * np.eye(d - 1)
-
-            ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
-
-            counter = 0
-            while self.active:
-                msg = subscribe(
-                    [
-                        f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched",
-                        f"morbidostat/{self.unit}/{self.experiment}/io_events",
-                    ]
-                )
-
-                if "od_raw" in msg.topic:
-                    ekf.update(np.array([*self.json_to_sorted_dict(msg.payload).values()]))
-
-                elif "io_events" in msg.topic:
-                    ekf.scale_OD_variance_for_next_n_steps(5e3, 2 * samples_per_minute)
-                    continue
-
-                # transform the rate, r, into rate per hour: e^{rate * hours}
-                publish(
-                    f"morbidostat/{self.unit}/{self.experiment}/growth_rate",
-                    np.log(ekf.state_[-1]) * 60 * samples_per_minute,
-                    verbose=self.verbose,
-                    retain=True,
-                )
-
-                if od_normalization_factors is None:
-                    for i, angle_label in enumerate(angles_and_intial_points):
-                        # this kills me. What I want is a 1d numpy array with string indexing.
-                        first_N_observations[angle_label].append(ekf.state_[i])
-                    if counter == 20:
-                        od_normalization_factors = {
-                            angle_label: median(first_N_observations[angle_label])
-                            for angle_label in angles_and_intial_points.keys()
-                        }
-                        publish(
-                            f"morbidostat/{self.unit}/{self.experiment}/od_normalization_factors",
-                            json.dumps(od_normalization_factors),
-                            verbose=self.verbose,
-                            retain=True,
-                        )
-
-                else:
-                    for i, angle_label in enumerate(angles_and_intial_points):
-                        publish(
-                            f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{angle_label}",
-                            ekf.state_[i] / od_normalization_factors[angle_label],
-                            verbose=self.verbose,
-                        )
-                        yield (angle_label, ekf.state_[i] / od_normalization_factors[angle_label])
-
-                counter += 1
-
-        except Exception as e:
-            publish(
-                f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[{JOB_NAME}]: failed {str(e)}", verbose=self.verbose
-            )
-            raise (e)
-
 
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def growth_rate_calculating(verbose):
-    calculator = GrowthRateCalculator(verbose=verbose, unit=unit, experiment=experiment).run()
+    calculator = GrowthRateCalculator(verbose=verbose, unit=unit, experiment=experiment)
     while True:
-        next(calculator)
+        signal.pause()
 
 
 @click.command()

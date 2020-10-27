@@ -70,7 +70,7 @@ class AltMediaCalculator:
             self.latest_alt_media_fraction,
             verbose=self.verbose,
             retain=True,
-            qos=QOS.AT_LEAST_ONCE,
+            qos=QOS.EXACTLY_ONCE,
         )
 
         return self.latest_alt_media_fraction

@@ -32,13 +32,13 @@ class Stirrer(BackgroundJob):
     def __init__(self, duty_cycle, unit, experiment, verbose=0, hertz=50, pin=int(config["rpi_pins"]["fan"])):
         self.hertz = hertz
         self.pin = pin
+
+        GPIO.setup(self.pin, GPIO.OUT)
+        GPIO.output(self.pin, 0)
         self.pwm = GPIO.PWM(self.pin, self.hertz)
         self._duty_cycle = duty_cycle
 
         super(Stirrer, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
-
-        GPIO.setup(self.pin, GPIO.OUT)
-        GPIO.output(self.pin, 0)
 
         self.start_passive_listeners()
 

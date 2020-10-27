@@ -64,31 +64,57 @@ def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
             raise ConnectionRefusedError(f"{current_time}: Unable to connect to host: {hostname}. Exiting.")
 
 
-def subscribe_and_callback(callback, topics, hostname=leader_hostname, **mqtt_kwargs):
+def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=None, max_msgs=None, **mqtt_kwargs):
     """
     Creates a new thread, wrapping around paho's subscribe.callback. Callbacks only accept a single parameter, message.
+
+    timeout: the client will only listen for <timeout> seconds before disconnecting.
+    max_msgs: the client will process <max_msgs> messages before disconnecting.
+
 
     TODO: what happens when I lose connection to host?
     """
 
-    def job_callback(actual_callback):
-        def _callback(_, __, message):
+    def wrap_callback(actual_callback):
+        def _callback(client, userdata, message):
             try:
+                if "timeout" in userdata and time.time() - userdata["started_at"] > userdata["timeout"]:
+                    client.disconnect()
+                    return
+
+                if "max_msgs" in userdata:
+                    if userdata["count"] > userdata["max_msgs"]:
+                        client.disconnect()
+                        return
+                    else:
+                        userdata["count"] += 1
+
                 return actual_callback(message)
+
             except Exception as e:
-                # TODO: this doesn't always fire...
                 traceback.print_exc()
 
                 from morbidostat.whoami import unit, experiment
 
                 publish(f"morbidostat/{unit}/{experiment}/error_log", str(e), verbose=1)
 
+                raise e
+
         return _callback
+
+    userdata = {}
+    if timeout:
+        userdata["started_at"] = time.time()
+        userdata["timeout"] = timeout
+
+    if max_msgs:
+        userdata["count"] = 0
+        userdata["max_msgs"] = max_msgs
 
     thread = threading.Thread(
         target=mqtt_subscribe.callback,
-        args=(job_callback(callback), topics),
-        kwargs={"hostname": hostname, **mqtt_kwargs},
+        args=(wrap_callback(callback), topics),
+        kwargs={"hostname": hostname, "userdata": userdata, **mqtt_kwargs},
         daemon=True,
     )
     thread.start()
