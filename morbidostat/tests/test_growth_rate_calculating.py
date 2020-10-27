@@ -13,6 +13,14 @@ def pause():
     time.sleep(0.5)
 
 
+def setup_module(module):
+    publish(
+        f"morbidostat/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}',
+        retain=True,
+    )
+
+
 def test_subscribing(monkeypatch):
 
     calc = GrowthRateCalculator(unit, experiment)
@@ -58,13 +66,15 @@ def test_mis_shapen_data(monkeypatch):
 
 
 def test_restart():
+    publish(
+        f"morbidostat/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90": 0.1}',
+        retain=True,
+    )
     publish(f"morbidostat/{unit}/{experiment}/growth_rate", None, retain=True)
     pause()
     calc1 = GrowthRateCalculator(unit, experiment)
 
-    publish(
-        f"morbidostat/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90": 0.1}'
-    )
     publish(
         f"morbidostat/{unit}/{experiment}/od_raw_batched", '{"135/A": 1.808586260567034, "135/B": 1.21944389172032837, "90": 1.2}'
     )

@@ -36,6 +36,8 @@ class MedianFirstN:
 
                 if self.counter[key] == self.N:
                     self.reduced_data[key] = median(self.raw_data[key])
+                    # publish
+                    publish(f"morbidostat/{unit}/{experiment}/od_normalization_factors", json.dumps(reduced_data), retain=True)
 
     def __getitem__(self, key):
         if self.counter[key] < self.N:
@@ -61,10 +63,14 @@ class GrowthRateCalculator(BackgroundJob):
         self.od_normalization_factors = MedianFirstN(N=20)
         self.ekf = None
         self.samples_per_minute = 60 * float(config["od_sampling"]["samples_per_second"])
-
         self.start_passive_listeners()
 
-    def initialize_extended_kalman_filter(self, angles_and_initial_points):
+        time.sleep(1.0)
+        self.ekf, self.angles = self.initialize_extended_kalman_filter()
+
+    def initialize_extended_kalman_filter(self):
+        message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
+        angles_and_initial_points = self.json_to_sorted_dict(message.payload)
 
         # growth rate in MQTT is hourly, convert back to multiplicative
         initial_rate = self.exp_rate_to_multiplicative_rate(self.initial_growth_rate)
@@ -85,7 +91,10 @@ class GrowthRateCalculator(BackgroundJob):
         )
         observation_noise_covariance = 1e-3 * np.eye(d - 1)
 
-        return ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
+        return (
+            ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance),
+            angles_and_initial_points.keys(),
+        )
 
     def set_initial_growth_rate(self, message):
         self.initial_growth_rate = float(message.payload)
@@ -93,11 +102,6 @@ class GrowthRateCalculator(BackgroundJob):
     def set_od_normalization_factors(self, message):
         seed = json.loads(message.payload)
         self.od_normalization_factors = MedianFirstN.from_dict(seed)
-
-    def set_initial_od_and_init_ekf(self, message):
-        angles_and_intial_points = self.json_to_sorted_dict(message.payload)
-        self.ekf = self.initialize_extended_kalman_filter(angles_and_intial_points)
-        self.angles = angles_and_intial_points.keys()
 
     @property
     def state_(self):
@@ -122,7 +126,6 @@ class GrowthRateCalculator(BackgroundJob):
 
         try:
             observations = self.json_to_sorted_dict(message.payload)
-            print(list(observations.values()))
             self.ekf.update(list(observations.values()))
             self.od_normalization_factors.update(observations)
 
@@ -160,9 +163,6 @@ class GrowthRateCalculator(BackgroundJob):
             f"morbidostat/{self.unit}/{self.experiment}/od_normalization_factors",
             timeout=3,
             max_msgs=1,
-        )
-        subscribe_and_callback(
-            self.set_initial_od_and_init_ekf, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched", timeout=3, max_msgs=1
         )
 
         # process incoming data
