@@ -31,7 +31,7 @@ class LogTable extends React.Component {
     this.state = {listOfLogs: this.props.listOfLogs};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
-    this.experiment = "Trial-20-e149d09a68f64045bd6f162dcf28f15c"
+    this.experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
   }
 
   componentDidMount() {

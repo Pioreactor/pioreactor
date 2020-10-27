@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 import time
-import threading
 import json
 import os
 import signal
 from collections import defaultdict
-import subprocess
 from statistics import median
 
 import numpy as np
-
 import click
+
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
 from morbidostat.utils import log_start, log_stop
