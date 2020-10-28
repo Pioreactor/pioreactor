@@ -29,8 +29,20 @@ def checksum_git(s):
     ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `mba sync`"
 
 
-def sync_workers(units, y, extra_args):
-    # parallelize thisF
+@click.group()
+def mba():
+    if not am_I_leader():
+        print("workers cannot run `mba` commands. Try `mb` instead.")
+        import sys
+
+        sys.exit()
+
+
+@mba.command()
+@click.option("-y", is_flag=True, help="skip asking for confirmation")
+@click.option("--units", multiple=True, default=UNITS, type=click.STRING)
+def sync(y, units):
+    # parallelize this
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
@@ -55,9 +67,13 @@ def sync_workers(units, y, extra_args):
         s.close()
 
 
-def kill_workers(units, y, extra_args):
+@mba.command()
+@click.argument("process")
+@click.option("--units", multiple=True, default=UNITS, type=click.STRING)
+@click.option("-y", is_flag=True, help="skip asking for confirmation")
+def kill(process, units, y):
 
-    kill = "pkill python"
+    kill = f"pkill {process}"
     command = " && ".join([kill])
 
     if not y:
@@ -78,7 +94,12 @@ def kill_workers(units, y, extra_args):
         s.close()
 
 
-def run_mb_command(job, units, y, extra_args):
+@mba.command()
+@click.argument("job")
+@click.option("--units", multiple=True, default=UNITS, type=click.STRING)
+@click.option("-y", is_flag=True, help="skip asking for confirmation")
+@click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
+def run(job, units, y, extra_args):
     extra_args = list(extra_args)
 
     command = ["mb", job] + extra_args + ["-b"]
@@ -113,23 +134,5 @@ def run_mb_command(job, units, y, extra_args):
     return
 
 
-@click.command(context_settings=dict(ignore_unknown_options=True))
-@click.argument("job")
-@click.option("-y", is_flag=True, help="skip asking for confirmation")
-@click.option("--units", multiple=True, default=UNITS, type=click.STRING)
-@click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def cli(job, y, units, extra_args):
-    if not am_I_leader():
-        print("workers cannot run morbidostat-all commands. Try `mb` instead.")
-        return
-
-    if job == "sync":
-        return sync_workers(units, y, extra_args)
-    elif job == "kill":
-        return kill_workers(units, y, extra_args)
-    else:
-        return run_mb_command(job, units, y, extra_args)
-
-
 if __name__ == "__main__":
-    cli()
+    mba()

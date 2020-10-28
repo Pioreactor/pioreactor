@@ -44,23 +44,19 @@ function App() {
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chart_data={chartGrowthRate} interpolation="natural" fontScale={1.} title="Implied growth rate" yAxisLabel="Growth rate, h⁻¹"/>
+              <Chart chartData={chartGrowthRate} interpolation="stepAfter" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
             </Grid>
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chart_data={chartAltMediaFraction} interpolation="stepAfter" fontScale={1.} title="Fraction of volume that is alternative media" yAxisLabel="Fraction"/>
+              <Chart chartData={chartAltMediaFraction} interpolation="stepAfter" fontScale={1.} title="Fraction of volume that is alternative media" topic="alt_media_fraction" yAxisLabel="Fraction"/>
             </Grid>
 
             <Grid item xs={1}/>
             <Grid item container xs={11} direction="row" spacing={0}>
-              <Grid item xs={6}>
-                <ODChart chart_data={chartData135} fontScale={1.7} title="135° optical density" yAxisLabel="Optical density (AU)"/>
+              <Grid item xs={12}>
+                <Chart chartData={chartData135} fontScale={1.0} title="135° optical density" topic="od_filtered/135/+" yAxisLabel="Optical density (AU)"/>
               </Grid>
-              <Grid item xs={6}>
-                <ODChart chart_data={chartData90} fontScale={1.7} title="90° optical density" yAxisLabel="Optical density (AU)"/>
-              </Grid>
-
             </Grid>
           </Grid>
 

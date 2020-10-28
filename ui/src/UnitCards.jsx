@@ -98,7 +98,7 @@ class UnitSettingDisplay extends React.Component {
 
   componentDidMount() {
     // need to have unique clientIds
-    this.client = new Client("leader.local", 9001, "webui" + Math.random());
+    this.client = new Client("localhost", 9001, "webui" + Math.random());
     this.client.connect({'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;
   }
@@ -123,7 +123,7 @@ class UnitSettingDisplay extends React.Component {
           return <div style={{color: "#4caf50"}}> On </div>
         }
         else if (this.state.msg === "0") {
-          return <div style={{color: "#f44336"}}> Off </div>
+          return <div style={{color: "grey"}}> Off </div>
         }
         else{
           return <div style={{color: "grey"}}> {this.state.msg} </div>
@@ -161,7 +161,7 @@ function UnitCard(props) {
     const defaultStirring = config['stirring']["duty_cycle" + unitNumber]
 
     // MQTT - client ids should be unique
-    var client = new Client("leader.local", 9001,  "webui" + Math.random());
+    var client = new Client("localhost", 9001,  "webui" + Math.random());
 
     client.connect();
 
@@ -288,15 +288,15 @@ function UnitCard(props) {
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Optical density reading:</Typography>
-          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Growth rate:</Typography>
-          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="growth_rate_calculating" attr="active" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive job="growth_rate_calculating" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft} color="textPrimary">IO events:</Typography>
-          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
         </div>
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target optical density:</Typography>

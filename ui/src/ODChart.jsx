@@ -31,9 +31,9 @@ function linspace(startValue, stopValue, cardinality) {
 class ODChart extends React.Component {
   render() {
     let lines = [];
-    let names = this.props.chart_data["series"];
+    let names = this.props.chartData["series"];
     let nLines = names.length;
-    let x_y_data = this.props.chart_data["data"];
+    let x_y_data = this.props.chartData["data"];
 
     let min_timestamp = x_y_data[0][0]['x']
     let max_timestamp = x_y_data[0].slice(-1)[0]['x']

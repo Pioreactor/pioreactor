@@ -17,6 +17,6 @@ setup(
     entry_points="""
         [console_scripts]
         mb=morbidostat.command_line_worker:cli
-        mba=morbidostat.command_line_leader:cli
+        mba=morbidostat.command_line_leader:mba
     """,
 )

@@ -80,9 +80,15 @@ Running in the background (and append output to `morbidostat.log`)
 
 If you have many workers, you can run from the leader
 
-`mba <job or action> <options>`
+`mba run <job or action> <options>`
 
 to execute all of them.
+
+Other `mba` commands:
+
+- `mba kill <process>` to stop any process matching `<process>`
+- `mba sync` to pull the latest code from git and run `setup.py` on the workers.
+
 
 
 ### Testing

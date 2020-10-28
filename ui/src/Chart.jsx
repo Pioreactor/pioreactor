@@ -44,13 +44,12 @@ function Chart(props) {
       console.log("connected")
     }
 
-    function onFailure() {
-      console.log("Failed")
-    }
-
     function onMessageArrived(message) {
       let unit = message.topic.split("/")[1];
       seriesMap[unit].push({x: parseInt(moment().format('x')), y: parseFloat(message.payloadString)})
+      if (seriesMap[unit].length > 1000){
+        seriesMap[unit].pop()
+      }
       setSeriesMap(seriesMap)
       setMaxTimestamp(parseInt(moment().format('x')))
     }
@@ -59,9 +58,9 @@ function Chart(props) {
 
     // 1. listen for message and update the state
     useEffect(() => {
-      client.connect({onSuccess:onConnect, useSSL: true});
+      client.connect({onSuccess:onConnect});
       client.onMessageArrived = onMessageArrived;
-    });
+    }, [seriesMap]);
 
     let names = Object.keys(seriesMap);
 

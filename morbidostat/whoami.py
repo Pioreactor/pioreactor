@@ -16,13 +16,18 @@ def get_latest_experiment_name():
 
 
 def get_hostname():
+
     if "pytest" in sys.modules:
         return "localhost"
+    elif os.environ.get("HOSTNAME"):
+        return os.environ.get("HOSTNAME")
     else:
         return socket.gethostname()
 
 
 def get_unit_from_hostname():
+    if "pytest" in sys.modules or os.environ.get("TESTING"):
+        return "leader"
 
     hostname = get_hostname()
 
@@ -39,7 +44,7 @@ def get_unit_from_hostname():
     elif hostname == "raspberrypi":
         raise ValueError("Did you forget to set the hostname?")
     else:
-        return "unknown"
+        raise ValueError(f"How did I get here? My hostname is {hostname}")
 
 
 def am_I_leader():

@@ -14,7 +14,7 @@ def get_config():
 
 def get_leader_hostname():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
-        return "localhost"
+        return "leader"
     else:
         return get_config()["network"]["leader_hostname"]
 
