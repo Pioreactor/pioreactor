@@ -66,7 +66,6 @@ How to use the morbidostat
  - [ ] change password
  - [ ] push ssh keys?
  - [ ] tell leader about unit, and tell unit about leader
- - [ ] add websockets to leader mqtt
 
 ### Running
 

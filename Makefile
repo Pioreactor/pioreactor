@@ -6,6 +6,13 @@ install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
 	sudo systemctl enable mosquitto.service
 
+configure-mqtt-websockets:
+	echo "listener 1883" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	echo "protocol mqtt" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	echo "listener 9001" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	echo "protocol websockets" | sudo tee /etc/mosquitto/mosquitto.conf -a
+
+
 install-i2c:
 	sudo apt-get install -y python-smbus
 	sudo apt-get install -y i2c-tools
@@ -44,7 +51,7 @@ configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
-install-leader: install-python install-mqtt configure-rpi install-db install-nodered install-mobrbidostat
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-nodered install-mobrbidostat
 	pip3 install -r requirments/requirements_leader.txt
 
 view:

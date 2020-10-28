@@ -33,22 +33,54 @@ function Chart(props) {
     let initialSeriesMap = {}
 
      for (const [i, v] of props.chartData['series'].entries()) {
-          initialSeriesMap[v] = props.chartData['data'][i];
+          initialSeriesMap[v] = {data: props.chartData['data'][i], name: i, color: colors[v]};
      }
 
     const [seriesMap, setSeriesMap] = useState(initialSeriesMap);
     const [maxTimestamp, setMaxTimestamp] = useState(parseInt(moment().format('x')));
+    const [hiddenSeries, sethiddenSeries] = useState(new Set());
+
+    let names = Object.keys(seriesMap);
+
+    function buildEvents() {
+        return names.map((name, idx) => {
+          return {
+            childName: ['legend'],
+            target: ['data', 'labels'],
+            eventKey: String(idx),
+            eventHandlers: {
+              onClick: () => {
+                return [
+                  {
+                    childName: ['line-' + name], //UPDATE
+                    target: 'data',
+                    eventKey: 'all',
+                    mutation: () => {
+                      if (!hiddenSeries.delete(name)) {
+                        // Was not already hidden => add to set
+                        hiddenSeries.add(name);
+                      }
+                      sethiddenSeries(new Set(hiddenSeries));
+                      return null;
+                    }
+                  }
+                ];
+              }
+            }
+          };
+        });
+      }
+
 
     function onConnect() {
       client.subscribe(["morbidostat", "+", "experiment", props.topic].join("/"))
-      console.log("connected")
     }
 
     function onMessageArrived(message) {
       let unit = message.topic.split("/")[1];
-      seriesMap[unit].push({x: parseInt(moment().format('x')), y: parseFloat(message.payloadString)})
-      if (seriesMap[unit].length > 1000){
-        seriesMap[unit].pop()
+      seriesMap[unit].data.push({x: parseInt(moment().format('x')), y: parseFloat(message.payloadString)})
+      if (seriesMap[unit].data.length > 1000){
+        seriesMap[unit].data.pop()
       }
       setSeriesMap(seriesMap)
       setMaxTimestamp(parseInt(moment().format('x')))
@@ -62,9 +94,8 @@ function Chart(props) {
       client.onMessageArrived = onMessageArrived;
     }, [seriesMap]);
 
-    let names = Object.keys(seriesMap);
 
-    let minTimestamp = Math.min(...Object.values(seriesMap).map(s => parseInt(s[0]['x'])))
+    let minTimestamp = Math.min(...Object.values(seriesMap).map(s => parseInt(s.data[0]['x'])))
     let delta_ts = moment(maxTimestamp, 'x').diff(moment(minTimestamp,'x'), 'hours')
     let axis_display_ts_format = ((delta_ts >= 16)
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD' : 'dd HH:mm') : 'H:mm'
@@ -73,6 +104,7 @@ function Chart(props) {
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD HH:mm' : 'dd HH:mm') : 'H:mm'
     )
 
+
     const VictoryZoomVoronoiContainer = createContainer("voronoi", "zoom");
     return (
       <Card>
@@ -80,7 +112,9 @@ function Chart(props) {
         title={props.title}
         domainPadding={10}
         padding={{left: 70, right:80, bottom: 50, top: 50}}
-        width={600} height={300}
+        width={600}
+        height={300}
+        events={buildEvents()}
         responsive={false}
         theme={VictoryTheme.material}
         containerComponent={
@@ -94,11 +128,12 @@ ${Math.round(d.datum.y * 1000)/1000}`}
         <VictoryLabel text={props.title} x={300} y={30} textAnchor="middle" style={{fontSize: 15 * props.fontScale}}/>
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
-          tickValues={linspace(minTimestamp, maxTimestamp + 100000, 7).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
+          tickValues={linspace(minTimestamp, maxTimestamp + 100000, 6).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
           style={{
             tickLabels: {fontSize: 13 * props.fontScale, padding: 5}
           }}
           offsetY={50}
+          orientation="bottom"
         />
         <VictoryAxis
           crossAxis={false}
@@ -110,25 +145,38 @@ ${Math.round(d.datum.y * 1000)/1000}`}
           }}
         />
         <VictoryLegend x={520} y={100}
+          name={'legend'}
           borderPadding={{right: 10}}
           orientation="vertical"
+          cursor = {"pointer"}
           style={{
             border: { stroke: "#90a4ae" },
             labels: { fontSize: 13 * props.fontScale },
             data: { stroke: "black", strokeWidth: 1 },
           }}
-          data={names.map((n, i) => ({name: n, symbol: {fill: colors[n]}}))}
+          data={names.map(name => {
+            const line = seriesMap[name]
+            const item = {name: line.name, symbol: {fill: line.color}};
+            if (hiddenSeries.has(name)) {
+              return { ...item, symbol: { fill: 'white' } };
+            }
+            return item;
+          })}
         />
       {
-        Object.keys(seriesMap).map(key => {
+        Object.keys(seriesMap).map(name => {
+          if (hiddenSeries.has(name)) {
+              return undefined;
+          }
           return <VictoryLine
             interpolation={props.interpolation}
-            key={key}
+            key={'line-' + name}
+            name={'line-' + name}
             style={{
-              data: { stroke: colors[key], strokeWidth: 2 },
+              data: { stroke: seriesMap[name].color, strokeWidth: 2 },
               parent: { border: "1px solid #ccc"}
             }}
-            data={seriesMap[key]}
+            data={seriesMap[name].data}
             x="x"
             y="y"
           />
