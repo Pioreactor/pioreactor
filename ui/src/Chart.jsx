@@ -1,4 +1,6 @@
 import React from 'react';
+import { useEffect, useState } from 'react';
+import {Client} from 'paho-mqtt';
 import {VictoryChart, VictoryLabel, VictoryAxis, VictoryTheme, VictoryLine, VictoryLegend, createContainer, VictoryTooltip} from 'victory';
 import moment from 'moment';
 import Card from '@material-ui/core/Card';
@@ -26,17 +28,45 @@ function linspace(startValue, stopValue, cardinality) {
   return arr;
 }
 
-class Chart extends React.Component {
-  render() {
-    let lines = [];
-    let names = this.props.chart_data["series"];
-    let nLines = names.length;
-    let x_y_data = this.props.chart_data["data"];
-    let interpolation = this.props.interpolation
 
-    let min_timestamp = x_y_data[0][0]['x']
-    let max_timestamp = x_y_data[0].slice(-1)[0]['x']
-    let delta_ts = moment(max_timestamp, 'x').diff(moment(min_timestamp,'x'), 'hours')
+function Chart(props) {
+    let initialSeriesMap = {}
+
+     for (const [i, v] of props.chartData['series'].entries()) {
+          initialSeriesMap[v] = props.chartData['data'][i];
+     }
+
+    const [seriesMap, setSeriesMap] = useState(initialSeriesMap);
+    const [maxTimestamp, setMaxTimestamp] = useState(parseInt(moment().format('x')));
+
+    function onConnect() {
+      client.subscribe(["morbidostat", "+", "experiment", props.topic].join("/"))
+      console.log("connected")
+    }
+
+    function onFailure() {
+      console.log("Failed")
+    }
+
+    function onMessageArrived(message) {
+      let unit = message.topic.split("/")[1];
+      seriesMap[unit].push({x: parseInt(moment().format('x')), y: parseFloat(message.payloadString)})
+      setSeriesMap(seriesMap)
+      setMaxTimestamp(parseInt(moment().format('x')))
+    }
+
+    var client = new Client("192.168.0.22", 9001, "webui-chart" + Math.random());
+
+    // 1. listen for message and update the state
+    useEffect(() => {
+      client.connect({onSuccess:onConnect, useSSL: true});
+      client.onMessageArrived = onMessageArrived;
+    });
+
+    let names = Object.keys(seriesMap);
+
+    let minTimestamp = Math.min(...Object.values(seriesMap).map(s => parseInt(s[0]['x'])))
+    let delta_ts = moment(maxTimestamp, 'x').diff(moment(minTimestamp,'x'), 'hours')
     let axis_display_ts_format = ((delta_ts >= 16)
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD' : 'dd HH:mm') : 'H:mm'
     )
@@ -44,29 +74,11 @@ class Chart extends React.Component {
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD HH:mm' : 'dd HH:mm') : 'H:mm'
     )
 
-    const VictoryZoomVoronoiContainer = createContainer("zoom", "voronoi");
-
-    for (let i = 0; i < nLines; i++) {
-      let name = names[i]
-      lines.push(
-          <VictoryLine
-            interpolation={interpolation}
-            key={name}
-            style={{
-              data: { stroke: colors[name], strokeWidth: 2 },
-              parent: { border: "1px solid #ccc"}
-            }}
-            data={x_y_data[i]}
-            x="x"
-            y="y"
-          />
-        )
-
-    }
+    const VictoryZoomVoronoiContainer = createContainer("voronoi", "zoom");
     return (
       <Card>
       <VictoryChart
-        title={this.props.title}
+        title={props.title}
         domainPadding={10}
         padding={{left: 70, right:80, bottom: 50, top: 50}}
         width={600} height={300}
@@ -80,21 +92,22 @@ ${Math.round(d.datum.y * 1000)/1000}`}
           />
         }
         >
-        <VictoryLabel text={this.props.title} x={300} y={30} textAnchor="middle" style={{fontSize: 15 * this.props.fontScale}}/>
+        <VictoryLabel text={props.title} x={300} y={30} textAnchor="middle" style={{fontSize: 15 * props.fontScale}}/>
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
-          tickValues={linspace(min_timestamp, max_timestamp + 100000, 7).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
+          tickValues={linspace(minTimestamp, maxTimestamp + 100000, 7).map(x => moment(x, 'x').startOf(((delta_ts >= 16) ? 'hour' : 'minute')))}
           style={{
-            tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
+            tickLabels: {fontSize: 13 * props.fontScale, padding: 5}
           }}
           offsetY={50}
         />
         <VictoryAxis
+          crossAxis={false}
           dependentAxis
-          label={this.props.yAxisLabel}
-          axisLabelComponent={<VictoryLabel  dy={-40} style={{fontSize: 15 * this.props.fontScale, padding:10}}/>}
+          label={props.yAxisLabel}
+          axisLabelComponent={<VictoryLabel  dy={-40} style={{fontSize: 15 * props.fontScale, padding:10}}/>}
           style={{
-            tickLabels: {fontSize: 13 * this.props.fontScale, padding: 5}
+            tickLabels: {fontSize: 13 * props.fontScale, padding: 5}
           }}
         />
         <VictoryLegend x={520} y={100}
@@ -102,16 +115,28 @@ ${Math.round(d.datum.y * 1000)/1000}`}
           orientation="vertical"
           style={{
             border: { stroke: "#90a4ae" },
-            labels: { fontSize: 13 * this.props.fontScale },
+            labels: { fontSize: 13 * props.fontScale },
             data: { stroke: "black", strokeWidth: 1 },
           }}
           data={names.map((n, i) => ({name: n, symbol: {fill: colors[n]}}))}
         />
-      {lines}
+      {
+        Object.keys(seriesMap).map(key => {
+          return <VictoryLine
+            interpolation={props.interpolation}
+            key={key}
+            style={{
+              data: { stroke: colors[key], strokeWidth: 2 },
+              parent: { border: "1px solid #ccc"}
+            }}
+            data={seriesMap[key]}
+            x="x"
+            y="y"
+          />
+      })}
     </VictoryChart>
     </Card>
     )
-  }
 }
 
 export default Chart;
