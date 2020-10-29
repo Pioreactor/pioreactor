@@ -40,7 +40,7 @@ def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **m
             retry_count += 1
 
         if retry_count == retries:
-            raise ConnectionRefusedError(f"{current_time}: Unable to connect to host: {hostname}. Exiting.")
+            raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
 def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
@@ -61,15 +61,19 @@ def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
 
         if retry_count == retries:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            raise ConnectionRefusedError(f"{current_time}: Unable to connect to host: {hostname}. Exiting.")
+            raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
 def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=None, max_msgs=None, **mqtt_kwargs):
     """
     Creates a new thread, wrapping around paho's subscribe.callback. Callbacks only accept a single parameter, message.
 
-    timeout: the client will only listen for <timeout> seconds before disconnecting.
-    max_msgs: the client will process <max_msgs> messages before disconnecting.
+    Parameters
+    -------------
+    timeout: float
+        the client will  only listen for <timeout> seconds before disconnecting. (kinda)
+    max_msgs: int
+        the client will process <max_msgs> messages before disconnecting.
 
 
     TODO: what happens when I lose connection to host?

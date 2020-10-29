@@ -85,7 +85,7 @@ class GrowthRateCalculator(BackgroundJob):
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
         # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
-        rate_process_variance = 1e-10
+        rate_process_variance = 1e-11
         process_noise_covariance = np.block(
             [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
         )

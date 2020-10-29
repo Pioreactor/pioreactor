@@ -7,7 +7,7 @@ import LogTable from "./LogTable"
 import ExperimentSummary from "./ExperimentSummary"
 import Chart from "./Chart"
 import ODChart from "./ODChart"
-import AllUnitsCard from "./AllUnitsCard"
+import AllUnitsManagerCard from "./AllUnitsManagerCard"
 
 import CssBaseline from "@material-ui/core/CssBaseline";
 import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles";
@@ -44,7 +44,7 @@ function App() {
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chartData={chartGrowthRate} interpolation="stepAfter" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
+              <Chart chartData={chartGrowthRate} interpolation="natural" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
             </Grid>
 
             <Grid item xs={1}/>
@@ -67,7 +67,7 @@ function App() {
             <Grid item xs={1}/>
 
             <Grid item xs={1}/>
-            <Grid item xs={10}><AllUnitsCard/></Grid>
+            <Grid item xs={10}><AllUnitsManagerCard/></Grid>
             <Grid item xs={1}/>
 
             <Grid item xs={1}/>

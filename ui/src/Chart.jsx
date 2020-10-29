@@ -7,15 +7,15 @@ import Card from '@material-ui/core/Card';
 
 const colors = {
   "1": "#087e8b",
-  "1-A": "#088C41",
+  "1-A": "#087e8b",
   "1-B": "#08278C",
 
   "2": "#bfd7ea",
-  "2-A": "#BEEAE0",
+  "2-A": "#bfd7ea",
   "2-B": "#C3BEEA",
 
   "3": "#ff5a5f",
-  "3-A": "#FFC35C",
+  "3-A": "#ff5a5f",
   "3-B": "#FF5CCE",
 }
 
@@ -33,7 +33,7 @@ function Chart(props) {
     let initialSeriesMap = {}
 
      for (const [i, v] of props.chartData['series'].entries()) {
-          initialSeriesMap[v] = {data: props.chartData['data'][i], name: i, color: colors[v]};
+          initialSeriesMap[v] = {data: props.chartData['data'][i], name: v, color: colors[v]};
      }
 
     const [seriesMap, setSeriesMap] = useState(initialSeriesMap);
@@ -144,9 +144,9 @@ ${Math.round(d.datum.y * 1000)/1000}`}
             tickLabels: {fontSize: 13 * props.fontScale, padding: 5}
           }}
         />
-        <VictoryLegend x={520} y={100}
+        <VictoryLegend x={527} y={60}
           name={'legend'}
-          borderPadding={{right: 10}}
+          borderPadding={{right: 8}}
           orientation="vertical"
           cursor = {"pointer"}
           style={{
@@ -156,9 +156,9 @@ ${Math.round(d.datum.y * 1000)/1000}`}
           }}
           data={names.map(name => {
             const line = seriesMap[name]
-            const item = {name: line.name, symbol: {fill: line.color}};
+            const item = {name: line.name, symbol: {fill: line.color,  type: "square"}};
             if (hiddenSeries.has(name)) {
-              return { ...item, symbol: { fill: 'white' } };
+              return { ...item, symbol: { fill: 'white',  type: "square"} };
             }
             return item;
           })}
