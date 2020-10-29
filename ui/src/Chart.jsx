@@ -30,15 +30,19 @@ function linspace(startValue, stopValue, cardinality) {
 
 
 function Chart(props) {
-    let initialSeriesMap = {}
-
+     let initialSeriesMap = {};
      for (const [i, v] of props.chartData['series'].entries()) {
+        if(props.chartData['data'][i].length > 0){
           initialSeriesMap[v] = {data: props.chartData['data'][i], name: v, color: colors[v]};
+        }
      }
 
+
+    const experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
     const [seriesMap, setSeriesMap] = useState(initialSeriesMap);
     const [maxTimestamp, setMaxTimestamp] = useState(parseInt(moment().format('x')));
     const [hiddenSeries, sethiddenSeries] = useState(new Set());
+    const [lastMsgRecievedAt, setLastMsgRecievedAt] = useState(parseInt(moment().format('x')));
 
     let names = Object.keys(seriesMap);
 
@@ -46,7 +50,7 @@ function Chart(props) {
         return names.map((name, idx) => {
           return {
             childName: ['legend'],
-            target: ['data', 'labels'],
+            target: 'data',
             eventKey: String(idx),
             eventHandlers: {
               onClick: () => {
@@ -73,20 +77,28 @@ function Chart(props) {
 
 
     function onConnect() {
-      client.subscribe(["morbidostat", "+", "experiment", props.topic].join("/"))
+      client.subscribe(["morbidostat", "+", experiment, props.topic].join("/"))
     }
 
     function onMessageArrived(message) {
+      // every 5 minutes - this isn't working.
+      const currentTime = parseInt(moment().format('x'))
+      if ((currentTime - lastMsgRecievedAt) <= 0.5 * 60 * 1000){
+        return
+      }
+
       let unit = message.topic.split("/")[1];
-      seriesMap[unit].data.push({x: parseInt(moment().format('x')), y: parseFloat(message.payloadString)})
+      seriesMap[unit].data.push({x: currentTime, y: parseFloat(message.payloadString)})
       if (seriesMap[unit].data.length > 1000){
         seriesMap[unit].data.pop()
       }
+      setLastMsgRecievedAt(currentTime)
       setSeriesMap(seriesMap)
-      setMaxTimestamp(parseInt(moment().format('x')))
+      setMaxTimestamp(currentTime)
+      return
     }
 
-    var client = new Client("192.168.0.22", 9001, "webui-chart" + Math.random());
+    var client = new Client("ws://morbidostatws.ngrok.io/", "webui" + Math.random());
 
     // 1. listen for message and update the state
     useEffect(() => {
@@ -94,8 +106,7 @@ function Chart(props) {
       client.onMessageArrived = onMessageArrived;
     }, [seriesMap]);
 
-
-    let minTimestamp = Math.min(...Object.values(seriesMap).map(s => parseInt(s.data[0]['x'])))
+    let minTimestamp = Math.min(...Object.values(seriesMap).map(s => parseInt(s.data[0].x)))
     let delta_ts = moment(maxTimestamp, 'x').diff(moment(minTimestamp,'x'), 'hours')
     let axis_display_ts_format = ((delta_ts >= 16)
       ?  ((delta_ts >= 5 * 24) ? 'MMM DD' : 'dd HH:mm') : 'H:mm'
@@ -105,7 +116,7 @@ function Chart(props) {
     )
 
 
-    const VictoryZoomVoronoiContainer = createContainer("voronoi", "zoom");
+    const VictoryZoomVoronoiContainer = createContainer("zoom", "voronoi");
     return (
       <Card>
       <VictoryChart

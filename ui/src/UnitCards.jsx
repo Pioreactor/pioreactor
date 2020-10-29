@@ -102,7 +102,7 @@ class UnitSettingDisplay extends React.Component {
 
   componentDidMount() {
     // need to have unique clientIds
-    this.client = new Client("localhost", 9001, "webui" + Math.random());
+    this.client = new Client("ws://morbidostatws.ngrok.io/", "webui" + Math.random());
     this.client.connect({'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;
   }
@@ -150,7 +150,7 @@ function ModalUnitSettings(props) {
   const [modalStyle] = React.useState(getModalStyle);
 
   // MQTT - client ids should be unique
-  var client = new Client("localhost", 9001, "webui" + Math.random());
+  var client = new Client("ws://morbidostatws.ngrok.io/", "webui" + Math.random());
 
   client.connect({onSuccess: onConnect});
 
@@ -177,7 +177,7 @@ function ModalUnitSettings(props) {
   function setMorbidostatJobStateOnEnter(e) {
       if (e.key === 'Enter') {
         setMorbidostatJobState(e.target.id, e.target.value)
-        e.target.value = "Updated!"
+        e.target.value = ""
     }
   }
 
@@ -255,7 +255,7 @@ function ModalUnitSettings(props) {
       <Typography variant="body2" component="p">
         Change the target optical density. Typical values are between 1.0 and 2.5 (arbitrary units)
       </Typography>
-      <TextField size="small" id="io_controlling/target_od" label="optical density" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
+      <TextField size="small" id="io_controlling/target_od" helperText={"Current value: " + props.targetODState + "AU"} label="optical density" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
     <Divider  className={classes.divider} />
     <Typography color="textSecondary" gutterBottom>
         Target growth rate
@@ -263,7 +263,7 @@ function ModalUnitSettings(props) {
       <Typography variant="body2" component="p">
         Change the target hourly growth rate - only applicable in <code>morbidostat</code> mode. Typical values are between 0.05h⁻¹ and 0.4h⁻¹.
       </Typography>
-      <TextField size="small" id="io_controlling/target_growth_rate" label="h⁻¹" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
+      <TextField size="small" id="io_controlling/target_growth_rate" label="h⁻¹" helperText={"Current value: " + props.targetGrowthRateState + "h⁻¹"} variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
     <Divider  className={classes.divider} />
    </CardContent>
   </Card>
@@ -275,12 +275,14 @@ function UnitCard(props) {
   const unitName = props.name;
   const isUnitActive = props.isUnitActive
   const unitNumber = unitName.slice(-1);
-  const experiment = "experiment"
+  const experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
   const [open, setOpen] = useState(false);
   const [stirringState, setStirringState] = useState(0);
   const [ODReadingActiveState, setODReadingActiveState] = useState("0");
   const [growthRateActiveState, setGrowthRateActiveState] = useState("0");
   const [IOEventsActiveState, setIOEventsActiveState] = useState("0");
+  const [targetODState, setTargetODState] = useState(0);
+  const [targetGrowthRateState, setTargetGrowthRateState] = useState("0");
 
 
   const handleOpen = () => {
@@ -321,12 +323,12 @@ function UnitCard(props) {
 
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target optical density:</Typography>
-          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} passChildData={setTargetODState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
         </div>
 
         <div className={classes.textbox}>
           <Typography className={classes.alignLeft}  color="textPrimary">Target growth rate: </Typography>
-          <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
+          <UnitSettingDisplay experiment={experiment} passChildData={setTargetGrowthRateState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
         </div>
 
       </CardContent>
@@ -343,6 +345,8 @@ function UnitCard(props) {
               ODReadingActiveState={ODReadingActiveState}
               growthRateActiveState={growthRateActiveState}
               IOEventsActiveState={IOEventsActiveState}
+              targetGrowthRateState={targetGrowthRateState}
+              targetODState={targetODState}
               experiment={experiment}
               unitName={unitName}
               unitNumber={unitNumber}/>

@@ -26,9 +26,6 @@ def get_hostname():
 
 
 def get_unit_from_hostname():
-    if "pytest" in sys.modules or os.environ.get("TESTING"):
-        return "leader"
-
     hostname = get_hostname()
 
     if hostname == "leader":
@@ -52,4 +49,5 @@ def am_I_leader():
 
 
 unit = get_unit_from_hostname()
+print(unit)
 experiment = get_latest_experiment_name()

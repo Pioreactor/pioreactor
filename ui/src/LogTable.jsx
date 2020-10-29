@@ -31,12 +31,12 @@ class LogTable extends React.Component {
     this.state = {listOfLogs: this.props.listOfLogs};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
-    this.experiment = "experiment"
+    this.experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
   }
 
   componentDidMount() {
     // need to have unique clientIds
-    this.client = new Client("localhost", 9001, "webui-logtable" + Math.random());
+    this.client = new Client("ws://morbidostatws.ngrok.io/", "client-log-table");
     this.client.connect({'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;
   }

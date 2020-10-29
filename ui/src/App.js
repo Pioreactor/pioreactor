@@ -6,7 +6,6 @@ import UnitCards from "./UnitCards"
 import LogTable from "./LogTable"
 import ExperimentSummary from "./ExperimentSummary"
 import Chart from "./Chart"
-import ODChart from "./ODChart"
 import AllUnitsManagerCard from "./AllUnitsManagerCard"
 
 import CssBaseline from "@material-ui/core/CssBaseline";
@@ -21,13 +20,10 @@ const themeLight = createMuiTheme({
 });
 
 
-
-const chartData90 = require('./data/implied_90.json')[0];
 const chartData135 = require('./data/implied_135.json')[0];
 const chartGrowthRate = require('./data/implied_growth_rate.json')[0];
 const chartAltMediaFraction = require('./data/alt_media_fraction.json')[0];
 const listOfLogs = require('./data/all_morbidostat.log.json');
-//console.log(import('./data/all_morbidostat.log.json'));
 
 function App() {
     return (
@@ -44,7 +40,7 @@ function App() {
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chartData={chartGrowthRate} interpolation="natural" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
+              <Chart chartData={chartGrowthRate} interpolation="stepAfter" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
             </Grid>
 
             <Grid item xs={1}/>
