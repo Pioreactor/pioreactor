@@ -52,7 +52,7 @@ function Chart(props) {
               onClick: () => {
                 return [
                   {
-                    childName: ['line-' + name], //UPDATE
+                    childName: ['line-' + name],
                     target: 'data',
                     eventKey: 'all',
                     mutation: () => {

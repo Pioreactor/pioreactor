@@ -200,7 +200,7 @@ function ModalUnitSettings(props) {
         Pause or restart the optical density reading. This will also pause downstream jobs that rely on optical density readings, like growth rates.
       </Typography>
       <Button disableElevation disabled={props.ODReadingActiveState === "0"} color="secondary" onClick={setActiveState("od_reading", 0)}>Pause</Button>
-      <Button disableElevation disabled={props.ODReadingActiveState === "1"} color="primary" onClick={setActiveState("od_reading", 1)}>Restart</Button>
+      <Button disableElevation disabled={props.ODReadingActiveState === "1"} color="primary" onClick={setActiveState("od_reading", 1)}>Start</Button>
     <Divider className={classes.divider} />
     <Typography color="textSecondary" gutterBottom>
         Growth rate calculating
@@ -209,7 +209,7 @@ function ModalUnitSettings(props) {
         Pause or start the calculating the implied growth rate and smooted optical densities.
       </Typography>
       <Button disableElevation disabled={props.growthRateActiveState === "0"} color="secondary" onClick={setActiveState("growth_rate_calculating", 0)}>Pause</Button>
-      <Button disableElevation disabled={props.growthRateActiveState === "1"} color="primary" onClick={setActiveState("growth_rate_calculating", 1)}>Restart</Button>
+      <Button disableElevation disabled={props.growthRateActiveState === "1"} color="primary" onClick={setActiveState("growth_rate_calculating", 1)}>Start</Button>
     <Divider className={classes.divider} />
       <Typography color="textSecondary" gutterBottom>
         Input/output events
@@ -218,7 +218,7 @@ function ModalUnitSettings(props) {
         Pause media input/output events from occuring, or restart them.
       </Typography>
       <Button disableElevation disabled={props.IOEventsActiveState === "0"} color="secondary" onClick={setActiveState("io_controlling", 0)}>Pause</Button>
-      <Button disableElevation disabled={props.IOEventsActiveState === "1"} color="primary" onClick={setActiveState("io_controlling", 1)}>Restart</Button>
+      <Button disableElevation disabled={props.IOEventsActiveState === "1"} color="primary" onClick={setActiveState("io_controlling", 1)}>Start</Button>
     <Divider  className={classes.divider} />
       <Typography color="textSecondary" gutterBottom>
         Stirring
