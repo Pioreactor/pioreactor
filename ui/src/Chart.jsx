@@ -30,21 +30,34 @@ function linspace(startValue, stopValue, cardinality) {
 
 
 function Chart(props) {
-     let initialSeriesMap = {};
-     for (const [i, v] of props.chartData['series'].entries()) {
-        if(props.chartData['data'][i].length > 0){
-          initialSeriesMap[v] = {data: props.chartData['data'][i], name: v, color: colors[v]};
-        }
-     }
-
 
     const experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
-    const [seriesMap, setSeriesMap] = useState(initialSeriesMap);
+    const [seriesMap, setSeriesMap] = useState({});
     const [maxTimestamp, setMaxTimestamp] = useState(parseInt(moment().format('x')));
     const [hiddenSeries, sethiddenSeries] = useState(new Set());
     const [lastMsgRecievedAt, setLastMsgRecievedAt] = useState(parseInt(moment().format('x')));
+    const [names, setNames] = useState([]);
 
-    let names = Object.keys(seriesMap);
+    useEffect(() => {
+      async function fetchData() {
+        await fetch(props.dataFile)
+          .then(response => {
+            return response.json();
+          })
+          .then(data => {
+             data = data[0]
+             let initialSeriesMap = {};
+             for (const [i, v] of data['series'].entries()) {
+                if(data['data'][i].length > 0){
+                  initialSeriesMap[v] = {data: data['data'][i], name: v, color: colors[v]};
+                }
+             }
+            setSeriesMap(initialSeriesMap);
+            setNames(Object.keys(seriesMap));
+          });
+        }
+      fetchData()
+    }, []);
 
     function buildEvents() {
         return names.map((name, idx) => {
@@ -99,11 +112,10 @@ function Chart(props) {
     }
 
     var client = new Client("ws://morbidostatws.ngrok.io/", "webui" + Math.random());
+    client.onMessageArrived = onMessageArrived;
 
-    // 1. listen for message and update the state
     useEffect(() => {
       client.connect({onSuccess:onConnect});
-      client.onMessageArrived = onMessageArrived;
     }, [seriesMap]);
 
     let minTimestamp = Math.min(...Object.values(seriesMap).map(s => parseInt(s.data[0].x)))
@@ -163,7 +175,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
           style={{
             border: { stroke: "#90a4ae" },
             labels: { fontSize: 13 * props.fontScale },
-            data: { stroke: "black", strokeWidth: 1 },
+            data: { stroke: "black", strokeWidth: 1, size: 6},
           }}
           data={names.map(name => {
             const line = seriesMap[name]

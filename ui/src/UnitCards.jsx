@@ -71,7 +71,14 @@ const useStyles = makeStyles({
   alignRight: {
       flex: 1,
       textAlign: "right",
+  },
+  actionTextField: {
+    padding: "0px 10px 0px 0px"
+  },
+  actionForm: {
+    padding: "20px 0px 0px 0px"
   }
+
 });
 
 function getModalStyle() {
@@ -270,13 +277,125 @@ function ModalUnitSettings(props) {
 )};
 
 
+function ActionPumpForm(props) {
+  const emptyState = ""
+  const [mL, setML] = useState(emptyState);
+  const [duration, setDuration] = useState(emptyState);
+  const classes = useStyles();
+  const [isMLDisabled, setIsMLDisabled] = useState(false);
+  const [isDurationDisabled, setIsDurationDisabled] = useState(false);
+
+
+  function onSubmit(e) {
+    e.preventDefault()
+    if ((mL !== emptyState) || (duration !== emptyState)){
+      const params = (mL !== "") ?  {mL: mL} : {duration: duration}
+      fetch("/" + props.action + "/" + props.unitName + "?" + new URLSearchParams(params))
+    }
+  }
+
+  function handleMLChange(e) {
+    setML(e.target.value);
+    setIsDurationDisabled(true);
+    if (e.target.value === emptyState){
+      setIsDurationDisabled(false)
+    }
+  }
+
+  function handleDurationChange(e) {
+    setDuration(e.target.value);
+    setIsMLDisabled(true);
+    if (e.target.value === emptyState){
+      setIsMLDisabled(false)
+    }
+  }
+
+
+  return (
+    <form id={props.action} className={classes.actionForm}>
+      <TextField
+        name="mL"
+        value={mL}
+        size="small"
+        id={props.action + "_mL"}
+        label="mL"
+        variant="outlined"
+        disabled={isMLDisabled}
+        onChange={handleMLChange}
+        className={classes.actionTextField}
+
+      />
+      <TextField
+        name="duration"
+        value={duration}
+        size="small"
+        id={props.action + "_duration"}
+        label="seconds"
+        variant="outlined"
+        disabled={isDurationDisabled}
+        onChange={handleDurationChange}
+        className={classes.actionTextField}
+
+      />
+      <br/>
+      <br/>
+      <Button type="submit" variant="contained" color="primary" className={classes.button} onClick={onSubmit}>
+        Run
+      </Button>
+    </form>
+  )
+}
+
+function ModalUnitActions(props) {
+  const classes = useStyles();
+  const [modalStyle] = useState(getModalStyle);
+
+  return (
+  <Card style={modalStyle} className={classes.paper}>
+   <CardContent>
+    <Typography className={classes.unitTitle} color="textSecondary" gutterBottom>
+      {props.unitName}
+    </Typography>
+    <Divider className={classes.divider} />
+    <Typography color="textSecondary" gutterBottom>
+      Add media
+    </Typography>
+    <Typography variant="body2" component="p">
+      Run the media pump for a set duration (seconds), or a set volume (mL).
+    </Typography>
+    <ActionPumpForm action="add_media" unitName={props.unitName}/>
+    <Divider  className={classes.divider} />
+    <Typography color="textSecondary" gutterBottom>
+      Add alternative media
+    </Typography>
+    <Typography variant="body2" component="p">
+      Run the alternative media pump for a set duration (seconds), or a set volume (mL).
+    </Typography>
+    <ActionPumpForm action="add_alt_media" unitName={props.unitName}/>
+    <Divider  className={classes.divider} />
+    <Typography color="textSecondary" gutterBottom>
+      Remove waste
+    </Typography>
+    <Typography variant="body2" component="p">
+      Run the waste pump for a set duration (seconds), or a set volume (mL).
+    </Typography>
+    <ActionPumpForm action="add_media" unitName={props.unitName}/>
+    <Divider  className={classes.divider} />
+   </CardContent>
+  </Card>
+)};
+
+
 function UnitCard(props) {
   const classes = useStyles();
   const unitName = props.name;
   const isUnitActive = props.isUnitActive
   const unitNumber = unitName.slice(-1);
   const experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
-  const [open, setOpen] = useState(false);
+
+  const [settingModelOpen, setSettingModalOpen] = useState(false);
+  const [actionModelOpen, setActionModalOpen] = useState(false);
+
   const [stirringState, setStirringState] = useState(0);
   const [ODReadingActiveState, setODReadingActiveState] = useState("0");
   const [growthRateActiveState, setGrowthRateActiveState] = useState("0");
@@ -285,12 +404,21 @@ function UnitCard(props) {
   const [targetGrowthRateState, setTargetGrowthRateState] = useState("0");
 
 
-  const handleOpen = () => {
-    setOpen(true);
+  const handleSettingModalOpen = () => {
+    setSettingModalOpen(true);
   };
 
-  const handleClose = () => {
-    setOpen(false);
+  const handleSettingModalClose = () => {
+    setSettingModalOpen(false);
+  };
+
+
+  const handleActionModalOpen = () => {
+    setActionModalOpen(true);
+  };
+
+  const handleActionModalClose = () => {
+    setActionModalOpen(false);
   };
 
 
@@ -333,10 +461,10 @@ function UnitCard(props) {
 
       </CardContent>
       <CardActions>
-        <Button size="small" color="primary" disabled={!isUnitActive} onClick={handleOpen}>Settings</Button>
+        <Button size="small" color="primary" disabled={!isUnitActive} onClick={handleSettingModalOpen}>Settings</Button>
           <Modal
-            open={open}
-            onClose={handleClose}
+            open={settingModelOpen}
+            onClose={handleSettingModalClose}
             aria-labelledby="simple-modal-title"
             aria-describedby="simple-modal-description"
             >
@@ -347,6 +475,18 @@ function UnitCard(props) {
               IOEventsActiveState={IOEventsActiveState}
               targetGrowthRateState={targetGrowthRateState}
               targetODState={targetODState}
+              experiment={experiment}
+              unitName={unitName}
+              unitNumber={unitNumber}/>
+          </Modal>
+        <Button size="small" color="primary" disabled={!isUnitActive} onClick={handleActionModalOpen}>Actions</Button>
+          <Modal
+            open={actionModelOpen}
+            onClose={handleActionModalClose}
+            aria-labelledby="simple-modal-title"
+            aria-describedby="simple-modal-description"
+            >
+            <ModalUnitActions
               experiment={experiment}
               unitName={unitName}
               unitNumber={unitNumber}/>

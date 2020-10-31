@@ -28,14 +28,25 @@ const useStyles = theme => ({
 class LogTable extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {listOfLogs: this.props.listOfLogs};
+    this.state = {listOfLogs: []};
     this.onConnect = this.onConnect.bind(this);
     this.onMessageArrived = this.onMessageArrived.bind(this);
     this.experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
   }
 
+  async getData() {
+    await fetch("./data/all_morbidostat.log.json")
+      .then(response => {
+        return response.json();
+      })
+      .then(data => {
+        this.setState({listOfLogs: data});
+      });
+  }
+
   componentDidMount() {
-    // need to have unique clientIds
+      // Get shop data and update URL when selection changes
+    this.getData()
     this.client = new Client("ws://morbidostatws.ngrok.io/", "client-log-table");
     this.client.connect({'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;

@@ -3,13 +3,7 @@ const basicAuth = require('express-basic-auth')
 const path = require('path');
 const app = express();
 const { exec } = require("child_process");
-
-
-// load persistent data
-const chartData135 = require('./data/implied_135.json')[0];
-const chartGrowthRate = require('./data/implied_growth_rate.json')[0];
-const chartAltMediaFraction = require('./data/alt_media_fraction.json')[0];
-const listOfLogs = require('./data/all_morbidostat.log.json');
+const url = require('url');
 
 
 // this is not secure, and I know it. It's fine for now, as the app isn't exposed to the internet.
@@ -29,6 +23,60 @@ app.get('/', staticUserAuth, function(req, res) {
 
 app.get('/stop', function (req, res) {
     exec("mba kill python -y", (error, stdout, stderr) => {
+        if (error) {
+            res.send(`error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            res.send(`stderr: ${stderr}`);
+            return;
+        }
+        console.log(`stdout: ${stdout}`);
+    });
+})
+
+app.get('/add_media/:unit', function (req, res) {
+
+    const queryObject = url.parse(req.url, true).query;
+    options = ("mL" in queryObject) ? ["--mL", queryObject['mL']] : ["--duration", queryObject['duration']]
+    command = (["mba", "add_media", "-y", "--units", req.params.unit].concat(options)).join(" ")
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            res.send(`error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            res.send(`stderr: ${stderr}`);
+            return;
+        }
+        console.log(`stdout: ${stdout}`);
+    });
+})
+
+app.get('/add_alt_media/:unit', function (req, res) {
+    const queryObject = url.parse(req.url, true).query;
+    options = ("mL" in queryObject) ? ["--mL", queryObject['mL']] : ["--duration", queryObject['duration']]
+    command = (["mba", "add_alt_media", "-y", "--units", req.params.unit].concat(options)).join(" ")
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            res.send(`error: ${error.message}`);
+            return;
+        }
+        if (stderr) {
+            res.send(`stderr: ${stderr}`);
+            return;
+        }
+        console.log(`stdout: ${stdout}`);
+    });
+})
+
+
+app.get('/remove_waste/:unit', function (req, res) {
+    const queryObject = url.parse(req.url, true).query;
+    options = ("mL" in queryObject) ? ["--mL", queryObject['mL']] : ["--duration", queryObject['duration']]
+    command = (["mba", "remove_waste", "-y", "--units", req.params.unit].concat(options)).join(" ")
+    exec(command, (error, stdout, stderr) => {
         if (error) {
             res.send(`error: ${error.message}`);
             return;

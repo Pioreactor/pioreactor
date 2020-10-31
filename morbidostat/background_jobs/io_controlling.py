@@ -203,7 +203,7 @@ class PIDMorbidostat(ControlAlgorithm):
         self.duration = duration
         self.verbose = verbose
         self.pid = PID(
-            -2.00, -0.01, -0.05, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
+            -1.00, -0.01, -0.05, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
 
         if volume is not None:

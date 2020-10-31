@@ -21,3 +21,5 @@
 9. SQLite works well for a database for the storage of IoT data. I never will have more than one user, it can store and read json data, and has good documentation.
 
 10. The io_controlling will not execute if the latest readings are over 5 minutes old.
+
+11. The photodiode is in photovoltaic mode because it is less noisy (trade off is that it is slower, but that's okay.)

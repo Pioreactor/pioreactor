@@ -20,11 +20,6 @@ const themeLight = createMuiTheme({
 });
 
 
-const chartData135 = require('./data/implied_135.json')[0];
-const chartGrowthRate = require('./data/implied_growth_rate.json')[0];
-const chartAltMediaFraction = require('./data/alt_media_fraction.json')[0];
-const listOfLogs = require('./data/all_morbidostat.log.json');
-
 function App() {
     return (
     <MuiThemeProvider theme={themeLight}>
@@ -40,18 +35,18 @@ function App() {
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chartData={chartGrowthRate} interpolation="stepAfter" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
+              <Chart dataFile={'./data/implied_growth_rate.json'} interpolation="stepAfter" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
             </Grid>
 
             <Grid item xs={1}/>
             <Grid item xs={11}>
-              <Chart chartData={chartAltMediaFraction} interpolation="stepAfter" fontScale={1.} title="Fraction of volume that is alternative media" topic="alt_media_fraction" yAxisLabel="Fraction"/>
+              <Chart dataFile={'./data/alt_media_fraction.json'} interpolation="stepAfter" fontScale={1.} title="Fraction of volume that is alternative media" topic="alt_media_fraction" yAxisLabel="Fraction"/>
             </Grid>
 
             <Grid item xs={1}/>
             <Grid item container xs={11} direction="row" spacing={0}>
               <Grid item xs={12}>
-                <Chart chartData={chartData135} fontScale={1.0} title="135° optical density" topic="od_filtered/135/+" yAxisLabel="Optical density (AU)"/>
+                <Chart dataFile={'./data/implied_135.json'} fontScale={1.0} title="135° optical density" topic="od_filtered/135/+" yAxisLabel="Optical density (AU)"/>
               </Grid>
             </Grid>
           </Grid>
@@ -67,7 +62,7 @@ function App() {
             <Grid item xs={1}/>
 
             <Grid item xs={1}/>
-            <Grid item xs={10}><LogTable listOfLogs={listOfLogs} /></Grid>
+            <Grid item xs={10}><LogTable /></Grid>
             <Grid item xs={1}/>
           </Grid>
         </Grid>
