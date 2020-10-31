@@ -1,4 +1,4 @@
-import React, {useState}  from 'react';
+import React, {useState, useEffect}  from 'react';
 
 import {Client, Message} from 'paho-mqtt';
 
@@ -152,9 +152,21 @@ class UnitSettingDisplay extends React.Component {
 
 function ModalUnitSettings(props) {
   const classes = useStyles();
-  const config = require('./data/config.json');
-  const defaultStirring = config['stirring']["duty_cycle" + props.unitNumber]
-  const [modalStyle] = React.useState(getModalStyle);
+  const [defaultStirring, setDefaultStirring] = useState(0)
+  const [modalStyle] = useState(getModalStyle);
+
+  useEffect(() => {
+    async function fetchData() {
+      await fetch('./data/config.json')
+        .then(response => {
+          return response.json();
+        })
+        .then(config => {
+          setDefaultStirring(config['stirring']["duty_cycle" + props.unitNumber]);
+        });
+      }
+    fetchData()
+  }, []);
 
   // MQTT - client ids should be unique
   var client = new Client("ws://morbidostatws.ngrok.io/", "webui" + Math.random());
