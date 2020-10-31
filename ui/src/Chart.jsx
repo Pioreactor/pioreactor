@@ -37,6 +37,7 @@ function Chart(props) {
     const [hiddenSeries, sethiddenSeries] = useState(new Set());
     const [lastMsgRecievedAt, setLastMsgRecievedAt] = useState(parseInt(moment().format('x')));
     const [names, setNames] = useState([]);
+    const [legend, setLegend] = useState(<VictoryLegend/>);
 
     useEffect(() => {
       async function fetchData() {
@@ -53,11 +54,34 @@ function Chart(props) {
                 }
              }
             setSeriesMap(initialSeriesMap);
-            setNames(Object.keys(seriesMap));
+            setNames(Object.keys(initialSeriesMap));
+            setLegend(createLegend(Object.keys(initialSeriesMap), initialSeriesMap));
           });
         }
       fetchData()
     }, []);
+
+    function createLegend(names, seriesMap) {
+      return <VictoryLegend x={527} y={60}
+          name={'legend'}
+          borderPadding={{right: 8}}
+          orientation="vertical"
+          cursor = {"pointer"}
+          style={{
+            border: { stroke: "#90a4ae" },
+            labels: { fontSize: 13 * props.fontScale },
+            data: { stroke: "black", strokeWidth: 1, size: 6},
+          }}
+          data={names.map(name => {
+            const line = seriesMap[name]
+            const item = {name: line.name, symbol: {fill: line.color,  type: "square"}};
+            if (hiddenSeries.has(name)) {
+              return { ...item, symbol: { fill: 'white',  type: "square"} };
+            }
+            return item;
+          })}
+        />
+    }
 
     function buildEvents() {
         return names.map((name, idx) => {
@@ -167,25 +191,7 @@ ${Math.round(d.datum.y * 1000)/1000}`}
             tickLabels: {fontSize: 13 * props.fontScale, padding: 5}
           }}
         />
-        <VictoryLegend x={527} y={60}
-          name={'legend'}
-          borderPadding={{right: 8}}
-          orientation="vertical"
-          cursor = {"pointer"}
-          style={{
-            border: { stroke: "#90a4ae" },
-            labels: { fontSize: 13 * props.fontScale },
-            data: { stroke: "black", strokeWidth: 1, size: 6},
-          }}
-          data={names.map(name => {
-            const line = seriesMap[name]
-            const item = {name: line.name, symbol: {fill: line.color,  type: "square"}};
-            if (hiddenSeries.has(name)) {
-              return { ...item, symbol: { fill: 'white',  type: "square"} };
-            }
-            return item;
-          })}
-        />
+        {legend}
       {
         Object.keys(seriesMap).map(name => {
           if (hiddenSeries.has(name)) {
