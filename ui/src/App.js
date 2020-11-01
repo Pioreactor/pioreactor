@@ -46,7 +46,7 @@ function App() {
             <Grid item xs={1}/>
             <Grid item container xs={11} direction="row" spacing={0}>
               <Grid item xs={12}>
-                <Chart dataFile={'./data/implied_135.json'} fontScale={1.0} title="135° optical density" topic="od_filtered/135/+" yAxisLabel="Optical density (AU)"/>
+                <Chart isODReading={true} dataFile={'./data/implied_135.json'} fontScale={1.0} title="135° optical density" topic="od_filtered/135/+" yAxisLabel="Optical density (AU)"/>
               </Grid>
             </Grid>
           </Grid>

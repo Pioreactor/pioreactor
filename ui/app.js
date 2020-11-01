@@ -14,6 +14,7 @@ var staticUserAuth = basicAuth({
     challenge: true
 })
 
+app.use(express.static(__dirname + '/public'));
 
 
 app.get('/', staticUserAuth, function(req, res) {
