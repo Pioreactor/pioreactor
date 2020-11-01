@@ -37,22 +37,40 @@ function linspace(startValue, stopValue, cardinality) {
   return arr;
 }
 
-function Chart(props) {
-  const experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7";
-  const [seriesMap, setSeriesMap] = useState({});
-  const [maxTimestamp, setMaxTimestamp] = useState(
-    parseInt(moment().format("x"))
-  );
-  const [hiddenSeries, sethiddenSeries] = useState(new Set());
-  const [lastMsgRecievedAt, setLastMsgRecievedAt] = useState(
-    parseInt(moment().format("x"))
-  );
-  const [legendEvents, setLegendEvents] = useState([]);
-  const [names, setNames] = useState([]);
 
-  useEffect(() => {
-    async function fetchData() {
-      await fetch(props.dataFile)
+
+class Chart extends React.Component {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      seriesMap: {},
+      maxTimestamp: parseInt(moment().format("x")),
+      hiddenSeries: new Set(),
+      lastMsgRecievedAt: parseInt(moment().format("x")),
+      names: [],
+      legendEvents: [],
+      minTimestamp: 0
+    };
+    this.onConnect = this.onConnect.bind(this);
+    this.onMessageArrived = this.onMessageArrived.bind(this);
+    this.experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
+  }
+
+
+  onConnect() {
+    this.client.subscribe(["morbidostat", "+", this.experiment, this.props.topic].join("/"))
+  }
+
+  componentDidMount() {
+    this.getData()
+    this.client = new Client("ws://morbidostatws.ngrok.io/", "client" + Math.random());
+    this.client.connect({'onSuccess': this.onConnect});
+    this.client.onMessageArrived = this.onMessageArrived;
+  }
+
+  async getData() {
+      await fetch(this.props.dataFile)
         .then((response) => {
           return response.json();
         })
@@ -69,15 +87,19 @@ function Chart(props) {
             }
           }
           let names = Object.keys(initialSeriesMap);
-          setSeriesMap(initialSeriesMap);
-          setLegendEvents(createLegendEvents(names));
-          setNames(names);
+          let mts = Math.min(
+              ...Object.values(initialSeriesMap).map((s) => parseInt(s.data[0].x))
+          );
+          this.setState({
+            seriesMap: initialSeriesMap,
+            legendEvents: this.createLegendEvents(names),
+            names: names,
+            minTimestamp: mts
+          })
         });
-    }
-    fetchData();
-  }, []);
+  }
 
-  function createLegendEvents(names) {
+  createLegendEvents(names) {
     return names.map((name, idx) => {
       return {
         childName: ["legend"],
@@ -91,11 +113,11 @@ function Chart(props) {
                 target: "data",
                 eventKey: "all",
                 mutation: () => {
-                  if (!hiddenSeries.delete(name)) {
+                  if (!this.state.hiddenSeries.delete(name)) {
                     // Was not already hidden => add to set
-                    hiddenSeries.add(name);
+                    this.state.hiddenSeries.add(name);
                   }
-                  sethiddenSeries(new Set(hiddenSeries));
+                  this.setState({hiddenSeries: new Set(this.state.hiddenSeries)});
                   return null;
                 },
               },
@@ -106,69 +128,49 @@ function Chart(props) {
     });
   }
 
-  function onMessageArrived(message) {
-    // every 5 minutes - this isn't working.
+  onMessageArrived(message) {
     const currentTime = parseInt(moment().format("x"));
-    if (currentTime - lastMsgRecievedAt <= 0.1 * 60 * 1000) {
-      return;
-    }
 
-    if (props.isODReading) {
+    if (this.props.isODReading) {
       var key = message.topic.split("/")[1] + "-" + message.topic.split("/")[5];
     } else {
       var key = message.topic.split("/")[1];
     }
-    seriesMap[key].data.push({
+    this.state.seriesMap[key].data.push({
       x: currentTime,
       y: parseFloat(message.payloadString),
     });
-    setLastMsgRecievedAt(currentTime);
-    setSeriesMap(seriesMap);
-    setMaxTimestamp(currentTime);
+    this.setState({
+      seriesMap: this.state.seriesMap,
+      maxTimestamp: currentTime,
+      lastMsgRecievedAt: currentTime
+    })
     return;
   }
 
-  useEffect(() => {
-    function onConnect() {
-      client.subscribe(["morbidostat", "+", experiment, props.topic].join("/"));
-    }
-    var client = new Client(
-      "ws://morbidostatws.ngrok.io/",
-      "webui" + Math.random()
+  render() {
+    let delta_ts = moment(this.maxTimestamp, "x").diff(
+      moment(this.state.minTimestamp, "x"),
+      "hours"
     );
-    client.onMessageArrived = onMessageArrived;
-    client.connect({ onSuccess: onConnect });
-    return () => {
-      client.disconnect();
-    };
-  }, [seriesMap, lastMsgRecievedAt, maxTimestamp]);
+    let axis_display_ts_format =
+      delta_ts >= 16 ? (delta_ts >= 5 * 24 ? "MMM DD" : "dd HH:mm") : "H:mm";
+    let tooltip_display_ts_format =
+      delta_ts >= 16
+        ? delta_ts >= 5 * 24
+          ? "MMM DD HH:mm"
+          : "dd HH:mm"
+        : "H:mm";
 
-  let minTimestamp = Math.min(
-    ...Object.values(seriesMap).map((s) => parseInt(s.data[0].x))
-  );
-  let delta_ts = moment(maxTimestamp, "x").diff(
-    moment(minTimestamp, "x"),
-    "hours"
-  );
-  let axis_display_ts_format =
-    delta_ts >= 16 ? (delta_ts >= 5 * 24 ? "MMM DD" : "dd HH:mm") : "H:mm";
-  let tooltip_display_ts_format =
-    delta_ts >= 16
-      ? delta_ts >= 5 * 24
-        ? "MMM DD HH:mm"
-        : "dd HH:mm"
-      : "H:mm";
-
-  const VictoryZoomVoronoiContainer = createContainer("zoom", "voronoi");
-  return (
-    <Card>
+    const VictoryZoomVoronoiContainer = createContainer("zoom", "voronoi");
+    return <Card>
       <VictoryChart
-        title={props.title}
+        title={this.props.title}
         domainPadding={10}
         padding={{ left: 70, right: 80, bottom: 50, top: 50 }}
         width={600}
         height={300}
-        events={legendEvents}
+        events={this.state.legendEvents}
         responsive={false}
         theme={VictoryTheme.material}
         containerComponent={
@@ -192,23 +194,23 @@ ${Math.round(d.datum.y * 1000) / 1000}`}
         }
       >
         <VictoryLabel
-          text={props.title}
+          text={this.props.title}
           x={300}
           y={30}
           textAnchor="middle"
-          style={{ fontSize: 15 * props.fontScale }}
+          style={{ fontSize: 15 * this.props.fontScale }}
         />
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
           tickValues={linspace(
-            minTimestamp,
-            maxTimestamp + 100000,
+            this.state.minTimestamp,
+            this.state.maxTimestamp + 100000,
             7
           ).map((x) =>
             moment(x, "x").startOf(delta_ts >= 16 ? "hour" : "minute")
           )}
           style={{
-            tickLabels: { fontSize: 13 * props.fontScale, padding: 5 },
+            tickLabels: { fontSize: 13 * this.props.fontScale, padding: 5 },
           }}
           offsetY={50}
           orientation="bottom"
@@ -216,15 +218,15 @@ ${Math.round(d.datum.y * 1000) / 1000}`}
         <VictoryAxis
           crossAxis={false}
           dependentAxis
-          label={props.yAxisLabel}
+          label={this.props.yAxisLabel}
           axisLabelComponent={
             <VictoryLabel
               dy={-40}
-              style={{ fontSize: 15 * props.fontScale, padding: 10 }}
+              style={{ fontSize: 15 * this.props.fontScale, padding: 10 }}
             />
           }
           style={{
-            tickLabels: { fontSize: 13 * props.fontScale, padding: 5 },
+            tickLabels: { fontSize: 13 * this.props.fontScale, padding: 5 },
           }}
         />
         <VictoryLegend
@@ -236,35 +238,35 @@ ${Math.round(d.datum.y * 1000) / 1000}`}
           cursor={"pointer"}
           style={{
             border: { stroke: "#90a4ae" },
-            labels: { fontSize: 13 * props.fontScale },
+            labels: { fontSize: 13 * this.props.fontScale },
             data: { stroke: "black", strokeWidth: 1, size: 6 },
           }}
-          data={names.map((name) => {
-            const line = seriesMap[name];
+          data={this.state.names.map((name) => {
+            const line = this.state.seriesMap[name];
             const item = {
               name: line.name,
               symbol: { fill: line.color, type: "square" },
             };
-            if (hiddenSeries.has(name)) {
+            if (this.state.hiddenSeries.has(name)) {
               return { ...item, symbol: { fill: "white", type: "square" } };
             }
             return item;
           })}
         />
-        {Object.keys(seriesMap).map((name) => {
-          if (hiddenSeries.has(name)) {
+        {Object.keys(this.state.seriesMap).map((name) => {
+          if (this.state.hiddenSeries.has(name)) {
             return undefined;
           }
           return (
             <VictoryLine
-              interpolation={props.interpolation}
+              interpolation={this.props.interpolation}
               key={"line-" + name}
               name={"line-" + name}
               style={{
-                data: { stroke: seriesMap[name].color, strokeWidth: 2 },
+                data: { stroke: this.state.seriesMap[name].color, strokeWidth: 2 },
                 parent: { border: "1px solid #ccc" },
               }}
-              data={seriesMap[name].data}
+              data={this.state.seriesMap[name].data}
               x="x"
               y="y"
             />
@@ -272,7 +274,7 @@ ${Math.round(d.datum.y * 1000) / 1000}`}
         })}
       </VictoryChart>
     </Card>
-  );
+  }
 }
 
 export default Chart;

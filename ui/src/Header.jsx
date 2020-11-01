@@ -25,6 +25,7 @@ const Header = () => {
           </Typography>
           <div className={classes.headerOptions}>
             <Button color="inherit">Start new experiment</Button>
+            <Button color="inherit">Download experiment data</Button>
           </div>
         </Toolbar>
       </AppBar>
