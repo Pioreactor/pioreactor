@@ -12,6 +12,8 @@ import Modal from '@material-ui/core/Modal';
 import Divider from '@material-ui/core/Divider';
 import Slider from '@material-ui/core/Slider';
 import TextField from '@material-ui/core/TextField';
+import InputAdornment from '@material-ui/core/InputAdornment';
+
 
 const useStyles = makeStyles({
   root: {
@@ -77,6 +79,10 @@ const useStyles = makeStyles({
   },
   actionForm: {
     padding: "20px 0px 0px 0px"
+  },
+  textField:{
+    marginTop: "15px",
+    maxWidth: "180px"
   }
 
 });
@@ -266,15 +272,37 @@ function ModalUnitSettings(props) {
       <Typography variant="body2" component="p">
         Change the volume per dilution. Typical values are between 0.0mL and 1.5mL.
       </Typography>
-      <TextField size="small" id="io_controlling/volume" label="mL" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
+      <TextField
+        size="small"
+        id="io_controlling/volume"
+        label="Volume per dilution"
+        defaultValue={props.volumeState}
+        InputProps={{
+          endAdornment: <InputAdornment position="end">mL</InputAdornment>,
+        }}
+        variant="outlined"
+        onKeyPress={setMorbidostatJobStateOnEnter}
+        className={classes.textField}
+      />
     <Divider  className={classes.divider} />
-    <Typography color="textSecondary" gutterBottom>
+      <Typography color="textSecondary" gutterBottom>
         Target optical density
       </Typography>
       <Typography variant="body2" component="p">
         Change the target optical density. Typical values are between 1.0 and 2.5 (arbitrary units)
       </Typography>
-      <TextField size="small" id="io_controlling/target_od" helperText={"Current value: " + props.targetODState + "AU"} label="optical density" variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
+      <TextField
+        size="small"
+        id="io_controlling/target_od"
+        label="Target optical density"
+        defaultValue={props.targetODState}
+        InputProps={{
+          endAdornment: <InputAdornment position="end">AU</InputAdornment>,
+        }}
+        variant="outlined"
+        onKeyPress={setMorbidostatJobStateOnEnter}
+        className={classes.textField}
+      />
     <Divider  className={classes.divider} />
     <Typography color="textSecondary" gutterBottom>
         Target growth rate
@@ -282,7 +310,18 @@ function ModalUnitSettings(props) {
       <Typography variant="body2" component="p">
         Change the target hourly growth rate - only applicable in <code>morbidostat</code> mode. Typical values are between 0.05h⁻¹ and 0.4h⁻¹.
       </Typography>
-      <TextField size="small" id="io_controlling/target_growth_rate" label="h⁻¹" helperText={"Current value: " + props.targetGrowthRateState + "h⁻¹"} variant="outlined" onKeyPress={setMorbidostatJobStateOnEnter}/>
+      <TextField
+        size="small"
+        id="io_controlling/target_growth_rate"
+        label="Target growth rate"
+        defaultValue={props.targetGrowthRateState}
+        InputProps={{
+          endAdornment: <InputAdornment position="end">h⁻¹</InputAdornment>,
+        }}
+        variant="outlined"
+        onKeyPress={setMorbidostatJobStateOnEnter}
+        className={classes.textField}
+      />
     <Divider  className={classes.divider} />
    </CardContent>
   </Card>
@@ -414,6 +453,7 @@ function UnitCard(props) {
   const [IOEventsActiveState, setIOEventsActiveState] = useState("0");
   const [targetODState, setTargetODState] = useState(0);
   const [targetGrowthRateState, setTargetGrowthRateState] = useState("0");
+  const [volumeState, setVolumeState] = useState("0");
 
 
   const handleSettingModalOpen = () => {
@@ -471,6 +511,11 @@ function UnitCard(props) {
           <UnitSettingDisplay experiment={experiment} passChildData={setTargetGrowthRateState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
         </div>
 
+        <div className={classes.textbox}>
+          <Typography className={classes.alignLeft}  color="textPrimary">Volume/dilution: </Typography>
+          <UnitSettingDisplay experiment={experiment} passChildData={setVolumeState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="volume" unitNumber={unitNumber}/>
+        </div>
+
       </CardContent>
       <CardActions>
         <Button size="small" color="primary" disabled={!isUnitActive} onClick={handleSettingModalOpen}>Settings</Button>
@@ -486,6 +531,7 @@ function UnitCard(props) {
               growthRateActiveState={growthRateActiveState}
               IOEventsActiveState={IOEventsActiveState}
               targetGrowthRateState={targetGrowthRateState}
+              volumeState={volumeState}
               targetODState={targetODState}
               experiment={experiment}
               unitName={unitName}

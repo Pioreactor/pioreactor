@@ -149,7 +149,7 @@ class Chart extends React.Component {
   }
 
   render() {
-    let delta_ts = moment(this.maxTimestamp, "x").diff(
+    let delta_ts = moment(this.state.maxTimestamp, "x").diff(
       moment(this.state.minTimestamp, "x"),
       "hours"
     );
@@ -163,13 +163,20 @@ class Chart extends React.Component {
         : "H:mm";
 
     const VictoryZoomVoronoiContainer = createContainer("zoom", "voronoi");
+    var tv = linspace(
+            this.state.minTimestamp,
+            this.state.maxTimestamp + 100000,
+            7
+          ).map((x) =>
+            moment(Math.round(x), "x").startOf(delta_ts >= 16 ? "hour" : "minute")
+          )
     return <Card>
       <VictoryChart
         title={this.props.title}
         domainPadding={10}
         padding={{ left: 70, right: 80, bottom: 50, top: 50 }}
         width={600}
-        height={300}
+        height={285}
         events={this.state.legendEvents}
         responsive={false}
         theme={VictoryTheme.material}
@@ -202,13 +209,7 @@ ${Math.round(d.datum.y * 1000) / 1000}`}
         />
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
-          tickValues={linspace(
-            this.state.minTimestamp,
-            this.state.maxTimestamp + 100000,
-            7
-          ).map((x) =>
-            moment(x, "x").startOf(delta_ts >= 16 ? "hour" : "minute")
-          )}
+          tickValues={tv}
           style={{
             tickLabels: { fontSize: 13 * this.props.fontScale, padding: 5 },
           }}

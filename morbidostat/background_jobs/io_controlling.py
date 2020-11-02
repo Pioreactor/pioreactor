@@ -47,13 +47,14 @@ class ControlAlgorithm(BackgroundJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
-    publish_out = ["volume", "target_od", "target_growth_rate", "sensor"]
+    publish_out = ["volume", "target_od", "target_growth_rate", "sensor", "mode"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
 
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
+        self.mode = type(self).__name__
 
         self.start_passive_listeners()
 

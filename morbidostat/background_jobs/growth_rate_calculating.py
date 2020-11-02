@@ -174,7 +174,9 @@ class GrowthRateCalculator(BackgroundJob):
     @staticmethod
     def json_to_sorted_dict(json_dict):
         d = json.loads(json_dict)
-        return {k: float(d[k]) for k in sorted(d, reverse=True) if not k.startswith("180")}
+        # okay, I add the plus one so that the normalization factor is not too small - too small the the variance on it is very large, and
+        # we get exploding values.
+        return {k: float(d[k]) + 1 for k in sorted(d, reverse=True) if not k.startswith("180")}
 
     @staticmethod
     def create_OD_covariance(angles):

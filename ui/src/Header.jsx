@@ -2,16 +2,11 @@ import React from 'react'
 import {AppBar, Toolbar, Typography} from '@material-ui/core';
 import {makeStyles} from '@material-ui/styles';
 import Button from '@material-ui/core/Button';
-
+import SwipeableTemporaryDrawer from './Drawer'
 
 const useStyles = makeStyles(() => ({
     logo: {
     },
-    headerOptions:{
-      display: "flex",
-      flex: 1,
-      marginLeft: "100px"
-    }
 }));
 
 
@@ -20,13 +15,10 @@ const Header = () => {
     return (
     <AppBar position="static">
         <Toolbar variant="dense">
+          <SwipeableTemporaryDrawer />
           <Typography className={classes.logo}>
             Morbidostat
           </Typography>
-          <div className={classes.headerOptions}>
-            <Button color="inherit">Start new experiment</Button>
-            <Button color="inherit">Download experiment data</Button>
-          </div>
         </Toolbar>
       </AppBar>
     )
