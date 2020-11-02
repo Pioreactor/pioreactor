@@ -1,73 +1,24 @@
 import React from "react";
-
-import Grid from '@material-ui/core/Grid';
-import Header from "./Header"
-import UnitCards from "./UnitCards"
-import LogTable from "./LogTable"
-import ExperimentSummary from "./ExperimentSummary"
-import Chart from "./Chart"
-import AllUnitsManagerCard from "./AllUnitsManagerCard"
-
-import CssBaseline from "@material-ui/core/CssBaseline";
-import { MuiThemeProvider, createMuiTheme } from "@material-ui/core/styles";
-
-const themeLight = createMuiTheme({
-  palette: {
-    background: {
-      default: "#fafbfc"
-    }
-  }
-});
-
+import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
+//import { About } from "./About";
+import Dashboard from "./Dashboard";
+import DownloadData from "./DownloadData";
 
 function App() {
-    return (
-    <MuiThemeProvider theme={themeLight}>
-      <CssBaseline />
-      <div>
-        <Grid container spacing={2} >
-
-          <Grid item xs={12}><Header /></Grid>
-
-          <Grid item container xs={7} direction="row" spacing={2}>
-            <Grid item xs={1}/>
-            <Grid item xs={11}>
-              <ExperimentSummary/>
-            </Grid>
-
-            <Grid item xs={1}/>
-            <Grid item xs={11}>
-              <Chart dataFile={'./data/implied_growth_rate.json'} interpolation="stepAfter" fontScale={1.} title="Implied growth rate" topic="growth_rate" yAxisLabel="Growth rate, h⁻¹"/>
-            </Grid>
-
-            <Grid item xs={1}/>
-            <Grid item xs={11}>
-              <Chart dataFile={'./data/alt_media_fraction.json'} interpolation="stepAfter" fontScale={1.} title="Fraction of volume that is alternative media" topic="alt_media_fraction" yAxisLabel="Fraction"/>
-            </Grid>
-
-            <Grid item xs={1}/>
-            <Grid item xs={11}>
-                <Chart isODReading={true} dataFile={'./data/implied_135.json'} fontScale={1.0} title="135° optical density" topic="od_filtered/135/+" yAxisLabel="Optical density (AU)"/>
-            </Grid>
-          </Grid>
-
-          <Grid item container xs={5} direction="row" spacing={2} >
-            <Grid item xs={1}/>
-            <Grid item xs={5}><UnitCards units={[1,3,5]}/></Grid>
-            <Grid item xs={5}><UnitCards units={[2,4,6]}/></Grid>
-            <Grid item xs={1}/>
-
-            <Grid item xs={1}/>
-            <Grid item xs={10}><AllUnitsManagerCard/></Grid>
-            <Grid item xs={1}/>
-
-            <Grid item xs={1}/>
-            <Grid item xs={10}><LogTable /></Grid>
-            <Grid item xs={1}/>
-          </Grid>
-        </Grid>
+  return (
+    <Router>
+      <div className="pageContainer">
+        <Switch>
+          <Route exact path="/">
+            <Dashboard />
+          </Route>
+          <Route path="/download-data">
+            <DownloadData />
+          </Route>
+        </Switch>
       </div>
-    </MuiThemeProvider>
-    )
+    </Router>
+  );
 }
+
 export default App;

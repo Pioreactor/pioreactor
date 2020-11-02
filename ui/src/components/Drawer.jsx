@@ -12,6 +12,9 @@ import EditIcon from '@material-ui/icons/Edit';
 import AddIcon from '@material-ui/icons/Add';
 import SaveAltIcon from '@material-ui/icons/SaveAlt';
 import SettingsIcon from '@material-ui/icons/Settings';
+import DashboardIcon from '@material-ui/icons/Dashboard';
+import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
+
 
 import DialogTitle from '@material-ui/core/DialogTitle';
 import Dialog from '@material-ui/core/Dialog';
@@ -47,20 +50,25 @@ export default function Drawer() {
         Morbidostat
       </Typography>
       <List>
-        <ListItem href="/download" button key={"download_data"}>
+        <ListItem href="/" component="a" button key={"dashboard"}>
+          <ListItemIcon><DashboardIcon /> </ListItemIcon>
+          <ListItemText primary={"Dashboard"} />
+        </ListItem>
+
+        <ListItem href="/download-data" component="a" button key={"download_data"}>
           <ListItemIcon><SaveAltIcon /> </ListItemIcon>
           <ListItemText primary={"Download experiment data"} />
         </ListItem>
 
-        <ListItem button key={"calibrate"}>
+        <ListItem button href="/calibrate"  component="a" key={"calibrate"}>
           <ListItemIcon> <SettingsIcon /> </ListItemIcon>
           <ListItemText primary={"Calibrate unit"} />
         </ListItem>
-        <ListItem button key={"start_new_experiment"}>
+        <ListItem button href="/start-new-experiment"  component="a" key={"start_new_experiment"}>
           <ListItemIcon> <AddIcon /> </ListItemIcon>
           <ListItemText primary={"Start new experiment"} />
         </ListItem>
-        <ListItem button key={"edit_config"}>
+        <ListItem button href="/edit-config"  component="a" key={"edit_config"}>
           <ListItemIcon> <EditIcon /> </ListItemIcon>
           <ListItemText primary={"Edit config.ini"} />
         </ListItem>

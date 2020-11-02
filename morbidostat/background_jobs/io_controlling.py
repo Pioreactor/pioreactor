@@ -48,7 +48,7 @@ class ControlAlgorithm(BackgroundJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
-    publish_out = ["volume", "target_od", "target_growth_rate", "sensor", "mode"]
+    publish_out = ["volume", "target_od", "target_growth_rate", "sensor", "display_name"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
@@ -56,7 +56,7 @@ class ControlAlgorithm(BackgroundJob):
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.throughput_calculator = ThroughputCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
-        self.mode = type(self).__name__
+        self.display_name = type(self).__name__
 
         self.start_passive_listeners()
 
@@ -153,6 +153,7 @@ class Turbidostat(ControlAlgorithm):
         super(Turbidostat, self).__init__(**kwargs)
         self.target_od = target_od
         self.volume = volume
+        self.display_name = "Turbidostat"
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od >= self.target_od:
@@ -176,6 +177,7 @@ class PIDTurbidostat(ControlAlgorithm):
         self.volume = volume
         self.min_od = 0.75 * target_od
         self.verbose = verbose
+        self.display_name = "Turbidostat"
         self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
 
     def execute(self, *args, **kwargs) -> events.Event:
@@ -206,6 +208,8 @@ class PIDMorbidostat(ControlAlgorithm):
         self.max_od = 1.1 * self.target_od
         self.duration = duration
         self.verbose = verbose
+        self.display_name = "Morbidostat"
+
         self.pid = PID(
             -1.00, -0.01, -0.05, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
@@ -259,6 +263,7 @@ class Morbidostat(ControlAlgorithm):
         super(Morbidostat, self).__init__(**kwargs)
         self.target_od = target_od
         self.volume = volume
+        self.display_name = "Morbidostat"
 
     def execute(self, *args, **kwargs) -> events.Event:
         """
