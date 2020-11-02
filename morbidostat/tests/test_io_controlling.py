@@ -214,7 +214,8 @@ def test_old_readings_will_not_execute_io():
 
 
 def test_throughput_calculator():
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/media_throughput", None, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/media_throughput", 0, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/alt_media_throughput", 0, retain=True)
 
     algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     assert algo.throughput_calculator.latest_media_throughput["media_ml"] == 0
@@ -247,9 +248,8 @@ def test_throughput_calculator():
 
 
 def test_throughput_calculator_restart():
-    pubsub.publish(
-        f"morbidostat/{unit}/{experiment}/media_throughput", json.dumps({"media_ml": 1.0, "alt_media_ml": 1.5}), retain=True
-    )
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/media_throughput", 1.0, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/alt_media_throughput", 1.5, retain=True)
 
     target_growth_rate = 0.06
     algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)

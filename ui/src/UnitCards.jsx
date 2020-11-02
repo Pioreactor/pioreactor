@@ -13,6 +13,10 @@ import Divider from '@material-ui/core/Divider';
 import Slider from '@material-ui/core/Slider';
 import TextField from '@material-ui/core/TextField';
 import InputAdornment from '@material-ui/core/InputAdornment';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import ExpandLessIcon from '@material-ui/icons/ExpandLess';
+import IconButton from '@material-ui/core/IconButton';
+
 
 const useStyles = makeStyles({
   root: {
@@ -23,17 +27,20 @@ const useStyles = makeStyles({
     paddingLeft: "15px",
     paddingRight: "15px",
     paddingTop: "10px",
-    paddingBottom: "10px",
+    paddingBottom: "0px",
   },
   unitTitle: {
     fontSize: 17,
     fontFamily: "courier",
     color: "rgba(0, 0, 0, 0.54)"
   },
+  disabledText:{
+    color: "rgba(0, 0, 0, 0.38)"
+  },
   unitTitleDisable: {
+    color: "rgba(0, 0, 0, 0.38)",
     fontSize: 17,
     fontFamily: "courier",
-    color: "rgba(0, 0, 0, 0.38)"
   },
   pos: {
     marginBottom: 0,
@@ -82,6 +89,12 @@ const useStyles = makeStyles({
   textField:{
     marginTop: "15px",
     maxWidth: "180px"
+  },
+  displaySettingsHidden: {
+    height: "40px",
+    overflow: "hidden",
+  },
+  displaySettings: {
   }
 
 });
@@ -120,7 +133,7 @@ class UnitSettingDisplay extends React.Component {
   }
 
   onConnect() {
-    this.client.subscribe(["morbidostat", this.props.unitNumber, this.props.experiment, this.props.job, this.props.attr].join("/"), {qos: 1})
+    this.client.subscribe(["morbidostat", this.props.unitNumber, this.props.experiment, this.props.topic].join("/"), {qos: 1})
   }
 
   onMessageArrived(message) {
@@ -149,7 +162,7 @@ class UnitSettingDisplay extends React.Component {
     }
     else{
       return(
-          <div style={{color: "rgba(0, 0, 0, 0.54)"}}>{this.state.msg}</div>
+          <div style={{color: "rgba(0, 0, 0, 0.54)"}}>{this.state.msg == "-" ? this.state.msg : parseFloat(this.state.msg).toPrecision(2)}</div>
       )
       }
   }
@@ -442,6 +455,8 @@ function UnitCard(props) {
   const unitNumber = unitName.slice(-1);
   const experiment = "Trial-21-3b9c958debdc40ba80c279f8463a4cf7"
 
+  const [showingAllSettings, setShowingAllSettings] = useState(false)
+
   const [settingModelOpen, setSettingModalOpen] = useState(false);
   const [actionModelOpen, setActionModalOpen] = useState(false);
 
@@ -471,51 +486,72 @@ function UnitCard(props) {
     setActionModalOpen(false);
   };
 
+  const handleShowAllSettingsClick = () => {
+    setShowingAllSettings(!showingAllSettings)
+  }
 
+  var textSettingsClasses = `${classes.alignLeft} ${isUnitActive ? null : classes.disabledText}`
   return (
-    <Card className={classes.root} variant={!isUnitActive ? "outlined" : null}>
+    <Card className={classes.root}>
       <CardContent className={classes.content}>
         <Typography className={isUnitActive ? classes.unitTitle : classes.unitTitleDisable}>
           {unitName}
         </Typography>
+        <div id="displaySettings" className={showingAllSettings? classes.displaySettings : classes.displaySettingsHidden}>
 
-        <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Stirring speed:</Typography>
-          <UnitSettingDisplay passChildData={setStirringState} experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="stirring" attr="duty_cycle" unitNumber={unitNumber}/>
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>Fraction of alt media:</Typography>
+            <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="alt_media_fraction" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>Media throughput (mL):</Typography>
+            <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="total_media_throughput" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>IO Mode:</Typography>
+            <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/mode" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>Stirring speed:</Typography>
+            <UnitSettingDisplay passChildData={setStirringState} experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="stirring/duty_cycle" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>Optical density reading:</Typography>
+            <UnitSettingDisplay passChildData={setODReadingActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="od_reading/active" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>Growth rate:</Typography>
+            <UnitSettingDisplay passChildData={setGrowthRateActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="growth_rate_calculating/active" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>IO events:</Typography>
+            <UnitSettingDisplay passChildData={setIOEventsActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="io_controlling/active" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses} >Target optical density:</Typography>
+            <UnitSettingDisplay experiment={experiment} passChildData={setTargetODState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/target_od" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses} >Target growth rate: </Typography>
+            <UnitSettingDisplay experiment={experiment} passChildData={setTargetGrowthRateState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/target_growth_rate" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses} >Volume/dilution: </Typography>
+            <UnitSettingDisplay experiment={experiment} passChildData={setVolumeState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/volume" unitNumber={unitNumber}/>
+          </div>
         </div>
-
-        <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Optical density reading:</Typography>
-          <UnitSettingDisplay passChildData={setODReadingActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive job="od_reading" attr="active" unitNumber={unitNumber}/>
-        </div>
-
-        <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Growth rate:</Typography>
-          <UnitSettingDisplay passChildData={setGrowthRateActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive job="growth_rate_calculating" attr="active" unitNumber={unitNumber}/>
-        </div>
-
-        <div className={classes.textbox}>
-          <Typography className={classes.alignLeft} color="textPrimary">IO events:</Typography>
-          <UnitSettingDisplay passChildData={setIOEventsActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive job="io_controlling" attr="active" unitNumber={unitNumber}/>
-        </div>
-
-        <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Target optical density:</Typography>
-          <UnitSettingDisplay experiment={experiment} passChildData={setTargetODState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_od" unitNumber={unitNumber}/>
-        </div>
-
-        <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Target growth rate: </Typography>
-          <UnitSettingDisplay experiment={experiment} passChildData={setTargetGrowthRateState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="target_growth_rate" unitNumber={unitNumber}/>
-        </div>
-
-        <div className={classes.textbox}>
-          <Typography className={classes.alignLeft}  color="textPrimary">Volume/dilution: </Typography>
-          <UnitSettingDisplay experiment={experiment} passChildData={setVolumeState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} job="io_controlling" attr="volume" unitNumber={unitNumber}/>
-        </div>
-
       </CardContent>
       <CardActions>
+        <IconButton size="small" onClick={handleShowAllSettingsClick}>{showingAllSettings ? <ExpandLessIcon/> : <ExpandMoreIcon/>}</IconButton>
         <Button size="small" color="primary" disabled={!isUnitActive} onClick={handleSettingModalOpen}>Settings</Button>
           <Modal
             open={settingModelOpen}

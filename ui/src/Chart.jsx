@@ -201,13 +201,13 @@ ${Math.round(d.datum.y * 1000) / 1000}`}
           x={300}
           y={30}
           textAnchor="middle"
-          style={{ fontSize: 15 * this.props.fontScale }}
+          style={{ fontSize: 15 * this.props.fontScale, fontFamily: "inherit" }}
         />
         <VictoryAxis
           tickFormat={(mt) => mt.format(axis_display_ts_format)}
           tickValues={tv}
           style={{
-            tickLabels: { fontSize: 13 * this.props.fontScale, padding: 5 },
+            tickLabels: { fontSize: 13 * this.props.fontScale, padding: 5, fontFamily: "inherit"},
           }}
           offsetY={50}
           orientation="bottom"
@@ -219,11 +219,11 @@ ${Math.round(d.datum.y * 1000) / 1000}`}
           axisLabelComponent={
             <VictoryLabel
               dy={-40}
-              style={{ fontSize: 15 * this.props.fontScale, padding: 10 }}
+              style={{ fontSize: 15 * this.props.fontScale, padding: 10, fontFamily: "inherit" }}
             />
           }
           style={{
-            tickLabels: { fontSize: 13 * this.props.fontScale, padding: 5 },
+            tickLabels: { fontSize: 13 * this.props.fontScale, padding: 5, fontFamily: "inherit" },
           }}
         />
         <VictoryLegend

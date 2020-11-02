@@ -44,23 +44,50 @@ class ThroughputCalculator:
 
         self.latest_media_throughput["alt_media_ml"] += alt_media_delta
         self.latest_media_throughput["media_ml"] += media_delta
+
         publish(
             f"morbidostat/{self.unit}/{self.experiment}/media_throughput",
-            json.dumps(self.latest_media_throughput),
+            self.latest_media_throughput["media_ml"],
             verbose=self.verbose,
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
 
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/alt_media_throughput",
+            self.latest_media_throughput["alt_media_ml"],
+            verbose=self.verbose,
+            retain=True,
+            qos=QOS.EXACTLY_ONCE,
+        )
+
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/total_media_throughput",
+            self.latest_media_throughput["alt_media_ml"] + self.latest_media_throughput["media_ml"],
+            verbose=self.verbose,
+            retain=True,
+            qos=QOS.EXACTLY_ONCE,
+        )
         return self.latest_media_throughput
 
-    def set_initial_throughput(self, message):
-        seed = json.loads(message.payload)
-        self.latest_media_throughput = seed
+    def set_media_initial_throughput(self, message):
+        self.latest_media_throughput["media_ml"] = float(message.payload)
+
+    def set_alt_media_initial_throughput(self, message):
+        self.latest_media_throughput["alt_media_ml"] = float(message.payload)
 
     def start_passive_listeners(self) -> None:
         subscribe_and_callback(
-            self.set_initial_throughput, f"morbidostat/{self.unit}/{self.experiment}/media_throughput", timeout=3, max_msgs=1
+            self.set_media_initial_throughput,
+            f"morbidostat/{self.unit}/{self.experiment}/media_throughput",
+            timeout=3,
+            max_msgs=1,
+        )
+        subscribe_and_callback(
+            self.set_alt_media_initial_throughput,
+            f"morbidostat/{self.unit}/{self.experiment}/alt_media_throughput",
+            timeout=3,
+            max_msgs=1,
         )
         subscribe_and_callback(
             callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
