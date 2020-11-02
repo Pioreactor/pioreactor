@@ -137,10 +137,18 @@ class UnitSettingDisplay extends React.Component {
   }
 
   onMessageArrived(message) {
+
+    var parsedFloat = parseFloat(message.payloadString)
+    if (isNaN(parsedFloat)){
+      var payload = message.payloadString
+    }
+    else{
+      var payload = parsedFloat
+    }
     this.setState({
-      msg: message.payloadString
+      msg: payload
     });
-    this.updateParent(message.payloadString)
+    this.updateParent(payload)
   }
 
   render(){
@@ -149,10 +157,10 @@ class UnitSettingDisplay extends React.Component {
         return <div style={{color: "grey"}}> {this.state.msg} </div>
       }
       else {
-        if (this.state.msg === "1"){
+        if (this.state.msg === 1){
           return <div style={{color: "#4caf50"}}> On </div>
         }
-        else if (this.state.msg === "0") {
+        else if (this.state.msg === 0) {
           return <div style={{color: "grey"}}> Off </div>
         }
         else{
@@ -161,10 +169,15 @@ class UnitSettingDisplay extends React.Component {
       }
     }
     else{
-      return(
-          <div style={{color: "rgba(0, 0, 0, 0.54)"}}>{this.state.msg == "-" ? this.state.msg : parseFloat(this.state.msg).toPrecision(2)}</div>
-      )
+      if (!this.state.isUnitActive) {
+        return <div style={{color: "grey"}}> {this.state.msg} </div>
       }
+      else{
+        return(
+            <div style={{color: "rgba(0, 0, 0, 0.54)"}}>{((typeof this.state.msg === 'string') ? this.state.msg : +(this.state.msg).toFixed(this.props.precision)) + (this.props.unit ? this.props.unit : "")}</div>
+        )
+      }
+    }
   }
 }
 
@@ -235,8 +248,8 @@ function ModalUnitSettings(props) {
       <Typography variant="body2" component="p">
         Pause or restart the optical density reading. This will also pause downstream jobs that rely on optical density readings, like growth rates.
       </Typography>
-      <Button disableElevation disabled={props.ODReadingActiveState === "0"} color="secondary" onClick={setActiveState("od_reading", 0)}>Pause</Button>
-      <Button disableElevation disabled={props.ODReadingActiveState === "1"} color="primary" onClick={setActiveState("od_reading", 1)}>Start</Button>
+      <Button disableElevation disabled={props.ODReadingActiveState === 0} color="secondary" onClick={setActiveState("od_reading", 0)}>Pause</Button>
+      <Button disableElevation disabled={props.ODReadingActiveState === 1} color="primary" onClick={setActiveState("od_reading", 1)}>Start</Button>
     <Divider className={classes.divider} />
     <Typography color="textSecondary" gutterBottom>
         Growth rate calculating
@@ -244,8 +257,8 @@ function ModalUnitSettings(props) {
       <Typography variant="body2" component="p">
         Pause or start the calculating the implied growth rate and smooted optical densities.
       </Typography>
-      <Button disableElevation disabled={props.growthRateActiveState === "0"} color="secondary" onClick={setActiveState("growth_rate_calculating", 0)}>Pause</Button>
-      <Button disableElevation disabled={props.growthRateActiveState === "1"} color="primary" onClick={setActiveState("growth_rate_calculating", 1)}>Start</Button>
+      <Button disableElevation disabled={props.growthRateActiveState === 0} color="secondary" onClick={setActiveState("growth_rate_calculating", 0)}>Pause</Button>
+      <Button disableElevation disabled={props.growthRateActiveState === 1} color="primary" onClick={setActiveState("growth_rate_calculating", 1)}>Start</Button>
     <Divider className={classes.divider} />
       <Typography color="textSecondary" gutterBottom>
         Input/output events
@@ -253,8 +266,8 @@ function ModalUnitSettings(props) {
       <Typography variant="body2" component="p">
         Pause media input/output events from occuring, or restart them.
       </Typography>
-      <Button disableElevation disabled={props.IOEventsActiveState === "0"} color="secondary" onClick={setActiveState("io_controlling", 0)}>Pause</Button>
-      <Button disableElevation disabled={props.IOEventsActiveState === "1"} color="primary" onClick={setActiveState("io_controlling", 1)}>Start</Button>
+      <Button disableElevation disabled={props.IOEventsActiveState === 0} color="secondary" onClick={setActiveState("io_controlling", 0)}>Pause</Button>
+      <Button disableElevation disabled={props.IOEventsActiveState === 1} color="primary" onClick={setActiveState("io_controlling", 1)}>Start</Button>
     <Divider  className={classes.divider} />
       <Typography color="textSecondary" gutterBottom>
         Stirring
@@ -500,18 +513,29 @@ function UnitCard(props) {
         <div id="displaySettings" className={showingAllSettings? classes.displaySettings : classes.displaySettingsHidden}>
 
           <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>Fraction of alt media:</Typography>
-            <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="alt_media_fraction" unitNumber={unitNumber}/>
+            <Typography className={textSettingsClasses}>Media throughput:</Typography>
+            <UnitSettingDisplay precision={0} unit="mL" experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="total_media_throughput" unitNumber={unitNumber}/>
           </div>
 
           <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>Media throughput (mL):</Typography>
-            <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="total_media_throughput" unitNumber={unitNumber}/>
-          </div>
-
-          <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>IO Mode:</Typography>
+            <Typography className={textSettingsClasses}>IO mode:</Typography>
             <UnitSettingDisplay experiment={experiment} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/mode" unitNumber={unitNumber}/>
+          </div>
+
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>Optical density job:</Typography>
+            <UnitSettingDisplay passChildData={setODReadingActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="od_reading/active" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>Growth rate job:</Typography>
+            <UnitSettingDisplay passChildData={setGrowthRateActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="growth_rate_calculating/active" unitNumber={unitNumber}/>
+          </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>IO events job:</Typography>
+            <UnitSettingDisplay passChildData={setIOEventsActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="io_controlling/active" unitNumber={unitNumber}/>
           </div>
 
           <div className={classes.textbox}>
@@ -520,33 +544,18 @@ function UnitCard(props) {
           </div>
 
           <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>Optical density reading:</Typography>
-            <UnitSettingDisplay passChildData={setODReadingActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="od_reading/active" unitNumber={unitNumber}/>
-          </div>
-
-          <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>Growth rate:</Typography>
-            <UnitSettingDisplay passChildData={setGrowthRateActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="growth_rate_calculating/active" unitNumber={unitNumber}/>
-          </div>
-
-          <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>IO events:</Typography>
-            <UnitSettingDisplay passChildData={setIOEventsActiveState} experiment={experiment} isUnitActive={isUnitActive} default={"Off"} className={classes.alignRight} isBinaryActive topic="io_controlling/active" unitNumber={unitNumber}/>
-          </div>
-
-          <div className={classes.textbox}>
-            <Typography className={textSettingsClasses} >Target optical density:</Typography>
-            <UnitSettingDisplay experiment={experiment} passChildData={setTargetODState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/target_od" unitNumber={unitNumber}/>
+            <Typography className={textSettingsClasses}> Target optical density:</Typography>
+            <UnitSettingDisplay precision={2} experiment={experiment} passChildData={setTargetODState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/target_od" unitNumber={unitNumber}/>
           </div>
 
           <div className={classes.textbox}>
             <Typography className={textSettingsClasses} >Target growth rate: </Typography>
-            <UnitSettingDisplay experiment={experiment} passChildData={setTargetGrowthRateState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/target_growth_rate" unitNumber={unitNumber}/>
+            <UnitSettingDisplay precision={2} unit= "h⁻¹" experiment={experiment} passChildData={setTargetGrowthRateState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/target_growth_rate" unitNumber={unitNumber}/>
           </div>
 
           <div className={classes.textbox}>
             <Typography className={textSettingsClasses} >Volume/dilution: </Typography>
-            <UnitSettingDisplay experiment={experiment} passChildData={setVolumeState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/volume" unitNumber={unitNumber}/>
+            <UnitSettingDisplay precision={2} unit="mL" experiment={experiment} passChildData={setVolumeState} isUnitActive={isUnitActive} default={"-"} className={classes.alignRight} topic="io_controlling/volume" unitNumber={unitNumber}/>
           </div>
         </div>
       </CardContent>
