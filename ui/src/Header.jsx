@@ -1,8 +1,7 @@
 import React from 'react'
 import {AppBar, Toolbar, Typography} from '@material-ui/core';
 import {makeStyles} from '@material-ui/styles';
-import Button from '@material-ui/core/Button';
-import SwipeableTemporaryDrawer from './Drawer'
+import Drawer from './Drawer'
 
 const useStyles = makeStyles(() => ({
     logo: {
@@ -15,7 +14,7 @@ const Header = () => {
     return (
     <AppBar position="static">
         <Toolbar variant="dense">
-          <SwipeableTemporaryDrawer />
+          <Drawer />
           <Typography className={classes.logo}>
             Morbidostat
           </Typography>

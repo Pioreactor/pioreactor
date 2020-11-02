@@ -1,10 +1,7 @@
 import React from 'react';
-import clsx from 'clsx';
 import { makeStyles } from '@material-ui/core/styles';
 import SwipeableDrawer from '@material-ui/core/SwipeableDrawer';
-import Button from '@material-ui/core/Button';
 import List from '@material-ui/core/List';
-import Divider from '@material-ui/core/Divider';
 import {Typography} from '@material-ui/core';
 import ListItem from '@material-ui/core/ListItem';
 import ListItemIcon from '@material-ui/core/ListItemIcon';
@@ -16,6 +13,10 @@ import AddIcon from '@material-ui/icons/Add';
 import SaveAltIcon from '@material-ui/icons/SaveAlt';
 import SettingsIcon from '@material-ui/icons/Settings';
 
+import DialogTitle from '@material-ui/core/DialogTitle';
+import Dialog from '@material-ui/core/Dialog';
+
+
 const useStyles = makeStyles({
   list: {
     width: 250,
@@ -25,7 +26,7 @@ const useStyles = makeStyles({
   },
 });
 
-export default function SwipeableTemporaryDrawer() {
+export default function Drawer() {
   const classes = useStyles();
   const [isOpen, setIsOpen] = React.useState(false);
 
@@ -46,10 +47,11 @@ export default function SwipeableTemporaryDrawer() {
         Morbidostat
       </Typography>
       <List>
-        <ListItem button key={"download_data"}>
+        <ListItem href="/download" button key={"download_data"}>
           <ListItemIcon><SaveAltIcon /> </ListItemIcon>
           <ListItemText primary={"Download experiment data"} />
         </ListItem>
+
         <ListItem button key={"calibrate"}>
           <ListItemIcon> <SettingsIcon /> </ListItemIcon>
           <ListItemText primary={"Calibrate unit"} />

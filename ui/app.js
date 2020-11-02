@@ -9,7 +9,8 @@ const url = require('url');
 // this is not secure, and I know it. It's fine for now, as the app isn't exposed to the internet.
 var staticUserAuth = basicAuth({
     users: {
-        [process.env['BASIC_AUTH_ADMIN']]: process.env['BASIC_AUTH_PASS']
+        //[process.env['BASIC_AUTH_ADMIN']]: process.env['BASIC_AUTH_PASS']
+        admin: "admin"
     },
     challenge: true
 })

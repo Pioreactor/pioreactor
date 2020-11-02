@@ -14,7 +14,6 @@ import Slider from '@material-ui/core/Slider';
 import TextField from '@material-ui/core/TextField';
 import InputAdornment from '@material-ui/core/InputAdornment';
 
-
 const useStyles = makeStyles({
   root: {
     minWidth: 100,
@@ -210,7 +209,6 @@ function ModalUnitSettings(props) {
       setMorbidostatJobState("stirring/duty_cycle", value)
   }
 
-
   return (
   <Card style={modalStyle} className={classes.paper}>
    <CardContent>
@@ -253,13 +251,13 @@ function ModalUnitSettings(props) {
       </Typography>
       <div className={classes.slider}>
         <Slider
-          defaultValue={props.stirringState}
+          defaultValue={parseInt(props.stirringState)}
           aria-labelledby="discrete-slider-custom"
           step={1}
           valueLabelDisplay="on"
           id="stirring/duty_cycle"
           onChangeCommitted={setMorbidostatStirring}
-          marks={[{value: 0, label: 0}, {value: defaultStirring, label: "Default: " + defaultStirring}, {value: 100, label: 100}]}
+          marks={[{value: 0, label: "0"}, {value: defaultStirring, label: "Default: " + defaultStirring}, {value: 100, label: "100"}]}
         />
       </div>
       <Typography className={classes.footnote} color="textSecondary">
@@ -525,17 +523,19 @@ function UnitCard(props) {
             aria-labelledby="simple-modal-title"
             aria-describedby="simple-modal-description"
             >
-            <ModalUnitSettings
-              stirringState={stirringState}
-              ODReadingActiveState={ODReadingActiveState}
-              growthRateActiveState={growthRateActiveState}
-              IOEventsActiveState={IOEventsActiveState}
-              targetGrowthRateState={targetGrowthRateState}
-              volumeState={volumeState}
-              targetODState={targetODState}
-              experiment={experiment}
-              unitName={unitName}
-              unitNumber={unitNumber}/>
+            <div>
+              <ModalUnitSettings
+                stirringState={stirringState}
+                ODReadingActiveState={ODReadingActiveState}
+                growthRateActiveState={growthRateActiveState}
+                IOEventsActiveState={IOEventsActiveState}
+                targetGrowthRateState={targetGrowthRateState}
+                volumeState={volumeState}
+                targetODState={targetODState}
+                experiment={experiment}
+                unitName={unitName}
+                unitNumber={unitNumber}/>
+            </div>
           </Modal>
         <Button size="small" color="primary" disabled={!isUnitActive} onClick={handleActionModalOpen}>Actions</Button>
           <Modal
@@ -543,11 +543,14 @@ function UnitCard(props) {
             onClose={handleActionModalClose}
             aria-labelledby="simple-modal-title"
             aria-describedby="simple-modal-description"
+            onEscapeKeyDown={handleSettingModalClose}
             >
+            <div>
             <ModalUnitActions
               experiment={experiment}
               unitName={unitName}
               unitNumber={unitNumber}/>
+            </div>
           </Modal>
       </CardActions>
     </Card>

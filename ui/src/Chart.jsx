@@ -1,5 +1,4 @@
 import React from "react";
-import { useEffect, useState } from "react";
 import { Client } from "paho-mqtt";
 import {
   VictoryChart,
@@ -131,11 +130,8 @@ class Chart extends React.Component {
   onMessageArrived(message) {
     const currentTime = parseInt(moment().format("x"));
 
-    if (this.props.isODReading) {
-      var key = message.topic.split("/")[1] + "-" + message.topic.split("/")[5];
-    } else {
-      var key = message.topic.split("/")[1];
-    }
+    var key = this.props.isODReading ? message.topic.split("/")[1] + "-" + message.topic.split("/")[5] : message.topic.split("/")[1]
+
     this.state.seriesMap[key].data.push({
       x: currentTime,
       y: parseFloat(message.payloadString),

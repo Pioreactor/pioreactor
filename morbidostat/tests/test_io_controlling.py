@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+import json
 import pytest
 
 from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat, PIDTurbidostat
@@ -210,3 +211,48 @@ def test_old_readings_will_not_execute_io():
     assert algo.most_stale_time == algo.latest_od_timestamp
 
     assert isinstance(algo.run(), events.NoEvent)
+
+
+def test_throughput_calculator():
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/media_throughput", None, retain=True)
+
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    assert algo.throughput_calculator.latest_media_throughput["media_ml"] == 0
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.00)
+    pause()
+    algo.run()
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
+    pause()
+    algo.run()
+    assert algo.throughput_calculator.latest_media_throughput["media_ml"] > 0
+    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] > 0
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.07)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
+    pause()
+    algo.run()
+    assert algo.throughput_calculator.latest_media_throughput["media_ml"] > 0
+    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] > 0
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.065)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
+    pause()
+    algo.run()
+    assert algo.throughput_calculator.latest_media_throughput["media_ml"] > 0
+    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] > 0
+
+
+def test_throughput_calculator_restart():
+    pubsub.publish(
+        f"morbidostat/{unit}/{experiment}/media_throughput", json.dumps({"media_ml": 1.0, "alt_media_ml": 1.5}), retain=True
+    )
+
+    target_growth_rate = 0.06
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    pause()
+    assert algo.throughput_calculator.latest_media_throughput["media_ml"] == 1.0
+    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] == 1.5

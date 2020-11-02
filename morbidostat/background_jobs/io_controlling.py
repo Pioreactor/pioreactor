@@ -21,6 +21,7 @@ from morbidostat.utils.timing import every
 from morbidostat.utils.streaming_calculations import PID
 from morbidostat.whoami import unit, experiment
 from morbidostat.background_jobs.utils.alt_media_calculator import AltMediaCalculator
+from morbidostat.background_jobs.utils.throughput_calculator import ThroughputCalculator
 from morbidostat.background_jobs.utils import events
 from morbidostat.background_jobs import BackgroundJob
 
@@ -54,24 +55,26 @@ class ControlAlgorithm(BackgroundJob):
 
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
+        self.throughput_calculator = ThroughputCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.mode = type(self).__name__
 
         self.start_passive_listeners()
 
     def run(self, counter=None):
-        if self.active == 0:
-            return events.NoEvent("Paused. Set `active` to 0 to start again.")
-
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             time.sleep(10)  # wait some time for data to arrive, and try again.
-            return self.run()
+            return self.run(counter=counter)
 
-        if (time.time() - self.most_stale_time) > 5 * 60:
-            return events.NoEvent(
+        if self.active == 0:
+            event = events.NoEvent("Paused. Set `active` to 0 to start again.")
+
+        elif (time.time() - self.most_stale_time) > 5 * 60:
+            event = events.NoEvent(
                 "Readings are too stale (over 5 minutes old) - is od_reading and growth_rate_calculating running?"
             )
+        else:
+            event = self.execute(counter)
 
-        event = self.execute(counter)
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{JOB_NAME}]: triggered {event}.", verbose=self.verbose)
         return event
 
