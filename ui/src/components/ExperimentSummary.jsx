@@ -22,6 +22,20 @@ const useStyles = makeStyles({
 
 function ExperimentSummary(props){
   const classes = useStyles();
+  const [experiment, setExperiment] = React.useState("")
+
+  React.useEffect(() => {
+    async function getData() {
+         await fetch("/get_latest_experiment")
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setExperiment(data[0].experiment)
+        });
+      }
+      getData()
+  }, [])
 
   return(
     <Card className={classes.root}>
@@ -30,7 +44,7 @@ function ExperimentSummary(props){
           Experiment
         </Typography>
         <Typography variant="h5" component="h2">
-          Trial 14
+          {experiment}
         </Typography>
         <Typography variant="body2" component="p">
           This is the description of the experiment. This description is stored in a database, along with

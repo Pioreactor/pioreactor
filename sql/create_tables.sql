@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
     morbidostat_unit       TEXT  NOT NULL,
     fluoresence_reading_v  REAL  NOT NULL,
     experiment             TEXT  NOT NULL,
-    ex_nm                  REAL  NOT NULL
+    ex_nm                  REAL  NOT NULL,
     em_nm                  REAL  NOT NULL
 );
 

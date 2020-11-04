@@ -214,12 +214,13 @@ def test_old_readings_will_not_execute_io():
 
 
 def test_throughput_calculator():
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/media_throughput", 0, retain=True)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/alt_media_throughput", 0, retain=True)
+    job_name = "throughput_calculating"
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/media_throughput", 0, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 0, retain=True)
 
     algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
-    assert algo.throughput_calculator.latest_media_throughput["media_ml"] == 0
-
+    assert algo.throughput_calculator.media_throughput == 0
+    pause()
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.00)
     pause()
@@ -229,30 +230,51 @@ def test_throughput_calculator():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
     algo.run()
-    assert algo.throughput_calculator.latest_media_throughput["media_ml"] > 0
-    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] > 0
+    assert algo.throughput_calculator.media_throughput > 0
+    assert algo.throughput_calculator.alt_media_throughput > 0
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.07)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
     algo.run()
-    assert algo.throughput_calculator.latest_media_throughput["media_ml"] > 0
-    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] > 0
+    assert algo.throughput_calculator.media_throughput > 0
+    assert algo.throughput_calculator.alt_media_throughput > 0
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.065)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
     algo.run()
-    assert algo.throughput_calculator.latest_media_throughput["media_ml"] > 0
-    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] > 0
+    assert algo.throughput_calculator.media_throughput > 0
+    assert algo.throughput_calculator.alt_media_throughput > 0
 
 
 def test_throughput_calculator_restart():
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/media_throughput", 1.0, retain=True)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/alt_media_throughput", 1.5, retain=True)
+    job_name = "throughput_calculating"
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
 
     target_growth_rate = 0.06
     algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     pause()
-    assert algo.throughput_calculator.latest_media_throughput["media_ml"] == 1.0
-    assert algo.throughput_calculator.latest_media_throughput["alt_media_ml"] == 1.5
+    assert algo.throughput_calculator.media_throughput == 1.0
+    assert algo.throughput_calculator.alt_media_throughput == 1.5
+
+
+def test_throughput_calculator_manual_set():
+    job_name = "throughput_calculating"
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
+    pause()
+    target_growth_rate = 0.06
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    pause()
+    assert algo.throughput_calculator.media_throughput == 1.0
+    assert algo.throughput_calculator.alt_media_throughput == 1.5
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput/set", 0)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/media_throughput/set", 0)
+    pause()
+    assert algo.throughput_calculator.media_throughput == 0
+    assert algo.throughput_calculator.alt_media_throughput == 0

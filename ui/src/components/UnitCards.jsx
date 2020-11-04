@@ -623,49 +623,7 @@ function UnitCard(props) {
               : classes.displaySettingsHidden
           }
         >
-          <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>
-              Media throughput:
-            </Typography>
-            <UnitSettingDisplay
-              precision={0}
-              unit="mL"
-              experiment={experiment}
-              isUnitActive={isUnitActive}
-              default={"-"}
-              className={classes.alignRight}
-              topic="media_throughput"
-              unitNumber={unitNumber}
-            />
-          </div>
 
-          <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>
-              Alt. media throughput:
-            </Typography>
-            <UnitSettingDisplay
-              precision={0}
-              unit="mL"
-              experiment={experiment}
-              isUnitActive={isUnitActive}
-              default={"-"}
-              className={classes.alignRight}
-              topic="alt_media_throughput"
-              unitNumber={unitNumber}
-            />
-          </div>
-
-          <div className={classes.textbox}>
-            <Typography className={textSettingsClasses}>IO mode:</Typography>
-            <UnitSettingDisplay
-              experiment={experiment}
-              isUnitActive={isUnitActive}
-              default={"-"}
-              className={classes.alignRight}
-              topic="io_controlling/mode"
-              unitNumber={unitNumber}
-            />
-          </div>
 
           <div className={classes.textbox}>
             <Typography className={textSettingsClasses}>
@@ -714,6 +672,7 @@ function UnitCard(props) {
               unitNumber={unitNumber}
             />
           </div>
+
 
           <div className={classes.textbox}>
             <Typography className={textSettingsClasses}>
@@ -780,6 +739,19 @@ function UnitCard(props) {
               unitNumber={unitNumber}
             />
           </div>
+
+          <div className={classes.textbox}>
+            <Typography className={textSettingsClasses}>IO mode:</Typography>
+            <UnitSettingDisplay
+              experiment={experiment}
+              isUnitActive={isUnitActive}
+              default={"-"}
+              className={classes.alignRight}
+              topic="io_controlling/mode"
+              unitNumber={unitNumber}
+            />
+          </div>
+
         </div>
       </CardContent>
       <CardActions>

@@ -55,7 +55,7 @@ class MedianFirstN:
 
 class GrowthRateCalculator(BackgroundJob):
 
-    publish_out = []
+    editable_settings = []
 
     def __init__(self, unit=None, experiment=None, verbose=0):
         super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)

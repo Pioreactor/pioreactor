@@ -5,6 +5,20 @@ import Button from '@material-ui/core/Button';
 
 
 
+function VolumeThroughputTally() {
+  const [volumeThroughput, setVolumeThroughput] = React.setState({})
+
+  // connect, subscribe, and update volumeThroughput over time...
+
+  render(
+      <div>
+        {reduce(sum, Object.values(volumeThroughput))}
+      </div>
+  )
+}
+
+
+
 const AllUnitsCard = () => {
 
     function onClick(e) {

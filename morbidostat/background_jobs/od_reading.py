@@ -63,7 +63,7 @@ class ODReader(BackgroundJob):
 
     """
 
-    publish_out = []
+    editable_settings = []
 
     def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
         self.unit = unit

@@ -23,6 +23,8 @@ class BackgroundJob:
 
     """
 
+    editable_settings = []
+
     def __init__(self, job_name: str, verbose: int = 0, experiment: Optional[str] = None, unit: Optional[str] = None) -> None:
         self.job_name = job_name
         self.verbose = verbose
@@ -32,7 +34,7 @@ class BackgroundJob:
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:
         super(BackgroundJob, self).__setattr__(name, value)
-        if (name in self.publish_out and hasattr(self, name)) or name == "active":  # clean this up
+        if (name in self.editable_settings and hasattr(self, name)) or name == "active":  # clean this up
             self.publish_attr(name)
 
     def set_attr_from_message(self, message):

@@ -27,7 +27,7 @@ class Stirrer(BackgroundJob):
     Send a "-1" to revert to original speed, as defined in config.ini.
     """
 
-    publish_out = ["duty_cycle"]
+    editable_settings = ["duty_cycle"]
 
     def __init__(self, duty_cycle, unit, experiment, verbose=0, hertz=50, pin=int(config["rpi_pins"]["fan"])):
         self.hertz = hertz

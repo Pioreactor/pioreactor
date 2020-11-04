@@ -33,6 +33,12 @@ export default function Drawer() {
   const classes = useStyles();
   const [isOpen, setIsOpen] = React.useState(false);
 
+  function determineBG(path) {
+    return (window.location.pathname === path) ? "rgba(237, 238, 239, 1)" : null
+  }
+
+
+
   const toggleDrawer = (open) => (event) => {
     if (event && event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
       return;
@@ -50,25 +56,26 @@ export default function Drawer() {
         Morbidostat
       </Typography>
       <List>
-        <ListItem href="/" component="a" button key={"dashboard"}>
+
+        <ListItem href="/" component="a" button key={"dashboard"} style={{backgroundColor: determineBG("/")}}>
           <ListItemIcon><DashboardIcon /> </ListItemIcon>
           <ListItemText primary={"Dashboard"} />
         </ListItem>
 
-        <ListItem href="/download-data" component="a" button key={"download_data"}>
+        <ListItem href="/download-data" component="a" button key={"download_data"} style={{backgroundColor: determineBG("/download-data")}}>
           <ListItemIcon><SaveAltIcon /> </ListItemIcon>
           <ListItemText primary={"Download experiment data"} />
         </ListItem>
 
-        <ListItem button href="/calibrate"  component="a" key={"calibrate"}>
+        <ListItem button href="/calibrate"  component="a" key={"calibrate"} style={{backgroundColor: determineBG("/calibrate")}}>
           <ListItemIcon> <SettingsIcon /> </ListItemIcon>
           <ListItemText primary={"Calibrate unit"} />
         </ListItem>
-        <ListItem button href="/start-new-experiment"  component="a" key={"start_new_experiment"}>
+        <ListItem button href="/start-new-experiment"  component="a" key={"start_new_experiment"} style={{backgroundColor: determineBG("/start-new-experiment")}}>
           <ListItemIcon> <AddIcon /> </ListItemIcon>
           <ListItemText primary={"Start new experiment"} />
         </ListItem>
-        <ListItem button href="/edit-config"  component="a" key={"edit_config"}>
+        <ListItem button href="/edit-config"  component="a" key={"edit_config"} style={{backgroundColor: determineBG("/edit-config")}}>
           <ListItemIcon> <EditIcon /> </ListItemIcon>
           <ListItemText primary={"Edit config.ini"} />
         </ListItem>

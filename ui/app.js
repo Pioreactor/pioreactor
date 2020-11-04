@@ -7,7 +7,7 @@ const url = require('url');
 
 
 var sqlite3 = require('sqlite3').verbose()
-var db = new sqlite3.Database('~/db/morbidostat.sql:')
+var db = new sqlite3.Database('morbidostat.sql')
 
 // this is not secure, and I know it. It's fine for now, as the app isn't exposed to the internet.
 var staticUserAuth = basicAuth({
@@ -110,11 +110,21 @@ app.get('/edit_config/', staticUserAuth, function (req, res) {
 
 
 app.get('/get_experiments/', function (req, res) {
-  db.each('SELECT rowid AS id, info FROM lorem', function (err, row) {
-   console.log(row.id + ': ' + row.info)
+  db.serialize(function () {
+    db.all('SELECT experiment FROM experiments ORDER BY timestamp DESC;', function (err, rows) {
+      res.send(rows)
+    })
   })
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 })
+
+app.get('/get_latest_experiment/', function (req, res) {
+  db.serialize(function () {
+    db.all('SELECT * FROM experiments ORDER BY timestamp DESC LIMIT 1;', function (err, rows) {
+      res.send(rows)
+    })
+  })
+})
+
 
 
 

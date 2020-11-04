@@ -20,8 +20,8 @@ from morbidostat.utils import log_start, log_stop
 from morbidostat.utils.timing import every
 from morbidostat.utils.streaming_calculations import PID
 from morbidostat.whoami import unit, experiment
-from morbidostat.background_jobs.utils.alt_media_calculator import AltMediaCalculator
-from morbidostat.background_jobs.utils.throughput_calculator import ThroughputCalculator
+from morbidostat.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
+from morbidostat.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from morbidostat.background_jobs.utils import events
 from morbidostat.background_jobs import BackgroundJob
 
@@ -48,7 +48,7 @@ class ControlAlgorithm(BackgroundJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
-    publish_out = ["volume", "target_od", "target_growth_rate", "sensor", "display_name"]
+    editable_settings = ["volume", "target_od", "target_growth_rate", "sensor", "display_name"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
@@ -111,6 +111,7 @@ class ControlAlgorithm(BackgroundJob):
                 remove_waste(ml=waste_ml, verbose=self.verbose)
                 # run remove_waste for an additional second to keep volume constant (determined by the length of the waste tube)
                 remove_waste(duration=1, verbose=self.verbose)
+                brief_pause()
 
     def set_growth_rate(self, message):
         self.previous_growth_rate = self.latest_growth_rate
