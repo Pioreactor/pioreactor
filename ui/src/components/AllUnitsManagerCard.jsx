@@ -10,7 +10,7 @@ function VolumeThroughputTally() {
 
   // connect, subscribe, and update volumeThroughput over time...
 
-  render(
+  return (
       <div>
       </div>
   )
