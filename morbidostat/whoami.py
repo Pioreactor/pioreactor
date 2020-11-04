@@ -49,5 +49,4 @@ def am_I_leader():
 
 
 unit = get_unit_from_hostname()
-print(unit)
 experiment = get_latest_experiment_name()
