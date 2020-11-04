@@ -32,11 +32,11 @@ systemd:
 	sudo systemctl enable stirring.service
 	sudo systemctl enable growth_rate_calculating.service
 
-install-mobrbidostat:
+install-morbidostat:
 	pip3 install -r requirments/requirements_worker.txt
 	sudo python3 setup.py install
 
-install-worker: install-python install-mqtt configure-rpi systemd install-i2c install-mobrbidostat
+install-worker: install-python install-mqtt configure-rpi systemd install-i2c install-morbidostat
 
 install-db:
 	sudo apt-get install -y sqlite3
@@ -51,7 +51,7 @@ configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-nodered install-mobrbidostat
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-nodered install-morbidostat
 	pip3 install -r requirments/requirements_leader.txt
 
 view:
