@@ -12,7 +12,6 @@ function VolumeThroughputTally() {
 
   render(
       <div>
-        {reduce(sum, Object.values(volumeThroughput))}
       </div>
   )
 }
