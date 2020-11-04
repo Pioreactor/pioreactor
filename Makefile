@@ -33,7 +33,6 @@ systemd:
 	sudo systemctl enable growth_rate_calculating.service
 
 install-morbidostat:
-	pip3 install -r requirements/requirements_worker.txt
 	sudo python3 setup.py install
 
 install-worker: install-python install-mqtt configure-rpi systemd install-i2c install-morbidostat
