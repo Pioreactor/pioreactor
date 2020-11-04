@@ -67,7 +67,7 @@ class AltMediaCalculator(BackgroundJob):
         self.latest_alt_media_fraction = alt_media_ml / VIAL_VOLUME
 
         publish(
-            f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}alt_media_fraction",
+            f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
             self.latest_alt_media_fraction,
             verbose=self.verbose,
             retain=True,
