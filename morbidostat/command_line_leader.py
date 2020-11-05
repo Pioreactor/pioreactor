@@ -9,7 +9,7 @@ command line for running the same command on all workers,
 """
 
 import importlib
-from subprocess import subprocess_run
+from subprocess import run as subprocess_run
 import hashlib
 import click
 
