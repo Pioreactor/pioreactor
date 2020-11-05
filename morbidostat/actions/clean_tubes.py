@@ -4,6 +4,7 @@
 import time
 
 import click
+from click import echo as click_echo
 import busio
 import RPi.GPIO as GPIO
 
@@ -12,7 +13,17 @@ from morbidostat.whoami import unit, experiment
 from morbidostat.pubsub import publish
 
 
+def echo(message):
+    click_echo(click.style(message), fg="green")
+
+
+def clean_tubes_tutorial():
+
+    echo("This will start the tube cleaning protocol. Are you ready?")
+
+
 def clean_tubes(duration, verbose=0):
+
     GPIO.setmode(GPIO.BCM)
 
     try:
