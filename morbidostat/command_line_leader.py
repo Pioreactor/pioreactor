@@ -94,13 +94,13 @@ def kill(process, units, y):
         s.close()
 
 
-@mba.command()
+@mba.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("job")
 @click.option("--units", multiple=True, default=UNITS, type=click.STRING)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
-@click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def run(job, units, y, extra_args):
-    extra_args = list(extra_args)
+@click.pass_context
+def run(ctx, job, units, y):
+    extra_args = list(ctx.args)
 
     command = ["mb", job] + extra_args + ["-b"]
     command = " ".join(command)

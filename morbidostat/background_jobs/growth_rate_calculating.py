@@ -53,6 +53,53 @@ class MedianFirstN:
         return m
 
 
+class VarianceOfResidualsFirstN:
+    def __init__(self, N=20):
+        self.N = N
+        self.counter = defaultdict(lambda: 0)
+        self.raw_data = defaultdict(list)
+        self.reduced_data = {}
+
+    def update(self, data):
+        for key, v in data.items():
+            if self.counter[key] < self.N:
+                self.counter[key] += 1
+                self.raw_data[key].append(v)
+
+                if self.counter[key] == self.N:
+                    self.reduced_data[key] = self.reduce_data(self.raw_data[key])
+                    print(self.raw_data[key])
+                    print(self.reduced_data[key])
+                    # publish
+                    publish(
+                        f"morbidostat/{unit}/{experiment}/od_obs_variance_factors", json.dumps(self.reduced_data), retain=True
+                    )
+
+    def __getitem__(self, key):
+        if self.counter[key] < self.N:
+            return None
+        else:
+            return self.reduced_data[key]
+
+    def reduce_data(self, series):
+        x = np.arange(len(series))
+        x_bar = x.mean()
+
+        y = np.asarray(series)
+        y_bar = y.mean()
+
+        beta = np.dot(x - x_bar, y - y_bar) / ((x - x_bar) ** 2).sum()
+        alpha = y_bar - beta * x_bar
+        return (y - (beta * x + alpha)).var()
+
+    @classmethod
+    def from_dict(cls, dict_):
+        m = VarianceOfResidualsFirstN()
+        m.reduced_data = dict_
+        m.counter = defaultdict(lambda: 0, [(k, m.N) for k in dict_])
+        return m
+
+
 class GrowthRateCalculator(BackgroundJob):
 
     editable_settings = []
@@ -60,8 +107,8 @@ class GrowthRateCalculator(BackgroundJob):
     def __init__(self, unit=None, experiment=None, verbose=0):
         super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.initial_growth_rate = 0.0
-        self.od_normalization_factors = MedianFirstN(N=20)
         self.ekf = None
+        self.od_normalization_factors = MedianFirstN(N=20)
         self.samples_per_minute = 60 * float(config["od_sampling"]["samples_per_second"])
         self.start_passive_listeners()
 
@@ -84,23 +131,36 @@ class GrowthRateCalculator(BackgroundJob):
         )
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
-        # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
-        rate_process_variance = 5e-11
+        rate_process_variance = 5e-14
         process_noise_covariance = np.block(
-            [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
+            [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
-        observation_noise_covariance = 1e-2 * np.eye(d - 1)
+        observation_noise_covariance = self.create_obs_noise_covariance()
 
         return (
             ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance),
             angles_and_initial_points.keys(),
         )
 
+    def create_obs_noise_covariance(self):
+        N = 30
+        n = 0
+        calc = VarianceOfResidualsFirstN(N)
+
+        while n < N:
+            message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
+            calc.update(self.json_to_sorted_dict(message.payload))
+
+            n += 1
+
+        # 5 is a fudge factor
+        return 5 * np.diag(list(calc.reduced_data.values()))
+
     def set_initial_growth_rate(self, message):
         self.initial_growth_rate = float(message.payload)
 
     def set_od_normalization_factors(self, message):
-        seed = json.loads(message.payload)
+        seed = self.json_to_sorted_dict(message.payload)
         self.od_normalization_factors = MedianFirstN.from_dict(seed)
 
     @property
@@ -179,9 +239,9 @@ class GrowthRateCalculator(BackgroundJob):
     @staticmethod
     def create_OD_covariance(angles):
         d = len(angles)
-        variances = {"135": 1e-6, "90": 1e-6, "45": 1e-6}
+        variances = {"135": 1e-8, "90": 1e-8, "45": 1e-8}
 
-        OD_covariance = 1e-10 * np.ones((d, d))
+        OD_covariance = 0 * np.ones((d, d))
         for i, a in enumerate(angles):
             for k in variances:
                 if a.startswith(k):

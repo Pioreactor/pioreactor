@@ -131,3 +131,23 @@ def test_MedianFirstN_from_dict():
     m = MedianFirstN.from_dict({"d": 1, "t": 2})
     assert m["d"] == 1
     assert m["t"] == 2
+
+
+def test_VarianceOfResidualsFirstN():
+    import numpy as np
+
+    publish(f"morbidostat/{unit}/{experiment}/growth_rate", None, retain=True)
+    publish(f"morbidostat/{unit}/{experiment}/od_raw_batched", None, retain=True)
+
+    def to_thread():
+        for i in range(500):
+            obs = {"135/A": 0.1 * np.random.randn(), "90/A": 1 * np.random.randn()}
+            publish(f"morbidostat/{unit}/{experiment}/od_raw_batched", json.dumps(obs))
+
+    import threading
+
+    t = threading.Thread(target=to_thread)
+    t.start()
+    calc = GrowthRateCalculator(unit, experiment)
+
+    t.join()
