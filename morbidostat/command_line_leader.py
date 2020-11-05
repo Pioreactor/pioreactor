@@ -9,7 +9,7 @@ command line for running the same command on all workers,
 """
 
 import importlib
-from subprocess import run
+from subprocess import subprocess_run
 import hashlib
 import click
 
@@ -23,7 +23,7 @@ def checksum_git(s):
     cksum_command = "cd ~/morbidostat/ && git rev-parse HEAD"
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0].strip()
-    checksum_leader = run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
+    checksum_leader = subprocess_run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
     assert (
         checksum_worker == checksum_leader
     ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `mba sync`"
@@ -39,19 +39,13 @@ def mba():
 
 
 @mba.command()
-@click.option("-y", is_flag=True, help="skip asking for confirmation")
 @click.option("--units", multiple=True, default=UNITS, type=click.STRING)
-def sync(y, units):
+def sync(units):
     # parallelize this
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, setup])
-
-    if not y:
-        confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
-        if confirm != "Y":
-            return
 
     s = paramiko.SSHClient()
     s.load_system_host_keys()
