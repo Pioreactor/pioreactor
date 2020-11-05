@@ -85,11 +85,11 @@ class GrowthRateCalculator(BackgroundJob):
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
         # think of rate_process_variance as a weighting between how much do I trust the model (lower value => rate_t = rate_{t-1}) vs how much do I trust the observations
-        rate_process_variance = 1e-11
+        rate_process_variance = 5e-11
         process_noise_covariance = np.block(
             [[OD_process_covariance, 1e-12 * np.ones((d - 1, 1))], [1e-12 * np.ones((1, d - 1)), rate_process_variance]]
         )
-        observation_noise_covariance = 1e-3 * np.eye(d - 1)
+        observation_noise_covariance = 1e-2 * np.eye(d - 1)
 
         return (
             ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance),
@@ -114,7 +114,7 @@ class GrowthRateCalculator(BackgroundJob):
         return np.exp(erate / 60 / self.samples_per_minute)
 
     def update_ekf_variance_after_io_event(self, message):
-        self.ekf.scale_OD_variance_for_next_n_steps(5e3, 2 * self.samples_per_minute)
+        self.ekf.scale_OD_variance_for_next_n_steps(5e3, 1 * self.samples_per_minute)
 
     def update_state_from_observation(self, message):
         if not self.active:
@@ -174,9 +174,7 @@ class GrowthRateCalculator(BackgroundJob):
     @staticmethod
     def json_to_sorted_dict(json_dict):
         d = json.loads(json_dict)
-        # okay, I add the plus one so that the normalization factor is not too small - too small the the variance on it is very large, and
-        # we get exploding values.
-        return {k: float(d[k]) + 1 for k in sorted(d, reverse=True) if not k.startswith("180")}
+        return {k: float(d[k]) for k in sorted(d, reverse=True) if not k.startswith("180")}
 
     @staticmethod
     def create_OD_covariance(angles):
