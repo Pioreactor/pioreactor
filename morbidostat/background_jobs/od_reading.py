@@ -117,6 +117,9 @@ class ODReader(BackgroundJob):
                             verbose=self.verbose,
                         )
                         break
+
+            return raw_signals
+
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
             publish(
@@ -134,7 +137,7 @@ class ODReader(BackgroundJob):
 
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
-def od_reading(od_angle_channel, verbose):
+def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sampling"]["samples_per_second"])):
     angle_counter = Counter()
     od_channels = []
     for input_ in od_angle_channel:
@@ -146,8 +149,6 @@ def od_reading(od_angle_channel, verbose):
         angle_label = str(angle) + "/" + string.ascii_uppercase[angle_counter[angle] - 1]
 
         od_channels.append((angle_label, channel))
-
-    sampling_rate = 1 / float(config["od_sampling"]["samples_per_second"])
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=8)  # we can the gain dynamically later

@@ -4,6 +4,7 @@ from morbidostat.pubsub import subscribe_and_callback
 from morbidostat import utils
 from morbidostat.pubsub import publish, QOS
 from typing import Optional, Union
+from morbidostat.whoami import UNIVERSAL_IDENTIFIER
 
 
 def split_topic_for_setting(topic):
@@ -31,10 +32,30 @@ class BackgroundJob:
         self.experiment = experiment
         self.unit = unit
         self.active = 1
+        self.declare_settable_to_broker()
+
+    def declare_settable_properties_to_broker(self):
+        # this follows some of the Homie convention: https://homieiot.github.io/specification/
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/{self.job}/$properties",
+            self.editable_settings.join(","),
+            verbose=self.verbose,
+            qos=pubsub.AT_LEAST_ONCE,
+        )
+
+        for setting in self.editable_settings:
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/{self.job}/{setting}/$settable",
+                True,
+                verbose=self.verbose,
+                qos=pubsub.AT_LEAST_ONCE,
+            )
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:
         super(BackgroundJob, self).__setattr__(name, value)
-        if (name in self.editable_settings and hasattr(self, name)) or name == "active":  # clean this up
+        if (
+            name in self.editable_settings and hasattr(self, name)
+        ) or name == "active":  # TODO: clean this up; not sure why this is needed
             self.publish_attr(name)
 
     def set_attr_from_message(self, message):
@@ -71,5 +92,15 @@ class BackgroundJob:
         }
 
         subscribe_and_callback(
-            self.set_attr_from_message, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set", will=last_will
+            self.set_attr_from_message,
+            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set",
+            will=last_will,
+            qos=pubsub.EXACTLY_ONCE,
+        )
+
+        # everyone listens to $unit
+        subscribe_and_callback(
+            self.set_attr_from_message,
+            f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
+            qos=pubsub.EXACTLY_ONCE,
         )

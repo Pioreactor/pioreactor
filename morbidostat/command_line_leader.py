@@ -2,10 +2,10 @@
 """
 command line for running the same command on all workers,
 
-> mba od_reading
-> mba stirring
+> mba run od_reading
+> mba run stirring
 > mba sync
-> mba kill
+> mba kill <substring>
 """
 
 import importlib
@@ -14,9 +14,17 @@ import hashlib
 import click
 
 import paramiko
-from morbidostat.whoami import am_I_leader
+from morbidostat.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 
-UNITS = ["morbidostat1", "morbidostat2", "morbidostat3"]
+
+ALL_UNITS = ["morbidostat1", "morbidostat2", "morbidostat3"]
+
+
+def universal_identifier_to_all_units(units):
+    if units == [UNIVERSAL_IDENTIFIER]:
+        return ALL_UNITS
+    else:
+        return units
 
 
 def checksum_git(s):
@@ -39,7 +47,7 @@ def mba():
 
 
 @mba.command()
-@click.option("--units", multiple=True, default=UNITS, type=click.STRING)
+@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 def sync(units):
     # parallelize this
     cd = "cd ~/morbidostat"
@@ -50,7 +58,7 @@ def sync(units):
     s = paramiko.SSHClient()
     s.load_system_host_keys()
 
-    for unit in units:
+    for unit in universal_identifier_to_all_units(units):
         print(f"Executing on {unit}...")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
@@ -63,7 +71,7 @@ def sync(units):
 
 @mba.command()
 @click.argument("process")
-@click.option("--units", multiple=True, default=UNITS, type=click.STRING)
+@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 def kill(process, units, y):
 
@@ -78,7 +86,7 @@ def kill(process, units, y):
     s = paramiko.SSHClient()
     s.load_system_host_keys()
 
-    for unit in units:
+    for unit in universal_identifier_to_all_units(units):
         print(f"Executing on {unit}...")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
@@ -90,7 +98,7 @@ def kill(process, units, y):
 
 @mba.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("job")
-@click.option("--units", multiple=True, default=UNITS, type=click.STRING)
+@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 @click.pass_context
 def run(ctx, job, units, y):
@@ -107,7 +115,7 @@ def run(ctx, job, units, y):
     s = paramiko.SSHClient()
     s.load_system_host_keys()
 
-    for unit in units:
+    for unit in universal_identifier_to_all_units(units):
         s.connect(unit, username="pi")
 
         try:
@@ -117,7 +125,7 @@ def run(ctx, job, units, y):
             return
         s.close()
 
-    for unit in units:
+    for unit in universal_identifier_to_all_units(units):
         print(f"Executing on {unit}...")
         s.connect(unit, username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)

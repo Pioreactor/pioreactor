@@ -74,9 +74,7 @@ class Stirrer(BackgroundJob):
         self.publish_attr("active")
 
 
-def stirring(duty_cycle=None, duration=None, verbose=0):
-    # duration is for testing
-
+def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0):
     def terminate(*args):
         GPIO.cleanup()
         sys.exit()

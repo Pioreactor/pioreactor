@@ -5,6 +5,8 @@ import os
 import socket
 from morbidostat.config import leader_hostname
 
+UNIVERSAL_IDENTIFIER = "$unit"
+
 
 def get_latest_experiment_name():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
@@ -48,5 +50,6 @@ def am_I_leader():
     return get_hostname() == leader_hostname
 
 
+hostname = get_hostname()
 unit = get_unit_from_hostname()
 experiment = get_latest_experiment_name()
