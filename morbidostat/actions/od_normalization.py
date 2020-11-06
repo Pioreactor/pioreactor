@@ -30,7 +30,7 @@ def start_stirring_in_background_thread(verbose):
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def od_normalization(od_angle_channel, verbose):
-    click(f"This task will compute statistics from the morbidostat unit {hostname}.")
+    click.echo(f"This task will compute statistics from the morbidostat unit {hostname}.")
 
     click.echo("Starting stirring")
     start_stirring_in_background_thread(verbose)
