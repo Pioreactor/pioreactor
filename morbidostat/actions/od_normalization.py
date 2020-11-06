@@ -23,7 +23,7 @@ from morbidostat.background_jobs.stirring import stirring
 
 
 def start_stirring_in_background_thread(verbose):
-    thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 1000})
+    thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 35})
     thread.start()
     return thread
 
@@ -40,53 +40,59 @@ def bold(msg):
 @log_stop(unit, experiment)
 def od_normalization(od_angle_channel, verbose):
     echo()
-    echo(bold(f"This task will compute statistics from the morbidostat unit {hostname}."))
-
-    echo(bold("Starting stirring"))
-    # stirring_thread = start_stirring_in_background_thread(verbose)
+    echo(bold(f"This task will compute statistics from {hostname}."))
 
     click.confirm(bold(f"Place vial with media in {hostname}. Is the vial in place?"))
     echo()
 
+    echo(bold("Starting stirring"))
+    stirring_thread = start_stirring_in_background_thread(verbose)
+
     readings = defaultdict(list)
     sampling_rate = 0.5
-
     N_samples = 50
-    with click.progressbar(length=N_samples) as bar:
-        for count, batched_reading in enumerate(od_reading(od_angle_channel, verbose, sampling_rate)):
-            for (sensor, reading) in batched_reading.items():
-                readings[sensor].append(reading)
 
-            bar.update(1)
-            if count == N_samples:
-                break
+    try:
 
-    variances = {}
-    medians = {}
-    for sensor, reading_series in readings.items():
-        # measure the variance and publish. The variance will be used in downstream jobs.
-        var = variance(reading_series)
-        echo(green(f"variance of {sensor} = {var}"))
-        variances[sensor] = var
-        # measure the median and publish. The median will be used to normalize the readings in downstream jobs
-        med = median(reading_series)
-        echo(green(f"median of {sensor} = {med}"))
-        medians[sensor] = med
+        with click.progressbar(length=N_samples) as bar:
+            for count, batched_reading in enumerate(od_reading(od_angle_channel, verbose, sampling_rate)):
+                for (sensor, reading) in batched_reading.items():
+                    readings[sensor].append(reading)
 
-    pubsub.publish(
-        f"morbidostat/{unit}/{experiment}/od_normalization/variance",
-        json.dumps(variances),
-        qos=pubsub.QOS.AT_LEAST_ONCE,
-        verbose=verbose,
-    )
-    pubsub.publish(
-        f"morbidostat/{unit}/{experiment}/od_normalization/median",
-        json.dumps(medians),
-        qos=pubsub.QOS.AT_LEAST_ONCE,
-        verbose=verbose,
-    )
-    echo(green("Complete"))
-    return
+                bar.update(1)
+                if count == N_samples:
+                    break
+
+        variances = {}
+        medians = {}
+        for sensor, reading_series in readings.items():
+            # measure the variance and publish. The variance will be used in downstream jobs.
+            var = variance(reading_series)
+            echo(green(f"variance of {sensor} = {var}"))
+            variances[sensor] = var
+            # measure the median and publish. The median will be used to normalize the readings in downstream jobs
+            med = median(reading_series)
+            echo(green(f"median of {sensor} = {med}"))
+            medians[sensor] = med
+
+        pubsub.publish(
+            f"morbidostat/{unit}/{experiment}/od_normalization/variance",
+            json.dumps(variances),
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+            verbose=verbose,
+            retain=True,
+        )
+        pubsub.publish(
+            f"morbidostat/{unit}/{experiment}/od_normalization/median",
+            json.dumps(medians),
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+            verbose=verbose,
+            retain=True,
+        )
+        echo(bold("Gathering of statistics complete. They are stored in the message broker."))
+        return
+    except:
+        stirring_thread.join()
 
 
 @click.command()
