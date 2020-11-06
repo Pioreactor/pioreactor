@@ -32,7 +32,7 @@ class BackgroundJob:
         self.experiment = experiment
         self.unit = unit
         self.active = 1
-        self.declare_settable_to_broker()
+        self.declare_settable_properties_to_broker()
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/

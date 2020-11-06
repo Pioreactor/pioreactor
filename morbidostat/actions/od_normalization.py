@@ -35,7 +35,7 @@ def od_normalization(od_angle_channel, verbose):
     click.echo("Starting stirring")
     start_stirring_in_background_thread(verbose)
 
-    click.confirm(f"Place vial with media in {hostname}. Is the vial in place? Yes/no:")
+    click.confirm(f"Place vial with media in {hostname}. Is the vial in place?")
 
     readings = defaultdict([])
     sampling_rate = 0.5
