@@ -59,6 +59,7 @@ class BackgroundJob:
             self.publish_attr(name)
 
     def set_attr_from_message(self, message):
+        raise ValueError(message)
         new_value = message.payload
         info_from_topic = split_topic_for_setting(message.topic)
         attr = info_from_topic.attr
@@ -99,6 +100,7 @@ class BackgroundJob:
         )
 
         # everyone listens to $unit
+        print(f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set")
         subscribe_and_callback(
             self.set_attr_from_message,
             f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",

@@ -5,8 +5,6 @@
 """
 import time
 import json
-import os
-import string
 from collections import defaultdict
 from statistics import median, variance
 import click
@@ -15,15 +13,13 @@ from click import echo, style
 
 from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment, hostname
-from morbidostat.config import config
 from morbidostat import pubsub
-from morbidostat.utils.timing import every
 from morbidostat.background_jobs.od_reading import od_reading
 from morbidostat.background_jobs.stirring import stirring
 
 
 def start_stirring_in_background_thread(verbose):
-    thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 35})
+    thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 30})
     thread.start()
     return thread
 
@@ -47,7 +43,7 @@ def od_normalization(od_angle_channel, verbose):
 
     echo(bold("Starting stirring"))
     stirring_thread = start_stirring_in_background_thread(verbose)
-
+    time.sleep(0.5)
     readings = defaultdict(list)
     sampling_rate = 0.5
     N_samples = 50
@@ -92,6 +88,9 @@ def od_normalization(od_angle_channel, verbose):
         echo(bold("Gathering of statistics complete. They are stored in the message broker."))
         return
     except:
+        pass
+    finally:
+        # need to gracefully exit the stirring routine
         stirring_thread.join()
 
 
