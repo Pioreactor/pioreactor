@@ -19,87 +19,6 @@ from morbidostat.background_jobs import BackgroundJob
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-class MedianFirstN:
-    def __init__(self, N=20):
-        self.N = N
-        self.counter = defaultdict(lambda: 0)
-        self.raw_data = defaultdict(list)
-        self.reduced_data = {}
-
-    def update(self, data):
-        for key, v in data.items():
-            if self.counter[key] < self.N:
-                self.counter[key] += 1
-                self.raw_data[key].append(v)
-
-                if self.counter[key] == self.N:
-                    self.reduced_data[key] = median(self.raw_data[key])
-                    # publish
-                    publish(
-                        f"morbidostat/{unit}/{experiment}/od_normalization_factors", json.dumps(self.reduced_data), retain=True
-                    )
-
-    def __getitem__(self, key):
-        if self.counter[key] < self.N:
-            return None
-        else:
-            return self.reduced_data[key]
-
-    @classmethod
-    def from_dict(cls, dict_):
-        m = MedianFirstN()
-        m.reduced_data = dict_
-        m.counter = defaultdict(lambda: 0, [(k, m.N) for k in dict_])
-        return m
-
-
-class VarianceOfResidualsFirstN:
-    def __init__(self, N=20):
-        self.N = N
-        self.counter = defaultdict(lambda: 0)
-        self.raw_data = defaultdict(list)
-        self.reduced_data = {}
-
-    def update(self, data):
-        for key, v in data.items():
-            if self.counter[key] < self.N:
-                self.counter[key] += 1
-                self.raw_data[key].append(v)
-
-                if self.counter[key] == self.N:
-                    self.reduced_data[key] = self.reduce_data(self.raw_data[key])
-                    print(self.raw_data[key])
-                    print(self.reduced_data[key])
-                    # publish
-                    publish(
-                        f"morbidostat/{unit}/{experiment}/od_obs_variance_factors", json.dumps(self.reduced_data), retain=True
-                    )
-
-    def __getitem__(self, key):
-        if self.counter[key] < self.N:
-            return None
-        else:
-            return self.reduced_data[key]
-
-    def reduce_data(self, series):
-        x = np.arange(len(series))
-        x_bar = x.mean()
-
-        y = np.asarray(series)
-        y_bar = y.mean()
-
-        beta = np.dot(x - x_bar, y - y_bar) / ((x - x_bar) ** 2).sum()
-        alpha = y_bar - beta * x_bar
-        return (y - (beta * x + alpha)).var()
-
-    @classmethod
-    def from_dict(cls, dict_):
-        m = VarianceOfResidualsFirstN()
-        m.reduced_data = dict_
-        m.counter = defaultdict(lambda: 0, [(k, m.N) for k in dict_])
-        return m
-
-
 class GrowthRateCalculator(BackgroundJob):
 
     editable_settings = []
@@ -108,16 +27,21 @@ class GrowthRateCalculator(BackgroundJob):
         super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.initial_growth_rate = 0.0
         self.ekf = None
-        self.od_normalization_factors = MedianFirstN(N=20)
+        self.od_normalization_factors = defaultdict(lambda: 1)
+        self.od_variances = defaultdict(lambda: 1e-5)
         self.samples_per_minute = 60 * float(config["od_sampling"]["samples_per_second"])
         self.start_passive_listeners()
 
-        time.sleep(1.0)
+        time.sleep(3.0)
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
+
+    @property
+    def state_(self):
+        return self.ekf.state_
 
     def initialize_extended_kalman_filter(self):
         message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
-        angles_and_initial_points = self.json_to_sorted_dict(message.payload)
+        angles_and_initial_points = self.scale_raw_observations(self.json_to_sorted_dict(message.payload))
 
         # growth rate in MQTT is hourly, convert back to multiplicative
         initial_rate = self.exp_rate_to_multiplicative_rate(self.initial_growth_rate)
@@ -135,37 +59,25 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
-        observation_noise_covariance = self.create_obs_noise_covariance()
+        observation_noise_covariance = self.create_obs_noise_covariance(angles_and_initial_points.keys())
 
         return (
             ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance),
             angles_and_initial_points.keys(),
         )
 
-    def create_obs_noise_covariance(self):
-        N = 30
-        n = 0
-        calc = VarianceOfResidualsFirstN(N)
-
-        while n < N:
-            message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
-            calc.update(self.json_to_sorted_dict(message.payload))
-
-            n += 1
-
+    def create_obs_noise_covariance(self, angles):
         # 5 is a fudge factor
-        return 5 * np.diag(list(calc.reduced_data.values()))
+        return 5 * np.diag([self.od_variances[angle] for angle in angles])
 
     def set_initial_growth_rate(self, message):
         self.initial_growth_rate = float(message.payload)
 
     def set_od_normalization_factors(self, message):
-        seed = self.json_to_sorted_dict(message.payload)
-        self.od_normalization_factors = MedianFirstN.from_dict(seed)
+        self.od_normalization_factors = self.json_to_sorted_dict(message.payload)
 
-    @property
-    def state_(self):
-        return self.ekf.state_
+    def set_od_variances(self, message):
+        self.od_variances = self.json_to_sorted_dict(message.payload)
 
     def multiplicative_rate_to_exp_rate(self, mrate):
         return np.log(mrate) * 60 * self.samples_per_minute
@@ -175,6 +87,9 @@ class GrowthRateCalculator(BackgroundJob):
 
     def update_ekf_variance_after_io_event(self, message):
         self.ekf.scale_OD_variance_for_next_n_steps(5e3, 1 * self.samples_per_minute)
+
+    def scale_raw_observations(self, observations):
+        return {angle: observations[angle] / self.od_normalization_factors[angle] for angle in observations.keys()}
 
     def update_state_from_observation(self, message):
         if not self.active:
@@ -186,8 +101,9 @@ class GrowthRateCalculator(BackgroundJob):
 
         try:
             observations = self.json_to_sorted_dict(message.payload)
-            self.ekf.update(list(observations.values()))
-            self.od_normalization_factors.update(observations)
+            scaled_observations = self.scale_raw_observations(observations)
+            print(list(scaled_observations.values()))
+            self.ekf.update(list(scaled_observations.values()))
 
             publish(
                 f"morbidostat/{self.unit}/{self.experiment}/growth_rate",
@@ -197,12 +113,9 @@ class GrowthRateCalculator(BackgroundJob):
             )
 
             for i, angle_label in enumerate(self.angles):
-                if self.od_normalization_factors[angle_label]:
-                    publish(
-                        f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{angle_label}",
-                        self.state_[i] / self.od_normalization_factors[angle_label],
-                        verbose=self.verbose,
-                    )
+                publish(
+                    f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{angle_label}", self.state_[i], verbose=self.verbose
+                )
 
             return
 
@@ -220,9 +133,13 @@ class GrowthRateCalculator(BackgroundJob):
         )
         subscribe_and_callback(
             self.set_od_normalization_factors,
-            f"morbidostat/{self.unit}/{self.experiment}/od_normalization_factors",
+            f"morbidostat/{self.unit}/{self.experiment}/od_normalization/median",
             timeout=3,
             max_msgs=1,
+        )
+
+        subscribe_and_callback(
+            self.set_od_variances, f"morbidostat/{self.unit}/{self.experiment}/od_normalization/variance", timeout=3, max_msgs=1
         )
 
         # process incoming data
