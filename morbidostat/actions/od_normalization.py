@@ -39,12 +39,14 @@ def bold(msg):
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def od_normalization(od_angle_channel, verbose):
-    echo(green(f"This task will compute statistics from the morbidostat unit {hostname}."))
+    echo()
+    echo(bold(f"This task will compute statistics from the morbidostat unit {hostname}."))
 
-    echo(green("Starting stirring"))
+    echo(bold("Starting stirring"))
     # stirring_thread = start_stirring_in_background_thread(verbose)
 
     click.confirm(bold(f"Place vial with media in {hostname}. Is the vial in place?"))
+    echo()
 
     readings = defaultdict(list)
     sampling_rate = 0.5
@@ -72,11 +74,19 @@ def od_normalization(od_angle_channel, verbose):
         medians[sensor] = med
 
     pubsub.publish(
-        f"morbidostat/{unit}/{experiment}/od_normalization/variance", variances, qos=pubsub.QOS.AT_LEAST_ONCE, verbose=verbose
+        f"morbidostat/{unit}/{experiment}/od_normalization/variance",
+        json.dumps(variances),
+        qos=pubsub.QOS.AT_LEAST_ONCE,
+        verbose=verbose,
     )
     pubsub.publish(
-        f"morbidostat/{unit}/{experiment}/od_normalization/median", medians, qos=pubsub.QOS.AT_LEAST_ONCE, verbose=verbose
+        f"morbidostat/{unit}/{experiment}/od_normalization/median",
+        json.dumps(medians),
+        qos=pubsub.QOS.AT_LEAST_ONCE,
+        verbose=verbose,
     )
+    echo(green("Complete"))
+    return
 
 
 @click.command()
