@@ -11,11 +11,12 @@ from collections import defaultdict
 from statistics import median, variance
 import click
 import threading
+from click import echo, style
 
 from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment, hostname
 from morbidostat.config import config
-from morbidostat.pubsub import publish, subscribe_and_callback
+from morbidostat import pubsub
 from morbidostat.utils.timing import every
 from morbidostat.background_jobs.od_reading import od_reading
 from morbidostat.background_jobs.stirring import stirring
@@ -27,15 +28,23 @@ def start_stirring_in_background_thread(verbose):
     return thread
 
 
+def green(msg):
+    return style(msg, fg="green")
+
+
+def bold(msg):
+    return style(msg, bold=True)
+
+
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
 def od_normalization(od_angle_channel, verbose):
-    click.echo(f"This task will compute statistics from the morbidostat unit {hostname}.")
+    echo(green(f"This task will compute statistics from the morbidostat unit {hostname}."))
 
-    click.echo("Starting stirring")
+    echo(green("Starting stirring"))
     # stirring_thread = start_stirring_in_background_thread(verbose)
 
-    click.confirm(f"Place vial with media in {hostname}. Is the vial in place?")
+    click.confirm(bold(f"Place vial with media in {hostname}. Is the vial in place?"))
 
     readings = defaultdict(list)
     sampling_rate = 0.5
@@ -55,11 +64,11 @@ def od_normalization(od_angle_channel, verbose):
     for sensor, reading_series in readings.items():
         # measure the variance and publish. The variance will be used in downstream jobs.
         var = variance(reading_series)
-        click.echo(f"variance of {sensor} = {var}")
+        echo(green(f"variance of {sensor} = {var}"))
         variances[sensor] = var
         # measure the median and publish. The median will be used to normalize the readings in downstream jobs
         med = median(reading_series)
-        click.echo(f"median of {sensor} = {med}")
+        echo(green(f"median of {sensor} = {med}"))
         medians[sensor] = med
 
     pubsub.publish(
