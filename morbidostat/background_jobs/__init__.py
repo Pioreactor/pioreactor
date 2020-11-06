@@ -38,7 +38,7 @@ class BackgroundJob:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         publish(
             f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            self.editable_settings.join(","),
+            ",".join(self.editable_settings),
             verbose=self.verbose,
             qos=pubsub.AT_LEAST_ONCE,
         )
