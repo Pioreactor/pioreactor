@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-
+TODO: how do I handle a gain that is too small? Ex: an OD is 0.9, but the OD reading starts at max 0.512.
 
 """
 import time
