@@ -40,7 +40,7 @@ class BackgroundJob:
             f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/$properties",
             ",".join(self.editable_settings),
             verbose=self.verbose,
-            qos=pubsub.AT_LEAST_ONCE,
+            qos=QOS.AT_LEAST_ONCE,
         )
 
         for setting in self.editable_settings:
@@ -48,7 +48,7 @@ class BackgroundJob:
                 f"morbidostat/{self.unit}/{self.experiment}/{self.job}/{setting}/$settable",
                 True,
                 verbose=self.verbose,
-                qos=pubsub.AT_LEAST_ONCE,
+                qos=QOS.AT_LEAST_ONCE,
             )
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:
@@ -95,12 +95,12 @@ class BackgroundJob:
             self.set_attr_from_message,
             f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set",
             will=last_will,
-            qos=pubsub.EXACTLY_ONCE,
+            qos=QOS.EXACTLY_ONCE,
         )
 
         # everyone listens to $unit
         subscribe_and_callback(
             self.set_attr_from_message,
             f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
-            qos=pubsub.EXACTLY_ONCE,
+            qos=QOS.EXACTLY_ONCE,
         )
