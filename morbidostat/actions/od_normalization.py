@@ -24,7 +24,7 @@ from morbidostat.background_jobs.stirring import stirring
 def start_stirring_in_background_thread(verbose):
     thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 1000})
     thread.start()
-    return
+    return thread
 
 
 @log_start(unit, experiment)
@@ -33,11 +33,11 @@ def od_normalization(od_angle_channel, verbose):
     click.echo(f"This task will compute statistics from the morbidostat unit {hostname}.")
 
     click.echo("Starting stirring")
-    start_stirring_in_background_thread(verbose)
+    # stirring_thread = start_stirring_in_background_thread(verbose)
 
     click.confirm(f"Place vial with media in {hostname}. Is the vial in place?")
 
-    readings = defaultdict([])
+    readings = defaultdict(list)
     sampling_rate = 0.5
 
     N_samples = 50
