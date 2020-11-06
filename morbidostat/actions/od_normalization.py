@@ -11,6 +11,7 @@ import click
 import threading
 from click import echo, style
 
+from morbidostat.config import config
 from morbidostat.utils import log_start, log_stop
 from morbidostat.whoami import unit, experiment, hostname
 from morbidostat import pubsub

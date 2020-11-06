@@ -93,7 +93,8 @@ class ODReader(BackgroundJob):
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than 2.5V, which is well above anything normal.
-                if raw_signal_ > 2.5:
+                # This is not for culture density saturation (different, harder problem)
+                if (counter % 20 == 0) and (raw_signal_ > 2.5):
                     publish(
                         f"morbidostat/{self.unit}/{self.experiment}/log",
                         f"[{JOB_NAME}] OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V.",
@@ -107,7 +108,7 @@ class ODReader(BackgroundJob):
             self.ma.update(max(raw_signals.values()))
 
             # check if using correct gain
-            if counter % 20 == 0 and self.ma.mean is not None:
+            if counter % 5 == 0 and self.ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if (0.95 * lb <= self.ma.mean < 0.95 * ub) and (self.ads.gain != gain):
                         self.ads.gain = gain
