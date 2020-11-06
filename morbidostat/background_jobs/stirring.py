@@ -75,11 +75,13 @@ class Stirrer(BackgroundJob):
 
 
 def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0):
+    """
     def terminate(*args):
         GPIO.cleanup()
         sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
+    """
 
     publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: start stirring with duty cycle={duty_cycle}", verbose=verbose)
 
