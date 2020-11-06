@@ -55,7 +55,7 @@ def od_normalization(od_angle_channel, verbose):
             for (sensor, reading) in batched_reading.items():
                 readings[sensor].append(reading)
 
-            bar.update(count)
+            bar.update(1)
             if count == N_samples:
                 break
 
@@ -72,9 +72,11 @@ def od_normalization(od_angle_channel, verbose):
         medians[sensor] = med
 
     pubsub.publish(
-        f"morbidostat/{unit}/{experiment}/od_normalization/variance", variances, qos=pubsub.AT_LEAST_ONCE, verbose=verbose
+        f"morbidostat/{unit}/{experiment}/od_normalization/variance", variances, qos=pubsub.QOS.AT_LEAST_ONCE, verbose=verbose
     )
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_normalization/median", medians, qos=pubsub.AT_LEAST_ONCE, verbose=verbose)
+    pubsub.publish(
+        f"morbidostat/{unit}/{experiment}/od_normalization/median", medians, qos=pubsub.QOS.AT_LEAST_ONCE, verbose=verbose
+    )
 
 
 @click.command()
