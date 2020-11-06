@@ -102,5 +102,5 @@ class BackgroundJob:
         # everyone listens to $unit
         print(f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set")
         subscribe_and_callback(
-            self.set_attr_from_message, f"morbidostat/test/{self.experiment}/{self.job_name}/+/set", qos=QOS.EXACTLY_ONCE
+            self.set_attr_from_message, f"morbidostat/$test/{self.experiment}/{self.job_name}/+/set", qos=QOS.EXACTLY_ONCE
         )
