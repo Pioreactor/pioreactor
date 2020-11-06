@@ -45,7 +45,7 @@ class BackgroundJob:
 
         for setting in self.editable_settings:
             publish(
-                f"morbidostat/{self.unit}/{self.experiment}/{self.job}/{setting}/$settable",
+                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
                 True,
                 verbose=self.verbose,
                 qos=QOS.AT_LEAST_ONCE,
