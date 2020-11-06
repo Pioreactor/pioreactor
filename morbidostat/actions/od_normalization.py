@@ -22,7 +22,7 @@ from morbidostat.background_jobs.stirring import stirring
 
 
 def start_stirring_in_background_thread(verbose):
-    thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 1000}, daemon=True)
+    thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 1000})
     thread.start()
     return
 

@@ -95,6 +95,7 @@ def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=N
             time.sleep(duration)
 
     except Exception as e:
+        GPIO.cleanup()
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[stirring] failed with {str(e)}", verbose=verbose)
         raise e
     finally:
