@@ -56,7 +56,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
-        rate_process_variance = 5e-14
+        rate_process_variance = 1e-14
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
@@ -87,7 +87,7 @@ class GrowthRateCalculator(BackgroundJob):
         return np.exp(erate / 60 / self.samples_per_minute)
 
     def update_ekf_variance_after_io_event(self, message):
-        self.ekf.scale_OD_variance_for_next_n_steps(5e3, 1 * self.samples_per_minute)
+        self.ekf.scale_OD_variance_for_next_n_steps(1e4, 1 * self.samples_per_minute)
 
     def scale_raw_observations(self, observations):
         return {angle: observations[angle] / self.od_normalization_factors[angle] for angle in observations.keys()}
