@@ -23,8 +23,9 @@ class GrowthRateCalculator(BackgroundJob):
 
     editable_settings = []
 
-    def __init__(self, unit=None, experiment=None, verbose=0):
+    def __init__(self, ignore_cache=False, unit=None, experiment=None, verbose=0):
         super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
+        self.ignore_cache = ignore_cache
         self.initial_growth_rate = 0.0
         self.ekf = None
         self.od_normalization_factors = defaultdict(lambda: 1)
@@ -68,7 +69,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def create_obs_noise_covariance(self, angles):
         # 5 is a fudge factor
-        return 5 * np.diag([self.od_variances[angle] for angle in angles])
+        return 5 * np.diag([self.od_variances[angle] / self.od_normalization_factors[angle] ** 2 for angle in angles])
 
     def set_initial_growth_rate(self, message):
         self.initial_growth_rate = float(message.payload)
@@ -102,7 +103,6 @@ class GrowthRateCalculator(BackgroundJob):
         try:
             observations = self.json_to_sorted_dict(message.payload)
             scaled_observations = self.scale_raw_observations(observations)
-            print(list(scaled_observations.values()))
             self.ekf.update(list(scaled_observations.values()))
 
             publish(
@@ -128,9 +128,11 @@ class GrowthRateCalculator(BackgroundJob):
 
     def start_passive_listeners(self):
         # initialize states
-        subscribe_and_callback(
-            self.set_initial_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=3, max_msgs=1
-        )
+        if not self.ignore_cache:
+            subscribe_and_callback(
+                self.set_initial_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=3, max_msgs=1
+            )
+
         subscribe_and_callback(
             self.set_od_normalization_factors,
             f"morbidostat/{self.unit}/{self.experiment}/od_normalization/median",
@@ -168,16 +170,17 @@ class GrowthRateCalculator(BackgroundJob):
 
 @log_start(unit, experiment)
 @log_stop(unit, experiment)
-def growth_rate_calculating(verbose):
-    calculator = GrowthRateCalculator(verbose=verbose, unit=unit, experiment=experiment)
+def growth_rate_calculating(verbose, ignore_cache):
+    calculator = GrowthRateCalculator(verbose=verbose, ignore_cache=ignore_cache, unit=unit, experiment=experiment)
     while True:
         signal.pause()
 
 
 @click.command()
 @click.option("--verbose", "-v", count=True, help="Print to std out")
-def click_growth_rate_calculating(verbose):
-    growth_rate_calculating(verbose)
+@click.option("--ignore-cache", default=False, help="Ignore the cached growth_rate value")
+def click_growth_rate_calculating(verbose, ignore_cache):
+    growth_rate_calculating(verbose, ignore_cache)
 
 
 if __name__ == "__main__":

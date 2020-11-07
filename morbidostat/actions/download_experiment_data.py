@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # download experiment data
+# Example tables:
+# "od_readings_raw", "od_readings_filtered", "io_events", "logs", "pid_logs", "growth_rates"
 
 from morbidostat.whoami import get_latest_experiment_name
 from morbidostat.config import config
@@ -8,7 +10,7 @@ from morbidostat import whoami
 import click
 
 
-def download_experiment_data(experiment, output):
+def download_experiment_data(experiment, output, tables):
     import pandas as pd
     import sqlite3
 
@@ -22,8 +24,6 @@ def download_experiment_data(experiment, output):
     publish(f"morbidostat/{whoami.unit}/{whoami.experiment}/log", f"Starting export of experiment data to {output}.", verbose=1)
 
     con = sqlite3.connect(config["data"]["observation_database"])
-
-    tables = ["od_readings_raw", "od_readings_filtered", "io_events", "logs", "pid_logs", "growth_rates"]
 
     for table in tables:
         df = pd.read_sql_query(
@@ -42,8 +42,9 @@ def download_experiment_data(experiment, output):
 @click.command()
 @click.option("--experiment", default="current")
 @click.option("--output", default="/home/pi/exports/")
-def click_download_experiment_data(experiment, output):
-    return download_experiment_data(experiment, output)
+@click.option("--tables", multiple=True, default=[])
+def click_download_experiment_data(experiment, output, tables):
+    return download_experiment_data(experiment, output, tables)
 
 
 if __name__ == "__main__":
