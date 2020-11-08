@@ -180,7 +180,7 @@ class PIDTurbidostat(ControlAlgorithm):
         self.volume = volume
         self.verbose = verbose
         self.display_name = "Turbidostat"
-        self.pid = PID(0.035, 0, 0.025, setpoint=self.target_od, sample_time=None, verbose=self.verbose)
+        self.pid = PID(0.06, 0.01, 0.025, setpoint=self.target_od, sample_time=None, verbose=self.verbose)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -230,7 +230,7 @@ class PIDMorbidostat(ControlAlgorithm):
         self.display_name = "Morbidostat"
 
         self.pid = PID(
-            -0.5, -0.005, -0.0, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
+            -0.5, -0.005, -0.25, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
 
         if volume is not None:
