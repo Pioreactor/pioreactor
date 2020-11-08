@@ -188,7 +188,7 @@ class PIDTurbidostat(ControlAlgorithm):
         else:
             output = self.pid.update(self.latest_od)
 
-            volume_to_cycle = self.logit(-output) * self.volume
+            volume_to_cycle = self.logit(output) * self.volume
 
             if volume_to_cycle < 0.01:
                 return events.NoEvent(f"PID output={output:.2f}, so practically no volume to cycle")
