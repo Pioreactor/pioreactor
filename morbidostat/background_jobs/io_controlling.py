@@ -2,15 +2,14 @@
 """
 Continuously monitor the bioreactor and take action. This is the core of the io algorithm
 """
-import time, signal, sys, os, traceback
+import time, sys, os
 
-import threading
-from enum import Enum
 from typing import Iterator
 import json
 import time
 
 import click
+import numpy as np
 
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
@@ -48,7 +47,7 @@ class ControlAlgorithm(BackgroundJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
-    editable_settings = ["volume", "target_od", "target_growth_rate", "sensor", "display_name"]
+    editable_settings = ["volume", "target_od", "target_growth_rate", "display_name"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
@@ -66,11 +65,11 @@ class ControlAlgorithm(BackgroundJob):
             return self.run(counter=counter)
 
         if self.active == 0:
-            event = events.NoEvent("Paused. Set `active` to 0 to start again.")
+            event = events.NoEvent("currently paused. Set `active` to 1 to start again.")
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(
-                "Readings are too stale (over 5 minutes old) - is od_reading and growth_rate_calculating running?"
+                "readings are too stale (over 5 minutes old) - are `Optical density job` and `Growth rate job` running?"
             )
         else:
             event = self.execute(counter)
@@ -140,8 +139,11 @@ class ControlAlgorithm(BackgroundJob):
 
 
 class Silent(ControlAlgorithm):
+
+    display_name = "Silent"
+
     def execute(self, *args, **kwargs) -> events.Event:
-        return events.NoEvent("Never execute IO events in Silent mode")
+        return events.NoEvent("never execute IO events in Silent mode")
 
 
 class Turbidostat(ControlAlgorithm):
@@ -169,17 +171,16 @@ class PIDTurbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
     The PID tells use what fraction of volume we should limit. For example, of PID
-    returns 0.03, then we should remove 97% of the volume. Choose volume to be about 0.5ml - 1.0ml.
+    returns 0.03, then we should remove 97% of the volume. Choose volume to be about 0.5ml - 1.5ml.
     """
 
     def __init__(self, target_od=None, volume=None, verbose=0, **kwargs):
         super(PIDTurbidostat, self).__init__(verbose=verbose, **kwargs)
-        self.target_od = target_od
+        self._target_od = target_od
         self.volume = volume
-        self.min_od = 0.75 * target_od
         self.verbose = verbose
         self.display_name = "Turbidostat"
-        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
+        self.pid = PID(0.07, 0.05, 0.2, setpoint=self.target_od, sample_time=None, verbose=self.verbose)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -187,13 +188,33 @@ class PIDTurbidostat(ControlAlgorithm):
         else:
             output = self.pid.update(self.latest_od)
 
-            volume_to_cycle = (1 - output) * self.volume
+            volume_to_cycle = self.logit(-output) * self.volume
 
-            if volume_to_cycle == 0:
-                return events.NoEvent(f"PID output={output:.2f}, so no volume to cycle")
+            if volume_to_cycle < 0.01:
+                return events.NoEvent(f"PID output={output:.2f}, so practically no volume to cycle")
             else:
                 self.execute_io_action(media_ml=volume_to_cycle, waste_ml=volume_to_cycle)
-                return events.DilutionEvent(f"PID output={output:.2f}, volume to cycle={volume_to_cycle:.2f}mL")
+                e = events.DilutionEvent(f"PID output={output:.2f}, volume to cycle={volume_to_cycle:.2f}mL")
+                e.volume_to_cycle = volume_to_cycle
+                e.pid_output = output
+                return e
+
+    @staticmethod
+    def logit(x):
+        return 1 / (1 + np.exp(-x))
+
+    @property
+    def min_od(self):
+        return 0.75 * self.target_od
+
+    @property
+    def target_od(self):
+        return self._target_od
+
+    @target_od.setter
+    def target_od(self, value):
+        self._target_od = value
+        self.pid.setpoint = self.target_od
 
 
 class PIDMorbidostat(ControlAlgorithm):
@@ -203,12 +224,9 @@ class PIDMorbidostat(ControlAlgorithm):
 
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
         super(PIDMorbidostat, self).__init__(verbose=verbose, **kwargs)
-        self.target_growth_rate = target_growth_rate
+        self._target_growth_rate = target_growth_rate
         self.target_od = target_od
-        self.min_od = 0.75 * self.target_od
-        self.max_od = 1.1 * self.target_od
         self.duration = duration
-        self.verbose = verbose
         self.display_name = "Morbidostat"
 
         self.pid = PID(
@@ -223,10 +241,11 @@ class PIDMorbidostat(ControlAlgorithm):
             )
 
         self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
+        self.verbose = verbose
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
-            return events.NoEvent(f"Latest OD less than OD to start diluting, {self.min_od:.2f}")
+            return events.NoEvent(f"latest OD less than OD to start diluting, {self.min_od:.2f}")
         else:
             fraction_of_alt_media_to_add = self.pid.update(
                 self.latest_growth_rate, dt=self.duration
@@ -254,6 +273,23 @@ class PIDMorbidostat(ControlAlgorithm):
             event.alt_media_ml = alt_media_ml
             return event
 
+    @property
+    def min_od(self):
+        return 0.75 * self.target_od
+
+    @property
+    def max_od(self):
+        return 0.75 * self.target_od
+
+    @property
+    def target_growth_rate(self):
+        return self._target_growth_rate
+
+    @target_growth_rate.setter
+    def target_growth_rate(self, value):
+        self._target_growth_rate = value
+        self.pid.setpoint = self.target_growth_rate
+
 
 class Morbidostat(ControlAlgorithm):
     """
@@ -272,18 +308,18 @@ class Morbidostat(ControlAlgorithm):
         of the chemical is diluted slowly over time, allowing the microbes to recover.
         """
         if self.previous_od is None:
-            return events.NoEvent("Skip first event to wait for OD readings.")
+            return events.NoEvent("skip first event to wait for OD readings.")
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
             self.execute_io_action(alt_media_ml=self.volume, waste_ml=self.volume)
             return events.AltMediaEvent(
-                f"Latest OD, {self.latest_od:.2f} >= Target OD, {self.target_od:.2f} and Latest OD, {self.latest_od:.2f} >= Previous OD, {self.previous_od:.2f}"
+                f"latest OD, {self.latest_od:.2f} >= Target OD, {self.target_od:.2f} and Latest OD, {self.latest_od:.2f} >= Previous OD, {self.previous_od:.2f}"
             )
         else:
             self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return events.DilutionEvent(
-                f"Latest OD, {self.latest_od:.2f} < Target OD, {self.target_od:.2f} or Latest OD, {self.latest_od:.2f} < Previous OD, {self.previous_od:.2f}"
+                f"latest OD, {self.latest_od:.2f} < Target OD, {self.target_od:.2f} or Latest OD, {self.latest_od:.2f} < Previous OD, {self.previous_od:.2f}"
             )
 
 

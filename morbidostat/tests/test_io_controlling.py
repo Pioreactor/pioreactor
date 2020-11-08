@@ -56,7 +56,7 @@ def test_turbidostat_algorithm():
 def test_pid_turbidostat_algorithm():
 
     target_od = 1.0
-    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=0.25, duration=60, verbose=2)
+    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=1.0, duration=60, verbose=2)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01, verbose=100)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.20, verbose=100)
@@ -64,24 +64,39 @@ def test_pid_turbidostat_algorithm():
     assert isinstance(next(algo), events.NoEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.81)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.0)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    e = next(algo)
+    assert isinstance(e, events.DilutionEvent)
+    assert e.volume_to_cycle == 0.5
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.88)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.90)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    e = next(algo)
+    assert isinstance(e, events.DilutionEvent)
+    assert e.volume_to_cycle < 0.5
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.94)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    e = next(algo)
+    assert isinstance(e, events.DilutionEvent)
+    assert e.volume_to_cycle < 0.5
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.97)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.15)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    e = next(algo)
+    assert isinstance(e, events.DilutionEvent)
+    assert e.volume_to_cycle > 0.5
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 12.0)
+    pause()
+    e = next(algo)
+    assert isinstance(e, events.DilutionEvent)
+    assert e.volume_to_cycle > 0.95
 
 
 def test_morbidostat_algorithm():
@@ -146,7 +161,7 @@ def test_execute_io_action():
     ca.execute_io_action(media_ml=0.65, alt_media_ml=0.15, waste_ml=0.80)
 
 
-def test_changing_parameters_over_mqtt():
+def test_changing_morbidostat_parameters_over_mqtt():
 
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
@@ -154,15 +169,18 @@ def test_changing_parameters_over_mqtt():
     )
     assert algo.target_growth_rate == target_growth_rate
     pause()
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/target_growth_rate/set", 0.07)
+    new_target = 0.07
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/target_growth_rate/set", new_target)
     pause()
-    assert algo.target_growth_rate == 0.07
+    assert algo.target_growth_rate == new_target
+    assert algo.pid.setpoint == new_target
 
 
-def test_changing_volume_over_mqtt():
+def test_changing_turbidostat_params_over_mqtt():
 
     og_volume = 0.5
-    algo = PIDTurbidostat(volume=og_volume, target_od=1.0, duration=0.0001, verbose=2, unit=unit, experiment=experiment)
+    og_target_od = 1.0
+    algo = PIDTurbidostat(volume=og_volume, target_od=og_target_od, duration=0.0001, verbose=2, unit=unit, experiment=experiment)
     assert algo.volume == og_volume
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.05)
@@ -178,6 +196,13 @@ def test_changing_volume_over_mqtt():
     algo.run()
 
     assert algo.volume == 1.0
+
+    new_od = 1.5
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/target_od/set", new_od)
+    pause()
+    assert algo.target_od == new_od
+    assert algo.pid.setpoint == new_od
+    assert algo.min_od == 0.7 * new_od
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
