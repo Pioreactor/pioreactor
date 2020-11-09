@@ -39,10 +39,9 @@ class StoppableThread(threading.Thread):
 def clean_tubes(duration, verbose=0):
     try:
         # start waste pump, poll for kill signal every N seconds
-        waste_thead = StoppableThread(target=remove_waste, kwargs={"duration": 20, "duty_cycle": 100})
+        waste_thead = StoppableThread(target=remove_waste, kwargs={"duration": duration * 1.25, "duty_cycle": 100})
         waste_thead.start()
         time.sleep(3)
-        print(duration)
         add_media(duration=duration, duty_cycle=30)
         add_alt_media(duration=duration, duty_cycle=30)
         time.sleep(1)
