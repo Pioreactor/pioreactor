@@ -26,7 +26,7 @@ class StoppableThread(threading.Thread):
         self._stop_event = threading.Event()
 
     def stop(self):
-        print("called stop")
+        print("thread. called stop")
         self._stop_event.set()
 
     def stopped(self):
@@ -47,8 +47,11 @@ def clean_tubes(duration, verbose=0):
         add_media(duration=duration, duty_cycle=30)
         print("cleaning alt media")
         add_alt_media(duration=duration, duty_cycle=30)
+        print("done")
         time.sleep(1)
+        print("calling stop")
         waste.stop()
+        print("called stop")
         publish(f"morbidostat/{unit}/{experiment}/log", "[clean_tubes]: finished cleaning cycle.", verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[clean_tubes]: failed with {str(e)}", verbose=verbose)
