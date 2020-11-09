@@ -51,6 +51,7 @@ def clean_tubes(duration, verbose=0):
         time.sleep(1)
         print("calling stop")
         waste.stop()
+        waste.join()
         print("called stop")
         publish(f"morbidostat/{unit}/{experiment}/log", "[clean_tubes]: finished cleaning cycle.", verbose=verbose)
     except Exception as e:
