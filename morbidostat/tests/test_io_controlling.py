@@ -89,6 +89,12 @@ def test_pid_turbidostat_algorithm():
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.50)
+    pause()
+    e = next(algo)
+    assert isinstance(e, events.DilutionEvent)
     assert e.volume_to_cycle > 0.5
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)

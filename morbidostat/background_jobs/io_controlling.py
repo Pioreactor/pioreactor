@@ -183,15 +183,20 @@ class PIDTurbidostat(ControlAlgorithm):
         self.volume = volume
         self.verbose = verbose
         self.duration = duration
-        self.pid = PID(-0.2, -0.001, -0.01, setpoint=self.target_od, sample_time=None, verbose=self.verbose)
+        self.dilution_fraction = 0.5
+        self.pid = PID(
+            -0.2, -0.001, -0.01, setpoint=self.target_od, output_limits=(-1, 1), sample_time=None, verbose=self.verbose
+        )
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
             return events.NoEvent(f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}")
         else:
             output = self.pid.update(self.latest_od, dt=self.duration)
+            self.dilution_fraction += output
+            self.dilution_fraction = np.clip(0, 1, self.dilution_fraction)
 
-            volume_to_cycle = self.logit(output) * self.volume
+            volume_to_cycle = self.dilution_fraction * self.volume
 
             if volume_to_cycle < 0.01:
                 return events.NoEvent(f"PID output={output:.2f}, so practically no volume to cycle")
@@ -201,10 +206,6 @@ class PIDTurbidostat(ControlAlgorithm):
                 e.volume_to_cycle = volume_to_cycle
                 e.pid_output = output
                 return e
-
-    @staticmethod
-    def logit(x):
-        return 1 / (1 + np.exp(-x))
 
     @property
     def min_od(self):
