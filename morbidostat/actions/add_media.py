@@ -42,6 +42,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
         pwm.start(duty_cycle)
         time.sleep(duration)
         pwm.stop()
+        print("media done?")
 
         GPIO.output(MEDIA_PIN, 0)
 
