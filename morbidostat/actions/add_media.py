@@ -55,7 +55,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose)
         raise e
     finally:
-        GPIO.cleanup()
+        GPIO.cleanup(MEDIA_PIN)
     return
 
 

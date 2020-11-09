@@ -58,7 +58,7 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
         raise e
 
     finally:
-        GPIO.cleanup()
+        GPIO.cleanup(WASTE_PIN)
     return
 
 
