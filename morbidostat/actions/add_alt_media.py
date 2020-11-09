@@ -15,6 +15,7 @@ def add_alt_media(ml=None, duration=None, duty_cycle=33, verbose=0):
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
+    print("alt", duration)
 
     hz = 100
     if ml is not None:

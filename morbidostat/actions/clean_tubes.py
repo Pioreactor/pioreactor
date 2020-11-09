@@ -42,6 +42,7 @@ def clean_tubes(duration, verbose=0):
         waste_thead = StoppableThread(target=remove_waste, kwargs={"duration": 5, "duty_cycle": 100})
         waste_thead.start()
         time.sleep(3)
+        print(duration)
         add_media(duration=duration, duty_cycle=30)
         add_alt_media(duration=duration, duty_cycle=30)
         time.sleep(1)
