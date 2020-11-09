@@ -11,6 +11,8 @@ from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
 from morbidostat.pubsub import publish, QOS
 
+GPIO.setmode(GPIO.BCM)
+
 
 def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
     assert 0 <= duty_cycle <= 100
@@ -35,7 +37,6 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
     )
 
     try:
-        GPIO.setmode(GPIO.BCM)
 
         WASTE_PIN = int(config["rpi_pins"]["waste"])
         GPIO.setup(WASTE_PIN, GPIO.OUT)
