@@ -26,6 +26,7 @@ class StoppableThread(threading.Thread):
         self._stop_event = threading.Event()
 
     def stop(self):
+        print("called stop")
         self._stop_event.set()
 
     def stopped(self):
@@ -39,10 +40,12 @@ class StoppableThread(threading.Thread):
 def clean_tubes(duration, verbose=0):
     try:
         # start waste pump, poll for kill signal every N seconds
-        waste_thead = StoppableThread(target=remove_waste, kwargs={"duration": duration * 1.25, "duty_cycle": 100})
+        waste_thead = StoppableThread(target=remove_waste, kwargs={"duration": 2.25 * duration, "duty_cycle": 100})
         waste_thead.start()
         time.sleep(3)
+        print("cleaning media")
         add_media(duration=duration, duty_cycle=30)
+        print("cleaning alt media")
         add_alt_media(duration=duration, duty_cycle=30)
         time.sleep(1)
         waste.stop()
