@@ -9,12 +9,14 @@ from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
 from morbidostat.pubsub import publish, QOS
 
+GPIO.setmode(GPIO.BCM)
+
 
 def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
-    print("media:", duration)
+
     hz = 100
 
     if ml is not None:
@@ -32,7 +34,6 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
     )
 
     try:
-        GPIO.setmode(GPIO.BCM)
 
         MEDIA_PIN = int(config["rpi_pins"]["media"])
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
@@ -42,7 +43,6 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
         pwm.start(duty_cycle)
         time.sleep(duration)
         pwm.stop()
-        print("media done?")
 
         GPIO.output(MEDIA_PIN, 0)
 

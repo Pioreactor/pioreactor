@@ -37,9 +37,7 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
     )
 
     try:
-        import RPi.GPIO as GPIO
 
-        GPIO.setmode(GPIO.BCM)
         WASTE_PIN = int(config["rpi_pins"]["waste"])
         GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 0)
