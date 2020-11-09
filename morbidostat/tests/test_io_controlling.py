@@ -56,7 +56,7 @@ def test_turbidostat_algorithm():
 def test_pid_turbidostat_algorithm():
 
     target_od = 1.0
-    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=1.0, duration=60, verbose=2)
+    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=1.0, duration=30, verbose=2)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01, verbose=100)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.20, verbose=100)
@@ -96,7 +96,7 @@ def test_pid_turbidostat_algorithm():
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle > 0.95
+    assert e.volume_to_cycle > 0.90
 
 
 def test_morbidostat_algorithm():

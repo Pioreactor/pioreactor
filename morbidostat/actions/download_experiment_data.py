@@ -3,10 +3,12 @@
 # Example tables:
 # "od_readings_raw", "od_readings_filtered", "io_events", "logs", "pid_logs", "growth_rates"
 
+import zipfile
 from morbidostat.whoami import get_latest_experiment_name
 from morbidostat.config import config
 from morbidostat.pubsub import publish
 from morbidostat import whoami
+from datetime import datetime
 import click
 
 
@@ -18,11 +20,13 @@ def download_experiment_data(experiment, output, tables):
         print(f"This command should be run on the {config.leader_hostname} node, not worker.")
         return
 
+    publish(f"morbidostat/{whoami.unit}/{whoami.experiment}/log", f"Starting export of experiment data to {output}.", verbose=1)
+
     if experiment == "current":
         experiment = get_latest_experiment_name()
 
-    publish(f"morbidostat/{whoami.unit}/{whoami.experiment}/log", f"Starting export of experiment data to {output}.", verbose=1)
-
+    time = datetime.strformat("YYYYMMDDHHmmSS")
+    zf = zipfile.ZipFile("{output}/{experiment}-{time}.zip", "w", zipfile.ZIP_DEFLATED)
     con = sqlite3.connect(config["data"]["observation_database"])
 
     for table in tables:
@@ -33,7 +37,11 @@ def download_experiment_data(experiment, output, tables):
             con,
         )
 
-        df.to_csv(f"{output}/export_{table}.csv.dump.gz", compression="gzip", index=False)
+        filename = "{experiment}-{table}-{time}.dump.csv.gz"
+        df.to_csv(filename, compression="gzip", index=False)
+        zf.write(filename)
+
+    zf.close()
 
     publish(f"morbidostat/{whoami.unit}/{whoami.experiment}/log", f"Completed export of experiment data to {output}.", verbose=1)
     return

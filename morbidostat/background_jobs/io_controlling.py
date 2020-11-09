@@ -152,11 +152,12 @@ class Turbidostat(ControlAlgorithm):
     near every second (limited by the OD reading rate)
     """
 
+    display_name = "Turbidostat"
+
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Turbidostat, self).__init__(**kwargs)
         self.target_od = target_od
         self.volume = volume
-        self.display_name = "Turbidostat"
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od >= self.target_od:
@@ -171,22 +172,24 @@ class PIDTurbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
     The PID tells use what fraction of volume we should limit. For example, of PID
-    returns 0.03, then we should remove 97% of the volume. Choose volume to be about 0.5ml - 1.5ml.
+    returns 0.03, then we should remove ~97% of the volume. Choose volume to be about 0.5ml - 2.0ml.
     """
 
-    def __init__(self, target_od=None, volume=None, verbose=0, **kwargs):
+    display_name = "Turbidostat"
+
+    def __init__(self, target_od=None, volume=None, duration=None, verbose=0, **kwargs):
         super(PIDTurbidostat, self).__init__(verbose=verbose, **kwargs)
         self._target_od = target_od
         self.volume = volume
         self.verbose = verbose
-        self.display_name = "Turbidostat"
-        self.pid = PID(0.06, 0.01, 0.025, setpoint=self.target_od, sample_time=None, verbose=self.verbose)
+        self.duration = duration
+        self.pid = PID(-0.2, -0.001, -0.01, setpoint=self.target_od, sample_time=None, verbose=self.verbose)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
             return events.NoEvent(f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}")
         else:
-            output = self.pid.update(self.latest_od)
+            output = self.pid.update(self.latest_od, dt=self.duration)
 
             volume_to_cycle = self.logit(output) * self.volume
 
@@ -222,12 +225,13 @@ class PIDMorbidostat(ControlAlgorithm):
     As defined in Zhong 2020
     """
 
+    display_name = "Morbidostat"
+
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
         super(PIDMorbidostat, self).__init__(verbose=verbose, **kwargs)
         self._target_growth_rate = target_growth_rate
         self.target_od = target_od
         self.duration = duration
-        self.display_name = "Morbidostat"
 
         self.pid = PID(
             -0.5, -0.005, -0.25, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
@@ -296,11 +300,12 @@ class Morbidostat(ControlAlgorithm):
     As defined in Toprak 2013.
     """
 
+    display_name = "Morbidostat"
+
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Morbidostat, self).__init__(**kwargs)
         self.target_od = target_od
         self.volume = volume
-        self.display_name = "Morbidostat"
 
     def execute(self, *args, **kwargs) -> events.Event:
         """

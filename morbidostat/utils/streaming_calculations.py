@@ -200,7 +200,7 @@ class PID:
         self.experiment = experiment
         self.verbose = verbose
 
-    def update(self, input_, dt=None):
+    def update(self, input_, dt):
 
         output = self.pid(input_, dt)
         self.publish_pid_stats()

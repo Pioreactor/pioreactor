@@ -2,6 +2,7 @@
 # clean tubes
 
 import time
+import threading
 
 import click
 from click import echo as click_echo
@@ -11,38 +12,41 @@ import RPi.GPIO as GPIO
 from morbidostat.config import config
 from morbidostat.whoami import unit, experiment
 from morbidostat.pubsub import publish
+from morbidostat.actions import remove_waste, add_media, add_alt_media
 
 
-def echo(message):
-    click_echo(click.style(message), fg="green")
+class StoppableThread(threading.Thread):
+    """Thread class with a stop() method. The thread itself has to check
+    regularly for the stopped() condition."""
 
+    def __init__(self, *args, **kwargs):
+        super(StoppableThread, self).__init__(*args, **kwargs)
+        self._stop_event = threading.Event()
 
-def clean_tubes_tutorial():
+    def stop(self):
+        self._stop_event.set()
 
-    echo("This will start the tube cleaning protocol. Are you ready?")
+    def stopped(self):
+        return self._stop_event.is_set()
+
+    def run(self):
+        while not self.stopped():
+            self._target(*self._args)
 
 
 def clean_tubes(duration, verbose=0):
-
-    GPIO.setmode(GPIO.BCM)
-
     try:
-
-        for tube in ["media", "alt_media", "waste"]:
-            pin = int(config["rpi_pins"][f"{tube}"])
-            GPIO.setup(pin, GPIO.OUT)
-            publish(f"morbidostat/{unit}/{experiment}/log", f"[clean_tubes]: starting cleaning of {tube} tube.")
-            GPIO.output(pin, 1)
-            time.sleep(duration)
-            GPIO.output(pin, 0)
-            time.sleep(0.1)
-
+        # start waste pump at dc=80, poll for kill signal every N seconds
+        waste_thead = StoppableThread(target=remove_waste, kwargs={"duration": 5, "duty_cycle": 100})
+        waste_thead.start()
+        time.sleep(3)
+        add_media(duration, duty_cycle=30)
+        add_alt_media(duration, duty_cycle=30)
+        time.sleep(1)
+        waste.stop()
         publish(f"morbidostat/{unit}/{experiment}/log", "[clean_tubes]: finished cleaning cycle.", verbose=verbose)
     except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[clean_tubes]: failed with {str(e)}", verbose=verbose)
-    finally:
-        GPIO.cleanup()
-    return
 
 
 @click.command()
