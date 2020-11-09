@@ -33,8 +33,11 @@ class StoppableThread(threading.Thread):
         return self._stop_event.is_set()
 
     def run(self):
-        while not self.stopped():
-            self._target(*self._args, **self._kwargs)
+        while True:
+            if not self.stopped():
+                self._target(*self._args, **self._kwargs)
+            else:
+                return
 
 
 def clean_tubes(duration, verbose=0):
