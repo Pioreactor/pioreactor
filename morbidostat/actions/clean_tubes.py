@@ -12,7 +12,9 @@ import RPi.GPIO as GPIO
 from morbidostat.config import config
 from morbidostat.whoami import unit, experiment
 from morbidostat.pubsub import publish
-from morbidostat.actions import remove_waste, add_media, add_alt_media
+from morbidostat.actions.remove_waste import remove_waste
+from morbidostat.actions.add_alt_media import add_alt_media
+from morbidostat.actions.add_media import add_media
 
 
 class StoppableThread(threading.Thread):
@@ -31,12 +33,12 @@ class StoppableThread(threading.Thread):
 
     def run(self):
         while not self.stopped():
-            self._target(*self._args)
+            self._target(*self._args, **self._kwargs)
 
 
 def clean_tubes(duration, verbose=0):
     try:
-        # start waste pump at dc=80, poll for kill signal every N seconds
+        # start waste pump, poll for kill signal every N seconds
         waste_thead = StoppableThread(target=remove_waste, kwargs={"duration": 5, "duty_cycle": 100})
         waste_thead.start()
         time.sleep(3)
