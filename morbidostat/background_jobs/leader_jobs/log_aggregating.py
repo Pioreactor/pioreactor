@@ -30,9 +30,10 @@ class LogAggregation(BackgroundJob):
 
     def on_message(self, message):
         try:
-            print("heard message")
             unit = message.topic.split("/")[1]
-            self.aggregated_log_table.append({"timestamp": current_time(), "message": message.payload, "topic": message.topic})
+            self.aggregated_log_table.append(
+                {"timestamp": current_time(), "message": str(message.payload), "topic": message.topic}
+            )
 
             self.write()
         except:
@@ -50,7 +51,6 @@ class LogAggregation(BackgroundJob):
             )
 
     def read(self):
-        print("try to read")
         try:
             with open(self.output, "r") as f:
                 return json.dump(f)
