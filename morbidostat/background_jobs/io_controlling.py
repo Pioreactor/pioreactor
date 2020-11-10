@@ -48,6 +48,7 @@ class ControlAlgorithm(BackgroundJob):
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "display_name"]
+    display_name = "ControlAlgorithm"
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
@@ -55,7 +56,6 @@ class ControlAlgorithm(BackgroundJob):
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.throughput_calculator = ThroughputCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
-        self.display_name = type(self).__name__
 
         self.start_passive_listeners()
 
@@ -179,6 +179,8 @@ class PIDTurbidostat(ControlAlgorithm):
 
     def __init__(self, target_od=None, volume=None, duration=None, verbose=0, **kwargs):
         super(PIDTurbidostat, self).__init__(verbose=verbose, **kwargs)
+        assert target_od is not None, "`target_od` must be set"
+        assert volume is not None, "`volume` must be set"
         self._target_od = target_od
         self.volume = volume
         self.verbose = verbose
@@ -230,6 +232,10 @@ class PIDMorbidostat(ControlAlgorithm):
 
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
         super(PIDMorbidostat, self).__init__(verbose=verbose, **kwargs)
+        assert target_od is not None, "`target_od` must be set"
+        assert target_growth_rate is not None, "`target_growth_rate` must be set"
+        assert duration is not None, "`duration` must be set"
+
         self._target_growth_rate = target_growth_rate
         self.target_od = target_od
         self.duration = duration
