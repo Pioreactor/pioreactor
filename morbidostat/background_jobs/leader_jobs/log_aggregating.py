@@ -25,6 +25,7 @@ class LogAggregation(BackgroundJob):
         self.topics = topics
         self.output = output
         self.aggregated_log_table = self.read()
+        self.start_passive_listeners()
 
     def on_message(self, message):
         try:
@@ -60,9 +61,7 @@ class LogAggregation(BackgroundJob):
             json.dump(self.aggregated_log_table, f)
         print("written to file")
 
-    def passive_listeners(self):
-
-        print(self.topics)
+    def start_passive_listeners(self):
         subscribe_and_callback(self.topics, self.on_message)
         subscribe_and_callback(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/aggregated_log_table/set", self.clear)
 
