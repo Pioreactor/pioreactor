@@ -183,7 +183,7 @@ class PIDTurbidostat(ControlAlgorithm):
         self.volume = volume
         self.verbose = verbose
         self.duration = duration
-        self.dilution_fraction = 0.5
+        self.dilution_fraction = 0.25
         self.pid = PID(
             -0.2, -0.001, -0.01, setpoint=self.target_od, output_limits=(-1, 1), sample_time=None, verbose=self.verbose
         )
@@ -280,7 +280,7 @@ class PIDMorbidostat(ControlAlgorithm):
 
     @property
     def min_od(self):
-        return 0.5 * self.target_od
+        return 0.7 * self.target_od
 
     @property
     def max_od(self):

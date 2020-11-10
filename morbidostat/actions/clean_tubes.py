@@ -26,7 +26,7 @@ class StoppableThread(threading.Thread):
         self._stop_event = threading.Event()
 
     def stop(self):
-        print("thread. called stop")
+        raise ValueError("here")
         self._stop_event.set()
 
     def stopped(self):
