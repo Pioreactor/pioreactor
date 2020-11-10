@@ -43,8 +43,11 @@ class LogAggregation(BackgroundJob):
             )
 
     def read(self):
-        with open(self.output, "r") as f:
-            self.aggregated_log_table = json.dump(f)
+        try:
+            with open(self.output, "r") as f:
+                return json.dump(f)
+        except:
+            return []
 
     def write(self):
         with open(self.output, "w") as f:
