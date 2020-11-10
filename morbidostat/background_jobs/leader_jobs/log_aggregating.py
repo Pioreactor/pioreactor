@@ -54,13 +54,13 @@ class LogAggregation(BackgroundJob):
         try:
             with open(self.output, "r") as f:
                 return json.dump(f)
-        except:
+        except Exception as e:
+            print(e)
             return []
 
     def write(self):
         with open(self.output, "w") as f:
             json.dump(self.aggregated_log_table, f)
-        print("written to file")
 
     def start_passive_listeners(self):
         subscribe_and_callback(self.on_message, self.topics)
