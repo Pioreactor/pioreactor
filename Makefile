@@ -19,7 +19,7 @@ install-i2c:
 	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
 	echo "i2c-dev"               | sudo tee /etc/modules -a
 
-systemd:
+systemd-worker:
 	sudo cp /home/pi/morbidostat/startup/systemd/stirring.service /lib/systemd/system/stirring.service
 	sudo cp /home/pi/morbidostat/startup/systemd/od_reading.service /lib/systemd/system/od_reading.service
 	sudo cp /home/pi/morbidostat/startup/systemd/growth_rate_calculating.service /lib/systemd/system/growth_rate_calculating.service
@@ -32,10 +32,15 @@ systemd:
 	sudo systemctl enable stirring.service
 	sudo systemctl enable growth_rate_calculating.service
 
+systemd-leader:
+	sudo cp /home/pi/morbidostat/startup/systemd/stirring.service /lib/systemd/system/log_aggregating.service
+	sudo chmod 644 /lib/systemd/system/log_aggregating.service
+	sudo systemctl enable log_aggregating.service
+
 install-morbidostat:
 	sudo python3 setup.py install
 
-install-worker: install-python install-mqtt configure-rpi systemd install-i2c install-morbidostat
+install-worker: install-python install-mqtt configure-rpi systemd-worker install-i2c install-morbidostat
 
 install-db:
 	sudo apt-get install -y sqlite3
@@ -50,7 +55,7 @@ configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-nodered install-morbidostat
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-nodered install-morbidostat systemd-leader
 	pip3 install -r requirements/requirements_leader.txt
 
 view:
