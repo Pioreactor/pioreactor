@@ -28,6 +28,7 @@ class LogAggregation(BackgroundJob):
         self.start_passive_listeners()
 
     def on_message(self, message):
+        raise ValueError()
         try:
             print("heard message")
             unit = message.topic.split("/")[1]
@@ -62,6 +63,7 @@ class LogAggregation(BackgroundJob):
         print("written to file")
 
     def start_passive_listeners(self):
+        print(self.topics)
         subscribe_and_callback(self.topics, self.on_message)
         subscribe_and_callback(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/aggregated_log_table/set", self.clear)
 
