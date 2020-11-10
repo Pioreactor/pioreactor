@@ -5,6 +5,7 @@ This job runs on the leader, and is a replacement for the NodeRed aggregation jo
 import signal
 import time
 import os
+import click
 
 from morbidostat.pubsub import subscribe_and_callback
 from morbidostat.background_jobs import BackgroundJob
