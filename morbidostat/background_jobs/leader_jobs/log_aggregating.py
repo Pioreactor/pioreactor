@@ -44,7 +44,7 @@ class LogAggregation(BackgroundJob):
 
     def clear(self, message):
         payload = message.payload
-        if not message:
+        if not payload:
             self.aggregated_log_table = []
             self.write()
         else:
