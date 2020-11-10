@@ -68,8 +68,6 @@ class LogAggregation(BackgroundJob):
         super(LogAggregation, self).start_passive_listeners()
 
 
-@log_start(unit, experiment)
-@log_stop(unit, experiment)
 @click.command()
 @click.option(
     "--output", "-o", default="/home/pi/morbidostatui/backend/build/data/all_morbidostat.log.json", help="the output file"
