@@ -8,7 +8,7 @@ import os
 import traceback
 import click
 
-from morbidostat.pubsub import subscribe_and_callback
+from morbidostat.pubsub import subscribe_and_callback, publish
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.whoami import unit, experiment, hostname
 
@@ -45,9 +45,7 @@ class LogAggregation(BackgroundJob):
             self.aggregated_log_table = []
             self.write()
         else:
-            pubsub.publish(
-                f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the log table."
-            )
+            publish(f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the log table.")
 
     def read(self):
         print("try to read")
@@ -76,13 +74,7 @@ class LogAggregation(BackgroundJob):
 )
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(output, verbose):
-    logs = LogAggregation(
-        [f"morbidostat/+/{experiment}/log", f"morbidostat/+/{experiment}/error_log"],
-        output,
-        experiment=experiment,
-        unit=unit,
-        verbose=verbose,
-    )
+    logs = LogAggregation(f"morbidostat/+/{experiment}/log", output, experiment=experiment, unit=unit, verbose=verbose)
 
     while True:
         signal.pause()
