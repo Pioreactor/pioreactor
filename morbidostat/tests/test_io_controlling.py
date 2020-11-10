@@ -68,21 +68,21 @@ def test_pid_turbidostat_algorithm():
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle == 0.5
+    assert e.volume_to_cycle == 0.25
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.90)
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle < 0.5
+    assert e.volume_to_cycle < 0.25
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.94)
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle < 0.5
+    assert e.volume_to_cycle < 0.25
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.15)
@@ -95,7 +95,7 @@ def test_pid_turbidostat_algorithm():
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle > 0.5
+    assert e.volume_to_cycle > 0.25
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 12.0)

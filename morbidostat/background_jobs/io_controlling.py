@@ -181,7 +181,7 @@ class PIDTurbidostat(ControlAlgorithm):
         super(PIDTurbidostat, self).__init__(verbose=verbose, **kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert volume is not None, "`volume` must be set"
-        self._target_od = target_od
+        self.target_od = target_od
         self.volume = volume
         self.verbose = verbose
         self.duration = duration
@@ -219,8 +219,13 @@ class PIDTurbidostat(ControlAlgorithm):
 
     @target_od.setter
     def target_od(self, value):
+        # super(PIDTurbidostat, self).__setattr__("target_od", value)
         self._target_od = value
-        self.pid.setpoint = self.target_od
+        try:
+            # may not be defined yet...
+            self.pid.setpoint = self.target_od
+        except:
+            pass
 
 
 class PIDMorbidostat(ControlAlgorithm):
@@ -236,7 +241,7 @@ class PIDMorbidostat(ControlAlgorithm):
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
         assert duration is not None, "`duration` must be set"
 
-        self._target_growth_rate = target_growth_rate
+        self.target_growth_rate = target_growth_rate
         self.target_od = target_od
         self.duration = duration
 
@@ -299,7 +304,10 @@ class PIDMorbidostat(ControlAlgorithm):
     @target_growth_rate.setter
     def target_growth_rate(self, value):
         self._target_growth_rate = value
-        self.pid.setpoint = self.target_growth_rate
+        try:
+            self.pid.setpoint = self.target_growth_rate
+        except:
+            pass
 
 
 class Morbidostat(ControlAlgorithm):

@@ -22,20 +22,22 @@ def current_time():
 
 
 class LogAggregation(BackgroundJob):
-    def __init__(self, topics, output, **kwargs):
+    def __init__(self, topics, output, max_length=50, **kwargs):
         super(LogAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
         self.topics = topics
         self.output = output
         self.aggregated_log_table = self.read()
+        self.max_length = max_length
         self.start_passive_listeners()
 
     def on_message(self, message):
         try:
             unit = message.topic.split("/")[1]
             is_error = message.topic.endswith("error_log")
-            self.aggregated_log_table.append(
-                {"timestamp": current_time(), "message": message.payload.decode(), "unit": unit, "is_error": is_error}
+            self.aggregated_log_table.insert(
+                0, {"timestamp": current_time(), "message": message.payload.decode(), "unit": unit, "is_error": is_error}
             )
+            self.aggregated_log_table = self.aggregated_log_table[: self.max_length]
 
             self.write()
         except:

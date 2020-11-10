@@ -124,3 +124,17 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
         daemon=True,
     )
     thread.start()
+    return thread
+
+
+def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
+    topics = []
+
+    def on_message(message):
+        topics.append(message.topic)
+
+    thread = subscribe_and_callback(on_message, topics_to_prune, hostname=hostname)
+    thread.join(timeout=2)
+
+    for topic in topics:
+        publish(topic, None, retain=True, hostname=hostname)

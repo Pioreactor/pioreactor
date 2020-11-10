@@ -87,7 +87,7 @@ class GrowthRateCalculator(BackgroundJob):
         return np.exp(erate / 60 / self.samples_per_minute)
 
     def update_ekf_variance_after_io_event(self, message):
-        self.ekf.scale_OD_variance_for_next_n_steps(1e4, 1 * self.samples_per_minute)
+        self.ekf.scale_OD_variance_for_next_n_steps(2e4, 2 * self.samples_per_minute)
 
     def scale_raw_observations(self, observations):
         return {angle: observations[angle] / self.od_normalization_factors[angle] for angle in observations.keys()}
