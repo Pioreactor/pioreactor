@@ -53,7 +53,7 @@ class LogAggregation(BackgroundJob):
     def read(self):
         try:
             with open(self.output, "r") as f:
-                return json.dump(f)
+                return json.load(f)
         except Exception as e:
             print(e)
             return []
