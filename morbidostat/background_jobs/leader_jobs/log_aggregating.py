@@ -8,7 +8,7 @@ import os
 import traceback
 import click
 
-from morbidostat.pubsub import subscribe_and_callback, publish
+from morbidostat.pubsub import subscribe_and_callback
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.whoami import unit, experiment, hostname
 
@@ -28,7 +28,6 @@ class LogAggregation(BackgroundJob):
         self.start_passive_listeners()
 
     def on_message(self, message):
-        raise ValueError()
         try:
             print("heard message")
             unit = message.topic.split("/")[1]
@@ -45,7 +44,9 @@ class LogAggregation(BackgroundJob):
             self.aggregated_log_table = []
             self.write()
         else:
-            publish(f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the log table.")
+            pubsub.publish(
+                f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the log table."
+            )
 
     def read(self):
         print("try to read")
@@ -61,8 +62,7 @@ class LogAggregation(BackgroundJob):
         print("written to file")
 
     def start_passive_listeners(self):
-        print(self.topics)
-        subscribe_and_callback(self.topics, self.on_message)
+        subscribe_and_callback(self.on_message, self.topics)
         subscribe_and_callback(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/aggregated_log_table/set", self.clear)
 
         super(LogAggregation, self).start_passive_listeners()
@@ -74,7 +74,13 @@ class LogAggregation(BackgroundJob):
 )
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(output, verbose):
-    logs = LogAggregation(f"morbidostat/3/Trial-24/log", output, experiment=experiment, unit=unit, verbose=verbose)
+    logs = LogAggregation(
+        [f"morbidostat/+/{experiment}/log", f"morbidostat/+/{experiment}/error_log"],
+        output,
+        experiment=experiment,
+        unit=unit,
+        verbose=verbose,
+    )
 
     while True:
         signal.pause()

@@ -106,6 +106,8 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
 
         return _callback
 
+    assert callable(callback), "callback should be callable - did you mess up the order of arguments?"
+
     userdata = {}
     if timeout:
         userdata["started_at"] = time.time()
