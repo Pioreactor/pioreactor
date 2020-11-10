@@ -63,6 +63,9 @@ class BackgroundJob:
         info_from_topic = split_topic_for_setting(message.topic)
         attr = info_from_topic.attr
 
+        if attr not in self.editable_settings:
+            return
+
         assert hasattr(self, attr), f"{self.job_name} has no attr {attr}."
         previous_value = getattr(self, attr)
         # make sure to cast the input to the same value
