@@ -32,7 +32,7 @@ class LogAggregation(BackgroundJob):
         try:
             unit = message.topic.split("/")[1]
             self.aggregated_log_table.append(
-                {"timestamp": current_time(), "message": str(message.payload), "topic": message.topic}
+                {"timestamp": current_time(), "message": message.payload.decode(), "topic": message.topic}
             )
 
             self.write()
