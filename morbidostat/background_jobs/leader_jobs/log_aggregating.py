@@ -7,6 +7,7 @@ import time
 import os
 import traceback
 import click
+import json
 
 from morbidostat.pubsub import subscribe_and_callback
 from morbidostat.background_jobs import BackgroundJob
