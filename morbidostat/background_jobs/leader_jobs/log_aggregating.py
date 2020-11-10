@@ -26,6 +26,7 @@ class LogAggregation(BackgroundJob):
         self.aggregated_log_table = self.read()
 
     def on_message(self, message):
+        print("heard message")
         unit = message.topic.split("/")[1]
         self.aggregated_log_table.append({"timestamp": current_time(), "message": message.payload, "topic": message.topic})
 
@@ -43,6 +44,7 @@ class LogAggregation(BackgroundJob):
             )
 
     def read(self):
+        print("try to read")
         try:
             with open(self.output, "r") as f:
                 return json.dump(f)
@@ -52,6 +54,7 @@ class LogAggregation(BackgroundJob):
     def write(self):
         with open(self.output, "w") as f:
             json.dump(self.aggregated_log_table, f)
+        print("written to file")
 
     def passive_listeners(self):
 
