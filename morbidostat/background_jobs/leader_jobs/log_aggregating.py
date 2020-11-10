@@ -74,7 +74,7 @@ class LogAggregation(BackgroundJob):
 )
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(output, verbose):
-    logs = LogAggregation(f"morbidostat/+/{experiment}/log", output, experiment=experiment, unit=unit, verbose=verbose)
+    logs = LogAggregation(f"morbidostat/3/Trial-24/log", output, experiment=experiment, unit=unit, verbose=verbose)
 
     while True:
         signal.pause()
