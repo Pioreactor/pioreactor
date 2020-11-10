@@ -9,7 +9,8 @@ import traceback
 import click
 import json
 
-from morbidostat.pubsub import subscribe_and_callback
+from morbidostat.utils import log_start, log_stop
+from morbidostat.pubsub import subscribe_and_callback, publish
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.whoami import unit, experiment, hostname
 
@@ -31,8 +32,9 @@ class LogAggregation(BackgroundJob):
     def on_message(self, message):
         try:
             unit = message.topic.split("/")[1]
+            is_error = message.topic.endswith("error_log")
             self.aggregated_log_table.append(
-                {"timestamp": current_time(), "message": message.payload.decode(), "topic": message.topic}
+                {"timestamp": current_time(), "message": message.payload.decode(), "unit": unit, "is_error": is_error}
             )
 
             self.write()
@@ -42,20 +44,17 @@ class LogAggregation(BackgroundJob):
 
     def clear(self, message):
         payload = message.payload
-        if message is None:
+        if not message:
             self.aggregated_log_table = []
             self.write()
         else:
-            pubsub.publish(
-                f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the log table."
-            )
+            publish(f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the log table.")
 
     def read(self):
         try:
             with open(self.output, "r") as f:
                 return json.load(f)
         except Exception as e:
-            print(e)
             return []
 
     def write(self):
@@ -69,6 +68,8 @@ class LogAggregation(BackgroundJob):
         super(LogAggregation, self).start_passive_listeners()
 
 
+@log_start(unit, experiment)
+@log_stop(unit, experiment)
 @click.command()
 @click.option(
     "--output", "-o", default="/home/pi/morbidostatui/backend/build/data/all_morbidostat.log.json", help="the output file"
