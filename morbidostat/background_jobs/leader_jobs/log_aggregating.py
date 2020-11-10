@@ -65,7 +65,7 @@ class LogAggregation(BackgroundJob):
         subscribe_and_callback(self.topics, self.on_message)
         subscribe_and_callback(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/aggregated_log_table/set", self.clear)
 
-        super(LogAggregation, self).passive_listeners()
+        super(LogAggregation, self).start_passive_listeners()
 
 
 @click.command()
