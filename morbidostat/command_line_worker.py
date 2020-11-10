@@ -27,8 +27,8 @@ def cli(job, background, extra_args):
     command = ["python3", "-u", "-m", loc] + extra_args
 
     if background:
-        command = ["nohup"] + command + ["-v", ">>", "morbidostat.log", "2>&1", "&"]
-        print("Appending logs to morbidostat.log")
+        command = ["nohup"] + command + ["-v", ">>", "~/morbidostat.log", "2>&1", "&"]
+        print("Appending logs to ~/morbidostat.log")
 
     call(" ".join(command), shell=True)
     return

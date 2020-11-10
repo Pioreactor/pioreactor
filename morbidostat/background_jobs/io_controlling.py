@@ -172,7 +172,7 @@ class PIDTurbidostat(ControlAlgorithm):
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
     The PID tells use what fraction of volume we should limit. For example, of PID
-    returns 0.03, then we should remove ~97% of the volume. Choose volume to be about 0.5ml - 2.0ml.
+    returns 0.03, then we should remove ~97% of the volume. Choose volume to be about 1.5ml - 2.0ml.
     """
 
     display_name = "Turbidostat"
@@ -185,20 +185,15 @@ class PIDTurbidostat(ControlAlgorithm):
         self.volume = volume
         self.verbose = verbose
         self.duration = duration
-        self.dilution_fraction = 0.25
-        self.pid = PID(
-            -0.2, -0.001, -0.01, setpoint=self.target_od, output_limits=(-1, 1), sample_time=None, verbose=self.verbose
-        )
+        self.pid = PID(-2, -0.15, -0, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
             return events.NoEvent(f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}")
         else:
             output = self.pid.update(self.latest_od, dt=self.duration)
-            self.dilution_fraction += output
-            self.dilution_fraction = np.clip(0, 1, self.dilution_fraction)
 
-            volume_to_cycle = self.dilution_fraction * self.volume
+            volume_to_cycle = output * self.volume
 
             if volume_to_cycle < 0.01:
                 return events.NoEvent(f"PID output={output:.2f}, so practically no volume to cycle")

@@ -55,54 +55,22 @@ def test_turbidostat_algorithm():
 
 def test_pid_turbidostat_algorithm():
 
-    target_od = 1.0
-    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=1.0, duration=30, verbose=2)
-
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01, verbose=100)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.20, verbose=100)
-    pause()
-    assert isinstance(next(algo), events.NoEvent)
+    target_od = 2.4
+    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=2.0, duration=30, verbose=2)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.0)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 3.2)
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle == 0.25
+    assert e.volume_to_cycle > 1.0
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.90)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 3.1)
     pause()
     e = next(algo)
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle < 0.25
-
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.94)
-    pause()
-    e = next(algo)
-    assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle < 0.25
-
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.15)
-    pause()
-    e = next(algo)
-    assert isinstance(e, events.DilutionEvent)
-
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.50)
-    pause()
-    e = next(algo)
-    assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle > 0.25
-
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 12.0)
-    pause()
-    e = next(algo)
-    assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle > 0.90
+    assert e.volume_to_cycle > 1.0
 
 
 def test_morbidostat_algorithm():
