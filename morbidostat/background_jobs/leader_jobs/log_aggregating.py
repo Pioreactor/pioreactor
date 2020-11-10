@@ -5,6 +5,7 @@ This job runs on the leader, and is a replacement for the NodeRed aggregation jo
 import signal
 import time
 import os
+import traceback
 import click
 
 from morbidostat.pubsub import subscribe_and_callback
@@ -26,11 +27,14 @@ class LogAggregation(BackgroundJob):
         self.aggregated_log_table = self.read()
 
     def on_message(self, message):
-        print("heard message")
-        unit = message.topic.split("/")[1]
-        self.aggregated_log_table.append({"timestamp": current_time(), "message": message.payload, "topic": message.topic})
+        try:
+            print("heard message")
+            unit = message.topic.split("/")[1]
+            self.aggregated_log_table.append({"timestamp": current_time(), "message": message.payload, "topic": message.topic})
 
-        self.write()
+            self.write()
+        except:
+            traceback.print_exc()
         return
 
     def clear(self, message):
@@ -58,6 +62,7 @@ class LogAggregation(BackgroundJob):
 
     def passive_listeners(self):
 
+        print(self.topics)
         subscribe_and_callback(self.topics, self.on_message)
         subscribe_and_callback(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/aggregated_log_table/set", self.clear)
 
