@@ -24,7 +24,18 @@ class BackgroundJob:
     This class handles the fanning out of class attributes, and the setting of those attributes. Use
     `morbidostat/<unit>/<experiment>/<job_name>/<attr>/set` to set an attribute.
 
-    `publish_out` is a list  of variables that will be sent to the broker on initialization and retained.
+
+    So this class controls most of the Homie convention that we follow:
+
+    1. The device lifecycle: init -> ready -> disconnect (or lost).
+        1. The job starts in `init`, where we publish `editable_settings` is a list  of variables that will be sent
+            to the broker on initialization and retained.
+        2. The job moves to `ready`.
+        3. We catch key interrupts and kill signals from the underlying machine, and set the state to
+           `disconnected`. This also empties to attributes (sets to None). I'm not sure what Homie does in
+           this case.
+        4. If the job exits otherwise (kill -9 or power loss), the state is `lost`, and a last-will saying so is broadcast.
+    2. Attributes are broadcast under $properties, and each has $settable set to True. This isn't used at the moment.
 
     """
 
@@ -37,16 +48,19 @@ class BackgroundJob:
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
 
-        self.init()
-        self.ready()
+        self.set_state("init")
+        self.set_state("ready")
 
     def init(self):
+        def catch_kill_signal(*args):
+            self.set_state("disconnected")
+            sys.exit()
 
-        signal.signal(signal.SIGTERM, self.catch_kill_signal)
-        signal.signal(signal.SIGINT, self.catch_kill_signal)
+        signal.signal(signal.SIGTERM, catch_kill_signal)
+        signal.signal(signal.SIGINT, catch_kill_signal)
 
         self.state = "init"
-        self.set_will()
+        self.send_will_to_leader()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 
@@ -70,8 +84,6 @@ class BackgroundJob:
                 verbose=self.verbose,
                 qos=QOS.AT_LEAST_ONCE,
             )
-
-        sys.exit()
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
@@ -140,14 +152,14 @@ class BackgroundJob:
             self.set_attr_from_message, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set", qos=QOS.EXACTLY_ONCE
         )
 
-        # everyone listens to $unit
+        # everyone listens to $unit (TODO: even leader?)
         subscribe_and_callback(
             self.set_attr_from_message,
             f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def set_will(self):
+    def send_will_to_leader(self):
         last_will = {
             "topic": f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/$state",
             "payload": "lost",
@@ -157,9 +169,6 @@ class BackgroundJob:
         self._client = mqtt.Client()
         self._client.connect(leader_hostname)
         self._client.will_set(**last_will)
-
-    def catch_kill_signal(self, *args):
-        self.set_state("disconnected")
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:
         super(BackgroundJob, self).__setattr__(name, value)

@@ -212,11 +212,10 @@ class PIDTurbidostat(ControlAlgorithm):
 
     @target_od.setter
     def target_od(self, value):
-        # super(PIDTurbidostat, self).__setattr__("target_od", value)
         self._target_od = value
         try:
             # may not be defined yet...
-            self.pid.setpoint = self.target_od
+            self.pid.set_setpoint(self.target_od)
         except:
             pass
 
@@ -298,7 +297,7 @@ class PIDMorbidostat(ControlAlgorithm):
     def target_growth_rate(self, value):
         self._target_growth_rate = value
         try:
-            self.pid.setpoint = self.target_growth_rate
+            self.pid.set_setpoint(self.target_od)
         except:
             pass
 

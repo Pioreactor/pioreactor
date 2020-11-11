@@ -147,7 +147,7 @@ def test_changing_morbidostat_parameters_over_mqtt():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/target_growth_rate/set", new_target)
     pause()
     assert algo.target_growth_rate == new_target
-    assert algo.pid.setpoint == new_target
+    assert algo.pid.pid.setpoint == new_target
 
 
 def test_changing_turbidostat_params_over_mqtt():
@@ -175,8 +175,8 @@ def test_changing_turbidostat_params_over_mqtt():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/target_od/set", new_od)
     pause()
     assert algo.target_od == new_od
-    assert algo.pid.setpoint == new_od
-    assert algo.min_od == 0.7 * new_od
+    assert algo.pid.pid.setpoint == new_od
+    assert algo.min_od == 0.75 * new_od
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():

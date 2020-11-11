@@ -200,6 +200,9 @@ class PID:
         self.experiment = experiment
         self.verbose = verbose
 
+    def set_setpoint(self, new_setpoint):
+        self.pid.setpoint = new_setpoint
+
     def update(self, input_, dt):
 
         output = self.pid(input_, dt)

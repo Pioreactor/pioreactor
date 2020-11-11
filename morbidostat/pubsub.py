@@ -134,7 +134,7 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
         topics.append(message.topic)
 
     thread = subscribe_and_callback(on_message, topics_to_prune, hostname=hostname)
-    thread.join(timeout=2)
+    thread.join(timeout=1)
 
-    for topic in topics:
+    for topic in topics.copy():
         publish(topic, None, retain=True, hostname=hostname)
