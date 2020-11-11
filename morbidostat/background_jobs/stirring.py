@@ -30,6 +30,8 @@ class Stirrer(BackgroundJob):
     editable_settings = ["duty_cycle"]
 
     def __init__(self, duty_cycle, unit, experiment, verbose=0, hertz=50, pin=int(config["rpi_pins"]["fan"])):
+        super(Stirrer, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
+
         self.hertz = hertz
         self.pin = pin
 
@@ -37,10 +39,7 @@ class Stirrer(BackgroundJob):
         GPIO.output(self.pin, 0)
         self.pwm = GPIO.PWM(self.pin, self.hertz)
         self._duty_cycle = duty_cycle
-
-        super(Stirrer, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
-
-        self.start_passive_listeners()
+        self.start_stirring()
 
     def start_stirring(self):
         self.pwm.start(90)  # get momentum to start
@@ -50,18 +49,14 @@ class Stirrer(BackgroundJob):
     def stop_stirring(self):
         self.pwm.stop()
 
-    @property
-    def active(self):
-        return int(self.duty_cycle > 0)
-
-    @active.setter
-    def active(self, value):
-        if value == 0:
-            self.stop_stirring()
-            self.duty_cycle = 0
-        elif value == 1:
-            self.duty_cycle = int(config["stirring"][f"duty_cycle{unit}"])
-            self.start_stirring()
+    def __setattr__(self, name, value):
+        if name == "state":
+            if value != "ready":
+                try:
+                    self.stop_stirring()
+                except:
+                    pass
+        super(Stirrer, self).__setattr__(name, value)
 
     @property
     def duty_cycle(self):
@@ -71,15 +66,14 @@ class Stirrer(BackgroundJob):
     def duty_cycle(self, value):
         self._duty_cycle = value
         self.pwm.ChangeDutyCycle(self.duty_cycle)
-        self.publish_attr("active")
 
 
 def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0):
     def terminate(*args):
         GPIO.cleanup()
-        sys.exit()
 
     signal.signal(signal.SIGTERM, terminate)
+    signal.signal(signal.SIGINT, terminate)
 
     publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: start stirring with duty cycle={duty_cycle}", verbose=verbose)
 

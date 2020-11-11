@@ -5,7 +5,7 @@ import os
 import socket
 from morbidostat.config import leader_hostname
 
-UNIVERSAL_IDENTIFIER = "$unit"
+UNIVERSAL_IDENTIFIER = "$broadcast"
 
 
 def get_latest_experiment_name():
@@ -14,11 +14,10 @@ def get_latest_experiment_name():
 
     from morbidostat.pubsub import subscribe
 
-    return str(subscribe("morbidostat/latest_experiment").payload, "utf-8")
+    return subscribe("morbidostat/latest_experiment").payload.decode()
 
 
 def get_hostname():
-
     if "pytest" in sys.modules:
         return "localhost"
     elif os.environ.get("HOSTNAME"):

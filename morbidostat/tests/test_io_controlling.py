@@ -190,13 +190,13 @@ def test_pause_in_io_controlling():
 
     algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     pause()
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/active/set", 0)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/$state/set", "sleeping")
     pause()
-    assert algo.active == 0
+    assert algo.state == "sleeping"
 
-    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/active/set", 1)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/$state/set", "ready")
     pause()
-    assert algo.active == 1
+    assert algo.state == "ready"
 
 
 def test_old_readings_will_not_execute_io():

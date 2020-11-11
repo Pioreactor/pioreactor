@@ -64,8 +64,8 @@ class ControlAlgorithm(BackgroundJob):
             time.sleep(10)  # wait some time for data to arrive, and try again.
             return self.run(counter=counter)
 
-        if self.active == 0:
-            event = events.NoEvent("currently paused. Set `active` to 1 to start again.")
+        if self.state != "ready":
+            event = events.NoEvent(f"currently in state {self.state}")
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(
@@ -129,8 +129,6 @@ class ControlAlgorithm(BackgroundJob):
     def start_passive_listeners(self):
         subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{self.sensor}")
         subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
-
-        super(ControlAlgorithm, self).start_passive_listeners()
 
 
 ######################

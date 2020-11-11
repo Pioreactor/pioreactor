@@ -93,7 +93,7 @@ class GrowthRateCalculator(BackgroundJob):
         return {angle: observations[angle] / self.od_normalization_factors[angle] for angle in observations.keys()}
 
     def update_state_from_observation(self, message):
-        if not self.active:
+        if self.state != "ready":
             return
 
         if self.ekf is None:
@@ -147,8 +147,6 @@ class GrowthRateCalculator(BackgroundJob):
         # process incoming data
         subscribe_and_callback(self.update_state_from_observation, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
         subscribe_and_callback(self.update_ekf_variance_after_io_event, f"morbidostat/{self.unit}/{self.experiment}/io_events")
-
-        super(GrowthRateCalculator, self).start_passive_listeners()
 
     @staticmethod
     def json_to_sorted_dict(json_dict):

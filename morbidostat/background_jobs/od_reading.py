@@ -81,7 +81,7 @@ class ODReader(BackgroundJob):
         self.start_passive_listeners()
 
     def take_reading(self, counter=None):
-        while self.active == 0:
+        while self.state != "ready":
             time.sleep(0.5)
 
         try:

@@ -100,4 +100,3 @@ class AltMediaCalculator(BackgroundJob):
         subscribe_and_callback(
             callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
         )
-        super(AltMediaCalculator, self).start_passive_listeners()

@@ -9,7 +9,7 @@ from morbidostat.pubsub import publish
 
 def pause():
     # to avoid race conditions
-    time.sleep(0.5)
+    time.sleep(10.5)
 
 
 def test_stirring_runs():
@@ -29,12 +29,12 @@ def test_change_stirring_mid_cycle():
     pause()
 
     assert st.duty_cycle == new_dc
-    assert st.active == 1
+    assert st.state == "ready"
 
     publish(f"morbidostat/{unit}/{exp}/stirring/duty_cycle/set", 0)
     pause()
     assert st.duty_cycle == 0
-    assert st.active == 0
+    assert st.state == "sleeping"
     pause()
 
 
@@ -45,12 +45,12 @@ def test_pause_stirring_mid_cycle():
     assert st.duty_cycle == original_dc
     pause()
 
-    publish(f"morbidostat/{unit}/{exp}/stirring/active/set", 0)
+    publish(f"morbidostat/{unit}/{exp}/stirring/$state/set", "sleeping")
     pause()
 
     assert st.duty_cycle == 0
 
-    publish(f"morbidostat/{unit}/{exp}/stirring/active/set", 1)
+    publish(f"morbidostat/{unit}/{exp}/stirring/$state/set", "ready")
     pause()
 
     assert st.duty_cycle == 50
