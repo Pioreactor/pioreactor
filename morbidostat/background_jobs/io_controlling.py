@@ -93,12 +93,13 @@ class ControlAlgorithm(BackgroundJob):
                 verbose=self.verbose,
             )
 
-        if (media_ml > 0.3) or (alt_media_ml > 0.3):
-            if media_ml > 0.3:
+        max_ = 0.3
+        if (media_ml > max_) or (alt_media_ml > max_):
+            if media_ml > max_:
                 self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
                 self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
 
-            if alt_media_ml > 0.3:
+            if alt_media_ml > max_:
                 self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
                 self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
         else:

@@ -282,3 +282,18 @@ def test_execute_io_action():
     pause()
     assert ca.throughput_calculator.media_throughput == 0.65
     assert ca.throughput_calculator.alt_media_throughput == 0.35
+
+    ca.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
+    pause()
+    assert ca.throughput_calculator.media_throughput == 0.80
+    assert ca.throughput_calculator.alt_media_throughput == 0.50
+
+    ca.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
+    pause()
+    assert ca.throughput_calculator.media_throughput == 1.80
+    assert ca.throughput_calculator.alt_media_throughput == 0.50
+
+    ca.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
+    pause()
+    assert ca.throughput_calculator.media_throughput == 1.80
+    assert ca.throughput_calculator.alt_media_throughput == 1.50
