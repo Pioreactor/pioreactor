@@ -101,13 +101,7 @@ class BackgroundJob:
             )
 
     def set_state(self, new_state):
-        if hasattr(self, "state"):
-            current_state = self.state
-            publish(
-                f"morbidostat/{self.unit}/{self.experiment}/log",
-                f"[{self.job_name}] Updated state from {current_state} to {new_state}.",
-                verbose=self.verbose,
-            )
+        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{self.job_name}]: {new_state}", verbose=self.verbose)
         getattr(self, new_state)()
 
     def set_attr_from_message(self, message):

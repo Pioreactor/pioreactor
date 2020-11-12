@@ -66,9 +66,7 @@ class ODReader(BackgroundJob):
     editable_settings = []
 
     def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
-        self.unit = unit
-        self.experiment = experiment
-        self.verbose = verbose
+        super(ODReader, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.ma = MovingStats(lookback=20)
         self.ads = ads
         self.od_channels_to_analog_in = {}
@@ -76,9 +74,6 @@ class ODReader(BackgroundJob):
         for (label, channel) in od_channels:
             ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
             self.od_channels_to_analog_in[label] = ai
-
-        super(ODReader, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
-        self.start_passive_listeners()
 
     def take_reading(self, counter=None):
         while self.state != self.READY:

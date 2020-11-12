@@ -28,12 +28,10 @@ class ThroughputCalculator(BackgroundJob):
 
     on leader:
         one source for aggregation data
-        breaks the pattern of background jobs running on workers (hence why it's hard to design an api for the command line)
-            are there other leader bj that I can think of?
-            what other shared resources are there? None
         useful metric only in aggregate
     on worker
         better api (runs when io_controlling runs)
+        used in tests (maybe an anti-pattern)
         useless metric for an individual unit, makes it hard to "reset" (i.e. if I wanted to set it back to 0 after a media exchange)
         UI has to aggregate - this is tricky: the totals are not summable.
             I would need the totals, and then the deltas, or keep state of individual totals in react state, and aggregate in the render...
