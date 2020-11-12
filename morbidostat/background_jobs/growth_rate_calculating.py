@@ -93,7 +93,7 @@ class GrowthRateCalculator(BackgroundJob):
         return {angle: observations[angle] / self.od_normalization_factors[angle] for angle in observations.keys()}
 
     def update_state_from_observation(self, message):
-        if self.state != "ready":
+        if self.state != self.READY:
             return
 
         if self.ekf is None:

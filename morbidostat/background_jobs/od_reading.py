@@ -81,7 +81,7 @@ class ODReader(BackgroundJob):
         self.start_passive_listeners()
 
     def take_reading(self, counter=None):
-        while self.state != "ready":
+        while self.state != self.READY:
             time.sleep(0.5)
 
         try:
@@ -100,6 +100,7 @@ class ODReader(BackgroundJob):
                         f"[{JOB_NAME}] OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V.",
                         verbose=self.verbose,
                     )
+                # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
             # publish the batch of data, too, for growth reading
             publish(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched", json.dumps(raw_signals), verbose=self.verbose)

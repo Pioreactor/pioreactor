@@ -130,11 +130,6 @@ def test_pid_morbidostat_algorithm():
     assert isinstance(next(algo), events.AltMediaEvent)
 
 
-def test_execute_io_action():
-    ca = ControlAlgorithm(verbose=2, unit="{unit}", experiment="{experiment}")
-    ca.execute_io_action(media_ml=0.65, alt_media_ml=0.15, waste_ml=0.80)
-
-
 def test_changing_morbidostat_parameters_over_mqtt():
 
     target_growth_rate = 0.05
@@ -277,3 +272,13 @@ def test_throughput_calculator_manual_set():
     pause()
     assert algo.throughput_calculator.media_throughput == 0
     assert algo.throughput_calculator.alt_media_throughput == 0
+
+
+def test_execute_io_action():
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/alt_media_throughput", None, retain=True)
+    ca = ControlAlgorithm(verbose=2, unit=unit, experiment=experiment)
+    ca.execute_io_action(media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35)
+    pause()
+    assert ca.throughput_calculator.media_throughput == 0.65
+    assert ca.throughput_calculator.alt_media_throughput == 0.35

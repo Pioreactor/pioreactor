@@ -2,7 +2,9 @@
 import signal
 from typing import Optional, Union
 import sys
+import atexit
 from collections import namedtuple
+
 from morbidostat.pubsub import subscribe_and_callback
 from morbidostat import utils
 from morbidostat.pubsub import publish, QOS
@@ -32,12 +34,18 @@ class BackgroundJob:
             to the broker on initialization and retained.
         2. The job moves to `ready`.
         3. We catch key interrupts and kill signals from the underlying machine, and set the state to
-           `disconnected`. This also empties to attributes (sets to None). I'm not sure what Homie does in
-           this case.
+           `disconnected`. This should not empty the attributes, since they may be needed upon node restart.
         4. If the job exits otherwise (kill -9 or power loss), the state is `lost`, and a last-will saying so is broadcast.
     2. Attributes are broadcast under $properties, and each has $settable set to True. This isn't used at the moment.
 
     """
+
+    # Homie device lifecycle
+    INIT = "init"
+    READY = "ready"
+    DISCONNECTED = "disconnected"
+    SLEEPING = "sleeping"
+    LOST = "lost"
 
     editable_settings = []
 
@@ -48,42 +56,32 @@ class BackgroundJob:
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
 
-        self.set_state("init")
-        self.set_state("ready")
+        self.set_state(self.INIT)
+        self.set_state(self.READY)
 
     def init(self):
-        def catch_kill_signal(*args):
+        self.state = self.INIT
+
+        def disconnect_gracefully(*args):
             self.set_state("disconnected")
-            sys.exit()
 
-        signal.signal(signal.SIGTERM, catch_kill_signal)
-        signal.signal(signal.SIGINT, catch_kill_signal)
+        signal.signal(signal.SIGTERM, disconnect_gracefully)
+        signal.signal(signal.SIGINT, disconnect_gracefully)
+        atexit.register(disconnect_gracefully)
 
-        self.state = "init"
         self.send_will_to_leader()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 
     def ready(self):
-        self.state = "ready"
+        self.state = self.READY
 
     def sleeping(self):
-        self.state = "sleeping"
+        self.state = self.SLEEPING
 
     def disconnected(self):
-        self.state = "disconnected"
+        self.state = self.DISCONNECTED
         self._client.disconnect()
-
-        for attr in self.editable_settings:
-            if attr == "state":
-                continue
-
-            publish(
-                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                verbose=self.verbose,
-                qos=QOS.AT_LEAST_ONCE,
-            )
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
@@ -103,6 +101,13 @@ class BackgroundJob:
             )
 
     def set_state(self, new_state):
+        if hasattr(self, "state"):
+            current_state = self.state
+            publish(
+                f"morbidostat/{self.unit}/{self.experiment}/log",
+                f"[{self.job_name}] Updated state from {current_state} to {new_state}.",
+                verbose=self.verbose,
+            )
         getattr(self, new_state)()
 
     def set_attr_from_message(self, message):
@@ -162,7 +167,7 @@ class BackgroundJob:
     def send_will_to_leader(self):
         last_will = {
             "topic": f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/$state",
-            "payload": "lost",
+            "payload": self.LOST,
             "qos": QOS.EXACTLY_ONCE,
             "retain": True,
         }

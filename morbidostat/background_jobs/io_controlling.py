@@ -32,7 +32,7 @@ def brief_pause():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return
     else:
-        time.sleep(2.5)
+        time.sleep(10.0)
         return
 
 
@@ -48,7 +48,6 @@ class ControlAlgorithm(BackgroundJob):
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "display_name"]
-    display_name = "ControlAlgorithm"
 
     def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
         super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
@@ -56,6 +55,7 @@ class ControlAlgorithm(BackgroundJob):
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.throughput_calculator = ThroughputCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
+        self.display_name = "ControlAlgorithm"
 
         self.start_passive_listeners()
 
@@ -64,7 +64,7 @@ class ControlAlgorithm(BackgroundJob):
             time.sleep(10)  # wait some time for data to arrive, and try again.
             return self.run(counter=counter)
 
-        if self.state != "ready":
+        if self.state != self.READY:
             event = events.NoEvent(f"currently in state {self.state}")
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
@@ -93,19 +93,21 @@ class ControlAlgorithm(BackgroundJob):
                 verbose=self.verbose,
             )
 
-        if waste_ml > 0.5:
-            """
-            this can be smarter to minimize noise.
-            """
-            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2, log=False)
-            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=media_ml / 2, waste_ml=waste_ml / 2, log=False)
+        if (media_ml > 0.3) or (alt_media_ml > 0.3):
+            if media_ml > 0.3:
+                self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
+                self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
+
+            if alt_media_ml > 0.3:
+                self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
+                self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
         else:
             if alt_media_ml > 0:
                 add_alt_media(ml=alt_media_ml, verbose=self.verbose)
-                brief_pause()  # allow time for the addition to mix
+                brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
             if media_ml > 0:
                 add_media(ml=media_ml, verbose=self.verbose)
-                brief_pause()  # allow time for the addition to mix
+                brief_pause()
             if waste_ml > 0:
                 remove_waste(ml=waste_ml, verbose=self.verbose)
                 # run remove_waste for an additional second to keep volume constant (determined by the length of the waste tube)
@@ -137,8 +139,9 @@ class ControlAlgorithm(BackgroundJob):
 
 
 class Silent(ControlAlgorithm):
-
-    display_name = "Silent"
+    def __init__(self, **kwargs):
+        super(Silent, self).__init__(**kwargs)
+        self.display_name = "Silent"
 
     def execute(self, *args, **kwargs) -> events.Event:
         return events.NoEvent("never execute IO events in Silent mode")
@@ -147,13 +150,12 @@ class Silent(ControlAlgorithm):
 class Turbidostat(ControlAlgorithm):
     """
     turbidostat mode - try to keep cell density constant. The algorithm should run at
-    near every second (limited by the OD reading rate)
+    near every minute (limited by the OD reading rate)
     """
-
-    display_name = "Turbidostat"
 
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Turbidostat, self).__init__(**kwargs)
+        self.display_name = "Turbidostat"
         self.target_od = target_od
         self.volume = volume
 
@@ -173,12 +175,11 @@ class PIDTurbidostat(ControlAlgorithm):
     returns 0.03, then we should remove ~97% of the volume. Choose volume to be about 1.5ml - 2.0ml.
     """
 
-    display_name = "Turbidostat"
-
     def __init__(self, target_od=None, volume=None, duration=None, verbose=0, **kwargs):
         super(PIDTurbidostat, self).__init__(verbose=verbose, **kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert volume is not None, "`volume` must be set"
+        self.display_name = "Turbidostat"
         self.target_od = target_od
         self.volume = volume
         self.verbose = verbose
@@ -225,20 +226,19 @@ class PIDMorbidostat(ControlAlgorithm):
     As defined in Zhong 2020
     """
 
-    display_name = "Morbidostat"
-
     def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
         super(PIDMorbidostat, self).__init__(verbose=verbose, **kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
         assert duration is not None, "`duration` must be set"
 
+        self.display_name = "Morbidostat"
         self.target_growth_rate = target_growth_rate
         self.target_od = target_od
         self.duration = duration
 
         self.pid = PID(
-            -0.5, -0.005, -0.25, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
+            -0.5, -0.0001, -0.25, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
 
         if volume is not None:
@@ -307,10 +307,9 @@ class Morbidostat(ControlAlgorithm):
     As defined in Toprak 2013.
     """
 
-    display_name = "Morbidostat"
-
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Morbidostat, self).__init__(**kwargs)
+        self.display_name = "Morbidostat"
         self.target_od = target_od
         self.volume = volume
 
@@ -381,7 +380,7 @@ def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_fir
 @click.option("--mode", default="silent", help="set the mode of the system: turbidostat, morbidostat, silent, etc.")
 @click.option("--target-od", default=None, type=float)
 @click.option("--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only")
-@click.option("--duration", default=30, help="Time, in minutes, between every monitor check")
+@click.option("--duration", default=60, help="Time, in minutes, between every monitor check")
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
 @click.option("--sensor", default="135/A")
 @click.option(

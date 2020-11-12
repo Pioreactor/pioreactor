@@ -51,7 +51,7 @@ class Stirrer(BackgroundJob):
 
     def __setattr__(self, name, value):
         if name == "state":
-            if value != "ready":
+            if value != self.READY:
                 try:
                     self.stop_stirring()
                 except:
