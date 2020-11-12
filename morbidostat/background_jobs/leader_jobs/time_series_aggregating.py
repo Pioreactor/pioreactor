@@ -106,9 +106,9 @@ class TimeSeriesAggregation(BackgroundJob):
 
 @click.command()
 @click.option("--output-dir", "-o", default="/home/pi/morbidostatui/backend/build/data/", help="the output directory")
-@click.option("--verbose", "-v", count=True, help="print to std.out")
 @click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
-def run(output_dir, verbose):
+@click.option("--verbose", "-v", count=True, help="print to std.out")
+def run(output_dir, skip_cache, verbose):
     def single_sensor_label_from_topic(topic):
         split_topic = topic.split("/")
         return f"{split_topic[1]}-{split_topic[-1]}"
