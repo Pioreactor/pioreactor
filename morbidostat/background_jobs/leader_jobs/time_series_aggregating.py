@@ -36,7 +36,6 @@ class TimeSeriesAggregation(BackgroundJob):
         self.time_window_minutes = time_window_minutes
         self.every_n_minutes = every_n_minutes
         self.start_passive_listeners()
-        self.stream_metadata = {}
 
     @property
     def output(self):
@@ -46,22 +45,22 @@ class TimeSeriesAggregation(BackgroundJob):
     def on_message(self, message):
         received_at = current_time()
         try:
-            print(message.topic)
             label = self.extract_label(message.topic)
 
             if label not in self.aggregated_time_series["series"]:
                 self.aggregated_time_series["series"].append(label)
                 self.aggregated_time_series["data"].append([])
-                self.stream_metadata[label] = {"earliest": received_at, "latest": received_at}
+                self.aggregated_time_series["metadata"].append({"earliest": received_at, "latest": received_at})
+
+            ix = self.aggregated_time_series["series"].index(label)
 
             if self.every_n_minutes:
                 # check if the latest is beyond the current time - n_minutes
                 # this skips the first data point.
-                if (received_at - self.every_n_minutes * 60 * 1000) < self.stream_metadata[label]["latest"]:
+                if (received_at - self.every_n_minutes * 60 * 1000) < self.aggregated_time_series["metadata"][ix]["latest"]:
                     return
 
-            self.stream_metadata[label]["latest"] = received_at
-            ix = self.aggregated_time_series["series"].index(label)
+            self.aggregated_time_series["metadata"][ix]["latest"] = received_at
             self.aggregated_time_series["data"][ix].append({"x": received_at, "y": float(message.payload)})
 
             if self.time_window_minutes:
@@ -70,7 +69,7 @@ class TimeSeriesAggregation(BackgroundJob):
                     for data in self.aggregated_time_series["data"][ix]
                     if data["x"] > (current_time() - self.time_window_minutes * 60 * 1000)
                 ]
-                self.stream_metadata[label]["earliest"] = current_time() - self.time_window_minutes * 60 * 1000
+                self.aggregated_time_series["metadata"][ix]["earliest"] = current_time() - self.time_window_minutes * 60 * 1000
 
             self.write()
         except:
@@ -80,19 +79,19 @@ class TimeSeriesAggregation(BackgroundJob):
     def clear(self, message):
         payload = message.payload
         if not payload:
-            self.aggregated_time_series = {"series": [], "data": []}
+            self.aggregated_time_series = {"series": [], "data": [], "metadata": []}
             self.write()
         else:
             publish(f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the cache.")
 
     def read(self):
         if self.skip_cache:
-            return {"series": [], "data": []}
+            return {"series": [], "data": [], "metadata": []}
         try:
             with open(self.output, "r") as f:
                 return json.load(f)
         except Exception as e:
-            return {"series": [], "data": []}
+            return {"series": [], "data": [], "metadata": []}
 
     def write(self):
         with open(self.output, "w") as f:
