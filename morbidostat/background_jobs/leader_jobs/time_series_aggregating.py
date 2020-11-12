@@ -41,7 +41,7 @@ class TimeSeriesAggregation(BackgroundJob):
     @property
     def output(self):
         pieces = filter(lambda s: s != "+", self.topic.split("/")[3:])
-        return output_dir + "_".join(pieces) + ".json"
+        return self.output_dir + "_".join(pieces) + ".json"
 
     def on_message(self, message):
         received_at = current_time()
