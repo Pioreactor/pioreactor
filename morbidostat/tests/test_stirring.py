@@ -4,12 +4,12 @@ import time
 import pytest
 from morbidostat.background_jobs.stirring import stirring, Stirrer
 from morbidostat.whoami import unit, experiment as exp
-from morbidostat.pubsub import publish
+from morbidostat.pubsub import publish, subscribe
 
 
 def pause():
     # to avoid race conditions
-    time.sleep(10.5)
+    time.sleep(0.5)
 
 
 def test_stirring_runs():
@@ -54,3 +54,16 @@ def test_pause_stirring_mid_cycle():
     pause()
 
     assert st.duty_cycle == 50
+
+
+def test_publish_duty_cycle():
+    publish(f"morbidostat/{unit}/{exp}/stirring/duty_cycle", None, retain=True)
+    pause()
+    original_dc = 50
+
+    st = Stirrer(original_dc, unit, exp, verbose=2)
+    assert st.duty_cycle == original_dc
+
+    pause()
+    message = subscribe(f"morbidostat/{unit}/{exp}/stirring/duty_cycle")
+    assert float(message.payload) == 50

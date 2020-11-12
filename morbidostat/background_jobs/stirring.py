@@ -38,7 +38,7 @@ class Stirrer(BackgroundJob):
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, 0)
         self.pwm = GPIO.PWM(self.pin, self.hertz)
-        self._duty_cycle = duty_cycle
+        self.duty_cycle = duty_cycle
         self.start_stirring()
 
     def start_stirring(self):
