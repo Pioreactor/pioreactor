@@ -46,6 +46,7 @@ class TimeSeriesAggregation(BackgroundJob):
     def on_message(self, message):
         received_at = current_time()
         try:
+            print(message.topic)
             label = self.extract_label(message.topic)
 
             if label not in self.aggregated_time_series["series"]:
