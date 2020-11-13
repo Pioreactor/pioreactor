@@ -45,7 +45,7 @@ class TimeSeriesAggregation(BackgroundJob):
         self.record_every_n_minutes = record_every_n_minutes
         self.write_every_n_minutes = write_every_n_minutes
         self.start_passive_listeners()
-        self.latest_write = None
+        self.latest_write = current_time()
 
     @property
     def output(self):
@@ -83,7 +83,7 @@ class TimeSeriesAggregation(BackgroundJob):
                 ]
                 self.aggregated_time_series["metadata"][ix]["earliest"] = current_time() - self.time_window_minutes * 60 * 1000
 
-            if (self.latest_write) and (current_time() > self.latest_write + self.write_every_n_minutes * 60 * 1000):
+            if current_time() > self.latest_write + self.write_every_n_minutes * 60 * 1000:
                 self.write()
         except:
             traceback.print_exc()
