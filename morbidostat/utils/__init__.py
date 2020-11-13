@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import psutils
+import psutil
 
 
 def mb_jobs_running():
