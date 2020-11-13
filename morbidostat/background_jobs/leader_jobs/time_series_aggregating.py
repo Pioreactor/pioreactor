@@ -83,7 +83,9 @@ class TimeSeriesAggregation(BackgroundJob):
                 ]
                 self.aggregated_time_series["metadata"][ix]["earliest"] = current_time() - self.time_window_minutes * 60 * 1000
 
-            if current_time() > self.latest_write + self.write_every_n_minutes * 60 * 1000:
+            print(current_time() > (self.latest_write + self.write_every_n_minutes * 60 * 1000))
+            if current_time() > (self.latest_write + self.write_every_n_minutes * 60 * 1000):
+                print("Here")
                 self.write()
         except:
             traceback.print_exc()
