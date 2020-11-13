@@ -66,7 +66,10 @@ class BackgroundJob:
         self.state = self.INIT
 
         def disconnect_gracefully(*args):
+            import sys
+
             self.set_state("disconnected")
+            sys.exit()
 
         signal.signal(signal.SIGTERM, disconnect_gracefully)
         signal.signal(signal.SIGINT, disconnect_gracefully)
