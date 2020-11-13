@@ -1,47 +1,14 @@
 # -*- coding: utf-8 -*-
-import sys
-import socket
-import os
-import signal
-import json
-from functools import wraps
-import numpy as np
+import psutils
 
 
-def log_start(unit, experiment):
-    def actual_decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            from morbidostat.pubsub import publish
-
-            func_name = func.__name__
-            publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: starting.", verbose=1)
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return actual_decorator
-
-
-def log_stop(unit, experiment):
-    def actual_decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            from morbidostat.pubsub import publish
-
-            func_name = func.__name__
-
-            def terminate(*args):
-                publish(f"morbidostat/{unit}/{experiment}/log", f"[{func_name}]: terminated.", verbose=1)
-                sys.exit()
-
-            signal.signal(signal.SIGTERM, terminate)
-
-            return func(*args, **kwargs)
-
-        return wrapper
-
-    return actual_decorator
+def mb_jobs_running():
+    jobs = []
+    for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
+        if proc.info["cmdline"] and (proc.info["cmdline"][0] == "python3"):
+            job = proc.info["cmdline"][3].split(".")[-1]
+            jobs.append(job)
+    return jobs
 
 
 def pump_ml_to_duration(ml, duty_cycle, duration_=0):

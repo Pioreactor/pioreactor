@@ -4,13 +4,13 @@ from typing import Optional, Union
 import sys
 import atexit
 from collections import namedtuple
+import paho.mqtt.client as mqtt
 
 from morbidostat.pubsub import subscribe_and_callback
 from morbidostat import utils
 from morbidostat.pubsub import publish, QOS
 from morbidostat.whoami import UNIVERSAL_IDENTIFIER
 from morbidostat.config import leader_hostname
-import paho.mqtt.client as mqtt
 
 
 def split_topic_for_setting(topic):
@@ -50,11 +50,14 @@ class BackgroundJob:
     editable_settings = []
 
     def __init__(self, job_name: str, verbose: int = 0, experiment: Optional[str] = None, unit: Optional[str] = None) -> None:
+
         self.job_name = job_name
         self.experiment = experiment
         self.verbose = verbose
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
+
+        self.check_for_duplicate_process()
 
         self.set_state(self.INIT)
         self.set_state(self.READY)
@@ -69,7 +72,7 @@ class BackgroundJob:
         signal.signal(signal.SIGINT, disconnect_gracefully)
         atexit.register(disconnect_gracefully)
 
-        self.send_will_to_leader()
+        self.send_last_will_to_leader()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 
@@ -158,7 +161,7 @@ class BackgroundJob:
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def send_will_to_leader(self):
+    def send_last_will_to_leader(self):
         last_will = {
             "topic": f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/$state",
             "payload": self.LOST,
@@ -168,6 +171,10 @@ class BackgroundJob:
         self._client = mqtt.Client()
         self._client.connect(leader_hostname)
         self._client.will_set(**last_will)
+
+    def check_for_duplicate_process():
+        if self.job_name in utils.mb_jobs_running():
+            raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:
         super(BackgroundJob, self).__setattr__(name, value)

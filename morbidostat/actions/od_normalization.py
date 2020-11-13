@@ -12,35 +12,11 @@ import threading
 from click import echo, style
 
 from morbidostat.config import config
-from morbidostat.utils import log_start, log_stop
+from morbidostat.utils import mb_jobs_running
 from morbidostat.whoami import unit, experiment, hostname
 from morbidostat import pubsub
 from morbidostat.background_jobs.od_reading import od_reading
 from morbidostat.background_jobs.stirring import Stirrer
-
-
-def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0):
-    # if this look familiar, it's because it is. I can't use `signal` in threads, so I just cp'ed this here.
-    publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: start stirring with duty cycle={duty_cycle}", verbose=verbose)
-
-    try:
-        stirrer = Stirrer(duty_cycle, unit, experiment)
-        stirrer.start_stirring()
-        time.sleep(duration)
-
-    except Exception as e:
-        GPIO.cleanup()
-        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[stirring] failed with {str(e)}", verbose=verbose)
-        raise e
-    finally:
-        GPIO.cleanup()
-    return
-
-
-def start_stirring_in_background_thread(verbose):
-    thread = threading.Thread(target=stirring, kwargs={"verbose": verbose, "duration": 30})
-    thread.start()
-    return thread
 
 
 def green(msg):
@@ -51,14 +27,13 @@ def bold(msg):
     return style(msg, bold=True)
 
 
-@log_start(unit, experiment)
-@log_stop(unit, experiment)
 def od_normalization(od_angle_channel, verbose):
+    if ("od_reading" not in mb_jobs_running()) or ("stirring" not in mb_jobs_running()):
+        raise ValueError("Both od_reading and stirring jobs should be running.")
+
     echo()
     echo(bold(f"This task will compute statistics from {hostname}."))
 
-    echo(bold("Starting stirring"))
-    stirring_thread = start_stirring_in_background_thread(verbose)
     time.sleep(0.5)
     readings = defaultdict(list)
     sampling_rate = 0.5

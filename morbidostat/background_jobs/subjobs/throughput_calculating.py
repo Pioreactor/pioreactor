@@ -123,8 +123,6 @@ class ThroughputCalculator(BackgroundJob):
         )
 
 
-@utils.log_start(unit, experiment)
-@utils.log_stop(unit, experiment)
 def throughput_calculating():
 
     calc = ThroughputCalculator()

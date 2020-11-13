@@ -132,8 +132,6 @@ class ODReader(BackgroundJob):
             raise e
 
 
-@log_start(unit, experiment)
-@log_stop(unit, experiment)
 def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sampling"]["samples_per_second"])):
     angle_counter = Counter()
     od_channels = []
