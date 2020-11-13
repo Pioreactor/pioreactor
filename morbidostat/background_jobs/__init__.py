@@ -176,9 +176,9 @@ class BackgroundJob:
         self._client.will_set(**last_will)
 
     def check_for_duplicate_process(self):
-        pass
-        # if self.job_name in mb_jobs_running():
-        #    raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
+        # this process counts as one - see if there is another.
+        if sum([p == self.job_name for p in mb_jobs_running()]) > 1:
+            raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:
         super(BackgroundJob, self).__setattr__(name, value)
