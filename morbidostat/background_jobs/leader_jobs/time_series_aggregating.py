@@ -109,7 +109,7 @@ class TimeSeriesAggregation(BackgroundJob):
             return {"series": [], "data": [], "metadata": []}
 
     def write(self):
-        self.latest_write = current()
+        self.latest_write = current_time()
         with open(self.output, "w") as f:
             json.dump(self.aggregated_time_series, f)
 
