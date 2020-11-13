@@ -233,7 +233,7 @@ class PID:
             "Kd": self.pid.Kd,
             "Ki": self.pid.Ki,
             "Kp": self.pid.Kp,
-            "K0": self.pid.K0,
+            "K0": self.K0,
             "integral": self.pid._integral,
             "proportional": self.pid._proportional,
             "derivative": self.pid._derivative,
