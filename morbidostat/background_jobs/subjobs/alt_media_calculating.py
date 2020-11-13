@@ -12,7 +12,7 @@ import os
 import click
 
 from morbidostat.pubsub import publish, subscribe_and_callback, QOS
-from morbidostat.utils import log_start, log_stop
+
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
 from morbidostat.background_jobs import BackgroundJob

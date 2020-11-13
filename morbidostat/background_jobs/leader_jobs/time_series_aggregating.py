@@ -11,7 +11,7 @@ import json
 
 import click
 
-from morbidostat.utils import log_start, log_stop
+
 from morbidostat.pubsub import subscribe_and_callback, publish
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.whoami import unit, experiment, hostname

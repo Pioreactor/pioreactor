@@ -35,7 +35,7 @@ import board
 import busio
 
 from morbidostat.utils.streaming_calculations import MovingStats
-from morbidostat.utils import log_start, log_stop
+
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
 from morbidostat.pubsub import publish, subscribe_and_callback

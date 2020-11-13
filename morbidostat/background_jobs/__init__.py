@@ -7,7 +7,7 @@ from collections import namedtuple
 import paho.mqtt.client as mqtt
 
 from morbidostat.pubsub import subscribe_and_callback
-from morbidostat import utils
+from morbidostat.utils import mb_jobs_running
 from morbidostat.pubsub import publish, QOS
 from morbidostat.whoami import UNIVERSAL_IDENTIFIER
 from morbidostat.config import leader_hostname
@@ -175,8 +175,8 @@ class BackgroundJob:
         self._client.connect(leader_hostname)
         self._client.will_set(**last_will)
 
-    def check_for_duplicate_process():
-        if self.job_name in utils.mb_jobs_running():
+    def check_for_duplicate_process(self):
+        if self.job_name in mb_jobs_running():
             raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:

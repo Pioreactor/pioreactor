@@ -10,7 +10,7 @@ import time, os, traceback, signal, sys
 import click
 import RPi.GPIO as GPIO
 
-from morbidostat.utils import log_start, log_stop
+
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
 from morbidostat.pubsub import publish, subscribe_and_callback

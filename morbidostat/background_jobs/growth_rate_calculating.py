@@ -11,7 +11,7 @@ import click
 
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
 from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
-from morbidostat.utils import log_start, log_stop
+
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config, leader_hostname
 from morbidostat.background_jobs import BackgroundJob
@@ -166,8 +166,6 @@ class GrowthRateCalculator(BackgroundJob):
         return OD_covariance
 
 
-@log_start(unit, experiment)
-@log_stop(unit, experiment)
 def growth_rate_calculating(verbose, ignore_cache):
     calculator = GrowthRateCalculator(verbose=verbose, ignore_cache=ignore_cache, unit=unit, experiment=experiment)
     while True:

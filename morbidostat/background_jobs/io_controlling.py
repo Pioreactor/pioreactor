@@ -15,7 +15,7 @@ from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.pubsub import publish, subscribe_and_callback
-from morbidostat.utils import log_start, log_stop
+
 from morbidostat.utils.timing import every
 from morbidostat.utils.streaming_calculations import PID
 from morbidostat.whoami import unit, experiment
@@ -335,8 +335,6 @@ class Morbidostat(ControlAlgorithm):
             )
 
 
-@log_start(unit, experiment)
-@log_stop(unit, experiment)
 def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
 
     algorithms = {
