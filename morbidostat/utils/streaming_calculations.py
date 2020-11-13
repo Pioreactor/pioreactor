@@ -208,7 +208,7 @@ class PID:
 
         from morbidostat.whoami import unit, experiment
 
-        self.K0 = self.K0
+        self.K0 = K0
         self.pid = simple_PID(Kp, Ki, Kd, setpoint=setpoint, output_limits=output_limits, sample_time=sample_time, **kwargs)
         self.unit = unit
         self.experiment = experiment
