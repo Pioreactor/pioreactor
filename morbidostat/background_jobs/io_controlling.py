@@ -32,7 +32,7 @@ def brief_pause():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return
     else:
-        time.sleep(10.0)
+        time.sleep(5)
         return
 
 
@@ -94,14 +94,16 @@ class ControlAlgorithm(BackgroundJob):
             )
 
         max_ = 0.3
-        if (media_ml > max_) or (alt_media_ml > max_):
-            if media_ml > max_:
-                self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
-                self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
-
-            if alt_media_ml > max_:
-                self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
-                self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
+        if media_ml > max_:
+            self.execute_io_action(
+                alt_media_ml=alt_media_ml, media_ml=media_ml / 2, waste_ml=alt_media_ml + media_ml / 2, log=False
+            )
+            self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
+        elif alt_media_ml > max_:
+            self.execute_io_action(
+                alt_media_ml=alt_media_ml / 2, media_ml=media_ml, waste_ml=media_ml + alt_media_ml / 2, log=False
+            )
+            self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
         else:
             if alt_media_ml > 0:
                 add_alt_media(ml=alt_media_ml, verbose=self.verbose)
@@ -239,7 +241,7 @@ class PIDMorbidostat(ControlAlgorithm):
         self.duration = duration
 
         self.pid = PID(
-            -0.5, -0.0001, -0.25, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
+            -0.07, -0.005, -0.2, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
 
         if volume is not None:
@@ -257,8 +259,8 @@ class PIDMorbidostat(ControlAlgorithm):
             return events.NoEvent(f"latest OD less than OD to start diluting, {self.min_od:.2f}")
         else:
             fraction_of_alt_media_to_add = self.pid.update(
-                self.latest_growth_rate, dt=self.duration
-            )  # duration is measured in minutes, not seconds (as simple_pid would want)
+                self.latest_growth_rate, dt=self.duration / 60
+            )  # duration is measured in hours, not seconds (as simple_pid would want)
 
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_od > self.max_od:

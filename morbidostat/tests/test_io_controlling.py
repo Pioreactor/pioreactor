@@ -297,3 +297,16 @@ def test_execute_io_action():
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 1.50
+
+
+def test_execute_io_action2():
+    # regression test
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/alt_media_calculating/alt_media_fraction", None, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/alt_media_throughput", None, retain=True)
+
+    ca = ControlAlgorithm(verbose=2, unit=unit, experiment=experiment)
+    ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+    pause()
+    assert ca.throughput_calculator.media_throughput == 1.25
+    assert ca.throughput_calculator.alt_media_throughput == 0.01

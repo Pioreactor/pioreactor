@@ -139,7 +139,7 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_minutes=1,
+        write_every_n_minutes=0.75,
         time_window_minutes=120,  # TODO: move this to a config param
     )
 
@@ -151,7 +151,7 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_minutes=1,
+        write_every_n_minutes=0.75,
         time_window_minutes=120,  # TODO: move this to a config param
     )
 
@@ -163,7 +163,7 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
-        write_every_n_minutes=1,
+        write_every_n_minutes=0.75,
         record_every_n_minutes=5,
     )
 
@@ -175,7 +175,7 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
-        write_every_n_minutes=1,
+        write_every_n_minutes=0.75,
         time_window_minutes=120,
     )
 

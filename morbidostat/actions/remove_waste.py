@@ -31,7 +31,7 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
 
     publish(
         f"morbidostat/{unit}/{experiment}/io_events",
-        '{"volume_change": -%0.4f, "event": "remove_waste"}' % ml,
+        '{"volume_change": -%f, "event": "remove_waste"}' % ml,
         verbose=verbose,
         qos=QOS.EXACTLY_ONCE,
     )

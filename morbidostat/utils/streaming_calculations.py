@@ -191,11 +191,25 @@ class ExtendedKalmanFilter:
 class PID:
     # used in io_controlling classes
 
-    def __init__(self, *args, unit=None, experiment=None, verbose=0, **kwargs):
+    def __init__(
+        self,
+        Kp,
+        Ki,
+        Kd,
+        K0=0,
+        setpoint=None,
+        output_limits=None,
+        sample_time=None,
+        unit=None,
+        experiment=None,
+        verbose=0,
+        **kwargs,
+    ):
 
         from morbidostat.whoami import unit, experiment
 
-        self.pid = simple_PID(*args, **kwargs)
+        self.K0 = self.K0
+        self.pid = simple_PID(Kp, Ki, Kd, setpoint=setpoint, output_limits=output_limits, sample_time=sample_time, **kwargs)
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
@@ -205,7 +219,7 @@ class PID:
 
     def update(self, input_, dt):
 
-        output = self.pid(input_, dt)
+        output = self.pid(input_, dt) + self.K0
         self.publish_pid_stats()
         return output
 
@@ -219,6 +233,7 @@ class PID:
             "Kd": self.pid.Kd,
             "Ki": self.pid.Ki,
             "Kp": self.pid.Kp,
+            "K0": self.pid.K0,
             "integral": self.pid._integral,
             "proportional": self.pid._proportional,
             "derivative": self.pid._derivative,

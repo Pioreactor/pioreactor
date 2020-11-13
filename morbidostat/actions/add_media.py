@@ -28,7 +28,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
 
     publish(
         f"morbidostat/{unit}/{experiment}/io_events",
-        '{"volume_change": %0.4f, "event": "add_media"}' % ml,
+        '{"volume_change": %f, "event": "add_media"}' % ml,
         verbose=verbose,
         qos=QOS.EXACTLY_ONCE,
     )
