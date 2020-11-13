@@ -111,7 +111,7 @@ def test_every_n_minutes():
         verbose=0,
         skip_cache=True,
         extract_label=unit_from_topic,
-        every_n_minutes=5 / 60,
+        record_every_n_minutes=5 / 60,
     )
 
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.0)

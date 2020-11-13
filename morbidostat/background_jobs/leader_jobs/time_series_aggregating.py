@@ -25,7 +25,15 @@ def current_time():
 
 class TimeSeriesAggregation(BackgroundJob):
     def __init__(
-        self, topic, output_dir, extract_label, skip_cache=False, every_n_minutes=None, time_window_minutes=None, **kwargs
+        self,
+        topic,
+        output_dir,
+        extract_label,
+        skip_cache=False,
+        record_every_n_minutes=None,
+        write_every_n_minutes=None,
+        time_window_minutes=None,
+        **kwargs,
     ):
         super(TimeSeriesAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
         self.topic = topic
@@ -34,8 +42,10 @@ class TimeSeriesAggregation(BackgroundJob):
         self.aggregated_time_series = self.read()
         self.extract_label = extract_label
         self.time_window_minutes = time_window_minutes
-        self.every_n_minutes = every_n_minutes
+        self.record_every_n_minutes = record_every_n_minutes
+        self.write_every_n_minutes = write_every_n_minutes
         self.start_passive_listeners()
+        self.latest_write = None
 
     @property
     def output(self):
@@ -54,10 +64,12 @@ class TimeSeriesAggregation(BackgroundJob):
 
             ix = self.aggregated_time_series["series"].index(label)
 
-            if self.every_n_minutes:
+            if self.record_every_n_minutes:
                 # check if the latest is beyond the current time - n_minutes
                 # this skips the first data point.
-                if (received_at - self.every_n_minutes * 60 * 1000) < self.aggregated_time_series["metadata"][ix]["latest"]:
+                if (received_at - self.record_every_n_minutes * 60 * 1000) < self.aggregated_time_series["metadata"][ix][
+                    "latest"
+                ]:
                     return
 
             self.aggregated_time_series["metadata"][ix]["latest"] = received_at
@@ -71,7 +83,8 @@ class TimeSeriesAggregation(BackgroundJob):
                 ]
                 self.aggregated_time_series["metadata"][ix]["earliest"] = current_time() - self.time_window_minutes * 60 * 1000
 
-            self.write()
+            if current_time() > self.latest_write + self.write_every_n_minutes * 60 * 1000:
+                self.write()
         except:
             traceback.print_exc()
         return
@@ -94,6 +107,7 @@ class TimeSeriesAggregation(BackgroundJob):
             return {"series": [], "data": [], "metadata": []}
 
     def write(self):
+        self.latest_write = current()
         with open(self.output, "w") as f:
             json.dump(self.aggregated_time_series, f)
 
@@ -125,6 +139,7 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
+        write_every_n_minutes=1,
     )
 
     filtered135 = TimeSeriesAggregation(
@@ -135,6 +150,8 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
+        write_every_n_minutes=1,
+        time_window_minutes=120,
     )
 
     growth_rate = TimeSeriesAggregation(
@@ -145,6 +162,9 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
+        write_every_n_minutes=1,
+        record_every_n_minutes=5,
+        time_window_minutes=120,
     )
 
     alt_media_fraction = TimeSeriesAggregation(
@@ -155,6 +175,7 @@ def run(output_dir, skip_cache, verbose):
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
+        write_every_n_minutes=1,
     )
 
     while True:
