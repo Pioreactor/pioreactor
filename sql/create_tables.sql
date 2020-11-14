@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
     angle                  TEXT  NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS index_name
+ON od_readings_raw (experiment, morbidostat_unit, angle);
 
 CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
     timestamp              TEXT  NOT NULL,
@@ -18,6 +20,8 @@ CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
     em_nm                  REAL  NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS index_name
+ON fluoresence_readings_raw (experiment, morbidostat_unit);
 
 CREATE TABLE IF NOT EXISTS od_readings_filtered (
     timestamp              TEXT  NOT NULL,
@@ -27,6 +31,10 @@ CREATE TABLE IF NOT EXISTS od_readings_filtered (
     angle                  TEXT  NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS index_name
+ON od_readings_filtered (experiment, morbidostat_unit, angle);
+
+
 CREATE TABLE IF NOT EXISTS io_events (
     timestamp              TEXT  NOT NULL,
     experiment             TEXT  NOT NULL,
@@ -35,12 +43,22 @@ CREATE TABLE IF NOT EXISTS io_events (
     morbidostat_unit       TEXT  NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS index_name
+ON io_events (experiment);
+
+
+
 CREATE TABLE IF NOT EXISTS growth_rates (
     timestamp              TEXT  NOT NULL,
     experiment             TEXT  NOT NULL,
     rate                   REAL  NOT NULL,
     morbidostat_unit       TEXT  NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS index_name
+ON growth_rates (experiment, morbidostat_unit);
+
+
 
 CREATE TABLE IF NOT EXISTS logs (
     timestamp              TEXT  NOT NULL,
@@ -49,11 +67,18 @@ CREATE TABLE IF NOT EXISTS logs (
     morbidostat_unit       TEXT  NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS index_name
+ON logs (experiment, morbidostat_unit);
+
 
 CREATE TABLE IF NOT EXISTS experiments (
     timestamp              TEXT  NOT NULL UNIQUE,
     experiment             TEXT  NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS index_name
+ON experiments (experiment);
+
 
 
 CREATE TABLE IF NOT EXISTS pid_logs (
@@ -72,3 +97,6 @@ CREATE TABLE IF NOT EXISTS pid_logs (
     latest_input           REAL  NOT NULL,
     latest_output          REAL  NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS index_name
+ON pid_logs (experiment);
