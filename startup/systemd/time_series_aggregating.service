@@ -1,0 +1,15 @@
+[Unit]
+Description=In case of an RPi power-cycle mid-experiment, start up time series aggregating.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/morbidostat
+ExecStart=mb time_series_aggregating -b
+Restart=no
+Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+KillMode=none
+
+[Install]
+WantedBy=multi-user.target
