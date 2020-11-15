@@ -203,7 +203,7 @@ def run(output_dir, skip_cache, verbose):
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=45,
-        record_every_n_seconds=5 * 60,
+        record_every_n_seconds=5 * 60,  # TODO: move this to a config param
     )
 
     alt_media_fraction = TimeSeriesAggregation(

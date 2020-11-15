@@ -11,6 +11,20 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
 CREATE INDEX IF NOT EXISTS index_name
 ON od_readings_raw (experiment, morbidostat_unit, angle);
 
+
+
+CREATE TABLE IF NOT EXISTS alt_media_fraction (
+    timestamp              TEXT  NOT NULL,
+    morbidostat_unit       TEXT  NOT NULL,
+    alt_media_fraction     REAL  NOT NULL,
+    experiment             TEXT  NOT NULL,
+);
+
+CREATE INDEX IF NOT EXISTS alt_media_fraction
+ON alt_media_fraction (experiment, morbidostat_unit);
+
+
+
 CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
     timestamp              TEXT  NOT NULL,
     morbidostat_unit       TEXT  NOT NULL,
@@ -78,7 +92,6 @@ CREATE TABLE IF NOT EXISTS experiments (
 
 CREATE INDEX IF NOT EXISTS index_name
 ON experiments (experiment);
-
 
 
 CREATE TABLE IF NOT EXISTS pid_logs (
