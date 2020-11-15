@@ -22,6 +22,7 @@ def test_subscribe_and_listen_to_clear():
         unit=unit,
         verbose=0,
         skip_cache=True,
+        record_every_n_seconds=0.1,
         extract_label=unit_from_topic,
     )
 
@@ -49,6 +50,7 @@ def test_subscribe_and_listen_to_clear2():
         unit=unit,
         verbose=0,
         skip_cache=True,
+        record_every_n_seconds=0.1,
         extract_label=single_sensor_label_from_topic,
     )
 
@@ -64,7 +66,7 @@ def test_subscribe_and_listen_to_clear2():
     assert ts.aggregated_time_series["series"] == []
 
 
-def test_time_window_minutes():
+def test_time_window_seconds():
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", None, retain=True)
     publish(f"morbidostat/{unit}2/{experiment}/growth_rate", None, retain=True)
     publish(f"morbidostat/{unit}/{experiment}/growth_rate", None, retain=True)
@@ -80,14 +82,14 @@ def test_time_window_minutes():
         verbose=0,
         skip_cache=True,
         extract_label=unit_from_topic,
-        time_window_minutes=5 / 60,
+        record_every_n_seconds=0.1,
+        time_window_seconds=5,
     )
 
-    publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.0)
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.1)
     pause()
     assert ts.aggregated_time_series["series"] == ["_testing_unit1"]
-    assert len(ts.aggregated_time_series["data"][0]) == 2
+    assert len(ts.aggregated_time_series["data"][0]) == 1
     time.sleep(10)
 
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.2)
@@ -99,7 +101,7 @@ def test_time_window_minutes():
     assert ts.aggregated_time_series["series"] == []
 
 
-def test_every_n_minutes():
+def test_every_n_seconds():
     def unit_from_topic(topic):
         return topic.split("/")[1]
 
@@ -111,21 +113,24 @@ def test_every_n_minutes():
         verbose=0,
         skip_cache=True,
         extract_label=unit_from_topic,
-        record_every_n_minutes=5 / 60,
+        record_every_n_seconds=5,
     )
 
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.0)
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.1)
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.2)
     pause()
-    assert ts.aggregated_time_series["series"] == ["_testing_unit1"]
-    assert len(ts.aggregated_time_series["data"][0]) == 0
+    assert ts.aggregated_time_series["series"] == []
     time.sleep(10)
+
+    assert ts.aggregated_time_series["series"] == [f"{unit}1"]
+    assert len(ts.aggregated_time_series["data"][0]) == 1
+    time.sleep(3)
 
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.3)
     publish(f"morbidostat/{unit}1/{experiment}/growth_rate", 1.4)
-    pause()
-    assert len(ts.aggregated_time_series["data"][0]) == 1
+    time.sleep(10)
+    assert len(ts.aggregated_time_series["data"][0]) == 2
 
     publish(f"morbidostat/{unit}/{experiment}/time_series_aggregating/aggregated_time_series/set", None)
     pause()

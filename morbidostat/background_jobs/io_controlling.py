@@ -251,7 +251,7 @@ class PIDMorbidostat(ControlAlgorithm):
                 verbose=self.verbose,
             )
 
-        self.volume = self.target_growth_rate * VIAL_VOLUME * (self.duration / 60)
+        self.volume = np.round(self.target_growth_rate * VIAL_VOLUME * (self.duration / 60), 4)
         self.verbose = verbose
 
     def execute(self, *args, **kwargs) -> events.Event:
@@ -266,10 +266,10 @@ class PIDMorbidostat(ControlAlgorithm):
             if self.latest_od > self.max_od:
                 publish(
                     f"morbidostat/{self.unit}/{self.experiment}/log",
-                    f"[{JOB_NAME}]: executing double dilution since we are above max OD, {self.max_od:.2f}.",
+                    f"[{JOB_NAME}]: executing triple dilution since we are above max OD, {self.max_od:.2f}.",
                     verbose=self.verbose,
                 )
-                volume = 2 * self.volume
+                volume = 3 * self.volume
             else:
                 volume = self.volume
 
