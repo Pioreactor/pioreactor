@@ -33,7 +33,15 @@ systemd-worker:
 	sudo systemctl enable growth_rate_calculating.service
 
 systemd-leader:
-	sudo cp /home/pi/morbidostat/startup/systemd/stirring.service /lib/systemd/system/log_aggregating.service
+	sudo cp /home/pi/morbidostat/startup/systemd/ngrok.service /lib/systemd/system/ngrok.service
+	sudo chmod 644 /lib/systemd/system/ngrok.service
+	sudo systemctl enable ngrok.service
+
+	sudo cp /home/pi/morbidostat/startup/systemd/time_series_aggregating.service /lib/systemd/system/time_series_aggregating.service
+	sudo chmod 644 /lib/systemd/system/time_series_aggregating.service
+	sudo systemctl enable time_series_aggregating.service
+
+	sudo cp /home/pi/morbidostat/startup/systemd/log_aggregating.service /lib/systemd/system/log_aggregating.service
 	sudo chmod 644 /lib/systemd/system/log_aggregating.service
 	sudo systemctl enable log_aggregating.service
 
