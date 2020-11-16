@@ -156,7 +156,7 @@ class GrowthRateCalculator(BackgroundJob):
     @staticmethod
     def create_OD_covariance(angles):
         d = len(angles)
-        variances = {"135": 1e-8, "90": 1e-8, "45": 1e-8}
+        variances = {"135": 1e-7, "90": 1e-7, "45": 1e-7}
 
         OD_covariance = 0 * np.ones((d, d))
         for i, a in enumerate(angles):

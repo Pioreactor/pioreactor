@@ -17,7 +17,11 @@ import paramiko
 from morbidostat.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 
 
-ALL_UNITS = ["morbidostat1", "morbidostat2", "morbidostat3"]
+ALL_UNITS = ["1", "2", "3"]
+
+
+def unit_to_hostname(unit):
+    return f"morbidostat{unit}"
 
 
 def universal_identifier_to_all_units(units):
@@ -60,7 +64,7 @@ def sync(units):
 
     for unit in universal_identifier_to_all_units(units):
         print(f"Executing on {unit}...")
-        s.connect(unit, username="pi")
+        s.connect(unit_to_hostname(unit), username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
         # this pass line seems to be necessary
         for line in stderr.readlines():
@@ -88,7 +92,7 @@ def kill(process, units, y):
 
     for unit in universal_identifier_to_all_units(units):
         print(f"Executing on {unit}...")
-        s.connect(unit, username="pi")
+        s.connect(unit_to_hostname(unit), username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
         # this pass line seems to be necessary
         for line in stderr.readlines():
@@ -116,7 +120,7 @@ def run(ctx, job, units, y):
     s.load_system_host_keys()
 
     for unit in universal_identifier_to_all_units(units):
-        s.connect(unit, username="pi")
+        s.connect(unit_to_hostname(unit), username="pi")
 
         try:
             checksum_git(s)
@@ -127,7 +131,7 @@ def run(ctx, job, units, y):
 
     for unit in universal_identifier_to_all_units(units):
         print(f"Executing on {unit}...")
-        s.connect(unit, username="pi")
+        s.connect(unit_to_hostname(unit), username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
             print(unit + ":" + line)
