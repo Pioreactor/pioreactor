@@ -120,6 +120,7 @@ def run(ctx, job, units, y):
     s.load_system_host_keys()
 
     for unit in universal_identifier_to_all_units(units):
+        print(unit, unit_to_hostname(unit))
         s.connect(unit_to_hostname(unit), username="pi")
 
         try:

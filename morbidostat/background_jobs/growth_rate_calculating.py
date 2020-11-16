@@ -155,6 +155,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     @staticmethod
     def create_OD_covariance(angles):
+        # increasing Q increases the uncertainty of our prediction
         d = len(angles)
         variances = {"135": 1e-7, "90": 1e-7, "45": 1e-7}
 
