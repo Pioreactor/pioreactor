@@ -26,7 +26,7 @@ def download_experiment_data(experiment, output, tables):
         experiment = get_latest_experiment_name()
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
-    zf = zipfile.ZipFile(f"{output}/{experiment}-{time}.zip", "w", zipfile.ZIP_DEFLATED)
+    zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
     con = sqlite3.connect(config["data"]["observation_database"])
 
     for table in tables:
@@ -49,7 +49,7 @@ def download_experiment_data(experiment, output, tables):
 
 @click.command()
 @click.option("--experiment", default="current")
-@click.option("--output", default="/home/pi/exports/")
+@click.option("--output", default="/home/pi/exports/export.zip")
 @click.option("--tables", multiple=True, default=[])
 def click_download_experiment_data(experiment, output, tables):
     return download_experiment_data(experiment, output, tables)
