@@ -40,7 +40,7 @@ def download_experiment_data(experiment, output, tables):
 
         filename = f"{experiment}-{table}-{time}.dump.csv.gz"
         df.to_csv(os.path.join(os.path.dirname(output), filename), compression="gzip", index=False)
-        zf.write(filename)
+        zf.write(os.path.join(os.path.dirname(output), filename))
 
     zf.close()
 
