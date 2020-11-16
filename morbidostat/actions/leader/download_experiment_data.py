@@ -4,6 +4,7 @@
 # "od_readings_raw", "od_readings_filtered", "io_events", "logs", "pid_logs", "growth_rates"
 
 import zipfile
+import os
 from morbidostat.whoami import get_latest_experiment_name
 from morbidostat.config import config
 from morbidostat.pubsub import publish
@@ -38,7 +39,7 @@ def download_experiment_data(experiment, output, tables):
         )
 
         filename = f"{experiment}-{table}-{time}.dump.csv.gz"
-        df.to_csv(filename, compression="gzip", index=False)
+        df.to_csv(os.path.join(os.path.dirname(output), filename), compression="gzip", index=False)
         zf.write(filename)
 
     zf.close()
