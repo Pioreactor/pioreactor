@@ -25,7 +25,7 @@ def download_experiment_data(experiment, output, tables):
     if experiment == "current":
         experiment = get_latest_experiment_name()
 
-    time = datetime.strformat("YYYYMMDDHHmmSS")
+    time = datetime.strftime("YYYYMMDDHHmmSS")
     zf = zipfile.ZipFile("{output}/{experiment}-{time}.zip", "w", zipfile.ZIP_DEFLATED)
     con = sqlite3.connect(config["data"]["observation_database"])
 
