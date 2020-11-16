@@ -25,6 +25,7 @@ def unit_to_hostname(unit):
 
 
 def universal_identifier_to_all_units(units):
+    print(units, [UNIVERSAL_IDENTIFIER])
     if units == [UNIVERSAL_IDENTIFIER]:
         return ALL_UNITS
     else:
