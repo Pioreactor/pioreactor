@@ -28,8 +28,8 @@ def bold(msg):
 
 
 def od_normalization(od_angle_channel, verbose):
-    if ("od_reading" not in mb_jobs_running()) or ("stirring" not in mb_jobs_running()):
-        raise ValueError("Both od_reading and stirring jobs should be running.")
+    if "stirring" not in mb_jobs_running():
+        raise ValueError("stirring jobs should be running.")
 
     echo()
     echo(bold(f"This task will compute statistics from {hostname}."))
