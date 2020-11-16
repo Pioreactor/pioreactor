@@ -37,7 +37,7 @@ def download_experiment_data(experiment, output, tables):
             con,
         )
 
-        filename = "{experiment}-{table}-{time}.dump.csv.gz"
+        filename = f"{experiment}-{table}-{time}.dump.csv.gz"
         df.to_csv(filename, compression="gzip", index=False)
         zf.write(filename)
 
