@@ -13,7 +13,7 @@ from morbidostat.whoami import am_I_leader
 def cli(job, background, extra_args):
 
     if am_I_leader():
-        job = f"leader_jobs.{job}"
+        job = f"leader.{job}"
 
     extra_args = list(extra_args)
 

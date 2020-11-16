@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
     angle                  TEXT  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS od_readings_raw_ix
 ON od_readings_raw (experiment, morbidostat_unit, angle);
 
 
@@ -17,12 +17,11 @@ CREATE TABLE IF NOT EXISTS alt_media_fraction (
     timestamp              TEXT  NOT NULL,
     morbidostat_unit       TEXT  NOT NULL,
     alt_media_fraction     REAL  NOT NULL,
-    experiment             TEXT  NOT NULL,
+    experiment             TEXT  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS alt_media_fraction
+CREATE INDEX IF NOT EXISTS alt_media_fraction_ix
 ON alt_media_fraction (experiment, morbidostat_unit);
-
 
 
 CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
@@ -34,7 +33,7 @@ CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
     em_nm                  REAL  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS fluoresence_readings_raw_ix
 ON fluoresence_readings_raw (experiment, morbidostat_unit);
 
 CREATE TABLE IF NOT EXISTS od_readings_filtered (
@@ -45,7 +44,7 @@ CREATE TABLE IF NOT EXISTS od_readings_filtered (
     angle                  TEXT  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS od_readings_filtered_ix
 ON od_readings_filtered (experiment, morbidostat_unit, angle);
 
 
@@ -57,7 +56,7 @@ CREATE TABLE IF NOT EXISTS io_events (
     morbidostat_unit       TEXT  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS io_events_ix
 ON io_events (experiment);
 
 
@@ -69,7 +68,7 @@ CREATE TABLE IF NOT EXISTS growth_rates (
     morbidostat_unit       TEXT  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS growth_rates_ix
 ON growth_rates (experiment, morbidostat_unit);
 
 
@@ -81,7 +80,7 @@ CREATE TABLE IF NOT EXISTS logs (
     morbidostat_unit       TEXT  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS logs_ix
 ON logs (experiment, morbidostat_unit);
 
 
@@ -90,7 +89,7 @@ CREATE TABLE IF NOT EXISTS experiments (
     experiment             TEXT  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS experiments_ix
 ON experiments (experiment);
 
 
@@ -111,5 +110,5 @@ CREATE TABLE IF NOT EXISTS pid_logs (
     latest_output          REAL  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS index_name
+CREATE INDEX IF NOT EXISTS pid_logs_ix
 ON pid_logs (experiment);
