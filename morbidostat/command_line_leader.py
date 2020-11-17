@@ -9,6 +9,7 @@ command line for running the same command on all workers,
 """
 
 import importlib
+import concurrent
 from subprocess import run as subprocess_run
 import hashlib
 import click
@@ -116,26 +117,27 @@ def run(ctx, job, units, y):
         if confirm != "Y":
             return
 
-    s = paramiko.SSHClient()
-    s.load_system_host_keys()
+    def _thread_function(unit):
+        hostname = unit_to_hostname(unit)
 
-    for unit in universal_identifier_to_all_units(units):
-        s.connect(unit_to_hostname(unit), username="pi")
-
+        s = paramiko.SSHClient()
+        s.load_system_host_keys()
         try:
             checksum_git(s)
         except AssertionError as e:
             print(e)
             return
-        s.close()
 
-    for unit in universal_identifier_to_all_units(units):
         print(f"Executing on {unit}...")
         s.connect(unit_to_hostname(unit), username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
             print(unit + ":" + line)
         s.close()
+
+    units = universal_identifier_to_all_units(units)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
+        executor.map(_thread_function, range(len(units)))
 
     return
 

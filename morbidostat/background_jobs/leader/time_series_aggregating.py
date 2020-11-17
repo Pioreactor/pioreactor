@@ -2,14 +2,6 @@
 """
 This job runs on the leader, and is a replacement for the NodeRed aggregation job.
 
-
-Better idea:
-Have a "cache" per label that stores the latest observation (with replacement)
-Have a thread, schedualed to run every N seconds, empty the cache to the main datastore with current time
-     and write to disk.
-
-This should produce observations with equal time (so the Voroni will behaviour better with dimension=x)
-
 """
 import signal
 import time

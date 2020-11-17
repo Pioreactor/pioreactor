@@ -41,6 +41,11 @@ class Stirrer(BackgroundJob):
         self.duty_cycle = duty_cycle
         self.start_stirring()
 
+    def on_exit(self):
+        # not necessary, but will update the UI to show that the speed is 0 (off)
+        self.duty_cycle = 0
+        GPIO.cleanup()
+
     def start_stirring(self):
         self.pwm.start(90)  # get momentum to start
         time.sleep(0.25)
@@ -74,9 +79,6 @@ def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=N
 
     signal.signal(signal.SIGTERM, terminate)
     signal.signal(signal.SIGINT, terminate)
-
-    publish(f"morbidostat/{unit}/{experiment}/log", f"[stirring]: start stirring with duty cycle={duty_cycle}", verbose=verbose)
-
     try:
         stirrer = Stirrer(duty_cycle, unit, experiment)
         stirrer.start_stirring()
