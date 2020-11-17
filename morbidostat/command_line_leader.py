@@ -60,18 +60,22 @@ def sync(units):
     setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, setup])
 
-    s = paramiko.SSHClient()
-    s.load_system_host_keys()
+    def _thread_function(unit):
+        hostname = unit_to_hostname(unit)
 
-    for unit in universal_identifier_to_all_units(units):
+        s = paramiko.SSHClient()
+        s.load_system_host_keys()
+        s.connect(hostname, username="pi")
+
         print(f"Executing on {unit}...")
-        s.connect(unit_to_hostname(unit), username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
-        # this pass line seems to be necessary
         for line in stderr.readlines():
-            pass
-        checksum_git(s)
+            print(unit + ":" + line)
         s.close()
+
+    units = universal_identifier_to_all_units(units)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
+        executor.map(_thread_function, units)
 
 
 @mba.command()
@@ -88,17 +92,22 @@ def kill(process, units, y):
         if confirm != "Y":
             return
 
-    s = paramiko.SSHClient()
-    s.load_system_host_keys()
+    def _thread_function(unit):
+        hostname = unit_to_hostname(unit)
 
-    for unit in universal_identifier_to_all_units(units):
+        s = paramiko.SSHClient()
+        s.load_system_host_keys()
+        s.connect(hostname, username="pi")
+
         print(f"Executing on {unit}...")
-        s.connect(unit_to_hostname(unit), username="pi")
         (stdin, stdout, stderr) = s.exec_command(command)
-        # this pass line seems to be necessary
         for line in stderr.readlines():
-            pass
+            print(unit + ":" + line)
         s.close()
+
+    units = universal_identifier_to_all_units(units)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
+        executor.map(_thread_function, units)
 
 
 @mba.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
@@ -118,29 +127,23 @@ def run(ctx, job, units, y):
             return
 
     def _thread_function(unit):
+        hostname = unit_to_hostname(unit)
+
+        s = paramiko.SSHClient()
+        s.load_system_host_keys()
+        s.connect(hostname, username="pi")
+
         try:
-            hostname = unit_to_hostname(unit)
+            checksum_git(s)
+        except AssertionError as e:
+            print(e)
+            return
 
-            s = paramiko.SSHClient()
-            s.load_system_host_keys()
-            s.connect(hostname, username="pi")
-
-            try:
-                checksum_git(s)
-            except AssertionError as e:
-                print(s)
-                print(e)
-                return
-
-            print(f"Executing on {unit}...")
-            (stdin, stdout, stderr) = s.exec_command(command)
-            for line in stderr.readlines():
-                print(unit + ":" + line)
-            s.close()
-        except:
-            import traceback
-
-            traceback.print_exc()
+        print(f"Executing on {unit}...")
+        (stdin, stdout, stderr) = s.exec_command(command)
+        for line in stderr.readlines():
+            print(unit + ":" + line)
+        s.close()
 
     units = universal_identifier_to_all_units(units)
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
