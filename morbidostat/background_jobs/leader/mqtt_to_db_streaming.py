@@ -32,12 +32,12 @@ def produce_metadata(topic):
 
 
 class MqttToDBStreamer(BackgroundJob):
-    def __init__(self, topics_and_parser, **kwargs):
+    def __init__(self, topics_and_parsers, **kwargs):
         super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
         self.sqliteworker = Sqlite3Worker(config["data"]["observation_database"])
         self.topics_and_callbacks = [
-            {"topic": topics_and_parser["topic"], "callback": self.create_on_message(topic_and_parser)}
-            for topic_and_parser in topics_and_parser
+            {"topic": topic_and_parser["topic"], "callback": self.create_on_message(topic_and_parser)}
+            for topic_and_parser in topics_and_parsers
         ]
 
         self.start_passive_listeners()
