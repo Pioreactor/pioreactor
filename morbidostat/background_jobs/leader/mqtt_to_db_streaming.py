@@ -134,7 +134,7 @@ def run(verbose):
             "alt_media_fraction": float(payload),
         }
 
-    def parse_logs(topic, paylod):
+    def parse_logs(topic, payload):
         metadata = produce_metadata(topic)
         return {
             "experiment": metadata.experiment,
@@ -147,7 +147,7 @@ def run(verbose):
         {"topic": "morbidostat/+/+/od_filtered/+/+", "table": "od_readings_filtered", "parser": parse_od},
         {"topic": "morbidostat/+/+/od_raw/+/+", "table": "od_readings_raw", "parser": parse_od},
         {"topic": "morbidostat/+/+/io_events", "table": "io_events", "parser": parse_io_events},
-        {"topic": "morbidostat/+/+/growth_rate", "table": "io_events", "parser": parse_growth_rate},
+        {"topic": "morbidostat/+/+/growth_rate", "table": "growth_rates", "parser": parse_growth_rate},
         {"topic": "morbidostat/+/+/pid_log", "table": "pid_logs", "parser": parse_pid_logs},
         {
             "topic": "morbidostat/+/+/alt_media_calculating/alt_media_fraction",
