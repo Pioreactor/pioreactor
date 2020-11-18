@@ -88,7 +88,7 @@ def run(verbose):
             "experiment": metadata.experiment,
             "morbidostat_unit": metadata.morbidostat_unit,
             "timestamp": metadata.timestamp,
-            "volume_change": payload["volume_change"],
+            "volume_change_ml": payload["volume_change"],
             "event": payload["event"],
         }
 
