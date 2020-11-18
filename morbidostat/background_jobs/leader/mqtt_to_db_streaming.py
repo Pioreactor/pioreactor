@@ -67,7 +67,7 @@ class MqttToDBStreamer(BackgroundJob):
 @click.command()
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(verbose):
-    def parse_od_filtered(topic, payload):
+    def parse_od(topic, payload):
         # should return a dict
         metadata = produce_metadata(topic)
 
