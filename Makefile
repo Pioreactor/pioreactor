@@ -45,6 +45,10 @@ systemd-leader:
 	sudo chmod 644 /lib/systemd/system/log_aggregating.service
 	sudo systemctl enable log_aggregating.service
 
+	sudo cp /home/pi/morbidostat/startup/systemd/mqtt_to_db_streaming.service /lib/systemd/system/mqtt_to_db_streaming.service
+	sudo chmod 644 /lib/systemd/system/mqtt_to_db_streaming.service
+	sudo systemctl enable mqtt_to_db_streaming.service
+
 install-morbidostat:
 	sudo python3 setup.py install
 
