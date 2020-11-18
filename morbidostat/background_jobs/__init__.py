@@ -182,7 +182,7 @@ class BackgroundJob:
     def check_for_duplicate_process(self):
         # this process counts as one - see if there is another.
         if sum([p == self.job_name for p in mb_jobs_running()]) > 1:
-            publish(f"morbidostat/{self.unit}/{self.experiment}/log", "Aborting: {self.job_name} is already running.")
+            publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"Aborting: {self.job_name} is already running.")
             raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:

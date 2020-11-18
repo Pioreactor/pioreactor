@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 import time
-from morbidostat.background_jobs.leader_jobs.time_series_aggregating import TimeSeriesAggregation
+from morbidostat.background_jobs.leader.time_series_aggregating import TimeSeriesAggregation
 from morbidostat.pubsub import publish
 from morbidostat.whoami import unit, experiment
 

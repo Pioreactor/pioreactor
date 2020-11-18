@@ -70,7 +70,7 @@ def sync(units):
         print(f"Executing on {unit}...")
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
-            print(unit + ":" + line)
+            pass
         s.close()
 
     units = universal_identifier_to_all_units(units)
@@ -102,7 +102,7 @@ def kill(process, units, y):
         print(f"Executing on {unit}...")
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
-            print(unit + ":" + line)
+            pass
         s.close()
 
     units = universal_identifier_to_all_units(units)

@@ -2,12 +2,16 @@
 """
 This job runs on the leader, and is a replacement for the NodeRed aggregation job.
 
+TODO: this is kinda a snowflake: there are N jobs, all with the same JOB_NAME. What happens when one
+fails - it sends a $lost state - but the others are working...
+
+Either I need unique JOB_NAMEs for each, or one meta job.
+
 """
 import signal
 import time
 import os
 import traceback
-from threading import Timer
 import json
 
 import click
@@ -16,40 +20,13 @@ import click
 from morbidostat.pubsub import subscribe_and_callback, publish
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.whoami import unit, experiment, hostname
+from morbidostat.utils.timing import RepeatedTimer
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 def current_time():
     return time.time_ns() // 1_000_000
-
-
-class RepeatedTimer(object):
-    def __init__(self, interval, function, *args, **kwargs):
-        self._timer = None
-        self.interval = interval
-        self.function = function
-        self.args = args
-        self.kwargs = kwargs
-        self.is_running = False
-        self.start()
-        self.daemon = True
-
-    def _run(self):
-        self.is_running = False
-        self.start()
-        self.function(*self.args, **self.kwargs)
-
-    def start(self):
-        if not self.is_running:
-            self._timer = Timer(self.interval, self._run)
-            self._timer.daemon = True
-            self._timer.start()
-            self.is_running = True
-
-    def cancel(self):
-        self._timer.cancel()
-        self.is_running = False
 
 
 class TimeSeriesAggregation(BackgroundJob):
@@ -73,11 +50,8 @@ class TimeSeriesAggregation(BackgroundJob):
         self.time_window_seconds = time_window_seconds
         self.cache = {}
 
-        self.write_thead = RepeatedTimer(write_every_n_seconds, self.write)
-        self.write_thead.start()
-
-        self.append_cache_thread = RepeatedTimer(record_every_n_seconds, self.append_cache_and_clear)
-        self.append_cache_thread.start()
+        self.write_thead = RepeatedTimer(write_every_n_seconds, self.write).start()
+        self.append_cache_thread = RepeatedTimer(record_every_n_seconds, self.append_cache_and_clear).start()
 
         self.start_passive_listeners()
 
@@ -169,7 +143,7 @@ def run(output_dir, skip_cache, verbose):
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
         write_every_n_seconds=45,
-        time_window_seconds=120 * 60,  # TODO: move this to a config param
+        time_window_seconds=150 * 60,  # TODO: move this to a config param
         record_every_n_seconds=5,
     )
 
@@ -182,7 +156,7 @@ def run(output_dir, skip_cache, verbose):
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
         write_every_n_seconds=45,
-        time_window_seconds=120 * 60,  # TODO: move this to a config param
+        time_window_seconds=150 * 60,  # TODO: move this to a config param
         record_every_n_seconds=5,
     )
 

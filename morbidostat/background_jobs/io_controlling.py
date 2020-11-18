@@ -94,16 +94,16 @@ class ControlAlgorithm(BackgroundJob):
             )
 
         max_ = 0.3
-        if media_ml > max_:
-            self.execute_io_action(
-                alt_media_ml=alt_media_ml, media_ml=media_ml / 2, waste_ml=alt_media_ml + media_ml / 2, log=False
-            )
-            self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
-        elif alt_media_ml > max_:
+        if alt_media_ml > max_:
             self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2, media_ml=media_ml, waste_ml=media_ml + alt_media_ml / 2, log=False
             )
             self.execute_io_action(alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2, log=False)
+        elif media_ml > max_:
+            self.execute_io_action(alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2, log=False)
+            self.execute_io_action(
+                alt_media_ml=alt_media_ml, media_ml=media_ml / 2, waste_ml=alt_media_ml + media_ml / 2, log=False
+            )
         else:
             if alt_media_ml > 0:
                 add_alt_media(ml=alt_media_ml, verbose=self.verbose)
@@ -113,8 +113,8 @@ class ControlAlgorithm(BackgroundJob):
                 brief_pause()
             if waste_ml > 0:
                 remove_waste(ml=waste_ml, verbose=self.verbose)
-                # run remove_waste for an additional second to keep volume constant (determined by the length of the waste tube)
-                remove_waste(duration=1, verbose=self.verbose)
+                # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
+                remove_waste(duration=2, verbose=self.verbose)
                 brief_pause()
 
     def set_growth_rate(self, message):
@@ -187,7 +187,8 @@ class PIDTurbidostat(ControlAlgorithm):
         self.volume = volume
         self.verbose = verbose
         self.duration = duration
-        self.pid = PID(-2, -0.15, -0, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
+        # PID%20controller%20turbidostat.ipynb
+        self.pid = PID(-2.97, -0.11, -0.09, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -338,34 +339,37 @@ class Morbidostat(ControlAlgorithm):
 
 
 def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
+    try:
+        algorithms = {
+            "silent": Silent,
+            "morbidostat": Morbidostat,
+            "turbidostat": Turbidostat,
+            "pid_turbidostat": PIDTurbidostat,
+            "pid_morbidostat": PIDMorbidostat,
+        }
 
-    algorithms = {
-        "silent": Silent,
-        "morbidostat": Morbidostat,
-        "turbidostat": Turbidostat,
-        "pid_turbidostat": PIDTurbidostat,
-        "pid_morbidostat": PIDMorbidostat,
-    }
+        assert mode in algorithms.keys()
 
-    assert mode in algorithms.keys()
+        publish(
+            f"morbidostat/{unit}/{experiment}/log",
+            f"[{JOB_NAME}]: starting {mode} with {duration}min intervals, metadata: {kwargs}",
+            verbose=verbose,
+        )
 
-    publish(
-        f"morbidostat/{unit}/{experiment}/log",
-        f"[{JOB_NAME}]: starting {mode} with {duration}min intervals, metadata: {kwargs}",
-        verbose=verbose,
-    )
+        if skip_first_run:
+            publish(f"morbidostat/{unit}/{experiment}/log", f"[{JOB_NAME}]: skipping first run", verbose=verbose)
+            time.sleep(duration * 60)
 
-    if skip_first_run:
-        publish(f"morbidostat/{unit}/{experiment}/log", f"[{JOB_NAME}]: skipping first run", verbose=verbose)
-        time.sleep(duration * 60)
+        kwargs["verbose"] = verbose
+        kwargs["duration"] = duration
+        kwargs["unit"] = unit
+        kwargs["experiment"] = experiment
+        kwargs["sensor"] = sensor
 
-    kwargs["verbose"] = verbose
-    kwargs["duration"] = duration
-    kwargs["unit"] = unit
-    kwargs["experiment"] = experiment
-    kwargs["sensor"] = sensor
-
-    algo = algorithms[mode](**kwargs)
+        algo = algorithms[mode](**kwargs)
+    except:
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {str(e)}", verbose=verbose)
+        raise e
 
     def _gen():
         try:

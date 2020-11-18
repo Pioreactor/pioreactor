@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-mqtt_to_db_streaming.py
 """
 This job runs on the leader, and is a replacement for the NodeRed database streaming job.
 """
@@ -9,79 +8,157 @@ import os
 import traceback
 import click
 import json
+from collections import namedtuple
+from datetime import datetime
 
+from sqlite3worker import Sqlite3Worker
 
 from morbidostat.pubsub import subscribe_and_callback, publish
 from morbidostat.background_jobs import BackgroundJob
-from morbidostat.whoami import unit, experiment, hostname
+from morbidostat.whoami import unit, experiment
+from morbidostat.config import config
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 def current_time():
-    return time.time_ns() // 1_000_000
+    return datetime.now().isoformat()
 
 
-class LogAggregation(BackgroundJob):
-    def __init__(self, topics, output, max_length=50, **kwargs):
-        super(LogAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
-        self.topics = topics
-        self.output = output
-        self.aggregated_log_table = self.read()
-        self.max_length = max_length
+def produce_metadata(topic):
+    SetAttrSplitTopic = namedtuple("SetAttrSplitTopic", ["morbidostat_unit", "experiment", "timestamp"])
+    v = topic.split("/")
+    return SetAttrSplitTopic(v[1], v[2], current_time())
+
+
+class MqttToDBStreamer(BackgroundJob):
+    def __init__(self, topics_and_parser, **kwargs):
+        super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
+        self.sqliteworker = Sqlite3Worker(config["data"]["observation_database"])
+        self.topics_and_callbacks = [
+            {"topic": topics_and_parser["topic"], "callback": self.create_on_message(topic_and_parser)}
+            for topic_and_parser in topics_and_parser
+        ]
+
         self.start_passive_listeners()
 
-    def on_message(self, message):
-        try:
-            unit = message.topic.split("/")[1]
-            is_error = message.topic.endswith("error_log")
-            self.aggregated_log_table.insert(
-                0, {"timestamp": current_time(), "message": message.payload.decode(), "unit": unit, "is_error": is_error}
-            )
-            self.aggregated_log_table = self.aggregated_log_table[: self.max_length]
+    def create_on_message(self, topic_and_parser):
+        def _callback(message):
+            try:
+                cols_to_values = topic_and_parser.parser(message.topic, message.payload)
 
-            self.write()
-        except:
-            traceback.print_exc()
-        return
+                cols_placeholder = ", ".join(cols_to_values.keys())
+                values_placeholder = ", ".join([":" + c for c in cols_to_values.keys()])
+                SQL = f"""INSERT INTO {topic_and_parser.table} ({cols_placeholder}) VALUES ({values_placeholder})"""
+                print(SQL)
+                self.sqliteworker.execute(SQL, cols_to_values)
+            except Exception as e:
+                import traceback
 
-    def clear(self, message):
-        payload = message.payload
-        if not payload:
-            self.aggregated_log_table = []
-            self.write()
-        else:
-            publish(f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the log table.")
+                traceback.print_exc()
 
-    def read(self):
-        try:
-            with open(self.output, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            return []
-
-    def write(self):
-        with open(self.output, "w") as f:
-            json.dump(self.aggregated_log_table, f)
+        return _callback
 
     def start_passive_listeners(self):
-        subscribe_and_callback(self.on_message, self.topics)
-        subscribe_and_callback(self.clear, f"morbidostat/{self.unit}/+/{self.job_name}/aggregated_log_table/set")
+        for topic_and_callback in self.topics_and_callbacks:
+            subscribe_and_callback(topic_and_callback["callback"], topic_and_callback["topic"])
 
 
 @click.command()
-@click.option(
-    "--output", "-o", default="/home/pi/morbidostatui/backend/build/data/all_morbidostat.log.json", help="the output file"
-)
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(output, verbose):
-    logs = LogAggregation(
-        [f"morbidostat/+/{experiment}/log", f"morbidostat/+/{experiment}/error_log"],
-        output,
-        experiment=experiment,
-        unit=unit,
-        verbose=verbose,
-    )
+    def parse_od_filtered(topic, payload):
+        # should return a dict
+        metadata = produce_metadata(topic)
+
+        return {
+            "experiment": metadata.experiment,
+            "morbidostat_unit": metadata.morbidostat_unit,
+            "timestamp": metadata.timestamp,
+            "od_reading_v": float(payload),
+            "angle": "".join(topic.split("/")[-2:]),
+        }
+
+    def parse_io_events(topic, payload):
+        # should return a dict
+        payload = json.loads(payload)
+        metadata = produce_metadata(topic)
+
+        return {
+            "experiment": metadata.experiment,
+            "morbidostat_unit": metadata.morbidostat_unit,
+            "timestamp": metadata.timestamp,
+            "volume_change": payload["volume_change"],
+            "event": payload["event"],
+        }
+
+    def parse_growth_rate(topic, payload):
+        # should return a dict
+        metadata = produce_metadata(topic)
+
+        return {
+            "experiment": metadata.experiment,
+            "morbidostat_unit": metadata.morbidostat_unit,
+            "timestamp": metadata.timestamp,
+            "rate": float(payload),
+        }
+
+    def parse_pid_logs(topic, payload):
+        metadata = produce_metadata(topic)
+        payload = json.loads(payload)
+        return {
+            "experiment": metadata.experiment,
+            "morbidostat_unit": metadata.morbidostat_unit,
+            "timestamp": metadata.timestamp,
+            "setpoint": payload["setpoint"],
+            "output_limits_lb": payload["output_limits_lb"],
+            "output_limits_ub": payload["output_limits_ub"],
+            "Kd": payload["Kd"],
+            "Ki": payload["Ki"],
+            "Kp": payload["Kp"],
+            "integral": payload["integral"],
+            "proportional": payload["proportional"],
+            "derivative": payload["derivative"],
+            "latest_input": payload["latest_input"],
+            "latest_output": payload["latest_output"],
+        }
+
+    def parse_alt_media_fraction(topic, payload):
+        # should return a dict
+        metadata = produce_metadata(topic)
+
+        return {
+            "experiment": metadata.experiment,
+            "morbidostat_unit": metadata.morbidostat_unit,
+            "timestamp": metadata.timestamp,
+            "alt_media_fraction": float(payload),
+        }
+
+    def parse_logs(topic, paylod):
+        metadata = produce_metadata(topic)
+        return {
+            "experiment": metadata.experiment,
+            "morbidostat_unit": metadata.morbidostat_unit,
+            "timestamp": metadata.timestamp,
+            "message": payload.decode(),
+        }
+
+    topics_and_parsers = [
+        {"topic": "morbidostat/+/+/od_filtered/+/+", "table": "od_readings_filtered", "parser": parse_od},
+        {"topic": "morbidostat/+/+/od_raw/+/+", "table": "od_readings_raw", "parser": parse_od},
+        {"topic": "morbidostat/+/+/io_events", "table": "io_events", "parser": parse_io_events},
+        {"topic": "morbidostat/+/+/growth_rate", "table": "io_events", "parser": parse_growth_rate},
+        {"topic": "morbidostat/+/+/pid_log", "table": "pid_logs", "parser": parse_pid_logs},
+        {
+            "topic": "morbidostat/+/+/alt_media_calculating/alt_media_fraction",
+            "table": "alt_media_fraction",
+            "parser": parse_alt_media_fraction,
+        },
+        {"topic": "morbidostat/+/+/log", "table": "logs", "parser": parse_logs},
+        {"topic": "morbidostat/+/+/error_log", "table": "logs", "parser": parse_logs},
+    ]
+
+    streamer = MqttToDBStreamer(topics_and_parsers, experiment=experiment, unit=unit, verbose=verbose)
 
     while True:
         signal.pause()

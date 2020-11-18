@@ -8,15 +8,15 @@ import subprocess
 import signal
 import threading
 import os
+from typing import Optional
 
 import click
 
 from morbidostat.pubsub import publish, subscribe_and_callback, QOS
-
+from morbidostat.utils.timing import RepeatedTimer
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
 from morbidostat.background_jobs import BackgroundJob
-from typing import Optional
 
 VIAL_VOLUME = 14
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -25,6 +25,7 @@ JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 class AltMediaCalculator(BackgroundJob):
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
+    I want to periodically publish this, too, so the graph looks better.
 
     """
 
@@ -34,7 +35,15 @@ class AltMediaCalculator(BackgroundJob):
         self.experiment = experiment
         self.verbose = verbose
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
+
+        # publish every 30 seconds.
+        self.publish_periodically_thead = RepeatedTimer(30, self.publish)
+        self.publish_periodically_thead.start()
+
         self.start_passive_listeners()
+
+    def on_exit(self):
+        self.publish_periodically_thead.cancel()
 
     def on_io_event(self, message):
         payload = json.loads(message.payload)
@@ -47,6 +56,15 @@ class AltMediaCalculator(BackgroundJob):
             pass
         else:
             raise ValueError("Unknown event type")
+
+    def publish(self):
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
+            self.latest_alt_media_fraction,
+            verbose=self.verbose,
+            retain=True,
+            qos=QOS.EXACTLY_ONCE,
+        )
 
     def update_alt_media_fraction(self, media_delta, alt_media_delta):
 
@@ -65,14 +83,7 @@ class AltMediaCalculator(BackgroundJob):
         media_ml = media_ml + media_delta
 
         self.latest_alt_media_fraction = alt_media_ml / VIAL_VOLUME
-
-        publish(
-            f"morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
-            self.latest_alt_media_fraction,
-            verbose=self.verbose,
-            retain=True,
-            qos=QOS.EXACTLY_ONCE,
-        )
+        self.publish()
 
         return self.latest_alt_media_fraction
 

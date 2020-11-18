@@ -85,8 +85,9 @@ ON logs (experiment, morbidostat_unit);
 
 
 CREATE TABLE IF NOT EXISTS experiments (
-    timestamp              TEXT  NOT NULL UNIQUE,
-    UNIQUE(experiment)     TEXT  NOT NULL
+    experiment             TEXT  NOT NULL UNIQUE,
+    timestamp              TEXT  NOT NULL,
+    description            TEXT  NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS experiments_ix

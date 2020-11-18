@@ -29,20 +29,32 @@ def bold(msg):
 
 def od_normalization(od_angle_channel, verbose):
     if "stirring" not in mb_jobs_running():
-        raise ValueError("stirring jobs should be running.")
+        raise ValueError("stirring jobs should be running. Run `mb stirring -b` first. ")
+
+    if "od_reading" not in mb_jobs_running():
+        # we sample faster, because we can...
+        sampling_rate = 0.5
+        signal = od_reading(od_angle_channel, verbose, sampling_rate)
+    else:
+        # not tested
+        def yield_from_mqtt():
+            while True:
+                msg = pubsub.subscribe(f"morbidostat/{unit}/{experiment}/od_raw_batched")
+                yield json.loads(msg.payload)
+
+        signal = yield_from_mqtt()
 
     echo()
     echo(bold(f"This task will compute statistics from {hostname}."))
 
     time.sleep(0.5)
     readings = defaultdict(list)
-    sampling_rate = 0.5
-    N_samples = 50
+    N_samples = 35
 
     try:
 
         with click.progressbar(length=N_samples) as bar:
-            for count, batched_reading in enumerate(od_reading(od_angle_channel, verbose, sampling_rate)):
+            for count, batched_reading in enumerate(signal):
                 for (sensor, reading) in batched_reading.items():
                     readings[sensor].append(reading)
 

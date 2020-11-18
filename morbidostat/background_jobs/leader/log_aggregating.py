@@ -13,6 +13,7 @@ import json
 from morbidostat.pubsub import subscribe_and_callback, publish
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.whoami import unit, experiment, hostname
+from morbidostat.config import config
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
@@ -22,7 +23,7 @@ def current_time():
 
 
 class LogAggregation(BackgroundJob):
-    def __init__(self, topics, output, max_length=50, **kwargs):
+    def __init__(self, topics, output, max_length=config["dashboard"]["log_display_count"], **kwargs):
         super(LogAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
         self.topics = topics
         self.output = output
@@ -75,11 +76,7 @@ class LogAggregation(BackgroundJob):
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(output, verbose):
     logs = LogAggregation(
-        [f"morbidostat/+/{experiment}/log", f"morbidostat/+/{experiment}/error_log"],
-        output,
-        experiment=experiment,
-        unit=unit,
-        verbose=verbose,
+        [f"morbidostat/+/+/log", f"morbidostat/+/+/error_log"], output, experiment=experiment, unit=unit, verbose=verbose
     )
 
     while True:
