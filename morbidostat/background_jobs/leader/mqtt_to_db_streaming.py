@@ -45,7 +45,7 @@ class MqttToDBStreamer(BackgroundJob):
     def create_on_message(self, topic_and_parser):
         def _callback(message):
             try:
-                cols_to_values = topic_and_parser.parser(message.topic, message.payload)
+                cols_to_values = topic_and_parser["parser"](message.topic, message.payload)
 
                 cols_placeholder = ", ".join(cols_to_values.keys())
                 values_placeholder = ", ".join([":" + c for c in cols_to_values.keys()])
