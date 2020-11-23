@@ -388,7 +388,7 @@ def run(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=Fals
     try:
 
         if skip_first_run:
-            publish(f"morbidostat/{unit}/{experiment}/log", f"[{self.job_name}]: skipping first run", verbose=verbose)
+            publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: skipping first run", verbose=verbose)
             time.sleep(duration * 60)
 
         kwargs["verbose"] = verbose
@@ -403,7 +403,7 @@ def run(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=Fals
             signal.pause()
 
     except:
-        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{self.job_name}]: failed {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         raise e
 
 
