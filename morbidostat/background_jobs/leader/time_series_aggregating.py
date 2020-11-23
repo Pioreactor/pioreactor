@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This job runs on the leader, and is a replacement for the NodeRed aggregation job.
-
-TODO: this is kinda a snowflake: there are N jobs, all with the same JOB_NAME. What happens when one
-fails - it sends a $lost state - but the others are working...
-
-Either I need unique JOB_NAMEs for each, or one meta job.
+This file contains 4 jobs that run on the leader, and is a replacement for the NodeRed aggregation job.
 
 """
 import signal
@@ -21,8 +16,9 @@ from morbidostat.pubsub import subscribe_and_callback, publish
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.whoami import unit, experiment, hostname
 from morbidostat.utils.timing import RepeatedTimer
+from morbidostat.config import config
 
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+DEFAULT_JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 def current_time():
@@ -30,19 +26,23 @@ def current_time():
 
 
 class TimeSeriesAggregation(BackgroundJob):
+
+    editable_settings = ["time_window_seconds"]
+
     def __init__(
         self,
         topic,
         output_dir,
         extract_label,
         skip_cache=False,
+        job_name=DEFAULT_JOB_NAME,
         record_every_n_seconds=None,  # controls how often we should sample data. Ex: growth_rate is ~5min
-        write_every_n_seconds=30,  # controls how often we write to disk. Ex: about 30seconds
+        write_every_n_seconds=None,  # controls how often we write to disk. Ex: about 30seconds
         time_window_seconds=None,
         **kwargs,
     ):
 
-        super(TimeSeriesAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
+        super(TimeSeriesAggregation, self).__init__(job_name=job_name, **kwargs)
         self.topic = topic
         self.output_dir = output_dir
         self.aggregated_time_series = self.read(skip_cache)
@@ -50,13 +50,13 @@ class TimeSeriesAggregation(BackgroundJob):
         self.time_window_seconds = time_window_seconds
         self.cache = {}
 
-        self.write_thead = RepeatedTimer(write_every_n_seconds, self.write).start()
+        self.write_thread = RepeatedTimer(write_every_n_seconds, self.write).start()
         self.append_cache_thread = RepeatedTimer(record_every_n_seconds, self.append_cache_and_clear).start()
 
         self.start_passive_listeners()
 
-    def on_exit(self):
-        self.write_thead.cancel()
+    def on_disconnect(self):
+        self.write_thread.cancel()
         self.append_cache_thread.cancel()
 
     @property
@@ -103,7 +103,11 @@ class TimeSeriesAggregation(BackgroundJob):
 
     def on_message(self, message):
         label = self.extract_label(message.topic)
-        self.cache[label] = float(message.payload)
+        try:
+            self.cache[label] = float(message.payload)
+        except ValueError:
+            # sometimes a empty string is sent to clear the MQTT cache - that's okay - just pass.
+            pass
 
     def on_clear(self, message):
         payload = message.payload
@@ -138,12 +142,13 @@ def run(output_dir, skip_cache, verbose):
         f"morbidostat/+/{experiment}/od_raw/135/+",
         output_dir,
         experiment=experiment,
+        job_name="od_raw_time_series_aggregating",
         unit=unit,
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_seconds=45,
-        time_window_seconds=150 * 60,  # TODO: move this to a config param
+        write_every_n_seconds=15,
+        time_window_seconds=config["dashboard"]["filtered_lookback_minutes"],
         record_every_n_seconds=5,
     )
 
@@ -151,12 +156,13 @@ def run(output_dir, skip_cache, verbose):
         f"morbidostat/+/{experiment}/od_filtered/135/+",
         output_dir,
         experiment=experiment,
+        job_name="od_filtered_time_series_aggregating",
         unit=unit,
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_seconds=45,
-        time_window_seconds=150 * 60,  # TODO: move this to a config param
+        write_every_n_seconds=15,
+        time_window_seconds=config["dashboard"]["filtered_lookback_minutes"],
         record_every_n_seconds=5,
     )
 
@@ -164,11 +170,12 @@ def run(output_dir, skip_cache, verbose):
         f"morbidostat/+/{experiment}/growth_rate",
         output_dir,
         experiment=experiment,
+        job_name="growth_rate_time_series_aggregating",
         unit=unit,
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
-        write_every_n_seconds=45,
+        write_every_n_seconds=15,
         record_every_n_seconds=5 * 60,  # TODO: move this to a config param
     )
 
@@ -176,11 +183,12 @@ def run(output_dir, skip_cache, verbose):
         f"morbidostat/+/{experiment}/alt_media_calculating/alt_media_fraction",
         output_dir,
         experiment=experiment,
+        job_name="alt_media_fraction_time_series_aggregating",
         unit=unit,
         verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
-        write_every_n_seconds=45,
+        write_every_n_seconds=15,
         record_every_n_seconds=1,
     )
 

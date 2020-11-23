@@ -16,7 +16,6 @@ from morbidostat.utils import mb_jobs_running
 from morbidostat.whoami import unit, experiment, hostname
 from morbidostat import pubsub
 from morbidostat.background_jobs.od_reading import od_reading
-from morbidostat.background_jobs.stirring import Stirrer
 
 
 def green(msg):
@@ -92,9 +91,6 @@ def od_normalization(od_angle_channel, verbose):
         return
     except:
         pass
-    finally:
-        # need to gracefully exit the stirring routine
-        stirring_thread.join()
 
 
 @click.command()

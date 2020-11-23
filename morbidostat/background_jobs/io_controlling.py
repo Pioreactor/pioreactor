@@ -16,7 +16,7 @@ from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
 from morbidostat.pubsub import publish, subscribe_and_callback
 
-from morbidostat.utils.timing import every
+from morbidostat.utils.timing import every, RepeatedTimer
 from morbidostat.utils.streaming_calculations import PID
 from morbidostat.whoami import unit, experiment
 from morbidostat.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
@@ -32,36 +32,57 @@ def brief_pause():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return
     else:
-        time.sleep(5)
+        time.sleep(4)
         return
 
 
-class ControlAlgorithm(BackgroundJob):
+class IOAlgorithm(BackgroundJob):
     """
     This is the super class that algorithms inherit from. The `run` function will
-    execute every N minutes (selected at the start of the program). This calls the `execute` function,
-    which is what subclasses will define.
+    execute every `duration` minutes (selected at the start of the program). If `duration` is left
+    as None, manually call `run`.
+
+
+    This calls the `execute` function, which is what subclasses will define.
     """
 
     latest_growth_rate = None
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
-    editable_settings = ["volume", "target_od", "target_growth_rate", "display_name"]
+    editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
 
-    def __init__(self, unit=None, experiment=None, verbose=0, sensor="135/A", **kwargs):
-        super(ControlAlgorithm, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
-
+    def __init__(self, unit=None, experiment=None, verbose=0, duration=None, sensor="135/A", **kwargs):
+        super(IOAlgorithm, self).__init__(job_name="io_controlling", verbose=verbose, unit=unit, experiment=experiment)
+        self.set_duration(duration)
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.throughput_calculator = ThroughputCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
-        self.display_name = "ControlAlgorithm"
-
+        self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
+        self.timer_thread = None
+        self.latest_event = None
         self.start_passive_listeners()
+
+    def set_duration(self, value):
+        assert (value is not None) and (float(value) > 0)
+        self.duration = float(value)
+        try:
+            self.timer_thread.cancel()
+        except:
+            pass
+        finally:
+            if self.duration is not None:
+                self.timer_thread = RepeatedTimer(self.duration * 60, self.run).start()
+
+    def on_disconnect(self):
+        if self.timer_thread:
+            self.timer_thread.cancel()
+        for job in self.sub_jobs:
+            job.set_state("disconnected")
 
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):
-            time.sleep(10)  # wait some time for data to arrive, and try again.
+            time.sleep(5)  # wait some time for data to arrive, and try again.
             return self.run(counter=counter)
 
         if self.state != self.READY:
@@ -75,6 +96,7 @@ class ControlAlgorithm(BackgroundJob):
             event = self.execute(counter)
 
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{JOB_NAME}]: triggered {event}.", verbose=self.verbose)
+        self.latest_event = event
         return event
 
     def execute(self, counter) -> events.Event:
@@ -141,24 +163,22 @@ class ControlAlgorithm(BackgroundJob):
 ######################
 
 
-class Silent(ControlAlgorithm):
+class Silent(IOAlgorithm):
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
-        self.display_name = "Silent"
 
     def execute(self, *args, **kwargs) -> events.Event:
         return events.NoEvent("never execute IO events in Silent mode")
 
 
-class Turbidostat(ControlAlgorithm):
+class Turbidostat(IOAlgorithm):
     """
     turbidostat mode - try to keep cell density constant. The algorithm should run at
-    near every minute (limited by the OD reading rate)
+    near every minute (limited by the OD reading rate) to react quickly to when the target OD is hit.
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Turbidostat, self).__init__(**kwargs)
-        self.display_name = "Turbidostat"
         self.target_od = target_od
         self.volume = volume
 
@@ -170,7 +190,7 @@ class Turbidostat(ControlAlgorithm):
             return events.NoEvent(f"latest OD={self.latest_od:.2f}V < target OD={self.target_od:.2f}V")
 
 
-class PIDTurbidostat(ControlAlgorithm):
+class PIDTurbidostat(IOAlgorithm):
     """
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
@@ -178,15 +198,13 @@ class PIDTurbidostat(ControlAlgorithm):
     returns 0.03, then we should remove ~97% of the volume. Choose volume to be about 1.5ml - 2.0ml.
     """
 
-    def __init__(self, target_od=None, volume=None, duration=None, verbose=0, **kwargs):
-        super(PIDTurbidostat, self).__init__(verbose=verbose, **kwargs)
+    def __init__(self, target_od=None, volume=None, **kwargs):
+        super(PIDTurbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert volume is not None, "`volume` must be set"
-        self.display_name = "Turbidostat"
-        self.target_od = target_od
+        self.set_target_od(target_od)
         self.volume = volume
-        self.verbose = verbose
-        self.duration = duration
+
         # PID%20controller%20turbidostat.ipynb
         self.pid = PID(-2.97, -0.11, -0.09, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
 
@@ -211,13 +229,8 @@ class PIDTurbidostat(ControlAlgorithm):
     def min_od(self):
         return 0.75 * self.target_od
 
-    @property
-    def target_od(self):
-        return self._target_od
-
-    @target_od.setter
-    def target_od(self, value):
-        self._target_od = value
+    def set_target_od(self, value):
+        self.target_od = value
         try:
             # may not be defined yet...
             self.pid.set_setpoint(self.target_od)
@@ -225,21 +238,18 @@ class PIDTurbidostat(ControlAlgorithm):
             pass
 
 
-class PIDMorbidostat(ControlAlgorithm):
+class PIDMorbidostat(IOAlgorithm):
     """
     As defined in Zhong 2020
     """
 
-    def __init__(self, target_growth_rate=None, target_od=None, duration=None, volume=None, verbose=0, **kwargs):
+    def __init__(self, target_growth_rate=None, target_od=None, volume=None, verbose=0, **kwargs):
         super(PIDMorbidostat, self).__init__(verbose=verbose, **kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
-        assert duration is not None, "`duration` must be set"
 
-        self.display_name = "Morbidostat"
-        self.target_growth_rate = target_growth_rate
+        self.set_target_growth_rate(target_growth_rate)
         self.target_od = target_od
-        self.duration = duration
 
         self.pid = PID(
             -5.00, -0.0, -0.0, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
@@ -293,27 +303,21 @@ class PIDMorbidostat(ControlAlgorithm):
     def max_od(self):
         return 1.25 * self.target_od
 
-    @property
-    def target_growth_rate(self):
-        return self._target_growth_rate
-
-    @target_growth_rate.setter
-    def target_growth_rate(self, value):
-        self._target_growth_rate = value
+    def set_target_growth_rate(self, value):
+        self.target_growth_rate = value
         try:
-            self.pid.set_setpoint(self.target_od)
+            self.pid.set_setpoint(self.target_growth_rate)
         except:
             pass
 
 
-class Morbidostat(ControlAlgorithm):
+class Morbidostat(IOAlgorithm):
     """
     As defined in Toprak 2013.
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Morbidostat, self).__init__(**kwargs)
-        self.display_name = "Morbidostat"
         self.target_od = target_od
         self.volume = volume
 
@@ -340,6 +344,7 @@ class Morbidostat(ControlAlgorithm):
 
 def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
     try:
+
         algorithms = {
             "silent": Silent,
             "morbidostat": Morbidostat,
@@ -347,8 +352,6 @@ def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_fir
             "pid_turbidostat": PIDTurbidostat,
             "pid_morbidostat": PIDMorbidostat,
         }
-
-        assert mode in algorithms.keys()
 
         publish(
             f"morbidostat/{unit}/{experiment}/log",
@@ -366,19 +369,14 @@ def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_fir
         kwargs["experiment"] = experiment
         kwargs["sensor"] = sensor
 
-        algo = algorithms[mode](**kwargs)
+        controller = algorithms[mode](**kwargs)
+
+        while True:
+            signal.pause()
+
     except:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {str(e)}", verbose=verbose)
         raise e
-
-    def _gen():
-        try:
-            yield from every(duration * 60, algo.run)
-        except Exception as e:
-            publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {str(e)}", verbose=verbose)
-            raise e
-
-    return _gen()
 
 
 @click.command()

@@ -54,7 +54,6 @@ def mba():
 @mba.command()
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 def sync(units):
-    # parallelize this
     cd = "cd ~/morbidostat"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"

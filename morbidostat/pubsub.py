@@ -101,7 +101,6 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
                 from morbidostat.whoami import unit, experiment
 
                 publish(f"morbidostat/{unit}/{experiment}/error_log", str(e), verbose=1)
-
                 raise e
 
         return _callback

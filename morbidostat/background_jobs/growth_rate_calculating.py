@@ -176,7 +176,7 @@ def growth_rate_calculating(verbose, ignore_cache):
 
 @click.command()
 @click.option("--verbose", "-v", count=True, help="Print to std out")
-@click.option("--ignore-cache", default=False, help="Ignore the cached growth_rate value")
+@click.option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
 def click_growth_rate_calculating(verbose, ignore_cache):
     growth_rate_calculating(verbose, ignore_cache)
 

@@ -59,15 +59,11 @@ install-db:
 	sqlite3 /home/pi/db/morbidostat.sqlite
 	sqlite3 morbidostat.sqlite '.read sql/create_tables.sql'
 
-install-nodered:
-	bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered)
-	sudo systemctl enable nodered.service
-
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-nodered install-morbidostat systemd-leader
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-morbidostat systemd-leader
 	pip3 install -r requirements/requirements_leader.txt
 
 view:

@@ -3,7 +3,14 @@ import time
 import json
 import pytest
 
-from morbidostat.background_jobs.io_controlling import io_controlling, ControlAlgorithm, PIDMorbidostat, PIDTurbidostat
+from morbidostat.background_jobs.io_controlling import (
+    Morbidostat,
+    IOAlgorithm,
+    PIDMorbidostat,
+    PIDTurbidostat,
+    Silent,
+    Turbidostat,
+)
 from morbidostat.background_jobs.utils import events
 from morbidostat.whoami import unit, experiment
 from morbidostat import pubsub
@@ -15,119 +22,121 @@ def pause():
 
 
 def test_silent_algorithm():
-    io = io_controlling(mode="silent", volume=None, duration=60, verbose=2)
+    io = Silent(volume=None, duration=None, verbose=2, unit=unit, experiment=experiment)
     pause()
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", "0.01")
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", "1.0")
     pause()
-    assert isinstance(next(io), events.NoEvent)
+    assert isinstance(io.run(), events.NoEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", "0.02")
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", "1.1")
     pause()
-    assert isinstance(next(io), events.NoEvent)
+    assert isinstance(io.run(), events.NoEvent)
 
 
 def test_turbidostat_algorithm():
     target_od = 1.0
-    algo = io_controlling(mode="turbidostat", target_od=target_od, duration=60, volume=0.25, verbose=2)
+    algo = Turbidostat(target_od=target_od, duration=None, volume=0.25, verbose=2, unit=unit, experiment=experiment)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.98)
     pause()
-    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(algo.run(), events.NoEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.0)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.01)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.99)
     pause()
-    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(algo.run(), events.NoEvent)
 
 
 def test_pid_turbidostat_algorithm():
 
     target_od = 2.4
-    algo = io_controlling(mode="pid_turbidostat", target_od=target_od, volume=2.0, duration=30, verbose=2)
+    algo = PIDTurbidostat(target_od=target_od, volume=2.0, duration=None, verbose=2, unit=unit, experiment=experiment)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 3.2)
     pause()
-    e = next(algo)
+    e = algo.run()
     assert isinstance(e, events.DilutionEvent)
     assert e.volume_to_cycle > 1.0
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 3.1)
     pause()
-    e = next(algo)
+    e = algo.run()
     assert isinstance(e, events.DilutionEvent)
     assert e.volume_to_cycle > 1.0
 
 
 def test_morbidostat_algorithm():
     target_od = 1.0
-    algo = io_controlling(mode=f"morbidostat", target_od=target_od, duration=60, volume=0.25, verbose=2)
+    algo = Morbidostat(target_od=target_od, duration=None, volume=0.25, verbose=2, unit=unit, experiment=experiment)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
-    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(algo.run(), events.NoEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.99)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.05)
     pause()
-    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AltMediaEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.03)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.04)
     pause()
-    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AltMediaEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.99)
     pause()
-    assert isinstance(next(algo), events.DilutionEvent)
+    assert isinstance(algo.run(), events.DilutionEvent)
 
 
 def test_pid_morbidostat_algorithm():
     target_growth_rate = 0.09
-    algo = io_controlling(mode="pid_morbidostat", target_od=1.0, target_growth_rate=target_growth_rate, duration=60, verbose=2)
+    algo = PIDMorbidostat(
+        target_od=1.0, target_growth_rate=target_growth_rate, duration=None, verbose=2, unit=unit, experiment=experiment
+    )
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.500)
     pause()
-    assert isinstance(next(algo), events.NoEvent)
+    assert isinstance(algo.run(), events.NoEvent)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
-    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AltMediaEvent)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.07)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
-    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AltMediaEvent)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.065)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
-    assert isinstance(next(algo), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AltMediaEvent)
 
 
 def test_changing_morbidostat_parameters_over_mqtt():
@@ -149,7 +158,7 @@ def test_changing_turbidostat_params_over_mqtt():
 
     og_volume = 0.5
     og_target_od = 1.0
-    algo = PIDTurbidostat(volume=og_volume, target_od=og_target_od, duration=0.0001, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDTurbidostat(volume=og_volume, target_od=og_target_od, duration=None, verbose=2, unit=unit, experiment=experiment)
     assert algo.volume == og_volume
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.05)
@@ -176,14 +185,14 @@ def test_changing_turbidostat_params_over_mqtt():
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
 
-    algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = IOAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/garbage/set", 0.07)
     pause()
 
 
 def test_pause_in_io_controlling():
 
-    algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = IOAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
     pause()
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/$state/set", "sleeping")
     pause()
@@ -195,7 +204,7 @@ def test_pause_in_io_controlling():
 
 
 def test_old_readings_will_not_execute_io():
-    algo = ControlAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = IOAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
     algo.latest_growth_rate = 1
     algo.latest_od = 1
 
@@ -212,7 +221,7 @@ def test_throughput_calculator():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/media_throughput", 0, retain=True)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 0, retain=True)
 
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
     assert algo.throughput_calculator.media_throughput == 0
     pause()
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
@@ -249,7 +258,7 @@ def test_throughput_calculator_restart():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
 
     target_growth_rate = 0.06
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
@@ -262,7 +271,7 @@ def test_throughput_calculator_manual_set():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
     pause()
     target_growth_rate = 0.06
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
@@ -277,7 +286,7 @@ def test_throughput_calculator_manual_set():
 def test_execute_io_action():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/alt_media_throughput", None, retain=True)
-    ca = ControlAlgorithm(verbose=2, unit=unit, experiment=experiment)
+    ca = IOAlgorithm(verbose=2, unit=unit, experiment=experiment)
     ca.execute_io_action(media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35)
     pause()
     assert ca.throughput_calculator.media_throughput == 0.65
@@ -305,8 +314,40 @@ def test_execute_io_action2():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/alt_media_throughput", None, retain=True)
 
-    ca = ControlAlgorithm(verbose=2, unit=unit, experiment=experiment)
+    ca = IOAlgorithm(verbose=2, unit=unit, experiment=experiment)
     ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     pause()
     assert ca.throughput_calculator.media_throughput == 1.25
     assert ca.throughput_calculator.alt_media_throughput == 0.01
+
+
+def test_duration_and_timer():
+    algo = PIDMorbidostat(target_od=1.0, target_growth_rate=0.01, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    assert algo.latest_event is None
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.500)
+    time.sleep(5)
+    pause()
+    assert isinstance(algo.latest_event, events.NoEvent)
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
+    time.sleep(10)
+    pause()
+    assert isinstance(algo.latest_event, events.AltMediaEvent)
+
+
+def test_changing_duration_over_mqtt():
+    algo = PIDMorbidostat(target_od=1.0, target_growth_rate=0.01, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    assert algo.latest_event is None
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.500)
+    time.sleep(5)
+    pause()
+    time.sleep(5)
+
+    assert isinstance(algo.latest_event, events.NoEvent)
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/duration/set", 60 / 60)
+    pause()
+    assert algo.timer_thread.interval == 60

@@ -30,7 +30,7 @@ def every(delay, task, *args, **kwargs):
         next_time += (time.time() - next_time) // delay * delay + delay
 
 
-class RepeatedTimer(object):
+class RepeatedTimer:
     """
     A class for repeating a function in the background every N seconds.
 
@@ -50,8 +50,8 @@ class RepeatedTimer(object):
         self.args = args
         self.kwargs = kwargs
         self.is_running = False
-        self.start()
         self.daemon = True
+        self.start()
 
     def _run(self):
         self.is_running = False

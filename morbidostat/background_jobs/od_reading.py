@@ -20,13 +20,11 @@ Also published to
     morbidostat/<unit>/<experiment>/od_raw_batched
 
 
-
 """
 import time
 import json
 import os
 import string
-from collections import Counter
 
 import click
 from adafruit_ads1x15.analog_in import AnalogIn
@@ -132,21 +130,22 @@ class ODReader(BackgroundJob):
             raise e
 
 
+INPUT_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D"}
+
+
 def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sampling"]["samples_per_second"])):
-    angle_counter = Counter()
     od_channels = []
     for input_ in od_angle_channel:
         angle, channel = input_.split(",")
 
         # We split input of the form ["135,x", "135,y", "90,z"] into the form
-        # "135/A", "135/B", "90/A"
-        angle_counter.update([angle])
-        angle_label = str(angle) + "/" + string.ascii_uppercase[angle_counter[angle] - 1]
+        # "135/A", "135/B", "90/C"
+        angle_label = str(angle) + "/" + INPUT_TO_LETTER[channel]
 
         od_channels.append((angle_label, channel))
 
     i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, gain=8)  # we can the gain dynamically later
+    ads = ADS.ADS1115(i2c, gain=4)  # we will change the gain dynamically later.
 
     yield from every(sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading)
 

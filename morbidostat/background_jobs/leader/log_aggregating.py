@@ -23,12 +23,15 @@ def current_time():
 
 
 class LogAggregation(BackgroundJob):
-    def __init__(self, topics, output, max_length=config["dashboard"]["log_display_count"], **kwargs):
+
+    editable_settings = ["log_display_count"]
+
+    def __init__(self, topics, output, log_display_count=config["dashboard"]["log_display_count"], **kwargs):
         super(LogAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
         self.topics = topics
         self.output = output
         self.aggregated_log_table = self.read()
-        self.max_length = max_length
+        self.log_display_count = log_display_count
         self.start_passive_listeners()
 
     def on_message(self, message):
@@ -38,7 +41,7 @@ class LogAggregation(BackgroundJob):
             self.aggregated_log_table.insert(
                 0, {"timestamp": current_time(), "message": message.payload.decode(), "unit": unit, "is_error": is_error}
             )
-            self.aggregated_log_table = self.aggregated_log_table[: self.max_length]
+            self.aggregated_log_table = self.aggregated_log_table[: self.log_display_count]
 
             self.write()
         except:

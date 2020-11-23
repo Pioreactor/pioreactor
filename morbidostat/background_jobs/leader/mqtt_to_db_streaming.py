@@ -34,7 +34,7 @@ def produce_metadata(topic):
 class MqttToDBStreamer(BackgroundJob):
     def __init__(self, topics_and_parsers, **kwargs):
         super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
-        self.sqliteworker = Sqlite3Worker(config["data"]["observation_database"])
+        self.sqliteworker = Sqlite3Worker(config["data"]["observation_database"], max_queue_size=10000)
         self.topics_and_callbacks = [
             {"topic": topic_and_parser["topic"], "callback": self.create_on_message(topic_and_parser)}
             for topic_and_parser in topics_and_parsers
@@ -42,19 +42,17 @@ class MqttToDBStreamer(BackgroundJob):
 
         self.start_passive_listeners()
 
+    def on_disconnect(self):
+        self.sqliteworker.close()  # close the db safely
+
     def create_on_message(self, topic_and_parser):
         def _callback(message):
-            try:
-                cols_to_values = topic_and_parser["parser"](message.topic, message.payload)
+            cols_to_values = topic_and_parser["parser"](message.topic, message.payload)
 
-                cols_placeholder = ", ".join(cols_to_values.keys())
-                values_placeholder = ", ".join([":" + c for c in cols_to_values.keys()])
-                SQL = f"""INSERT INTO {topic_and_parser['table']} ({cols_placeholder}) VALUES ({values_placeholder})"""
-                self.sqliteworker.execute(SQL, cols_to_values)
-            except Exception as e:
-                import traceback
-
-                traceback.print_exc()
+            cols_placeholder = ", ".join(cols_to_values.keys())
+            values_placeholder = ", ".join([":" + c for c in cols_to_values.keys()])
+            SQL = f"""INSERT INTO {topic_and_parser['table']} ({cols_placeholder}) VALUES ({values_placeholder})"""
+            self.sqliteworker.execute(SQL, cols_to_values)
 
         return _callback
 

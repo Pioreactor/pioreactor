@@ -85,12 +85,13 @@ class BackgroundJob:
     def sleeping(self):
         self.state = self.SLEEPING
 
-    def on_exit(self):
+    def on_disconnect(self):
+        # specific things to do when a job disonnects / exits
         pass
 
     def disconnected(self):
         self.state = self.DISCONNECTED
-        self.on_exit()
+        self.on_disconnect()
         self._client.disconnect()
 
     def declare_settable_properties_to_broker(self):
@@ -118,10 +119,7 @@ class BackgroundJob:
 
         new_value = message.payload.decode()
         info_from_topic = split_topic_for_setting(message.topic)
-        attr = info_from_topic.attr
-
-        if attr == "$state":
-            return self.set_state(new_value)
+        attr = info_from_topic.attr.lstrip("$")
 
         if attr not in self.editable_settings:
             return
@@ -129,11 +127,16 @@ class BackgroundJob:
         assert hasattr(self, attr), f"{self.job_name} has no attr {attr}."
         previous_value = getattr(self, attr)
 
-        try:
-            # make sure to cast the input to the same value
-            setattr(self, attr, type(previous_value)(new_value))
-        except:
-            setattr(self, attr, new_value)
+        # a subclass may want to define a `set_<attr>` method that will be used instead
+        # for example, see IOAlgorithmController, and `set_state` here
+        if hasattr(self, "set_%s" % attr):
+            getattr(self, "set_%s" % attr)(new_value)
+        else:
+            try:
+                # make sure to cast the input to the same value
+                setattr(self, attr, type(previous_value)(new_value))
+            except:
+                setattr(self, attr, new_value)
 
         publish(
             f"morbidostat/{self.unit}/{self.experiment}/log",

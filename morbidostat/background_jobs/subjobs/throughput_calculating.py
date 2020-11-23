@@ -13,28 +13,25 @@ from morbidostat.pubsub import publish, subscribe_and_callback, QOS
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
 from morbidostat import utils
-from morbidostat.background_jobs import BackgroundJob
+from morbidostat.background_jobs.subjobs import BackgroundSubJob
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-class ThroughputCalculator(BackgroundJob):
+class ThroughputCalculator(BackgroundSubJob):
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
     has been spent, so that triggers can be set up to replace media stock.
-
-    TODO: this isn't used, and I'm not sure if this should run on leader (and aggregate all mb events),
-    or on units (and the UI/other consumers aggregate on the fly).
 
     on leader:
         one source for aggregation data
         useful metric only in aggregate
     on worker
-        better api (runs when io_controlling runs)
+        better api (runs when io_controlling runs AND won't be dirtied with cleaning-vial events)
         used in tests (maybe an anti-pattern)
         useless metric for an individual unit, makes it hard to "reset" (i.e. if I wanted to set it back to 0 after a media exchange)
         UI has to aggregate - this is tricky: the totals are not summable.
-            I would need the totals, and then the deltas, or keep state of individual totals in react state, and aggregate in the render...
+            Sol: I need the totals, and then the deltas, or keep state of individual totals in react state, and aggregate in the render...
 
     """
 

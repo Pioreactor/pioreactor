@@ -38,12 +38,12 @@ class Stirrer(BackgroundJob):
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, 0)
         self.pwm = GPIO.PWM(self.pin, self.hertz)
-        self.duty_cycle = duty_cycle
+        self.set_duty_cycle(duty_cycle)
         self.start_stirring()
 
-    def on_exit(self):
+    def on_disconnect(self):
         # not necessary, but will update the UI to show that the speed is 0 (off)
-        self.duty_cycle = 0
+        self.set_duty_cycle(0)
         GPIO.cleanup()
 
     def start_stirring(self):
@@ -63,13 +63,8 @@ class Stirrer(BackgroundJob):
                     pass
         super(Stirrer, self).__setattr__(name, value)
 
-    @property
-    def duty_cycle(self):
-        return self._duty_cycle
-
-    @duty_cycle.setter
-    def duty_cycle(self, value):
-        self._duty_cycle = value
+    def set_duty_cycle(self, value):
+        self.duty_cycle = value
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
 

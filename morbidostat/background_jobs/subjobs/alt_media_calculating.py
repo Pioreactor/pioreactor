@@ -16,13 +16,13 @@ from morbidostat.pubsub import publish, subscribe_and_callback, QOS
 from morbidostat.utils.timing import RepeatedTimer
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
-from morbidostat.background_jobs import BackgroundJob
+from morbidostat.background_jobs.subjobs import BackgroundSubJob
 
 VIAL_VOLUME = 14
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-class AltMediaCalculator(BackgroundJob):
+class AltMediaCalculator(BackgroundSubJob):
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
     I want to periodically publish this, too, so the graph looks better.
@@ -34,7 +34,7 @@ class AltMediaCalculator(BackgroundJob):
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
-        self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
+        self.latest_alt_media_fraction = 0
 
         # publish every 30 seconds.
         self.publish_periodically_thead = RepeatedTimer(30, self.publish)
@@ -42,7 +42,7 @@ class AltMediaCalculator(BackgroundJob):
 
         self.start_passive_listeners()
 
-    def on_exit(self):
+    def on_disconnect(self):
         self.publish_periodically_thead.cancel()
 
     def on_io_event(self, message):
@@ -87,27 +87,16 @@ class AltMediaCalculator(BackgroundJob):
 
         return self.latest_alt_media_fraction
 
-    def get_initial_alt_media_fraction(self) -> float:
-        """
-        This is a hack to use a timeout (not available in paho-mqtt) to
-        see if a value is present in the MQTT cache (retained message)
-
-        TODO: replace
-        """
-        test_mqtt = subprocess.run(
-            [
-                f'mosquitto_sub -t "morbidostat/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction" -W 3 -h {leader_hostname}'
-            ],
-            shell=True,
-            capture_output=True,
-            universal_newlines=True,
-        )
-        if test_mqtt.stdout == "":
-            return 0.0
-        else:
-            return float(test_mqtt.stdout.strip())
+    def set_initial_alt_media_fraction(self, message) -> None:
+        self.latest_alt_media_fraction = float(message.payload)
 
     def start_passive_listeners(self) -> None:
+        subscribe_and_callback(
+            self.set_initial_alt_media_fraction,
+            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction",
+            timeout=3,
+            max_msgs=1,
+        )
         subscribe_and_callback(
             callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
         )
