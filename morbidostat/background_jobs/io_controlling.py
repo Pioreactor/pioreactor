@@ -2,7 +2,7 @@
 """
 Continuously monitor the bioreactor and take action. This is the core of the io algorithm
 """
-import time, sys, os
+import time, sys, os, signal
 
 from typing import Iterator
 import json
