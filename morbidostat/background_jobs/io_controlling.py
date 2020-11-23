@@ -78,7 +78,7 @@ class IOAlgorithm(BackgroundSubJob):
             pass
         finally:
             if self.duration is not None:
-                self.timer_thread = RepeatedTimer(self.duration * 60, self.run).start()
+                self.timer_thread = RepeatedTimer(float(self.duration) * 60, self.run).start()
 
     def on_disconnect(self):
         try:
