@@ -402,7 +402,7 @@ def run(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=Fals
         while True:
             signal.pause()
 
-    except:
+    except Exception as e:
         publish(f"morbidostat/{unit}/{experiment}/error_log", f"[io_controlling]: failed {str(e)}", verbose=verbose)
         raise e
 
