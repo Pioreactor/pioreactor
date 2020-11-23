@@ -23,9 +23,9 @@ from morbidostat.background_jobs.subjobs.alt_media_calculating import AltMediaCa
 from morbidostat.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from morbidostat.background_jobs.utils import events
 from morbidostat.background_jobs import BackgroundJob
+from morbidostat.background_jobs.subjobs import BackgroundSubJob
 
 VIAL_VOLUME = 14
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 def brief_pause():
@@ -36,7 +36,7 @@ def brief_pause():
         return
 
 
-class IOAlgorithm(BackgroundJob):
+class IOAlgorithm(BackgroundSubJob):
     """
     This is the super class that algorithms inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program). If `duration` is left
@@ -44,6 +44,7 @@ class IOAlgorithm(BackgroundJob):
 
 
     This calls the `execute` function, which is what subclasses will define.
+    TODO: change the job name?
     """
 
     latest_growth_rate = None
@@ -52,20 +53,25 @@ class IOAlgorithm(BackgroundJob):
     latest_growth_rate_timestamp = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
 
-    def __init__(self, unit=None, experiment=None, verbose=0, duration=None, sensor="135/A", **kwargs):
+    def __init__(self, unit=None, experiment=None, verbose=0, duration=60, sensor="135/A", **kwargs):
         super(IOAlgorithm, self).__init__(job_name="io_controlling", verbose=verbose, unit=unit, experiment=experiment)
+        self.latest_event = None
+
         self.set_duration(duration)
         self.sensor = sensor
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.throughput_calculator = ThroughputCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
-        self.timer_thread = None
-        self.latest_event = None
         self.start_passive_listeners()
 
+        publish(
+            f"morbidostat/{unit}/{experiment}/log",
+            f"[{self.job_name}]: starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}",
+            verbose=verbose,
+        )
+
     def set_duration(self, value):
-        assert (value is not None) and (float(value) > 0)
-        self.duration = float(value)
+        self.duration = value
         try:
             self.timer_thread.cancel()
         except:
@@ -75,8 +81,10 @@ class IOAlgorithm(BackgroundJob):
                 self.timer_thread = RepeatedTimer(self.duration * 60, self.run).start()
 
     def on_disconnect(self):
-        if self.timer_thread:
+        try:
             self.timer_thread.cancel()
+        except:
+            pass
         for job in self.sub_jobs:
             job.set_state("disconnected")
 
@@ -95,7 +103,7 @@ class IOAlgorithm(BackgroundJob):
         else:
             event = self.execute(counter)
 
-        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{JOB_NAME}]: triggered {event}.", verbose=self.verbose)
+        publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{self.job_name}]: triggered {event}.", verbose=self.verbose)
         self.latest_event = event
         return event
 
@@ -185,9 +193,9 @@ class Turbidostat(IOAlgorithm):
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od >= self.target_od:
             self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
-            return events.DilutionEvent(f"latest OD={self.latest_od:.2f}V >= target OD={self.target_od:.2f}V")
+            return events.DilutionEvent(f"latest OD={self.latest_od:.2f} >= target OD={self.target_od:.2f}")
         else:
-            return events.NoEvent(f"latest OD={self.latest_od:.2f}V < target OD={self.target_od:.2f}V")
+            return events.NoEvent(f"latest OD={self.latest_od:.2f} < target OD={self.target_od:.2f}")
 
 
 class PIDTurbidostat(IOAlgorithm):
@@ -258,7 +266,7 @@ class PIDMorbidostat(IOAlgorithm):
         if volume is not None:
             publish(
                 f"morbidostat/{self.unit}/{self.experiment}/log",
-                f"[{JOB_NAME}]: Ignoring volume parameter; volume set by target growth rate and duration.",
+                f"[{self.job_name}]: Ignoring volume parameter; volume set by target growth rate and duration.",
                 verbose=self.verbose,
             )
 
@@ -277,7 +285,7 @@ class PIDMorbidostat(IOAlgorithm):
             if self.latest_od > self.max_od:
                 publish(
                     f"morbidostat/{self.unit}/{self.experiment}/log",
-                    f"[{JOB_NAME}]: executing triple dilution since we are above max OD, {self.max_od:.2f}.",
+                    f"[{self.job_name}]: executing triple dilution since we are above max OD, {self.max_od:.2f}.",
                     verbose=self.verbose,
                 )
                 volume = 3 * self.volume
@@ -342,25 +350,45 @@ class Morbidostat(IOAlgorithm):
             )
 
 
-def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
-    try:
+class AlgoController(BackgroundJob):
 
-        algorithms = {
-            "silent": Silent,
-            "morbidostat": Morbidostat,
-            "turbidostat": Turbidostat,
-            "pid_turbidostat": PIDTurbidostat,
-            "pid_morbidostat": PIDMorbidostat,
-        }
+    algorithms = {
+        "silent": Silent,
+        "morbidostat": Morbidostat,
+        "turbidostat": Turbidostat,
+        "pid_turbidostat": PIDTurbidostat,
+        "pid_morbidostat": PIDMorbidostat,
+    }
 
-        publish(
-            f"morbidostat/{unit}/{experiment}/log",
-            f"[{JOB_NAME}]: starting {mode} with {duration}min intervals, metadata: {kwargs}",
-            verbose=verbose,
+    editable_settings = ["io_algorithm"]
+
+    def __init__(self, io_algorithm, unit=None, experiment=None, verbose=0, **kwargs):
+        super(AlgoController, self).__init__(job_name="algorithm_controlling", unit=unit, experiment=experiment, verbose=verbose)
+        self.io_algorithm = io_algorithm
+        self.io_algorithm_job = self.algorithms[self.io_algorithm](
+            unit=self.unit, experiment=self.experiment, verbose=self.verbose, **kwargs
         )
 
+    def set_io_algorithm(self, new_io_algorithm_json):
+        try:
+            algo_init = json.loads(new_io_algorithm_json)
+            self.io_algorithm_job.set_state("disconnected")
+            self.io_algorithm_job = self.algorithms[algo_init["io_algorithm"]](
+                unit=self.unit, experiment=self.experiment, verbose=self.verbose, **algo_init
+            )
+            self.io_algorithm = algo_init["io_algorithm"]
+        except Exception as e:
+            publish(f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[{self.job_name}]: failed with {e}")
+
+    def on_disconnect(self):
+        self.io_algorithm_job.set_state("disconnected")
+
+
+def run(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
+    try:
+
         if skip_first_run:
-            publish(f"morbidostat/{unit}/{experiment}/log", f"[{JOB_NAME}]: skipping first run", verbose=verbose)
+            publish(f"morbidostat/{unit}/{experiment}/log", f"[{self.job_name}]: skipping first run", verbose=verbose)
             time.sleep(duration * 60)
 
         kwargs["verbose"] = verbose
@@ -369,13 +397,13 @@ def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_fir
         kwargs["experiment"] = experiment
         kwargs["sensor"] = sensor
 
-        controller = algorithms[mode](**kwargs)
+        controller = AlgoController(mode, **kwargs)
 
         while True:
             signal.pause()
 
     except:
-        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {str(e)}", verbose=verbose)
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{self.job_name}]: failed {str(e)}", verbose=verbose)
         raise e
 
 
@@ -393,7 +421,7 @@ def io_controlling(mode=None, duration=None, verbose=0, sensor="135/A", skip_fir
 )
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run, verbose):
-    controller = io_controlling(
+    controller = run(
         mode=mode,
         target_od=target_od,
         target_growth_rate=target_growth_rate,
@@ -403,8 +431,6 @@ def click_io_controlling(mode, target_od, target_growth_rate, duration, volume, 
         sensor=sensor,
         verbose=verbose,
     )
-    while True:
-        next(controller)
 
 
 if __name__ == "__main__":

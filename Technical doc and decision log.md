@@ -28,4 +28,4 @@
 
 13. The morbidostat should always be able to run on RpiZeroWs - these are significantly cheaper. We don't ever need the peripherals on a regular RPi. However, RPiZeros are slower to execute, and can't sample OD very vast.
 
-14. Parent jobs and subjobs: A parent job has the responsibility of disconnecting a subjob (which may have subjobs of its own).
+14. Parent jobs and subjobs: A parent job has the responsibility of disconnecting a subjob (which may have subjobs of its own). Eventually, I would like subjobs to know about their parents...

@@ -10,6 +10,7 @@ from morbidostat.background_jobs.io_controlling import (
     PIDTurbidostat,
     Silent,
     Turbidostat,
+    AlgoController,
 )
 from morbidostat.background_jobs.utils import events
 from morbidostat.whoami import unit, experiment
@@ -351,3 +352,58 @@ def test_changing_duration_over_mqtt():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/duration/set", 60 / 60)
     pause()
     assert algo.timer_thread.interval == 60
+
+
+def test_changing_algo_over_mqtt():
+
+    algo = AlgoController("turbidostat", target_od=1.0, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    assert algo.io_algorithm == "turbidostat"
+    assert isinstance(algo.io_algorithm_job, Turbidostat)
+    pause()
+    pubsub.publish(
+        f"morbidostat/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
+        '{"io_algorithm": "pid_morbidostat", "duration": 60, "target_od": 1.0, "target_growth_rate": 0.07}',
+    )
+    pause()
+    assert algo.io_algorithm == "pid_morbidostat"
+    assert isinstance(algo.io_algorithm_job, PIDMorbidostat)
+    assert algo.io_algorithm_job.target_growth_rate == 0.07
+
+
+def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
+
+    algo = AlgoController("turbidostat", target_od=1.0, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    assert algo.io_algorithm == "turbidostat"
+    assert isinstance(algo.io_algorithm_job, Turbidostat)
+    pause()
+    pubsub.publish(
+        f"morbidostat/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
+        '{"io_algorithm": "pid_morbidostat", "duration": 60}',
+    )
+    pause()
+    assert algo.io_algorithm == "turbidostat"
+    assert isinstance(algo.io_algorithm_job, Turbidostat)
+    assert algo.io_algorithm_job.target_od == 1.0
+
+
+def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
+
+    algo = AlgoController(
+        "pid_turbidostat", volume=1.0, target_od=0.4, duration=2 / 60, verbose=2, unit=unit, experiment=experiment
+    )
+    assert algo.io_algorithm == "pid_turbidostat"
+    pause()
+    pubsub.publish(
+        f"morbidostat/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
+        '{"io_algorithm": "turbidostat", "duration": null, "target_od": 1.0, "volume": 1.0}',
+    )
+    pause()
+    assert isinstance(algo.io_algorithm_job, Turbidostat)
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.15)
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 1.5)
+    pause()
+    algo.io_algorithm_job.run()
+    time.sleep(5)
+    assert algo.io_algorithm_job.throughput_calculator.media_throughput == 1.0
