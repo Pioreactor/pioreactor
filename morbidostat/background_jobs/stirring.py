@@ -13,7 +13,7 @@ import RPi.GPIO as GPIO
 
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config
-from morbidostat.pubsub import publish, subscribe_and_callback
+from morbidostat.pubsub import publish
 from morbidostat.utils.timing import every
 from morbidostat.background_jobs import BackgroundJob
 

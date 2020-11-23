@@ -119,9 +119,11 @@ class TimeSeriesAggregation(BackgroundJob):
             publish(f"morbidostat/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the cache.")
 
     def start_passive_listeners(self):
-        subscribe_and_callback(self.on_message, self.topic)
-        subscribe_and_callback(
-            self.on_clear, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/aggregated_time_series/set"
+        self.pubsub_threads(subscribe_and_callback(self.on_message, self.topic))
+        self.pubsub_threads(
+            subscribe_and_callback(
+                self.on_clear, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/aggregated_time_series/set"
+            )
         )
 
 

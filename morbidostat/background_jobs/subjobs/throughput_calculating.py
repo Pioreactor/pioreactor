@@ -103,20 +103,26 @@ class ThroughputCalculator(BackgroundSubJob):
         self.alt_media_throughput = float(message.payload)
 
     def start_passive_listeners(self) -> None:
-        subscribe_and_callback(
-            self.set_media_initial_throughput,
-            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/media_throughput",
-            timeout=3,
-            max_msgs=1,
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.set_media_initial_throughput,
+                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/media_throughput",
+                timeout=3,
+                max_msgs=1,
+            )
         )
-        subscribe_and_callback(
-            self.set_alt_media_initial_throughput,
-            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput",
-            timeout=3,
-            max_msgs=1,
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.set_alt_media_initial_throughput,
+                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput",
+                timeout=3,
+                max_msgs=1,
+            )
         )
-        subscribe_and_callback(
-            callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
+            )
         )
 
 

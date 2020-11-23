@@ -130,24 +130,41 @@ class GrowthRateCalculator(BackgroundJob):
     def start_passive_listeners(self):
         # initialize states
         if not self.ignore_cache:
-            subscribe_and_callback(
-                self.set_initial_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=3, max_msgs=1
+            self.pubsub_threads.append(
+                subscribe_and_callback(
+                    self.set_initial_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=3, max_msgs=1
+                )
             )
 
-        subscribe_and_callback(
-            self.set_od_normalization_factors,
-            f"morbidostat/{self.unit}/{self.experiment}/od_normalization/median",
-            timeout=3,
-            max_msgs=1,
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.set_od_normalization_factors,
+                f"morbidostat/{self.unit}/{self.experiment}/od_normalization/median",
+                timeout=3,
+                max_msgs=1,
+            )
         )
 
-        subscribe_and_callback(
-            self.set_od_variances, f"morbidostat/{self.unit}/{self.experiment}/od_normalization/variance", timeout=3, max_msgs=1
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.set_od_variances,
+                f"morbidostat/{self.unit}/{self.experiment}/od_normalization/variance",
+                timeout=3,
+                max_msgs=1,
+            )
         )
 
         # process incoming data
-        subscribe_and_callback(self.update_state_from_observation, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
-        subscribe_and_callback(self.update_ekf_variance_after_io_event, f"morbidostat/{self.unit}/{self.experiment}/io_events")
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.update_state_from_observation, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched"
+            )
+        )
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.update_ekf_variance_after_io_event, f"morbidostat/{self.unit}/{self.experiment}/io_events"
+            )
+        )
 
     @staticmethod
     def json_to_sorted_dict(json_dict):

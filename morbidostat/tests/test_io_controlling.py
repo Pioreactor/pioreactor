@@ -407,3 +407,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
     algo.io_algorithm_job.run()
     time.sleep(5)
     assert algo.io_algorithm_job.throughput_calculator.media_throughput == 1.0
+
+    pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/target_od/set", 1.5)
+    pause()
+    pause()

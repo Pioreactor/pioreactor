@@ -7,6 +7,7 @@ import traceback
 from click import echo, style
 from paho.mqtt import publish as mqtt_publish
 from paho.mqtt import subscribe as mqtt_subscribe
+import kthread
 from morbidostat.config import leader_hostname
 
 
@@ -116,7 +117,7 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
         userdata["count"] = 0
         userdata["max_msgs"] = max_msgs
 
-    thread = threading.Thread(
+    thread = kthread.KThread(
         target=mqtt_subscribe.callback,
         args=(wrap_callback(callback), topics),
         kwargs={"hostname": hostname, "userdata": userdata, **mqtt_kwargs},

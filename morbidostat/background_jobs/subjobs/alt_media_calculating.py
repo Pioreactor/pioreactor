@@ -91,12 +91,16 @@ class AltMediaCalculator(BackgroundSubJob):
         self.latest_alt_media_fraction = float(message.payload)
 
     def start_passive_listeners(self) -> None:
-        subscribe_and_callback(
-            self.set_initial_alt_media_fraction,
-            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction",
-            timeout=3,
-            max_msgs=1,
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.set_initial_alt_media_fraction,
+                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction",
+                timeout=3,
+                max_msgs=1,
+            )
         )
-        subscribe_and_callback(
-            callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
+            )
         )

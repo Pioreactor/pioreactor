@@ -56,6 +56,7 @@ class BackgroundJob:
         self.verbose = verbose
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
+        self.pubsub_threads = []
 
         self.check_for_duplicate_process()
 
@@ -90,8 +91,18 @@ class BackgroundJob:
         pass
 
     def disconnected(self):
+        # set state to disconnect
         self.state = self.DISCONNECTED
+
+        # call job specific on_disconnect to clean up threads, etc.
         self.on_disconnect()
+
+        # disconnect from the passive subscription threads
+        for thread in self.pubsub_threads:
+            if thread.is_alive():
+                thread.terminate()
+
+        # disconnect gracefully from last-will topic, not triggering the last-will
         self._client.disconnect()
 
     def declare_settable_properties_to_broker(self):
@@ -130,7 +141,11 @@ class BackgroundJob:
         # a subclass may want to define a `set_<attr>` method that will be used instead
         # for example, see IOAlgorithmController, and `set_state` here
         if hasattr(self, "set_%s" % attr):
-            getattr(self, "set_%s" % attr)(new_value)
+            try:
+                getattr(self, "set_%s" % attr)(new_value)
+            except:
+                # don't publish the "updated" value to log
+                return
         else:
             try:
                 # make sure to cast the input to the same value
@@ -160,15 +175,21 @@ class BackgroundJob:
 
     def start_general_passive_listeners(self) -> None:
 
-        subscribe_and_callback(
-            self.set_attr_from_message, f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set", qos=QOS.EXACTLY_ONCE
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.set_attr_from_message,
+                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set",
+                qos=QOS.EXACTLY_ONCE,
+            )
         )
 
         # everyone listens to $unit (TODO: even leader?)
-        subscribe_and_callback(
-            self.set_attr_from_message,
-            f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
-            qos=QOS.EXACTLY_ONCE,
+        self.pubsub_threads.append(
+            subscribe_and_callback(
+                self.set_attr_from_message,
+                f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
+                qos=QOS.EXACTLY_ONCE,
+            )
         )
 
     def send_last_will_to_leader(self):

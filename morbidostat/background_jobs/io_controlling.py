@@ -162,8 +162,12 @@ class IOAlgorithm(BackgroundSubJob):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def start_passive_listeners(self):
-        subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{self.sensor}")
-        subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
+        self.pubsub_threads.append(
+            subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{self.sensor}")
+        )
+        self.pubsub_threads.append(
+            subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
+        )
 
 
 ######################
