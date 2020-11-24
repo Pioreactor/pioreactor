@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 # pubsub
 import socket
-import threading
 import time
+import threading
 import traceback
 from click import echo, style
 from paho.mqtt import publish as mqtt_publish
 from paho.mqtt import subscribe as mqtt_subscribe
-import kthread
 from morbidostat.config import leader_hostname
 
 
@@ -77,22 +76,25 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
         the client will process <max_msgs> messages before disconnecting.
 
 
-    TODO: what happens when I lose connection to host?
     """
+
+    import paho.mqtt.client as mqtt
+
+    assert callable(callback), "callback should be callable - do you need to change the order of arguments?"
+
+    def on_connect(client, userdata, flags, rc):
+        client.subscribe(userdata["topics"])
 
     def wrap_callback(actual_callback):
         def _callback(client, userdata, message):
             try:
-                if "timeout" in userdata and time.time() - userdata["started_at"] > userdata["timeout"]:
-                    client.disconnect()
-                    return
 
                 if "max_msgs" in userdata:
+                    userdata["count"] += 1
                     if userdata["count"] > userdata["max_msgs"]:
+                        client.loop_stop()
                         client.disconnect()
                         return
-                    else:
-                        userdata["count"] += 1
 
                 return actual_callback(message)
 
@@ -106,25 +108,23 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
 
         return _callback
 
-    assert callable(callback), "callback should be callable - did you mess up the order of arguments?"
-
-    userdata = {}
-    if timeout:
-        userdata["started_at"] = time.time()
-        userdata["timeout"] = timeout
+    topics = [topics] if isinstance(topics, str) else topics
+    userdata = {"topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics]}
 
     if max_msgs:
         userdata["count"] = 0
         userdata["max_msgs"] = max_msgs
 
-    thread = kthread.KThread(
-        target=mqtt_subscribe.callback,
-        args=(wrap_callback(callback), topics),
-        kwargs={"hostname": hostname, "userdata": userdata, **mqtt_kwargs},
-        daemon=True,
-    )
-    thread.start()
-    return thread
+    client = mqtt.Client(userdata=userdata)
+    client.on_connect = on_connect
+    client.on_message = wrap_callback(callback)
+    client.connect(leader_hostname, **mqtt_kwargs)
+    client.loop_start()
+
+    if timeout:
+        threading.Timer(timeout, lambda: client.loop_stop()).start()
+
+    return client
 
 
 def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):

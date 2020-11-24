@@ -179,10 +179,10 @@ class IOAlgorithm(BackgroundSubJob):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def start_passive_listeners(self):
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(self.set_OD, f"morbidostat/{self.unit}/{self.experiment}/od_filtered/{self.sensor}")
         )
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(self.set_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate")
         )
 
@@ -394,10 +394,10 @@ class AlgoController(BackgroundJob):
         try:
             algo_init = json.loads(new_io_algorithm_json)
             self.io_algorithm_job.set_state("disconnected")
+            a = self.io_algorithm_job
             self.io_algorithm_job = self.algorithms[algo_init["io_algorithm"]](
                 unit=self.unit, experiment=self.experiment, verbose=self.verbose, **algo_init
             )
-
             self.io_algorithm = algo_init["io_algorithm"]
         except Exception as e:
             publish(f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[{self.job_name}]: failed with {e}")

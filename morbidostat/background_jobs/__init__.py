@@ -47,7 +47,7 @@ class BackgroundJob:
     SLEEPING = "sleeping"
     LOST = "lost"
 
-    # initial state is disonnected
+    # initial state is disconnected
     state = DISCONNECTED
     editable_settings = []
 
@@ -58,7 +58,7 @@ class BackgroundJob:
         self.verbose = verbose
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
-        self.pubsub_threads = []
+        self.pubsub_clients = []
 
         self.check_for_duplicate_process()
         self.set_state(self.INIT)
@@ -90,19 +90,16 @@ class BackgroundJob:
         pass
 
     def disconnected(self):
-        # set state to disconnect
-        self.state = self.DISCONNECTED
-
-        # call job specific on_disconnect to clean up subjubs, etc.
+        # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
 
         # disconnect from the passive subscription threads
-        for thread in self.pubsub_threads:
-            if thread.is_alive():
-                thread.terminate()
+        for client in self.pubsub_clients:
+            client.loop_stop()  # takes a second or two.
+            client.disconnect()
 
-        # disconnect gracefully from last-will topic, not triggering the last-will
-        self._client.disconnect()
+        # set state to disconnect
+        self.state = self.DISCONNECTED
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
@@ -122,9 +119,6 @@ class BackgroundJob:
             )
 
     def set_state(self, new_state):
-        if self.state == new_state:
-            # no point in disconnecting again...
-            return
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{self.job_name}]: {new_state}", verbose=self.verbose)
         getattr(self, new_state)()
 
@@ -178,7 +172,7 @@ class BackgroundJob:
     def start_general_passive_listeners(self) -> None:
 
         # listen to changes in editable properties
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 self.set_attr_from_message,
                 f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/+/set",
@@ -188,7 +182,7 @@ class BackgroundJob:
 
         # listen to changes in editable properties
         # everyone listens to $BROADCAST (TODO: even leader?)
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 self.set_attr_from_message,
                 f"morbidostat/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
@@ -203,9 +197,10 @@ class BackgroundJob:
             "qos": QOS.EXACTLY_ONCE,
             "retain": True,
         }
-        self._client = mqtt.Client()
-        self._client.connect(leader_hostname)
-        self._client.will_set(**last_will)
+        client = mqtt.Client()
+        client.connect(leader_hostname)
+        client.will_set(**last_will)
+        self.pubsub_clients.append(client)
 
     def check_for_duplicate_process(self):
         # this process counts as one - see if there is another.

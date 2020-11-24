@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Continuously take an optical density reading (more accurately: a backscatter reading, which is a proxy for OD).
-This script is designed to run in a background process and push data to MQTT.
-
->>> nohup python3 -m morbidostat.background_jobs.od_reading &
-"""
 import time, os, traceback, signal, sys
 
 import click
@@ -24,7 +18,6 @@ JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 class Stirrer(BackgroundJob):
     """
     Send message to "morbidostat/{unit}/{experiment}/stirring/duty_cycle/set" to change the stirring speed.
-    Send a "-1" to revert to original speed, as defined in config.ini.
     """
 
     editable_settings = ["duty_cycle"]

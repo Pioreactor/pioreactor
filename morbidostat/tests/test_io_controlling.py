@@ -398,7 +398,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
         f"morbidostat/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
         '{"io_algorithm": "turbidostat", "duration": null, "target_od": 1.0, "volume": 1.0}',
     )
-    pause()
+    time.sleep(8)  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.io_algorithm_job, Turbidostat)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.15)
@@ -411,3 +411,4 @@ def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/target_od/set", 1.5)
     pause()
     pause()
+    assert algo.io_algorithm_job.target_od == 1.5

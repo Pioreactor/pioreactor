@@ -58,7 +58,7 @@ class MqttToDBStreamer(BackgroundJob):
 
     def start_passive_listeners(self):
         for topic_and_callback in self.topics_and_callbacks:
-            self.pubsub_threads.append(subscribe_and_callback(topic_and_callback["callback"], topic_and_callback["topic"]))
+            self.pubsub_clients.append(subscribe_and_callback(topic_and_callback["callback"], topic_and_callback["topic"]))
 
 
 @click.command()

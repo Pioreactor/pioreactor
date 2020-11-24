@@ -68,8 +68,8 @@ class LogAggregation(BackgroundJob):
             json.dump(self.aggregated_log_table, f)
 
     def start_passive_listeners(self):
-        self.pubsub_threads.append(subscribe_and_callback(self.on_message, self.topics))
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(subscribe_and_callback(self.on_message, self.topics))
+        self.pubsub_clients.append(
             subscribe_and_callback(self.clear, f"morbidostat/{self.unit}/+/{self.job_name}/aggregated_log_table/set")
         )
 

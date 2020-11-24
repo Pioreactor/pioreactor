@@ -25,7 +25,7 @@ JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 class AltMediaCalculator(BackgroundSubJob):
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
-    I want to periodically publish this, too, so the graph looks better.
+    We periodically publish this, too, so the graph looks better.
 
     """
 
@@ -91,7 +91,7 @@ class AltMediaCalculator(BackgroundSubJob):
         self.latest_alt_media_fraction = float(message.payload)
 
     def start_passive_listeners(self) -> None:
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 self.set_initial_alt_media_fraction,
                 f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction",
@@ -99,7 +99,7 @@ class AltMediaCalculator(BackgroundSubJob):
                 max_msgs=1,
             )
         )
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
             )
