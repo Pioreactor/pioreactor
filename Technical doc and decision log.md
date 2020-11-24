@@ -31,3 +31,6 @@
 14. Parent jobs and subjobs: A parent job has the responsibility of disconnecting a subjob (which may have subjobs of its own). Eventually, I would like subjobs to know about their parents. Until then, there is an asymmetry.
 
 15. Killing threads: yes, I do, but I think I am forced to so long as I keep using the helper functions in paho. Killing a thread is a bad anti-pattern because it may be holding a critical resource (not so in my case: mqtt is designed to be closed abruptly), or it may have spawned its own threads. The latter is possible, and I should look carefully if this happens.
+
+
+16. Why don't we clear the MQTT cache when we disconnect?

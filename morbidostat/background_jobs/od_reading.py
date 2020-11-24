@@ -130,7 +130,7 @@ class ODReader(BackgroundJob):
             raise e
 
 
-INPUT_TO_LETTER = {1: "A", 2: "B", 3: "C", 4: "D"}
+INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
 
 
 def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sampling"]["samples_per_second"])):
