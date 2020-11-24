@@ -281,7 +281,7 @@ class PIDMorbidostat(IOAlgorithm):
         self.target_od = target_od
 
         self.pid = PID(
-            -5.00, -0.0, -0.0, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
+            -7.50, -0.0, -5.0, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
 
         if volume is not None:

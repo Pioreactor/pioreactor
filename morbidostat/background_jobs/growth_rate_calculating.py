@@ -56,7 +56,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
-        rate_process_variance = 1e-14
+        rate_process_variance = 5e-14
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
@@ -130,13 +130,13 @@ class GrowthRateCalculator(BackgroundJob):
     def start_passive_listeners(self):
         # initialize states
         if not self.ignore_cache:
-            self.pubsub_threads.append(
+            self.pubsub_clients.append(
                 subscribe_and_callback(
                     self.set_initial_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=3, max_msgs=1
                 )
             )
 
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 self.set_od_normalization_factors,
                 f"morbidostat/{self.unit}/{self.experiment}/od_normalization/median",
@@ -145,7 +145,7 @@ class GrowthRateCalculator(BackgroundJob):
             )
         )
 
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 self.set_od_variances,
                 f"morbidostat/{self.unit}/{self.experiment}/od_normalization/variance",
@@ -155,12 +155,12 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         # process incoming data
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 self.update_state_from_observation, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched"
             )
         )
-        self.pubsub_threads.append(
+        self.pubsub_clients.append(
             subscribe_and_callback(
                 self.update_ekf_variance_after_io_event, f"morbidostat/{self.unit}/{self.experiment}/io_events"
             )
