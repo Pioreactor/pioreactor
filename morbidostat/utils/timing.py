@@ -41,9 +41,11 @@ class RepeatedTimer:
     >>...
     >>thread.cancel()
 
+    To run a job right away (i.e. don't wait interval seconds), use run_immediately
+
     """
 
-    def __init__(self, interval, function, *args, **kwargs):
+    def __init__(self, interval, function, run_immediately=False, *args, **kwargs):
         self._timer = None
         self.interval = interval
         self.function = function
@@ -52,6 +54,8 @@ class RepeatedTimer:
         self.is_running = False
         self.daemon = True
         self.start()
+        if run_immediately:
+            Timer(0, self.function, self.args, self.kwargs)
 
     def _run(self):
         self.is_running = False

@@ -47,6 +47,8 @@ class BackgroundJob:
     SLEEPING = "sleeping"
     LOST = "lost"
 
+    # initial state is disonnected
+    state = DISCONNECTED
     editable_settings = []
 
     def __init__(self, job_name: str, verbose: int = 0, experiment: Optional[str] = None, unit: Optional[str] = None) -> None:
@@ -59,7 +61,6 @@ class BackgroundJob:
         self.pubsub_threads = []
 
         self.check_for_duplicate_process()
-
         self.set_state(self.INIT)
         self.set_state(self.READY)
 
@@ -67,8 +68,6 @@ class BackgroundJob:
         self.state = self.INIT
 
         def disconnect_gracefully(*args):
-            import sys
-
             self.set_state("disconnected")
             sys.exit()
 
@@ -87,14 +86,14 @@ class BackgroundJob:
         self.state = self.SLEEPING
 
     def on_disconnect(self):
-        # specific things to do when a job disonnects / exits
+        # specific things to do when a job disconnects / exits
         pass
 
     def disconnected(self):
         # set state to disconnect
         self.state = self.DISCONNECTED
 
-        # call job specific on_disconnect to clean up threads, etc.
+        # call job specific on_disconnect to clean up subjubs, etc.
         self.on_disconnect()
 
         # disconnect from the passive subscription threads
@@ -123,6 +122,9 @@ class BackgroundJob:
             )
 
     def set_state(self, new_state):
+        if self.state == new_state:
+            # no point in disconnecting again...
+            return
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{self.job_name}]: {new_state}", verbose=self.verbose)
         getattr(self, new_state)()
 
@@ -175,6 +177,7 @@ class BackgroundJob:
 
     def start_general_passive_listeners(self) -> None:
 
+        # listen to changes in editable properties
         self.pubsub_threads.append(
             subscribe_and_callback(
                 self.set_attr_from_message,
@@ -183,7 +186,8 @@ class BackgroundJob:
             )
         )
 
-        # everyone listens to $unit (TODO: even leader?)
+        # listen to changes in editable properties
+        # everyone listens to $BROADCAST (TODO: even leader?)
         self.pubsub_threads.append(
             subscribe_and_callback(
                 self.set_attr_from_message,

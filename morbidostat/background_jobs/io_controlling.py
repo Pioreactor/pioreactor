@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and take action. This is the core of the io algorithm
+Continuously monitor the bioreactor and take action. This is the core of the bioreactor algorithm.
+
+
+To change the algorithm over MQTT,
+
+topic: `morbidostat/<unit>/<experiment>/algorithm_controlling/io_algorithm/set`
+message: a json object with required keyword argument. Specify the new algorithm with name `"io_algorithm"`.
+
+To change setting over MQTT:
+
+`morbidostat/<unit>/<experiment>/io_controlling/<setting>/set` value
+
+
+
+
 """
 import time, sys, os, signal
 
@@ -53,15 +67,16 @@ class IOAlgorithm(BackgroundSubJob):
     latest_growth_rate_timestamp = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
 
-    def __init__(self, unit=None, experiment=None, verbose=0, duration=60, sensor="135/A", **kwargs):
+    def __init__(self, unit=None, experiment=None, verbose=0, duration=60, sensor="135/A", skip_first_run=False, **kwargs):
         super(IOAlgorithm, self).__init__(job_name="io_controlling", verbose=verbose, unit=unit, experiment=experiment)
         self.latest_event = None
 
-        self.set_duration(duration)
         self.sensor = sensor
+        self.skip_first_run = skip_first_run
         self.alt_media_calculator = AltMediaCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.throughput_calculator = ThroughputCalculator(unit=self.unit, experiment=self.experiment, verbose=self.verbose)
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
+        self.set_duration(duration)
         self.start_passive_listeners()
 
         publish(
@@ -78,7 +93,9 @@ class IOAlgorithm(BackgroundSubJob):
             pass
         finally:
             if self.duration is not None:
-                self.timer_thread = RepeatedTimer(float(self.duration) * 60, self.run).start()
+                self.timer_thread = RepeatedTimer(
+                    float(self.duration) * 60, self.run, run_immediately=(not self.skip_first_run)
+                ).start()
 
     def on_disconnect(self):
         try:
@@ -380,6 +397,7 @@ class AlgoController(BackgroundJob):
             self.io_algorithm_job = self.algorithms[algo_init["io_algorithm"]](
                 unit=self.unit, experiment=self.experiment, verbose=self.verbose, **algo_init
             )
+
             self.io_algorithm = algo_init["io_algorithm"]
         except Exception as e:
             publish(f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[{self.job_name}]: failed with {e}")
@@ -391,15 +409,12 @@ class AlgoController(BackgroundJob):
 def run(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
     try:
 
-        if skip_first_run:
-            publish(f"morbidostat/{unit}/{experiment}/log", f"[io_controlling]: skipping first run", verbose=verbose)
-            time.sleep(duration * 60)
-
         kwargs["verbose"] = verbose
         kwargs["duration"] = duration
         kwargs["unit"] = unit
         kwargs["experiment"] = experiment
         kwargs["sensor"] = sensor
+        kwargs["skip_first_run"] = skip_first_run
 
         controller = AlgoController(mode, **kwargs)
 
