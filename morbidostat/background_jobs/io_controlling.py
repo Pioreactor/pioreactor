@@ -111,7 +111,7 @@ class IOAlgorithm(BackgroundSubJob):
             pass
         for job in self.sub_jobs:
             job.set_state("disconnected")
-        # self.clear_mqtt_cache()
+        self.clear_mqtt_cache()
 
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):
