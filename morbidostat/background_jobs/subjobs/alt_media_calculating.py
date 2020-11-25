@@ -12,7 +12,7 @@ from typing import Optional
 
 import click
 
-from morbidostat.pubsub import publish, subscribe_and_callback, QOS
+from morbidostat.pubsub import publish, subscribe_and_callback, subscribe, QOS
 from morbidostat.utils.timing import RepeatedTimer
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
@@ -34,7 +34,7 @@ class AltMediaCalculator(BackgroundSubJob):
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
-        self.latest_alt_media_fraction = 0
+        self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 
         # publish every 30 seconds.
         self.publish_periodically_thead = RepeatedTimer(30, self.publish)
@@ -87,18 +87,15 @@ class AltMediaCalculator(BackgroundSubJob):
 
         return self.latest_alt_media_fraction
 
-    def set_initial_alt_media_fraction(self, message) -> None:
-        self.latest_alt_media_fraction = float(message.payload)
+    def get_initial_alt_media_fraction(self):
+        message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction", timeout=2)
+
+        if message:
+            return float(message.payload)
+        else:
+            return 0
 
     def start_passive_listeners(self) -> None:
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_initial_alt_media_fraction,
-                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction",
-                timeout=3,
-                max_msgs=1,
-            )
-        )
         self.pubsub_clients.append(
             subscribe_and_callback(
                 callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE

@@ -10,6 +10,7 @@ import json
 
 
 from morbidostat.pubsub import publish, subscribe_and_callback, QOS
+from morbidostat.pubsub import subscribe
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
 from morbidostat import utils
@@ -41,26 +42,10 @@ class ThroughputCalculator(BackgroundSubJob):
         super(ThroughputCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.verbose = verbose
 
-        self._media_throughput = 0
-        self._alt_media_throughput = 0
+        self.media_throughput = self.get_initial_media_throughput()
+        self.alt_media_throughput = self.get_initial_alt_media_throughput()
 
         self.start_passive_listeners()
-
-    @property
-    def media_throughput(self):
-        return self._media_throughput
-
-    @media_throughput.setter
-    def media_throughput(self, value):
-        self._media_throughput = value
-
-    @property
-    def alt_media_throughput(self):
-        return self._alt_media_throughput
-
-    @alt_media_throughput.setter
-    def alt_media_throughput(self, value):
-        self._alt_media_throughput = value
 
     def on_io_event(self, message):
         payload = json.loads(message.payload)
@@ -76,49 +61,26 @@ class ThroughputCalculator(BackgroundSubJob):
 
     def update_media_throughput(self, media_delta, alt_media_delta):
 
-        self._alt_media_throughput += alt_media_delta
-        self._media_throughput += media_delta
+        self.alt_media_throughput += alt_media_delta
+        self.media_throughput += media_delta
 
-        publish(
-            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/media_throughput",
-            self.media_throughput,
-            verbose=self.verbose,
-            retain=True,
-            qos=QOS.EXACTLY_ONCE,
-        )
-
-        publish(
-            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput",
-            self.alt_media_throughput,
-            verbose=self.verbose,
-            retain=True,
-            qos=QOS.EXACTLY_ONCE,
-        )
         return
 
-    def set_media_initial_throughput(self, message):
-        self.media_throughput = float(message.payload)
+    def get_initial_media_throughput(self):
+        message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/media_throughput", timeout=2)
+        if message:
+            return float(message.payload)
+        else:
+            return 0
 
-    def set_alt_media_initial_throughput(self, message):
-        self.alt_media_throughput = float(message.payload)
+    def get_initial_alt_media_throughput(self):
+        message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput", timeout=2)
+        if message:
+            return float(message.payload)
+        else:
+            return 0
 
     def start_passive_listeners(self) -> None:
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_media_initial_throughput,
-                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/media_throughput",
-                timeout=3,
-                max_msgs=1,
-            )
-        )
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_alt_media_initial_throughput,
-                f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput",
-                timeout=3,
-                max_msgs=1,
-            )
-        )
         self.pubsub_clients.append(
             subscribe_and_callback(
                 callback=self.on_io_event, topics=f"morbidostat/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE

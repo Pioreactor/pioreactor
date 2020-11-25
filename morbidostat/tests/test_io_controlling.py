@@ -222,7 +222,7 @@ def test_throughput_calculator():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/media_throughput", 0, retain=True)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 0, retain=True)
 
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     assert algo.throughput_calculator.media_throughput == 0
     pause()
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)
@@ -259,7 +259,7 @@ def test_throughput_calculator_restart():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
 
     target_growth_rate = 0.06
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
@@ -272,7 +272,7 @@ def test_throughput_calculator_manual_set():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
     pause()
     target_growth_rate = 0.06
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5

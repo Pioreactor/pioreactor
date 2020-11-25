@@ -6,7 +6,6 @@ import threading
 import traceback
 from click import echo, style
 from paho.mqtt import publish as mqtt_publish
-from paho.mqtt import subscribe as mqtt_subscribe
 from morbidostat.config import leader_hostname
 import paho.mqtt.client as mqtt
 
