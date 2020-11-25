@@ -69,6 +69,7 @@ class IOAlgorithm(BackgroundSubJob):
 
     def __init__(self, unit=None, experiment=None, verbose=0, duration=60, sensor="135/A", skip_first_run=False, **kwargs):
         super(IOAlgorithm, self).__init__(job_name="io_controlling", verbose=verbose, unit=unit, experiment=experiment)
+
         self.latest_event = None
 
         self.sensor = sensor
@@ -84,6 +85,12 @@ class IOAlgorithm(BackgroundSubJob):
             f"[{self.job_name}]: starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}",
             verbose=verbose,
         )
+
+    def clear_mqtt_cache(self):
+        for attr in self.editable_settings:
+            if attr == "state":
+                continue
+            publish(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}/set", "", retain=True)
 
     def set_duration(self, value):
         self.duration = value
@@ -104,6 +111,7 @@ class IOAlgorithm(BackgroundSubJob):
             pass
         for job in self.sub_jobs:
             job.set_state("disconnected")
+        self.clear_mqtt_cache()
 
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):

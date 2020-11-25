@@ -186,9 +186,12 @@ class GrowthRateCalculator(BackgroundJob):
 
 
 def growth_rate_calculating(verbose, ignore_cache):
-    calculator = GrowthRateCalculator(verbose=verbose, ignore_cache=ignore_cache, unit=unit, experiment=experiment)
-    while True:
-        signal.pause()
+    try:
+        calculator = GrowthRateCalculator(verbose=verbose, ignore_cache=ignore_cache, unit=unit, experiment=experiment)
+        while True:
+            signal.pause()
+    except Exception as e:
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {e}.", verbose=self.verbose)
 
 
 @click.command()

@@ -146,8 +146,12 @@ def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sam
 
     i2c = busio.I2C(board.SCL, board.SDA)
     ads = ADS.ADS1115(i2c, gain=4)  # we will change the gain dynamically later.
-
-    yield from every(sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading)
+    try:
+        yield from every(
+            sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading
+        )
+    except Exception as e:
+        publish(f"morbidostat/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {e}.", verbose=self.verbose)
 
 
 @click.command()
