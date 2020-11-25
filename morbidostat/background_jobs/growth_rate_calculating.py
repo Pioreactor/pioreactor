@@ -10,7 +10,7 @@ import numpy as np
 import click
 
 from morbidostat.utils.streaming_calculations import ExtendedKalmanFilter
-from morbidostat.pubsub import publish, subscribe, subscribe_and_callback
+from morbidostat.pubsub import publish, subscribe, subscribe_and_callback, QOS
 
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import config, leader_hostname
@@ -26,23 +26,20 @@ class GrowthRateCalculator(BackgroundJob):
     def __init__(self, ignore_cache=False, unit=None, experiment=None, verbose=0):
         super(GrowthRateCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
         self.ignore_cache = ignore_cache
-        self.initial_growth_rate = 0.0
-        self.ekf = None
-        self.od_normalization_factors = defaultdict(lambda: 1)
-        self.od_variances = defaultdict(lambda: 1e-5)
+        self.initial_growth_rate = self.set_initial_growth_rate()
+        self.od_normalization_factors = self.set_od_normalization_factors()
+        self.od_variances = self.set_od_variances()
         self.samples_per_minute = 60 * float(config["od_sampling"]["samples_per_second"])
-        self.start_passive_listeners()
-
-        time.sleep(3.0)
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
+        self.start_passive_listeners()
 
     @property
     def state_(self):
         return self.ekf.state_
 
     def initialize_extended_kalman_filter(self):
-        message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
-        angles_and_initial_points = self.scale_raw_observations(self.json_to_sorted_dict(message.payload))
+        latest_od = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
+        angles_and_initial_points = self.scale_raw_observations(self.json_to_sorted_dict(latest_od.payload))
 
         # growth rate in MQTT is hourly, convert back to multiplicative
         initial_rate = self.exp_rate_to_multiplicative_rate(self.initial_growth_rate)
@@ -72,14 +69,33 @@ class GrowthRateCalculator(BackgroundJob):
         # I've seen a ~30-fold increase in the variance over time.
         return 30 * np.diag([self.od_variances[angle] / self.od_normalization_factors[angle] ** 2 for angle in angles])
 
-    def set_initial_growth_rate(self, message):
-        self.initial_growth_rate = float(message.payload)
+    def set_initial_growth_rate(self):
+        if self.ignore_cache:
+            return 1
 
-    def set_od_normalization_factors(self, message):
-        self.od_normalization_factors = self.json_to_sorted_dict(message.payload)
+        message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=2, qos=QOS.EXACTLY_ONCE)
+        if message:
+            return float(message.payload)
+        else:
+            return 1
 
-    def set_od_variances(self, message):
-        self.od_variances = self.json_to_sorted_dict(message.payload)
+    def set_od_normalization_factors(self):
+
+        message = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_normalization/median", timeout=2, qos=QOS.EXACTLY_ONCE)
+        if message:
+            return self.json_to_sorted_dict(message.payload)
+        else:
+            return defaultdict(lambda: 1)
+
+    def set_od_variances(self):
+
+        message = subscribe(
+            f"morbidostat/{self.unit}/{self.experiment}/od_normalization/variance", timeout=2, qos=QOS.EXACTLY_ONCE
+        )
+        if message:
+            return self.json_to_sorted_dict(message.payload)
+        else:
+            return defaultdict(lambda: 1e-5)
 
     def multiplicative_rate_to_exp_rate(self, mrate):
         return np.log(mrate) * 60 * self.samples_per_minute
@@ -96,11 +112,6 @@ class GrowthRateCalculator(BackgroundJob):
     def update_state_from_observation(self, message):
         if self.state != self.READY:
             return
-
-        if self.ekf is None:
-            # pass to wait for state to initialize
-            return
-
         try:
             observations = self.json_to_sorted_dict(message.payload)
             scaled_observations = self.scale_raw_observations(observations)
@@ -128,41 +139,20 @@ class GrowthRateCalculator(BackgroundJob):
             )
 
     def start_passive_listeners(self):
-        # initialize states
-        if not self.ignore_cache:
-            self.pubsub_clients.append(
-                subscribe_and_callback(
-                    self.set_initial_growth_rate, f"morbidostat/{self.unit}/{self.experiment}/growth_rate", timeout=3, max_msgs=1
-                )
-            )
-
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_od_normalization_factors,
-                f"morbidostat/{self.unit}/{self.experiment}/od_normalization/median",
-                timeout=3,
-                max_msgs=1,
-            )
-        )
-
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_od_variances,
-                f"morbidostat/{self.unit}/{self.experiment}/od_normalization/variance",
-                timeout=3,
-                max_msgs=1,
-            )
-        )
 
         # process incoming data
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.update_state_from_observation, f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched"
+                self.update_state_from_observation,
+                f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched",
+                qos=QOS.EXACTLY_ONCE,
             )
         )
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.update_ekf_variance_after_io_event, f"morbidostat/{self.unit}/{self.experiment}/io_events"
+                self.update_ekf_variance_after_io_event,
+                f"morbidostat/{self.unit}/{self.experiment}/io_events",
+                qos=QOS.EXACTLY_ONCE,
             )
         )
 

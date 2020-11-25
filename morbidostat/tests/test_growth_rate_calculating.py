@@ -137,4 +137,4 @@ def test_scaling_works():
     publish(f"morbidostat/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.51, "90/A": 0.84}')
     pause()
     assert calc.od_normalization_factors == {"90/A": 0.8, "135/A": 0.5}
-    assert ((calc.ekf.observation_noise_covariance - 5 * np.array([[1e-4 / 0.8 ** 2, 0], [0, 1e-6 / 0.5 ** 2]])) < 1e-7).all()
+    assert ((calc.ekf.observation_noise_covariance - 30 * np.array([[1e-4 / 0.8 ** 2, 0], [0, 1e-6 / 0.5 ** 2]])) < 1e-7).all()

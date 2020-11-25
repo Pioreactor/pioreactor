@@ -8,6 +8,7 @@ from click import echo, style
 from paho.mqtt import publish as mqtt_publish
 from paho.mqtt import subscribe as mqtt_subscribe
 from morbidostat.config import leader_hostname
+import paho.mqtt.client as mqtt
 
 
 class QOS:
@@ -43,11 +44,34 @@ def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **m
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
-def subscribe(topics, hostname=leader_hostname, retries=10, **mqtt_kwargs):
+def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt_kwargs):
     retry_count = 1
     while True:
         try:
-            return mqtt_subscribe.simple(topics, hostname=hostname, **mqtt_kwargs)
+
+            def on_connect(client, userdata, flags, rc):
+                client.subscribe(userdata["topics"])
+                return
+
+            def on_message(client, userdata, message):
+                userdata["messages"] = message
+                client.disconnect()
+                return
+
+            topics = [topics] if isinstance(topics, str) else topics
+            userdata = {"topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics], "messages": None}
+
+            client = mqtt.Client(userdata=userdata)
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.connect(leader_hostname)
+
+            if timeout:
+                threading.Timer(timeout, lambda: client.disconnect()).start()
+
+            client.loop_forever()
+
+            return userdata["messages"]
 
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout) as e:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -75,10 +99,7 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
     max_msgs: int
         the client will process <max_msgs> messages before disconnecting.
 
-
     """
-
-    import paho.mqtt.client as mqtt
 
     assert callable(callback), "callback should be callable - do you need to change the order of arguments?"
 

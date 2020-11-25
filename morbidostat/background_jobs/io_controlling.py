@@ -412,6 +412,13 @@ class AlgoController(BackgroundJob):
 
     def on_disconnect(self):
         self.io_algorithm_job.set_state("disconnected")
+        self.clear_mqtt_cache()
+
+    def clear_mqtt_cache(self):
+        for attr in self.editable_settings:
+            if attr == "state":
+                continue
+            publish(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}", None, retain=True)
 
 
 def run(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:

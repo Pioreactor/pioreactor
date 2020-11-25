@@ -119,7 +119,7 @@ def test_morbidostat_algorithm():
 def test_pid_morbidostat_algorithm():
     target_growth_rate = 0.09
     algo = PIDMorbidostat(
-        target_od=1.0, target_growth_rate=target_growth_rate, duration=None, verbose=2, unit=unit, experiment=experiment
+        target_od=1.0, target_growth_rate=target_growth_rate, duration=60, verbose=2, unit=unit, experiment=experiment
     )
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", 0.08)

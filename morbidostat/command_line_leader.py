@@ -82,7 +82,7 @@ def sync(units):
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 def kill(process, units, y):
-
+    process = process.replace("_", "*")
     kill = f"pkill {process}"
     command = " && ".join([kill])
 
