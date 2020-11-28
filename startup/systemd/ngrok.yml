@@ -9,8 +9,8 @@ tunnels:
   ui:
     proto: http
     addr: 9000
-    subdomain: morbidostat
+    subdomain: pioreactor
   ws:
     proto: http
     addr: 9001
-    subdomain: morbidostatws
+    subdomain: pioreactorws
