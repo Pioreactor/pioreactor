@@ -12,7 +12,6 @@ configure-mqtt-websockets:
 	echo "listener 9001" | sudo tee /etc/mosquitto/mosquitto.conf -a
 	echo "protocol websockets" | sudo tee /etc/mosquitto/mosquitto.conf -a
 
-
 install-i2c:
 	sudo apt-get install -y python-smbus
 	sudo apt-get install -y i2c-tools
@@ -20,9 +19,9 @@ install-i2c:
 	echo "i2c-dev"               | sudo tee /etc/modules -a
 
 systemd-worker:
-	sudo cp /home/pi/morbidostat/startup/systemd/stirring.service /lib/systemd/system/stirring.service
-	sudo cp /home/pi/morbidostat/startup/systemd/od_reading.service /lib/systemd/system/od_reading.service
-	sudo cp /home/pi/morbidostat/startup/systemd/growth_rate_calculating.service /lib/systemd/system/growth_rate_calculating.service
+	sudo cp /home/pi/pioreactor/startup/systemd/stirring.service /lib/systemd/system/stirring.service
+	sudo cp /home/pi/pioreactor/startup/systemd/od_reading.service /lib/systemd/system/od_reading.service
+	sudo cp /home/pi/pioreactor/startup/systemd/growth_rate_calculating.service /lib/systemd/system/growth_rate_calculating.service
 	sudo chmod 644 /lib/systemd/system/stirring.service
 	sudo chmod 644 /lib/systemd/system/growth_rate_calculating.service
 	sudo chmod 644 /lib/systemd/system/od_reading.service
@@ -33,38 +32,46 @@ systemd-worker:
 	sudo systemctl enable growth_rate_calculating.service
 
 systemd-leader:
-	sudo cp /home/pi/morbidostat/startup/systemd/ngrok.service /lib/systemd/system/ngrok.service
+	sudo cp /home/pi/pioreactor/startup/systemd/ngrok.service /lib/systemd/system/ngrok.service
 	sudo chmod 644 /lib/systemd/system/ngrok.service
 	sudo systemctl enable ngrok.service
 
-	sudo cp /home/pi/morbidostat/startup/systemd/time_series_aggregating.service /lib/systemd/system/time_series_aggregating.service
+	sudo cp /home/pi/pioreactor/startup/systemd/time_series_aggregating.service /lib/systemd/system/time_series_aggregating.service
 	sudo chmod 644 /lib/systemd/system/time_series_aggregating.service
 	sudo systemctl enable time_series_aggregating.service
 
-	sudo cp /home/pi/morbidostat/startup/systemd/log_aggregating.service /lib/systemd/system/log_aggregating.service
+	sudo cp /home/pi/pioreactor/startup/systemd/log_aggregating.service /lib/systemd/system/log_aggregating.service
 	sudo chmod 644 /lib/systemd/system/log_aggregating.service
 	sudo systemctl enable log_aggregating.service
 
-	sudo cp /home/pi/morbidostat/startup/systemd/mqtt_to_db_streaming.service /lib/systemd/system/mqtt_to_db_streaming.service
+	sudo cp /home/pi/pioreactor/startup/systemd/mqtt_to_db_streaming.service /lib/systemd/system/mqtt_to_db_streaming.service
 	sudo chmod 644 /lib/systemd/system/mqtt_to_db_streaming.service
 	sudo systemctl enable mqtt_to_db_streaming.service
 
-install-morbidostat:
+install-pioreactor-leader:
 	sudo python3 setup.py install
+	sudo mkdir /etc/pioreactor
+	sudo cp config.ini /etc/pioreactor/config.ini
+	pip3 install -r requirements/requirements_leader.txt
 
-install-worker: install-python install-mqtt configure-rpi systemd-worker install-i2c install-morbidostat
+install-pioreactor-worker:
+	sudo python3 setup.py install
+	sudo mkdir ~/.pioreactor
+	sudo touch ~/.pioreactor/config.ini
+	pip3 install -r requirements/requirements_worker.txt
+
+install-worker: install-python install-mqtt configure-rpi systemd-worker install-i2c install-pioreactor-worker
 
 install-db:
 	sudo apt-get install -y sqlite3
-	sqlite3 /home/pi/db/morbidostat.sqlite
-	sqlite3 morbidostat.sqlite '.read sql/create_tables.sql'
+	sqlite3 /home/pi/db/pioreactor.sqlite
+	sqlite3 pioreactor.sqlite '.read sql/create_tables.sql'
 
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-morbidostat systemd-leader
-	pip3 install -r requirements/requirements_leader.txt
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader
 
 view:
 	ps x | grep python3

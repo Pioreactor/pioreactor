@@ -6,7 +6,7 @@
 
 3. Since a unit can have multiple photodiodes at the same angle, it is simplest to have topics of the form `.../<angle>/<label>` where label enumerates through `A,B,C...`.
 
-5. We attempt to follow the Homie device lifecycle convention for background jobs. A job starts in `init` -> `ready` and then can be paused with `sleeping`. Jobs should safe exit by calling `disconnect`. The last-will message will set state to "lost".
+5. We attempt to follow the Homie device life cycle convention for background jobs. A job starts in `init` -> `ready` and then can be paused with `sleeping`. Jobs should safe exit by calling `disconnect`. The last-will message will set state to "lost".
 
 5. Pausing a background job should be done using `morbidostat/<unit>/<experiment>/<job_name>/$state/set` with a message `"sleeping"`. This follows the Homie convention.
 
@@ -16,7 +16,7 @@
 
 7. Because of differences between the sensitivity of the sensors, the output of the LEDs, and other uncontrollable factors, we normalize the OD reading by the median of the first N values observed before going into the growth rate calculator. This means the _implied_ OD reading will start at or near 1, and scale from there. This makes choosing a single target OD across multiple units easier.
 
-8. The leader runs all the units with the `mba` command, and individual workers (and leader) run with the `mb` command. The two follow the same convention, i.e. a command that works on `mb` should work on `mba` (TODO!)
+8. The leader runs all the units with the `pios` command, and individual workers (and leader) run with the `pio` command. The two follow the same convention, i.e. a command that works on `pio` should work on `pios`.
 
 9. SQLite works well for a database for the storage of IoT data. I never will have more than one user, it can store and read json data, and has good documentation.
 
@@ -32,6 +32,8 @@
 
 15. <del>Killing threads: yes, I do, but I think I am forced to so long as I keep using the helper functions in paho. Killing a thread is a bad anti-pattern because it may be holding a critical resource (not so in my case: mqtt is designed to be closed abruptly), or it may have spawned its own threads. The latter is possible, and I should look carefully if this happens.</del> I no longer delete threads, but found a better solution by working with paho clients.
 
-16. We can choose whether to clear attr from MQTT when we disconnect. From homie: "Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics."
+16. We can choose whether to clear attr from MQTT when we disconnect. From Homie: "Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics."
 
-17. `config.ini` files: the leader unit will ship a global config.ini to each unit during `mba sync`, but there exists a (possibly empty) local config.ini that overrides settings. This is useful for changing PID or evolution parameters over units. Local config.ini are stores in `~/.pioreactor/config.ini`, and global config.ini are stored in `/etc/pioreactor/config.ini`
+17. `config.ini` files: the leader unit will ship a global config.ini to each unit during `pios sync`, but there exists a (possibly empty) local config.ini that overrides settings. This is useful for changing PID or evolution parameters over units. Local config.ini are stores in `~/.pioreactor/config.ini`, and global config.ini are stored in `/etc/pioreactor/config.ini`. On `pios sync`, the leader copy its own global config.ini to the units global config.ini (`make install` needs to place it in the leader).
+
+18. Changing name to `pioreactor`, including MQTT prefix. This better describes the project. Previously `mba` is now `pios` and `mb` is now `pio`.

@@ -6,17 +6,17 @@ with open("requirements/requirements.txt") as f:
 
 
 setup(
-    name="morbidostat",
+    name="pioreactor",
     version="0.1.dev0",
     license="MIT",
     long_description=open("README.md").read(),
     install_requires=REQUIREMENTS,
     include_package_data=True,
-    package_data={"morbidostat": ["config.ini"]},
+    package_data={"pioreactor": ["config.ini"]},
     packages=find_packages(exclude=["*.tests", "*.tests.*", "*benchmarks*"]),
     entry_points="""
         [console_scripts]
-        mb=morbidostat.command_line_worker:cli
-        mba=morbidostat.command_line_leader:mba
+        pio=pioreactor.command_line_worker:pio
+        pios=pioreactor.command_line_leader:pios
     """,
 )
