@@ -17,8 +17,9 @@ from morbidostat.utils.timing import RepeatedTimer
 from morbidostat.whoami import unit, experiment
 from morbidostat.config import leader_hostname
 from morbidostat.background_jobs.subjobs import BackgroundSubJob
+from morbidostat.config import config
 
-VIAL_VOLUME = 14
+VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 

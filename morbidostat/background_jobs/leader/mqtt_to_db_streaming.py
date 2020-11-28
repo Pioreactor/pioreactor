@@ -34,7 +34,7 @@ def produce_metadata(topic):
 class MqttToDBStreamer(BackgroundJob):
     def __init__(self, topics_and_parsers, **kwargs):
         super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
-        self.sqliteworker = Sqlite3Worker(config["data"]["observation_database"], max_queue_size=10000)
+        self.sqliteworker = Sqlite3Worker(config["storage"]["observation_database"], max_queue_size=10000)
         self.topics_and_callbacks = [
             {"topic": topic_and_parser["topic"], "callback": self.create_on_message(topic_and_parser)}
             for topic_and_parser in topics_and_parsers
@@ -139,6 +139,10 @@ def run(verbose):
             "timestamp": metadata.timestamp,
             "message": payload.decode(),
         }
+
+    def parse_experiment_details(topic, payload):
+        payload = json.loads(payload.decode())
+        return payload
 
     topics_and_parsers = [
         {"topic": "morbidostat/+/+/od_filtered/+/+", "table": "od_readings_filtered", "parser": parse_od},

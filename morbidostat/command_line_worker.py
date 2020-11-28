@@ -1,21 +1,40 @@
 # -*- coding: utf-8 -*-
-# command line
+"""
+cmd line interface for running individual morbidostat units (including leader)
+
+> mb run stirring
+> mb run od_reading --od-angle-channel 135,0
+> mb log
+"""
+
+from sh import tail
 import click
 import importlib
 from subprocess import call
 from morbidostat.whoami import am_I_leader
 
 
-@click.command(context_settings=dict(ignore_unknown_options=True))
+@click.group()
+def mb():
+    pass
+
+
+@mb.command(name="log")
+def log():
+    for line in tail("-f", "/var/log/morbidostat.log", _iter=True):
+        print(line)
+
+
+@mb.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("job")
 @click.option("--background", "-b", is_flag=True)
-@click.argument("extra_args", nargs=-1, type=click.UNPROCESSED)
-def cli(job, background, extra_args):
+@click.pass_context
+def run(ctx, job, background):
+
+    extra_args = list(ctx.args)
 
     if am_I_leader():
         job = f"leader.{job}"
-
-    extra_args = list(extra_args)
 
     if importlib.util.find_spec(f"morbidostat.background_jobs.{job}"):
         loc = f"morbidostat.background_jobs.{job}"
@@ -35,4 +54,4 @@ def cli(job, background, extra_args):
 
 
 if __name__ == "__main__":
-    cli()
+    mb()

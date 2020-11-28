@@ -47,7 +47,7 @@ class ExtendedKalmanFilter:
     Example
     ---------
 
-        initial_state = np.array([obs.iloc[0], 1.])
+        initial_state = np.array([obs.iloc[0], 0.0])
         initial_covariance = np.eye(2)
         process_noise_covariance = np.array([[0.00001, 0], [0, 1e-13]])
         observation_noise_covariance = 0.2
@@ -56,9 +56,37 @@ class ExtendedKalmanFilter:
         ekf.update(...)
         ekf.state_
 
+    Tuning
+    --------
+
+    Because I had such a pain tuning this, lets talk about what worked.
+
+    So, to start our mental model, we are estimating the following:
+
+    p(x_t | y_t, z_t), where x_t is our unknown state vector, and y_t is our prediction, and z_t is our
+    latest observation. This is a Bayesian update:
+
+    y_t ~ Normal(F(x_{t-1}), Prediction Uncertainty + Q), where F is the dynamical system
+    z_t ~ Normal(mu, R)
+
+    First, note the covariance of y_t. If Q is large, then we are _less_ confident in our prediction. How should we pick values of
+    Q? Because our model says that r_t = r_{t-1} + var, we should choose var s.t. it is the expected movement in one
+    time step. Back of the envelope: in 1 hour, a rate change of 0.05 is exceptional => a 2 std. movement. => hourly std = 0.025
+    => per interval std = 0.025 * 5 / 3600 => var = (0.025 * 5 / 3600) ** 2
+
+    The paper above suggests to make the process variance of OD equal to a small number. This means we (almost) fully trust the dynamic model to tell us what
+    OD is. However, this means that changes in observed OD are due to changes in rate. What happens when there is a large jump due to noise? We can apply the same
+    idea above to the observation variance, R. A 0.1 jump is not unexpected, but in the tails, => 2std = 0.1 => 1std = 0.05 => ....
+
+    Uncertainty
+    ------------
+    Because of the model, the lower bound on the rate estimate's variance is Q[-1, -1].
+
+
+
     """
 
-    def __init__(self, initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance):
+    def __init__(self, initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance, dt=1):
         assert initial_state.shape[0] == initial_covariance.shape[0] == initial_covariance.shape[1]
         assert process_noise_covariance.shape == initial_covariance.shape
         assert self._is_positive_definite(process_noise_covariance)
@@ -70,14 +98,11 @@ class ExtendedKalmanFilter:
         self.state_ = initial_state
         self.covariance_ = initial_covariance
         self.dim = self.state_.shape[0]
+        self.dt = dt
 
         self._OD_scale_counter = -1
-        self._rate_scale_counter = -1
-        self._obs_noise_scale_counter = -1
 
         self._original_process_noise_variance = np.diag(self.process_noise_covariance)[: (self.dim - 1)].copy()
-        self._original_rate_noise_variance = self.process_noise_covariance[-1, -1]
-        self._original_observation_noise_covariance = self.observation_noise_covariance.copy()
 
     def predict(self):
         return (self._predict_state(self.state_, self.covariance_), self._predict_covariance(self.state_, self.covariance_))
@@ -100,31 +125,14 @@ class ExtendedKalmanFilter:
         self._OD_scale_counter = n
         self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = factor * self._original_process_noise_variance
 
-    def scale_rate_variance_for_next_n_steps(self, factor, n):
-        d = self.dim
-        self._rate_scale_counter = n
-        self.process_noise_covariance[-1, -1] = factor * self._original_rate_noise_variance
-
-    def scale_obs_noise_for_next_n_steps(self, factor, n):
-        self._obs_noise_scale_counter = n
-        self.observation_noise_covariance = factor * self._original_observation_noise_covariance
-
     def update_counters(self):
         if self._OD_scale_counter == 0:
             d = self.dim
             self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = self._original_process_noise_variance
         self._OD_scale_counter -= 1
 
-        if self._rate_scale_counter == 0:
-            self.process_noise_covariance[-1, -1] = self._original_rate_noise_variance
-        self._rate_scale_counter -= 1
-
-        if self._obs_noise_scale_counter == 0:
-            self.observation_noise_covariance = self._original_observation_noise_covariance
-        self._obs_noise_scale_counter -= 1
-
     def _predict_state(self, state, covariance):
-        return np.array([v * state[-1] for v in state[:-1]] + [state[-1]])
+        return np.array([v * np.exp(state[-1] * self.dt) for v in state[:-1]] + [state[-1]])
 
     def _predict_covariance(self, state, covariance):
         return self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T + self.process_noise_covariance
@@ -133,8 +141,8 @@ class ExtendedKalmanFilter:
         """
         The prediction process is
         [
-            OD_{1, t+1} = OD_{1, t} * r_t
-            OD_{2, t+1} = OD_{2, t} * r_t
+            OD_{1, t+1} = OD_{1, t} * exp(r_t ∆t)
+            OD_{2, t+1} = OD_{2, t} * exp(r_t ∆t)
             ...
             r_{t+1} = r_t
         ]
@@ -146,8 +154,8 @@ class ExtendedKalmanFilter:
         rate = state[-1]
         ODs = state[:-1]
 
-        J[np.arange(d - 1), np.arange(d - 1)] = rate
-        J[np.arange(d - 1), np.arange(1, d)] = ODs
+        J[np.arange(d - 1), np.arange(d - 1)] = np.exp(rate * self.dt)
+        J[np.arange(d - 1), np.arange(1, d)] = ODs * np.exp(rate * self.dt) * self.dt
         J[-1, -1] = 1.0
 
         return J

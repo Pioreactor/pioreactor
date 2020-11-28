@@ -42,7 +42,8 @@ def get_unit_from_hostname():
     elif hostname == "raspberrypi":
         raise ValueError("Did you forget to set the hostname?")
     else:
-        raise ValueError(f"How did I get here? My hostname is {hostname}")
+        return "localhost"
+        # raise ValueError(f"How did I get here? My hostname is {hostname}")
 
 
 def am_I_leader():

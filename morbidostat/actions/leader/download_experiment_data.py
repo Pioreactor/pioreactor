@@ -28,7 +28,7 @@ def download_experiment_data(experiment, output, tables):
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
     zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
-    con = sqlite3.connect(config["data"]["observation_database"])
+    con = sqlite3.connect(config["storage"]["observation_database"])
 
     for table in tables:
         df = pd.read_sql_query(

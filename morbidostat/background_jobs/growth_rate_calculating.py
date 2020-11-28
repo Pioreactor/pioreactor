@@ -29,7 +29,8 @@ class GrowthRateCalculator(BackgroundJob):
         self.initial_growth_rate = self.set_initial_growth_rate()
         self.od_normalization_factors = self.set_od_normalization_factors()
         self.od_variances = self.set_od_variances()
-        self.samples_per_minute = 60 * float(config["od_sampling"]["samples_per_second"])
+        self.samples_per_minute = 60 * float(config["od_config"]["samples_per_second"])
+        self.dt = 1 / float(config["od_config"]["samples_per_second"]) / 60 / 60
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
 
@@ -41,33 +42,45 @@ class GrowthRateCalculator(BackgroundJob):
         latest_od = subscribe(f"morbidostat/{self.unit}/{self.experiment}/od_raw_batched")
         angles_and_initial_points = self.scale_raw_observations(self.json_to_sorted_dict(latest_od.payload))
 
-        # growth rate in MQTT is hourly, convert back to multiplicative
-        initial_rate = self.exp_rate_to_multiplicative_rate(self.initial_growth_rate)
-        initial_state = np.array([*angles_and_initial_points.values(), initial_rate])
+        initial_state = np.array([*angles_and_initial_points.values(), self.initial_growth_rate])
 
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = np.block(
-            [[1e-5 * np.ones((d - 1, d - 1)), 1e-8 * np.ones((d - 1, 1))], [1e-8 * np.ones((1, d - 1)), 1e-8]]
-        )
+        initial_covariance = 0.005 * np.diag(initial_state.tolist() + [1])
+
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
-        rate_process_variance = 5e-14
+        rate_process_variance = (0.0025 * dt) ** 2
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
         observation_noise_covariance = self.create_obs_noise_covariance(angles_and_initial_points.keys())
 
         return (
-            ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance),
+            ExtendedKalmanFilter(
+                initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance, dt=self.dt
+            ),
             angles_and_initial_points.keys(),
         )
 
     def create_obs_noise_covariance(self, angles):
+        # if a sensor has X times the variance of the other, we should encode this in the obs. covariance.
+        obs_variances = np.array([self.od_variances[angle] for angle in angles])
+        obs_variances = obs_variances / obs_variances.min()
         # add a fudge factor
-        # I've seen a ~30-fold increase in the variance over time.
-        return 30 * np.diag([self.od_variances[angle] / self.od_normalization_factors[angle] ** 2 for angle in angles])
+        return 100 * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
+
+    def create_OD_covariance(self, angles):
+        d = len(angles)
+        variances = {"135": (1e-2 * self.dt) ** 2, "90": (1e-2 * self.dt) ** 2, "45": (1e-2 * self.dt) ** 2}
+
+        OD_covariance = 0 * np.ones((d, d))
+        for i, a in enumerate(angles):
+            for k in variances:
+                if a.startswith(k):
+                    OD_covariance[i, i] = variances[k]
+        return OD_covariance
 
     def set_initial_growth_rate(self):
         if self.ignore_cache:
@@ -77,7 +90,7 @@ class GrowthRateCalculator(BackgroundJob):
         if message:
             return float(message.payload)
         else:
-            return 1
+            return 0
 
     def set_od_normalization_factors(self):
 
@@ -97,12 +110,6 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             return defaultdict(lambda: 1e-5)
 
-    def multiplicative_rate_to_exp_rate(self, mrate):
-        return np.log(mrate) * 60 * self.samples_per_minute
-
-    def exp_rate_to_multiplicative_rate(self, erate):
-        return np.exp(erate / 60 / self.samples_per_minute)
-
     def update_ekf_variance_after_io_event(self, message):
         self.ekf.scale_OD_variance_for_next_n_steps(2e4, 2 * self.samples_per_minute)
 
@@ -117,12 +124,7 @@ class GrowthRateCalculator(BackgroundJob):
             scaled_observations = self.scale_raw_observations(observations)
             self.ekf.update(list(scaled_observations.values()))
 
-            publish(
-                f"morbidostat/{self.unit}/{self.experiment}/growth_rate",
-                self.multiplicative_rate_to_exp_rate(self.state_[-1]),
-                verbose=self.verbose,
-                retain=True,
-            )
+            publish(f"morbidostat/{self.unit}/{self.experiment}/growth_rate", self.state_[-1], verbose=self.verbose, retain=True)
 
             for i, angle_label in enumerate(self.angles):
                 publish(
@@ -160,19 +162,6 @@ class GrowthRateCalculator(BackgroundJob):
     def json_to_sorted_dict(json_dict):
         d = json.loads(json_dict)
         return {k: float(d[k]) for k in sorted(d, reverse=True) if not k.startswith("180")}
-
-    @staticmethod
-    def create_OD_covariance(angles):
-        # increasing Q increases the uncertainty of our prediction
-        d = len(angles)
-        variances = {"135": 1e-7, "90": 1e-7, "45": 1e-7}
-
-        OD_covariance = 0 * np.ones((d, d))
-        for i, a in enumerate(angles):
-            for k in variances:
-                if a.startswith(k):
-                    OD_covariance[i, i] = variances[k]
-        return OD_covariance
 
 
 def growth_rate_calculating(verbose, ignore_cache):

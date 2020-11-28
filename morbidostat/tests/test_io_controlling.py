@@ -23,17 +23,18 @@ def pause():
 
 
 def test_silent_algorithm():
-    io = Silent(volume=None, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = Silent(volume=None, duration=None, verbose=2, unit=unit, experiment=experiment)
     pause()
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", "0.01")
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", "1.0")
     pause()
-    assert isinstance(io.run(), events.NoEvent)
+    assert isinstance(algo.run(), events.NoEvent)
 
     pubsub.publish(f"morbidostat/{unit}/{experiment}/growth_rate", "0.02")
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", "1.1")
     pause()
-    assert isinstance(io.run(), events.NoEvent)
+    assert isinstance(algo.run(), events.NoEvent)
+    algo.set_state("disconnected")
 
 
 def test_turbidostat_algorithm():
@@ -59,6 +60,7 @@ def test_turbidostat_algorithm():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.99)
     pause()
     assert isinstance(algo.run(), events.NoEvent)
+    algo.set_state("disconnected")
 
 
 def test_pid_turbidostat_algorithm():
@@ -79,6 +81,7 @@ def test_pid_turbidostat_algorithm():
     e = algo.run()
     assert isinstance(e, events.DilutionEvent)
     assert e.volume_to_cycle > 1.0
+    algo.set_state("disconnected")
 
 
 def test_morbidostat_algorithm():
@@ -114,6 +117,7 @@ def test_morbidostat_algorithm():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.99)
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
+    algo.set_state("disconnected")
 
 
 def test_pid_morbidostat_algorithm():
@@ -138,6 +142,7 @@ def test_pid_morbidostat_algorithm():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/od_filtered/135/A", 0.95)
     pause()
     assert isinstance(algo.run(), events.AltMediaEvent)
+    algo.set_state("disconnected")
 
 
 def test_changing_morbidostat_parameters_over_mqtt():
@@ -153,6 +158,7 @@ def test_changing_morbidostat_parameters_over_mqtt():
     pause()
     assert algo.target_growth_rate == new_target
     assert algo.pid.pid.setpoint == new_target
+    algo.set_state("disconnected")
 
 
 def test_changing_turbidostat_params_over_mqtt():
@@ -182,6 +188,7 @@ def test_changing_turbidostat_params_over_mqtt():
     assert algo.target_od == new_od
     assert algo.pid.pid.setpoint == new_od
     assert algo.min_od == 0.75 * new_od
+    algo.set_state("disconnected")
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
@@ -189,6 +196,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter():
     algo = IOAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/garbage/set", 0.07)
     pause()
+    algo.set_state("disconnected")
 
 
 def test_pause_in_io_controlling():
@@ -202,6 +210,7 @@ def test_pause_in_io_controlling():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/$state/set", "ready")
     pause()
     assert algo.state == "ready"
+    algo.set_state("disconnected")
 
 
 def test_old_readings_will_not_execute_io():
@@ -215,6 +224,7 @@ def test_old_readings_will_not_execute_io():
     assert algo.most_stale_time == algo.latest_od_timestamp
 
     assert isinstance(algo.run(), events.NoEvent)
+    algo.set_state("disconnected")
 
 
 def test_throughput_calculator():
@@ -250,6 +260,7 @@ def test_throughput_calculator():
     algo.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
+    algo.set_state("disconnected")
 
 
 def test_throughput_calculator_restart():
@@ -263,6 +274,7 @@ def test_throughput_calculator_restart():
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
+    algo.set_state("disconnected")
 
 
 def test_throughput_calculator_manual_set():
@@ -282,6 +294,7 @@ def test_throughput_calculator_manual_set():
     pause()
     assert algo.throughput_calculator.media_throughput == 0
     assert algo.throughput_calculator.alt_media_throughput == 0
+    algo.set_state("disconnected")
 
 
 def test_execute_io_action():
@@ -307,6 +320,7 @@ def test_execute_io_action():
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 1.50
+    algo.set_state("disconnected")
 
 
 def test_execute_io_action2():
@@ -320,6 +334,7 @@ def test_execute_io_action2():
     pause()
     assert ca.throughput_calculator.media_throughput == 1.25
     assert ca.throughput_calculator.alt_media_throughput == 0.01
+    algo.set_state("disconnected")
 
 
 def test_duration_and_timer():
@@ -336,6 +351,7 @@ def test_duration_and_timer():
     time.sleep(10)
     pause()
     assert isinstance(algo.latest_event, events.AltMediaEvent)
+    algo.set_state("disconnected")
 
 
 def test_changing_duration_over_mqtt():
@@ -352,22 +368,24 @@ def test_changing_duration_over_mqtt():
     pubsub.publish(f"morbidostat/{unit}/{experiment}/io_controlling/duration/set", 60 / 60)
     pause()
     assert algo.timer_thread.interval == 60
+    algo.set_state("disconnected")
 
 
-def test_changing_algo_over_mqtt():
+def test_changing_algo_over_mqtt_solo():
 
     algo = AlgoController("turbidostat", target_od=1.0, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
     assert algo.io_algorithm == "turbidostat"
     assert isinstance(algo.io_algorithm_job, Turbidostat)
-    pause()
+
     pubsub.publish(
         f"morbidostat/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
         '{"io_algorithm": "pid_morbidostat", "duration": 60, "target_od": 1.0, "target_growth_rate": 0.07}',
     )
-    pause()
+    time.sleep(8)
     assert algo.io_algorithm == "pid_morbidostat"
     assert isinstance(algo.io_algorithm_job, PIDMorbidostat)
     assert algo.io_algorithm_job.target_growth_rate == 0.07
+    algo.set_state("disconnected")
 
 
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
@@ -380,10 +398,11 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
         f"morbidostat/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
         '{"io_algorithm": "pid_morbidostat", "duration": 60}',
     )
-    pause()
+    time.sleep(8)
     assert algo.io_algorithm == "turbidostat"
     assert isinstance(algo.io_algorithm_job, Turbidostat)
     assert algo.io_algorithm_job.target_od == 1.0
+    algo.set_state("disconnected")
 
 
 def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():

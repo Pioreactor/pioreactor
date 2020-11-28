@@ -5,3 +5,4 @@ click
 paho-mqtt
 simple-pid
 psutil
+sh

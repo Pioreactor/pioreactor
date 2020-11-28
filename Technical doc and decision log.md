@@ -26,11 +26,12 @@
 
 12. All units can be addressed with the unit "number" `$broadcast` (Homie convention). For example, to change the target OD of all units, one can message `morbidostat/$broadcast/experiment/io_controlling/target_od/set`.
 
-13. The morbidostat should always be able to run on RpiZeroWs - these are significantly cheaper. We don't ever need the peripherals on a regular RPi. However, RPiZeros are slower to execute, and can't sample OD very vast.
+13. The morbidostat should always be able to run on RpiZeroWs - these are significantly cheaper. We don't ever need the peripherals on a regular RPi. However, RPiZeros are slower to execute, and can't sample OD as fast (about once per 5sec).
 
 14. Parent jobs and subjobs: A parent job has the responsibility of disconnecting a subjob (which may have subjobs of its own). Eventually, I would like subjobs to know about their parents. Until then, there is an asymmetry.
 
-15. Killing threads: yes, I do, but I think I am forced to so long as I keep using the helper functions in paho. Killing a thread is a bad anti-pattern because it may be holding a critical resource (not so in my case: mqtt is designed to be closed abruptly), or it may have spawned its own threads. The latter is possible, and I should look carefully if this happens.
+15. <del>Killing threads: yes, I do, but I think I am forced to so long as I keep using the helper functions in paho. Killing a thread is a bad anti-pattern because it may be holding a critical resource (not so in my case: mqtt is designed to be closed abruptly), or it may have spawned its own threads. The latter is possible, and I should look carefully if this happens.</del> I no longer delete threads, but found a better solution by working with paho clients.
 
+16. We can choose whether to clear attr from MQTT when we disconnect. From homie: "Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics."
 
-16. Why don't we clear the MQTT cache when we disconnect?
+17. `config.ini` files: the leader unit will ship a global config.ini to each unit during `mba sync`, but there exists a (possibly empty) local config.ini that overrides settings. This is useful for changing PID or evolution parameters over units. Local config.ini are stores in `~/.pioreactor/config.ini`, and global config.ini are stored in `/etc/pioreactor/config.ini`

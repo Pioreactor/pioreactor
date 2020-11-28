@@ -117,7 +117,7 @@ def kill(process, units, y):
 def run(ctx, job, units, y):
     extra_args = list(ctx.args)
 
-    command = ["mb", job] + extra_args + ["-b"]
+    command = ["mb", "run", job] + extra_args + ["-b"]
     command = " ".join(command)
 
     if not y:

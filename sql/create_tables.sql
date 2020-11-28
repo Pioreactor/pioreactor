@@ -113,3 +113,16 @@ CREATE TABLE IF NOT EXISTS pid_logs (
 
 CREATE INDEX IF NOT EXISTS pid_logs_ix
 ON pid_logs (experiment);
+
+
+CREATE TABLE IF NOT EXISTS io_algorithm_settings (
+    morbidostat_unit         TEXT  NOT NULL,
+    experiment               TEXT  NOT NULL,
+    started_at               TEXT  NOT NULL,
+    ended_at                 TEXT,
+    algorithm                TEXT  NOT NULL,
+    duration                 REAL,
+    target_od                REAL,
+    target_growth_rate       REAL,
+    volume                   REAL
+);

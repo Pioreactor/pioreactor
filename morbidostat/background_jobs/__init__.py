@@ -40,12 +40,13 @@ class BackgroundJob:
 
     """
 
-    # Homie device lifecycle
+    # Homie lifecycle (normally per device (i.e. an rpi) but we are using it for "nodes", in Homie parlance)
     INIT = "init"
     READY = "ready"
     DISCONNECTED = "disconnected"
     SLEEPING = "sleeping"
     LOST = "lost"
+    LIFECYCLE_STATES = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
 
     # initial state is disconnected
     state = DISCONNECTED
@@ -119,6 +120,7 @@ class BackgroundJob:
             )
 
     def set_state(self, new_state):
+        assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
         publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"[{self.job_name}]: {new_state}", verbose=self.verbose)
         getattr(self, new_state)()
 
@@ -198,13 +200,12 @@ class BackgroundJob:
             "retain": True,
         }
         client = mqtt.Client()
+        client.will_set(**last_will)  # This must be called before connect() to have any effect.
         client.connect(leader_hostname)
-        client.will_set(**last_will)
         self.pubsub_clients.append(client)
 
     def check_for_duplicate_process(self):
-        # this process counts as one - see if there is another.
-        if sum([p == self.job_name for p in mb_jobs_running()]) > 1:
+        if sum([p == self.job_name for p in mb_jobs_running()]) > 1:  # this process counts as one - see if there is another.
             publish(f"morbidostat/{self.unit}/{self.experiment}/log", f"Aborting: {self.job_name} is already running.")
             raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
 

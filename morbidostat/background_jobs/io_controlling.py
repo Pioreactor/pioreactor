@@ -13,13 +13,12 @@ To change setting over MQTT:
 `morbidostat/<unit>/<experiment>/io_controlling/<setting>/set` value
 
 
-
-
 """
 import time, sys, os, signal
 
 from typing import Iterator
 import json
+from datetime import datetime
 import time
 
 import click
@@ -28,7 +27,7 @@ import numpy as np
 from morbidostat.actions.add_media import add_media
 from morbidostat.actions.remove_waste import remove_waste
 from morbidostat.actions.add_alt_media import add_alt_media
-from morbidostat.pubsub import publish, subscribe_and_callback
+from morbidostat.pubsub import publish, subscribe_and_callback, QOS
 
 from morbidostat.utils.timing import every, RepeatedTimer
 from morbidostat.utils.streaming_calculations import PID
@@ -38,8 +37,9 @@ from morbidostat.background_jobs.subjobs.throughput_calculating import Throughpu
 from morbidostat.background_jobs.utils import events
 from morbidostat.background_jobs import BackgroundJob
 from morbidostat.background_jobs.subjobs import BackgroundSubJob
+from morbidostat.config import config
 
-VIAL_VOLUME = 14
+VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
 
 
 def brief_pause():
@@ -48,6 +48,10 @@ def brief_pause():
     else:
         time.sleep(4)
         return
+
+
+def current_time():
+    return datetime.now().isoformat()
 
 
 class IOAlgorithm(BackgroundSubJob):
@@ -65,6 +69,8 @@ class IOAlgorithm(BackgroundSubJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
+    latest_settings_started_at = current_time()
+    latest_settings_ended_at = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
 
     def __init__(self, unit=None, experiment=None, verbose=0, duration=60, sensor="135/A", skip_first_run=False, **kwargs):
@@ -87,10 +93,11 @@ class IOAlgorithm(BackgroundSubJob):
         )
 
     def clear_mqtt_cache(self):
+        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         for attr in self.editable_settings:
             if attr == "state":
                 continue
-            publish(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}", None, retain=True)
+            publish(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}", None, retain=True, qos=QOS.EXACTLY_ONCE)
 
     def set_duration(self, value):
         self.duration = value
@@ -104,14 +111,45 @@ class IOAlgorithm(BackgroundSubJob):
                     float(self.duration) * 60, self.run, run_immediately=(not self.skip_first_run)
                 ).start()
 
+    def send_details_to_mqtt(self):
+        publish(
+            f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/io_details",
+            json.dumps(
+                {
+                    "morbidostat_unit": self.unit,
+                    "experiment": self.experiment,
+                    "started_at": self.latest_settings_started_at,
+                    "ended_at": self.latest_settings_ended_at,
+                    "algorithm": self.__class__.__name__,
+                    "duration": getattr(self, "duration", None),
+                    "target_od": getattr(self, "target_od", None),
+                    "target_growth_rate": getattr(self, "target_growth_rate", None),
+                    "volume": getattr(self, "volume", None),
+                }
+            ),
+            qos=QOS.EXACTLY_ONCE,
+            retain=True,
+        )
+
     def on_disconnect(self):
+        self.ended_at = current_time()
+
         try:
             self.timer_thread.cancel()
         except:
             pass
         for job in self.sub_jobs:
             job.set_state("disconnected")
+
         self.clear_mqtt_cache()
+
+    def __setattr__(self, name, value) -> None:
+        super(IOAlgorithm, self).__setattr__(name, value)
+        if name in self.editable_settings and name != "state":
+            self.latest_settings_ended_at = current_time()
+            self.send_details_to_mqtt()
+            self.latest_settings_started_at = current_time()
+            self.latest_settings_ended_at = None
 
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):
@@ -267,7 +305,7 @@ class PIDTurbidostat(IOAlgorithm):
         return 0.75 * self.target_od
 
     def set_target_od(self, value):
-        self.target_od = value
+        self.target_od = float(value)
         try:
             # may not be defined yet...
             self.pid.set_setpoint(self.target_od)
@@ -288,8 +326,11 @@ class PIDMorbidostat(IOAlgorithm):
         self.set_target_growth_rate(target_growth_rate)
         self.target_od = target_od
 
+        Kp = config["pid_morbidostat"]["Kp"]
+        Ki = config["pid_morbidostat"]["Ki"]
+        Kd = config["pid_morbidostat"]["Kd"]
         self.pid = PID(
-            -7.50, -0.0, -5.0, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
+            -Kp, -Ki, -Kd, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
         )
 
         if volume is not None:
@@ -317,7 +358,7 @@ class PIDMorbidostat(IOAlgorithm):
                     f"[{self.job_name}]: executing triple dilution since we are above max OD, {self.max_od:.2f}.",
                     verbose=self.verbose,
                 )
-                volume = 3 * self.volume
+                volume = 2.5 * self.volume
             else:
                 volume = self.volume
 
@@ -341,7 +382,7 @@ class PIDMorbidostat(IOAlgorithm):
         return 1.25 * self.target_od
 
     def set_target_growth_rate(self, value):
-        self.target_growth_rate = value
+        self.target_growth_rate = float(value)
         try:
             self.pid.set_setpoint(self.target_growth_rate)
         except:
@@ -402,11 +443,12 @@ class AlgoController(BackgroundJob):
         try:
             algo_init = json.loads(new_io_algorithm_json)
             self.io_algorithm_job.set_state("disconnected")
-            a = self.io_algorithm_job
+
             self.io_algorithm_job = self.algorithms[algo_init["io_algorithm"]](
                 unit=self.unit, experiment=self.experiment, verbose=self.verbose, **algo_init
             )
             self.io_algorithm = algo_init["io_algorithm"]
+
         except Exception as e:
             publish(f"morbidostat/{self.unit}/{self.experiment}/error_log", f"[{self.job_name}]: failed with {e}")
 
@@ -415,10 +457,11 @@ class AlgoController(BackgroundJob):
         self.clear_mqtt_cache()
 
     def clear_mqtt_cache(self):
+        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         for attr in self.editable_settings:
             if attr == "state":
                 continue
-            publish(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}", None, retain=True)
+            publish(f"morbidostat/{self.unit}/{self.experiment}/{self.job_name}/{attr}", None, retain=True, qos=QOS.EXACTLY_ONCE)
 
 
 def run(mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs) -> Iterator[events.Event]:
