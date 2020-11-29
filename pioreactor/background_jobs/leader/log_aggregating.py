@@ -26,7 +26,7 @@ class LogAggregation(BackgroundJob):
 
     editable_settings = ["log_display_count"]
 
-    def __init__(self, topics, output, log_display_count=config["dashboard"]["log_display_count"], **kwargs):
+    def __init__(self, topics, output, log_display_count=int(config["dashboard"]["log_display_count"]), **kwargs):
         super(LogAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
         self.topics = topics
         self.output = output
