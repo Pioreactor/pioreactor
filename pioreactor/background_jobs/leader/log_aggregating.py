@@ -31,9 +31,7 @@ class LogAggregation(BackgroundJob):
         self.topics = topics
         self.output = output
         self.aggregated_log_table = self.read()
-        print(self.aggregated_log_table)
         self.log_display_count = log_display_count
-        print(self.log_display_count)
         self.start_passive_listeners()
 
     def on_message(self, message):
