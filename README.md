@@ -11,10 +11,6 @@
 
 2. `make install-leader` should set up what you need. If installing on a worker (not leader), run `make install-worker`
 
- - [ ] add leader to `/etc/hosts`
- - [ ] change password
- - [ ] push ssh keys?
- - [ ] tell leader about unit, and tell unit about leader
 
 ### Running
 
@@ -38,6 +34,7 @@ Other `pios` commands:
 - `pios sync` to pull the latest code from git and run `setup.py` on the workers.
 
 
+## Development
 
 ### Testing
 

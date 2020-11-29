@@ -5,8 +5,7 @@ After=network-online.target
 
 [Service]
 User=pi
-WorkingDirectory=/home/pi/morbidostat
-ExecStart=mb stirring -b
+ExecStart=pio stirring -b
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 KillMode=none

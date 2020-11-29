@@ -3,7 +3,7 @@ Description=ngrok
 After=network.target
 
 [Service]
-ExecStart=/opt/ngrok/ngrok start ssh ui ws nodered --config /opt/ngrok/ngrok.yml
+ExecStart=/opt/ngrok/ngrok start ssh ui ws --config /opt/ngrok/ngrok.yml
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
 IgnoreSIGPIPE=true

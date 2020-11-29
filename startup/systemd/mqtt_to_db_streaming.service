@@ -5,8 +5,7 @@ After=network-online.target
 
 [Service]
 User=pi
-WorkingDirectory=/home/pi/morbidostat
-ExecStart=mb mqtt_to_db_streaming -b
+ExecStart=pio mqtt_to_db_streaming -b
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 KillMode=none
