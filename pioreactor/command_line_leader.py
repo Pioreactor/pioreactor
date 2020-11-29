@@ -62,15 +62,20 @@ def sync(units):
     def _thread_function(unit):
         hostname = unit_to_hostname(unit)
 
-        s = paramiko.SSHClient()
-        s.load_system_host_keys()
-        s.connect(hostname, username="pi")
+        client = paramiko.SSHClient()
+        client.load_system_host_keys()
+        client.connect(hostname, username="pi")
 
         print(f"Executing on {unit}...")
-        (stdin, stdout, stderr) = s.exec_command(command)
+        (stdin, stdout, stderr) = client.exec_command(command)
         for line in stderr.readlines():
             pass
-        s.close()
+
+        ftp_client = client.open_sftp()
+        ftp_client.put("/etc/pioreactor/config.ini", "/etc/pioreactor/config.ini")
+        ftp_client.close()
+
+        client.close()
 
     units = universal_identifier_to_all_units(units)
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:

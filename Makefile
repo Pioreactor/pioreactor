@@ -50,15 +50,16 @@ systemd-leader:
 
 install-pioreactor-leader:
 	sudo python3 setup.py install
+	pip3 install -r requirements/requirements_leader.txt
 	sudo mkdir /etc/pioreactor
 	sudo cp config.ini /etc/pioreactor/config.ini
-	pip3 install -r requirements/requirements_leader.txt
 
 install-pioreactor-worker:
 	sudo python3 setup.py install
+	pip3 install -r requirements/requirements_worker.txt
+	sudo mkdir /etc/pioreactor
 	sudo mkdir ~/.pioreactor
 	sudo touch ~/.pioreactor/config.ini
-	pip3 install -r requirements/requirements_worker.txt
 
 install-worker: install-python install-mqtt configure-rpi systemd-worker install-i2c install-pioreactor-worker
 
@@ -72,9 +73,6 @@ configure-rpi:
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
 install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader
-
-view:
-	ps x | grep python3
 
 test:
 	py.test -s
