@@ -12,7 +12,6 @@ setup(
     long_description=open("README.md").read(),
     install_requires=REQUIREMENTS,
     include_package_data=True,
-    package_data={"pioreactor": ["config.ini"]},
     packages=find_packages(exclude=["*.tests", "*.tests.*", "*benchmarks*"]),
     entry_points="""
         [console_scripts]

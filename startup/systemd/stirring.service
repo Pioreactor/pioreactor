@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 User=pi
-ExecStart=pio stirring -b
+ExecStart=pio run stirring -b
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 KillMode=none

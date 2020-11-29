@@ -46,7 +46,7 @@ def run(ctx, job, background):
     command = ["python3", "-u", "-m", loc] + extra_args
 
     if background:
-        command = ["nohup"] + command + ["-v", ">>", "/var/log/pioreactor.log", "2>&1", "&"]
+        command = ["nohup"] + command + ["-v", "| sudo tee -a", "/var/log/pioreactor.log", "2>&1", "&"]
         print("Appending logs to /var/log/pioreactor.log")
 
     call(" ".join(command), shell=True)

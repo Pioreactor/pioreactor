@@ -14,7 +14,11 @@ def get_latest_experiment_name():
 
     from pioreactor.pubsub import subscribe
 
-    return subscribe("pioreactor/latest_experiment").payload.decode()
+    mqtt_msg = subscribe("pioreactor/latest_experiment", timeout=1)
+    if mqtt_msg:
+        return mqtt_msg.payload.decode()
+    else:
+        return None
 
 
 def get_hostname():

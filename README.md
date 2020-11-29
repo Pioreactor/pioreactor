@@ -1,6 +1,6 @@
 
 ### Construction and schematics
-1. [3D printing designs](https://github.com/CamDavidsonPilon/morbidostat/tree/master/3D_files)
+1. 3D printing designs
 
 - more coming soon
 

@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 User=pi
-ExecStart=pio od_reading -b
+ExecStart=pio run od_reading -b
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 KillMode=none

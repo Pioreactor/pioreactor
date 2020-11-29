@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 User=pi
-ExecStart=pio time_series_aggregating -b
+ExecStart=pio run time_series_aggregating -b
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 KillMode=none

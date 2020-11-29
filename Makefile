@@ -66,7 +66,7 @@ install-worker: install-python install-mqtt configure-rpi systemd-worker install
 install-db:
 	sudo apt-get install -y sqlite3
 	sqlite3 /home/pi/db/pioreactor.sqlite
-	sqlite3 pioreactor.sqlite '.read sql/create_tables.sql'
+	sqlite3 /home/pi/db/pioreactor.sqlite < sql/create_tables.sql
 
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
