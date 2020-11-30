@@ -62,16 +62,16 @@ class Stirrer(BackgroundJob):
 
 
 def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0):
-    def terminate(*args):
-        GPIO.cleanup()
-
-    signal.signal(signal.SIGTERM, terminate)
-    signal.signal(signal.SIGINT, terminate)
     try:
+        print("here1")
         stirrer = Stirrer(duty_cycle, unit, experiment)
+        print("here2")
+
         stirrer.start_stirring()
+        print("here3")
 
         if duration is None:
+
             signal.pause()
         else:
             time.sleep(duration)
@@ -91,6 +91,8 @@ def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=N
     "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
 )
 def click_stirring(duty_cycle, verbose):
+    print("here0")
+
     stirring(duty_cycle=duty_cycle, verbose=verbose)
 
 

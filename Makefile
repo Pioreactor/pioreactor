@@ -60,8 +60,8 @@ replace-config:
 install-pioreactor-worker:
 	sudo python3 setup.py install
 	pip3 install -r requirements/requirements_worker.txt
-	sudo mkdir /etc/pioreactor
-	sudo mkdir ~/.pioreactor
+	sudo mkdir -p /etc/pioreactor
+	sudo mkdir -p ~/.pioreactor
 	sudo touch ~/.pioreactor/config.ini
 
 install-worker: install-python install-mqtt configure-rpi systemd-worker install-i2c install-pioreactor-worker
