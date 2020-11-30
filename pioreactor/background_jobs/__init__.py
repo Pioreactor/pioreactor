@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import signal
+import os
 from typing import Optional, Union
 import sys
 import atexit
@@ -69,14 +70,18 @@ class BackgroundJob:
         self.state = self.INIT
 
         def disconnect_gracefully(*args):
-            print("disconnect_gracefully called")
             if self.state == self.DISCONNECTED:
                 return
 
             self.set_state("disconnected")
 
+        def exit_python(*args):
+            sys.exit()
+
         signal.signal(signal.SIGTERM, disconnect_gracefully)
         signal.signal(signal.SIGINT, disconnect_gracefully)
+        signal.signal(signal.SIGUSR1, exit_python)
+
         atexit.register(disconnect_gracefully)
 
         self.send_last_will_to_leader()
@@ -106,9 +111,7 @@ class BackgroundJob:
         self.state = self.DISCONNECTED
 
         # exit from python
-        print("Here1")
-        sys.exit()
-        print("Here2")
+        os.kill(os.getpid(), signal.SIGUSR1)
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
