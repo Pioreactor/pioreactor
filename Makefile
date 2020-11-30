@@ -52,7 +52,6 @@ install-pioreactor-leader:
 	sudo python3 setup.py install
 	pip3 install -r requirements/requirements_leader.txt
 
-
 replace-config:
 	sudo mkdir -p /etc/pioreactor
 	sudo cp config.ini /etc/pioreactor/config.ini
