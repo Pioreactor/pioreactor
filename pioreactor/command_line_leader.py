@@ -73,13 +73,18 @@ def sync(units):
         print("here1")
         try:
             ftp_client = client.open_sftp()
-            print(ftp_client.put("/etc/pioreactor/config.ini", "/etc/pioreactor/config.ini"))
+            print(ftp_client.put("/etc/pioreactor/config.ini", "/home/pi/config.ini"))
             ftp_client.close()
         except:
             import traceback
 
             traceback.print_exc()
         print("here2")
+
+        (stdin, stdout, stderr) = client.exec_command("sudo mv /home/pi/config.ini /etc/pioreactor/")
+        for line in stderr.readlines():
+            pass
+
         client.close()
 
     units = universal_identifier_to_all_units(units)
