@@ -29,8 +29,8 @@ class GrowthRateCalculator(BackgroundJob):
         self.initial_growth_rate = self.set_initial_growth_rate()
         self.od_normalization_factors = self.set_od_normalization_factors()
         self.od_variances = self.set_od_variances()
-        self.samples_per_minute = 60 * float(config["od_config"]["samples_per_second"])
-        self.dt = 1 / float(config["od_config"]["samples_per_second"]) / 60 / 60
+        self.samples_per_minute = 60 * float(config["od_sampling"]["samples_per_second"])
+        self.dt = 1 / float(config["od_sampling"]["samples_per_second"]) / 60 / 60
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
 

@@ -171,7 +171,6 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
     "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
 )
 def click_od_reading(od_angle_channel, verbose):
-    print(od_angle_channel)
     reader = od_reading(od_angle_channel, verbose)
     while True:
         next(reader)
