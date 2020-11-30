@@ -65,7 +65,7 @@ class ODReader(BackgroundJob):
 
     def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
         super(ODReader, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
-        self.ma = MovingStats(lookback=20)
+        self.ma = MovingStats(lookback=10)
         self.ads = ads
         self.od_channels_to_analog_in = {}
 
@@ -145,7 +145,7 @@ def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sam
         od_channels.append((angle_label, channel))
 
     i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, gain=4)  # we will change the gain dynamically later.
+    ads = ADS.ADS1115(i2c, gain=2)  # we will change the gain dynamically later.
     try:
         yield from every(
             sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading

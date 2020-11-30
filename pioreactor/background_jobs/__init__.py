@@ -205,6 +205,7 @@ class BackgroundJob:
         client = mqtt.Client()
         client.will_set(**last_will)  # This must be called before connect() to have any effect.
         client.connect(leader_hostname)
+        client.loop_start()  # this starts the passive msg transfer between broker and client
         self.pubsub_clients.append(client)
 
     def check_for_duplicate_process(self):
