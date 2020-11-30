@@ -69,6 +69,7 @@ class BackgroundJob:
         self.state = self.INIT
 
         def disconnect_gracefully(*args):
+            print("disconnect_gracefully called")
             if self.state == self.DISCONNECTED:
                 return
 
