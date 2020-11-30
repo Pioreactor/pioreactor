@@ -12,6 +12,10 @@ def pause():
 
 
 def test_subscribe_and_listen_to_clear():
+    publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
+    publish(f"pioreactor/{unit}1/{experiment}/growth_rate", None, retain=True)
+    publish(f"pioreactor/{unit}2/{experiment}/growth_rate", None, retain=True)
+
     def unit_from_topic(topic):
         return topic.split("/")[1]
 
@@ -38,7 +42,7 @@ def test_subscribe_and_listen_to_clear():
     assert ts.aggregated_time_series["series"] == []
 
 
-def test_subscribe_and_listen_to_clear2():
+def test_subscribe_and_listen_to_clear_different_formatter():
     def single_sensor_label_from_topic(topic):
         split_topic = topic.split("/")
         return f"{split_topic[1]}-{split_topic[-1]}"
