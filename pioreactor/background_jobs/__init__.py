@@ -105,7 +105,9 @@ class BackgroundJob:
         self.state = self.DISCONNECTED
 
         # exit from python
+        print("Here1")
         sys.exit()
+        print("Here2")
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
