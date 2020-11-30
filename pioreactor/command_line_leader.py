@@ -70,10 +70,11 @@ def sync(units):
         (stdin, stdout, stderr) = client.exec_command(command)
         for line in stderr.readlines():
             pass
-
+        print("here1")
         ftp_client = client.open_sftp()
         print(ftp_client.put("/etc/pioreactor/config.ini", "/etc/pioreactor/config.ini"))
         ftp_client.close()
+        print("here2")
 
         client.close()
 
