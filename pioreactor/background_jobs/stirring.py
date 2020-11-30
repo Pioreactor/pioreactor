@@ -76,8 +76,7 @@ def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=N
         GPIO.cleanup()
         publish(f"pioreactor/{unit}/{experiment}/error_log", f"[stirring] failed with {str(e)}", verbose=verbose)
         raise e
-    finally:
-        GPIO.cleanup()
+
     return
 
 
@@ -87,7 +86,6 @@ def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=N
     "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
 )
 def click_stirring(duty_cycle, verbose):
-    print("here0")
 
     stirring(duty_cycle=duty_cycle, verbose=verbose)
 
