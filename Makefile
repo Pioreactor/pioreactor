@@ -51,7 +51,10 @@ systemd-leader:
 install-pioreactor-leader:
 	sudo python3 setup.py install
 	pip3 install -r requirements/requirements_leader.txt
-	sudo mkdir /etc/pioreactor
+
+
+replace-config:
+	sudo mkdir -p /etc/pioreactor
 	sudo cp config.ini /etc/pioreactor/config.ini
 
 install-pioreactor-worker:
@@ -72,7 +75,7 @@ configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader replace-config systemd-leader
 
 test:
 	py.test -s

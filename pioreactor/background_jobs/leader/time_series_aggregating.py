@@ -150,7 +150,7 @@ def run(output_dir, skip_cache, verbose):
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
         write_every_n_seconds=15,
-        time_window_seconds=config["dashboard"]["filtered_lookback_minutes"],
+        time_window_seconds=config["dashboard"]["raw_lookback_minutes"],
         record_every_n_seconds=5,
     )
 
