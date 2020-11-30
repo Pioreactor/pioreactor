@@ -51,7 +51,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
-        rate_process_variance = (0.0025 * dt) ** 2
+        rate_process_variance = (0.0025 * self.dt) ** 2
         process_noise_covariance = np.block(
             [[OD_process_covariance, 0 * np.ones((d - 1, 1))], [0 * np.ones((1, d - 1)), rate_process_variance]]
         )
@@ -170,7 +170,7 @@ def growth_rate_calculating(verbose, ignore_cache):
         while True:
             signal.pause()
     except Exception as e:
-        publish(f"pioreactor/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {e}.", verbose=self.verbose)
+        publish(f"pioreactor/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {e}.", verbose=verbose)
 
 
 @click.command()

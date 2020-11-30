@@ -151,7 +151,7 @@ def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sam
             sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading
         )
     except Exception as e:
-        publish(f"pioreactor/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {e}.", verbose=self.verbose)
+        publish(f"pioreactor/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {e}.", verbose=verbose)
 
 
 @click.command()
