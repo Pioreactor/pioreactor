@@ -47,7 +47,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 0.005 * np.diag(initial_state.tolist() + [1])
+        initial_covariance = 0.005 * np.diag(initial_state.tolist()[:-1] + [1])
 
         OD_process_covariance = self.create_OD_covariance(angles_and_initial_points.keys())
 
