@@ -78,7 +78,7 @@ def sync(units):
         except:
             import traceback
 
-            traceback.print_exec()
+            traceback.print_exc()
         print("here2")
         client.close()
 
