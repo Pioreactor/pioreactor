@@ -87,6 +87,7 @@ def run(verbose):
             "timestamp": metadata.timestamp,
             "volume_change_ml": payload["volume_change"],
             "event": payload["event"],
+            "source_of_event": payload["source_of_event"],
         }
 
     def parse_growth_rate(topic, payload):

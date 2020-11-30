@@ -73,7 +73,6 @@ class BackgroundJob:
                 return
 
             self.set_state("disconnected")
-            sys.exit()
 
         signal.signal(signal.SIGTERM, disconnect_gracefully)
         signal.signal(signal.SIGINT, disconnect_gracefully)
@@ -104,6 +103,9 @@ class BackgroundJob:
 
         # set state to disconnect
         self.state = self.DISCONNECTED
+
+        # exit from python
+        sys.exit()
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
