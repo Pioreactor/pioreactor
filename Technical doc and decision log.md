@@ -34,6 +34,6 @@
 
 16. We can choose whether to clear attr from MQTT when we disconnect. From Homie: "Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics."
 
-17. `config.ini` files: the leader unit will ship a global config.ini to each unit during `pios sync`, but there exists a (possibly empty) local config.ini that overrides these settings. This is useful for changing PID or evolution parameters over units. Local config.ini are stores in `~/.pioreactor/config.ini`, and global config.ini are stored in `/etc/pioreactor/config.ini`. On `pios sync`, the leader copy its own global config.ini to the units global config.ini (`make install` needs to place it in the leader). The configs should be editable in the UI.
+17. `config.ini` files: the leader unit will ship a global config.ini to each unit during `pios sync`, but there exists a (possibly empty) local config.ini that overrides these settings. This is useful for changing PID or evolution parameters over units. Local config.ini are stores in `~/.pioreactor/config.ini`, and global config.ini are stored in `/etc/pioreactor/config.ini`. On `pios sync`, the leader copy its own global config.ini to the units global config.ini (`make install` needs to place it in the leader). The configs should be editable in the UI. In development however, the leader ships the version in git. This needs to be fixed for production.
 
 18. Changing name to `pioreactor`, including in the MQTT prefix. This better describes the project. Previously `mba` is now `pios` and `mb` is now `pio`.

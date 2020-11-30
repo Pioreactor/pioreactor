@@ -75,7 +75,7 @@ def sync(units):
             # due to permissions, we can't ftp to /etc/, so we move to where we can
             # and then use `sudo` to move it.
             ftp_client = client.open_sftp()
-            ftp_client.put("/etc/pioreactor/config.ini", "/home/pi/config.ini")
+            ftp_client.put("/home/pi/pioreactor/config.ini", "/home/pi/config.ini")
             ftp_client.close()
 
             (stdin, stdout, stderr) = client.exec_command("sudo mv /home/pi/config.ini /etc/pioreactor/")
