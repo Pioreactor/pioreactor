@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # add media
 import time
-from json import loads
+from json import loads, dumps
 import click
 import RPi.GPIO as GPIO
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
@@ -12,7 +12,7 @@ from pioreactor.pubsub import publish, QOS
 GPIO.setmode(GPIO.BCM)
 
 
-def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
+def add_media(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbose=0):
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
@@ -28,7 +28,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
 
     publish(
         f"pioreactor/{unit}/{experiment}/io_events",
-        '{"volume_change": %f, "event": "add_media"}' % ml,
+        json.dumps({"volume_change": ml, "event": "add_media", "source_of_event": source_of_event}),
         verbose=verbose,
         qos=QOS.EXACTLY_ONCE,
     )
@@ -64,10 +64,13 @@ def add_media(ml=None, duration=None, duty_cycle=33, verbose=0):
 @click.option("--duration", type=float)
 @click.option("--duty-cycle", default=33, type=int)
 @click.option(
+    "--source-of-event", default="app", type=str, help="who is calling this function - data goes into database and MQTT"
+)
+@click.option(
     "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
 )
-def click_add_media(ml, duration, duty_cycle, verbose):
-    return add_media(ml, duration, duty_cycle, verbose)
+def click_add_media(ml, duration, duty_cycle, source_of_event, verbose):
+    return add_media(ml, duration, duty_cycle, source_of_event, verbose)
 
 
 if __name__ == "__main__":

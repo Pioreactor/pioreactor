@@ -199,15 +199,15 @@ class IOAlgorithm(BackgroundSubJob):
             )
         else:
             if alt_media_ml > 0:
-                add_alt_media(ml=alt_media_ml, verbose=self.verbose)
+                add_alt_media(ml=alt_media_ml, verbose=self.verbose, source_of_event="io_controlling")
                 brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
             if media_ml > 0:
-                add_media(ml=media_ml, verbose=self.verbose)
+                add_media(ml=media_ml, verbose=self.verbose, source_of_event="io_controlling")
                 brief_pause()
             if waste_ml > 0:
-                remove_waste(ml=waste_ml, verbose=self.verbose)
+                remove_waste(ml=waste_ml, verbose=self.verbose, source_of_event="io_controlling")
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
-                remove_waste(duration=2, verbose=self.verbose)
+                remove_waste(duration=2, verbose=self.verbose, source_of_event="io_controlling")
                 brief_pause()
 
     def set_growth_rate(self, message):

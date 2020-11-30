@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# pubsub
 import socket
 import time
 import threading

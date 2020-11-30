@@ -53,7 +53,8 @@ CREATE TABLE IF NOT EXISTS io_events (
     experiment             TEXT  NOT NULL,
     event                  TEXT  NOT NULL,
     volume_change_ml       REAL  NOT NULL,
-    pioreactor_unit        TEXT  NOT NULL
+    pioreactor_unit        TEXT  NOT NULL,
+    source_of_event        TEXT
 );
 
 CREATE INDEX IF NOT EXISTS io_events_ix

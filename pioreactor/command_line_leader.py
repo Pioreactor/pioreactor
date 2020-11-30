@@ -14,7 +14,11 @@ from subprocess import run as subprocess_run
 import hashlib
 import click
 
-import paramiko
+try:
+    import paramiko
+except ImportError:
+    pass
+
 from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 
 

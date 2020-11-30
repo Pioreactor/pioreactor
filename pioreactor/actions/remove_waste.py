@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # remove waste
 import time
-from json import loads
+from json import loads, dumps
 
 import click
 import RPi.GPIO as GPIO
@@ -14,7 +14,7 @@ from pioreactor.pubsub import publish, QOS
 GPIO.setmode(GPIO.BCM)
 
 
-def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
+def remove_waste(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbose=0):
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None), "Input either ml or duration"
     assert not ((ml is not None) and (duration is not None)), "Only input ml or duration"
@@ -31,7 +31,7 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
 
     publish(
         f"pioreactor/{unit}/{experiment}/io_events",
-        '{"volume_change": -%f, "event": "remove_waste"}' % ml,
+        json.dumps({"volume_change": ml, "event": "remove_waste", "source_of_event": source_of_event}),
         verbose=verbose,
         qos=QOS.EXACTLY_ONCE,
     )
@@ -67,10 +67,13 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, verbose=0):
 @click.option("--duration", type=float)
 @click.option("--duty-cycle", default=33, type=int)
 @click.option(
+    "--source-of-event", default="app", type=str, help="who is calling this function - data goes into database and MQTT"
+)
+@click.option(
     "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
 )
-def click_remove_waste(ml, duration, duty_cycle, verbose):
-    return remove_waste(ml, duration, duty_cycle, verbose)
+def click_remove_waste(ml, duration, duty_cycle, source_of_event, verbose):
+    return remove_waste(ml, duration, duty_cycle, source_of_event, verbose)
 
 
 if __name__ == "__main__":
