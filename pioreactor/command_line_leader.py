@@ -71,11 +71,15 @@ def sync(units):
         for line in stderr.readlines():
             pass
         print("here1")
-        ftp_client = client.open_sftp()
-        print(ftp_client.put("/etc/pioreactor/config.ini", "/etc/pioreactor/config.ini"))
-        ftp_client.close()
-        print("here2")
+        try:
+            ftp_client = client.open_sftp()
+            print(ftp_client.put("/etc/pioreactor/config.ini", "/etc/pioreactor/config.ini"))
+            ftp_client.close()
+        except:
+            import traceback
 
+            traceback.print_exec()
+        print("here2")
         client.close()
 
     units = universal_identifier_to_all_units(units)
