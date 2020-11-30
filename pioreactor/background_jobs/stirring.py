@@ -63,12 +63,8 @@ class Stirrer(BackgroundJob):
 
 def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0):
     try:
-        print("here1")
-        stirrer = Stirrer(duty_cycle, unit, experiment)
-        print("here2")
-
+        stirrer = Stirrer(duty_cycle, unit=unit, experiment=experiment, verbose=verbose)
         stirrer.start_stirring()
-        print("here3")
 
         if duration is None:
 
