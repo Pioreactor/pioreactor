@@ -60,32 +60,34 @@ def sync(units):
     command = " && ".join([cd, gitp, setup])
 
     def _thread_function(unit):
-        hostname = unit_to_hostname(unit)
-
-        client = paramiko.SSHClient()
-        client.load_system_host_keys()
-        client.connect(hostname, username="pi")
-
-        print(f"Executing on {unit}...")
-        (stdin, stdout, stderr) = client.exec_command(command)
-        for line in stderr.readlines():
-            pass
-        print("here1")
         try:
+            hostname = unit_to_hostname(unit)
+
+            client = paramiko.SSHClient()
+            client.load_system_host_keys()
+            client.connect(hostname, username="pi")
+
+            print(f"Executing on {unit}...")
+            (stdin, stdout, stderr) = client.exec_command(command)
+            for line in stderr.readlines():
+                pass
+
+            # due to permissions, we can't ftp to /etc/, so we move to where we can
+            # and then use `sudo` to move it.
             ftp_client = client.open_sftp()
-            print(ftp_client.put("/etc/pioreactor/config.ini", "/home/pi/config.ini"))
+            ftp_client.put("/etc/pioreactor/config.ini", "/home/pi/config.ini")
             ftp_client.close()
+
+            (stdin, stdout, stderr) = client.exec_command("sudo mv /home/pi/config.ini /etc/pioreactor/")
+            for line in stderr.readlines():
+                pass
+
+            client.close()
         except:
             import traceback
 
+            print(f"unit={unit}")
             traceback.print_exc()
-        print("here2")
-
-        (stdin, stdout, stderr) = client.exec_command("sudo mv /home/pi/config.ini /etc/pioreactor/")
-        for line in stderr.readlines():
-            pass
-
-        client.close()
 
     units = universal_identifier_to_all_units(units)
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
