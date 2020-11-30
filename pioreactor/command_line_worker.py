@@ -19,10 +19,10 @@ def pio():
     pass
 
 
-@pio.command(name="log")
-def log():
+@pio.command(name="logs")
+def logs():
     for line in tail("-f", "/var/log/pioreactor.log", _iter=True):
-        print(line)
+        print(line, end="")  # try  end=''
 
 
 @pio.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
