@@ -89,7 +89,7 @@ def sync(units):
     from shutil import copyfile
 
     # copy the config from pioreactor/ to etc/
-    copyfile("~/pioreactor/config.ini", "/etc/pioreactor/config.ini")
+    copyfile("/home/pi/pioreactor/config.ini", "/etc/pioreactor/config.ini")
 
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"
