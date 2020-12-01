@@ -14,7 +14,7 @@ def get_config():
         global_config_path = "~/.pioreactor/config.ini"
         local_config_path = "~/.pioreactor/unit_config.ini"
         config.read([global_config_path, local_config_path])
-    print(config)
+    print(list(config))
     return config
 
 
