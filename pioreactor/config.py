@@ -11,8 +11,8 @@ def get_config():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         config.read("config.dev.ini")
     else:
-        global_config_path = "~/.pioreactor/config.ini"
-        local_config_path = "~/.pioreactor/unit_config.ini"
+        global_config_path = "/home/pi/.pioreactor/config.ini"
+        local_config_path = "/home/pi/.pioreactor/unit_config.ini"
         config.read([global_config_path, local_config_path])
     print(list(config))
     return config
