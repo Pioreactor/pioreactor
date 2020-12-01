@@ -19,12 +19,10 @@ Also published to
 
     pioreactor/<unit>/<experiment>/od_raw_batched
 
-
 """
 import time
 import json
 import os
-import string
 
 import click
 from adafruit_ads1x15.analog_in import AnalogIn
@@ -67,7 +65,9 @@ class ODReader(BackgroundJob):
     editable_settings = []
 
     def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
-        super(ODReader, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
+        super(ODReader, self).__init__(
+            job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
+        )
         self.ma = MovingStats(lookback=10)
         self.ads = ads
         self.od_channels_to_analog_in = {}
@@ -84,7 +84,11 @@ class ODReader(BackgroundJob):
             raw_signals = {}
             for (angle_label, ads_channel) in self.od_channels_to_analog_in.items():
                 raw_signal_ = ads_channel.voltage
-                publish(f"pioreactor/{self.unit}/{self.experiment}/od_raw/{angle_label}", raw_signal_, verbose=self.verbose)
+                publish(
+                    f"pioreactor/{self.unit}/{self.experiment}/od_raw/{angle_label}",
+                    raw_signal_,
+                    verbose=self.verbose,
+                )
                 raw_signals[angle_label] = raw_signal_
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
@@ -99,7 +103,11 @@ class ODReader(BackgroundJob):
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
             # publish the batch of data, too, for growth reading
-            publish(f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched", json.dumps(raw_signals), verbose=self.verbose)
+            publish(
+                f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
+                json.dumps(raw_signals),
+                verbose=self.verbose,
+            )
 
             # the max signal should determine the board's gain
             self.ma.update(max(raw_signals.values()))
@@ -107,7 +115,9 @@ class ODReader(BackgroundJob):
             # check if using correct gain
             if counter % 5 == 0 and self.ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if (0.95 * lb <= self.ma.mean < 0.95 * ub) and (self.ads.gain != gain):
+                    if (0.95 * lb <= self.ma.mean < 0.95 * ub) and (
+                        self.ads.gain != gain
+                    ):
                         self.ads.gain = gain
                         publish(
                             f"pioreactor/{self.unit}/{self.experiment}/log",
@@ -128,7 +138,9 @@ class ODReader(BackgroundJob):
             time.sleep(5.0)
         except Exception as e:
             publish(
-                f"pioreactor/{self.unit}/{self.experiment}/error_log", f"[{JOB_NAME}] failed with {str(e)}", verbose=self.verbose
+                f"pioreactor/{self.unit}/{self.experiment}/error_log",
+                f"[{JOB_NAME}] failed with {str(e)}",
+                verbose=self.verbose,
             )
             raise e
 
@@ -136,7 +148,11 @@ class ODReader(BackgroundJob):
 INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
 
 
-def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sampling"]["samples_per_second"])):
+def od_reading(
+    od_angle_channel,
+    verbose,
+    sampling_rate=1 / float(config["od_sampling"]["samples_per_second"]),
+):
     od_channels = []
     for input_ in od_angle_channel:
         angle, channel = input_.split(",")
@@ -151,10 +167,17 @@ def od_reading(od_angle_channel, verbose, sampling_rate=1 / float(config["od_sam
     ads = ADS.ADS1115(i2c, gain=2)  # we will change the gain dynamically later.
     try:
         yield from every(
-            sampling_rate, ODReader(od_channels, ads, unit=unit, experiment=experiment, verbose=verbose).take_reading
+            sampling_rate,
+            ODReader(
+                od_channels, ads, unit=unit, experiment=experiment, verbose=verbose
+            ).take_reading,
         )
     except Exception as e:
-        publish(f"pioreactor/{unit}/{experiment}/error_log", f"[{JOB_NAME}]: failed {e}.", verbose=verbose)
+        publish(
+            f"pioreactor/{unit}/{experiment}/error_log",
+            f"[{JOB_NAME}]: failed {e}.",
+            verbose=verbose,
+        )
 
 
 @click.command()
@@ -171,7 +194,10 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 """,
 )
 @click.option(
-    "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
+    "--verbose",
+    "-v",
+    count=True,
+    help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
 )
 def click_od_reading(od_angle_channel, verbose):
     reader = od_reading(od_angle_channel, verbose)
