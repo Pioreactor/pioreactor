@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-TODO: how do I handle a gain that is too small? Ex: an OD is 0.9, but the OD reading starts at max 0.512.
-
-"""
 import time
 import json
 from collections import defaultdict
 from statistics import median, variance
 import click
-import threading
 from click import echo, style
 
 from pioreactor.config import config
@@ -90,10 +85,17 @@ def od_normalization(od_angle_channel, verbose):
             verbose=verbose,
             retain=True,
         )
-        echo(bold("Gathering of statistics complete. They are stored in the message broker."))
+        echo(
+            bold(
+                "Gathering of statistics complete. They are stored in the message broker."
+            )
+        )
         return
-    except:
-        pass
+    except Exception as e:
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/error_log",
+            f"[od_normalization]: failed with {str(e)}",
+        )
 
 
 @click.command()
@@ -110,7 +112,10 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 """,
 )
 @click.option(
-    "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
+    "--verbose",
+    "-v",
+    count=True,
+    help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
 )
 def click_od_normalization(od_angle_channel, verbose):
     od_normalization(od_angle_channel, verbose)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# add media
+
 import time
 from json import loads, dumps
 import click
@@ -24,14 +24,28 @@ def add_media(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbo
 
     if ml is not None:
         assert ml >= 0
-        duration = pump_ml_to_duration(ml, duty_cycle, **loads(config["pump_calibration"][f"media{unit}_ml_calibration"]))
+        duration = pump_ml_to_duration(
+            ml,
+            duty_cycle,
+            **loads(config["pump_calibration"][f"media{unit}_ml_calibration"]),
+        )
     elif duration is not None:
-        ml = pump_duration_to_ml(duration, duty_cycle, **loads(config["pump_calibration"][f"media{unit}_ml_calibration"]))
+        ml = pump_duration_to_ml(
+            duration,
+            duty_cycle,
+            **loads(config["pump_calibration"][f"media{unit}_ml_calibration"]),
+        )
     assert duration >= 0
 
     publish(
         f"pioreactor/{unit}/{experiment}/io_events",
-        dumps({"volume_change": ml, "event": "add_media", "source_of_event": source_of_event}),
+        dumps(
+            {
+                "volume_change": ml,
+                "event": "add_media",
+                "source_of_event": source_of_event,
+            }
+        ),
         verbose=verbose,
         qos=QOS.EXACTLY_ONCE,
     )
@@ -50,12 +64,24 @@ def add_media(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbo
         GPIO.output(MEDIA_PIN, 0)
 
         if ml is not None:
-            publish(f"pioreactor/{unit}/{experiment}/log", f"add media: {round(ml,2)}mL", verbose=verbose)
+            publish(
+                f"pioreactor/{unit}/{experiment}/log",
+                f"add media: {round(ml,2)}mL",
+                verbose=verbose,
+            )
         else:
-            publish(f"pioreactor/{unit}/{experiment}/log", f"add media: {round(duration,2)}s", verbose=verbose)
+            publish(
+                f"pioreactor/{unit}/{experiment}/log",
+                f"add media: {round(duration,2)}s",
+                verbose=verbose,
+            )
 
     except Exception as e:
-        publish(f"pioreactor/{unit}/{experiment}/error_log", f"[add_media]: failed with {str(e)}", verbose=verbose)
+        publish(
+            f"pioreactor/{unit}/{experiment}/error_log",
+            f"[add_media]: failed with {str(e)}",
+            verbose=verbose,
+        )
         raise e
     finally:
         GPIO.cleanup(MEDIA_PIN)
@@ -67,10 +93,16 @@ def add_media(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbo
 @click.option("--duration", type=float)
 @click.option("--duty-cycle", default=33, type=int)
 @click.option(
-    "--source-of-event", default="app", type=str, help="who is calling this function - data goes into database and MQTT"
+    "--source-of-event",
+    default="app",
+    type=str,
+    help="who is calling this function - data goes into database and MQTT",
 )
 @click.option(
-    "--verbose", "-v", count=True, help="print to std. out (may be redirected to pioreactor.log). Increasing values log more."
+    "--verbose",
+    "-v",
+    count=True,
+    help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
 )
 def click_add_media(ml, duration, duty_cycle, source_of_event, verbose):
     return add_media(ml, duration, duty_cycle, source_of_event, verbose)
