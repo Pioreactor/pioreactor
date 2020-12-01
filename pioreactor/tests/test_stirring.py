@@ -3,8 +3,11 @@
 import time
 import pytest
 from pioreactor.background_jobs.stirring import stirring, Stirrer
-from pioreactor.whoami import unit, experiment as exp
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.pubsub import publish, subscribe
+
+unit = get_unit_from_hostname()
+exp = get_latest_experiment_name()
 
 
 def pause():

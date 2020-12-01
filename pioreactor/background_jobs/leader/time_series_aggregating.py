@@ -14,11 +14,14 @@ import click
 
 from pioreactor.pubsub import subscribe_and_callback, publish
 from pioreactor.background_jobs import BackgroundJob
-from pioreactor.whoami import unit, experiment, hostname
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.config import config
 
 DEFAULT_JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 def current_time():

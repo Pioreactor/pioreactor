@@ -5,11 +5,14 @@ from json import loads, dumps
 import click
 import RPi.GPIO as GPIO
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 
 GPIO.setmode(GPIO.BCM)
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 def add_media(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbose=0):
@@ -28,7 +31,7 @@ def add_media(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbo
 
     publish(
         f"pioreactor/{unit}/{experiment}/io_events",
-        json.dumps({"volume_change": ml, "event": "add_media", "source_of_event": source_of_event}),
+        dumps({"volume_change": ml, "event": "add_media", "source_of_event": source_of_event}),
         verbose=verbose,
         qos=QOS.EXACTLY_ONCE,
     )

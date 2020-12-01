@@ -13,9 +13,12 @@ from click import echo, style
 
 from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
-from pioreactor.whoami import unit, experiment, hostname
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor import pubsub
 from pioreactor.background_jobs.od_reading import od_reading
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 def green(msg):
@@ -44,7 +47,7 @@ def od_normalization(od_angle_channel, verbose):
         signal = yield_from_mqtt()
 
     echo()
-    echo(bold(f"This task will compute statistics from {hostname}."))
+    echo(bold(f"This task will compute statistics from {unit}."))
 
     time.sleep(0.5)
     readings = defaultdict(list)

@@ -31,7 +31,7 @@ from pioreactor.pubsub import publish, subscribe_and_callback, QOS
 
 from pioreactor.utils.timing import every, RepeatedTimer
 from pioreactor.utils.streaming_calculations import PID
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.background_jobs.utils import events
@@ -40,6 +40,9 @@ from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.config import config
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 def brief_pause():
@@ -281,7 +284,17 @@ class PIDTurbidostat(IOAlgorithm):
         self.volume = volume
 
         # PID%20controller%20turbidostat.ipynb
-        self.pid = PID(-2.97, -0.11, -0.09, setpoint=self.target_od, output_limits=(0, 1), sample_time=None, verbose=self.verbose)
+        self.pid = PID(
+            -2.97,
+            -0.11,
+            -0.09,
+            setpoint=self.target_od,
+            output_limits=(0, 1),
+            sample_time=None,
+            verbose=self.verbose,
+            unit=self.unit,
+            experiment=self.experiment,
+        )
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -330,7 +343,15 @@ class PIDMorbidostat(IOAlgorithm):
         Ki = config["pid_morbidostat"]["Ki"]
         Kd = config["pid_morbidostat"]["Kd"]
         self.pid = PID(
-            -Kp, -Ki, -Kd, setpoint=self.target_growth_rate, output_limits=(0, 1), sample_time=None, verbose=self.verbose
+            -Kp,
+            -Ki,
+            -Kd,
+            setpoint=self.target_growth_rate,
+            output_limits=(0, 1),
+            sample_time=None,
+            verbose=self.verbose,
+            unit=self.unit,
+            experiment=self.experiment,
         )
 
         if volume is not None:

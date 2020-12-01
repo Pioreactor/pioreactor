@@ -13,8 +13,11 @@ from pioreactor.background_jobs.io_controlling import (
     AlgoController,
 )
 from pioreactor.background_jobs.utils import events
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor import pubsub
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 def pause():

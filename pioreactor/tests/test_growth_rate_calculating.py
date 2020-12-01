@@ -6,7 +6,10 @@ import numpy as np
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.pubsub import subscribe, publish
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 def pause():

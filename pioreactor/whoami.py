@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-import re
 import sys
 import os
 import socket
-from pioreactor.config import leader_hostname
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 
@@ -31,6 +29,8 @@ def get_hostname():
 
 
 def get_unit_from_hostname():
+    import re
+
     hostname = get_hostname()
 
     if hostname == "leader":
@@ -46,14 +46,10 @@ def get_unit_from_hostname():
     elif hostname == "raspberrypi":
         raise ValueError("Did you forget to set the hostname?")
     else:
-        return "localhost"
-        # raise ValueError(f"How did I get here? My hostname is {hostname}")
+        raise ValueError(f"How did I get here? My hostname is {hostname}")
 
 
 def am_I_leader():
+    from pioreactor.config import leader_hostname
+
     return get_hostname() == leader_hostname
-
-
-hostname = get_hostname()
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()

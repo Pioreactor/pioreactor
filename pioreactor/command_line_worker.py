@@ -7,7 +7,6 @@ cmd line interface for running individual pioreactor units (including leader)
 > mb log
 """
 
-from sh import tail
 import click
 import importlib
 from subprocess import call
@@ -21,6 +20,8 @@ def pio():
 
 @pio.command(name="logs")
 def logs():
+    from sh import tail
+
     for line in tail("-f", "/var/log/pioreactor.log", _iter=True):
         print(line, end="")
 

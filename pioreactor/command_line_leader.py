@@ -8,10 +8,7 @@ command line for running the same command on all workers,
 > pios kill <substring>
 """
 
-import importlib
-import concurrent.futures
-from subprocess import run as subprocess_run
-import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import click
 
 try:
@@ -37,6 +34,8 @@ def universal_identifier_to_all_units(units):
 
 
 def checksum_git(s):
+    from subprocess import run as subprocess_run
+
     cksum_command = "cd ~/pioreactor/ && git rev-parse HEAD"
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0].strip()
@@ -94,7 +93,7 @@ def sync(units):
             traceback.print_exc()
 
     units = universal_identifier_to_all_units(units)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
         executor.map(_thread_function, units)
 
 
@@ -126,7 +125,7 @@ def kill(process, units, y):
         s.close()
 
     units = universal_identifier_to_all_units(units)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
         executor.map(_thread_function, units)
 
 
@@ -166,7 +165,7 @@ def run(ctx, job, units, y):
         s.close()
 
     units = universal_identifier_to_all_units(units)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(units)) as executor:
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
         executor.map(_thread_function, units)
 
     return

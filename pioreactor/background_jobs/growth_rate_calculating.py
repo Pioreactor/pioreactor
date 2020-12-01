@@ -12,11 +12,14 @@ import click
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
 from pioreactor.pubsub import publish, subscribe, subscribe_and_callback, QOS
 
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config, leader_hostname
 from pioreactor.background_jobs import BackgroundJob
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 class GrowthRateCalculator(BackgroundJob):

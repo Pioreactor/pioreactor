@@ -3,7 +3,10 @@ import pytest
 import time
 from pioreactor.background_jobs.leader.time_series_aggregating import TimeSeriesAggregation
 from pioreactor.pubsub import publish
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 def pause():

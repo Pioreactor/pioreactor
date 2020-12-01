@@ -4,8 +4,7 @@ import time, os, traceback, signal, sys
 import click
 import RPi.GPIO as GPIO
 
-
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.utils.timing import every
@@ -13,6 +12,9 @@ from pioreactor.background_jobs import BackgroundJob
 
 GPIO.setmode(GPIO.BCM)
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 class Stirrer(BackgroundJob):

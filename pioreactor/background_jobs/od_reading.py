@@ -34,7 +34,7 @@ import busio
 
 from pioreactor.utils.streaming_calculations import MovingStats
 
-from pioreactor.whoami import unit, experiment
+from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.utils.timing import every
@@ -50,6 +50,9 @@ ADS_GAIN_THRESHOLDS = {
 }
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+
+unit = get_unit_from_hostname()
+experiment = get_latest_experiment_name()
 
 
 class ODReader(BackgroundJob):
