@@ -46,6 +46,34 @@ def checksum_git(s):
     ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `pios sync`"
 
 
+def sync_config_files(client, unit):
+    # occurs in a thread
+    ftp_client = client.open_sftp()
+
+    # move the global config.ini
+
+    # due to permissions, we can't ftp to /etc/, so we move to where we can
+    # and then use `sudo` to move it.
+    ftp_client.put("/etc/pioreactor/config.ini", "/tmp/config.ini")
+    (stdin, stdout, stderr) = client.exec_command(
+        "sudo mv /home/pi/config.ini /etc/pioreactor/"
+    )
+    for line in stderr.readlines():
+        pass
+
+    # move the local config.ini
+    try:
+        ftp_client.put(
+            f"/etc/pioreactor/config{unit}.ini", "/home/pi/.pioreactor/config.ini"
+        )
+    except Exception as e:
+        print(f"Did you forget to create a config{unit}.ini to ship to pioreactor{unit}.")
+        raise e
+
+    ftp_client.close()
+    return
+
+
 @click.group()
 def pios():
     if not am_I_leader():
@@ -58,6 +86,11 @@ def pios():
 @pios.command()
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 def sync(units):
+    from shutil import copyfile
+
+    # copy the config from pioreactor/ to etc/
+    copyfile("~/pioreactor/config.ini", "/etc/pioreactor/config.ini")
+
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
@@ -76,17 +109,7 @@ def sync(units):
             for line in stderr.readlines():
                 pass
 
-            # due to permissions, we can't ftp to /etc/, so we move to where we can
-            # and then use `sudo` to move it.
-            ftp_client = client.open_sftp()
-            ftp_client.put("/home/pi/pioreactor/config.ini", "/home/pi/config.ini")
-            ftp_client.close()
-
-            (stdin, stdout, stderr) = client.exec_command(
-                "sudo mv /home/pi/config.ini /etc/pioreactor/"
-            )
-            for line in stderr.readlines():
-                pass
+            sync_config_files(client, unit)
 
             client.close()
         except Exception:
