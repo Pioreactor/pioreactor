@@ -2,6 +2,7 @@
 """
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
+
 from typing import Optional
 import signal
 import os
@@ -9,11 +10,9 @@ import click
 import json
 
 
-from pioreactor.pubsub import publish, subscribe_and_callback, QOS
+from pioreactor.pubsub import subscribe_and_callback, QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
-from pioreactor.config import leader_hostname
-from pioreactor import utils
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -41,8 +40,12 @@ class ThroughputCalculator(BackgroundSubJob):
 
     editable_settings = ["media_throughput", "alt_media_throughput"]
 
-    def __init__(self, unit=None, experiment: Optional[str] = None, verbose: int = 0, **kwargs) -> None:
-        super(ThroughputCalculator, self).__init__(job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment)
+    def __init__(
+        self, unit=None, experiment: Optional[str] = None, verbose: int = 0, **kwargs
+    ) -> None:
+        super(ThroughputCalculator, self).__init__(
+            job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
+        )
         self.verbose = verbose
 
         self.media_throughput = self.get_initial_media_throughput()
@@ -70,14 +73,20 @@ class ThroughputCalculator(BackgroundSubJob):
         return
 
     def get_initial_media_throughput(self):
-        message = subscribe(f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/media_throughput", timeout=2)
+        message = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/media_throughput",
+            timeout=2,
+        )
         if message:
             return float(message.payload)
         else:
             return 0
 
     def get_initial_alt_media_throughput(self):
-        message = subscribe(f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput", timeout=2)
+        message = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput",
+            timeout=2,
+        )
         if message:
             return float(message.payload)
         else:
@@ -86,14 +95,16 @@ class ThroughputCalculator(BackgroundSubJob):
     def start_passive_listeners(self) -> None:
         self.pubsub_clients.append(
             subscribe_and_callback(
-                callback=self.on_io_event, topics=f"pioreactor/{self.unit}/{self.experiment}/io_events", qos=QOS.EXACTLY_ONCE
+                callback=self.on_io_event,
+                topics=f"pioreactor/{self.unit}/{self.experiment}/io_events",
+                qos=QOS.EXACTLY_ONCE,
             )
         )
 
 
 def throughput_calculating():
 
-    calc = ThroughputCalculator()
+    calc = ThroughputCalculator()  # noqa: F841
 
     while True:
         signal.pause()
@@ -101,7 +112,7 @@ def throughput_calculating():
 
 @click.command()
 @click.option("--verbose", "-v", count=True, help="Print to std out")
-def click_throughput_calculating():
+def click_throughput_calculating(verbose):
     throughput_calculating(verbose)
 
 
