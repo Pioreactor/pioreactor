@@ -15,7 +15,9 @@ class QOS:
     EXACTLY_ONCE = 2
 
 
-def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs):
+def publish(
+    topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs
+):
     retry_count = 1
     while True:
         try:
@@ -24,7 +26,9 @@ def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **m
             if (verbose == 1 and topic.endswith("log")) or verbose > 1:
                 current_time = time.strftime("%Y-%m-%d %H:%M:%S")
                 echo(
-                    style(f"{current_time} ", bold=True) + style(f"{topic}: ", fg="bright_blue") + style(f"{message}", fg="green")
+                    style(f"{current_time} ", bold=True)
+                    + style(f"{topic}: ", fg="bright_blue")
+                    + style(f"{message}", fg="green")
                 )
             return
 
@@ -33,7 +37,10 @@ def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **m
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             echo(
                 style(f"{current_time}:", fg="white")
-                + style(f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}", fg="red")
+                + style(
+                    f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}",
+                    fg="red",
+                )
             )
             time.sleep(5 * retry_count)  # linear backoff
             retry_count += 1
@@ -43,6 +50,11 @@ def publish(topic, message, hostname=leader_hostname, verbose=0, retries=10, **m
 
 
 def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt_kwargs):
+    """
+    Modeled closely after the paho version, this also includes some try/excepts and
+    a timeout. Note that this _does_ disconnect after receiving a single message.
+
+    """
     retry_count = 1
     while True:
         try:
@@ -57,7 +69,10 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
                 return
 
             topics = [topics] if isinstance(topics, str) else topics
-            userdata = {"topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics], "messages": None}
+            userdata = {
+                "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
+                "messages": None,
+            }
 
             client = mqtt.Client(userdata=userdata)
             client.on_connect = on_connect
@@ -76,7 +91,10 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
             # possible that leader is down/restarting, keep trying, but log to local machine.
             echo(
                 style(f"{current_time}:", fg="white")
-                + style(f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}", fg="red")
+                + style(
+                    f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}",
+                    fg="red",
+                )
             )
             time.sleep(5 * retry_count)  # linear backoff
             retry_count += 1
@@ -86,7 +104,9 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
-def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=None, max_msgs=None, **mqtt_kwargs):
+def subscribe_and_callback(
+    callback, topics, hostname=leader_hostname, timeout=None, max_msgs=None, **mqtt_kwargs
+):
     """
     Creates a new thread, wrapping around paho's subscribe.callback. Callbacks only accept a single parameter, message.
 
@@ -99,7 +119,9 @@ def subscribe_and_callback(callback, topics, hostname=leader_hostname, timeout=N
 
     """
 
-    assert callable(callback), "callback should be callable - do you need to change the order of arguments?"
+    assert callable(
+        callback
+    ), "callback should be callable - do you need to change the order of arguments?"
 
     def on_connect(client, userdata, flags, rc):
         client.subscribe(userdata["topics"])
@@ -152,7 +174,9 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
     def on_message(message):
         topics.append(message.topic)
 
-    client = subscribe_and_callback(on_message, topics_to_prune, hostname=hostname, timeout=1)
+    client = subscribe_and_callback(
+        on_message, topics_to_prune, hostname=hostname, timeout=1
+    )
 
     for topic in topics.copy():
         publish(topic, None, retain=True, hostname=hostname)
