@@ -51,17 +51,14 @@ systemd-leader:
 install-pioreactor-leader:
 	sudo python3 setup.py install
 	pip3 install -r requirements/requirements_leader.txt
-
-replace-config:
-	sudo mkdir -p /etc/pioreactor
-	sudo cp config.ini /etc/pioreactor/config.ini
+	mkdir -p ~/.pioreactor
+	cp config.ini ~/.pioreactor/config.ini
 
 install-pioreactor-worker:
 	sudo python3 setup.py install
 	pip3 install -r requirements/requirements_worker.txt
-	sudo mkdir -p /etc/pioreactor
-	sudo mkdir -p ~/.pioreactor
-	sudo touch ~/.pioreactor/config.ini
+	mkdir -p ~/.pioreactor
+	touch ~/.pioreactor/unit_config.ini
 
 install-worker: install-python install-mqtt configure-rpi systemd-worker install-i2c install-pioreactor-worker
 

@@ -54,17 +54,13 @@ def sync_config_files(client, unit):
 
     # due to permissions, we can't ftp to /etc/, so we move to where we can
     # and then use `sudo` to move it.
-    ftp_client.put("/etc/pioreactor/config.ini", "/tmp/config.ini")
-    (stdin, stdout, stderr) = client.exec_command(
-        "sudo mv /home/pi/config.ini /etc/pioreactor/"
-    )
-    for line in stderr.readlines():
-        pass
+    ftp_client.put("/home/pi/.pioreactor/config.ini", "/home/pi/.pioreactor/config.ini")
 
     # move the local config.ini
     try:
         ftp_client.put(
-            f"/etc/pioreactor/config{unit}.ini", "/home/pi/.pioreactor/config.ini"
+            f"/home/pi/.pioreactor/config{unit}.ini",
+            "/home/pi/.pioreactor/unit_config.ini",
         )
     except Exception as e:
         print(f"Did you forget to create a config{unit}.ini to ship to pioreactor{unit}.")
@@ -89,7 +85,7 @@ def sync(units):
     from shutil import copy
 
     # copy the config from pioreactor/ to etc/
-    copy("/home/pi/pioreactor/config.ini", "/etc/pioreactor/config.ini")
+    copy("/home/pi/pioreactor/config.ini", "/home/pi/.pioreactor/config.ini")
 
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"

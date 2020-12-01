@@ -3,7 +3,6 @@
 import configparser
 import sys
 import os
-from click import echo
 
 
 def get_config():
@@ -12,9 +11,8 @@ def get_config():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         config.read("config.dev.ini")
     else:
-        echo("Overwriting global config.ini with values from ~/.pioreactor/config.ini")
-        global_config_path = "/etc/pioreactor/config.ini"
-        local_config_path = "~/.pioreactor/config.ini"
+        global_config_path = "~/.pioreactor/config.ini"
+        local_config_path = "~/.pioreactor/unit_config.ini"
         config.read([global_config_path, local_config_path])
     return config
 
