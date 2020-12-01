@@ -2,11 +2,10 @@
 """
 cmd line interface for running individual pioreactor units (including leader)
 
-> mb run stirring
-> mb run od_reading --od-angle-channel 135,0
-> mb log
+> pio run stirring
+> pio run od_reading --od-angle-channel 135,0
+> pio log
 """
-
 import click
 import importlib
 from subprocess import call
@@ -26,7 +25,9 @@ def logs():
         print(line, end="")
 
 
-@pio.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
+@pio.command(
+    name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
+)
 @click.argument("job")
 @click.option("--background", "-b", is_flag=True)
 @click.pass_context
@@ -47,7 +48,19 @@ def run(ctx, job, background):
     command = ["python3", "-u", "-m", loc] + extra_args
 
     if background:
-        command = ["nohup"] + command + ["-v", " 2>&1", "| sudo tee -a", "/var/log/pioreactor.log", ">", "/dev/null", "&"]
+        command = (
+            ["nohup"]
+            + command
+            + [
+                "-v",
+                " 2>&1",
+                "| sudo tee -a",
+                "/var/log/pioreactor.log",
+                ">",
+                "/dev/null",
+                "&",
+            ]
+        )
         print("Appending logs to /var/log/pioreactor.log")
 
     call(" ".join(command), shell=True)
