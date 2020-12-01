@@ -7,7 +7,6 @@ command line for running the same command on all workers,
 > pios sync
 > pios kill <substring>
 """
-
 from concurrent.futures import ThreadPoolExecutor
 import click
 
@@ -39,7 +38,9 @@ def checksum_git(s):
     cksum_command = "cd ~/pioreactor/ && git rev-parse HEAD"
     (stdin, stdout, stderr) = s.exec_command(cksum_command)
     checksum_worker = stdout.readlines()[0].strip()
-    checksum_leader = subprocess_run(cksum_command, shell=True, capture_output=True, universal_newlines=True).stdout.strip()
+    checksum_leader = subprocess_run(
+        cksum_command, shell=True, capture_output=True, universal_newlines=True
+    ).stdout.strip()
     assert (
         checksum_worker == checksum_leader
     ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `pios sync`"
@@ -81,12 +82,14 @@ def sync(units):
             ftp_client.put("/home/pi/pioreactor/config.ini", "/home/pi/config.ini")
             ftp_client.close()
 
-            (stdin, stdout, stderr) = client.exec_command("sudo mv /home/pi/config.ini /etc/pioreactor/")
+            (stdin, stdout, stderr) = client.exec_command(
+                "sudo mv /home/pi/config.ini /etc/pioreactor/"
+            )
             for line in stderr.readlines():
                 pass
 
             client.close()
-        except:
+        except Exception:
             import traceback
 
             print(f"unit={unit}")
@@ -129,7 +132,9 @@ def kill(process, units, y):
         executor.map(_thread_function, units)
 
 
-@pios.command(name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
+@pios.command(
+    name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
+)
 @click.argument("job")
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
