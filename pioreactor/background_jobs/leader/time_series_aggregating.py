@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-This file contains 4 jobs that run on the leader, and is a replacement for the NodeRed aggregation job.
-
+This file contains N jobs that run on the leader, and is a replacement for the NodeRed aggregation job.
 """
 import signal
 import time
 import os
-import traceback
 import json
 
 import click
@@ -54,7 +52,9 @@ class TimeSeriesAggregation(BackgroundJob):
         self.cache = {}
 
         self.write_thread = RepeatedTimer(write_every_n_seconds, self.write).start()
-        self.append_cache_thread = RepeatedTimer(record_every_n_seconds, self.append_cache_and_clear).start()
+        self.append_cache_thread = RepeatedTimer(
+            record_every_n_seconds, self.append_cache_and_clear
+        ).start()
 
         self.start_passive_listeners()
 
@@ -73,7 +73,7 @@ class TimeSeriesAggregation(BackgroundJob):
         try:
             with open(self.output, "r") as f:
                 return json.load(f)
-        except Exception as e:
+        except Exception:
             return {"series": [], "data": []}
 
     def write(self):
@@ -88,7 +88,12 @@ class TimeSeriesAggregation(BackgroundJob):
     def update_data_series(self):
         time = current_time()
 
-        for label, latest_value in self.cache.copy().items():  # copy because a thread may try to update this while iterating.
+        for (
+            label,
+            latest_value,
+        ) in (
+            self.cache.copy().items()
+        ):  # copy because a thread may try to update this while iterating.
 
             if label not in self.aggregated_time_series["series"]:
                 self.aggregated_time_series["series"].append(label)
@@ -119,19 +124,28 @@ class TimeSeriesAggregation(BackgroundJob):
             self.aggregated_time_series = {"series": [], "data": []}
             self.write()
         else:
-            publish(f"pioreactor/{self.unit}/{self.experiment}/log", "Only empty messages allowed to empty the cache.")
+            publish(
+                f"pioreactor/{self.unit}/{self.experiment}/log",
+                "Only empty messages allowed to empty the cache.",
+            )
 
     def start_passive_listeners(self):
         self.pubsub_clients.append(subscribe_and_callback(self.on_message, self.topic))
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.on_clear, f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/aggregated_time_series/set"
+                self.on_clear,
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/aggregated_time_series/set",
             )
         )
 
 
 @click.command()
-@click.option("--output-dir", "-o", default="/home/pi/pioreactorui/backend/build/data/", help="the output directory")
+@click.option(
+    "--output-dir",
+    "-o",
+    default="/home/pi/pioreactorui/backend/build/data/",
+    help="the output directory",
+)
 @click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(output_dir, skip_cache, verbose):
@@ -143,7 +157,7 @@ def run(output_dir, skip_cache, verbose):
         split_topic = topic.split("/")
         return f"{split_topic[1]}"
 
-    raw135 = TimeSeriesAggregation(
+    raw135 = TimeSeriesAggregation(  # noqa: F841
         f"pioreactor/+/{experiment}/od_raw/135/+",
         output_dir,
         experiment=experiment,
@@ -157,7 +171,7 @@ def run(output_dir, skip_cache, verbose):
         record_every_n_seconds=5,
     )
 
-    filtered135 = TimeSeriesAggregation(
+    filtered135 = TimeSeriesAggregation(  # noqa: F841
         f"pioreactor/+/{experiment}/od_filtered/135/+",
         output_dir,
         experiment=experiment,
@@ -171,7 +185,7 @@ def run(output_dir, skip_cache, verbose):
         record_every_n_seconds=5,
     )
 
-    growth_rate = TimeSeriesAggregation(
+    growth_rate = TimeSeriesAggregation(  # noqa: F841
         f"pioreactor/+/{experiment}/growth_rate",
         output_dir,
         experiment=experiment,
@@ -184,7 +198,7 @@ def run(output_dir, skip_cache, verbose):
         record_every_n_seconds=5 * 60,  # TODO: move this to a config param
     )
 
-    alt_media_fraction = TimeSeriesAggregation(
+    alt_media_fraction = TimeSeriesAggregation(  # noqa: F841
         f"pioreactor/+/{experiment}/alt_media_calculating/alt_media_fraction",
         output_dir,
         experiment=experiment,

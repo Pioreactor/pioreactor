@@ -2,10 +2,9 @@
 """
 This job runs on the leader, and is a replacement for the NodeRed database streaming job.
 """
+
 import signal
-import time
 import os
-import traceback
 import click
 import json
 from collections import namedtuple
@@ -13,7 +12,7 @@ from datetime import datetime
 
 from sqlite3worker import Sqlite3Worker
 
-from pioreactor.pubsub import subscribe_and_callback, publish
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.background_jobs import BackgroundJob
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
@@ -29,7 +28,9 @@ def current_time():
 
 
 def produce_metadata(topic):
-    SetAttrSplitTopic = namedtuple("SetAttrSplitTopic", ["pioreactor_unit", "experiment", "timestamp"])
+    SetAttrSplitTopic = namedtuple(
+        "SetAttrSplitTopic", ["pioreactor_unit", "experiment", "timestamp"]
+    )
     v = topic.split("/")
     return SetAttrSplitTopic(v[1], v[2], current_time())
 
@@ -37,9 +38,14 @@ def produce_metadata(topic):
 class MqttToDBStreamer(BackgroundJob):
     def __init__(self, topics_and_parsers, **kwargs):
         super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
-        self.sqliteworker = Sqlite3Worker(config["storage"]["observation_database"], max_queue_size=10000)
+        self.sqliteworker = Sqlite3Worker(
+            config["storage"]["observation_database"], max_queue_size=10000
+        )
         self.topics_and_callbacks = [
-            {"topic": topic_and_parser["topic"], "callback": self.create_on_message(topic_and_parser)}
+            {
+                "topic": topic_and_parser["topic"],
+                "callback": self.create_on_message(topic_and_parser),
+            }
             for topic_and_parser in topics_and_parsers
         ]
 
@@ -61,7 +67,11 @@ class MqttToDBStreamer(BackgroundJob):
 
     def start_passive_listeners(self):
         for topic_and_callback in self.topics_and_callbacks:
-            self.pubsub_clients.append(subscribe_and_callback(topic_and_callback["callback"], topic_and_callback["topic"]))
+            self.pubsub_clients.append(
+                subscribe_and_callback(
+                    topic_and_callback["callback"], topic_and_callback["topic"]
+                )
+            )
 
 
 @click.command()
@@ -149,11 +159,31 @@ def run(verbose):
         return payload
 
     topics_and_parsers = [
-        {"topic": "pioreactor/+/+/od_filtered/+/+", "table": "od_readings_filtered", "parser": parse_od},
-        {"topic": "pioreactor/+/+/od_raw/+/+", "table": "od_readings_raw", "parser": parse_od},
-        {"topic": "pioreactor/+/+/io_events", "table": "io_events", "parser": parse_io_events},
-        {"topic": "pioreactor/+/+/growth_rate", "table": "growth_rates", "parser": parse_growth_rate},
-        {"topic": "pioreactor/+/+/pid_log", "table": "pid_logs", "parser": parse_pid_logs},
+        {
+            "topic": "pioreactor/+/+/od_filtered/+/+",
+            "table": "od_readings_filtered",
+            "parser": parse_od,
+        },
+        {
+            "topic": "pioreactor/+/+/od_raw/+/+",
+            "table": "od_readings_raw",
+            "parser": parse_od,
+        },
+        {
+            "topic": "pioreactor/+/+/io_events",
+            "table": "io_events",
+            "parser": parse_io_events,
+        },
+        {
+            "topic": "pioreactor/+/+/growth_rate",
+            "table": "growth_rates",
+            "parser": parse_growth_rate,
+        },
+        {
+            "topic": "pioreactor/+/+/pid_log",
+            "table": "pid_logs",
+            "parser": parse_pid_logs,
+        },
         {
             "topic": "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
             "table": "alt_media_fraction",
@@ -163,7 +193,9 @@ def run(verbose):
         {"topic": "pioreactor/+/+/error_log", "table": "logs", "parser": parse_logs},
     ]
 
-    streamer = MqttToDBStreamer(topics_and_parsers, experiment=experiment, unit=unit, verbose=verbose)
+    streamer = MqttToDBStreamer(  # noqa: F841
+        topics_and_parsers, experiment=experiment, unit=unit, verbose=verbose
+    )
 
     while True:
         signal.pause()
