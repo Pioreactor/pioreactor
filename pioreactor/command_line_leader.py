@@ -86,10 +86,10 @@ def pios():
 @pios.command()
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 def sync(units):
-    from shutil import copyfile
+    from shutil import copy
 
     # copy the config from pioreactor/ to etc/
-    copyfile("/home/pi/pioreactor/config.ini", "/etc/pioreactor/config.ini")
+    copy("/home/pi/pioreactor/config.ini", "/etc/pioreactor/config.ini")
 
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"
