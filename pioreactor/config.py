@@ -3,6 +3,7 @@
 import configparser
 import sys
 import os
+from click import echo
 
 
 def get_config():
@@ -11,6 +12,7 @@ def get_config():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         config.read("config.dev.ini")
     else:
+        echo("Overwriting global config.ini with values from ~/.pioreactor/config.ini")
         global_config_path = "/etc/pioreactor/config.ini"
         local_config_path = "~/.pioreactor/config.ini"
         config.read([global_config_path, local_config_path])
@@ -18,7 +20,7 @@ def get_config():
 
 
 def get_leader_hostname():
-    return get_config()["network"]["leader_hostname"]
+    return config["network"]["leader_hostname"]
 
 
 leader_hostname = get_leader_hostname()
