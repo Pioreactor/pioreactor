@@ -1,4 +1,0 @@
-Starter cultures for homebrew
-------------------------------
-
-Homebrew is the act of making beer at home, typically in 1 gallon to 8 gallon sizes. A technique recommended by experienced homebrewers is to prepare a starter culture of the yeast to be used prior to the beer fermentation. This puts the yeast into an oxygen and nutrient rich environment, where they can awaken from their dormant state and replenish stores. Ideally, a homebrewer wants to pitch the culture into the wort when the yeast are in their log phase. Using the pioreactor, it's easy to monitor when this stage occurs. The pioreactor can also transform the environment on the fly: start in an initial environment (perhaps rich in nitrogen to promote growth, or high in temperature) and slowly transition towards a different environment prior to pitching.
