@@ -110,7 +110,7 @@ class BackgroundJob:
         # set state to disconnect
         self.state = self.DISCONNECTED
 
-        # exit from python
+        # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         os.kill(os.getpid(), signal.SIGUSR1)
 
     def declare_settable_properties_to_broker(self):
