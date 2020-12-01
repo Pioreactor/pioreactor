@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-from statistics import *
+from statistics import mean, stdev, StatisticsError
 import json
 
 import numpy as np
-from simple_pid import PID as simple_PID
 
 
 class MovingStats:
@@ -20,14 +19,14 @@ class MovingStats:
     def mean(self):
         try:
             return mean(self.values)
-        except:
+        except StatisticsError:
             pass
 
     @property
     def std(self):
         try:
             return stdev(self.values)
-        except:
+        except StatisticsError:
             pass
 
 
@@ -86,8 +85,19 @@ class ExtendedKalmanFilter:
 
     """
 
-    def __init__(self, initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance, dt=1):
-        assert initial_state.shape[0] == initial_covariance.shape[0] == initial_covariance.shape[1], "Shapes are not correct"
+    def __init__(
+        self,
+        initial_state,
+        initial_covariance,
+        process_noise_covariance,
+        observation_noise_covariance,
+        dt=1,
+    ):
+        assert (
+            initial_state.shape[0]
+            == initial_covariance.shape[0]
+            == initial_covariance.shape[1]
+        ), "Shapes are not correct"
         assert process_noise_covariance.shape == initial_covariance.shape
         assert self._is_positive_definite(process_noise_covariance)
         assert self._is_positive_definite(initial_covariance)
@@ -102,10 +112,15 @@ class ExtendedKalmanFilter:
 
         self._OD_scale_counter = -1
 
-        self._original_process_noise_variance = np.diag(self.process_noise_covariance)[: (self.dim - 1)].copy()
+        self._original_process_noise_variance = np.diag(self.process_noise_covariance)[
+            : (self.dim - 1)
+        ].copy()
 
     def predict(self):
-        return (self._predict_state(self.state_, self.covariance_), self._predict_covariance(self.state_, self.covariance_))
+        return (
+            self._predict_state(self.state_, self.covariance_),
+            self._predict_covariance(self.state_, self.covariance_),
+        )
 
     def update(self, observation):
         observation = np.asarray(observation)
@@ -114,7 +129,9 @@ class ExtendedKalmanFilter:
         state_prediction, covariance_prediction = self.predict()
         residual_state = observation - state_prediction[:-1]
         H = self._jacobian_observation()
-        residual_covariance = H @ covariance_prediction @ H.T + self.observation_noise_covariance
+        residual_covariance = (
+            H @ covariance_prediction @ H.T + self.observation_noise_covariance
+        )
         kalman_gain = covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
         self.state_ = state_prediction + kalman_gain @ residual_state
         self.covariance_ = (np.eye(self.dim) - kalman_gain @ H) @ covariance_prediction
@@ -123,19 +140,28 @@ class ExtendedKalmanFilter:
     def scale_OD_variance_for_next_n_steps(self, factor, n):
         d = self.dim
         self._OD_scale_counter = n
-        self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = factor * self._original_process_noise_variance
+        self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
+            factor * self._original_process_noise_variance
+        )
 
     def update_counters(self):
         if self._OD_scale_counter == 0:
             d = self.dim
-            self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = self._original_process_noise_variance
+            self.process_noise_covariance[
+                np.arange(d - 1), np.arange(d - 1)
+            ] = self._original_process_noise_variance
         self._OD_scale_counter -= 1
 
     def _predict_state(self, state, covariance):
-        return np.array([v * np.exp(state[-1] * self.dt) for v in state[:-1]] + [state[-1]])
+        return np.array(
+            [v * np.exp(state[-1] * self.dt) for v in state[:-1]] + [state[-1]]
+        )
 
     def _predict_covariance(self, state, covariance):
-        return self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T + self.process_noise_covariance
+        return (
+            self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T
+            + self.process_noise_covariance
+        )
 
     def _jacobian_process(self, state):
         """
@@ -179,6 +205,7 @@ class ExtendedKalmanFilter:
 
 
 class PID:
+
     # used in io_controlling classes
 
     def __init__(
@@ -195,8 +222,18 @@ class PID:
         verbose=0,
         **kwargs,
     ):
+        from simple_pid import PID as simple_PID
+
         self.K0 = K0
-        self.pid = simple_PID(Kp, Ki, Kd, setpoint=setpoint, output_limits=output_limits, sample_time=sample_time, **kwargs)
+        self.pid = simple_PID(
+            Kp,
+            Ki,
+            Kd,
+            setpoint=setpoint,
+            output_limits=output_limits,
+            sample_time=sample_time,
+            **kwargs,
+        )
         self.unit = unit
         self.experiment = experiment
         self.verbose = verbose
@@ -226,4 +263,8 @@ class PID:
             "latest_input": self.pid._last_input,
             "latest_output": self.pid._last_output,
         }
-        publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", json.dumps(to_send), verbose=self.verbose)
+        publish(
+            f"pioreactor/{self.unit}/{self.experiment}/pid_log",
+            json.dumps(to_send),
+            verbose=self.verbose,
+        )
