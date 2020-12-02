@@ -115,6 +115,31 @@ def sync(units):
         executor.map(_thread_function, units)
 
 
+@pios.command(name="sync-configs")
+@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
+def sync_configs(units):
+    def _thread_function(unit):
+        try:
+            hostname = unit_to_hostname(unit)
+
+            client = paramiko.SSHClient()
+            client.load_system_host_keys()
+            client.connect(hostname, username="pi")
+
+            sync_config_files(client, unit)
+
+            client.close()
+        except Exception:
+            import traceback
+
+            print(f"unit={unit}")
+            traceback.print_exc()
+
+    units = universal_identifier_to_all_units(units)
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        executor.map(_thread_function, units)
+
+
 @pios.command()
 @click.argument("process")
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
