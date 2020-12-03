@@ -35,7 +35,7 @@ def pio():
 def logs():
     from sh import tail
 
-    for line in tail("-f", "/var/log/pioreactor.log", _iter=True):
+    for line in tail("-f", "/var/log/pioreactor.log", _iter=True, _fg=True):
         print(line, end="")
 
 
