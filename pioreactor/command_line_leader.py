@@ -88,7 +88,9 @@ def pios():
 
 
 @pios.command()
-@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
+@click.option(
+    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+)
 def sync(units):
 
     cd = "cd ~/pioreactor"
@@ -124,7 +126,9 @@ def sync(units):
 
 
 @pios.command(name="sync-configs")
-@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
+@click.option(
+    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+)
 def sync_configs(units):
     def _thread_function(unit):
         print(f"Executing on {unit}...")
@@ -151,41 +155,56 @@ def sync_configs(units):
 
 @pios.command()
 @click.argument("process")
-@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
+@click.option(
+    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 def kill(process, units, y):
-    process = process.replace("_", "*")
-    kill = f"pkill {process}"
-    command = " && ".join([kill])
 
     if not y:
-        confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+        confirm = input(f"Confirm killing `{process}` on {units}? Y/n: ").strip()
         if confirm != "Y":
             return
 
-    def _thread_function(unit):
-        print(f"Executing on {unit}...")
-        hostname = unit_to_hostname(unit)
+    if process == "python":
+        kill = f"pkill {process}"
+        command = " && ".join([kill])
 
-        s = paramiko.SSHClient()
-        s.load_system_host_keys()
-        s.connect(hostname, username="pi")
+        def _thread_function(unit):
+            print(f"Executing on {unit}...")
+            hostname = unit_to_hostname(unit)
 
-        (stdin, stdout, stderr) = s.exec_command(command)
-        for line in stderr.readlines():
-            pass
-        s.close()
+            s = paramiko.SSHClient()
+            s.load_system_host_keys()
+            s.connect(hostname, username="pi")
 
-    units = universal_identifier_to_all_units(units)
-    with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+            (stdin, stdout, stderr) = s.exec_command(command)
+            for line in stderr.readlines():
+                pass
+            s.close()
+
+        units = universal_identifier_to_all_units(units)
+        with ThreadPoolExecutor(max_workers=len(units)) as executor:
+            executor.map(_thread_function, units)
+
+    else:
+
+        from pioreactor.pubsub import publish
+        from pioreacor.whoami import get_latest_experiment_name
+
+        exp = get_latest_experiment_name()
+
+        for unit in universal_identifier_to_all_units(units):
+            publish(f"pioreactor/{unit}/{exp}/{process}/$state/set", "disconnected")
 
 
 @pios.command(
     name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
 )
 @click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
-@click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
+@click.option(
+    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 @click.pass_context
 def run(ctx, job, units, y):

@@ -43,6 +43,17 @@ def logs():
         tail_sh.kill()
 
 
+@pio.command(name="kill")
+@click.argument("process")
+def kill(process, units, y):
+    from pioreactor.pubsub import publish
+    from pioreacor.whoami import get_latest_experiment_name, get_unit_from_hostname
+
+    exp = get_latest_experiment_name()
+    unit = get_unit_from_hostname()
+    publish(f"pioreactor/{unit}/{exp}/{process}/$state/set", "disconnected")
+
+
 @pio.command(
     name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
 )
@@ -80,7 +91,10 @@ def run(ctx, job, background):
             ]
         )
         click.echo(click.style("Appending logs to /var/log/pioreactor.log", fg="green"))
-        click.echo(click.style("View logs using `pio logs`", fg="green"))
+        click.echo(
+            click.style("Tip: Tail logs using ", fg="green")
+            + click.style("pio logs", bold=True)
+        )
 
     call(" ".join(command), shell=True)
     return
