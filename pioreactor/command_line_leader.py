@@ -22,9 +22,11 @@ ALL_UNITS = ["1", "2", "3"]
 ALL_WORKER_JOBS = [
     "stirring",
     "growth_rate_calculating",
-    "io_controlling" "stirring",
+    "io_controlling",
+    "stirring",
     "add_alt_media",
-    "add_media" "remove_waste",
+    "add_media",
+    "remove_waste",
     "od_normalization",
 ]
 

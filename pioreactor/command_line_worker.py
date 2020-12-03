@@ -11,19 +11,28 @@ import importlib
 from subprocess import call
 from pioreactor.whoami import am_I_leader
 
-ALL_JOBS = [
+WORKER_JOBS = [
     "stirring",
     "growth_rate_calculating",
-    "io_controlling" "stirring",
+    "io_controlling",
+    "stirring",
     "add_alt_media",
-    "add_media" "remove_waste",
+    "add_media",
+    "remove_waste",
     "od_normalization",
-    # leader jobs
+]
+
+LEADER_JOBS = [
     "log_aggregating",
     "mqtt_to_db_streaming",
     "time_series_aggregating",
     "download_experiment_data",
 ]
+
+if am_I_leader():
+    valid_jobs = LEADER_JOBS
+else:
+    valid_jobs = WORKER_JOBS
 
 
 @click.group()
@@ -57,7 +66,7 @@ def kill(process):
 @pio.command(
     name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
 )
-@click.argument("job", type=click.Choice(ALL_JOBS, case_sensitive=True))
+@click.argument("job", type=click.Choice(valid_jobs, case_sensitive=True))
 @click.option("--background", "-b", is_flag=True)
 @click.pass_context
 def run(ctx, job, background):
