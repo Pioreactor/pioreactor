@@ -60,9 +60,11 @@ def kill(process):
     assert process in (valid_jobs + ["python"]), "Must be python a valid Pioreactor job."
 
     try:
-        kill(int(pgrep("-f", process)))
-    except Exception as e:
-        raise e
+        # this kills me - because I am running `pio kill process`, the that invocation shows up
+        # I take the first one, which I assume is always the correct one...
+        pids = map(int, pgrep("-f", process).split("\n"))
+        kill(pids[0])
+    except Exception:
         pass
 
 
