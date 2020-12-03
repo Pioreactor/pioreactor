@@ -62,10 +62,9 @@ def kill(process):
     try:
         # this kills me - because I am running `pio kill process`, the that invocation shows up
         # I take the first one, which I assume is always the correct one...
-        pids = map(int, pgrep("-f", process).split("\n"))
+        pids = [int(pid) for pid in pgrep("-f", process).split("\n")]
         kill(pids[0])
-    except Exception as e:
-        raise e
+    except Exception:
         pass
 
 
