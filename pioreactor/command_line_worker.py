@@ -64,7 +64,8 @@ def kill(process):
         # I take the first one, which I assume is always the correct one...
         pids = map(int, pgrep("-f", process).split("\n"))
         kill(pids[0])
-    except Exception:
+    except Exception as e:
+        raise e
         pass
 
 
