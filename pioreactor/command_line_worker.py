@@ -58,7 +58,11 @@ def kill(process):
     from pioreactor.pubsub import publish
     from pioreactor.whoami import get_latest_experiment_name, get_unit_from_hostname
 
-    exp = get_latest_experiment_name()
+    # hate these hacks
+    if am_I_leader():
+        exp = "$experiment"
+    else:
+        exp = get_latest_experiment_name()
     unit = get_unit_from_hostname()
 
     # hack, but we replace io_controlling with algorithm_controlling, as the latter is the parent job

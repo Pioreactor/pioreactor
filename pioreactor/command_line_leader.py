@@ -18,7 +18,7 @@ except ImportError:
 from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 
 
-ALL_UNITS = ["1", "2", "3"]
+ALL_UNITS = ["1", "2", "3"]  # how is this updated when we add new units?
 ALL_WORKER_JOBS = [
     "stirring",
     "growth_rate_calculating",
