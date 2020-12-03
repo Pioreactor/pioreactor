@@ -35,8 +35,12 @@ def pio():
 def logs():
     from sh import tail
 
-    for line in tail("-f", "/var/log/pioreactor.log", _iter=True, _fg=True):
-        print(line, end="")
+    try:
+        tail_sh = tail("-f", "/var/log/pioreactor.log", _iter=True)
+        for line in tail_sh:
+            print(line, end="")
+    except KeyboardInterrupt:
+        tail_sh.kill()
 
 
 @pio.command(
