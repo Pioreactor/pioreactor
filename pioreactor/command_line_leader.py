@@ -168,36 +168,25 @@ def kill(process, units, y):
         if confirm != "Y":
             return
 
-    if process == "python":
-        kill = f"pkill {process}"
-        command = " && ".join([kill])
+    kill = f"kill `pgrep -f {process}`"
+    command = " && ".join([kill])
 
-        def _thread_function(unit):
-            print(f"Executing on {unit}...")
-            hostname = unit_to_hostname(unit)
+    def _thread_function(unit):
+        print(f"Executing on {unit}...")
+        hostname = unit_to_hostname(unit)
 
-            s = paramiko.SSHClient()
-            s.load_system_host_keys()
-            s.connect(hostname, username="pi")
+        s = paramiko.SSHClient()
+        s.load_system_host_keys()
+        s.connect(hostname, username="pi")
 
-            (stdin, stdout, stderr) = s.exec_command(command)
-            for line in stderr.readlines():
-                pass
-            s.close()
+        (stdin, stdout, stderr) = s.exec_command(command)
+        for line in stderr.readlines():
+            pass
+        s.close()
 
-        units = universal_identifier_to_all_units(units)
-        with ThreadPoolExecutor(max_workers=len(units)) as executor:
-            executor.map(_thread_function, units)
-
-    else:
-
-        from pioreactor.pubsub import publish
-        from pioreacor.whoami import get_latest_experiment_name
-
-        exp = get_latest_experiment_name()
-
-        for unit in universal_identifier_to_all_units(units):
-            publish(f"pioreactor/{unit}/{exp}/{process}/$state/set", "disconnected")
+    units = universal_identifier_to_all_units(units)
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        executor.map(_thread_function, units)
 
 
 @pios.command(

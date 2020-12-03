@@ -55,21 +55,15 @@ def logs():
 @pio.command(name="kill")
 @click.argument("process")
 def kill(process):
-    from pioreactor.pubsub import publish
-    from pioreactor.whoami import get_latest_experiment_name, get_unit_from_hostname
+    from sh import kill, pgrep
 
-    # hate these hacks
-    if am_I_leader():
-        exp = "$experiment"
-    else:
-        exp = get_latest_experiment_name()
-    unit = get_unit_from_hostname()
+    assert process in (valid_jobs + ["python"]), "Must be python a valid Pioreactor job."
 
-    # hack, but we replace io_controlling with algorithm_controlling, as the latter is the parent job
-    if process == "io_controlling":
-        process = "algorithm_controlling"
-
-    publish(f"pioreactor/{unit}/{exp}/{process}/$state/set", "disconnected")
+    try:
+        kill(int(pgrep("-f", process)))
+    except Exception:
+        # already killed or mistype
+        pass
 
 
 @pio.command(
