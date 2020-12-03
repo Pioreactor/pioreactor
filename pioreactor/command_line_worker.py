@@ -63,7 +63,7 @@ def kill(process):
         # this kills me - because I am running `pio kill process`, the that invocation shows up
         # I take the first one, which I assume is always the correct one...
         print(pgrep("-f", "-o", process).strip().split("\n"))
-        pids = [int(pid) for pid in pgrep("-f", process).strip().split("\n")]
+        pids = [int(pid) for pid in pgrep("-f", "-o", process).strip().split("\n")]
         kill(pids[0])
     except Exception as e:
         raise e
