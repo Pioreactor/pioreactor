@@ -45,7 +45,7 @@ def logs():
 
 @pio.command(name="kill")
 @click.argument("process")
-def kill(process, units, y):
+def kill(process):
     from pioreactor.pubsub import publish
     from pioreacor.whoami import get_latest_experiment_name, get_unit_from_hostname
 
