@@ -61,8 +61,8 @@ def kill(process):
 
     try:
         kill(int(pgrep("-f", process)))
-    except Exception:
-        # already killed or mistype
+    except Exception as e:
+        raise e
         pass
 
 
