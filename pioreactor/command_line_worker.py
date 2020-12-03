@@ -11,6 +11,20 @@ import importlib
 from subprocess import call
 from pioreactor.whoami import am_I_leader
 
+ALL_JOBS = [
+    "stirring",
+    "growth_rate_calculating",
+    "io_controlling" "stirring",
+    "add_alt_media",
+    "add_media" "remove_waste",
+    "od_normalization",
+    # leader jobs
+    "log_aggregating",
+    "mqtt_to_db_streaming",
+    "time_series_aggregating",
+    "download_experiment_data",
+]
+
 
 @click.group()
 def pio():
@@ -28,7 +42,7 @@ def logs():
 @pio.command(
     name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
 )
-@click.argument("job")
+@click.argument("job", type=click.Choice(ALL_JOBS, case_sensitive=True))
 @click.option("--background", "-b", is_flag=True)
 @click.pass_context
 def run(ctx, job, background):

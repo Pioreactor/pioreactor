@@ -19,6 +19,14 @@ from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 
 
 ALL_UNITS = ["1", "2", "3"]
+ALL_WORKER_JOBS = [
+    "stirring",
+    "growth_rate_calculating",
+    "io_controlling" "stirring",
+    "add_alt_media",
+    "add_media" "remove_waste",
+    "od_normalization",
+]
 
 
 def unit_to_hostname(unit):
@@ -89,6 +97,7 @@ def sync(units):
     command = " && ".join([cd, gitp, setup])
 
     def _thread_function(unit):
+        print(f"Executing on {unit}...")
         try:
             hostname = unit_to_hostname(unit)
 
@@ -96,7 +105,6 @@ def sync(units):
             client.load_system_host_keys()
             client.connect(hostname, username="pi")
 
-            print(f"Executing on {unit}...")
             (stdin, stdout, stderr) = client.exec_command(command)
             for line in stderr.readlines():
                 pass
@@ -119,6 +127,7 @@ def sync(units):
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 def sync_configs(units):
     def _thread_function(unit):
+        print(f"Executing on {unit}...")
         try:
             hostname = unit_to_hostname(unit)
 
@@ -155,13 +164,13 @@ def kill(process, units, y):
             return
 
     def _thread_function(unit):
+        print(f"Executing on {unit}...")
         hostname = unit_to_hostname(unit)
 
         s = paramiko.SSHClient()
         s.load_system_host_keys()
         s.connect(hostname, username="pi")
 
-        print(f"Executing on {unit}...")
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
             pass
@@ -175,7 +184,7 @@ def kill(process, units, y):
 @pios.command(
     name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
 )
-@click.argument("job")
+@click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
 @click.option("--units", multiple=True, default=ALL_UNITS, type=click.STRING)
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 @click.pass_context

@@ -4,6 +4,7 @@ import os
 import socket
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
+UNIVERSAL_EXPERIMENT = "$experiment"
 
 
 def get_latest_experiment_name():

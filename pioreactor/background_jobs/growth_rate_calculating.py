@@ -60,7 +60,7 @@ class GrowthRateCalculator(BackgroundJob):
             angles_and_initial_points.keys()
         )
 
-        rate_process_variance = (0.0025 * self.dt) ** 2
+        rate_process_variance = (0.0050 * self.dt) ** 2
         process_noise_covariance = np.block(
             [
                 [OD_process_covariance, 0 * np.ones((d - 1, 1))],

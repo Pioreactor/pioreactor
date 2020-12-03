@@ -12,14 +12,11 @@ import click
 
 from pioreactor.pubsub import subscribe_and_callback, publish
 from pioreactor.background_jobs import BackgroundJob
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.config import config
 
 DEFAULT_JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
-
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()
 
 
 def current_time():
@@ -27,8 +24,10 @@ def current_time():
 
 
 class TimeSeriesAggregation(BackgroundJob):
-
-    editable_settings = ["time_window_seconds"]
+    """
+    This aggregates data _regardless_ of the experiment - users can choose to clear it (using the button), but better would
+    be for the UI to clear it on new experiment creation.
+    """
 
     def __init__(
         self,
@@ -36,7 +35,7 @@ class TimeSeriesAggregation(BackgroundJob):
         output_dir,
         extract_label,
         skip_cache=False,
-        job_name=DEFAULT_JOB_NAME,
+        job_name=DEFAULT_JOB_NAME,  # this is overwritten importantly
         record_every_n_seconds=None,  # controls how often we should sample data. Ex: growth_rate is ~5min
         write_every_n_seconds=None,  # controls how often we write to disk. Ex: about 30seconds
         time_window_seconds=None,
@@ -64,8 +63,7 @@ class TimeSeriesAggregation(BackgroundJob):
 
     @property
     def output(self):
-        pieces = filter(lambda s: s != "+", self.topic.split("/")[3:])
-        return self.output_dir + "_".join(pieces) + ".json"
+        return self.output_dir + self.job_name + ".json"
 
     def read(self, skip_cache):
         if skip_cache:
@@ -133,7 +131,7 @@ class TimeSeriesAggregation(BackgroundJob):
         self.pubsub_clients.append(subscribe_and_callback(self.on_message, self.topic))
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.on_clear,
+                self.on_clear,  # TODO: update client
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/aggregated_time_series/set",
             )
         )
@@ -149,18 +147,21 @@ class TimeSeriesAggregation(BackgroundJob):
 @click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def run(output_dir, skip_cache, verbose):
+
+    unit = get_unit_from_hostname()
+
     def single_sensor_label_from_topic(topic):
         split_topic = topic.split("/")
         return f"{split_topic[1]}-{split_topic[-1]}"
 
     def unit_from_topic(topic):
         split_topic = topic.split("/")
-        return f"{split_topic[1]}"
+        return split_topic[1]
 
     raw135 = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/+/{experiment}/od_raw/135/+",
+        "pioreactor/+/+/od_raw/135/+",
         output_dir,
-        experiment=experiment,
+        experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_raw_time_series_aggregating",
         unit=unit,
         verbose=verbose,
@@ -172,9 +173,9 @@ def run(output_dir, skip_cache, verbose):
     )
 
     filtered135 = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/+/{experiment}/od_filtered/135/+",
+        "pioreactor/+/+/od_filtered/135/+",
         output_dir,
-        experiment=experiment,
+        experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_filtered_time_series_aggregating",
         unit=unit,
         verbose=verbose,
@@ -186,9 +187,9 @@ def run(output_dir, skip_cache, verbose):
     )
 
     growth_rate = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/+/{experiment}/growth_rate",
+        "pioreactor/+/+/growth_rate",
         output_dir,
-        experiment=experiment,
+        experiment=UNIVERSAL_EXPERIMENT,
         job_name="growth_rate_time_series_aggregating",
         unit=unit,
         verbose=verbose,
@@ -199,9 +200,9 @@ def run(output_dir, skip_cache, verbose):
     )
 
     alt_media_fraction = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/+/{experiment}/alt_media_calculating/alt_media_fraction",
+        "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
         output_dir,
-        experiment=experiment,
+        experiment=UNIVERSAL_EXPERIMENT,
         job_name="alt_media_fraction_time_series_aggregating",
         unit=unit,
         verbose=verbose,
