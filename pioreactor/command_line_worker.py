@@ -60,6 +60,11 @@ def kill(process):
 
     exp = get_latest_experiment_name()
     unit = get_unit_from_hostname()
+
+    # hack, but we replace io_controlling with algorithm_controlling, as the latter is the parent job
+    if process == "io_controlling":
+        process = "algorithm_controlling"
+
     publish(f"pioreactor/{unit}/{exp}/{process}/$state/set", "disconnected")
 
 
