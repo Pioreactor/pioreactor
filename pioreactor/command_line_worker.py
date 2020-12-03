@@ -47,7 +47,7 @@ def logs():
 @click.argument("process")
 def kill(process):
     from pioreactor.pubsub import publish
-    from pioreacor.whoami import get_latest_experiment_name, get_unit_from_hostname
+    from pioreactor.whoami import get_latest_experiment_name, get_unit_from_hostname
 
     exp = get_latest_experiment_name()
     unit = get_unit_from_hostname()
