@@ -79,7 +79,8 @@ def run(ctx, job, background):
                 "&",
             ]
         )
-        print("Appending logs to /var/log/pioreactor.log")
+        click.echo(click.style("Appending logs to /var/log/pioreactor.log", fg="green"))
+        click.echo(click.style("View logs using `pio logs`", fg="green"))
 
     call(" ".join(command), shell=True)
     return
