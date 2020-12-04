@@ -135,9 +135,6 @@ def subscribe_and_callback(
 
     def wrap_callback(actual_callback):
         def _callback(client, userdata, message):
-            import prctl
-
-            prctl.set_name(userdata["topics"][0][0])
             try:
 
                 if "max_msgs" in userdata:
@@ -169,6 +166,14 @@ def subscribe_and_callback(
     client = mqtt.Client(userdata=userdata)
     client.on_connect = on_connect
     client.on_message = wrap_callback(callback)
+
+    def _thread_main(self):
+        import prctl
+
+        prctl.set_name(f"pio: subscribe_and_callback on topics: {str(topics)}")
+        self.loop_forever(retry_first_connection=True)
+
+    client._thread_main = _thread_main
 
     if last_will is not None:
         client.will_set(**last_will)
