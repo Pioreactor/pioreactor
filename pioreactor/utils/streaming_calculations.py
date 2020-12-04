@@ -7,7 +7,7 @@ import numpy as np
 
 class MovingStats:
     def __init__(self, lookback=5):
-        self.values = [None] * lookback
+        self.values = [0] * lookback
         self._lookback = lookback
 
     def update(self, new_value):
@@ -19,14 +19,14 @@ class MovingStats:
     def mean(self):
         try:
             return mean(self.values)
-        except StatisticsError:
+        except (StatisticsError, TypeError):
             pass
 
     @property
     def std(self):
         try:
             return stdev(self.values)
-        except StatisticsError:
+        except (StatisticsError, TypeError):
             pass
 
 

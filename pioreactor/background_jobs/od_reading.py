@@ -113,7 +113,7 @@ class ODReader(BackgroundJob):
             self.ma.update(max(raw_signals.values()))
 
             # check if using correct gain
-            if counter % 5 == 0 and self.ma.mean is not None:
+            if counter % 10 == 0 and self.ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if (0.95 * lb <= self.ma.mean < 0.95 * ub) and (
                         self.ads.gain != gain
