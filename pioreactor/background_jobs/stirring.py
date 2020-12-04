@@ -69,7 +69,7 @@ class Stirrer(BackgroundJob):
         super(Stirrer, self).__setattr__(name, value)
 
     def set_duty_cycle(self, value):
-        self.duty_cycle = value
+        self.duty_cycle = float(value)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
 

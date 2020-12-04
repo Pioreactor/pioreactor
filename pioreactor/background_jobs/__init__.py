@@ -152,7 +152,7 @@ class BackgroundJob:
         previous_value = getattr(self, attr)
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
-        # for example, see IOAlgorithmController, and `set_state` here
+        # for example, see Stirring, and `set_state` here
         if hasattr(self, "set_%s" % attr):
             try:
                 getattr(self, "set_%s" % attr)(new_value)
