@@ -5,17 +5,17 @@ from typing import Optional, Union
 import sys
 import atexit
 from collections import namedtuple
-import paho.mqtt.client as mqtt
 
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import publish, QOS
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
-from pioreactor.config import leader_hostname
 
 
 def split_topic_for_setting(topic):
-    SetAttrSplitTopic = namedtuple("SetAttrSplitTopic", ["unit", "experiment", "job_name", "attr"])
+    SetAttrSplitTopic = namedtuple(
+        "SetAttrSplitTopic", ["unit", "experiment", "job_name", "attr"]
+    )
     v = topic.split("/")
     assert len(v) == 6, "something is wrong"
     return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
@@ -53,7 +53,13 @@ class BackgroundJob:
     state = DISCONNECTED
     editable_settings = []
 
-    def __init__(self, job_name: str, verbose: int = 0, experiment: Optional[str] = None, unit: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        job_name: str,
+        verbose: int = 0,
+        experiment: Optional[str] = None,
+        unit: Optional[str] = None,
+    ) -> None:
 
         self.job_name = job_name
         self.experiment = experiment
@@ -84,7 +90,6 @@ class BackgroundJob:
 
         atexit.register(disconnect_gracefully)
 
-        self.send_last_will_to_leader()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 
@@ -132,7 +137,11 @@ class BackgroundJob:
 
     def set_state(self, new_state):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
-        publish(f"pioreactor/{self.unit}/{self.experiment}/log", f"[{self.job_name}]: {new_state}", verbose=self.verbose)
+        publish(
+            f"pioreactor/{self.unit}/{self.experiment}/log",
+            f"[{self.job_name}]: {new_state}",
+            verbose=self.verbose,
+        )
         getattr(self, new_state)()
 
     def set_attr_from_message(self, message):
@@ -152,14 +161,14 @@ class BackgroundJob:
         if hasattr(self, "set_%s" % attr):
             try:
                 getattr(self, "set_%s" % attr)(new_value)
-            except:
+            except AttributeError:
                 # don't publish the "updated" value to log
                 return
         else:
             try:
                 # make sure to cast the input to the same value
                 setattr(self, attr, type(previous_value)(new_value))
-            except:
+            except TypeError:
                 setattr(self, attr, new_value)
 
         publish(
@@ -183,42 +192,35 @@ class BackgroundJob:
         )
 
     def start_general_passive_listeners(self) -> None:
-
-        # listen to changes in editable properties
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_attr_from_message,
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
-                qos=QOS.EXACTLY_ONCE,
-            )
-        )
-
-        # listen to changes in editable properties
-        # everyone listens to $BROADCAST (TODO: even leader?)
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_attr_from_message,
-                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
-                qos=QOS.EXACTLY_ONCE,
-            )
-        )
-
-    def send_last_will_to_leader(self):
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
             "payload": self.LOST,
             "qos": QOS.EXACTLY_ONCE,
             "retain": True,
         }
-        client = mqtt.Client()
-        client.will_set(**last_will)  # This must be called before connect() to have any effect.
-        client.connect(leader_hostname)
-        client.loop_start()  # this starts the passive msg transfer between broker and client
-        self.pubsub_clients.append(client)
+
+        # listen to changes in editable properties
+        # everyone listens to $BROADCAST (TODO: even leader?)
+        self.pubsub_clients.append(
+            subscribe_and_callback(
+                self.set_attr_from_message,
+                [
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
+                    f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
+                ],
+                qos=QOS.EXACTLY_ONCE,
+                last_will=last_will,
+            )
+        )
 
     def check_for_duplicate_process(self):
-        if sum([p == self.job_name for p in pio_jobs_running()]) > 1:  # this process counts as one - see if there is another.
-            publish(f"pioreactor/{self.unit}/{self.experiment}/log", f"Aborting: {self.job_name} is already running.")
+        if (
+            sum([p == self.job_name for p in pio_jobs_running()]) > 1
+        ):  # this process counts as one - see if there is another.
+            publish(
+                f"pioreactor/{self.unit}/{self.experiment}/log",
+                f"Aborting: {self.job_name} is already running.",
+            )
             raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
 
     def __setattr__(self, name: str, value: Union[int, str]) -> None:

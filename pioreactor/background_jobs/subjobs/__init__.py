@@ -8,7 +8,6 @@ class BackgroundSubJob(BackgroundJob):
     def init(self):
         self.state = self.INIT
 
-        self.send_last_will_to_leader()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 

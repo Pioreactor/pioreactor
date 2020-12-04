@@ -60,8 +60,6 @@ install-pioreactor-worker:
 	mkdir -p ~/.pioreactor
 	touch ~/.pioreactor/unit_config.ini
 
-install-worker: install-python install-mqtt configure-rpi systemd-worker install-i2c install-pioreactor-worker
-
 install-db:
 	sudo apt-get install -y sqlite3
 	sqlite3 /home/pi/db/pioreactor.sqlite
@@ -70,6 +68,9 @@ install-db:
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
+
+
+install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker
 
 install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader replace-config systemd-leader
 

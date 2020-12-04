@@ -105,7 +105,13 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
 
 
 def subscribe_and_callback(
-    callback, topics, hostname=leader_hostname, timeout=None, max_msgs=None, **mqtt_kwargs
+    callback,
+    topics,
+    hostname=leader_hostname,
+    timeout=None,
+    max_msgs=None,
+    last_will=None,
+    **mqtt_kwargs,
 ):
     """
     Creates a new thread, wrapping around paho's subscribe.callback. Callbacks only accept a single parameter, message.
@@ -116,7 +122,8 @@ def subscribe_and_callback(
         the client will  only listen for <timeout> seconds before disconnecting. (kinda)
     max_msgs: int
         the client will process <max_msgs> messages before disconnecting.
-
+    last_will: dict
+        a dictionary describing the last will details: topic, qos, retain, msg.
     """
 
     assert callable(
@@ -159,6 +166,10 @@ def subscribe_and_callback(
     client = mqtt.Client(userdata=userdata)
     client.on_connect = on_connect
     client.on_message = wrap_callback(callback)
+
+    if last_will is not None:
+        client.will_set(**last_will)
+
     client.connect(leader_hostname, **mqtt_kwargs)
     client.loop_start()
 
