@@ -135,6 +135,9 @@ def subscribe_and_callback(
 
     def wrap_callback(actual_callback):
         def _callback(client, userdata, message):
+            import prctl
+
+            prctl.set_name(userdata["topics"][0][0])
             try:
 
                 if "max_msgs" in userdata:
