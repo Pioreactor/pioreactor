@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-# test_stirring
+
 import time
-import pytest
 from pioreactor.background_jobs.stirring import stirring, Stirrer
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.pubsub import publish, subscribe
@@ -37,7 +36,6 @@ def test_change_stirring_mid_cycle():
     publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", 0)
     pause()
     assert st.duty_cycle == 0
-    assert st.state == "sleeping"
     pause()
 
 

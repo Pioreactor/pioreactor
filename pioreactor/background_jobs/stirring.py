@@ -57,7 +57,7 @@ class Stirrer(BackgroundJob):
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
-        self.pwm.stop()
+        self.set_duty_cycle(0)
 
     def __setattr__(self, name, value):
         if name == "state":
@@ -66,10 +66,13 @@ class Stirrer(BackgroundJob):
                     self.stop_stirring()
                 except AttributeError:
                     pass
+            elif (value == self.READY) and (self.state == self.SLEEPING):
+                self.duty_cycle = int(config["stirring"][f"duty_cycle{unit}"])
+                self.start_stirring()
         super(Stirrer, self).__setattr__(name, value)
 
     def set_duty_cycle(self, value):
-        self.duty_cycle = float(value)
+        self.duty_cycle = int(value)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
 
