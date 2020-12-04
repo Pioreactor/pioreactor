@@ -24,6 +24,7 @@ ALL_WORKER_JOBS = [
     "growth_rate_calculating",
     "io_controlling",
     "stirring",
+    "od_reading",
     "add_alt_media",
     "add_media",
     "remove_waste",

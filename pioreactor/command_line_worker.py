@@ -14,6 +14,7 @@ from pioreactor.whoami import am_I_leader
 WORKER_JOBS = [
     "stirring",
     "growth_rate_calculating",
+    "od_reading",
     "io_controlling",
     "stirring",
     "add_alt_media",
