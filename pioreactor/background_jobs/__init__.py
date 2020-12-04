@@ -139,7 +139,7 @@ class BackgroundJob:
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/log",
-            f"[{self.job_name}] transitioning to {new_state}",
+            f"[{self.job_name}] {new_state}",
             verbose=self.verbose,
         )
         getattr(self, new_state)()

@@ -114,9 +114,16 @@ def sync(units):
             for line in stderr.readlines():
                 pass
 
+            try:
+                checksum_git(client)
+            except AssertionError as e:
+                print(e)
+                return
+
             sync_config_files(client, unit)
 
             client.close()
+
         except Exception:
             import traceback
 
@@ -216,12 +223,6 @@ def run(ctx, job, units, y):
         s = paramiko.SSHClient()
         s.load_system_host_keys()
         s.connect(hostname, username="pi")
-
-        try:
-            checksum_git(s)
-        except AssertionError as e:
-            print(e)
-            return
 
         print(f"Executing on {unit}...")
         (stdin, stdout, stderr) = s.exec_command(command)
