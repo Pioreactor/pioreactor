@@ -56,6 +56,7 @@ def logs():
 @pio.command(name="kill")
 @click.argument("process")
 def kill(process):
+    # TODO this fails for python
     from sh import kill, pgrep
 
     assert process in (valid_jobs + ["python"]), "Must be python a valid Pioreactor job."

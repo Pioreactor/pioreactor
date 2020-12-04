@@ -23,7 +23,8 @@ experiment = get_latest_experiment_name()
 class AltMediaCalculator(BackgroundSubJob):
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
-    We periodically publish this, too, so the graph looks better.
+    We periodically publish this, too, so the UI
+    graph looks better.
 
     """
 
