@@ -173,9 +173,12 @@ def od_reading(
             ).take_reading,
         )
     except Exception as e:
+        import traceback
+
+        traceback.print_exc()
         publish(
             f"pioreactor/{unit}/{experiment}/error_log",
-            f"[{JOB_NAME}]: failed {e}.",
+            f"[{JOB_NAME}]: failed with {e}.",
             verbose=verbose,
         )
 
