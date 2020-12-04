@@ -173,7 +173,7 @@ def subscribe_and_callback(
         prctl.set_name(f"pio: subscribe_and_callback on topics: {str(topics)}")
         self.loop_forever(retry_first_connection=True)
 
-    client._thread_main = _thread_main
+    client._thread_main = _thread_main.__get__(client, mqtt.Client)
 
     if last_will is not None:
         client.will_set(**last_will)
