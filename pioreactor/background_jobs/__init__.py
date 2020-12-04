@@ -137,12 +137,12 @@ class BackgroundJob:
 
     def set_state(self, new_state):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
-        getattr(self, new_state)()
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/log",
-            f"[{self.job_name}] {new_state}",
+            f"[{self.job_name}] transitioning to {new_state}",
             verbose=self.verbose,
         )
+        getattr(self, new_state)()
 
     def set_attr_from_message(self, message):
 
