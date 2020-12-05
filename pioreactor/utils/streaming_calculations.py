@@ -2,9 +2,6 @@
 from statistics import mean, stdev, StatisticsError
 import json
 
-from numpy import arange, exp, asarray, diag, eye, zeros, array_equal
-from numpy.linalg import inv, LinAlgError
-
 
 class MovingStats:
     def __init__(self, lookback=5):
@@ -112,8 +109,9 @@ class ExtendedKalmanFilter:
         self.dt = dt
 
         self._OD_scale_counter = -1
+        import numpy as np
 
-        self._original_process_noise_variance = diag(self.process_noise_covariance)[
+        self._original_process_noise_variance = np.diag(self.process_noise_covariance)[
             : (self.dim - 1)
         ].copy()
 
@@ -124,7 +122,9 @@ class ExtendedKalmanFilter:
         )
 
     def update(self, observation):
-        observation = asarray(observation)
+        import numpy as np
+
+        observation = np.asarray(observation)
         self.update_counters()
         assert observation.shape[0] + 1 == self.state_.shape[0]
         state_prediction, covariance_prediction = self.predict()
@@ -133,28 +133,36 @@ class ExtendedKalmanFilter:
         residual_covariance = (
             H @ covariance_prediction @ H.T + self.observation_noise_covariance
         )
-        kalman_gain = covariance_prediction @ H.T @ inv(residual_covariance)
+        kalman_gain = covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
         self.state_ = state_prediction + kalman_gain @ residual_state
-        self.covariance_ = (eye(self.dim) - kalman_gain @ H) @ covariance_prediction
+        self.covariance_ = (np.eye(self.dim) - kalman_gain @ H) @ covariance_prediction
         return
 
     def scale_OD_variance_for_next_n_steps(self, factor, n):
+        import numpy as np
+
         d = self.dim
         self._OD_scale_counter = n
-        self.process_noise_covariance[arange(d - 1), arange(d - 1)] = (
+        self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
             factor * self._original_process_noise_variance
         )
 
     def update_counters(self):
+        import numpy as np
+
         if self._OD_scale_counter == 0:
             d = self.dim
             self.process_noise_covariance[
-                arange(d - 1), arange(d - 1)
+                np.arange(d - 1), np.arange(d - 1)
             ] = self._original_process_noise_variance
         self._OD_scale_counter -= 1
 
     def _predict_state(self, state, covariance):
-        return asarray([v * exp(state[-1] * self.dt) for v in state[:-1]] + [state[-1]])
+        import numpy as np
+
+        return np.array(
+            [v * np.exp(state[-1] * self.dt) for v in state[:-1]] + [state[-1]]
+        )
 
     def _predict_covariance(self, state, covariance):
         return (
@@ -163,6 +171,8 @@ class ExtendedKalmanFilter:
         )
 
     def _jacobian_process(self, state):
+        import numpy as np
+
         """
         The prediction process is
         [
@@ -174,30 +184,34 @@ class ExtendedKalmanFilter:
 
         """
         d = self.dim
-        J = zeros((d, d))
+        J = np.zeros((d, d))
 
         rate = state[-1]
         ODs = state[:-1]
 
-        J[arange(d - 1), arange(d - 1)] = exp(rate * self.dt)
-        J[arange(d - 1), arange(1, d)] = ODs * exp(rate * self.dt) * self.dt
+        J[np.arange(d - 1), np.arange(d - 1)] = np.exp(rate * self.dt)
+        J[np.arange(d - 1), np.arange(1, d)] = ODs * np.exp(rate * self.dt) * self.dt
         J[-1, -1] = 1.0
 
         return J
 
     def _jacobian_observation(self):
+        import numpy as np
+
         """
         We only observe the ODs
         """
         d = self.dim
-        return eye(d)[: (d - 1)]
+        return np.eye(d)[: (d - 1)]
 
     @staticmethod
     def _is_positive_definite(A):
-        if array_equal(A, A.T):
+        import numpy as np
+
+        if np.array_equal(A, A.T):
             try:
                 return True
-            except LinAlgError:
+            except np.linalg.LinAlgError:
                 return False
         else:
             return False
