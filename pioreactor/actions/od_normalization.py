@@ -12,9 +12,6 @@ from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor import pubsub
 from pioreactor.background_jobs.od_reading import od_reading
 
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()
-
 
 def green(msg):
     return style(msg, fg="green")
@@ -24,7 +21,7 @@ def bold(msg):
     return style(msg, bold=True)
 
 
-def od_normalization(od_angle_channel, verbose):
+def od_normalization(od_angle_channel, verbose, unit=None, experiment=None):
     if "stirring" not in pio_jobs_running():
         raise ValueError("stirring jobs should be running. Run `mb stirring -b` first. ")
 
@@ -118,7 +115,9 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
     help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
 )
 def click_od_normalization(od_angle_channel, verbose):
-    od_normalization(od_angle_channel, verbose)
+    unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
+    od_normalization(od_angle_channel, verbose, unit, experiment)
 
 
 if __name__ == "__main__":

@@ -16,9 +16,6 @@ from pioreactor.background_jobs.base import BackgroundJob
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()
-
 
 class GrowthRateCalculator(BackgroundJob):
 
@@ -209,6 +206,9 @@ class GrowthRateCalculator(BackgroundJob):
 
 
 def growth_rate_calculating(verbose, ignore_cache):
+    unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
+
     try:
         calculator = GrowthRateCalculator(  # noqa: F841
             verbose=verbose, ignore_cache=ignore_cache, unit=unit, experiment=experiment

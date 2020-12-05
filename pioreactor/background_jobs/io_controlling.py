@@ -37,9 +37,6 @@ from pioreactor.config import config
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
 
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()
-
 
 def brief_pause():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
@@ -580,6 +577,9 @@ class AlgoController(BackgroundJob):
 def run(
     mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs
 ):
+    unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
+
     try:
 
         kwargs["verbose"] = verbose

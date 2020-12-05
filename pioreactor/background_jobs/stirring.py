@@ -14,7 +14,6 @@ GPIO.setmode(GPIO.BCM)
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()
 
 
 class Stirrer(BackgroundJob):
@@ -67,7 +66,7 @@ class Stirrer(BackgroundJob):
                 except AttributeError:
                     pass
             elif (value == self.READY) and (self.state == self.SLEEPING):
-                self.duty_cycle = int(config["stirring"][f"duty_cycle{unit}"])
+                self.duty_cycle = int(config["stirring"][f"duty_cycle{self.unit}"])
                 self.start_stirring()
         super(Stirrer, self).__setattr__(name, value)
 
@@ -79,6 +78,8 @@ class Stirrer(BackgroundJob):
 def stirring(
     duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0
 ):
+    experiment = get_latest_experiment_name()
+
     try:
         stirrer = Stirrer(duty_cycle, unit=unit, experiment=experiment, verbose=verbose)
         stirrer.start_stirring()

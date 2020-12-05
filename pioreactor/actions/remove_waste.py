@@ -13,11 +13,16 @@ from pioreactor.pubsub import publish, QOS
 
 GPIO.setmode(GPIO.BCM)
 
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()
 
-
-def remove_waste(ml=None, duration=None, duty_cycle=33, source_of_event=None, verbose=0):
+def remove_waste(
+    ml=None,
+    duration=None,
+    duty_cycle=33,
+    source_of_event=None,
+    verbose=0,
+    unit=None,
+    experiment=None,
+):
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None), "Input either ml or duration"
     assert not ((ml is not None) and (duration is not None)), "Only input ml or duration"
@@ -108,7 +113,13 @@ def remove_waste(ml=None, duration=None, duty_cycle=33, source_of_event=None, ve
     help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
 )
 def click_remove_waste(ml, duration, duty_cycle, source_of_event, verbose):
-    return remove_waste(ml, duration, duty_cycle, source_of_event, verbose)
+
+    unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
+
+    return remove_waste(
+        ml, duration, duty_cycle, source_of_event, verbose, unit, experiment
+    )
 
 
 if __name__ == "__main__":

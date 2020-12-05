@@ -48,9 +48,6 @@ ADS_GAIN_THRESHOLDS = {
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
-unit = get_unit_from_hostname()
-experiment = get_latest_experiment_name()
-
 
 class ODReader(BackgroundJob):
     """
@@ -158,6 +155,9 @@ def od_reading(
 ):
 
     import board
+
+    unit = get_unit_from_hostname()
+    experiment = get_latest_experiment_name()
 
     od_channels = []
     for input_ in od_angle_channel:
