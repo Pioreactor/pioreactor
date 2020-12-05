@@ -4,7 +4,6 @@ import os
 import signal
 from collections import defaultdict
 
-import numpy as np
 import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
@@ -39,6 +38,8 @@ class GrowthRateCalculator(BackgroundJob):
         return self.ekf.state_
 
     def initialize_extended_kalman_filter(self):
+        import numpy as np
+
         latest_od = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched")
         angles_and_initial_points = self.scale_raw_observations(
             self.json_to_sorted_dict(latest_od.payload)
@@ -80,6 +81,8 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
     def create_obs_noise_covariance(self, angles):
+        import numpy as np
+
         # if a sensor has X times the variance of the other, we should encode this in the obs. covariance.
         obs_variances = np.array([self.od_variances[angle] for angle in angles])
         obs_variances = obs_variances / obs_variances.min()
@@ -87,6 +90,8 @@ class GrowthRateCalculator(BackgroundJob):
         return 100 * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
 
     def create_OD_covariance(self, angles):
+        import numpy as np
+
         d = len(angles)
         variances = {
             "135": (1e-2 * self.dt) ** 2,
