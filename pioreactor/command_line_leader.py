@@ -180,7 +180,7 @@ def kill(process, units, y):
     command = " && ".join([kill])
 
     def _thread_function(unit):
-        print(f"Executing on {unit}...")
+        print(f"Executing on {unit}...", end="", flush=True)
         hostname = unit_to_hostname(unit)
 
         s = paramiko.SSHClient()
@@ -191,6 +191,7 @@ def kill(process, units, y):
         for line in stderr.readlines():
             pass
         s.close()
+        print("✅")
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:

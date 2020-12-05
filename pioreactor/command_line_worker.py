@@ -59,7 +59,7 @@ def kill(process):
     # TODO this fails for python
     from sh import kill, pgrep
 
-    assert process in (valid_jobs + ["python"]), "Must be python a valid Pioreactor job."
+    assert process in (valid_jobs), "Must be python a valid Pioreactor job."
 
     try:
         # remove the _oldest_ one
