@@ -123,7 +123,3 @@ def stirring(
 def click_stirring(duty_cycle, verbose):
 
     stirring(duty_cycle=duty_cycle, verbose=verbose)
-
-
-if __name__ == "__main__":
-    click_stirring()

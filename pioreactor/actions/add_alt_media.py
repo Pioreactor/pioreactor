@@ -125,7 +125,3 @@ def click_add_alt_media(ml, duration, duty_cycle, source_of_event, verbose):
         unit=unit,
         experiment=experiment,
     )
-
-
-if __name__ == "__main__":
-    click_add_alt_media()

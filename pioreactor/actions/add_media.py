@@ -121,7 +121,3 @@ def click_add_media(ml, duration, duty_cycle, source_of_event, verbose):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
     return add_media(ml, duration, duty_cycle, source_of_event, verbose, unit, experiment)
-
-
-if __name__ == "__main__":
-    click_add_media()

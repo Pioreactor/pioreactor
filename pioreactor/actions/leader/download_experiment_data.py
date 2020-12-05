@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # download experiment data
-# Example tables:
-# "od_readings_raw", "od_readings_filtered", "io_events", "logs", "pid_logs", "growth_rates"
+# See create_tables.sql for all tables
 
 import zipfile
 import os
@@ -18,10 +17,16 @@ def download_experiment_data(experiment, output, tables):
     import sqlite3
 
     if not whoami.am_I_leader():
-        print(f"This command should be run on the {config.leader_hostname} node, not worker.")
+        print(
+            f"This command should be run on the {config.leader_hostname} node, not worker."
+        )
         return
 
-    publish(f"pioreactor/{whoami.unit}/{whoami.experiment}/log", f"Starting export of experiment data to {output}.", verbose=1)
+    publish(
+        f"pioreactor/{whoami.unit}/{whoami.experiment}/log",
+        f"Starting export of experiment data to {output}.",
+        verbose=1,
+    )
 
     if experiment == "current":
         experiment = get_latest_experiment_name()
@@ -45,7 +50,11 @@ def download_experiment_data(experiment, output, tables):
 
     zf.close()
 
-    publish(f"pioreactor/{whoami.unit}/{whoami.experiment}/log", f"Completed export of experiment data to {output}.", verbose=1)
+    publish(
+        f"pioreactor/{whoami.unit}/{whoami.experiment}/log",
+        f"Completed export of experiment data to {output}.",
+        verbose=1,
+    )
     return
 
 

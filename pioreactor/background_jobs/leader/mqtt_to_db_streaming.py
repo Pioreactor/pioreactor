@@ -73,7 +73,7 @@ class MqttToDBStreamer(BackgroundJob):
 
 @click.command()
 @click.option("--verbose", "-v", count=True, help="print to std.out")
-def run(verbose):
+def click_mqtt_to_db_streaming(verbose):
     def parse_od(topic, payload):
         # should return a dict
         metadata = produce_metadata(topic)
@@ -199,7 +199,3 @@ def run(verbose):
 
     while True:
         signal.pause()
-
-
-if __name__ == "__main__":
-    run()

@@ -3,9 +3,7 @@
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
 
-import signal
 import os
-import click
 import json
 
 
@@ -93,21 +91,3 @@ class ThroughputCalculator(BackgroundSubJob):
                 qos=QOS.EXACTLY_ONCE,
             )
         )
-
-
-def throughput_calculating():
-
-    calc = ThroughputCalculator()  # noqa: F841
-
-    while True:
-        signal.pause()
-
-
-@click.command()
-@click.option("--verbose", "-v", count=True, help="Print to std out")
-def click_throughput_calculating(verbose):
-    throughput_calculating(verbose)
-
-
-if __name__ == "__main__":
-    click_throughput_calculating()

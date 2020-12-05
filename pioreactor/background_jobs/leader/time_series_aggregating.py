@@ -146,7 +146,7 @@ class TimeSeriesAggregation(BackgroundJob):
 )
 @click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
 @click.option("--verbose", "-v", count=True, help="print to std.out")
-def run(output_dir, skip_cache, verbose):
+def click_time_series_aggregating(output_dir, skip_cache, verbose):
 
     unit = get_unit_from_hostname()
 
@@ -214,7 +214,3 @@ def run(output_dir, skip_cache, verbose):
 
     while True:
         signal.pause()
-
-
-if __name__ == "__main__":
-    run()

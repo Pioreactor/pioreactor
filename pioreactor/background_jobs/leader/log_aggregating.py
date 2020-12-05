@@ -102,7 +102,7 @@ class LogAggregation(BackgroundJob):
     help="the output file",
 )
 @click.option("--verbose", "-v", count=True, help="print to std.out")
-def run(output, verbose):
+def click_log_aggregating(output, verbose):
     logs = LogAggregation(  # noqa: F841
         ["pioreactor/+/+/log", "pioreactor/+/+/error_log"],
         output,
@@ -113,7 +113,3 @@ def run(output, verbose):
 
     while True:
         signal.pause()
-
-
-if __name__ == "__main__":
-    run()

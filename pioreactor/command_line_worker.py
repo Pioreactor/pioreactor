@@ -53,19 +53,25 @@ def run():
 
 
 if am_I_leader():
-    pass
+    from pioreactor import background_jobs as bj
+    from pioreactor import actions as a
+
+    run.add_command(bj.log_aggregating.click_log_aggregating)
+    run.add_command(bj.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
+    run.add_command(bj.time_series_aggregating.click_time_series_aggregating)
+
+    run.add_command(a.download_experiment_data.click_download_experiment_data)
 
 
-# else:
-from pioreactor.background_jobs.stirring import click_stirring
+else:
+    from pioreactor import background_jobs as bj
+    from pioreactor import actions as a
 
-from pioreactor.background_jobs.growth_rate_calculating import (
-    click_growth_rate_calculating,
-)
-from pioreactor.background_jobs.od_reading import click_od_reading
-from pioreactor.background_jobs.io_controlling import click_io_controlling
+    run.add_command(bj.growth_rate_calculating.click_growth_rate_calculating)
+    run.add_command(bj.stirring.click_stirring)
+    run.add_command(bj.od_reading.click_od_reading)
+    run.add_command(bj.io_controlling.click_io_controlling)
 
-run.add_command(click_growth_rate_calculating)
-run.add_command(click_stirring)
-run.add_command(click_od_reading)
-run.add_command(click_io_controlling)
+    run.add_command(a.add_alt_media.click_add_alt_media)
+    run.add_command(a.add_media.click_add_media)
+    run.add_command(a.remove_waste.click_remove_waste)

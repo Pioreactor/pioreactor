@@ -6,8 +6,6 @@ A few notes about leader background jobs
 they're settings, status, etc. are tied to an experiment. However, there is no use case so far of a leader needing to know
 about the latest_experiment¹
 
-2. Based on the above, maybe I need a universal experiment name, "$experiment"?
-
 
 ¹ The one use case I can think of is clearing the dashboard time series upon a new experiment starts, but maybe
 the leader will partition based on experiment name too, and write <time_series>_<experiment>.json that the dashboard

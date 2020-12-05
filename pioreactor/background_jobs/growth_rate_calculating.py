@@ -233,7 +233,3 @@ def growth_rate_calculating(verbose, ignore_cache):
 @click.option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
 def click_growth_rate_calculating(verbose, ignore_cache):
     growth_rate_calculating(verbose, ignore_cache)
-
-
-if __name__ == "__main__":
-    click_growth_rate_calculating()

@@ -638,7 +638,3 @@ def click_io_controlling(
         sensor=sensor,
         verbose=verbose,
     )
-
-
-if __name__ == "__main__":
-    click_io_controlling()

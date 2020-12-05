@@ -118,7 +118,3 @@ def click_od_normalization(od_angle_channel, verbose):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
     od_normalization(od_angle_channel, verbose, unit, experiment)
-
-
-if __name__ == "__main__":
-    click_od_normalization()

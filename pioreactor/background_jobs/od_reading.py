@@ -212,7 +212,3 @@ def click_od_reading(od_angle_channel, verbose):
     reader = od_reading(od_angle_channel, verbose)
     while True:
         next(reader)
-
-
-if __name__ == "__main__":
-    click_od_reading()

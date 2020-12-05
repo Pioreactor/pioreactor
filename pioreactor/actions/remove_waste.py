@@ -126,7 +126,3 @@ def click_remove_waste(ml, duration, duty_cycle, source_of_event, verbose):
     return remove_waste(
         ml, duration, duty_cycle, source_of_event, verbose, unit, experiment
     )
-
-
-if __name__ == "__main__":
-    click_remove_waste()
