@@ -3,7 +3,6 @@
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
 
-from typing import Optional
 import signal
 import os
 import click
@@ -36,9 +35,7 @@ class ThroughputCalculator(BackgroundSubJob):
 
     editable_settings = ["media_throughput", "alt_media_throughput"]
 
-    def __init__(
-        self, unit=None, experiment: Optional[str] = None, verbose: int = 0, **kwargs
-    ) -> None:
+    def __init__(self, unit=None, experiment=None, verbose: int = 0, **kwargs) -> None:
         super(ThroughputCalculator, self).__init__(
             job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
         )

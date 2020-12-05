@@ -17,9 +17,11 @@ def get_config():
     return config
 
 
+config = get_config()
+
+
 def get_leader_hostname():
-    return get_config()["network"]["leader_hostname"]
+    return config["network"]["leader_hostname"]
 
 
 leader_hostname = get_leader_hostname()
-config = get_config()

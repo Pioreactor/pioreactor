@@ -5,7 +5,6 @@ Continuously monitor the bioreactor and provide summary statistics on what's goi
 
 import json
 import os
-from typing import Optional
 
 from pioreactor.pubsub import publish, subscribe_and_callback, subscribe, QOS
 from pioreactor.utils.timing import RepeatedTimer
@@ -24,13 +23,7 @@ class AltMediaCalculator(BackgroundSubJob):
 
     """
 
-    def __init__(
-        self,
-        unit: Optional[str] = None,
-        experiment: Optional[str] = None,
-        verbose: int = 0,
-        **kwargs,
-    ) -> None:
+    def __init__(self, unit=None, experiment=None, verbose: int = 0, **kwargs) -> None:
         super(AltMediaCalculator, self).__init__(
             job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
         )

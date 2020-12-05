@@ -4,9 +4,7 @@ import time
 import threading
 import traceback
 from click import echo, style
-from paho.mqtt import publish as mqtt_publish
 from pioreactor.config import leader_hostname
-import paho.mqtt.client as mqtt
 
 
 class QOS:
@@ -18,6 +16,8 @@ class QOS:
 def publish(
     topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs
 ):
+    from paho.mqtt import publish as mqtt_publish
+
     retry_count = 1
     while True:
         try:
@@ -55,6 +55,8 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
     a timeout. Note that this _does_ disconnect after receiving a single message.
 
     """
+    import paho.mqtt.client as mqtt
+
     retry_count = 1
     while True:
         try:
@@ -125,6 +127,7 @@ def subscribe_and_callback(
     last_will: dict
         a dictionary describing the last will details: topic, qos, retain, msg.
     """
+    import paho.mqtt.client as mqtt
 
     assert callable(
         callback
