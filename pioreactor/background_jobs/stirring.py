@@ -8,7 +8,7 @@ import RPi.GPIO as GPIO
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish
-from pioreactor.background_jobs import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob
 
 GPIO.setmode(GPIO.BCM)
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -101,7 +101,7 @@ def stirring(
     return
 
 
-@click.command()
+@click.command(name="stirring")
 @click.option(
     "--duty-cycle",
     default=int(config["stirring"][f"duty_cycle{unit}"]),

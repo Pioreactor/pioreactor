@@ -12,7 +12,6 @@ To change setting over MQTT:
 
 `pioreactor/<unit>/<experiment>/io_controlling/<setting>/set` value
 
-
 """
 import time, sys, os, signal
 
@@ -32,8 +31,8 @@ from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.background_jobs.utils import events
-from pioreactor.background_jobs import BackgroundJob
-from pioreactor.background_jobs.subjobs import BackgroundSubJob
+from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
@@ -604,7 +603,7 @@ def run(
         raise e
 
 
-@click.command()
+@click.command(name="io_controlling")
 @click.option(
     "--mode",
     default="silent",

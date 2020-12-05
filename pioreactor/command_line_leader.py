@@ -17,7 +17,6 @@ except ImportError:
 
 from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 
-
 ALL_UNITS = ["1", "2", "3"]  # how is this updated when we add new units?
 ALL_WORKER_JOBS = [
     "stirring",
@@ -83,26 +82,33 @@ def sync_config_files(client, unit):
 
 @click.group()
 def pios():
+    """
+    Command each of the worker pioreactors with the `pios` command
+    """
     if not am_I_leader():
         print("workers cannot run `pios` commands. Try `pio` instead.")
+
         import sys
 
-        sys.exit()
+        sys.exit(0)
 
 
-@pios.command()
+@pios.command("sync", short_help="sync code and config")
 @click.option(
     "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
 )
 def sync(units):
-
+    """
+    Deploys the config.inis from the leader to the workers, pulls and installs the latest code from Github to the
+    workers.
+    """
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, setup])
 
     def _thread_function(unit):
-        print(f"Executing on {unit}...", end="", flush=True)
+        print(f"Executing on {unit}...")
         try:
             hostname = unit_to_hostname(unit)
 
@@ -123,7 +129,6 @@ def sync(units):
             sync_config_files(client, unit)
 
             client.close()
-            print("✅")
 
         except Exception:
             import traceback
@@ -136,11 +141,15 @@ def sync(units):
         executor.map(_thread_function, units)
 
 
-@pios.command(name="sync-configs")
+@pios.command(name="sync-configs", short_help="sync config")
 @click.option(
     "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
 )
 def sync_configs(units):
+    """
+    Deploys the leader's config.inis to the workers.
+    """
+
     def _thread_function(unit):
         print(f"Executing on {unit}...")
         try:
@@ -164,14 +173,18 @@ def sync_configs(units):
         executor.map(_thread_function, units)
 
 
-@pios.command()
+@pios.command("kill", short_help="kill a job on workers")
 @click.argument("process")
 @click.option(
     "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
 )
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 def kill(process, units, y):
+    """
+    send a SIGTERM signal to PROCESS. PROCESS can be any job name or "python" (the
+    later will clear all jobs, but maybe other python scripts too.)
 
+    """
     if not y:
         confirm = input(f"Confirm killing `{process}` on {units}? Y/n: ").strip()
         if confirm != "Y":
@@ -181,7 +194,7 @@ def kill(process, units, y):
     command = " && ".join([kill])
 
     def _thread_function(unit):
-        print(f"Executing on {unit}...", end="", flush=True)
+        print(f"Executing on {unit}...")
         hostname = unit_to_hostname(unit)
 
         s = paramiko.SSHClient()
@@ -192,7 +205,6 @@ def kill(process, units, y):
         for line in stderr.readlines():
             pass
         s.close()
-        print("✅")
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -200,7 +212,9 @@ def kill(process, units, y):
 
 
 @pios.command(
-    name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
+    name="run",
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+    short_help="run a job on workers",
 )
 @click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
 @click.option(
@@ -226,12 +240,11 @@ def run(ctx, job, units, y):
         s.load_system_host_keys()
         s.connect(hostname, username="pi")
 
-        print(f"Executing on {unit}...", end="", flush=True)
+        print(f"Executing on {unit}...")
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
             print(unit + ":" + line)
         s.close()
-        print("✅")
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:

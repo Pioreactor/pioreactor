@@ -10,7 +10,7 @@ from typing import Optional
 from pioreactor.pubsub import publish, subscribe_and_callback, subscribe, QOS
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
-from pioreactor.background_jobs.subjobs import BackgroundSubJob
+from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])

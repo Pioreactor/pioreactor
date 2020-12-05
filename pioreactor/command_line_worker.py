@@ -6,34 +6,16 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio run od_reading --od-angle-channel 135,0
 > pio log
 """
+import sys, os
 import click
-import importlib
-from subprocess import call
+
+if "pytest" in sys.modules or os.environ.get("TESTING"):
+    import fake_rpi
+
+    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
 from pioreactor.whoami import am_I_leader
-
-WORKER_JOBS = [
-    "stirring",
-    "growth_rate_calculating",
-    "od_reading",
-    "io_controlling",
-    "stirring",
-    "add_alt_media",
-    "add_media",
-    "remove_waste",
-    "od_normalization",
-]
-
-LEADER_JOBS = [
-    "log_aggregating",
-    "mqtt_to_db_streaming",
-    "time_series_aggregating",
-    "download_experiment_data",
-]
-
-if am_I_leader():
-    valid_jobs = LEADER_JOBS
-else:
-    valid_jobs = WORKER_JOBS
 
 
 @click.group()
@@ -41,8 +23,11 @@ def pio():
     pass
 
 
-@pio.command(name="logs")
+@pio.command(name="logs", short_help="tail the logs")
 def logs():
+    """
+    Tail the logs from /var/log/pioreactor.log to the terminal. CTRL-C to exit.
+    """
     from sh import tail
 
     try:
@@ -53,13 +38,15 @@ def logs():
         tail_sh.kill()
 
 
-@pio.command(name="kill")
+@pio.command(name="kill", short_help="kill job")
 @click.argument("process")
 def kill(process):
+    """
+    send SIGTERM signal to PROCESS
+    """
+
     # TODO this fails for python
     from sh import kill, pgrep
-
-    assert process in (valid_jobs), "Must be python a valid Pioreactor job."
 
     try:
         # remove the _oldest_ one
@@ -68,50 +55,27 @@ def kill(process):
         pass
 
 
-@pio.command(
-    name="run", context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
-)
-@click.argument("job", type=click.Choice(valid_jobs, case_sensitive=True))
-@click.option("--background", "-b", is_flag=True)
-@click.pass_context
-def run(ctx, job, background):
+@pio.group()
+def run():
+    pass
 
-    extra_args = list(ctx.args)
 
-    if am_I_leader():
-        job = f"leader.{job}"
+if am_I_leader():
 
-    if importlib.util.find_spec(f"pioreactor.background_jobs.{job}"):
-        loc = f"pioreactor.background_jobs.{job}"
-    elif importlib.util.find_spec(f"pioreactor.actions.{job}"):
-        loc = f"pioreactor.actions.{job}"
-    else:
-        raise ValueError(f"Job {job} not found")
+    pass
 
-    command = ["python3", "-u", "-m", loc] + extra_args
+else:
+    from pioreactor.background_jobs.stirring import click_stirring
+    from pioreactor.background_jobs.growth_rate_calculating import (
+        click_growth_rate_calculating,
+    )
+    from pioreactor.background_jobs.od_reading import click_od_reading
+    from pioreactor.background_jobs.io_controlling import click_io_controlling
 
-    if background:
-        command = (
-            ["nohup"]
-            + command
-            + [
-                "-v",
-                " 2>&1",
-                "| sudo tee -a",
-                "/var/log/pioreactor.log",
-                ">",
-                "/dev/null",
-                "&",
-            ]
-        )
-        click.echo(click.style("Appending logs to /var/log/pioreactor.log", fg="green"))
-        click.echo(
-            click.style("Tip: Tail logs using ", fg="green")
-            + click.style("pio logs", bold=True)
-        )
-
-    call(" ".join(command), shell=True)
-    return
+    run.add_command(click_growth_rate_calculating)
+    run.add_command(click_stirring)
+    run.add_command(click_od_reading)
+    run.add_command(click_io_controlling)
 
 
 if __name__ == "__main__":

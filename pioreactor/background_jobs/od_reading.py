@@ -27,7 +27,6 @@ import os
 import click
 from adafruit_ads1x15.analog_in import AnalogIn
 import adafruit_ads1x15.ads1115 as ADS
-import board
 import busio
 
 from pioreactor.utils.streaming_calculations import MovingStats
@@ -36,7 +35,7 @@ from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.utils.timing import every
-from pioreactor.background_jobs import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
@@ -157,6 +156,9 @@ def od_reading(
     verbose,
     sampling_rate=1 / float(config["od_sampling"]["samples_per_second"]),
 ):
+
+    import board
+
     od_channels = []
     for input_ in od_angle_channel:
         angle, channel = input_.split(",")
@@ -187,7 +189,7 @@ def od_reading(
         )
 
 
-@click.command()
+@click.command(name="od_reading")
 @click.option(
     "--od-angle-channel",
     multiple=True,

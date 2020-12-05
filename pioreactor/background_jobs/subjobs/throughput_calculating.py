@@ -13,7 +13,7 @@ import json
 from pioreactor.pubsub import subscribe_and_callback, QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
-from pioreactor.background_jobs.subjobs import BackgroundSubJob
+from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 

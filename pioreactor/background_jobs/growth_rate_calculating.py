@@ -12,7 +12,7 @@ from pioreactor.pubsub import publish, subscribe, subscribe_and_callback, QOS
 
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.background_jobs import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
@@ -223,7 +223,7 @@ def growth_rate_calculating(verbose, ignore_cache):
         )
 
 
-@click.command()
+@click.command(name="growth_rate_calculating")
 @click.option("--verbose", "-v", count=True, help="Print to std out")
 @click.option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
 def click_growth_rate_calculating(verbose, ignore_cache):

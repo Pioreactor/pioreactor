@@ -11,7 +11,7 @@ import click
 
 
 from pioreactor.pubsub import subscribe_and_callback, publish
-from pioreactor.background_jobs import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.config import config
