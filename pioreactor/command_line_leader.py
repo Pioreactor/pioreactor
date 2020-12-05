@@ -102,7 +102,7 @@ def sync(units):
     command = " && ".join([cd, gitp, setup])
 
     def _thread_function(unit):
-        print(f"Executing on {unit}...")
+        print(f"Executing on {unit}...", end="", flush=True)
         try:
             hostname = unit_to_hostname(unit)
 
@@ -123,6 +123,7 @@ def sync(units):
             sync_config_files(client, unit)
 
             client.close()
+            print("✅")
 
         except Exception:
             import traceback
@@ -225,11 +226,12 @@ def run(ctx, job, units, y):
         s.load_system_host_keys()
         s.connect(hostname, username="pi")
 
-        print(f"Executing on {unit}...")
+        print(f"Executing on {unit}...", end="", flush=True)
         (stdin, stdout, stderr) = s.exec_command(command)
         for line in stderr.readlines():
             print(unit + ":" + line)
         s.close()
+        print("✅")
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
