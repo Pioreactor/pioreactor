@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import fastentrypoints  # noqa: F401
 from setuptools import setup, find_packages
 
 with open("requirements/requirements.txt") as f:
