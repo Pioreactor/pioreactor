@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
 
-import time, os, signal
+import time, os, sys, signal
 
 import click
-import RPi.GPIO as GPIO
 
+if "pytest" in sys.modules or os.environ.get("TESTING"):
+    import fake_rpi
+
+    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+import RPi.GPIO as GPIO
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish

@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
-import time
+import time, sys, os
 from json import loads, dumps
 import click
-import RPi.GPIO as GPIO
 
+if "pytest" in sys.modules or os.environ.get("TESTING"):
+    import fake_rpi
+
+    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+import RPi.GPIO as GPIO
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config

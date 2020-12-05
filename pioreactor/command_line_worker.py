@@ -6,15 +6,8 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio run od_reading --od-angle-channel 135,0
 > pio log
 """
-import sys, os
+
 import click
-
-if "pytest" in sys.modules or os.environ.get("TESTING"):
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
 from pioreactor.whoami import am_I_leader
 
 
