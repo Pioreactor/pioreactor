@@ -3,7 +3,7 @@ from pioreactor.actions import add_alt_media
 from pioreactor.actions import add_media
 from pioreactor.actions import remove_waste
 from pioreactor.actions import od_normalization
-from pioreactor.leader.actions import download_experiment_data
+from pioreactor.actions.leader import download_experiment_data
 
 
 __all__ = (
