@@ -102,7 +102,7 @@ def remove_waste(
     return
 
 
-@click.command()
+@click.command(name="remove_waste")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--duty-cycle", default=33, type=int)

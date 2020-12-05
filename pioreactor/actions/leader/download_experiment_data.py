@@ -58,7 +58,7 @@ def download_experiment_data(experiment, output, tables):
     return
 
 
-@click.command()
+@click.command(name="download_experiment_data")
 @click.option("--experiment", default="current")
 @click.option("--output", default="/home/pi/exports/export.zip")
 @click.option("--tables", multiple=True, default=[])

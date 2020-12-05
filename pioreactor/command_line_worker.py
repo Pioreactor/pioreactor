@@ -75,3 +75,4 @@ else:
     run.add_command(a.add_alt_media.click_add_alt_media)
     run.add_command(a.add_media.click_add_media)
     run.add_command(a.remove_waste.click_remove_waste)
+    run.add_command(a.od_normalization.click_od_normalization)

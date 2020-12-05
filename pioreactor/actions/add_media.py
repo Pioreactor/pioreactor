@@ -101,7 +101,7 @@ def add_media(
     return
 
 
-@click.command()
+@click.command(name="add_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--duty-cycle", default=33, type=int)

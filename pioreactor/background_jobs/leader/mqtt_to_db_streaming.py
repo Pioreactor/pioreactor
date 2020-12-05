@@ -73,7 +73,7 @@ class MqttToDBStreamer(BackgroundJob):
             )
 
 
-@click.command()
+@click.command(name="mqtt_to_db_streaming")
 @click.option("--verbose", "-v", count=True, help="print to std.out")
 def click_mqtt_to_db_streaming(verbose):
     def parse_od(topic, payload):

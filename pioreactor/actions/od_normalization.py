@@ -95,7 +95,7 @@ def od_normalization(od_angle_channel, verbose, unit=None, experiment=None):
         )
 
 
-@click.command()
+@click.command(name="od_normalization")
 @click.option(
     "--od-angle-channel",
     multiple=True,

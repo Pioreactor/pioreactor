@@ -137,7 +137,7 @@ class TimeSeriesAggregation(BackgroundJob):
         )
 
 
-@click.command()
+@click.command(name="time_series_aggregating")
 @click.option(
     "--output-dir",
     "-o",
