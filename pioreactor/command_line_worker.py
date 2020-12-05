@@ -9,10 +9,16 @@ cmd line interface for running individual pioreactor units (including leader)
 
 import click
 from pioreactor.whoami import am_I_leader
+import time
+
+print("here1", time.time())
 
 
 @click.group()
 def pio():
+    import time
+
+    print("here2", time.time())
     pass
 
 
@@ -50,6 +56,9 @@ def kill(process):
 
 @pio.group()
 def run():
+    import time
+
+    print("here3", time.time())
     pass
 
 
@@ -73,4 +82,7 @@ run.add_command(click_io_controlling)
 
 
 if __name__ == "__main__":
+    import time
+
+    print("here5", time.time())
     pio()
