@@ -10,7 +10,6 @@ import json
 from collections import namedtuple
 from datetime import datetime
 
-from sqlite3worker import Sqlite3Worker
 
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.background_jobs.base import BackgroundJob
@@ -34,6 +33,9 @@ def produce_metadata(topic):
 
 class MqttToDBStreamer(BackgroundJob):
     def __init__(self, topics_and_parsers, **kwargs):
+
+        from sqlite3worker import Sqlite3Worker
+
         super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["observation_database"], max_queue_size=10000
