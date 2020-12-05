@@ -8,6 +8,7 @@ UNIVERSAL_EXPERIMENT = "$experiment"
 
 
 def get_latest_experiment_name():
+    print("here")
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return "_testing_experiment"
 

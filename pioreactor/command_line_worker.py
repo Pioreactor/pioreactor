@@ -67,16 +67,16 @@ if am_I_leader():
 else:
     from pioreactor.background_jobs.stirring import click_stirring
 
-    # from pioreactor.background_jobs.growth_rate_calculating import (
-    #     click_growth_rate_calculating,
-    # )
-    # from pioreactor.background_jobs.od_reading import click_od_reading
-    # from pioreactor.background_jobs.io_controlling import click_io_controlling
+    from pioreactor.background_jobs.growth_rate_calculating import (
+        click_growth_rate_calculating,
+    )
+    from pioreactor.background_jobs.od_reading import click_od_reading
+    from pioreactor.background_jobs.io_controlling import click_io_controlling
 
-    # run.add_command(click_growth_rate_calculating)
+    run.add_command(click_growth_rate_calculating)
     run.add_command(click_stirring)
-    # run.add_command(click_od_reading)
-    # run.add_command(click_io_controlling)
+    run.add_command(click_od_reading)
+    run.add_command(click_io_controlling)
 
 
 if __name__ == "__main__":
