@@ -7,6 +7,7 @@ from pioreactor.whoami import (
     UNIVERSAL_EXPERIMENT,
     get_latest_experiment_name,
 )
+from pioreactor.config import config
 
 
 class MQTTHandler(logging.Handler):
@@ -27,15 +28,18 @@ class MQTTHandler(logging.Handler):
         publish(self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs)
 
 
+# ignore any issues with logging
 logging.raiseExceptions = False
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    force=True,
-    filename="./pioreactor.log",
-    filemode="a",
+
+# file handler
+file_handler = logging.FileHandler(config["logging"]["log_file"])
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s [%(name)s] %(levelname)-2s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
 )
+
 
 # define a Handler which writes INFO messages or higher to the sys.stderr
 console_handler = logging.StreamHandler()
@@ -54,7 +58,9 @@ mqtt_handler.setLevel(logging.INFO)
 mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(message)s"))
 
 
-# add the handler to the root logger
+# add the handlers to the root logger
 root_logger = logging.getLogger("")
+root_logger.setLevel(logging.DEBUG)
 root_logger.addHandler(console_handler)
 root_logger.addHandler(mqtt_handler)
+root_logger.addHandler(file_handler)

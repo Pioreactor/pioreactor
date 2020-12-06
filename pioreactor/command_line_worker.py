@@ -8,6 +8,7 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 import click
 from pioreactor.whoami import am_I_leader
+from pioreactor.config import config
 
 
 @click.group()
@@ -23,7 +24,7 @@ def logs():
     from sh import tail
 
     try:
-        tail_sh = tail("-f", "/var/log/pioreactor.log", _iter=True)
+        tail_sh = tail("-f", config["logging"]["log_file"], _iter=True)
         for line in tail_sh:
             print(line, end="")
     except KeyboardInterrupt:
