@@ -9,7 +9,7 @@ import traceback
 import click
 import json
 
-from pioreactor.pubsub import subscribe_and_callback, publish
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
@@ -68,10 +68,7 @@ class LogAggregation(BackgroundJob):
             self.aggregated_log_table = []
             self.write()
         else:
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/log",
-                "Only empty messages allowed to empty the log table.",
-            )
+            self.logger.warning("Only empty messages allowed to empty the log table.")
 
     def read(self):
         try:
@@ -101,14 +98,13 @@ class LogAggregation(BackgroundJob):
     default="/home/pi/pioreactorui/backend/build/data/all_pioreactor.log.json",
     help="the output file",
 )
-@click.option("--verbose", "-v", count=True, help="print to std.out")
-def click_log_aggregating(output, verbose):
+def click_log_aggregating(output):
+    # start aggregating (error) log events from MQTT and cache for the PioreactorUI
     logs = LogAggregation(  # noqa: F841
         ["pioreactor/+/+/log", "pioreactor/+/+/error_log"],
         output,
         experiment=UNIVERSAL_EXPERIMENT,
         unit=get_unit_from_hostname(),
-        verbose=verbose,
     )
 
     while True:

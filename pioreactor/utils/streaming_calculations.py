@@ -126,7 +126,10 @@ class ExtendedKalmanFilter:
 
         observation = np.asarray(observation)
         self.update_counters()
-        assert observation.shape[0] + 1 == self.state_.shape[0]
+        assert (observation.shape[0] + 1) == self.state_.shape[0], (
+            (observation.shape[0] + 1),
+            self.state_.shape[0],
+        )
         state_prediction, covariance_prediction = self.predict()
         residual_state = observation - state_prediction[:-1]
         H = self._jacobian_observation()
@@ -232,7 +235,6 @@ class PID:
         sample_time=None,
         unit=None,
         experiment=None,
-        verbose=0,
         **kwargs,
     ):
         from simple_pid import PID as simple_PID
@@ -249,7 +251,6 @@ class PID:
         )
         self.unit = unit
         self.experiment = experiment
-        self.verbose = verbose
 
     def set_setpoint(self, new_setpoint):
         self.pid.setpoint = new_setpoint
@@ -276,8 +277,4 @@ class PID:
             "latest_input": self.pid._last_input,
             "latest_output": self.pid._last_output,
         }
-        publish(
-            f"pioreactor/{self.unit}/{self.experiment}/pid_log",
-            json.dumps(to_send),
-            verbose=self.verbose,
-        )
+        publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", json.dumps(to_send))

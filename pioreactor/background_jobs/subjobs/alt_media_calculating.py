@@ -23,13 +23,12 @@ class AltMediaCalculator(BackgroundSubJob):
 
     """
 
-    def __init__(self, unit=None, experiment=None, verbose: int = 0, **kwargs) -> None:
+    def __init__(self, unit=None, experiment=None, **kwargs) -> None:
         super(AltMediaCalculator, self).__init__(
-            job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
+            job_name=JOB_NAME, unit=unit, experiment=experiment
         )
         self.unit = unit
         self.experiment = experiment
-        self.verbose = verbose
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 
         # publish every 30 seconds.
@@ -57,7 +56,6 @@ class AltMediaCalculator(BackgroundSubJob):
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
             self.latest_alt_media_fraction,
-            verbose=self.verbose,
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )

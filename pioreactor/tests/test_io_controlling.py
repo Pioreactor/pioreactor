@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import time
-import json
-import pytest
 
 from pioreactor.background_jobs.io_controlling import (
     Morbidostat,
@@ -26,7 +24,7 @@ def pause():
 
 
 def test_silent_algorithm():
-    algo = Silent(volume=None, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = Silent(volume=None, duration=None, unit=unit, experiment=experiment)
     pause()
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", "0.01")
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/A", "1.0")
@@ -42,7 +40,9 @@ def test_silent_algorithm():
 
 def test_turbidostat_algorithm():
     target_od = 1.0
-    algo = Turbidostat(target_od=target_od, duration=None, volume=0.25, verbose=2, unit=unit, experiment=experiment)
+    algo = Turbidostat(
+        target_od=target_od, duration=None, volume=0.25, unit=unit, experiment=experiment
+    )
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/A", 0.98)
@@ -69,7 +69,9 @@ def test_turbidostat_algorithm():
 def test_pid_turbidostat_algorithm():
 
     target_od = 2.4
-    algo = PIDTurbidostat(target_od=target_od, volume=2.0, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDTurbidostat(
+        target_od=target_od, volume=2.0, duration=None, unit=unit, experiment=experiment
+    )
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/A", 3.2)
@@ -89,7 +91,9 @@ def test_pid_turbidostat_algorithm():
 
 def test_morbidostat_algorithm():
     target_od = 1.0
-    algo = Morbidostat(target_od=target_od, duration=None, volume=0.25, verbose=2, unit=unit, experiment=experiment)
+    algo = Morbidostat(
+        target_od=target_od, duration=None, volume=0.25, unit=unit, experiment=experiment
+    )
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.01)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/A", 0.95)
@@ -126,7 +130,11 @@ def test_morbidostat_algorithm():
 def test_pid_morbidostat_algorithm():
     target_growth_rate = 0.09
     algo = PIDMorbidostat(
-        target_od=1.0, target_growth_rate=target_growth_rate, duration=60, verbose=2, unit=unit, experiment=experiment
+        target_od=1.0,
+        target_growth_rate=target_growth_rate,
+        duration=60,
+        unit=unit,
+        experiment=experiment,
     )
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.08)
@@ -152,12 +160,19 @@ def test_changing_morbidostat_parameters_over_mqtt():
 
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
-        target_growth_rate=target_growth_rate, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment
+        target_growth_rate=target_growth_rate,
+        target_od=1.0,
+        duration=60,
+        unit=unit,
+        experiment=experiment,
     )
     assert algo.target_growth_rate == target_growth_rate
     pause()
     new_target = 0.07
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/io_controlling/target_growth_rate/set", new_target)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/io_controlling/target_growth_rate/set",
+        new_target,
+    )
     pause()
     assert algo.target_growth_rate == new_target
     assert algo.pid.pid.setpoint == new_target
@@ -168,7 +183,13 @@ def test_changing_turbidostat_params_over_mqtt():
 
     og_volume = 0.5
     og_target_od = 1.0
-    algo = PIDTurbidostat(volume=og_volume, target_od=og_target_od, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDTurbidostat(
+        volume=og_volume,
+        target_od=og_target_od,
+        duration=None,
+        unit=unit,
+        experiment=experiment,
+    )
     assert algo.volume == og_volume
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.05)
@@ -196,7 +217,13 @@ def test_changing_turbidostat_params_over_mqtt():
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
 
-    algo = IOAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = IOAlgorithm(
+        target_growth_rate=0.05,
+        target_od=1.0,
+        duration=None,
+        unit=unit,
+        experiment=experiment,
+    )
     pubsub.publish(f"pioreactor/{unit}/{experiment}/io_controlling/garbage/set", 0.07)
     pause()
     algo.set_state("disconnected")
@@ -204,9 +231,17 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter():
 
 def test_pause_in_io_controlling():
 
-    algo = IOAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = IOAlgorithm(
+        target_growth_rate=0.05,
+        target_od=1.0,
+        duration=None,
+        unit=unit,
+        experiment=experiment,
+    )
     pause()
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/io_controlling/$state/set", "sleeping")
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/io_controlling/$state/set", "sleeping"
+    )
     pause()
     assert algo.state == "sleeping"
 
@@ -217,7 +252,13 @@ def test_pause_in_io_controlling():
 
 
 def test_old_readings_will_not_execute_io():
-    algo = IOAlgorithm(target_growth_rate=0.05, target_od=1.0, duration=None, verbose=2, unit=unit, experiment=experiment)
+    algo = IOAlgorithm(
+        target_growth_rate=0.05,
+        target_od=1.0,
+        duration=None,
+        unit=unit,
+        experiment=experiment,
+    )
     algo.latest_growth_rate = 1
     algo.latest_od = 1
 
@@ -232,10 +273,20 @@ def test_old_readings_will_not_execute_io():
 
 def test_throughput_calculator():
     job_name = "throughput_calculating"
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 0, retain=True)
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput", 0, retain=True)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 0, retain=True
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput", 0, retain=True
+    )
 
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(
+        target_growth_rate=0.05,
+        target_od=1.0,
+        duration=60,
+        unit=unit,
+        experiment=experiment,
+    )
     assert algo.throughput_calculator.media_throughput == 0
     pause()
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.08)
@@ -269,11 +320,22 @@ def test_throughput_calculator():
 def test_throughput_calculator_restart():
     job_name = "throughput_calculating"
 
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True)
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput",
+        1.5,
+        retain=True,
+    )
 
-    target_growth_rate = 0.06
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(
+        target_growth_rate=0.06,
+        target_od=1.0,
+        duration=60,
+        unit=unit,
+        experiment=experiment,
+    )
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
@@ -283,16 +345,29 @@ def test_throughput_calculator_restart():
 def test_throughput_calculator_manual_set():
     job_name = "throughput_calculating"
 
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True)
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput", 1.5, retain=True)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput",
+        1.5,
+        retain=True,
+    )
     pause()
-    target_growth_rate = 0.06
-    algo = PIDMorbidostat(target_growth_rate=0.05, target_od=1.0, duration=60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(
+        target_growth_rate=0.05,
+        target_od=1.0,
+        duration=60,
+        unit=unit,
+        experiment=experiment,
+    )
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
 
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput/set", 0)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput/set", 0
+    )
     pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput/set", 0)
     pause()
     assert algo.throughput_calculator.media_throughput == 0
@@ -301,9 +376,17 @@ def test_throughput_calculator_manual_set():
 
 
 def test_execute_io_action():
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput", None, retain=True)
-    ca = IOAlgorithm(verbose=2, unit=unit, experiment=experiment)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        None,
+        retain=True,
+    )
+    ca = IOAlgorithm(unit=unit, experiment=experiment)
     ca.execute_io_action(media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35)
     pause()
     assert ca.throughput_calculator.media_throughput == 0.65
@@ -323,25 +406,43 @@ def test_execute_io_action():
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 1.50
-    algo.set_state("disconnected")
+    ca.set_state("disconnected")
 
 
 def test_execute_io_action2():
     # regression test
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction", None, retain=True)
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput", None, retain=True)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        None,
+        retain=True,
+    )
 
-    ca = IOAlgorithm(verbose=2, unit=unit, experiment=experiment)
+    ca = IOAlgorithm(unit=unit, experiment=experiment)
     ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     pause()
     assert ca.throughput_calculator.media_throughput == 1.25
     assert ca.throughput_calculator.alt_media_throughput == 0.01
-    algo.set_state("disconnected")
+    ca.set_state("disconnected")
 
 
 def test_duration_and_timer():
-    algo = PIDMorbidostat(target_od=1.0, target_growth_rate=0.01, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(
+        target_od=1.0,
+        target_growth_rate=0.01,
+        duration=5 / 60,
+        unit=unit,
+        experiment=experiment,
+    )
     assert algo.latest_event is None
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.08)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/A", 0.500)
@@ -358,7 +459,13 @@ def test_duration_and_timer():
 
 
 def test_changing_duration_over_mqtt():
-    algo = PIDMorbidostat(target_od=1.0, target_growth_rate=0.01, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    algo = PIDMorbidostat(
+        target_od=1.0,
+        target_growth_rate=0.01,
+        duration=5 / 60,
+        unit=unit,
+        experiment=experiment,
+    )
     assert algo.latest_event is None
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.08)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/A", 0.500)
@@ -376,7 +483,9 @@ def test_changing_duration_over_mqtt():
 
 def test_changing_algo_over_mqtt_solo():
 
-    algo = AlgoController("turbidostat", target_od=1.0, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    algo = AlgoController(
+        "turbidostat", target_od=1.0, duration=5 / 60, unit=unit, experiment=experiment
+    )
     assert algo.io_algorithm == "turbidostat"
     assert isinstance(algo.io_algorithm_job, Turbidostat)
 
@@ -393,7 +502,9 @@ def test_changing_algo_over_mqtt_solo():
 
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
 
-    algo = AlgoController("turbidostat", target_od=1.0, duration=5 / 60, verbose=2, unit=unit, experiment=experiment)
+    algo = AlgoController(
+        "turbidostat", target_od=1.0, duration=5 / 60, unit=unit, experiment=experiment
+    )
     assert algo.io_algorithm == "turbidostat"
     assert isinstance(algo.io_algorithm_job, Turbidostat)
     pause()
@@ -409,10 +520,19 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
 
 
 def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput", None, retain=True)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        None,
+        retain=True,
+    )
 
     algo = AlgoController(
-        "pid_turbidostat", volume=1.0, target_od=0.4, duration=2 / 60, verbose=2, unit=unit, experiment=experiment
+        "pid_turbidostat",
+        volume=1.0,
+        target_od=0.4,
+        duration=2 / 60,
+        unit=unit,
+        experiment=experiment,
     )
     assert algo.io_algorithm == "pid_turbidostat"
     pause()
@@ -420,7 +540,9 @@ def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
         f"pioreactor/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
         '{"io_algorithm": "turbidostat", "duration": null, "target_od": 1.0, "volume": 1.0}',
     )
-    time.sleep(8)  # need to wait for all jobs to disconnect correctly and threads to join.
+    time.sleep(
+        8
+    )  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.io_algorithm_job, Turbidostat)
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.15)

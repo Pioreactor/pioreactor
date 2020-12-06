@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import time, os, sys, signal
+import logging
 
 import click
 
@@ -13,11 +14,11 @@ if "pytest" in sys.modules or os.environ.get("TESTING"):
 import RPi.GPIO as GPIO
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.pubsub import publish
 from pioreactor.background_jobs.base import BackgroundJob
 
 GPIO.setmode(GPIO.BCM)
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+logger = logging.getLogger(JOB_NAME)
 
 unit = get_unit_from_hostname()
 
@@ -30,17 +31,9 @@ class Stirrer(BackgroundJob):
     editable_settings = ["duty_cycle"]
 
     def __init__(
-        self,
-        duty_cycle,
-        unit,
-        experiment,
-        verbose=0,
-        hertz=50,
-        pin=int(config["rpi_pins"]["fan"]),
+        self, duty_cycle, unit, experiment, hertz=50, pin=int(config["rpi_pins"]["fan"])
     ):
-        super(Stirrer, self).__init__(
-            job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
-        )
+        super(Stirrer, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
 
         self.hertz = hertz
         self.pin = pin
@@ -81,13 +74,11 @@ class Stirrer(BackgroundJob):
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
 
-def stirring(
-    duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None, verbose=0
-):
+def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None):
     experiment = get_latest_experiment_name()
 
     try:
-        stirrer = Stirrer(duty_cycle, unit=unit, experiment=experiment, verbose=verbose)
+        stirrer = Stirrer(duty_cycle, unit=unit, experiment=experiment)
         stirrer.start_stirring()
 
         if duration is None:
@@ -98,11 +89,7 @@ def stirring(
 
     except Exception as e:
         GPIO.cleanup()
-        publish(
-            f"pioreactor/{unit}/{experiment}/error_log",
-            f"[stirring] failed with {str(e)}",
-            verbose=verbose,
-        )
+        logger.error(f"failed with {str(e)}")
         raise e
 
     return
@@ -113,13 +100,11 @@ def stirring(
     "--duty-cycle",
     default=int(config["stirring"][f"duty_cycle{unit}"]),
     help="set the duty cycle",
+    show_default=True,
+    type=click.IntRange(0, 100, clamp=True),
 )
-@click.option(
-    "--verbose",
-    "-v",
-    count=True,
-    help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
-)
-def click_stirring(duty_cycle, verbose):
-
-    stirring(duty_cycle=duty_cycle, verbose=verbose)
+def click_stirring(duty_cycle):
+    """
+    Start the stirring of the Pioreactor.
+    """
+    stirring(duty_cycle=duty_cycle)

@@ -33,11 +33,10 @@ class ThroughputCalculator(BackgroundSubJob):
 
     editable_settings = ["media_throughput", "alt_media_throughput"]
 
-    def __init__(self, unit=None, experiment=None, verbose: int = 0, **kwargs) -> None:
+    def __init__(self, unit=None, experiment=None, **kwargs) -> None:
         super(ThroughputCalculator, self).__init__(
-            job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
+            job_name=JOB_NAME, unit=unit, experiment=experiment
         )
-        self.verbose = verbose
 
         self.media_throughput = self.get_initial_media_throughput()
         self.alt_media_throughput = self.get_initial_alt_media_throughput()

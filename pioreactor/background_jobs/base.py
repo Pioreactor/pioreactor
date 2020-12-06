@@ -4,6 +4,7 @@ import os
 import sys
 import atexit
 from collections import namedtuple
+import logging
 
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import pio_jobs_running
@@ -52,16 +53,13 @@ class BackgroundJob:
     state = DISCONNECTED
     editable_settings = []
 
-    def __init__(
-        self, job_name: str, verbose: int = 0, experiment=None, unit=None
-    ) -> None:
-
+    def __init__(self, job_name: str, experiment=None, unit=None) -> None:
         self.job_name = job_name
         self.experiment = experiment
-        self.verbose = verbose
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
         self.pubsub_clients = []
+        self.logger = logging.getLogger(self.job_name)
 
         self.check_for_duplicate_process()
         self.set_state(self.INIT)
@@ -118,7 +116,6 @@ class BackgroundJob:
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
             ",".join(self.editable_settings),
-            verbose=self.verbose,
             qos=QOS.AT_LEAST_ONCE,
         )
 
@@ -126,17 +123,12 @@ class BackgroundJob:
             publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
                 True,
-                verbose=self.verbose,
                 qos=QOS.AT_LEAST_ONCE,
             )
 
     def set_state(self, new_state):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
-        publish(
-            f"pioreactor/{self.unit}/{self.experiment}/log",
-            f"[{self.job_name}] {new_state}",
-            verbose=self.verbose,
-        )
+        self.logger.info(f"{new_state}")
         getattr(self, new_state)()
 
     def set_attr_from_message(self, message):
@@ -165,10 +157,8 @@ class BackgroundJob:
             except TypeError:
                 setattr(self, attr, new_value)
 
-        publish(
-            f"pioreactor/{self.unit}/{self.experiment}/log",
-            f"[{self.job_name}] Updated {attr} from {previous_value} to {getattr(self, attr)}.",
-            verbose=self.verbose,
+        self.logger.info(
+            f"Updated {attr} from {previous_value} to {getattr(self, attr)}."
         )
 
     def publish_attr(self, attr: str) -> None:
@@ -180,7 +170,6 @@ class BackgroundJob:
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
             getattr(self, attr),
-            verbose=self.verbose,
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
@@ -211,10 +200,7 @@ class BackgroundJob:
         if (
             sum([p == self.job_name for p in pio_jobs_running()]) > 1
         ):  # this process counts as one - see if there is another.
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/log",
-                f"Aborting: {self.job_name} is already running.",
-            )
+            self.logger.error(f"Aborting: {self.job_name} is already running.")
             raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
 
     def __setattr__(self, name: str, value) -> None:

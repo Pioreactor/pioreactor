@@ -74,8 +74,8 @@ class MqttToDBStreamer(BackgroundJob):
 
 
 @click.command(name="mqtt_to_db_streaming")
-@click.option("--verbose", "-v", count=True, help="print to std.out")
-def click_mqtt_to_db_streaming(verbose):
+def click_mqtt_to_db_streaming():
+    # start the job sending MQTT streams to the database (as defined in config.ini)
     def parse_od(topic, payload):
         # should return a dict
         metadata = produce_metadata(topic)
@@ -193,10 +193,7 @@ def click_mqtt_to_db_streaming(verbose):
     ]
 
     streamer = MqttToDBStreamer(  # noqa: F841
-        topics_and_parsers,
-        experiment=UNIVERSAL_EXPERIMENT,
-        unit=get_unit_from_hostname(),
-        verbose=verbose,
+        topics_and_parsers, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_from_hostname()
     )
 
     while True:

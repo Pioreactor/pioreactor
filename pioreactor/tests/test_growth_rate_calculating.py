@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-import pytest
 import json
 import time
 import numpy as np
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
-from pioreactor.pubsub import subscribe, publish
+from pioreactor.pubsub import publish
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 
 unit = get_unit_from_hostname()
@@ -19,7 +18,9 @@ def pause():
 
 def test_subscribing(monkeypatch):
     publish(f"pioreactor/{unit}/{experiment}/od_normalization/median", None, retain=True)
-    publish(f"pioreactor/{unit}/{experiment}/od_normalization/variance", None, retain=True)
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance", None, retain=True
+    )
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
 
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", 1.0, retain=True)
@@ -27,22 +28,49 @@ def test_subscribing(monkeypatch):
     pause()
     assert calc.initial_growth_rate == 1.0
 
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}')
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}',
+    )
     pause()
 
     assert calc.ekf is not None
 
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}')
-    publish(f"pioreactor/{unit}/{experiment}/io_event", '{"volume_change": "1.5", "event": "add_media"}')
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 1.778586260567034, "90/A": 1.20944389172032837}')
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 1.778586260567034, "90/A": 1.20944389172032837}')
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}',
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/io_event",
+        '{"volume_change": "1.5", "event": "add_media"}',
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 1.778586260567034, "90/A": 1.20944389172032837}',
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 1.778586260567034, "90/A": 1.20944389172032837}',
+    )
     pause()
 
     assert calc.state_ is not None
 
 
 def test_same_angles(monkeypatch):
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    publish(f"pioreactor/{unit}/{experiment}/od_normalization/median", None, retain=True)
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance", None, retain=True
+    )
+    publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90/A": 0.1}',
+        retain=True,
+    )
+
+    GrowthRateCalculator(unit=unit, experiment=experiment)
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90/A": 0.1}',
@@ -58,12 +86,23 @@ def test_same_angles(monkeypatch):
 
 
 def test_mis_shapen_data(monkeypatch):
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "90/A": 0.1}',
+        retain=True,
+    )
 
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.778586260567034, "90/A": 0.1}')
+    GrowthRateCalculator(unit=unit, experiment=experiment)
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "90/A": 0.1}',
+    )
     pause()
 
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.808586260567034}')
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.808586260567034}'
+    )
     pause()
 
 
@@ -78,7 +117,11 @@ def test_restart():
         '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90/A": 0.1}',
         retain=True,
     )
-    publish(f"pioreactor/{unit}/{experiment}/od_normalization/variance", '{"135/A": 1, "135/B": 1, "90/A": 1}', retain=True)
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"135/A": 1, "135/B": 1, "90/A": 1}',
+        retain=True,
+    )
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
     pause()
     calc1 = GrowthRateCalculator(unit=unit, experiment=experiment)
@@ -110,13 +153,14 @@ def test_restart():
 
 def test_skip_180():
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
-
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"180/A": 0.778586260567034, "135/A": 0.20944389172032837, "90/A": 0.1}',
+        retain=True,
     )
+
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"180/A": 0.778586260567034, "135/A": 0.20944389172032837, "90/A": 0.1}',
@@ -128,16 +172,40 @@ def test_skip_180():
 
 def test_scaling_works():
 
-    publish(f"pioreactor/{unit}/{experiment}/od_normalization/median", json.dumps({"135/A": 0.5, "90/A": 0.8}), retain=True)
-    publish(f"pioreactor/{unit}/{experiment}/od_normalization/variance", json.dumps({"135/A": 1e-6, "90/A": 1e-4}), retain=True)
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.5, "90/A": 0.8}', retain=True)
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        json.dumps({"135/A": 0.5, "90/A": 0.8}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        json.dumps({"135/A": 1e-6, "90/A": 1e-4}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.5, "90/A": 0.8}',
+        retain=True,
+    )
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", "", retain=True)
 
     calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.51, "90/A": 0.82}')
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.51, "90/A": 0.83}')
-    publish(f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.51, "90/A": 0.84}')
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.51, "90/A": 0.82}'
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.51, "90/A": 0.83}'
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.51, "90/A": 0.84}'
+    )
     pause()
     assert calc.od_normalization_factors == {"90/A": 0.8, "135/A": 0.5}
-    assert ((calc.ekf.observation_noise_covariance - 30 * np.array([[1e-4 / 0.8 ** 2, 0], [0, 1e-6 / 0.5 ** 2]])) < 1e-7).all()
+    assert (
+        (
+            calc.ekf.observation_noise_covariance
+            - 30 * np.array([[1e-4 / 0.8 ** 2, 0], [0, 1e-6 / 0.5 ** 2]])
+        )
+        < 1e-7
+    ).all()

@@ -21,6 +21,7 @@ Also published to
 
 """
 import time
+import logging
 import json
 import os
 
@@ -47,6 +48,7 @@ ADS_GAIN_THRESHOLDS = {
 }
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+logger = logging.getLogger(JOB_NAME)
 
 
 class ODReader(BackgroundJob):
@@ -60,9 +62,9 @@ class ODReader(BackgroundJob):
 
     editable_settings = []
 
-    def __init__(self, od_channels, ads, unit=None, experiment=None, verbose=0):
+    def __init__(self, od_channels, ads, unit=None, experiment=None):
         super(ODReader, self).__init__(
-            job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
+            job_name=JOB_NAME, unit=unit, experiment=experiment
         )
         self.ma = MovingStats(lookback=10)
         self.ads = ads
@@ -83,7 +85,6 @@ class ODReader(BackgroundJob):
                 publish(
                     f"pioreactor/{self.unit}/{self.experiment}/od_raw/{angle_label}",
                     raw_signal_,
-                    verbose=self.verbose,
                 )
                 raw_signals[angle_label] = raw_signal_
 
@@ -91,10 +92,8 @@ class ODReader(BackgroundJob):
                 # also damage the ADC). We'll alert the user if the voltage gets higher than 2.5V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
                 if (counter % 20 == 0) and (raw_signal_ > 2.5):
-                    publish(
-                        f"pioreactor/{self.unit}/{self.experiment}/log",
-                        f"[{JOB_NAME}] OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V.",
-                        verbose=self.verbose,
+                    self.logger.warning(
+                        f"OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V."
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
@@ -102,7 +101,6 @@ class ODReader(BackgroundJob):
             publish(
                 f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
                 json.dumps(raw_signals),
-                verbose=self.verbose,
             )
 
             # the max signal should determine the board's gain
@@ -119,29 +117,17 @@ class ODReader(BackgroundJob):
                         self.ads.gain != gain
                     ):
                         self.ads.gain = gain
-                        publish(
-                            f"pioreactor/{self.unit}/{self.experiment}/log",
-                            f"[{JOB_NAME}] ADC gain updated to {self.ads.gain}.",
-                            verbose=self.verbose,
-                        )
+                        self.logger.info(f"ADC gain updated to {self.ads.gain}.")
                         break
 
             return raw_signals
 
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/error_log",
-                f"[{JOB_NAME}] failed with {str(e)}. Attempting to continue.",
-                verbose=self.verbose,
-            )
+            self.logger.error(f"failed with {str(e)}. Attempting to continue.")
             time.sleep(5.0)
         except Exception as e:
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/error_log",
-                f"[{JOB_NAME}] failed with {str(e)}",
-                verbose=self.verbose,
-            )
+            self.logger.error(f"failed with {str(e)}")
             raise e
 
 
@@ -149,9 +135,7 @@ INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
 
 
 def od_reading(
-    od_angle_channel,
-    verbose,
-    sampling_rate=1 / float(config["od_sampling"]["samples_per_second"]),
+    od_angle_channel, sampling_rate=1 / float(config["od_sampling"]["samples_per_second"])
 ):
 
     import board
@@ -174,19 +158,10 @@ def od_reading(
     try:
         yield from every(
             sampling_rate,
-            ODReader(
-                od_channels, ads, unit=unit, experiment=experiment, verbose=verbose
-            ).take_reading,
+            ODReader(od_channels, ads, unit=unit, experiment=experiment).take_reading,
         )
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        publish(
-            f"pioreactor/{unit}/{experiment}/error_log",
-            f"[{JOB_NAME}]: failed with {e}.",
-            verbose=verbose,
-        )
+        logger.error(f"failed with {str(e)}.")
 
 
 @click.command(name="od_reading")
@@ -195,6 +170,7 @@ def od_reading(
     multiple=True,
     default=list(config["od_config"].values()),
     type=click.STRING,
+    show_default=True,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
 
@@ -202,13 +178,8 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 
 """,
 )
-@click.option(
-    "--verbose",
-    "-v",
-    count=True,
-    help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
-)
-def click_od_reading(od_angle_channel, verbose):
-    reader = od_reading(od_angle_channel, verbose)
+def click_od_reading(od_angle_channel):
+    # Start the optical density reading job
+    reader = od_reading(od_angle_channel)
     while True:
         next(reader)

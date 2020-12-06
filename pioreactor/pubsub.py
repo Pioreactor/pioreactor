@@ -2,9 +2,13 @@
 import socket
 import time
 import threading
+import logging
 import traceback
 from click import echo, style
 from pioreactor.config import leader_hostname
+
+# this can be improved by including job name, thread name, etc.
+logger = logging.getLogger("pioreactor")
 
 
 class QOS:
@@ -13,25 +17,14 @@ class QOS:
     EXACTLY_ONCE = 2
 
 
-def publish(
-    topic, message, hostname=leader_hostname, verbose=0, retries=10, **mqtt_kwargs
-):
+def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs):
     from paho.mqtt import publish as mqtt_publish
 
     retry_count = 1
     while True:
         try:
             mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
-
-            if (verbose == 1 and topic.endswith("log")) or verbose > 1:
-                current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-                echo(
-                    style(f"{current_time} ", bold=True)
-                    + style(f"{topic}: ", fg="bright_blue")
-                    + style(f"{message}", fg="green")
-                )
             return
-
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout) as e:
             # possible that leader is down/restarting, keep trying, but log to local machine.
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -152,9 +145,7 @@ def subscribe_and_callback(
             except Exception as e:
                 traceback.print_exc()
 
-                from pioreactor.whoami import unit, experiment
-
-                publish(f"pioreactor/{unit}/{experiment}/error_log", str(e), verbose=1)
+                logger.error(str(e))
                 raise e
 
         return _callback

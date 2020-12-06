@@ -2,6 +2,7 @@
 import json
 import os
 import signal
+import logging
 from collections import defaultdict
 
 import click
@@ -20,9 +21,9 @@ class GrowthRateCalculator(BackgroundJob):
 
     editable_settings = []
 
-    def __init__(self, ignore_cache=False, unit=None, experiment=None, verbose=0):
+    def __init__(self, ignore_cache=False, unit=None, experiment=None):
         super(GrowthRateCalculator, self).__init__(
-            job_name=JOB_NAME, verbose=verbose, unit=unit, experiment=experiment
+            job_name=JOB_NAME, unit=unit, experiment=experiment
         )
         self.ignore_cache = ignore_cache
         self.initial_growth_rate = self.set_initial_growth_rate()
@@ -68,7 +69,6 @@ class GrowthRateCalculator(BackgroundJob):
         observation_noise_covariance = self.create_obs_noise_covariance(
             angles_and_initial_points.keys()
         )
-
         return (
             ExtendedKalmanFilter(
                 initial_state,
@@ -164,7 +164,6 @@ class GrowthRateCalculator(BackgroundJob):
             publish(
                 f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
                 self.state_[-1],
-                verbose=self.verbose,
                 retain=True,
             )
 
@@ -172,17 +171,13 @@ class GrowthRateCalculator(BackgroundJob):
                 publish(
                     f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{angle_label}",
                     self.state_[i],
-                    verbose=self.verbose,
                 )
 
             return
 
         except Exception as e:
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/error_log",
-                f"[{JOB_NAME}]: failed {e}. Skipping.",
-                verbose=self.verbose,
-            )
+            self.logger.error(f"failed {str(e)}. Skipping.")
+            raise e
 
     def start_passive_listeners(self):
 
@@ -210,26 +205,23 @@ class GrowthRateCalculator(BackgroundJob):
         }
 
 
-def growth_rate_calculating(verbose, ignore_cache):
+def growth_rate_calculating(ignore_cache):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
     try:
         calculator = GrowthRateCalculator(  # noqa: F841
-            verbose=verbose, ignore_cache=ignore_cache, unit=unit, experiment=experiment
+            ignore_cache=ignore_cache, unit=unit, experiment=experiment
         )
         while True:
             signal.pause()
     except Exception as e:
-        publish(
-            f"pioreactor/{unit}/{experiment}/error_log",
-            f"[{JOB_NAME}]: failed {e}.",
-            verbose=verbose,
-        )
+        logging.getLogger(JOB_NAME).error(f"failed {str(e)}.")
+        raise e
 
 
 @click.command(name="growth_rate_calculating")
-@click.option("--verbose", "-v", count=True, help="Print to std out")
 @click.option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
-def click_growth_rate_calculating(verbose, ignore_cache):
-    growth_rate_calculating(verbose, ignore_cache)
+def click_growth_rate_calculating(ignore_cache):
+    # Start the growth rate calculating job
+    growth_rate_calculating(ignore_cache)

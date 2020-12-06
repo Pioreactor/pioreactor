@@ -3,8 +3,9 @@ import time
 import json
 from collections import defaultdict
 from statistics import median, variance
+import logging
+
 import click
-from click import echo, style
 
 from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
@@ -12,23 +13,17 @@ from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor import pubsub
 from pioreactor.background_jobs.od_reading import od_reading
 
-
-def green(msg):
-    return style(msg, fg="green")
+logger = logging.getLogger("od_normalization")
 
 
-def bold(msg):
-    return style(msg, bold=True)
-
-
-def od_normalization(od_angle_channel, verbose, unit=None, experiment=None):
+def od_normalization(od_angle_channel, unit=None, experiment=None):
     if "stirring" not in pio_jobs_running():
         raise ValueError("stirring jobs should be running. Run `mb stirring -b` first. ")
 
     if "od_reading" not in pio_jobs_running():
         # we sample faster, because we can...
         sampling_rate = 0.5
-        signal = od_reading(od_angle_channel, verbose, sampling_rate)
+        signal = od_reading(od_angle_channel, sampling_rate)
     else:
         # not tested
         def yield_from_mqtt():
@@ -37,9 +32,6 @@ def od_normalization(od_angle_channel, verbose, unit=None, experiment=None):
                 yield json.loads(msg.payload)
 
         signal = yield_from_mqtt()
-
-    echo()
-    echo(bold(f"This task will compute statistics from {unit}."))
 
     time.sleep(0.5)
     readings = defaultdict(list)
@@ -61,38 +53,27 @@ def od_normalization(od_angle_channel, verbose, unit=None, experiment=None):
         for sensor, reading_series in readings.items():
             # measure the variance and publish. The variance will be used in downstream jobs.
             var = variance(reading_series)
-            echo(green(f"variance of {sensor} = {var}"))
             variances[sensor] = var
             # measure the median and publish. The median will be used to normalize the readings in downstream jobs
             med = median(reading_series)
-            echo(green(f"median of {sensor} = {med}"))
             medians[sensor] = med
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_normalization/variance",
             json.dumps(variances),
             qos=pubsub.QOS.AT_LEAST_ONCE,
-            verbose=verbose,
             retain=True,
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_normalization/median",
             json.dumps(medians),
             qos=pubsub.QOS.AT_LEAST_ONCE,
-            verbose=verbose,
             retain=True,
-        )
-        echo(
-            bold(
-                "Gathering of statistics complete. They are stored in the message broker."
-            )
         )
         return
     except Exception as e:
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/error_log",
-            f"[od_normalization]: failed with {str(e)}",
-        )
+        logger.error(f"failed with {str(e)}")
+        raise e
 
 
 @click.command(name="od_normalization")
@@ -108,13 +89,7 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 
 """,
 )
-@click.option(
-    "--verbose",
-    "-v",
-    count=True,
-    help="print to std. out (may be redirected to pioreactor.log). Increasing values log more.",
-)
-def click_od_normalization(od_angle_channel, verbose):
+def click_od_normalization(od_angle_channel):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
-    od_normalization(od_angle_channel, verbose, unit, experiment)
+    od_normalization(od_angle_channel, unit, experiment)

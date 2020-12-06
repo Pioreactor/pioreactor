@@ -10,7 +10,7 @@ import json
 import click
 
 
-from pioreactor.pubsub import subscribe_and_callback, publish
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
 from pioreactor.utils.timing import RepeatedTimer
@@ -122,10 +122,7 @@ class TimeSeriesAggregation(BackgroundJob):
             self.aggregated_time_series = {"series": [], "data": []}
             self.write()
         else:
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/log",
-                "Only empty messages allowed to empty the cache.",
-            )
+            self.logger.warning("Only empty messages allowed to empty the cache.")
 
     def start_passive_listeners(self):
         self.pubsub_clients.append(subscribe_and_callback(self.on_message, self.topic))
@@ -145,9 +142,8 @@ class TimeSeriesAggregation(BackgroundJob):
     help="the output directory",
 )
 @click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
-@click.option("--verbose", "-v", count=True, help="print to std.out")
-def click_time_series_aggregating(output_dir, skip_cache, verbose):
-
+def click_time_series_aggregating(output_dir, skip_cache):
+    # start the job that aggregates time series data and caches it for the PioreactorUI
     unit = get_unit_from_hostname()
 
     def single_sensor_label_from_topic(topic):
@@ -164,7 +160,6 @@ def click_time_series_aggregating(output_dir, skip_cache, verbose):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_raw_time_series_aggregating",
         unit=unit,
-        verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
         write_every_n_seconds=15,
@@ -178,7 +173,6 @@ def click_time_series_aggregating(output_dir, skip_cache, verbose):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_filtered_time_series_aggregating",
         unit=unit,
-        verbose=verbose,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
         write_every_n_seconds=15,
@@ -192,7 +186,6 @@ def click_time_series_aggregating(output_dir, skip_cache, verbose):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="growth_rate_time_series_aggregating",
         unit=unit,
-        verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=15,
@@ -205,7 +198,6 @@ def click_time_series_aggregating(output_dir, skip_cache, verbose):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="alt_media_fraction_time_series_aggregating",
         unit=unit,
-        verbose=verbose,
         skip_cache=skip_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=15,

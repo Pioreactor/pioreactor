@@ -16,6 +16,7 @@ To change setting over MQTT:
 import time, sys, os, signal
 
 import json
+import logging
 from datetime import datetime
 
 import click
@@ -73,14 +74,13 @@ class IOAlgorithm(BackgroundSubJob):
         self,
         unit=None,
         experiment=None,
-        verbose=0,
         duration=60,
         sensor="135/A",
         skip_first_run=False,
         **kwargs,
     ):
         super(IOAlgorithm, self).__init__(
-            job_name="io_controlling", verbose=verbose, unit=unit, experiment=experiment
+            job_name="io_controlling", unit=unit, experiment=experiment
         )
 
         self.latest_event = None
@@ -88,19 +88,17 @@ class IOAlgorithm(BackgroundSubJob):
         self.sensor = sensor
         self.skip_first_run = skip_first_run
         self.alt_media_calculator = AltMediaCalculator(
-            unit=self.unit, experiment=self.experiment, verbose=self.verbose
+            unit=self.unit, experiment=self.experiment
         )
         self.throughput_calculator = ThroughputCalculator(
-            unit=self.unit, experiment=self.experiment, verbose=self.verbose
+            unit=self.unit, experiment=self.experiment
         )
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
         self.set_duration(duration)
         self.start_passive_listeners()
 
-        publish(
-            f"pioreactor/{unit}/{experiment}/log",
-            f"[{self.job_name}]: starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}",
-            verbose=verbose,
+        self.logger.info(
+            f"starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
         )
 
     def clear_mqtt_cache(self):
@@ -185,11 +183,7 @@ class IOAlgorithm(BackgroundSubJob):
         else:
             event = self.execute(counter)
 
-        publish(
-            f"pioreactor/{self.unit}/{self.experiment}/log",
-            f"[{self.job_name}]: triggered {event}.",
-            verbose=self.verbose,
-        )
+        self.logger.info(f"triggered {event}.")
         self.latest_event = event
         return event
 
@@ -212,7 +206,6 @@ class IOAlgorithm(BackgroundSubJob):
                         "waste_ml": waste_ml,
                     }
                 ),
-                verbose=self.verbose,
             )
 
         max_ = 0.3
@@ -243,22 +236,32 @@ class IOAlgorithm(BackgroundSubJob):
             if alt_media_ml > 0:
                 add_alt_media(
                     ml=alt_media_ml,
-                    verbose=self.verbose,
                     source_of_event="io_controlling",
+                    unit=self.unit,
+                    experiment=self.experiment,
                 )
                 brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
             if media_ml > 0:
                 add_media(
-                    ml=media_ml, verbose=self.verbose, source_of_event="io_controlling"
+                    ml=media_ml,
+                    source_of_event="io_controlling",
+                    unit=self.unit,
+                    experiment=self.experiment,
                 )
                 brief_pause()
             if waste_ml > 0:
                 remove_waste(
-                    ml=waste_ml, verbose=self.verbose, source_of_event="io_controlling"
+                    ml=waste_ml,
+                    source_of_event="io_controlling",
+                    unit=self.unit,
+                    experiment=self.experiment,
                 )
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 remove_waste(
-                    duration=2, verbose=self.verbose, source_of_event="io_controlling"
+                    duration=2,
+                    source_of_event="io_controlling",
+                    unit=self.unit,
+                    experiment=self.experiment,
                 )
                 brief_pause()
 
@@ -350,7 +353,6 @@ class PIDTurbidostat(IOAlgorithm):
             setpoint=self.target_od,
             output_limits=(0, 1),
             sample_time=None,
-            verbose=self.verbose,
             unit=self.unit,
             experiment=self.experiment,
         )
@@ -396,10 +398,8 @@ class PIDMorbidostat(IOAlgorithm):
     As defined in Zhong 2020
     """
 
-    def __init__(
-        self, target_growth_rate=None, target_od=None, volume=None, verbose=0, **kwargs
-    ):
-        super(PIDMorbidostat, self).__init__(verbose=verbose, **kwargs)
+    def __init__(self, target_growth_rate=None, target_od=None, volume=None, **kwargs):
+        super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
 
@@ -416,22 +416,18 @@ class PIDMorbidostat(IOAlgorithm):
             setpoint=self.target_growth_rate,
             output_limits=(0, 1),
             sample_time=None,
-            verbose=self.verbose,
             unit=self.unit,
             experiment=self.experiment,
         )
 
         if volume is not None:
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/log",
-                f"[{self.job_name}]: Ignoring volume parameter; volume set by target growth rate and duration.",
-                verbose=self.verbose,
+            self.logger.info(
+                "Ignoring volume parameter; volume set by target growth rate and duration."
             )
 
         self.volume = round(
             self.target_growth_rate * VIAL_VOLUME * (self.duration / 60), 4
         )
-        self.verbose = verbose
 
     def execute(self, *args, **kwargs) -> events.Event:
         if self.latest_od <= self.min_od:
@@ -445,10 +441,8 @@ class PIDMorbidostat(IOAlgorithm):
 
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_od > self.max_od:
-                publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/log",
-                    f"[{self.job_name}]: executing triple dilution since we are above max OD, {self.max_od:.2f}.",
-                    verbose=self.verbose,
+                self.logger.info(
+                    f"executing triple dilution since we are above max OD, {self.max_od:.2f}."
                 )
                 volume = 2.5 * self.volume
             else:
@@ -526,16 +520,13 @@ class AlgoController(BackgroundJob):
 
     editable_settings = ["io_algorithm"]
 
-    def __init__(self, io_algorithm, unit=None, experiment=None, verbose=0, **kwargs):
+    def __init__(self, io_algorithm, unit=None, experiment=None, **kwargs):
         super(AlgoController, self).__init__(
-            job_name="algorithm_controlling",
-            unit=unit,
-            experiment=experiment,
-            verbose=verbose,
+            job_name="algorithm_controlling", unit=unit, experiment=experiment
         )
         self.io_algorithm = io_algorithm
         self.io_algorithm_job = self.algorithms[self.io_algorithm](
-            unit=self.unit, experiment=self.experiment, verbose=self.verbose, **kwargs
+            unit=self.unit, experiment=self.experiment, **kwargs
         )
 
     def set_io_algorithm(self, new_io_algorithm_json):
@@ -544,18 +535,12 @@ class AlgoController(BackgroundJob):
             self.io_algorithm_job.set_state("disconnected")
 
             self.io_algorithm_job = self.algorithms[algo_init["io_algorithm"]](
-                unit=self.unit,
-                experiment=self.experiment,
-                verbose=self.verbose,
-                **algo_init,
+                unit=self.unit, experiment=self.experiment, **algo_init
             )
             self.io_algorithm = algo_init["io_algorithm"]
 
         except Exception as e:
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/error_log",
-                f"[{self.job_name}]: failed with {e}",
-            )
+            self.logger.error(f"failed with {str(e)}")
 
     def on_disconnect(self):
         self.io_algorithm_job.set_state("disconnected")
@@ -574,15 +559,12 @@ class AlgoController(BackgroundJob):
             )
 
 
-def run(
-    mode=None, duration=None, verbose=0, sensor="135/A", skip_first_run=False, **kwargs
-):
+def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
 
     try:
 
-        kwargs["verbose"] = verbose
         kwargs["duration"] = duration
         kwargs["unit"] = unit
         kwargs["experiment"] = experiment
@@ -595,11 +577,7 @@ def run(
             signal.pause()
 
     except Exception as e:
-        publish(
-            f"pioreactor/{unit}/{experiment}/error_log",
-            f"[io_controlling]: failed {str(e)}",
-            verbose=verbose,
-        )
+        logging.getLogger("io_controlling").error(f"failed {str(e)}")
         raise e
 
 
@@ -608,6 +586,7 @@ def run(
     "--mode",
     default="silent",
     help="set the mode of the system: turbidostat, pioreactor, silent, etc.",
+    show_default=True,
 )
 @click.option("--target-od", default=None, type=float)
 @click.option(
@@ -617,17 +596,16 @@ def run(
     "--duration", default=60, help="Time, in minutes, between every monitor check"
 )
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
-@click.option("--sensor", default="135/A")
+@click.option("--sensor", default="135/A", show_default=True)
 @click.option(
     "--skip-first-run",
     is_flag=True,
     help="Normally IO will run immediately. Set this flag to wait <duration>min before executing.",
 )
-@click.option("--verbose", "-v", count=True, help="print to std.out")
 def click_io_controlling(
-    mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run, verbose
+    mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
 ):
-
+    # start the IO controlling job
     controller = run(  # noqa: F841
         mode=mode,
         target_od=target_od,
@@ -636,5 +614,4 @@ def click_io_controlling(
         volume=volume,
         skip_first_run=skip_first_run,
         sensor=sensor,
-        verbose=verbose,
     )

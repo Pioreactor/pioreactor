@@ -4,32 +4,23 @@
 
 import zipfile
 import os
+from datetime import datetime
+import logging
+import click
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.pubsub import publish
-from pioreactor import whoami
-from datetime import datetime
-import click
+
+logger = logging.getLogger("download_experiment_data")
 
 
 def download_experiment_data(experiment, output, tables):
     import pandas as pd
     import sqlite3
 
-    if not whoami.am_I_leader():
-        print(
-            f"This command should be run on the {config.leader_hostname} node, not worker."
-        )
-        return
-
-    publish(
-        f"pioreactor/{whoami.unit}/{whoami.experiment}/log",
-        f"Starting export of experiment data to {output}.",
-        verbose=1,
-    )
-
     if experiment == "current":
         experiment = get_latest_experiment_name()
+
+    logger.info(f"Starting export of experiment data to {output}.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
     zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
@@ -50,11 +41,7 @@ def download_experiment_data(experiment, output, tables):
 
     zf.close()
 
-    publish(
-        f"pioreactor/{whoami.unit}/{whoami.experiment}/log",
-        f"Completed export of experiment data to {output}.",
-        verbose=1,
-    )
+    logger.info(f"Completed export of experiment data to {output}.")
     return
 
 
