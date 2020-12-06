@@ -8,12 +8,8 @@ command line for running the same command on all workers,
 > pios kill <substring>
 """
 from concurrent.futures import ThreadPoolExecutor
-import click
 
-try:
-    import paramiko
-except ImportError:
-    pass
+import click
 
 from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 
@@ -102,6 +98,9 @@ def sync(units):
     Deploys the config.inis from the leader to the workers, pulls and installs the latest code from Github to the
     workers.
     """
+
+    import paramiko
+
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
@@ -150,6 +149,8 @@ def sync_configs(units):
     Deploys the leader's config.inis to the workers.
     """
 
+    import paramiko
+
     def _thread_function(unit):
         print(f"Executing on {unit}...")
         try:
@@ -185,26 +186,21 @@ def kill(process, units, y):
     later will clear all jobs, but maybe other python scripts too.)
 
     """
+    from sh import ssh
+
     if not y:
         confirm = input(f"Confirm killing `{process}` on {units}? Y/n: ").strip()
         if confirm != "Y":
             return
 
-    kill = f"kill `pgrep -f {process}`"
+    kill = f"pkill -f {process}"
     command = " && ".join([kill])
 
     def _thread_function(unit):
-        print(f"Executing on {unit}...")
         hostname = unit_to_hostname(unit)
 
-        s = paramiko.SSHClient()
-        s.load_system_host_keys()
-        s.connect(hostname, username="pi")
-
-        (stdin, stdout, stderr) = s.exec_command(command)
-        for line in stderr.readlines():
-            pass
-        s.close()
+        print(f"Executing on {unit}...")
+        ssh(hostname, command)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -223,6 +219,8 @@ def kill(process, units, y):
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 @click.pass_context
 def run(ctx, job, units, y):
+    from sh import ssh
+
     extra_args = list(ctx.args)
 
     command = ["nohup", "pio", "run", job, *extra_args, ">/dev/null", "2>&1", "&"]
@@ -235,16 +233,7 @@ def run(ctx, job, units, y):
 
     def _thread_function(unit):
         hostname = unit_to_hostname(unit)
-
-        s = paramiko.SSHClient()
-        s.load_system_host_keys()
-        s.connect(hostname, username="pi")
-
-        print(f"Executing on {unit}...")
-        (stdin, stdout, stderr) = s.exec_command(command)
-        for line in stderr.readlines():
-            print(unit + ":" + line)
-        s.close()
+        ssh(hostname, command)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
