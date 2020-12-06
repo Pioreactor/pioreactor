@@ -88,5 +88,6 @@ class ThroughputCalculator(BackgroundSubJob):
                 callback=self.on_io_event,
                 topics=f"pioreactor/{self.unit}/{self.experiment}/io_events",
                 qos=QOS.EXACTLY_ONCE,
+                job_name=self.job_name,
             )
         )

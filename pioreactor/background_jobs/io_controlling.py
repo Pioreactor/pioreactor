@@ -284,12 +284,14 @@ class IOAlgorithm(BackgroundSubJob):
             subscribe_and_callback(
                 self.set_OD,
                 f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
+                job_name=self.job_name,
             )
         )
         self.pubsub_clients.append(
             subscribe_and_callback(
                 self.set_growth_rate,
                 f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
+                job_name=self.job_name,
             )
         )
 

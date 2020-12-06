@@ -3,12 +3,10 @@ import socket
 import time
 import threading
 import logging
-import traceback
 from click import echo, style
 from pioreactor.config import leader_hostname
 
 # this can be improved by including job name, thread name, etc.
-logger = logging.getLogger("pioreactor")
 
 
 class QOS:
@@ -106,6 +104,7 @@ def subscribe_and_callback(
     timeout=None,
     max_msgs=None,
     last_will=None,
+    job_name=None,
     **mqtt_kwargs,
 ):
     """
@@ -119,6 +118,8 @@ def subscribe_and_callback(
         the client will process <max_msgs> messages before disconnecting.
     last_will: dict
         a dictionary describing the last will details: topic, qos, retain, msg.
+    job_name:
+        Optional: provide the job name, and logging will include it.
     """
     import paho.mqtt.client as mqtt
 
@@ -143,15 +144,21 @@ def subscribe_and_callback(
                 return actual_callback(message)
 
             except Exception as e:
+                import traceback
+
                 traceback.print_exc()
 
+                logger = logging.getLogger(userdata.get("job_name", "pioreactor"))
                 logger.error(str(e))
                 raise e
 
         return _callback
 
     topics = [topics] if isinstance(topics, str) else topics
-    userdata = {"topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics]}
+    userdata = {
+        "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
+        "job_name": job_name,
+    }
 
     if max_msgs:
         userdata["count"] = 0

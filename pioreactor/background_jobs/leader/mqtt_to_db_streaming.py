@@ -11,7 +11,7 @@ from collections import namedtuple
 from datetime import datetime
 
 
-from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.pubsub import subscribe_and_callback, QOS
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
@@ -68,7 +68,10 @@ class MqttToDBStreamer(BackgroundJob):
         for topic_and_callback in self.topics_and_callbacks:
             self.pubsub_clients.append(
                 subscribe_and_callback(
-                    topic_and_callback["callback"], topic_and_callback["topic"]
+                    topic_and_callback["callback"],
+                    topic_and_callback["topic"],
+                    job_name=self.job_name,
+                    qos=QOS.EXACTLY_ONCE,
                 )
             )
 

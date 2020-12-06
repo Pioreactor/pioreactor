@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-# test background_job
-import pytest
 import time
 
-from pioreactor.background_jobs import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.pubsub import publish
 
@@ -26,5 +24,14 @@ def test_states():
     pause()
     assert bj.state == "sleeping"
 
-    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "disconnected")
+    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "ready")
     pause()
+    assert bj.state == "ready"
+
+    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "init")
+    pause()
+    assert bj.state == "init"
+
+    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "foo")
+    pause()
+    assert bj.state == "init"

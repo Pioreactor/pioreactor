@@ -125,11 +125,14 @@ class TimeSeriesAggregation(BackgroundJob):
             self.logger.warning("Only empty messages allowed to empty the cache.")
 
     def start_passive_listeners(self):
-        self.pubsub_clients.append(subscribe_and_callback(self.on_message, self.topic))
+        self.pubsub_clients.append(
+            subscribe_and_callback(self.on_message, self.topic, job_name=self.job_name)
+        )
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.on_clear,  # TODO: update client
+                self.on_clear,
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/aggregated_time_series/set",
+                job_name=self.job_name,
             )
         )
 

@@ -187,6 +187,7 @@ class GrowthRateCalculator(BackgroundJob):
                 self.update_state_from_observation,
                 f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
                 qos=QOS.EXACTLY_ONCE,
+                job_name=self.job_name,
             )
         )
         self.pubsub_clients.append(
@@ -194,6 +195,7 @@ class GrowthRateCalculator(BackgroundJob):
                 self.update_ekf_variance_after_io_event,
                 f"pioreactor/{self.unit}/{self.experiment}/io_events",
                 qos=QOS.EXACTLY_ONCE,
+                job_name=self.job_name,
             )
         )
 

@@ -77,9 +77,13 @@ class BackgroundJob:
         def exit_python(*args):
             sys.exit(0)
 
-        signal.signal(signal.SIGTERM, disconnect_gracefully)
-        signal.signal(signal.SIGINT, disconnect_gracefully)
-        signal.signal(signal.SIGUSR1, exit_python)
+        try:
+            signal.signal(signal.SIGTERM, disconnect_gracefully)
+            signal.signal(signal.SIGINT, disconnect_gracefully)
+            signal.signal(signal.SIGUSR1, exit_python)
+        except Exception:
+            # if we set "init" state from MQTT, this code runs in a thread and will fail.
+            pass
 
         atexit.register(disconnect_gracefully)
 
@@ -193,6 +197,7 @@ class BackgroundJob:
                 ],
                 qos=QOS.EXACTLY_ONCE,
                 last_will=last_will,
+                job_name=self.job_name,
             )
         )
 
