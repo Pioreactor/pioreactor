@@ -1,5 +1,6 @@
 install-python:
-	sudo apt-get update & sudo apt install -y python3-pip
+	sudo apt-get update
+	sudo apt install -y python3-pip
 	sudo apt-get install -y python3-numpy
 
 install-mqtt:
@@ -60,6 +61,10 @@ install-pioreactor-worker:
 	mkdir -p ~/.pioreactor
 	touch ~/.pioreactor/unit_config.ini
 
+logging:
+	sudo touch /var/log/pioreactor.log
+	sudo chown pi /var/log/pioreactor.log
+
 install-db:
 	sudo apt-get install -y sqlite3
 	sqlite3 /home/pi/db/pioreactor.sqlite
@@ -70,9 +75,6 @@ configure-rpi:
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
 
-install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker
+install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader replace-config systemd-leader
-
-test:
-	py.test -s
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging

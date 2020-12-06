@@ -9,6 +9,8 @@ cmd line interface for running individual pioreactor units (including leader)
 import click
 from pioreactor.whoami import am_I_leader
 from pioreactor.config import config
+from pioreactor import background_jobs as jobs
+from pioreactor import actions
 
 
 @click.group()
@@ -16,7 +18,7 @@ def pio():
     pass
 
 
-@pio.command(name="logs", short_help="tail the logs")
+@pio.command(name="logs", short_help="tail the log file")
 def logs():
     """
     Tail the logs from /var/log/pioreactor.log to the terminal. CTRL-C to exit.
@@ -49,31 +51,26 @@ def kill(process):
 
 
 @pio.group()
-def run():
+def run(short_help="run a job"):
     pass
 
 
 if am_I_leader():
-    from pioreactor import background_jobs as bj
-    from pioreactor import actions as a
+    run.add_command(jobs.log_aggregating.click_log_aggregating)
+    run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
+    run.add_command(jobs.time_series_aggregating.click_time_series_aggregating)
 
-    run.add_command(bj.log_aggregating.click_log_aggregating)
-    run.add_command(bj.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
-    run.add_command(bj.time_series_aggregating.click_time_series_aggregating)
-
-    run.add_command(a.download_experiment_data.click_download_experiment_data)
+    run.add_command(actions.download_experiment_data.click_download_experiment_data)
 
 
 else:
-    from pioreactor import background_jobs as bj
-    from pioreactor import actions as a
 
-    run.add_command(bj.growth_rate_calculating.click_growth_rate_calculating)
-    run.add_command(bj.stirring.click_stirring)
-    run.add_command(bj.od_reading.click_od_reading)
-    run.add_command(bj.io_controlling.click_io_controlling)
+    run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
+    run.add_command(jobs.stirring.click_stirring)
+    run.add_command(jobs.od_reading.click_od_reading)
+    run.add_command(jobs.io_controlling.click_io_controlling)
 
-    run.add_command(a.add_alt_media.click_add_alt_media)
-    run.add_command(a.add_media.click_add_media)
-    run.add_command(a.remove_waste.click_remove_waste)
-    run.add_command(a.od_normalization.click_od_normalization)
+    run.add_command(actions.add_alt_media.click_add_alt_media)
+    run.add_command(actions.add_media.click_add_media)
+    run.add_command(actions.remove_waste.click_remove_waste)
+    run.add_command(actions.od_normalization.click_od_normalization)
