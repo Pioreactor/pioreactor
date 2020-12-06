@@ -225,7 +225,7 @@ def kill(process, units, y):
 def run(ctx, job, units, y):
     extra_args = list(ctx.args)
 
-    command = ["pio", "run", job] + extra_args + ["-b"]
+    command = ["nohup", "pio", "run", job, *extra_args, ">/dev/null", "2>&1", "&"]
     command = " ".join(command)
 
     if not y:
