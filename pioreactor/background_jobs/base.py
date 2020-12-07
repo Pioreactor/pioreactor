@@ -116,7 +116,7 @@ class BackgroundJob:
         self.logger.debug(self.pubsub_clients)
         for client in self.pubsub_clients:
             client.loop_stop()  # takes a second or two.
-            self.logger.debug(self, client.disconnect())
+            self.logger.debug(f"{self}, {client}, {client.disconnect()}")
 
         # set state to disconnect
         self.state = self.DISCONNECTED
