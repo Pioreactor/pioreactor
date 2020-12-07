@@ -78,7 +78,9 @@ class BackgroundJob:
             self.set_state("disconnected")
 
         def exit_python(*args):
-            time.sleep(1)
+            time.sleep(
+                1
+            )  # this is for race conflicts - without it was causing the MQTT client to disconnect wrong and a last-will was sent.
             sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,
@@ -113,11 +115,10 @@ class BackgroundJob:
     def disconnected(self):
         # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
+
         # disconnect from the passive subscription threads
-        self.logger.debug(self.pubsub_clients)
         for client in self.pubsub_clients:
             client.loop_stop()  # takes a second or two.
-            self.logger.debug(f"{self}, {client}, {client.disconnect()}")
 
         # set state to disconnect
         self.state = self.DISCONNECTED
