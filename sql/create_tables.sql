@@ -12,7 +12,6 @@ CREATE INDEX IF NOT EXISTS od_readings_raw_ix
 ON od_readings_raw (experiment, pioreactor_unit, angle);
 
 
-
 CREATE TABLE IF NOT EXISTS alt_media_fraction (
     timestamp              TEXT  NOT NULL,
     pioreactor_unit        TEXT  NOT NULL,

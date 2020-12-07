@@ -2,6 +2,7 @@
 import signal
 import os
 import sys
+import threading
 import atexit
 from collections import namedtuple
 import logging
@@ -75,17 +76,22 @@ class BackgroundJob:
             self.set_state("disconnected")
 
         def exit_python(*args):
+            self.logger.debug("exit_python")
             sys.exit(0)
 
-        try:
+        # signals only work in main thread - and if we set state via MQTT,
+        # this runs in a thread
+        if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGTERM, disconnect_gracefully)
             signal.signal(signal.SIGINT, disconnect_gracefully)
             signal.signal(signal.SIGUSR1, exit_python)
-        except Exception:
-            # if we set "init" state from MQTT, this code runs in a thread and will fail.
-            pass
+            atexit.register(disconnect_gracefully)
 
-        atexit.register(disconnect_gracefully)
+        # if we re-init (via MQTT, close previous threads)
+        for client in self.pubsub_clients:
+            client.loop_stop()
+            client.disconnect()
+        self.pubsub_clients = []
 
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
@@ -107,7 +113,7 @@ class BackgroundJob:
         # disconnect from the passive subscription threads
         for client in self.pubsub_clients:
             client.loop_stop()  # takes a second or two.
-            client.disconnect()
+            assert client.disconnect() == 0
 
         # set state to disconnect
         self.state = self.DISCONNECTED
@@ -179,6 +185,7 @@ class BackgroundJob:
         )
 
     def start_general_passive_listeners(self) -> None:
+
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
             "payload": self.LOST,
@@ -188,18 +195,18 @@ class BackgroundJob:
 
         # listen to changes in editable properties
         # everyone listens to $BROADCAST (TODO: even leader?)
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.set_attr_from_message,
-                [
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
-                    f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
-                ],
-                qos=QOS.EXACTLY_ONCE,
-                last_will=last_will,
-                job_name=self.job_name,
-            )
+        client = subscribe_and_callback(
+            self.set_attr_from_message,
+            [
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
+                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
+            ],
+            qos=QOS.EXACTLY_ONCE,
+            last_will=last_will,
+            job_name=self.job_name,
         )
+        client.name = "test"
+        self.pubsub_clients.append(client)
 
     def check_for_duplicate_process(self):
         if (

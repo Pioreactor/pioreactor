@@ -5,9 +5,6 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
 from pioreactor.pubsub import publish
 
-unit = get_unit_from_hostname()
-exp = get_latest_experiment_name()
-
 
 def pause():
     # to avoid race conditions
@@ -15,6 +12,8 @@ def pause():
 
 
 def test_states():
+    unit = get_unit_from_hostname()
+    exp = get_latest_experiment_name()
 
     bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
     pause()
@@ -32,6 +31,5 @@ def test_states():
     pause()
     assert bj.state == "init"
 
-    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "foo")
+    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "disconnected")
     pause()
-    assert bj.state == "init"

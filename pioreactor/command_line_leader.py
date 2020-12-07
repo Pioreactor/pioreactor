@@ -12,8 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 import click
 
 from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
+from pioreactor.config import get_units_and_ips
 
-ALL_UNITS = ["1", "2", "3"]  # how is this updated when we add new units?
 ALL_WORKER_JOBS = [
     "stirring",
     "growth_rate_calculating",
@@ -33,7 +33,7 @@ def unit_to_hostname(unit):
 
 def universal_identifier_to_all_units(units):
     if units == (UNIVERSAL_IDENTIFIER,):
-        return ALL_UNITS
+        return list(get_units_and_ips().keys())
     else:
         return units
 

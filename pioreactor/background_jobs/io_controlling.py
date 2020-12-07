@@ -408,9 +408,9 @@ class PIDMorbidostat(IOAlgorithm):
         self.set_target_growth_rate(target_growth_rate)
         self.target_od = target_od
 
-        Kp = config["pid_morbidostat"]["Kp"]
-        Ki = config["pid_morbidostat"]["Ki"]
-        Kd = config["pid_morbidostat"]["Kd"]
+        Kp = float(config["pid_morbidostat"]["Kp"])
+        Ki = float(config["pid_morbidostat"]["Ki"])
+        Kd = float(config["pid_morbidostat"]["Kd"])
         self.pid = PID(
             -Kp,
             -Ki,

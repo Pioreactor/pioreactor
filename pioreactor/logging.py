@@ -48,7 +48,7 @@ file_handler.setFormatter(
 
 # define a Handler which writes INFO messages or higher to the sys.stderr
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
+console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(
     logging.Formatter(
         "%(asctime)s [%(name)s] %(levelname)-2s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
