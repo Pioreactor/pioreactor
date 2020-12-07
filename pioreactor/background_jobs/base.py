@@ -113,6 +113,7 @@ class BackgroundJob:
         # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
         # disconnect from the passive subscription threads
+        self.logger.debug(self.pubsub_clients)
         for client in self.pubsub_clients:
             client.loop_stop()  # takes a second or two.
             self.logger.debug(self, client.disconnect())
