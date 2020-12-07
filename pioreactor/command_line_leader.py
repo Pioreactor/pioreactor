@@ -35,7 +35,7 @@ def universal_identifier_to_all_units(units):
     if units == (UNIVERSAL_IDENTIFIER,):
         return list(get_units_and_ips().keys())
     else:
-        return units
+        return list(map(unit_to_hostname, units))
 
 
 def checksum_git(s):
@@ -106,10 +106,9 @@ def sync(units):
     setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, setup])
 
-    def _thread_function(unit):
-        print(f"Executing on {unit}...")
+    def _thread_function(hostname):
+        print(f"Executing on {hostname}...")
         try:
-            hostname = unit_to_hostname(unit)
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
@@ -125,19 +124,19 @@ def sync(units):
                 print(e)
                 return
 
-            sync_config_files(client, unit)
+            sync_config_files(client, hostname)
 
             client.close()
 
         except Exception:
             import traceback
 
-            print(f"unit={unit}")
+            print(f"hostname={hostname}")
             traceback.print_exc()
 
-    units = universal_identifier_to_all_units(units)
-    with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+    hostnames = universal_identifier_to_all_units(units)
+    with ThreadPoolExecutor(max_workers=len(hostnames)) as executor:
+        executor.map(_thread_function, hostnames)
 
 
 @pios.command(name="sync-configs", short_help="sync config")
@@ -151,27 +150,26 @@ def sync_configs(units):
 
     import paramiko
 
-    def _thread_function(unit):
-        print(f"Executing on {unit}...")
+    def _thread_function(hostname):
+        print(f"Executing on {hostname}...")
         try:
-            hostname = unit_to_hostname(unit)
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
             client.connect(hostname, username="pi")
 
-            sync_config_files(client, unit)
+            sync_config_files(client, hostname)
 
             client.close()
         except Exception:
             import traceback
 
-            print(f"unit={unit}")
+            print(f"hostname={hostname}")
             traceback.print_exc()
 
-    units = universal_identifier_to_all_units(units)
-    with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+    hostnames = universal_identifier_to_all_units(units)
+    with ThreadPoolExecutor(max_workers=len(hostnames)) as executor:
+        executor.map(_thread_function, hostnames)
 
 
 @pios.command("kill", short_help="kill a job on workers")
