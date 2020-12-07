@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import signal
 import os
+import time
 import sys
 import threading
 import atexit
@@ -77,7 +78,7 @@ class BackgroundJob:
             self.set_state("disconnected")
 
         def exit_python(*args):
-            self.logger.debug("exit_python")
+            time.sleep(1)
             sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,

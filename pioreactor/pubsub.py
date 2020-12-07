@@ -174,8 +174,12 @@ def subscribe_and_callback(
     client.connect(leader_hostname, **mqtt_kwargs)
     client.loop_start()
 
+    def stop_and_disconnect():
+        client.loop_stop()
+        client.disconnect()
+
     if timeout:
-        threading.Timer(timeout, lambda: client.loop_stop()).start()
+        threading.Timer(timeout, lambda: stop_and_disconnect()).start()
 
     return client
 
