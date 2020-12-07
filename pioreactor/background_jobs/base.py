@@ -68,6 +68,7 @@ class BackgroundJob:
 
     def init(self):
         self.state = self.INIT
+        self.logger.info(self.INIT)
 
         def disconnect_gracefully(*args):
             if self.state == self.DISCONNECTED:
@@ -98,9 +99,11 @@ class BackgroundJob:
 
     def ready(self):
         self.state = self.READY
+        self.logger.info(self.READY)
 
     def sleeping(self):
         self.state = self.SLEEPING
+        self.logger.info(self.SLEEPING)
 
     def on_disconnect(self):
         # specific things to do when a job disconnects / exits
@@ -109,15 +112,14 @@ class BackgroundJob:
     def disconnected(self):
         # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
-
         # disconnect from the passive subscription threads
         for client in self.pubsub_clients:
             client.loop_stop()  # takes a second or two.
-            assert client.disconnect() == 0
+            self.logger.debug(self, client.disconnect())
 
         # set state to disconnect
         self.state = self.DISCONNECTED
-
+        self.logger.info(self.DISCONNECTED)
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         os.kill(os.getpid(), signal.SIGUSR1)
 
@@ -138,7 +140,6 @@ class BackgroundJob:
 
     def set_state(self, new_state):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
-        self.logger.info(f"{new_state}")
         getattr(self, new_state)()
 
     def set_attr_from_message(self, message):

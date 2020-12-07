@@ -556,3 +556,16 @@ def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
     pause()
     pause()
     assert algo.io_algorithm_job.target_od == 1.5
+
+
+def test_disconnect_cleanly():
+
+    algo = AlgoController(
+        "turbidostat", target_od=1.0, duration=5 / 60, unit=unit, experiment=experiment
+    )
+    assert algo.io_algorithm == "turbidostat"
+    assert isinstance(algo.io_algorithm_job, Turbidostat)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/algorithm_controlling/$state/set", "disconnected"
+    )
+    time.sleep(10)
