@@ -15,11 +15,9 @@ logger = logging.getLogger(JOB_NAME)
 unit = get_unit_from_hostname()
 
 
-class WatchDog(BackgroundJob):
+class Monitor(BackgroundJob):
     def __init__(self, unit, experiment):
-        super(WatchDog, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment
-        )
+        super(Monitor, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
         self.disk_usage_timer = RepeatedTimer(60 * 60, self.get_and_publish_disk_space)
 
     def get_and_publish_disk_space(self):
@@ -30,20 +28,18 @@ class WatchDog(BackgroundJob):
         if disk_usage_percent <= 90:
             logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
-            logger.error(f"Disk space at {disk_usage_percent}%.")
+            logger.warning(f"Disk space at {disk_usage_percent}%.")
         publish(
-            f"pioreactor/{self.unit}/{self.experiment}/watchdog/disk_usage_percent",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/disk_usage_percent",
             disk_usage_percent,
         )
 
 
-@click.command(name="watchdog")
-def click_watchdog(duty_cycle):
+@click.command(name="monitor")
+def click_monitor():
     """
     Start the watchdog on a unit. Reports back to the leader.
     """
-    heidi = WatchDog(  # noqa: F841
-        unit=get_unit_from_hostname(), exp=UNIVERSAL_EXPERIMENT
-    )
+    heidi = Monitor(unit=get_unit_from_hostname(), exp=UNIVERSAL_EXPERIMENT)  # noqa: F841
 
     signal.pause()

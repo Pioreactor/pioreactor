@@ -23,15 +23,16 @@ systemd-worker:
 	sudo cp /home/pi/pioreactor/startup/systemd/stirring.service /lib/systemd/system/stirring.service
 	sudo cp /home/pi/pioreactor/startup/systemd/od_reading.service /lib/systemd/system/od_reading.service
 	sudo cp /home/pi/pioreactor/startup/systemd/growth_rate_calculating.service /lib/systemd/system/growth_rate_calculating.service
-	sudo cp /home/pi/pioreactor/startup/systemd/watchdog_worker.service /lib/systemd/system/watchdog_worker.service
+	sudo cp /home/pi/pioreactor/startup/systemd/monitor_pioreactor.service /lib/systemd/system/monitor_pioreactor.service
+
 	sudo chmod 644 /lib/systemd/system/stirring.service
-	sudo chmod 644 /lib/systemd/system/watchdog_worker.service
+	sudo chmod 644 /lib/systemd/system/monitor_pioreactor.service
 	sudo chmod 644 /lib/systemd/system/growth_rate_calculating.service
 	sudo chmod 644 /lib/systemd/system/od_reading.service
 
 	sudo systemctl daemon-reload
 	sudo systemctl enable od_reading.service
-	sudo systemctl enable watchdog_worker.service
+	sudo systemctl enable monitor_pioreactor.service
 	sudo systemctl enable stirring.service
 	sudo systemctl enable growth_rate_calculating.service
 
@@ -51,6 +52,11 @@ systemd-leader:
 	sudo cp /home/pi/pioreactor/startup/systemd/mqtt_to_db_streaming.service /lib/systemd/system/mqtt_to_db_streaming.service
 	sudo chmod 644 /lib/systemd/system/mqtt_to_db_streaming.service
 	sudo systemctl enable mqtt_to_db_streaming.service
+
+	sudo cp /home/pi/pioreactor/startup/systemd/watchdog.service /lib/systemd/system/watchdog.service
+	sudo chmod 644 /lib/systemd/system/watchdog.service
+	sudo systemctl enable watchdog.service
+
 
 install-pioreactor-leader:
 	sudo python3 setup.py install
