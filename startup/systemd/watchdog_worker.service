@@ -1,11 +1,11 @@
 [Unit]
-Description=In case of an RPi power-cycle mid-experiment, start up time series aggregating.
+Description=In case of an RPi power-cycle mid-experiment, start up watchdog on workers.
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 User=pi
-ExecStart=pio run time_series_aggregating
+ExecStart=pio run watchdog
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
 KillMode=none

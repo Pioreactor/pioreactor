@@ -24,6 +24,7 @@ ALL_WORKER_JOBS = [
     "add_media",
     "remove_waste",
     "od_normalization",
+    "watchdog",
 ]
 
 

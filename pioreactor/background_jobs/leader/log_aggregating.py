@@ -42,14 +42,12 @@ class LogAggregation(BackgroundJob):
     def on_message(self, message):
         try:
             unit = message.topic.split("/")[1]
-            is_error = message.topic.endswith("error_log")
             self.aggregated_log_table.insert(
                 0,
                 {
                     "timestamp": current_time(),
                     "message": message.payload.decode(),
                     "unit": unit,
-                    "is_error": is_error,
                 },
             )
             self.aggregated_log_table = self.aggregated_log_table[
@@ -103,9 +101,9 @@ class LogAggregation(BackgroundJob):
     help="the output file",
 )
 def click_log_aggregating(output):
-    # start aggregating (error) log events from MQTT and cache for the PioreactorUI
+    # start aggregating log events from MQTT and cache for the PioreactorUI
     logs = LogAggregation(  # noqa: F841
-        ["pioreactor/+/+/log", "pioreactor/+/+/error_log"],
+        ["pioreactor/+/+/log"],
         output,
         experiment=UNIVERSAL_EXPERIMENT,
         unit=get_unit_from_hostname(),

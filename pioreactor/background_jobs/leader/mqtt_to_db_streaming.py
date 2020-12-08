@@ -192,7 +192,6 @@ def click_mqtt_to_db_streaming():
             "parser": parse_alt_media_fraction,
         },
         {"topic": "pioreactor/+/+/log", "table": "logs", "parser": parse_logs},
-        {"topic": "pioreactor/+/+/error_log", "table": "logs", "parser": parse_logs},
     ]
 
     streamer = MqttToDBStreamer(  # noqa: F841

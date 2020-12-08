@@ -78,9 +78,8 @@ class BackgroundJob:
             self.set_state("disconnected")
 
         def exit_python(*args):
-            time.sleep(
-                1
-            )  # this is for race conflicts - without it was causing the MQTT client to disconnect wrong and a last-will was sent.
+            # this is for race conflicts - without it was causing the MQTT client to disconnect wrong and a last-will was sent.
+            time.sleep(1)
             sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,
@@ -93,8 +92,9 @@ class BackgroundJob:
 
         # if we re-init (via MQTT, close previous threads)
         for client in self.pubsub_clients:
-            client.loop_stop()
+            client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
+
         self.pubsub_clients = []
 
         self.declare_settable_properties_to_broker()
@@ -118,7 +118,8 @@ class BackgroundJob:
 
         # disconnect from the passive subscription threads
         for client in self.pubsub_clients:
-            client.loop_stop()  # takes a second or two.
+            client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+            client.disconnect()
 
         # set state to disconnect
         self.state = self.DISCONNECTED

@@ -69,6 +69,7 @@ else:
     run.add_command(jobs.stirring.click_stirring)
     run.add_command(jobs.od_reading.click_od_reading)
     run.add_command(jobs.io_controlling.click_io_controlling)
+    run.add_command(jobs.watchdog.click_watchdog)
 
     run.add_command(actions.add_alt_media.click_add_alt_media)
     run.add_command(actions.add_media.click_add_media)
