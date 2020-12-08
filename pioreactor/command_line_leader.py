@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 import click
 
 from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
-from pioreactor.config import get_units_and_ips
+from pioreactor.config import get_active_worker_units_and_ips
 
 ALL_WORKER_JOBS = [
     "stirring",
@@ -38,7 +38,7 @@ def hostname_to_unit(hostname):
 
 def universal_identifier_to_all_units(units):
     if units == (UNIVERSAL_IDENTIFIER,):
-        hostnames = get_units_and_ips().keys()
+        hostnames = get_active_worker_units_and_ips().keys()
         units = list(map(hostname_to_unit, hostnames))
     return units
 

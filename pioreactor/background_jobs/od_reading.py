@@ -135,7 +135,8 @@ INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
 
 
 def od_reading(
-    od_angle_channel, sampling_rate=1 / float(config["od_sampling"]["samples_per_second"])
+    od_angle_channel,
+    sampling_rate=1 / float(config["od_config.od_sampling"]["samples_per_second"]),
 ):
 
     import board
@@ -168,7 +169,7 @@ def od_reading(
 @click.option(
     "--od-angle-channel",
     multiple=True,
-    default=list(config["od_config"].values()),
+    default=list(config["od_config.sensor_to_adc_pin"].values()),
     type=click.STRING,
     show_default=True,
     help="""

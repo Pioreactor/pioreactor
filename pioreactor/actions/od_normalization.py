@@ -80,7 +80,7 @@ def od_normalization(od_angle_channel, unit=None, experiment=None):
 @click.option(
     "--od-angle-channel",
     multiple=True,
-    default=list(config["od_config"].values()),
+    default=list(config["od_config.sensor_to_adc_pin"].values()),
     type=click.STRING,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:

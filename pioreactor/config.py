@@ -21,12 +21,17 @@ config = get_config()
 
 
 def get_leader_hostname():
-    return config["topology"]["leader_hostname"]
+    return config["network.topology"]["leader_hostname"]
 
 
-def get_units_and_ips():
+def get_active_worker_units_and_ips():
     return dict(
-        [(unit, ip) for unit, ip in config["network"].items() if unit != "leader"]
+        [
+            (unit, ip)
+            for unit, ip in config["network.ips"].items()
+            if unit != config["network.topology"]["leader_hostname"]
+            and config["inventory"].getBoolean(unit)
+        ]
     )
 
 
