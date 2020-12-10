@@ -74,7 +74,7 @@ class Stirrer(BackgroundJob):
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
 
-def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=None):
+def stirring(duty_cycle=0, duration=None):
     experiment = get_latest_experiment_name()
 
     try:
@@ -98,7 +98,7 @@ def stirring(duty_cycle=int(config["stirring"][f"duty_cycle{unit}"]), duration=N
 @click.command(name="stirring")
 @click.option(
     "--duty-cycle",
-    default=int(config["stirring"][f"duty_cycle{unit}"]),
+    default=config.getint("stirring", f"duty_cycle{unit}", 0),
     help="set the duty cycle",
     show_default=True,
     type=click.IntRange(0, 100, clamp=True),
