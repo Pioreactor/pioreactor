@@ -98,7 +98,7 @@ def stirring(duty_cycle=0, duration=None):
 @click.command(name="stirring")
 @click.option(
     "--duty-cycle",
-    default=config.getint("stirring", f"duty_cycle{unit}", 0),
+    default=config.getint("stirring", f"duty_cycle{unit}", fallback=0),
     help="set the duty cycle",
     show_default=True,
     type=click.IntRange(0, 100, clamp=True),
