@@ -81,7 +81,7 @@ class LogAggregation(BackgroundJob):
 
     def start_passive_listeners(self):
         self.pubsub_clients.append(
-            subscribe_and_callback(self.on_message, self.topics), job_name=self.job_name
+            subscribe_and_callback(self.on_message, self.topics, job_name=self.job_name)
         )
         self.pubsub_clients.append(
             subscribe_and_callback(
