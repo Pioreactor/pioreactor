@@ -112,7 +112,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def set_initial_growth_rate(self):
         if self.ignore_cache:
-            return 1
+            return 0
 
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
