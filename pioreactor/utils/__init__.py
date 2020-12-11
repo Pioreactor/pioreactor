@@ -6,8 +6,8 @@ def pio_jobs_running():
 
     jobs = []
     for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
-        if proc.info["cmdline"] and (proc.info["cmdline"][0] == "python3"):
-            job = proc.info["cmdline"][3].split(".")[-1]
+        if proc.info["cmdline"] and (proc.info["cmdline"][0] == "/usr/bin/python3"):
+            job = proc.info["cmdline"][3]
             jobs.append(job)
     return jobs
 
