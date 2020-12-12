@@ -72,7 +72,7 @@ class TimeSeriesAggregation(BackgroundJob):
         try:
             with gzip.open(self.output, "r") as f:
                 return json.loads(f.read().decode("utf-8"))
-        except gzip.BadGzipFile:
+        except OSError:  # TODO: 3.8 replace with BadGzipFile
             # try loading as json?
             with open(self.output, "r") as f:
                 return json.load(f)
