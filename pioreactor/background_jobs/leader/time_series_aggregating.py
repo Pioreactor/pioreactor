@@ -4,6 +4,7 @@ This file contains N jobs that run on the leader, and is a replacement for the N
 """
 import signal
 import time
+import gzip
 import os
 import json
 
@@ -63,20 +64,25 @@ class TimeSeriesAggregation(BackgroundJob):
 
     @property
     def output(self):
-        return self.output_dir + self.job_name + ".json"
+        return self.output_dir + self.job_name + ".json.gz"
 
     def read(self, skip_cache):
         if skip_cache:
             return {"series": [], "data": []}
         try:
+            with gzip.open(self.output, "r") as f:
+                return json.loads(f.read().decode("utf-8"))
+        except gzip.BadGzipFile:
+            # try loading as json?
             with open(self.output, "r") as f:
                 return json.load(f)
-        except Exception:
+        except Exception as e:
+            self.logger.debug(f"Loading failed or not found. {str(e)}")
             return {"series": [], "data": []}
 
     def write(self):
         self.latest_write = current_time()
-        with open(self.output, "w") as f:
+        with gzip.open(self.output, mode="wt") as f:
             json.dump(self.aggregated_time_series, f)
 
     def append_cache_and_clear(self):
