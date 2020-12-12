@@ -18,6 +18,7 @@ logger = logging.getLogger("od_normalization")
 
 def od_normalization(od_angle_channel, unit=None, experiment=None):
     if "stirring" not in pio_jobs_running():
+        logger.error("stirring jobs should be running. Run `mb stirring -b` first.")
         raise ValueError("stirring jobs should be running. Run `mb stirring -b` first. ")
 
     if "od_reading" not in pio_jobs_running():

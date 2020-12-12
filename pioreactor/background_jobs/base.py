@@ -209,6 +209,7 @@ class BackgroundJob:
             qos=QOS.EXACTLY_ONCE,
             last_will=last_will,
             job_name=self.job_name,
+            keepalive=20,  # slightly lower than the default 60, as we want to know quickly when the client has failed / broke
         )
         client.name = "test"
         self.pubsub_clients.append(client)
