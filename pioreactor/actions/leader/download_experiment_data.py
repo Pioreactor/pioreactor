@@ -41,7 +41,7 @@ def download_experiment_data(experiment, output, tables):
 
     zf.close()
 
-    logger.info(f"Completed export of experiment data to {output}.")
+    logger.info("Completed export of experiment data.")
     return
 
 

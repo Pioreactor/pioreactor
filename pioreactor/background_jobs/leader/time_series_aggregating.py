@@ -171,7 +171,7 @@ def click_time_series_aggregating(output_dir, skip_cache):
         unit=unit,
         skip_cache=skip_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_seconds=15,
+        write_every_n_seconds=30,
         time_window_seconds=60
         * int(config["dashboard.settings"]["raw_od_lookback_minutes"]),
         record_every_n_seconds=5,
@@ -188,7 +188,7 @@ def click_time_series_aggregating(output_dir, skip_cache):
         write_every_n_seconds=15,
         time_window_seconds=60
         * int(config["dashboard.settings"]["filtered_od_lookback_minutes"]),
-        record_every_n_seconds=5,
+        record_every_n_seconds=4,
     )
 
     growth_rate = TimeSeriesAggregation(  # noqa: F841

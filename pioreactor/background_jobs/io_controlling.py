@@ -587,7 +587,7 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
 @click.option(
     "--mode",
     default="silent",
-    help="set the mode of the system: turbidostat, pioreactor, silent, etc.",
+    help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
     show_default=True,
 )
 @click.option("--target-od", default=None, type=float)
