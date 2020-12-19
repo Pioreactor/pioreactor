@@ -173,6 +173,9 @@ class IOAlgorithm(BackgroundSubJob):
     def run(self, counter=None):
         self.logger.debug(self.latest_growth_rate)
         self.logger.debug(self.latest_od)
+        self.logger.debug(self.state)
+        self.logger.debug(self.most_stale_time)
+        self.logger.debug(counter)
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             time.sleep(5)  # wait some time for data to arrive, and try again.
             return self.run(counter=counter)
@@ -185,6 +188,7 @@ class IOAlgorithm(BackgroundSubJob):
                 "readings are too stale (over 5 minutes old) - are `Optical density job` and `Growth rate job` running?"
             )
         else:
+            self.logger.debug("here")
             event = self.execute(counter)
 
         self.logger.info(f"triggered {event}.")
