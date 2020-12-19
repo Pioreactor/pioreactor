@@ -171,6 +171,8 @@ class IOAlgorithm(BackgroundSubJob):
             self.latest_settings_ended_at = None
 
     def run(self, counter=None):
+        self.logger.debug(self.latest_growth_rate)
+        self.logger.debug(self.latest_od)
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             time.sleep(5)  # wait some time for data to arrive, and try again.
             return self.run(counter=counter)
