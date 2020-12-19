@@ -95,9 +95,13 @@ class IOAlgorithm(BackgroundSubJob):
         self.throughput_calculator = ThroughputCalculator(
             unit=self.unit, experiment=self.experiment
         )
+        self.logger.debug("here3")
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
+        self.logger.debug("here4")
         self.set_duration(duration)
+        self.logger.debug("here5")
         self.start_passive_listeners()
+        self.logger.debug("here6")
 
         self.logger.info(
             f"starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
