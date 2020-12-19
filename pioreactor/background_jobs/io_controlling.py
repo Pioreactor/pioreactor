@@ -532,6 +532,7 @@ class AlgoController(BackgroundJob):
         self.io_algorithm_job = self.algorithms[self.io_algorithm](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
+        self.logger.debug(self.io_algorithm_job)
 
     def set_io_algorithm(self, new_io_algorithm_json):
         # TODO: this needs a better rollback. Ex: in except, something like
@@ -541,6 +542,8 @@ class AlgoController(BackgroundJob):
         # OR should just bail...
         try:
             algo_init = json.loads(new_io_algorithm_json)
+            self.logger.debug(dir(self))
+
             self.io_algorithm_job.set_state("disconnected")
 
             self.io_algorithm_job = self.algorithms[algo_init["io_algorithm"]](
