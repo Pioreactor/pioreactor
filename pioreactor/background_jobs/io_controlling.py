@@ -549,6 +549,8 @@ class AlgoController(BackgroundJob):
             self.io_algorithm = algo_init["io_algorithm"]
 
         except Exception as e:
+            self.logger.debug(new_io_algorithm_json)
+            self.logger.debug(f"failed with {str(e)}", exc_info=True)
             self.logger.error(f"failed with {str(e)}")
 
     def on_disconnect(self):
