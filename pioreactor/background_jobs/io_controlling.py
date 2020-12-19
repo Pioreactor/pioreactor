@@ -95,13 +95,9 @@ class IOAlgorithm(BackgroundSubJob):
         self.throughput_calculator = ThroughputCalculator(
             unit=self.unit, experiment=self.experiment
         )
-        self.logger.debug("here3")
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
-        self.logger.debug("here4")
         self.set_duration(duration)
-        self.logger.debug("here5")
         self.start_passive_listeners()
-        self.logger.debug("here6")
 
         self.logger.info(
             f"starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
@@ -533,12 +529,10 @@ class AlgoController(BackgroundJob):
             job_name="algorithm_controlling", unit=unit, experiment=experiment
         )
         self.io_algorithm = io_algorithm
-        self.logger.debug("here1")
 
         self.io_algorithm_job = self.algorithms[self.io_algorithm](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-        self.logger.debug("here2")
         self.logger.debug(self.io_algorithm_job)
 
     def set_io_algorithm(self, new_io_algorithm_json):
@@ -549,7 +543,6 @@ class AlgoController(BackgroundJob):
         # OR should just bail...
         try:
             algo_init = json.loads(new_io_algorithm_json)
-            self.logger.debug(dir(self))
 
             self.io_algorithm_job.set_state("disconnected")
 
@@ -559,7 +552,6 @@ class AlgoController(BackgroundJob):
             self.io_algorithm = algo_init["io_algorithm"]
 
         except Exception as e:
-            self.logger.debug(new_io_algorithm_json)
             self.logger.debug(f"failed with {str(e)}", exc_info=True)
             self.logger.error(f"failed with {str(e)}")
 
