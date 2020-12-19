@@ -77,7 +77,7 @@ def add_media(
 
         GPIO.output(MEDIA_PIN, 0)
 
-        if user_submitted_ml is not None:
+        if user_submitted_ml:
             logger.info(f"add media: {round(ml,2)}mL")
         else:
             logger.info(f"add media: {round(duration,2)}s")

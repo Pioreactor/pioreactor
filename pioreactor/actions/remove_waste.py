@@ -76,7 +76,7 @@ def remove_waste(
 
         GPIO.output(WASTE_PIN, 0)
 
-        if user_submitted_ml is not None:
+        if user_submitted_ml:
             logger.info(f"remove waste: {round(ml,2)}mL")
         else:
             logger.info(f"remove waste: {round(duration,2)}s")
