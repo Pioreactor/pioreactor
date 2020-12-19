@@ -54,8 +54,8 @@ class RepeatedTimer:
         self.is_running = False
         self.daemon = True
         self.start()
-        # if run_immediately:
-        #    Timer(0, self.function, self.args, self.kwargs).start()
+        if run_immediately:
+            Timer(0, self.function, self.args, self.kwargs).start()
 
     def _run(self):
         self.is_running = False

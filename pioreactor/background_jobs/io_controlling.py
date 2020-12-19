@@ -116,7 +116,7 @@ class IOAlgorithm(BackgroundSubJob):
             )
 
     def set_duration(self, value):
-        self.duration = value
+        self.duration = float(value)
         try:
             self.timer_thread.cancel()
         except AttributeError:
@@ -124,7 +124,7 @@ class IOAlgorithm(BackgroundSubJob):
         finally:
             if self.duration is not None:
                 self.timer_thread = RepeatedTimer(
-                    float(self.duration) * 60,
+                    self.duration * 60,
                     self.run,
                     run_immediately=(not self.skip_first_run),
                 ).start()
@@ -171,11 +171,6 @@ class IOAlgorithm(BackgroundSubJob):
             self.latest_settings_ended_at = None
 
     def run(self, counter=None):
-        self.logger.debug(self.latest_growth_rate)
-        self.logger.debug(self.latest_od)
-        self.logger.debug(self.state)
-        self.logger.debug(self.most_stale_time)
-        self.logger.debug(counter)
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             time.sleep(5)  # wait some time for data to arrive, and try again.
             return self.run(counter=counter)
@@ -188,7 +183,6 @@ class IOAlgorithm(BackgroundSubJob):
                 "readings are too stale (over 5 minutes old) - are `Optical density job` and `Growth rate job` running?"
             )
         else:
-            self.logger.debug("here")
             event = self.execute(counter)
 
         self.logger.info(f"triggered {event}.")
