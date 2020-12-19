@@ -161,10 +161,8 @@ class BackgroundJob:
         # a subclass may want to define a `set_<attr>` method that will be used instead
         # for example, see Stirring, and `set_state` here
         if hasattr(self, "set_%s" % attr):
-            try:
-                getattr(self, "set_%s" % attr)(new_value)
-            except AttributeError:
-                pass
+            getattr(self, "set_%s" % attr)(new_value)
+
         else:
             try:
                 # make sure to cast the input to the same value
