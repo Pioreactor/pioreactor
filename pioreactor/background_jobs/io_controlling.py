@@ -529,10 +529,12 @@ class AlgoController(BackgroundJob):
             job_name="algorithm_controlling", unit=unit, experiment=experiment
         )
         self.io_algorithm = io_algorithm
+        self.logger.debug("here1")
+
         self.io_algorithm_job = self.algorithms[self.io_algorithm](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-        self.logger.debug("hello")
+        self.logger.debug("here2")
         self.logger.debug(self.io_algorithm_job)
 
     def set_io_algorithm(self, new_io_algorithm_json):
