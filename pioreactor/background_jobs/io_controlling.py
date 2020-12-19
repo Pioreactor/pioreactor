@@ -87,6 +87,8 @@ class IOAlgorithm(BackgroundSubJob):
 
         self.sensor = sensor
         self.skip_first_run = skip_first_run
+
+        # the below subjobs should run in the "init()"?
         self.alt_media_calculator = AltMediaCalculator(
             unit=self.unit, experiment=self.experiment
         )
@@ -532,6 +534,11 @@ class AlgoController(BackgroundJob):
         )
 
     def set_io_algorithm(self, new_io_algorithm_json):
+        # TODO: this needs a better rollback. Ex: in except, something like
+        # self.io_algorithm_job.set_state("init")
+        # self.io_algorithm_job.set_state("ready")
+        # [ ] write tests
+        # OR should just bail...
         try:
             algo_init = json.loads(new_io_algorithm_json)
             self.io_algorithm_job.set_state("disconnected")

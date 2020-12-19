@@ -87,3 +87,4 @@ configure-rpi:
 install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging
 
 install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging
+	sudo apt-get install sshpass

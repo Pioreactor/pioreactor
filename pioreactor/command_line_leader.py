@@ -8,11 +8,13 @@ command line for running the same command on all workers,
 > pios kill <substring>
 """
 from concurrent.futures import ThreadPoolExecutor
+import logging
 
 import click
 
 from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
 from pioreactor.config import get_active_worker_units_and_ips
+
 
 ALL_WORKER_JOBS = [
     "stirring",
@@ -26,6 +28,8 @@ ALL_WORKER_JOBS = [
     "od_normalization",
     "watchdog",
 ]
+
+logger = logging.getLogger("leader CLI")
 
 
 def unit_to_hostname(unit):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time, traceback, sys
+import time, sys
 from threading import Timer
 
 
@@ -55,7 +55,7 @@ class RepeatedTimer:
         self.daemon = True
         self.start()
         if run_immediately:
-            Timer(0, self.function, self.args, self.kwargs)
+            self.function(*self.args, **self.kwargs)
 
     def _run(self):
         self.is_running = False
