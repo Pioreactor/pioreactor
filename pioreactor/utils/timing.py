@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import time, sys
 from threading import Timer
+import logging
 
 
 def every(delay, task, *args, **kwargs):
@@ -58,6 +59,8 @@ class RepeatedTimer:
         #    Timer(0, self.function, self.args, self.kwargs).start()
 
     def _run(self):
+        logging.getLogger("RepeatedTimer").debug("here")
+        logging.getLogger("RepeatedTimer").debug(self.function)
         self.is_running = False
         self.start()
         self.function(*self.args, **self.kwargs)
