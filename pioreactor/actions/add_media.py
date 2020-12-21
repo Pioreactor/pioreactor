@@ -4,6 +4,7 @@ import time, os, sys
 from json import loads, dumps
 import click
 import logging
+import signal
 
 if "pytest" in sys.modules or os.environ.get("TESTING"):
     import fake_rpi
@@ -89,6 +90,10 @@ def add_media(
     return
 
 
+def cleanUpGPIO():
+    GPIO.cleanup(int(config["rpi_pins"]["media"]))
+
+
 @click.command(name="add_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
@@ -102,4 +107,7 @@ def add_media(
 def click_add_media(ml, duration, duty_cycle, source_of_event):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
+
+    signal.signal(signal.SIGTERM, cleanUpGPIO)
+
     return add_media(ml, duration, duty_cycle, source_of_event, unit, experiment)

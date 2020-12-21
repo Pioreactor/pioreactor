@@ -2,6 +2,7 @@
 import time, sys, os
 from json import loads, dumps
 import logging
+import signal
 import click
 
 if "pytest" in sys.modules or os.environ.get("TESTING"):
@@ -83,8 +84,12 @@ def add_alt_media(
         logger.error(f"failed with {str(e)}")
         raise e
     finally:
-        GPIO.cleanup(ALT_MEDIA_PIN)
+        cleanUpGPIO()
     return
+
+
+def cleanUpGPIO():
+    GPIO.cleanup(int(config["rpi_pins"]["alt_media"]))
 
 
 @click.command(name="add_alt_media")
@@ -100,6 +105,9 @@ def add_alt_media(
 def click_add_alt_media(ml, duration, duty_cycle, source_of_event):
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
+
+    signal.signal(signal.SIGTERM, cleanUpGPIO)
+
     return add_alt_media(
         ml, duration, duty_cycle, source_of_event, unit=unit, experiment=experiment
     )

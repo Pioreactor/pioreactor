@@ -20,7 +20,7 @@ def download_experiment_data(experiment, output, tables):
     if experiment == "current":
         experiment = get_latest_experiment_name()
 
-    logger.info(f"Starting export of experiment data to {output}.")
+    logger.info("Starting export of data.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
     zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
@@ -41,7 +41,7 @@ def download_experiment_data(experiment, output, tables):
 
     zf.close()
 
-    logger.info("Completed export of experiment data.")
+    logger.info("Completed export of data.")
     return
 
 

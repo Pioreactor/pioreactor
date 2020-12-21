@@ -8,10 +8,20 @@ import atexit
 from collections import namedtuple
 import logging
 
+if "pytest" in sys.modules or os.environ.get("TESTING"):
+    import fake_rpi
+
+    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+import RPi.GPIO as GPIO
+
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import publish, QOS
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
+
+GPIO.setmode(GPIO.BCM)
 
 
 def split_topic_for_setting(topic):
@@ -83,7 +93,7 @@ class BackgroundJob:
             sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,
-        # this runs in a thread
+        # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGTERM, disconnect_gracefully)
             signal.signal(signal.SIGINT, disconnect_gracefully)
@@ -120,6 +130,9 @@ class BackgroundJob:
         for client in self.pubsub_clients:
             client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
+
+        # clean up any active GPIOs
+        GPIO.cleanup()
 
         # set state to disconnect
         self.state = self.DISCONNECTED

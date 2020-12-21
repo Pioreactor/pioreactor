@@ -558,6 +558,34 @@ def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
     assert algo.io_algorithm_job.target_od == 1.5
 
 
+def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        None,
+        retain=True,
+    )
+
+    algo = AlgoController(
+        "pid_turbidostat",
+        volume=1.0,
+        target_od=0.4,
+        duration=2 / 60,
+        unit=unit,
+        experiment=experiment,
+    )
+    assert algo.io_algorithm == "pid_turbidostat"
+    pause()
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
+        '{"io_algorithm": "pid_turbidostat", "duration": "60", "target_od": "1.0", "volume": "1.0"}',
+    )
+    time.sleep(
+        7
+    )  # need to wait for all jobs to disconnect correctly and threads to join.
+    assert isinstance(algo.io_algorithm_job, PIDTurbidostat)
+    assert algo.io_algorithm_job.target_od == 1.0
+
+
 def test_disconnect_cleanly():
 
     algo = AlgoController(

@@ -4,6 +4,7 @@ import time, os, sys
 from json import loads, dumps
 import logging
 import click
+import signal
 
 if "pytest" in sys.modules or os.environ.get("TESTING"):
     import fake_rpi
@@ -89,6 +90,10 @@ def remove_waste(
     return
 
 
+def cleanUpGPIO():
+    GPIO.cleanup(int(config["rpi_pins"]["waste"]))
+
+
 @click.command(name="remove_waste")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
@@ -103,5 +108,6 @@ def click_remove_waste(ml, duration, duty_cycle, source_of_event):
 
     unit = get_unit_from_hostname()
     experiment = get_latest_experiment_name()
+    signal.signal(signal.SIGTERM, cleanUpGPIO)
 
     return remove_waste(ml, duration, duty_cycle, source_of_event, unit, experiment)
