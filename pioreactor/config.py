@@ -29,8 +29,7 @@ def get_active_worker_units_and_ips():
         [
             (unit, ip)
             for unit, ip in config["network.ips"].items()
-            if unit != config["network.topology"]["leader_hostname"]
-            and config["inventory"].getboolean(unit)
+            if config["inventory"].getboolean(unit)
         ]
     )
 

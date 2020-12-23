@@ -92,8 +92,7 @@ install-leader: install-python install-mqtt configure-mqtt-websockets configure-
 	sudo apt-get install sshpass
 
 install-leader-as-worker: install-leader install-worker
-
-test:
+	# I had trouble with variables, quotes and dollar signs, so https://stackoverflow.com/questions/10121182/multiline-bash-commands-in-makefile/29085684#29085684
 	{ \
 	set -e ;\
 	unitN=$$(hostname | sed "s/^pioreactor\(.*\)$$/\1/") ;\
