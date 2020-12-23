@@ -88,7 +88,7 @@ configure-rpi:
 install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
 
 install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files
-	ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa <<< y
+	ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 	sudo apt-get install sshpass
 
 install-leader-as-worker: install-leader install-worker
