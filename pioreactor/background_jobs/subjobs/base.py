@@ -5,18 +5,8 @@ from pioreactor.background_jobs.base import BackgroundJob
 class BackgroundSubJob(BackgroundJob):
     # don't listen for signal handlers - parents take care of disconnecting us. But we _must_ be a child,
 
-    def init(self):
-        self.state = self.INIT
-        self.logger.info(self.INIT)
-
-        # if we re-init (via MQTT, close previous threads)
-        for client in self.pubsub_clients:
-            client.loop_stop()
-            client.disconnect()
-        self.pubsub_clients = []
-
-        self.declare_settable_properties_to_broker()
-        self.start_general_passive_listeners()
+    def setup_disconnect_protocol(self):
+        pass
 
     def disconnected(self):
         # subjobs don't send a USR signal to end the job.

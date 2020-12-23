@@ -76,19 +76,17 @@ class BackgroundJob:
         self.check_for_duplicate_process()
         self.set_state(self.INIT)
         self.set_state(self.READY)
+        self.setup_disconnect_protocol()
 
-    def init(self):
-        self.state = self.INIT
-        self.logger.info(self.INIT)
-
+    def setup_disconnect_protocol(self):
+        # here, we set up how jobs should disconnect and exit.
         def disconnect_gracefully(*args):
             if self.state == self.DISCONNECTED:
                 return
-
             self.set_state("disconnected")
 
         def exit_python(*args):
-            # this is for race conflicts - without it was causing the MQTT client to disconnect wrong and a last-will was sent.
+            # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect wrong and a last-will was sent.
             time.sleep(1)
             sys.exit(0)
 
@@ -97,8 +95,12 @@ class BackgroundJob:
         if threading.current_thread() is threading.main_thread():
             signal.signal(signal.SIGTERM, disconnect_gracefully)
             signal.signal(signal.SIGINT, disconnect_gracefully)
-            signal.signal(signal.SIGUSR1, exit_python)
             atexit.register(disconnect_gracefully)
+            signal.signal(signal.SIGUSR1, exit_python)
+
+    def init(self):
+        self.state = self.INIT
+        self.logger.info(self.INIT)
 
         # if we re-init (via MQTT, close previous threads)
         for client in self.pubsub_clients:
@@ -125,7 +127,6 @@ class BackgroundJob:
     def disconnected(self):
         # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
-
         # disconnect from the passive subscription threads
         for client in self.pubsub_clients:
             client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
@@ -137,6 +138,7 @@ class BackgroundJob:
         # set state to disconnect
         self.state = self.DISCONNECTED
         self.logger.info(self.DISCONNECTED)
+
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         os.kill(os.getpid(), signal.SIGUSR1)
 

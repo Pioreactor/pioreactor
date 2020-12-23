@@ -63,6 +63,11 @@ def add_alt_media(
         qos=QOS.EXACTLY_ONCE,
     )
 
+    if user_submitted_ml:
+        logger.info(f"add alt media: {round(ml,2)}mL")
+    else:
+        logger.info(f"add alt media: {round(duration,2)}s")
+
     try:
 
         ALT_MEDIA_PIN = int(config["rpi_pins"]["alt_media"])
@@ -76,10 +81,6 @@ def add_alt_media(
 
         GPIO.output(ALT_MEDIA_PIN, 0)
 
-        if user_submitted_ml:
-            logger.info(f"add alt media: {round(ml,2)}mL")
-        else:
-            logger.info(f"add alt media: {round(duration,2)}s")
     except Exception as e:
         logger.error(f"failed with {str(e)}")
         raise e

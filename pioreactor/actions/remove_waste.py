@@ -64,6 +64,11 @@ def remove_waste(
         qos=QOS.EXACTLY_ONCE,
     )
 
+    if user_submitted_ml:
+        logger.info(f"remove waste: {round(ml,2)}mL")
+    else:
+        logger.info(f"remove waste: {round(duration,2)}s")
+
     try:
 
         WASTE_PIN = int(config["rpi_pins"]["waste"])
@@ -76,11 +81,6 @@ def remove_waste(
         pwm.stop()
 
         GPIO.output(WASTE_PIN, 0)
-
-        if user_submitted_ml:
-            logger.info(f"remove waste: {round(ml,2)}mL")
-        else:
-            logger.info(f"remove waste: {round(duration,2)}s")
     except Exception as e:
         logger.error(f"failed with {str(e)}")
         raise e

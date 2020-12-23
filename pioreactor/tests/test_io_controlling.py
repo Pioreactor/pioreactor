@@ -24,7 +24,7 @@ def pause():
 
 
 def test_silent_algorithm():
-    algo = Silent(volume=None, duration=None, unit=unit, experiment=experiment)
+    algo = Silent(volume=None, duration=60, unit=unit, experiment=experiment)
     pause()
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", "0.01")
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/A", "1.0")
@@ -41,7 +41,7 @@ def test_silent_algorithm():
 def test_turbidostat_algorithm():
     target_od = 1.0
     algo = Turbidostat(
-        target_od=target_od, duration=None, volume=0.25, unit=unit, experiment=experiment
+        target_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
     )
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.01)
@@ -70,7 +70,7 @@ def test_pid_turbidostat_algorithm():
 
     target_od = 2.4
     algo = PIDTurbidostat(
-        target_od=target_od, volume=2.0, duration=None, unit=unit, experiment=experiment
+        target_od=target_od, volume=2.0, duration=60, unit=unit, experiment=experiment
     )
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.01)
@@ -92,7 +92,7 @@ def test_pid_turbidostat_algorithm():
 def test_morbidostat_algorithm():
     target_od = 1.0
     algo = Morbidostat(
-        target_od=target_od, duration=None, volume=0.25, unit=unit, experiment=experiment
+        target_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
     )
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.01)
@@ -186,7 +186,7 @@ def test_changing_turbidostat_params_over_mqtt():
     algo = PIDTurbidostat(
         volume=og_volume,
         target_od=og_target_od,
-        duration=None,
+        duration=60,
         unit=unit,
         experiment=experiment,
     )
@@ -220,7 +220,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter():
     algo = IOAlgorithm(
         target_growth_rate=0.05,
         target_od=1.0,
-        duration=None,
+        duration=60,
         unit=unit,
         experiment=experiment,
     )
@@ -234,7 +234,7 @@ def test_pause_in_io_controlling():
     algo = IOAlgorithm(
         target_growth_rate=0.05,
         target_od=1.0,
-        duration=None,
+        duration=60,
         unit=unit,
         experiment=experiment,
     )
@@ -255,7 +255,7 @@ def test_old_readings_will_not_execute_io():
     algo = IOAlgorithm(
         target_growth_rate=0.05,
         target_od=1.0,
-        duration=None,
+        duration=60,
         unit=unit,
         experiment=experiment,
     )
@@ -538,7 +538,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_io_jobs():
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/algorithm_controlling/io_algorithm/set",
-        '{"io_algorithm": "turbidostat", "duration": null, "target_od": 1.0, "volume": 1.0}',
+        '{"io_algorithm": "turbidostat", "duration": 60, "target_od": 1.0, "volume": 1.0}',
     )
     time.sleep(
         8

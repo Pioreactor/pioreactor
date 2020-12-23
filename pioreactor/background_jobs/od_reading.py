@@ -169,7 +169,7 @@ def od_reading(
 @click.option(
     "--od-angle-channel",
     multiple=True,
-    default=list(config["od_config.sensor_to_adc_pin"].values()),
+    default=config.get("od_config.sensor_to_adc_pin", "od_angle_channel").split("|"),
     type=click.STRING,
     show_default=True,
     help="""
