@@ -92,8 +92,10 @@ install-leader: install-python install-mqtt configure-mqtt-websockets configure-
 	sudo apt-get install sshpass
 
 install-leader-as-worker: install-leader install-worker
+
+test:
 	# add configx.ini too
-	unitN=$(hostname | sed "s/^pioreactor\(.*\)$/\1/")
+	unitN=$(hostname | sed 's/^pioreactor\(.*\)$/\1/')
 	touch .pioreactor/config"$unitN".ini
 
 	# allow ssh to same machine
