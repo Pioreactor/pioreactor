@@ -96,7 +96,7 @@ install-leader-as-worker: install-leader install-worker
 test:
 	# add configx.ini too
 	unitN=$$(hostname | sed 's/^pioreactor\(.*\)$$/\1/')
-	touch .pioreactor/config"$$unitN".ini
+	touch ~/.pioreactor/config"$$unitN".ini
 
 	# allow ssh to same machine
 	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys
