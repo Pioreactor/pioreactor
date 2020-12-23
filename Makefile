@@ -70,7 +70,7 @@ install-pioreactor-worker:
 	mkdir -p ~/.pioreactor
 	touch ~/.pioreactor/unit_config.ini
 
-logging:
+logging-files:
 	sudo touch /var/log/pioreactor.log
 	sudo chown pi /var/log/pioreactor.log
 
@@ -85,7 +85,16 @@ configure-rpi:
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
 
-install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging
+install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging
+install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files
+	ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa <<< y
 	sudo apt-get install sshpass
+
+install-leader-as-worker: install-leader install-worker
+	# add configx.ini too
+	unitN=$(hostname | sed "s/^pioreactor\(.*\)$/\1/")
+	touch .pioreactor/config"$unitN".ini
+
+	# allow ssh to same machine
+	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys
