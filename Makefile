@@ -97,6 +97,6 @@ test:
 	{ \
 	set -e ;\
 	unitN=$$(hostname | sed "s/^pioreactor\(.*\)$$/\1/") ;\
-	touch ~/.pioreactor/config$$(unitN).ini ;\
+	touch ~/.pioreactor/config$$unitN.ini ;\
 	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys ;\
 	}
