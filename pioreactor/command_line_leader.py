@@ -90,11 +90,14 @@ def pios():
     """
     Command each of the worker pioreactors with the `pios` command
     """
+    import sys
+
     if not am_I_leader():
         print("workers cannot run `pios` commands. Try `pio` instead.")
+        sys.exit(0)
 
-        import sys
-
+    if len(get_active_worker_units_and_ips()) == 0:
+        print("No active workers. See `inventory` section in config.ini.")
         sys.exit(0)
 
 
