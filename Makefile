@@ -76,7 +76,8 @@ logging:
 
 install-db:
 	sudo apt-get install -y sqlite3
-	sqlite3 /home/pi/db/pioreactor.sqlite
+	mkdir /home/pi/db
+	touch /home/pi/db/pioreactor.sqlite
 	sqlite3 /home/pi/db/pioreactor.sqlite < sql/create_tables.sql
 
 configure-rpi:
