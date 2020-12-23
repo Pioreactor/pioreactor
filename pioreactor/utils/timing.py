@@ -47,7 +47,7 @@ class RepeatedTimer:
 
     def __init__(self, interval, function, run_immediately=False, *args, **kwargs):
         self._timer = None
-        self.interval = 1 if "pytest" in sys.modules else interval
+        self.interval = interval
         self.function = function
         self.args = args
         self.kwargs = kwargs

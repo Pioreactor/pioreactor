@@ -16,7 +16,7 @@ def pause():
     time.sleep(0.75)
 
 
-def test_subscribe_and_listen_to_clear():
+def test_subscribe_and_listen_to_clear_simple():
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
     publish(f"pioreactor/{unit}1/{experiment}/growth_rate", None, retain=True)
     publish(f"pioreactor/{unit}2/{experiment}/growth_rate", None, retain=True)
@@ -39,12 +39,14 @@ def test_subscribe_and_listen_to_clear():
     publish(f"pioreactor/{unit}1/{experiment}/growth_rate", 1.2)
     publish(f"pioreactor/{unit}2/{experiment}/growth_rate", 1.0)
     pause()
-    assert ts.aggregated_time_series["series"] == ["_testing_unit1", "_testing_unit2"]
+    assert ts.aggregated_time_series["series"] == [f"{unit}1", f"{unit}2"]
 
     publish(
-        f"pioreactor/{unit}/{experiment}/time_series_aggregating/aggregated_time_series/set",
+        f"pioreactor/{leader}/{experiment}/time_series_aggregating/aggregated_time_series/set",
         None,
     )
+    pause()
+    pause()
     pause()
     assert ts.aggregated_time_series["series"] == []
 
@@ -76,7 +78,7 @@ def test_subscribe_and_listen_to_clear_different_formatter():
     ]
 
     publish(
-        f"pioreactor/{unit}/{experiment}/time_series_aggregating/aggregated_time_series/set",
+        f"pioreactor/{leader}/{experiment}/time_series_aggregating/aggregated_time_series/set",
         None,
     )
     pause()
@@ -113,7 +115,7 @@ def test_time_window_seconds():
     assert len(ts.aggregated_time_series["data"][0]) == 1
 
     publish(
-        f"pioreactor/{unit}/{experiment}/time_series_aggregating/aggregated_time_series/set",
+        f"pioreactor/{leader}/{experiment}/time_series_aggregating/aggregated_time_series/set",
         None,
     )
     pause()
@@ -151,7 +153,7 @@ def test_every_n_seconds():
     assert len(ts.aggregated_time_series["data"][0]) == 2
 
     publish(
-        f"pioreactor/{unit}/{experiment}/time_series_aggregating/aggregated_time_series/set",
+        f"pioreactor/{leader}/{experiment}/time_series_aggregating/aggregated_time_series/set",
         None,
     )
     pause()
@@ -181,5 +183,37 @@ def test_passes_multiple_experiments_when_allowed():
     pause()
     publish(f"pioreactor/{unit}/exp2/growth_rate", 1.1)
     pause()
-    print(ts.aggregated_time_series)
     assert [_["y"] for _ in ts.aggregated_time_series["data"][0]] == [1.0, 1.1]
+
+
+def test_drops_really_old_data():
+
+    publish(f"pioreactor/{unit}/exp1/growth_rate", None, retain=True)
+    publish(f"pioreactor/{unit}/exp2/growth_rate", None, retain=True)
+
+    def unit_from_topic(topic):
+        return topic.split("/")[1]
+
+    # NOTE: see the +, this is what is used in production
+    ts = TimeSeriesAggregation(
+        "pioreactor/+/+/growth_rate",
+        output_dir="./",
+        experiment=experiment,
+        unit=leader,
+        skip_cache=True,
+        extract_label=unit_from_topic,
+        record_every_n_seconds=0.1,
+        time_window_seconds=3,
+    )
+
+    publish(f"pioreactor/{unit}/exp1/growth_rate", 1.0)
+    pause()
+    publish(f"pioreactor/{unit}/exp1/growth_rate", 1.1)
+    pause()
+    assert len(ts.aggregated_time_series["data"][0]) > 0
+
+    pause()
+    pause()
+    pause()
+    pause()
+    assert len(ts.aggregated_time_series["data"][0]) == 0

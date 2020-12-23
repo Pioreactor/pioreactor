@@ -92,12 +92,8 @@ class TimeSeriesAggregation(BackgroundJob):
     def update_data_series(self):
         time = current_time()
 
-        for (
-            label,
-            latest_value,
-        ) in (
-            self.cache.copy().items()
-        ):  # copy because a thread may try to update this while iterating.
+        # .copy because a thread may try to update this while iterating.
+        for (label, latest_value) in self.cache.copy().items():
 
             if label not in self.aggregated_time_series["series"]:
                 self.aggregated_time_series["series"].append(label)
@@ -106,11 +102,13 @@ class TimeSeriesAggregation(BackgroundJob):
             ix = self.aggregated_time_series["series"].index(label)
             self.aggregated_time_series["data"][ix].append({"x": time, "y": latest_value})
 
-            if self.time_window_seconds:
+        if self.time_window_seconds:
+            for ix, _ in enumerate(self.aggregated_time_series["data"]):
+                # this is pretty inefficient, but okay for now.
                 self.aggregated_time_series["data"][ix] = [
-                    data
-                    for data in self.aggregated_time_series["data"][ix]
-                    if data["x"] > (current_time() - self.time_window_seconds * 1000)
+                    point
+                    for point in self.aggregated_time_series["data"][ix]
+                    if point["x"] > (current_time() - self.time_window_seconds * 1000)
                 ]
 
     def on_message(self, message):
