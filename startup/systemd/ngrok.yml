@@ -3,14 +3,14 @@ tunnels:
   ssh:
     proto: tcp
     addr: 22
-  nodered:
-    proto: http
-    addr: 1880
+    inspect: false
   ui:
     proto: http
     addr: 9000
     subdomain: pioreactor
+    inspect: false
   ws:
     proto: http
     addr: 9001
     subdomain: pioreactorws
+    inspect: false

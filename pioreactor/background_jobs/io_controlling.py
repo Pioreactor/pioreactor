@@ -355,9 +355,9 @@ class PIDTurbidostat(IOAlgorithm):
 
         # PID%20controller%20turbidostat.ipynb
         self.pid = PID(
-            -2.97,
-            -0.11,
-            -0.09,
+            -3.0,
+            -0.1,
+            -0.1,
             setpoint=self.target_od,
             output_limits=(0, 1),
             sample_time=None,

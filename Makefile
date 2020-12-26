@@ -85,6 +85,13 @@ configure-rpi:
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
 
 
+install-ui:
+	wget -O - https://raw.githubusercontent.com/audstanley/NodeJs-Raspberry-Pi/master/Install-Node.sh | sudo bash
+	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/
+	npm --prefix /home/pi/pioreactorui/client install
+	npm --prefix /home/pi/pioreactorui/backend install
+	sudo cnpm install pm2@latest -g
+
 install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
 
 install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files
