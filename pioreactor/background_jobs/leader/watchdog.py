@@ -4,14 +4,14 @@ import logging
 
 import click
 
-from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.pubsub import subscribe_and_callback
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 logger = logging.getLogger(JOB_NAME)
 
-unit = get_unit_from_hostname()
+unit = get_unit_name()
 
 
 class WatchDog(BackgroundJob):
@@ -54,8 +54,6 @@ def click_watchdog():
     """
     Start the watchdog on the leader
     """
-    heidi = WatchDog(  # noqa: F841
-        unit=get_unit_from_hostname(), exp=UNIVERSAL_EXPERIMENT
-    )
+    heidi = WatchDog(unit=get_unit_name(), exp=UNIVERSAL_EXPERIMENT)  # noqa: F841
 
     signal.pause()

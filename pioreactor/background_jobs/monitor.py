@@ -4,7 +4,7 @@ import logging
 
 import click
 
-from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import publish
@@ -12,7 +12,7 @@ from pioreactor.pubsub import publish
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 logger = logging.getLogger(JOB_NAME)
 
-unit = get_unit_from_hostname()
+unit = get_unit_name()
 
 
 class Monitor(BackgroundJob):
@@ -40,6 +40,6 @@ def click_monitor():
     """
     Start the watchdog on a unit. Reports back to the leader.
     """
-    heidi = Monitor(unit=get_unit_from_hostname(), exp=UNIVERSAL_EXPERIMENT)  # noqa: F841
+    heidi = Monitor(unit=get_unit_name(), exp=UNIVERSAL_EXPERIMENT)  # noqa: F841
 
     signal.pause()

@@ -2,7 +2,7 @@
 import logging
 from pioreactor.pubsub import publish
 from pioreactor.whoami import (
-    get_unit_from_hostname,
+    get_unit_name,
     am_I_leader,
     UNIVERSAL_EXPERIMENT,
     get_latest_experiment_name,
@@ -59,7 +59,7 @@ console_handler.setFormatter(
 
 # create MQTT handler
 exp = UNIVERSAL_EXPERIMENT if am_I_leader() else get_latest_experiment_name()
-topic = f"pioreactor/{get_unit_from_hostname()}/{exp}/log"
+topic = f"pioreactor/{get_unit_name()}/{exp}/log"
 mqtt_handler = MQTTHandler(topic)
 mqtt_handler.setLevel(logging.INFO)
 mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(message)s"))

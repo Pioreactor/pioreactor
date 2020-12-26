@@ -9,7 +9,7 @@ import click
 
 from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
 from pioreactor.background_jobs.od_reading import od_reading
 
@@ -95,6 +95,6 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 """,
 )
 def click_od_normalization(od_angle_channel):
-    unit = get_unit_from_hostname()
+    unit = get_unit_name()
     experiment = get_latest_experiment_name()
     od_normalization(od_angle_channel, unit, experiment)

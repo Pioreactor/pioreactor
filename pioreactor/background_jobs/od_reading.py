@@ -32,7 +32,7 @@ import busio
 
 from pioreactor.utils.streaming_calculations import MovingStats
 
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.utils.timing import every
@@ -141,7 +141,7 @@ def od_reading(
 
     import board
 
-    unit = get_unit_from_hostname()
+    unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
     od_channels = []

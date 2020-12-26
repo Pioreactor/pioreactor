@@ -2,7 +2,7 @@
 import time
 
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.pubsub import publish
 
 
@@ -12,7 +12,7 @@ def pause():
 
 
 def test_states():
-    unit = get_unit_from_hostname()
+    unit = get_unit_name()
     exp = get_latest_experiment_name()
 
     bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)

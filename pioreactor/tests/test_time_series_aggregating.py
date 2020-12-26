@@ -4,9 +4,9 @@ from pioreactor.background_jobs.leader.time_series_aggregating import (
     TimeSeriesAggregation,
 )
 from pioreactor.pubsub import publish
-from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 
-unit = get_unit_from_hostname()
+unit = get_unit_name()
 experiment = UNIVERSAL_EXPERIMENT
 leader = "leader"
 
@@ -72,9 +72,9 @@ def test_subscribe_and_listen_to_clear_different_formatter():
     publish(f"pioreactor/{unit}2/{experiment}/od_raw/135/A", 1.0)
     pause()
     assert ts.aggregated_time_series["series"] == [
-        "_testing_unit1-A",
-        "_testing_unit1-B",
-        "_testing_unit2-A",
+        "testing_unit1-A",
+        "testing_unit1-B",
+        "testing_unit2-A",
     ]
 
     publish(
@@ -106,7 +106,7 @@ def test_time_window_seconds():
 
     publish(f"pioreactor/{unit}1/{experiment}/growth_rate", 1.1)
     pause()
-    assert ts.aggregated_time_series["series"] == ["_testing_unit1"]
+    assert ts.aggregated_time_series["series"] == ["testing_unit1"]
     assert len(ts.aggregated_time_series["data"][0]) == 1
     time.sleep(10)
 

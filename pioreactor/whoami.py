@@ -9,7 +9,7 @@ UNIVERSAL_EXPERIMENT = "$experiment"
 
 def get_latest_experiment_name():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
-        return "_testing_experiment"
+        return "testing_experiment"
 
     from pioreactor.pubsub import subscribe
 
@@ -29,8 +29,7 @@ def get_hostname():
         return socket.gethostname()
 
 
-def get_unit_from_hostname():
-    import re
+def get_unit_name():
 
     hostname = get_hostname()
 
@@ -39,15 +38,11 @@ def get_unit_from_hostname():
         return "leader"
     elif hostname == "localhost":
         # running tests
-        return "_testing_unit"
-    elif re.match(r"pioreactor(\d)", hostname):
-        # running from a worker Rpi
-        # TODO: turn me into walrus operator
-        return re.match(r"pioreactor(\d)", hostname).groups()[0]
+        return "testing_unit"
     elif hostname == "raspberrypi":
         raise ValueError("Did you forget to set the hostname?")
     else:
-        raise ValueError(f"How did I get here? My hostname is {hostname}")
+        return hostname
 
 
 def am_I_leader():

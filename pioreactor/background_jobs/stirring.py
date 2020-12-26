@@ -12,7 +12,7 @@ if "pytest" in sys.modules or os.environ.get("TESTING"):
     sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
 
 import RPi.GPIO as GPIO
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 
@@ -20,7 +20,7 @@ GPIO.setmode(GPIO.BCM)
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 logger = logging.getLogger(JOB_NAME)
 
-unit = get_unit_from_hostname()
+unit = get_unit_name()
 
 
 class Stirrer(BackgroundJob):
@@ -65,7 +65,7 @@ class Stirrer(BackgroundJob):
                 except AttributeError:
                     pass
             elif (value == self.READY) and (self.state == self.SLEEPING):
-                self.duty_cycle = int(config["stirring"][f"duty_cycle{self.unit}"])
+                self.duty_cycle = int(config["stirring"][f"duty_cycle_{self.unit}"])
                 self.start_stirring()
         super(Stirrer, self).__setattr__(name, value)
 
@@ -98,7 +98,7 @@ def stirring(duty_cycle=0, duration=None):
 @click.command(name="stirring")
 @click.option(
     "--duty-cycle",
-    default=config.getint("stirring", f"duty_cycle{unit}", fallback=0),
+    default=config.getint("stirring", f"duty_cycle_{unit}", fallback=0),
     help="set the duty cycle",
     show_default=True,
     type=click.IntRange(0, 100, clamp=True),

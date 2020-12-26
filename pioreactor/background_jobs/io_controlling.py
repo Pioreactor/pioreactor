@@ -28,7 +28,7 @@ from pioreactor.pubsub import publish, subscribe_and_callback, QOS
 
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.streaming_calculations import PID
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.background_jobs.utils import events
@@ -577,7 +577,7 @@ class AlgoController(BackgroundJob):
 
 
 def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs):
-    unit = get_unit_from_hostname()
+    unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
     try:

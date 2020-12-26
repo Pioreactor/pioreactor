@@ -32,18 +32,9 @@ ALL_WORKER_JOBS = [
 logger = logging.getLogger("leader CLI")
 
 
-def unit_to_hostname(unit):
-    return f"pioreactor{unit}"
-
-
-def hostname_to_unit(hostname):
-    return hostname.lstrip("pioreactor")
-
-
 def universal_identifier_to_all_units(units):
     if units == (UNIVERSAL_IDENTIFIER,):
-        hostnames = get_active_worker_units_and_ips().keys()
-        units = list(map(hostname_to_unit, hostnames))
+        units = get_active_worker_units_and_ips().keys()
     return units
 
 
@@ -74,7 +65,7 @@ def sync_config_files(client, unit):
     # move the local config.ini
     try:
         ftp_client.put(
-            f"/home/pi/.pioreactor/config{unit}.ini",
+            f"/home/pi/.pioreactor/config_{unit}.ini",
             "/home/pi/.pioreactor/unit_config.ini",
         )
     except Exception as e:
@@ -121,11 +112,10 @@ def sync(units):
     def _thread_function(unit):
         print(f"Executing on {unit}...")
         try:
-            hostname = unit_to_hostname(unit)
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
-            client.connect(hostname, username="pi")
+            client.connect(unit, username="pi")
 
             (stdin, stdout, stderr) = client.exec_command(command)
             for line in stderr.readlines():
@@ -166,11 +156,10 @@ def sync_configs(units):
     def _thread_function(unit):
         print(f"Executing on {unit}...")
         try:
-            hostname = unit_to_hostname(unit)
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
-            client.connect(hostname, username="pi")
+            client.connect(unit, username="pi")
 
             sync_config_files(client, unit)
 
@@ -189,7 +178,11 @@ def sync_configs(units):
 @pios.command("kill", short_help="kill a job on workers")
 @click.argument("process")
 @click.option(
-    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="specify a hostname, default is all active units",
 )
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
 def kill(process, units, y):
@@ -209,10 +202,9 @@ def kill(process, units, y):
     command = " && ".join([kill])
 
     def _thread_function(unit):
-        hostname = unit_to_hostname(unit)
 
         print(f"Executing on {unit}...")
-        ssh(hostname, command)
+        ssh(unit, command)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -244,8 +236,7 @@ def run(ctx, job, units, y):
             return
 
     def _thread_function(unit):
-        hostname = unit_to_hostname(unit)
-        ssh(hostname, command)
+        ssh(unit, command)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:

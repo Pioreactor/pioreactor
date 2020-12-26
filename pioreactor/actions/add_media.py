@@ -15,7 +15,7 @@ if "pytest" in sys.modules or os.environ.get("TESTING"):
 import RPi.GPIO as GPIO
 
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 
@@ -43,14 +43,14 @@ def add_media(
         duration = pump_ml_to_duration(
             ml,
             duty_cycle,
-            **loads(config["pump_calibration"][f"media{unit}_ml_calibration"]),
+            **loads(config["pump_calibration"][f"media_ml_calibration_{unit}"]),
         )
     elif duration is not None:
         user_submitted_ml = False
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
-            **loads(config["pump_calibration"][f"media{unit}_ml_calibration"]),
+            **loads(config["pump_calibration"][f"media_ml_calibration_{unit}"]),
         )
     assert duration >= 0
 
@@ -106,7 +106,7 @@ def cleanUpGPIO():
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_add_media(ml, duration, duty_cycle, source_of_event):
-    unit = get_unit_from_hostname()
+    unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
     signal.signal(signal.SIGTERM, cleanUpGPIO)

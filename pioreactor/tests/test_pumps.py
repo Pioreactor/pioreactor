@@ -3,9 +3,9 @@ import pytest
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.actions.remove_waste import remove_waste
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
-unit = get_unit_from_hostname()
+unit = get_unit_name()
 exp = get_latest_experiment_name()
 
 

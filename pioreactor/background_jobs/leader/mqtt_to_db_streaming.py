@@ -13,7 +13,7 @@ from datetime import datetime
 
 from pioreactor.pubsub import subscribe_and_callback, QOS
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -195,7 +195,7 @@ def click_mqtt_to_db_streaming():
     ]
 
     streamer = MqttToDBStreamer(  # noqa: F841
-        topics_and_parsers, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_from_hostname()
+        topics_and_parsers, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name()
     )
 
     while True:

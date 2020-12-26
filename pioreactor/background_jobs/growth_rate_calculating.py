@@ -10,7 +10,7 @@ import click
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
 from pioreactor.pubsub import publish, subscribe, subscribe_and_callback, QOS
 
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 
@@ -212,7 +212,7 @@ class GrowthRateCalculator(BackgroundJob):
 
 
 def growth_rate_calculating(ignore_cache):
-    unit = get_unit_from_hostname()
+    unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
     try:

@@ -13,7 +13,7 @@ import click
 
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.config import config
 
@@ -156,7 +156,7 @@ class TimeSeriesAggregation(BackgroundJob):
 @click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
 def click_time_series_aggregating(output_dir, skip_cache):
     # start the job that aggregates time series data and caches it for the PioreactorUI
-    unit = get_unit_from_hostname()
+    unit = get_unit_name()
 
     def single_sensor_label_from_topic(topic):
         split_topic = topic.split("/")

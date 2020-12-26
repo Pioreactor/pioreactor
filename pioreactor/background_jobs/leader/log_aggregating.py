@@ -11,7 +11,7 @@ import json
 
 from pioreactor.pubsub import subscribe_and_callback, QOS
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.whoami import get_unit_from_hostname, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -106,7 +106,7 @@ def click_log_aggregating(output):
         ["pioreactor/+/+/log"],
         output,
         experiment=UNIVERSAL_EXPERIMENT,
-        unit=get_unit_from_hostname(),
+        unit=get_unit_name(),
     )
 
     while True:

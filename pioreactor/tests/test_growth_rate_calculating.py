@@ -5,9 +5,9 @@ import numpy as np
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.pubsub import publish
-from pioreactor.whoami import get_unit_from_hostname, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
-unit = get_unit_from_hostname()
+unit = get_unit_name()
 experiment = get_latest_experiment_name()
 
 
