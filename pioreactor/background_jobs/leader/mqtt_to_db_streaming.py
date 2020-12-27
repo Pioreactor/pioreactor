@@ -191,7 +191,7 @@ def click_mqtt_to_db_streaming():
         },
         {"topic": "pioreactor/+/+/log", "table": "logs", "parser": parse_logs},
         {
-            "topic": "pioreactor/+/+/io_algorithm_settings",
+            "topic": "pioreactor/+/+/io_controlling/io_algorithm_settings",
             "table": "io_algorithm_settings",
             "parser": parse_io_algorithm_settings,
         },
