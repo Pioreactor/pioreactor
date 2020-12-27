@@ -29,7 +29,7 @@ def test_subscribe_and_listen_to_clear_simple():
         output_dir="./",
         experiment=experiment,
         unit=leader,
-        skip_cache=True,
+        ignore_cache=True,
         record_every_n_seconds=0.1,
         extract_label=unit_from_topic,
     )
@@ -61,7 +61,7 @@ def test_subscribe_and_listen_to_clear_different_formatter():
         output_dir="./",
         experiment=experiment,
         unit=leader,
-        skip_cache=True,
+        ignore_cache=True,
         record_every_n_seconds=0.1,
         extract_label=single_sensor_label_from_topic,
     )
@@ -98,7 +98,7 @@ def test_time_window_seconds():
         output_dir="./",
         experiment=experiment,
         unit=leader,
-        skip_cache=True,
+        ignore_cache=True,
         extract_label=unit_from_topic,
         record_every_n_seconds=0.1,
         time_window_seconds=5,
@@ -131,7 +131,7 @@ def test_every_n_seconds():
         output_dir="./",
         experiment=experiment,
         unit=leader,
-        skip_cache=True,
+        ignore_cache=True,
         extract_label=unit_from_topic,
         record_every_n_seconds=5,
     )
@@ -174,7 +174,7 @@ def test_passes_multiple_experiments_when_allowed():
         output_dir="./",
         experiment=experiment,
         unit=leader,
-        skip_cache=True,
+        ignore_cache=True,
         extract_label=unit_from_topic,
         record_every_n_seconds=0.1,
     )
@@ -200,7 +200,7 @@ def test_drops_really_old_data():
         output_dir="./",
         experiment=experiment,
         unit=leader,
-        skip_cache=True,
+        ignore_cache=True,
         extract_label=unit_from_topic,
         record_every_n_seconds=0.1,
         time_window_seconds=3,

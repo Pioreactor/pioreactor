@@ -86,11 +86,18 @@ configure-rpi:
 
 
 install-ui:
+	# install NPM and Node
 	wget -O - https://raw.githubusercontent.com/audstanley/NodeJs-Raspberry-Pi/master/Install-Node.sh | sudo bash
-	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/
+
+	# get latest pioreactorUI release from Github.
+	cd /home/pi/
+	mkdir /home/pi/pioreactorui
+	curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
+
+	# install required libraries
 	npm --prefix /home/pi/pioreactorui/client install
 	npm --prefix /home/pi/pioreactorui/backend install
-	sudo cnpm install pm2@latest -g
+	sudo npm install pm2@latest -g
 
 install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
 

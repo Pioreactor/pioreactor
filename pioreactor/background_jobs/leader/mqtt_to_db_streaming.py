@@ -78,9 +78,10 @@ class MqttToDBStreamer(BackgroundJob):
 
 @click.command(name="mqtt_to_db_streaming")
 def click_mqtt_to_db_streaming():
-    # start the job sending MQTT streams to the database (as defined in config.ini)
+    # start the job sending MQTT streams to the database
+    # parsers should return a dict of all the entries in the corresponding table.
+
     def parse_od(topic, payload):
-        # should return a dict
         metadata = produce_metadata(topic)
 
         return {
@@ -92,7 +93,6 @@ def click_mqtt_to_db_streaming():
         }
 
     def parse_io_events(topic, payload):
-        # should return a dict
         payload = json.loads(payload)
         metadata = produce_metadata(topic)
 
@@ -106,7 +106,6 @@ def click_mqtt_to_db_streaming():
         }
 
     def parse_growth_rate(topic, payload):
-        # should return a dict
         metadata = produce_metadata(topic)
 
         return {
@@ -137,7 +136,6 @@ def click_mqtt_to_db_streaming():
         }
 
     def parse_alt_media_fraction(topic, payload):
-        # should return a dict
         metadata = produce_metadata(topic)
 
         return {
@@ -156,7 +154,7 @@ def click_mqtt_to_db_streaming():
             "message": payload.decode(),
         }
 
-    def parse_experiment_details(topic, payload):
+    def parse_io_algorithm_settings(topic, payload):
         payload = json.loads(payload.decode())
         return payload
 
@@ -192,6 +190,11 @@ def click_mqtt_to_db_streaming():
             "parser": parse_alt_media_fraction,
         },
         {"topic": "pioreactor/+/+/log", "table": "logs", "parser": parse_logs},
+        {
+            "topic": "pioreactor/+/+/io_algorithm_settings",
+            "table": "io_algorithm_settings",
+            "parser": parse_io_algorithm_settings,
+        },
     ]
 
     streamer = MqttToDBStreamer(  # noqa: F841

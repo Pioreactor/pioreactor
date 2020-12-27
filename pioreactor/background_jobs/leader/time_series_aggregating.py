@@ -35,7 +35,7 @@ class TimeSeriesAggregation(BackgroundJob):
         topic,
         output_dir,
         extract_label,
-        skip_cache=False,
+        ignore_cache=False,
         job_name=DEFAULT_JOB_NAME,  # this is overwritten importantly
         record_every_n_seconds=None,  # controls how often we should sample data. Ex: growth_rate is ~5min
         write_every_n_seconds=None,  # controls how often we write to disk. Ex: about 30seconds
@@ -46,7 +46,7 @@ class TimeSeriesAggregation(BackgroundJob):
         super(TimeSeriesAggregation, self).__init__(job_name=job_name, **kwargs)
         self.topic = topic
         self.output_dir = output_dir
-        self.aggregated_time_series = self.read(skip_cache)
+        self.aggregated_time_series = self.read(ignore_cache)
         self.extract_label = extract_label
         self.time_window_seconds = time_window_seconds
         self.cache = {}
@@ -66,8 +66,8 @@ class TimeSeriesAggregation(BackgroundJob):
     def output(self):
         return self.output_dir + self.job_name + ".json.gz"
 
-    def read(self, skip_cache):
-        if skip_cache:
+    def read(self, ignore_cache):
+        if ignore_cache:
             return {"series": [], "data": []}
         try:
             # try except hell
@@ -154,7 +154,7 @@ class TimeSeriesAggregation(BackgroundJob):
     help="the output directory",
 )
 @click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
-def click_time_series_aggregating(output_dir, skip_cache):
+def click_time_series_aggregating(output_dir, ignore_cache):
     # start the job that aggregates time series data and caches it for the PioreactorUI
     unit = get_unit_name()
 
@@ -172,7 +172,7 @@ def click_time_series_aggregating(output_dir, skip_cache):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_raw_time_series_aggregating",
         unit=unit,
-        skip_cache=skip_cache,
+        ignore_cache=ignore_cache,
         extract_label=single_sensor_label_from_topic,
         write_every_n_seconds=30,
         time_window_seconds=60
@@ -186,7 +186,7 @@ def click_time_series_aggregating(output_dir, skip_cache):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_filtered_time_series_aggregating",
         unit=unit,
-        skip_cache=skip_cache,
+        ignore_cache=ignore_cache,
         extract_label=single_sensor_label_from_topic,
         write_every_n_seconds=15,
         time_window_seconds=60
@@ -200,7 +200,7 @@ def click_time_series_aggregating(output_dir, skip_cache):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="growth_rate_time_series_aggregating",
         unit=unit,
-        skip_cache=skip_cache,
+        ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=15,
         record_every_n_seconds=5 * 60,  # TODO: move this to a config param
@@ -212,7 +212,7 @@ def click_time_series_aggregating(output_dir, skip_cache):
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="alt_media_fraction_time_series_aggregating",
         unit=unit,
-        skip_cache=skip_cache,
+        ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=15,
         record_every_n_seconds=1,

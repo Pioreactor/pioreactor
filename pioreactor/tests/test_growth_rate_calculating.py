@@ -17,12 +17,23 @@ def pause():
 
 
 def test_subscribing(monkeypatch):
-    publish(f"pioreactor/{unit}/{experiment}/od_normalization/median", None, retain=True)
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/variance", None, retain=True
+        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        '{"135/A": 1, "90/A": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"135/A": 1, "90/A": 1}',
+        retain=True,
     )
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
 
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}',
+        retain=True,
+    )
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", 1.0, retain=True)
     calc = GrowthRateCalculator(unit=unit, experiment=experiment)
     pause()
@@ -58,9 +69,15 @@ def test_subscribing(monkeypatch):
 
 
 def test_same_angles(monkeypatch):
-    publish(f"pioreactor/{unit}/{experiment}/od_normalization/median", None, retain=True)
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/variance", None, retain=True
+        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        '{"135/A": 1, "135/B": 1, "90/A": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"135/A": 1, "135/B":1, "90/A": 1}',
+        retain=True,
     )
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
 
@@ -86,6 +103,18 @@ def test_same_angles(monkeypatch):
 
 
 def test_mis_shapen_data(monkeypatch):
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        '{"135/A": 1,  "90/A": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"135/A": 1, "90/A": 1}',
+        retain=True,
+    )
+
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"135/A": 0.778586260567034, "90/A": 0.1}',
@@ -107,6 +136,16 @@ def test_mis_shapen_data(monkeypatch):
 
 
 def test_restart():
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        '{"135/A": 1, "135/B": 1, "90/A": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"135/A": 1, "135/B": 1, "90/A": 1}',
+        retain=True,
+    )
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"135/A": 0.778586260567034, "135/B": 0.20944389172032837, "90/A": 0.1}',
@@ -152,6 +191,17 @@ def test_restart():
 
 
 def test_skip_180():
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        '{"135/A": 1, "180/A": 1, "90/A": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"135/A": 1, "180/A": 1, "90/A": 1}',
+        retain=True,
+    )
+
     publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",

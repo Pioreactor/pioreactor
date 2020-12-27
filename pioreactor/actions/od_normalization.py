@@ -16,7 +16,7 @@ from pioreactor.background_jobs.od_reading import od_reading
 logger = logging.getLogger("od_normalization")
 
 
-def od_normalization(od_angle_channel, unit=None, experiment=None):
+def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=35):
     logger.info("Starting OD normalization")
     if "stirring" not in pio_jobs_running():
         logger.error("stirring jobs should be running. Run `mb stirring -b` first.")
@@ -24,10 +24,12 @@ def od_normalization(od_angle_channel, unit=None, experiment=None):
 
     if "od_reading" not in pio_jobs_running():
         # we sample faster, because we can...
+        # TODO: write tests for this
+        assert od_angle_channel is not None
         sampling_rate = 0.5
         signal = od_reading(od_angle_channel, sampling_rate)
     else:
-        # not tested
+        # TODO: write tests for this
         def yield_from_mqtt():
             while True:
                 msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/od_raw_batched")
@@ -37,7 +39,6 @@ def od_normalization(od_angle_channel, unit=None, experiment=None):
 
     time.sleep(0.5)
     readings = defaultdict(list)
-    N_samples = 35
 
     try:
 

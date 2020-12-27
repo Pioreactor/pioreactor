@@ -25,7 +25,6 @@ from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import publish, subscribe_and_callback, QOS
-
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -131,7 +130,7 @@ class IOAlgorithm(BackgroundSubJob):
 
     def send_details_to_mqtt(self):
         publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/io_details",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/io_algorithm_settings",
             json.dumps(
                 {
                     "pioreactor_unit": self.unit,

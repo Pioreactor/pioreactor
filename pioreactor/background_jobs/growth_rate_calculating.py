@@ -3,7 +3,6 @@ import json
 import os
 import signal
 import logging
-from collections import defaultdict
 
 import click
 
@@ -13,6 +12,7 @@ from pioreactor.pubsub import publish, subscribe, subscribe_and_callback, QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.actions.od_normalization import od_normalization
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
@@ -25,6 +25,7 @@ class GrowthRateCalculator(BackgroundJob):
         super(GrowthRateCalculator, self).__init__(
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
+
         self.ignore_cache = ignore_cache
         self.initial_growth_rate = self.set_initial_growth_rate()
         self.od_normalization_factors = self.set_od_normalization_factors()
@@ -125,31 +126,33 @@ class GrowthRateCalculator(BackgroundJob):
             return 0
 
     def set_od_normalization_factors(self):
-
+        # we check if the broker has variance/median stats, and if not, run it ourselves.
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_normalization/median",
             timeout=2,
             qos=QOS.EXACTLY_ONCE,
         )
-        if message:
+        if message and not self.ignore_cache:
             return self.json_to_sorted_dict(message.payload)
         else:
-            return defaultdict(lambda: 1)
+            od_normalization(unit=self.unit, experiment=self.experiment)
+            return self.set_od_normalization_factors()
 
     def set_od_variances(self):
-
+        # we check if the broker has variance/median stats, and if not, run it ourselves.
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_normalization/variance",
             timeout=2,
             qos=QOS.EXACTLY_ONCE,
         )
-        if message:
+        if message and not self.ignore_cache:
             return self.json_to_sorted_dict(message.payload)
         else:
-            return defaultdict(lambda: 1e-5)
+            od_normalization(unit=self.unit, experiment=self.experiment)
+            return self.set_od_normalization_factors()
 
     def update_ekf_variance_after_io_event(self, message):
-        self.ekf.scale_OD_variance_for_next_n_steps(2e4, 2 * self.samples_per_minute)
+        self.ekf.scale_OD_variance_for_next_n_steps(2e4, 1 * self.samples_per_minute)
 
     def scale_raw_observations(self, observations):
         return {
