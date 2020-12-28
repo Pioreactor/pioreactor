@@ -106,6 +106,9 @@ def cleanUpGPIO():
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_add_media(ml, duration, duty_cycle, source_of_event):
+    """
+    Add media to unit
+    """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 

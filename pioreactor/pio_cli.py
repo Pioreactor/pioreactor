@@ -7,7 +7,7 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio log
 """
 import click
-from pioreactor.whoami import am_I_leader
+from pioreactor.whoami import am_I_leader, am_I_active_worker
 from pioreactor.config import config
 from pioreactor import background_jobs as jobs
 from pioreactor import actions
@@ -50,21 +50,22 @@ def kill(process):
         pass
 
 
-@pio.group()
-def run(short_help="run a job"):
+@pio.group(short_help="run a job")
+def run():
     pass
 
 
-run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
-run.add_command(jobs.stirring.click_stirring)
-run.add_command(jobs.od_reading.click_od_reading)
-run.add_command(jobs.io_controlling.click_io_controlling)
-run.add_command(jobs.monitor.click_monitor)
+if am_I_active_worker():
+    run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
+    run.add_command(jobs.stirring.click_stirring)
+    run.add_command(jobs.od_reading.click_od_reading)
+    run.add_command(jobs.io_controlling.click_io_controlling)
+    run.add_command(jobs.monitor.click_monitor)
 
-run.add_command(actions.add_alt_media.click_add_alt_media)
-run.add_command(actions.add_media.click_add_media)
-run.add_command(actions.remove_waste.click_remove_waste)
-run.add_command(actions.od_normalization.click_od_normalization)
+    run.add_command(actions.add_alt_media.click_add_alt_media)
+    run.add_command(actions.add_media.click_add_media)
+    run.add_command(actions.remove_waste.click_remove_waste)
+    run.add_command(actions.od_normalization.click_od_normalization)
 
 if am_I_leader():
     run.add_command(jobs.log_aggregating.click_log_aggregating)

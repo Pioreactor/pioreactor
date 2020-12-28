@@ -105,7 +105,9 @@ def cleanUpGPIO():
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_remove_waste(ml, duration, duty_cycle, source_of_event):
-
+    """
+    Remove waste/media from unit
+    """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
     signal.signal(signal.SIGTERM, cleanUpGPIO)

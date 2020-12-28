@@ -96,6 +96,9 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 """,
 )
 def click_od_normalization(od_angle_channel):
+    """
+    Compute statistics about the OD timeseries
+    """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
     od_normalization(od_angle_channel, unit, experiment)

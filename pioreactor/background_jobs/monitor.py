@@ -38,7 +38,7 @@ class Monitor(BackgroundJob):
 @click.command(name="monitor")
 def click_monitor():
     """
-    Start the watchdog on a unit. Reports back to the leader.
+    Monitor and report metadata on the unit.
     """
     heidi = Monitor(unit=get_unit_name(), exp=UNIVERSAL_EXPERIMENT)  # noqa: F841
 

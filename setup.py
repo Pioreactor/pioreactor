@@ -16,7 +16,7 @@ setup(
     packages=find_packages(exclude=["*.tests", "*.tests.*", "*benchmarks*"]),
     entry_points="""
         [console_scripts]
-        pio=pioreactor.command_line_worker:pio
-        pios=pioreactor.command_line_leader:pios
+        pio=pioreactor.pio_cli:pio
+        pios=pioreactor.pios_cli:pios
     """,
 )

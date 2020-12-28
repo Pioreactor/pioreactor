@@ -48,4 +48,10 @@ def get_unit_name():
 def am_I_leader():
     from pioreactor.config import leader_hostname
 
-    return get_hostname() == leader_hostname
+    return get_unit_name() == leader_hostname
+
+
+def am_I_active_worker():
+    from pioreactor.config import get_active_worker_units_and_ips
+
+    return get_unit_name() in get_active_worker_units_and_ips().keys()

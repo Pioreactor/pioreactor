@@ -353,10 +353,14 @@ class PIDTurbidostat(IOAlgorithm):
         self.volume = float(volume)
 
         # PID%20controller%20turbidostat.ipynb
+        Kp = config.getFloat("pid_turbidostat", "Kp")
+        Ki = config.getFloat("pid_turbidostat", "Ki")
+        Kd = config.getFloat("pid_turbidostat", "Kd")
+
         self.pid = PID(
-            -3.0,
-            -0.1,
-            -0.1,
+            -Kp,
+            -Ki,
+            -Kd,
             setpoint=self.target_od,
             output_limits=(0, 1),
             sample_time=None,
