@@ -13,11 +13,13 @@ from pioreactor.pubsub import publish
 from pioreactor.config import config
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+BUTTON_PIN = config.getint("rpi_pins", "tactile_button")
 logger = logging.getLogger(JOB_NAME)
 
 unit = get_unit_name()
+
 GPIO.setmode(GPIO.BCM)
-BUTTON_PIN = config.getint("rpi_pins", "tactile_button")
+GPIO.setup(BUTTON_PIN, GPIO.IN)
 
 
 class Monitor(BackgroundJob):
