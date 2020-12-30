@@ -54,7 +54,7 @@ class RepeatedTimer:
         self.args = args
         self.kwargs = kwargs
         self.is_running = False
-        self.logger = logging.getLogger(job_name, "RepeatedTimer")
+        self.logger = logging.getLogger(job_name or "RepeatedTimer")
         self.daemon = True
         self.start()
         if run_immediately:
