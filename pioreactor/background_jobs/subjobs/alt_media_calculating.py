@@ -32,7 +32,9 @@ class AltMediaCalculator(BackgroundSubJob):
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 
         # publish every 30 seconds.
-        self.publish_periodically_thead = RepeatedTimer(30, self.publish)
+        self.publish_periodically_thead = RepeatedTimer(
+            60, self.publish, job_name=self.job_name
+        )
         self.publish_periodically_thead.start()
 
         self.start_passive_listeners()

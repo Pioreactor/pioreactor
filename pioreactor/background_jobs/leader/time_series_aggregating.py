@@ -51,9 +51,11 @@ class TimeSeriesAggregation(BackgroundJob):
         self.time_window_seconds = time_window_seconds
         self.cache = {}
 
-        self.write_thread = RepeatedTimer(write_every_n_seconds, self.write).start()
+        self.write_thread = RepeatedTimer(
+            write_every_n_seconds, self.write, job_name=self.job_name
+        ).start()
         self.append_cache_thread = RepeatedTimer(
-            record_every_n_seconds, self.append_cache_and_clear
+            record_every_n_seconds, self.append_cache_and_clear, job_name=self.job_name
         ).start()
 
         self.start_passive_listeners()

@@ -22,6 +22,7 @@ from pioreactor.pubsub import publish, QOS
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
 
 
 def split_topic_for_setting(topic):

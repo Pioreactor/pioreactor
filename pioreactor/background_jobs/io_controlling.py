@@ -125,6 +125,7 @@ class IOAlgorithm(BackgroundSubJob):
                 self.timer_thread = RepeatedTimer(
                     self.duration * 60,
                     self.run,
+                    job_name=self.job_name,
                     run_immediately=(not self.skip_first_run),
                 ).start()
 

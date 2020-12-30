@@ -1,5 +1,5 @@
 [Unit]
-Description=In case of an RPi power-cycle mid-experiment, start up watchdog on workers.
+Description=In case of an RPi power-cycle mid-experiment, start up monitor on workers.
 Wants=network-online.target
 After=network-online.target
 

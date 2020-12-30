@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time, sys
+import time, sys, logging
 from threading import Timer
 
 
@@ -45,13 +45,16 @@ class RepeatedTimer:
 
     """
 
-    def __init__(self, interval, function, run_immediately=False, *args, **kwargs):
+    def __init__(
+        self, interval, function, run_immediately=False, job_name=None, *args, **kwargs
+    ):
         self._timer = None
         self.interval = interval
         self.function = function
         self.args = args
         self.kwargs = kwargs
         self.is_running = False
+        self.logger = logging.getLogger(job_name, "RepeatedTimer")
         self.daemon = True
         self.start()
         if run_immediately:
@@ -60,7 +63,11 @@ class RepeatedTimer:
     def _run(self):
         self.is_running = False
         self.start()
-        self.function(*self.args, **self.kwargs)
+        try:
+            self.logger.debug(f"Running {self.function}")
+            self.function(*self.args, **self.kwargs)
+        except Exception as e:
+            self.logger.error(e)
 
     def start(self):
         if not self.is_running:
