@@ -218,9 +218,13 @@ def kill(process, units, y):
 )
 @click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
 @click.option(
-    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="Run on specific unit, default all.",
 )
-@click.option("-y", is_flag=True, help="skip asking for confirmation")
+@click.option("-y", is_flag=True, help="Skip asking for confirmation.")
 @click.pass_context
 def run(ctx, job, units, y):
     from sh import ssh

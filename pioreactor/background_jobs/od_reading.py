@@ -117,14 +117,14 @@ class ODReader(BackgroundJob):
                         self.ads.gain != gain
                     ):
                         self.ads.gain = gain
-                        self.logger.info(f"ADC gain updated to {self.ads.gain}.")
+                        self.logger.debug(f"ADC gain updated to {self.ads.gain}.")
                         break
 
             return raw_signals
 
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
-            self.logger.error(f"failed with {str(e)}. Attempting to continue.")
+            self.logger.error(f"error {str(e)}. Attempting to continue.")
             time.sleep(5.0)
         except Exception as e:
             self.logger.error(f"failed with {str(e)}")

@@ -153,9 +153,11 @@ class TimeSeriesAggregation(BackgroundJob):
     default="/home/pi/pioreactorui/backend/build/data/",
     help="the output directory",
 )
-@click.option("--skip-cache", is_flag=True, help="skip using the saved data on disk")
+@click.option("--ignore-cache", is_flag=True, help="skip using the saved data on disk")
 def click_time_series_aggregating(output_dir, ignore_cache):
-    # start the job that aggregates time series data and caches it for the PioreactorUI
+    """
+    Aggregate time series data and cache it for PioreactorUI
+    """
     unit = get_unit_name()
 
     def single_sensor_label_from_topic(topic):

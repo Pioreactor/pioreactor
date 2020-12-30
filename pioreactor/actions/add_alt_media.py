@@ -105,7 +105,7 @@ def cleanUpGPIO():
 )
 def click_add_alt_media(ml, duration, duty_cycle, source_of_event):
     """
-    Add alt. media to unit
+    Add alternative media to unit
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()

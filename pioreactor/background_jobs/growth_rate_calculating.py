@@ -183,7 +183,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         except Exception as e:
-            self.logger.error(f"failed {str(e)}. Skipping.")
+            self.logger.error(f"failed {str(e)}.")
             raise e
 
     def start_passive_listeners(self):

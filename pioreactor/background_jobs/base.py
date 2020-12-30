@@ -100,7 +100,7 @@ class BackgroundJob:
 
     def init(self):
         self.state = self.INIT
-        self.logger.info(self.INIT)
+        self.logger.debug(self.INIT)
 
         # if we re-init (via MQTT, close previous threads)
         for client in self.pubsub_clients:
@@ -118,7 +118,7 @@ class BackgroundJob:
 
     def sleeping(self):
         self.state = self.SLEEPING
-        self.logger.info(self.SLEEPING)
+        self.logger.debug(self.SLEEPING)
 
     def on_disconnect(self):
         # specific things to do when a job disconnects / exits

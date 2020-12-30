@@ -54,4 +54,7 @@ def click_download_experiment_data(experiment, output, tables):
 
 
 if __name__ == "__main__":
+    """
+    Export tables from db
+    """
     click_download_experiment_data()

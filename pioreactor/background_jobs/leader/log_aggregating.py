@@ -48,6 +48,8 @@ class LogAggregation(BackgroundJob):
                     "timestamp": current_time(),
                     "message": message.payload.decode(),
                     "unit": unit,
+                    "is_error": ("failed" in message.payload.decode())
+                    or ("error" in message.payload.decode()),
                 },
             )
             self.aggregated_log_table = self.aggregated_log_table[
@@ -101,7 +103,9 @@ class LogAggregation(BackgroundJob):
     help="the output file",
 )
 def click_log_aggregating(output):
-    # start aggregating log events from MQTT and cache for the PioreactorUI
+    """
+    Aggregate logs and cache it for PioreactorUI
+    """
     logs = LogAggregation(  # noqa: F841
         ["pioreactor/+/+/log"],
         output,
