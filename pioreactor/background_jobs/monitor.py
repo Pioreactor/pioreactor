@@ -4,7 +4,7 @@ import logging
 
 import click
 
-import GPIO
+import RPi.GPIO as GPIO
 
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
