@@ -17,7 +17,7 @@ logger = logging.getLogger(JOB_NAME)
 
 unit = get_unit_name()
 GPIO.setmode(GPIO.BCM)
-BUTTON_PIN = config.getInteger("rpi_pins", "tactile_button")
+BUTTON_PIN = config.getint("rpi_pins", "tactile_button")
 
 
 class Monitor(BackgroundJob):
