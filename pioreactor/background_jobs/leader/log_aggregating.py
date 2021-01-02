@@ -29,7 +29,7 @@ class LogAggregation(BackgroundJob):
         self,
         topics,
         output,
-        log_display_count=int(config["dashboard.settings"]["log_display_count"]),
+        log_display_count=int(config["ui.overview.settings"]["log_display_count"]),
         **kwargs,
     ):
         super(LogAggregation, self).__init__(job_name=JOB_NAME, **kwargs)
