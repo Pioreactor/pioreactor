@@ -73,3 +73,15 @@ if am_I_leader():
     run.add_command(jobs.time_series_aggregating.click_time_series_aggregating)
 
     run.add_command(actions.download_experiment_data.click_download_experiment_data)
+
+    @pio.group(short_help="access the database")
+    def db():
+        import os
+
+        os.system(f"sqlite3 {config['storage']['observation_database']}")
+
+    @pio.group(short_help="access the database")
+    def mqtt():
+        import os
+
+        os.system("mosquitto_sub -v -t 'pioreactor/#'")

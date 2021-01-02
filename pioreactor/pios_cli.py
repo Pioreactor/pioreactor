@@ -231,11 +231,15 @@ def run(ctx, job, units, y):
 
     extra_args = list(ctx.args)
 
-    command = ["nohup", "pio", "run", job, *extra_args, ">/dev/null", "2>&1", "&"]
-    command = " ".join(command)
+    if "unit" in extra_args:
+        print("Did you mean to use 'units' instead of 'unit'? Exiting.")
+        return
+
+    core_command = ["pio", "run", job, *extra_args].join()
+    command = ["nohup", core_command, ">/dev/null", "2>&1", "&"].join()
 
     if not y:
-        confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+        confirm = input(f"Confirm running `{core_command}` on {units}? Y/n: ").strip()
         if confirm != "Y":
             return
 

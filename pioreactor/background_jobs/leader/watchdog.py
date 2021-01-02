@@ -24,12 +24,14 @@ class WatchDog(BackgroundJob):
 
     def watch_for_lost_state(self, msg):
         if msg.payload.decode() == self.LOST:
-            # raise the alarms
+            unit = msg.topic.split("/")[1]
+            self.logger.error(f"error: {unit} was lost.")
             pass
 
     def watch_for_disk_space_percent(self, msg):
         if float(msg.payload) >= 90:
-            # raise the alarms
+            unit = msg.topic.split("/")[1]
+            self.logger.warning(f"{unit} is running low on disk space.")
             pass
 
     def start_passive_listeners(self):
@@ -54,6 +56,6 @@ def click_watchdog():
     """
     Start the watchdog on the leader
     """
-    heidi = WatchDog(unit=get_unit_name(), exp=UNIVERSAL_EXPERIMENT)  # noqa: F841
+    heidi = WatchDog(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)  # noqa: F841
 
     signal.pause()
