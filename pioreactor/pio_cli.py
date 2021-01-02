@@ -74,13 +74,13 @@ if am_I_leader():
 
     run.add_command(actions.download_experiment_data.click_download_experiment_data)
 
-    @pio.group(short_help="access the database")
+    @pio.command(short_help="access the db CLI")
     def db():
         import os
 
         os.system(f"sqlite3 {config['storage']['observation_database']}")
 
-    @pio.group(short_help="access the database")
+    @pio.command(short_help="tail MQTT")
     def mqtt():
         import os
 
