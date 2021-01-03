@@ -235,8 +235,8 @@ def run(ctx, job, units, y):
         print("Did you mean to use 'units' instead of 'unit'? Exiting.")
         return
 
-    core_command = ["pio", "run", job, *extra_args].join()
-    command = ["nohup", core_command, ">/dev/null", "2>&1", "&"].join()
+    core_command = " ".join(["pio", "run", job, *extra_args])
+    command = " ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"])
 
     if not y:
         confirm = input(f"Confirm running `{core_command}` on {units}? Y/n: ").strip()
