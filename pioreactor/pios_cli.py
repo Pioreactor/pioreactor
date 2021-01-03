@@ -12,7 +12,11 @@ import logging
 
 import click
 
-from pioreactor.whoami import am_I_leader, UNIVERSAL_IDENTIFIER
+from pioreactor.whoami import (
+    am_I_leader,
+    UNIVERSAL_IDENTIFIER,
+    get_latest_experiment_name,
+)
 from pioreactor.config import get_active_worker_units_and_ips
 
 
@@ -69,7 +73,7 @@ def sync_config_files(client, unit):
             "/home/pi/.pioreactor/unit_config.ini",
         )
     except Exception as e:
-        print(f"Did you forget to create a config{unit}.ini to ship to pioreactor{unit}.")
+        print(f"Did you forget to create a config_{unit}.ini to ship to {unit}?")
         raise e
 
     ftp_client.close()
@@ -124,6 +128,7 @@ def sync(units):
             try:
                 checksum_git(client)
             except AssertionError as e:
+                logger.debug(e, exc_info=True)
                 print(e)
                 return
 
@@ -131,10 +136,11 @@ def sync(units):
 
             client.close()
 
-        except Exception:
+        except Exception as e:
+            print(f"unit={unit}")
+            logger.debug(e, exc_info=True)
             import traceback
 
-            print(f"unit={unit}")
             traceback.print_exc()
 
     units = universal_identifier_to_all_units(units)
@@ -164,10 +170,11 @@ def sync_configs(units):
             sync_config_files(client, unit)
 
             client.close()
-        except Exception:
+        except Exception as e:
+            print(f"unit={unit}")
+            logger.debug(e, exc_info=True)
             import traceback
 
-            print(f"unit={unit}")
             traceback.print_exc()
 
     units = universal_identifier_to_all_units(units)
@@ -245,6 +252,43 @@ def run(ctx, job, units, y):
 
     def _thread_function(unit):
         ssh(unit, command)
+
+    units = universal_identifier_to_all_units(units)
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        executor.map(_thread_function, units)
+
+    return
+
+
+@pios.command(
+    name="update",
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+    short_help="update a job on workers",
+)
+@click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
+@click.option(
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="Run on specific unit, default all.",
+)
+@click.pass_context
+def update(ctx, job, units):
+    # UNTESTED
+
+    exp = get_latest_experiment_name()
+    extra_args = list(ctx.args)
+
+    if "unit" in extra_args:
+        print("Did you mean to use 'units' instead of 'unit'? Exiting.")
+        return
+
+    from pioreactor.pubsub import publish
+
+    def _thread_function(unit):
+        for (setting, value) in zip(extra_args[::2], extra_args[1::2]):
+            publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
