@@ -41,7 +41,7 @@ class Monitor(BackgroundJob):
     def turn_off_led(self):
         GPIO.output(LED_PIN, GPIO.LOW)
 
-    def button_down_and_up(self):
+    def button_down_and_up(self, *args):
         # TODO: test
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
