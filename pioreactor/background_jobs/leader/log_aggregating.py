@@ -42,14 +42,15 @@ class LogAggregation(BackgroundJob):
     def on_message(self, message):
         try:
             unit = message.topic.split("/")[1]
+            payload = message.payload.decode()
             self.aggregated_log_table.insert(
                 0,
                 {
                     "timestamp": current_time(),
-                    "message": message.payload.decode(),
+                    "message": payload,
                     "unit": unit,
-                    "is_error": ("failed" in message.payload.decode())
-                    or ("error" in message.payload.decode()),
+                    "is_error": ("failed" in payload.lower())
+                    or ("error" in payload.lower()),
                 },
             )
             self.aggregated_log_table = self.aggregated_log_table[

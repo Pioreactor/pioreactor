@@ -17,7 +17,6 @@ class BackgroundSubJob(BackgroundJob):
         # disconnect from the passive subscription threads
         for client in self.pubsub_clients:
             client.loop_stop()  # takes a second or two.
-            self.logger.debug(self, client.disconnect())
 
         # set state to disconnect
         self.state = self.DISCONNECTED

@@ -31,9 +31,9 @@ class AltMediaCalculator(BackgroundSubJob):
         self.experiment = experiment
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 
-        # publish every 30 seconds.
+        # publish often to fill in gaps in UI chart.
         self.publish_periodically_thead = RepeatedTimer(
-            60, self.publish, job_name=self.job_name
+            5 * 60, self.publish_latest_alt_media_fraction, job_name=self.job_name
         )
         self.publish_periodically_thead.start()
 
@@ -54,7 +54,7 @@ class AltMediaCalculator(BackgroundSubJob):
         else:
             raise ValueError("Unknown event type")
 
-    def publish(self):
+    def publish_latest_alt_media_fraction(self):
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
             self.latest_alt_media_fraction,
