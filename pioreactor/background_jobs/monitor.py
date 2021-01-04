@@ -17,7 +17,7 @@ BUTTON_PIN = config.getint("rpi_pins", "tactile_button")
 LED_PIN = config.getint("rpi_pins", "led")
 
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(BUTTON_PIN, GPIO.IN)
+GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 GPIO.setup(LED_PIN, GPIO.OUT)
 
 
