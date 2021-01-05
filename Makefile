@@ -93,7 +93,7 @@ install-ui:
 	wget -O - https://raw.githubusercontent.com/audstanley/NodeJs-Raspberry-Pi/master/Install-Node.sh | sudo bash
 
 	# get latest pioreactorUI release from Github.
-	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/  --depth 1
+	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/pioreactorui  --depth 1
 	# Use below to not have to use git
 	# mkdir /home/pi/pioreactorui
 	# curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
