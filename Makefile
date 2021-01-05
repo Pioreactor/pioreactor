@@ -1,6 +1,6 @@
 install-git:
 	sudo apt-get update
-	sudo apt-get install git
+	sudo apt-get -y install git
 
 install-python:
 	sudo apt install -y python3-pip
@@ -93,8 +93,7 @@ install-ui:
 	wget -O - https://raw.githubusercontent.com/audstanley/NodeJs-Raspberry-Pi/master/Install-Node.sh | sudo bash
 
 	# get latest pioreactorUI release from Github.
-	cd /home/pi/
-	git clone https://github.com/Pioreactor/pioreactorui.git --depth 1
+	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/  --depth 1
 	# Use below to not have to use git
 	# mkdir /home/pi/pioreactorui
 	# curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
@@ -111,13 +110,12 @@ install-leader: install-git install-python install-mqtt configure-mqtt-websocket
 	sudo apt-get install sshpass
 
 configure-hostname:
-	read -e -p "Enter new Pioreactor name: " userEnteredPioName
 	sudo hostname $$userEnteredPioName
 	hostname | sudo tee /etc/hostname
 
 	wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm
 	chmod a+x hostess_linux_arm
-	sudo ./hostess_linux_arm rm raspberry
+	sudo ./hostess_linux_arm rm raspberrypi
 	sudo ./hostess_linux_arm add "$${userEnteredPioName}" 127.0.1.1
 
 install-leader-as-worker: configure-hostname install-leader install-worker
