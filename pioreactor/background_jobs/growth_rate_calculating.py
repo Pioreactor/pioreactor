@@ -135,6 +135,7 @@ class GrowthRateCalculator(BackgroundJob):
         if message and not self.ignore_cache:
             return self.json_to_sorted_dict(message.payload)
         else:
+            # TODO: assert that od_reading is running
             od_normalization(unit=self.unit, experiment=self.experiment)
             return self.set_od_normalization_factors()
 

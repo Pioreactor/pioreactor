@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-import socket
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
@@ -21,6 +20,8 @@ def get_latest_experiment_name():
 
 
 def get_hostname():
+    import socket
+
     if "pytest" in sys.modules:
         return "localhost"
     elif os.environ.get("HOSTNAME"):

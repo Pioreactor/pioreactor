@@ -51,7 +51,7 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
-        time.sleep(0.25)
+        time.sleep(0.4)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):

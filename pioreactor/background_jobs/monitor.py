@@ -34,6 +34,7 @@ class Monitor(BackgroundJob):
         GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up)
 
         self.start_passive_listeners()
+        self.flicker_led()
 
     def turn_on_led(self):
         GPIO.output(LED_PIN, GPIO.HIGH)
@@ -51,10 +52,7 @@ class Monitor(BackgroundJob):
 
         self.turn_on_led()
 
-        publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/log",
-            "Pushed tactile button",
-        )
+        publish(f"pioreactor/{self.unit}/{self.experiment}/log", "Pushed tactile button")
 
         while GPIO.input(BUTTON_PIN) == GPIO.HIGH:
 
@@ -85,7 +83,7 @@ class Monitor(BackgroundJob):
             disk_usage_percent,
         )
 
-    def flicker_led(self, _):
+    def flicker_led(self, *args):
         # TODO: what happens when I hear multiple msgs in quick succession?
         self.turn_on_led()
         time.sleep(0.2)

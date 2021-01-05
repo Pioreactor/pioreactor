@@ -91,6 +91,10 @@ try:
 
             os.system("mosquitto_sub -v -t 'pioreactor/#'")
 
+    if not am_I_leader() and not am_I_active_worker():
+        print(
+            "Running `pio` on a non-active Pioreactor. Do you need to add this Pioreactor to `inventory` in `config.ini`?"
+        )
 
 except Exception as e:
     logger.debug(e, exc_info=True)

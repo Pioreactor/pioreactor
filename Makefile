@@ -1,5 +1,8 @@
-install-python:
+install-git:
 	sudo apt-get update
+	sudo apt-get install git
+
+install-python:
 	sudo apt install -y python3-pip
 	sudo apt-get install -y python3-numpy
 
@@ -76,7 +79,7 @@ logging-files:
 
 install-db:
 	sudo apt-get install -y sqlite3
-	mkdir /home/pi/db
+	mkdir -p /home/pi/db
 	touch /home/pi/db/pioreactor.sqlite
 	sqlite3 /home/pi/db/pioreactor.sqlite < sql/create_tables.sql
 
@@ -91,25 +94,37 @@ install-ui:
 
 	# get latest pioreactorUI release from Github.
 	cd /home/pi/
-	mkdir /home/pi/pioreactorui
-	curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
+	git clone https://github.com/Pioreactor/pioreactorui.git --depth 1
+	# Use below to not have to use git
+	# mkdir /home/pi/pioreactorui
+	# curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
 
 	# install required libraries
 	npm --prefix /home/pi/pioreactorui/client install
 	npm --prefix /home/pi/pioreactorui/backend install
 	sudo npm install pm2@latest -g
 
-install-worker: install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker: install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
 
-install-leader: install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files
+install-leader: install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files install-ui
 	ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 	sudo apt-get install sshpass
 
-install-leader-as-worker: install-leader install-worker
+configure-hostname:
+	read -e -p "Enter new Pioreactor name: " userEnteredPioName
+	sudo hostname $$userEnteredPioName
+	hostname | sudo tee /etc/hostname
+
+	wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm
+	chmod a+x hostess_linux_arm
+	sudo ./hostess_linux_arm rm raspberry
+	sudo ./hostess_linux_arm add "$${userEnteredPioName}" 127.0.1.1
+
+install-leader-as-worker: configure-hostname install-leader install-worker
 	# I had trouble with variables, quotes and dollar signs, so https://stackoverflow.com/questions/10121182/multiline-bash-commands-in-makefile/29085684#29085684
 	{ \
 	set -e ;\
-	unitN=$$(hostname | sed "s/^pioreactor\(.*\)$$/\1/") ;\
-	touch ~/.pioreactor/config$$unitN.ini ;\
+	touch ~/.pioreactor/config_$$userEnteredPioName.ini ;\
 	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys ;\
 	}
+	sudo reboot
