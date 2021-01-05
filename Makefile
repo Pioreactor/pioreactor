@@ -110,19 +110,20 @@ install-leader: install-git install-python install-mqtt configure-mqtt-websocket
 	sudo apt-get install sshpass
 
 configure-hostname:
+	read -p "Enter new Pioreactor name: " userEnteredPioName; \
 	sudo hostname $$userEnteredPioName
 	hostname | sudo tee /etc/hostname
 
 	wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm
 	chmod a+x hostess_linux_arm
 	sudo ./hostess_linux_arm rm raspberrypi
-	sudo ./hostess_linux_arm add "$${userEnteredPioName}" 127.0.1.1
+	sudo ./hostess_linux_arm add "$(hostname)" 127.0.1.1
 
 install-leader-as-worker: configure-hostname install-leader install-worker
 	# I had trouble with variables, quotes and dollar signs, so https://stackoverflow.com/questions/10121182/multiline-bash-commands-in-makefile/29085684#29085684
 	{ \
 	set -e ;\
-	touch ~/.pioreactor/config_$$userEnteredPioName.ini ;\
+	touch ~/.pioreactor/config_"$(hostname)".ini ;\
 	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys ;\
 	}
 	sudo reboot
