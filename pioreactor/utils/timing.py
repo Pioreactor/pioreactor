@@ -64,6 +64,7 @@ class RepeatedTimer:
         self.is_running = False
         self.start()
         try:
+            self.logger.debug(f"Running {self.function.__name__}")
             self.function(*self.args, **self.kwargs)
         except Exception as e:
             self.logger.error(e)
