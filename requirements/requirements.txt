@@ -1,5 +1,4 @@
-# numpy, use sudo apt-get install python3-numpy
-
+numpy
 adafruit-circuitpython-ads1x15
 click
 paho-mqtt

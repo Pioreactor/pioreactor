@@ -50,11 +50,7 @@ def download_experiment_data(experiment, output, tables):
 @click.option("--output", default="/home/pi/exports/export.zip")
 @click.option("--tables", multiple=True, default=[])
 def click_download_experiment_data(experiment, output, tables):
+    """
+    (leader only) Export tables from db.
+    """
     return download_experiment_data(experiment, output, tables)
-
-
-if __name__ == "__main__":
-    """
-    Export tables from db
-    """
-    click_download_experiment_data()

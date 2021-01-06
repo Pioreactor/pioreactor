@@ -65,7 +65,9 @@ class Stirrer(BackgroundJob):
                 except AttributeError:
                     pass
             elif (value == self.READY) and (self.state == self.SLEEPING):
-                self.duty_cycle = int(config["stirring"][f"duty_cycle_{self.unit}"])
+                self.duty_cycle = config.getint(
+                    "stirring", f"duty_cycle_{self.unit}", fallback=0
+                )
                 self.start_stirring()
         super(Stirrer, self).__setattr__(name, value)
 

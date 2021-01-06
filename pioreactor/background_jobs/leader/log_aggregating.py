@@ -105,7 +105,7 @@ class LogAggregation(BackgroundJob):
 )
 def click_log_aggregating(output):
     """
-    Aggregate logs and cache it for PioreactorUI
+    (leader only) Aggregate logs for the UI
     """
     logs = LogAggregation(  # noqa: F841
         ["pioreactor/+/+/log"],

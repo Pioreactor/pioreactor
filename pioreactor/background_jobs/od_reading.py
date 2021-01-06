@@ -180,7 +180,9 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 """,
 )
 def click_od_reading(od_angle_channel):
-    # Start the optical density reading job
+    """
+    Start the optical density reading job
+    """
     reader = od_reading(od_angle_channel)
     while True:
         next(reader)

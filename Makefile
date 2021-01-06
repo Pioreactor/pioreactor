@@ -4,7 +4,8 @@ install-git:
 
 install-python:
 	sudo apt install -y python3-pip
-	sudo apt-get install -y python3-numpy
+	# the following is needed for numpy / pandas
+	sudo apt-get install libatlas-base-de
 
 install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
@@ -101,6 +102,7 @@ install-ui:
 
 	mv /home/pi/pioreactorui/backend/.env.example /home/pi/pioreactorui/backend/.env
 	mkdir /home/pi/pioreactorui/backend/build/data/
+	mkdir /home/pi/pioreactorui/backend/build/static/exports/
 
 	# install required libraries
 	# npm --prefix /home/pi/pioreactorui/client install
@@ -129,5 +131,6 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	set -e ;\
 	touch ~/.pioreactor/config_"$$(hostname)".ini ;\
 	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys ;\
+	ssh-keyscan -H $$(hostname) >> ~/.ssh/known_hosts
 	}
 	sudo reboot

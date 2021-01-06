@@ -77,8 +77,9 @@ class MqttToDBStreamer(BackgroundJob):
 
 @click.command(name="mqtt_to_db_streaming")
 def click_mqtt_to_db_streaming():
-    # start the job sending MQTT streams to the database
-    # parsers should return a dict of all the entries in the corresponding table.
+    """
+    (leader only) Send MQTT streams to the database. Parsers should return a dict of all the entries in the corresponding table.
+    """
 
     def parse_od(topic, payload):
         metadata = produce_metadata(topic)

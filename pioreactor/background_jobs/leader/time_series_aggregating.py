@@ -158,7 +158,7 @@ class TimeSeriesAggregation(BackgroundJob):
 @click.option("--ignore-cache", is_flag=True, help="skip using the saved data on disk")
 def click_time_series_aggregating(output_dir, ignore_cache):
     """
-    Aggregate time series data and cache it for PioreactorUI
+    (leader only) Aggregate time series for UI.
     """
     unit = get_unit_name()
 

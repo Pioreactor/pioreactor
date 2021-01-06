@@ -354,9 +354,9 @@ class PIDTurbidostat(IOAlgorithm):
         self.volume = float(volume)
 
         # PID%20controller%20turbidostat.ipynb
-        Kp = config.getFloat("pid_turbidostat", "Kp")
-        Ki = config.getFloat("pid_turbidostat", "Ki")
-        Kd = config.getFloat("pid_turbidostat", "Kd")
+        Kp = config.getfloat("pid_turbidostat", "Kp")
+        Ki = config.getfloat("pid_turbidostat", "Ki")
+        Kd = config.getfloat("pid_turbidostat", "Kd")
 
         self.pid = PID(
             -Kp,
@@ -418,9 +418,9 @@ class PIDMorbidostat(IOAlgorithm):
         self.set_target_growth_rate(target_growth_rate)
         self.target_od = float(target_od)
 
-        Kp = config.getFloat("pid_morbidostat", "Kp")
-        Ki = config.getFloat("pid_morbidostat", "Ki")
-        Kd = config.getFloat("pid_morbidostat", "Kd")
+        Kp = config.getfloat("pid_morbidostat", "Kp")
+        Ki = config.getfloat("pid_morbidostat", "Ki")
+        Kd = config.getfloat("pid_morbidostat", "Kd")
 
         self.pid = PID(
             -Kp,
@@ -598,7 +598,8 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
             signal.pause()
 
     except Exception as e:
-        logging.getLogger("io_controlling").error(f"failed {str(e)}", exc_info=True)
+        logging.getLogger("io_controlling").debug(f"failed {str(e)}", exc_info=True)
+        logging.getLogger("io_controlling").error(f"failed {str(e)}")
         raise e
 
 
@@ -626,7 +627,9 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
 def click_io_controlling(
     mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
 ):
-    # start the IO controlling job
+    """
+    Start a dosing algorithm
+    """
     controller = run(  # noqa: F841
         mode=mode,
         target_od=target_od,

@@ -233,5 +233,7 @@ def growth_rate_calculating(ignore_cache):
 @click.command(name="growth_rate_calculating")
 @click.option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
 def click_growth_rate_calculating(ignore_cache):
-    # Start the growth rate calculating job
+    """
+    Start calculating growth rate
+    """
     growth_rate_calculating(ignore_cache)
