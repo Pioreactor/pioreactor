@@ -4,6 +4,7 @@ import os
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
+NO_EXPERIMENT = "$noExperiment"
 
 
 def get_latest_experiment_name():
@@ -16,7 +17,7 @@ def get_latest_experiment_name():
     if mqtt_msg:
         return mqtt_msg.payload.decode()
     else:
-        return None
+        return NO_EXPERIMENT
 
 
 def get_hostname():
