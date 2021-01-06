@@ -11,10 +11,11 @@ install-mqtt:
 	sudo systemctl enable mosquitto.service
 
 configure-mqtt-websockets:
-	echo "listener 1883" | sudo tee /etc/mosquitto/mosquitto.conf -a
-	echo "protocol mqtt" | sudo tee /etc/mosquitto/mosquitto.conf -a
-	echo "listener 9001" | sudo tee /etc/mosquitto/mosquitto.conf -a
-	echo "protocol websockets" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	# append if not already present
+	grep -qxF 'listener 1883' /etc/mosquitto/mosquitto.conf || echo "listener 1883" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	grep -qxF 'protocol mqtt' /etc/mosquitto/mosquitto.conf || echo "protocol mqtt" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	grep -qxF 'listener 9001' /etc/mosquitto/mosquitto.conf || echo "listener 9001" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	grep -qxF 'protocol websockets' /etc/mosquitto/mosquitto.conf || echo "protocol websockets" | sudo tee /etc/mosquitto/mosquitto.conf -a
 
 install-i2c:
 	sudo apt-get install -y python-smbus
@@ -99,9 +100,10 @@ install-ui:
 	# curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
 
 	mv /home/pi/pioreactorui/backend/.env.example /home/pi/pioreactorui/backend/.env
+	mkdir /home/pi/pioreactorui/backend/build/data/
 
 	# install required libraries
-	npm --prefix /home/pi/pioreactorui/client install
+	# npm --prefix /home/pi/pioreactorui/client install
 	npm --prefix /home/pi/pioreactorui/backend install
 	sudo npm install pm2@latest -g
 

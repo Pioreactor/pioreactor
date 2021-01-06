@@ -61,10 +61,11 @@ def sync_config_files(client, unit):
     ftp_client = client.open_sftp()
 
     # move the global config.ini
-
-    # due to permissions, we can't ftp to /etc/, so we move to where we can
-    # and then use `sudo` to move it.
-    ftp_client.put("/home/pi/.pioreactor/config.ini", "/home/pi/.pioreactor/config.ini")
+    # there was a bug where if the leader == unit, the config.ini would get wiped
+    if not am_I_leader():
+        ftp_client.put(
+            "/home/pi/.pioreactor/config.ini", "/home/pi/.pioreactor/config.ini"
+        )
 
     # move the local config.ini
     try:
