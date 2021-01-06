@@ -144,12 +144,9 @@ def subscribe_and_callback(
                 return actual_callback(message)
 
             except Exception as e:
-                import traceback
-
-                traceback.print_exc()
-
                 logger = logging.getLogger(userdata.get("job_name", "pioreactor"))
-                logger.error(str(e))
+                logger.debug(e, exc_info=True)
+                logger.error(e)
                 raise e
 
         return _callback
