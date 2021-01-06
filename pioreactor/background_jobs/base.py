@@ -225,7 +225,6 @@ class BackgroundJob:
             job_name=self.job_name,
             keepalive=20,  # slightly lower than the default 60, as we want to know quickly when the client has failed / broke
         )
-        client.name = "test"
         self.pubsub_clients.append(client)
 
     def check_for_duplicate_process(self):
