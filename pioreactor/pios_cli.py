@@ -276,10 +276,9 @@ def run(ctx, job, units, y):
 )
 @click.pass_context
 def update(ctx, job, units):
-    # UNTESTED
 
     exp = get_latest_experiment_name()
-    extra_args = list(ctx.args)
+    extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 
     if "unit" in extra_args:
         print("Did you mean to use 'units' instead of 'unit'? Exiting.")
@@ -288,7 +287,7 @@ def update(ctx, job, units):
     from pioreactor.pubsub import publish
 
     def _thread_function(unit):
-        for (setting, value) in zip(extra_args[::2], extra_args[1::2]):
+        for (setting, value) in extra_args.items():
             publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
 
     units = universal_identifier_to_all_units(units)

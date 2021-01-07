@@ -25,6 +25,7 @@ from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import publish, subscribe_and_callback, QOS
+from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -34,6 +35,7 @@ from pioreactor.background_jobs.utils import events
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
+
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
 
@@ -173,6 +175,13 @@ class IOAlgorithm(BackgroundSubJob):
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             time.sleep(5)  # wait some time for data to arrive, and try again.
+            self.logger.debug("Waiting for OD and growth rate data to arrive.")
+            if not ("od_reading" in pio_jobs_running()) and (
+                "growth_rate_calculating" in pio_jobs_running()
+            ):
+                raise IOError(
+                    "failed: `od_reading` and `growth_rate_calculating` should be running."
+                )
             return self.run(counter=counter)
 
         if self.state != self.READY:
@@ -180,7 +189,7 @@ class IOAlgorithm(BackgroundSubJob):
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(
-                "readings are too stale (over 5 minutes old) - are `Optical density job` and `Growth rate job` running?"
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
         else:
             try:
