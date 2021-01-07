@@ -17,6 +17,7 @@ def pio_jobs_running():
 
 
 def execute_query_against_db(query):
+    # must run on leader
     import sqlite3
     from pioreactor.config import config
 

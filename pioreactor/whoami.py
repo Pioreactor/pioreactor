@@ -11,13 +11,11 @@ def get_latest_experiment_name():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return "testing_experiment"
 
-    from pioreactor.utils import execute_query_against_db
+    from pioreactor.pubsub import subscribe
 
-    rows = execute_query_against_db(
-        "SELECT experiment FROM experiments ORDER BY timestamp DESC LIMIT 1;"
-    )
-    if rows:
-        return rows[0]
+    mqtt_msg = subscribe("pioreactor/latest_experiment", timeout=1)
+    if mqtt_msg:
+        return mqtt_msg.payload.decode()
     else:
         return NO_EXPERIMENT
 
