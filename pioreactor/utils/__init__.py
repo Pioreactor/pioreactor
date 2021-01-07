@@ -16,6 +16,18 @@ def pio_jobs_running():
     return jobs
 
 
+def execute_query_against_db(query):
+    import sqlite3
+    from pioreactor.config import config
+
+    conn = sqlite3.connect(config["storage"]["observation_database"])
+    cur = conn.cursor()
+    cur.execute(query)
+    rows = cur.fetchall()
+    conn.close()
+    return rows
+
+
 def pump_ml_to_duration(ml, duty_cycle, duration_=0):
     """
     ml: the desired volume

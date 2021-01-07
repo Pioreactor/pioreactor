@@ -4,18 +4,20 @@ import os
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
-NO_EXPERIMENT = "$noExperiment"
+NO_EXPERIMENT = "$no_experiment_present"
 
 
 def get_latest_experiment_name():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return "testing_experiment"
 
-    from pioreactor.pubsub import subscribe
+    from pioreactor.utils import execute_query_against_db
 
-    mqtt_msg = subscribe("pioreactor/latest_experiment", timeout=1)
-    if mqtt_msg:
-        return mqtt_msg.payload.decode()
+    rows = execute_query_against_db(
+        "SELECT experiment FROM experiments ORDER BY timestamp DESC LIMIT 1;"
+    )
+    if rows:
+        return rows[0]
     else:
         return NO_EXPERIMENT
 
