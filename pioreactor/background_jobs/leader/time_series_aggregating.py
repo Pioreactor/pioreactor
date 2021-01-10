@@ -171,28 +171,28 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         return split_topic[1]
 
     raw135 = TimeSeriesAggregation(  # noqa: F841
-        "pioreactor/+/+/od_raw/135/+",
+        "pioreactor/+/+/od_raw/+/+",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_raw_time_series_aggregating",
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_seconds=30,
+        write_every_n_seconds=10,
         time_window_seconds=60
         * int(config["ui.overview.settings"]["raw_od_lookback_minutes"]),
         record_every_n_seconds=5,
     )
 
     filtered135 = TimeSeriesAggregation(  # noqa: F841
-        "pioreactor/+/+/od_filtered/135/+",
+        "pioreactor/+/+/od_filtered/+/+",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_filtered_time_series_aggregating",
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_seconds=15,
+        write_every_n_seconds=10,
         time_window_seconds=60
         * int(config["ui.overview.settings"]["filtered_od_lookback_minutes"]),
         record_every_n_seconds=4,
@@ -206,7 +206,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
-        write_every_n_seconds=15,
+        write_every_n_seconds=10,
         record_every_n_seconds=5 * 60,  # TODO: move this to a config param
     )
 
@@ -218,7 +218,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
-        write_every_n_seconds=15,
+        write_every_n_seconds=10,
         record_every_n_seconds=1,
     )
 

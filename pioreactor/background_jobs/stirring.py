@@ -50,8 +50,8 @@ class Stirrer(BackgroundJob):
         GPIO.cleanup()
 
     def start_stirring(self):
-        self.pwm.start(100)  # get momentum to start
-        time.sleep(0.4)
+        self.pwm.start(95)  # get momentum to start
+        time.sleep(0.5)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
