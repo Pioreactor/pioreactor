@@ -1,11 +1,11 @@
 install-git:
-	sudo apt-get update
-	sudo apt-get -y install git
+	sudo apt update
+	sudo apt install -y  git
 
 install-python:
 	sudo apt install -y python3-pip
 	# the following is needed for numpy / pandas
-	sudo apt-get install libatlas-base-de
+	sudo apt install -y libatlas-base-dev
 
 install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
@@ -64,16 +64,16 @@ systemd-leader:
 
 
 install-pioreactor-leader:
-	sudo python3 setup.py install
 	pip3 install -r requirements/requirements_leader.txt
 	mkdir -p ~/.pioreactor
 	cp config.ini ~/.pioreactor/config.ini
+	sudo python3 setup.py install
 
 install-pioreactor-worker:
-	sudo python3 setup.py install
 	pip3 install -r requirements/requirements_worker.txt
 	mkdir -p ~/.pioreactor
 	touch ~/.pioreactor/unit_config.ini
+	sudo python3 setup.py install
 
 logging-files:
 	sudo touch /var/log/pioreactor.log
