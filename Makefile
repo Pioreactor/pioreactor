@@ -6,7 +6,6 @@ install-python:
 	sudo apt install -y python3-pip
 	# the following is needed for numpy / pandas
 	sudo apt-get install -y python3-numpy
-	sudo apt-get install -y python3-pandas
 
 install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
@@ -65,6 +64,7 @@ systemd-leader:
 
 
 install-pioreactor-leader:
+	sudo apt-get install -y python3-pandas
 	pip3 install -r requirements/requirements_leader.txt
 	mkdir -p ~/.pioreactor
 	cp config.ini ~/.pioreactor/config.ini
