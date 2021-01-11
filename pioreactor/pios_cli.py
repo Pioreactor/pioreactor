@@ -56,13 +56,15 @@ def checksum_git(s):
     ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `pios sync`"
 
 
-def sync_config_files(client, unit):
-    # occurs in a thread
-    ftp_client = client.open_sftp()
+def sync_config_files(ssh_client, unit):
+    """
+    this function occurs in a thread
+    """
+    ftp_client = ssh_client.open_sftp()
 
     # move the global config.ini
     # there was a bug where if the leader == unit, the config.ini would get wiped
-    if get_leader_hostname() != client:
+    if get_leader_hostname() != unit:
         ftp_client.put(
             "/home/pi/.pioreactor/config.ini", "/home/pi/.pioreactor/config.ini"
         )
