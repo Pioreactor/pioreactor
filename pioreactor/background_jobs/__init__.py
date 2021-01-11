@@ -7,6 +7,7 @@ from pioreactor.background_jobs import monitor
 from pioreactor.background_jobs.leader import log_aggregating
 from pioreactor.background_jobs.leader import mqtt_to_db_streaming
 from pioreactor.background_jobs.leader import time_series_aggregating
+from pioreactor.background_jobs.leader import watchdog
 
 
 __all__ = (
@@ -18,4 +19,5 @@ __all__ = (
     mqtt_to_db_streaming,
     time_series_aggregating,
     monitor,
+    watchdog,
 )
