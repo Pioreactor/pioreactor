@@ -102,8 +102,6 @@ install-ui:
 	# curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
 
 	mv /home/pi/pioreactorui/backend/.env.example /home/pi/pioreactorui/backend/.env
-	mkdir /home/pi/pioreactorui/backend/build/data/
-	mkdir /home/pi/pioreactorui/backend/build/static/exports/
 
 	# install required libraries
 	# npm --prefix /home/pi/pioreactorui/client install
@@ -111,6 +109,7 @@ install-ui:
 	sudo npm install pm2@latest -g
 
 install-worker: configure-hostname install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
+	sudo -upi mkdir /home/pi/.ssh
 
 install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files install-ui
 	ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
@@ -136,6 +135,6 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	set -e ;\
 	touch ~/.pioreactor/config_"$$(hostname)".ini ;\
 	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys ;\
-	ssh-keyscan -H $$(hostname) >> ~/.ssh/known_hosts
+	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts
 	}
 	sudo reboot

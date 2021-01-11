@@ -17,7 +17,7 @@ from pioreactor.whoami import (
     UNIVERSAL_IDENTIFIER,
     get_latest_experiment_name,
 )
-from pioreactor.config import get_active_worker_units_and_ips
+from pioreactor.config import get_active_worker_units_and_ips, get_leader_hostname
 
 
 ALL_WORKER_JOBS = [
@@ -62,7 +62,7 @@ def sync_config_files(client, unit):
 
     # move the global config.ini
     # there was a bug where if the leader == unit, the config.ini would get wiped
-    if not am_I_leader():
+    if get_leader_hostname() != client:
         ftp_client.put(
             "/home/pi/.pioreactor/config.ini", "/home/pi/.pioreactor/config.ini"
         )
