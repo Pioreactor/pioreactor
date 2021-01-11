@@ -1,4 +1,3 @@
 -r requirements.txt
 paramiko
-pandas
 -e 'git+https://github.com/palantir/sqlite3worker#egg=sqlite3worker'

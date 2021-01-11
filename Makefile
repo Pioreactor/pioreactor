@@ -5,7 +5,8 @@ install-git:
 install-python:
 	sudo apt install -y python3-pip
 	# the following is needed for numpy / pandas
-	sudo apt install -y libatlas-base-dev
+	sudo apt-get install -y python3-numpy
+	sudo apt-get install -y python3-pandas
 
 install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
@@ -116,16 +117,18 @@ install-leader: configure-hostname install-git install-python install-mqtt confi
 	sudo apt-get install sshpass
 
 configure-hostname:
-	if [ $$(hostname) = "raspberrypi" ]; then\
-		read -p "Enter new Pioreactor name: " userEnteredPioName; \
-		sudo hostname $$userEnteredPioName
-		hostname | sudo tee /etc/hostname
-
-		wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm
-		chmod a+x hostess_linux_arm
-		sudo ./hostess_linux_arm rm raspberrypi
-		sudo ./hostess_linux_arm add "$$(hostname)" 127.0.1.1
-	fi
+	{ \
+	set -e ;\
+	if [ "$$(hostname)" = "raspberrypi" ]; then \
+		read -p "Enter new Pioreactor name: " userEnteredPioName ;\
+		sudo hostname $$userEnteredPioName ;\
+		hostname | sudo tee /etc/hostname ;\
+		wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm ;\
+		chmod a+x hostess_linux_arm ;\
+		sudo ./hostess_linux_arm rm raspberrypi ;\
+		sudo ./hostess_linux_arm add "$$(hostname)" 127.0.1.1 ;\
+	fi ;\
+	}
 
 install-leader-as-worker: configure-hostname install-leader install-worker
 	# I had trouble with variables, quotes and dollar signs, so https://stackoverflow.com/questions/10121182/multiline-bash-commands-in-makefile/29085684#29085684
