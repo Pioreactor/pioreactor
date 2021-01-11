@@ -140,9 +140,6 @@ def sync(units):
         except Exception as e:
             print(f"unit={unit}")
             logger.debug(e, exc_info=True)
-            import traceback
-
-            traceback.print_exc()
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -174,9 +171,7 @@ def sync_configs(units):
         except Exception as e:
             print(f"unit={unit}")
             logger.debug(e, exc_info=True)
-            import traceback
-
-            traceback.print_exc()
+            logger.error(f"Unable to connect to unit {unit}.")
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:

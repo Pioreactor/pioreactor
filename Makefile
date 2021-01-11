@@ -109,21 +109,23 @@ install-ui:
 	npm --prefix /home/pi/pioreactorui/backend install
 	sudo npm install pm2@latest -g
 
-install-worker: install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker: configure-hostname install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
 
-install-leader: install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files install-ui
+install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files install-ui
 	ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
 	sudo apt-get install sshpass
 
 configure-hostname:
-	read -p "Enter new Pioreactor name: " userEnteredPioName; \
-	sudo hostname $$userEnteredPioName
-	hostname | sudo tee /etc/hostname
+	if [ $$(hostname) = "raspberrypi" ]; then\
+		read -p "Enter new Pioreactor name: " userEnteredPioName; \
+		sudo hostname $$userEnteredPioName
+		hostname | sudo tee /etc/hostname
 
-	wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm
-	chmod a+x hostess_linux_arm
-	sudo ./hostess_linux_arm rm raspberrypi
-	sudo ./hostess_linux_arm add "$$(hostname)" 127.0.1.1
+		wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm
+		chmod a+x hostess_linux_arm
+		sudo ./hostess_linux_arm rm raspberrypi
+		sudo ./hostess_linux_arm add "$$(hostname)" 127.0.1.1
+	fi
 
 install-leader-as-worker: configure-hostname install-leader install-worker
 	# I had trouble with variables, quotes and dollar signs, so https://stackoverflow.com/questions/10121182/multiline-bash-commands-in-makefile/29085684#29085684
