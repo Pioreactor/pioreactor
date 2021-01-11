@@ -69,15 +69,15 @@ systemd-leader:
 
 install-pioreactor-leader:
 	sudo apt-get install -y python3-pandas
-	pip3 install -r requirements/requirements_leader.txt
-	mkdir -p ~/.pioreactor
-	cp config.ini ~/.pioreactor/config.ini
+	pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
+	mkdir -p /home/pi/.pioreactor
+	cp config.ini /home/pi/.pioreactor/config.ini
 	sudo python3 setup.py install
 
 install-pioreactor-worker:
-	pip3 install -r requirements/requirements_worker.txt
-	mkdir -p ~/.pioreactor
-	touch ~/.pioreactor/unit_config.ini
+	pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
+	mkdir -p /home/pi/.pioreactor
+	touch /home/pi/.pioreactor/unit_config.ini
 	sudo python3 setup.py install
 
 logging-files:
@@ -116,7 +116,7 @@ install-worker: configure-hostname install-git install-python configure-rpi syst
 	sudo -upi mkdir /home/pi/.ssh
 
 install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files install-ui
-	ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+	ssh-keygen -t rsa -N "" -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass
 
 configure-hostname:
@@ -137,8 +137,8 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	# I had trouble with variables, quotes and dollar signs, so https://stackoverflow.com/questions/10121182/multiline-bash-commands-in-makefile/29085684#29085684
 	{ \
 	set -e ;\
-	touch ~/.pioreactor/config_"$$(hostname)".ini ;\
-	cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys ;\
+	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\
+	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
 	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts
 	}
 	sudo reboot
