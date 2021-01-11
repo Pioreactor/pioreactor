@@ -62,6 +62,10 @@ systemd-leader:
 	sudo chmod 644 /lib/systemd/system/watchdog.service
 	sudo systemctl enable watchdog.service
 
+	sudo cp /home/pi/pioreactor/startup/systemd/start_pioreactorui.service /lib/systemd/system/start_pioreactorui.service
+	sudo chmod 644 /lib/systemd/system/start_pioreactorui.service
+	sudo systemctl enable start_pioreactorui.service
+
 
 install-pioreactor-leader:
 	sudo apt-get install -y python3-pandas

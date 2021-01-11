@@ -25,7 +25,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     if "od_reading" not in pio_jobs_running():
         # we sample faster, because we can...
         # TODO: write tests for this
-        assert od_angle_channel is not None
+        assert od_angle_channel is not None, "od_angle_channel is not set"
         sampling_rate = 0.5
         signal = od_reading(od_angle_channel, sampling_rate)
     else:

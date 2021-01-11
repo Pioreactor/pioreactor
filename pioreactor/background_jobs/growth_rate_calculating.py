@@ -7,6 +7,7 @@ import logging
 import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
+from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import publish, subscribe, subscribe_and_callback, QOS
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -135,7 +136,9 @@ class GrowthRateCalculator(BackgroundJob):
         if message and not self.ignore_cache:
             return self.json_to_sorted_dict(message.payload)
         else:
-            # TODO: assert that od_reading is running
+            assert (
+                "od_reading" in pio_jobs_running()
+            ), "OD reading should be running. Stopping."
             od_normalization(unit=self.unit, experiment=self.experiment)
             return self.set_od_normalization_factors()
 

@@ -76,6 +76,7 @@ try:
         run.add_command(jobs.log_aggregating.click_log_aggregating)
         run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
         run.add_command(jobs.time_series_aggregating.click_time_series_aggregating)
+        run.add_command(jobs.watchdog.click_watchdog)
 
         run.add_command(actions.download_experiment_data.click_download_experiment_data)
 
