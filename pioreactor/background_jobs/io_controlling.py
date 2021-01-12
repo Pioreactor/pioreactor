@@ -174,7 +174,7 @@ class IOAlgorithm(BackgroundSubJob):
 
     def run(self, counter=None):
         if (self.latest_growth_rate is None) or (self.latest_od is None):
-            time.sleep(5)  # wait some time for data to arrive, and try again.
+            time.sleep(10)  # wait some time for data to arrive, and try again.
             self.logger.debug("Waiting for OD and growth rate data to arrive.")
             if not ("od_reading" in pio_jobs_running()) and (
                 "growth_rate_calculating" in pio_jobs_running()
@@ -578,6 +578,7 @@ class AlgoController(BackgroundJob):
 
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
+        # TODO: this could move to the base class
         for attr in self.editable_settings:
             if attr == "state":
                 continue

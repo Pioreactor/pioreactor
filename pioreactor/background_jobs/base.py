@@ -89,6 +89,7 @@ class BackgroundJob:
         def exit_python(*args):
             # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect wrong and a last-will was sent.
             time.sleep(1)
+            self.logger.debug("Calling sys.exit(0)")
             sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,

@@ -164,6 +164,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
 
     def single_sensor_label_from_topic(topic):
         split_topic = topic.split("/")
+        # return f"{split_topic[1]}-{split_topic[-2]}/{split_topic[-1]}"
         return f"{split_topic[1]}-{split_topic[-1]}"
 
     def unit_from_topic(topic):
