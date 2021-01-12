@@ -7,7 +7,11 @@ def pio_jobs_running():
     jobs = []
     for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
         try:
-            if proc.info["cmdline"] and (proc.info["cmdline"][0] == "/usr/bin/python3"):
+            if (
+                proc.info["cmdline"]
+                and (proc.info["cmdline"][0] == "/usr/bin/python3")
+                and (proc.info["cmdline"][1] == "/usr/local/bin/pio")  # not pios!
+            ):
                 # TODO: needs to be more specific, this fails often
                 job = proc.info["cmdline"][3]
                 jobs.append(job)

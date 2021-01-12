@@ -134,7 +134,6 @@ configure-hostname:
 	}
 
 install-leader-as-worker: configure-hostname install-leader install-worker
-	# I had trouble with variables, quotes and dollar signs, so https://stackoverflow.com/questions/10121182/multiline-bash-commands-in-makefile/29085684#29085684
 	{ \
 	set -e ;\
 	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\
