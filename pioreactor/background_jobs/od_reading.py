@@ -154,8 +154,17 @@ def od_reading(
 
         od_channels.append((angle_label, channel))
 
-    i2c = busio.I2C(board.SCL, board.SDA)
-    ads = ADS.ADS1115(i2c, gain=2)  # we will change the gain dynamically later.
+    try:
+        i2c = busio.I2C(board.SCL, board.SDA)
+    except ValueError as e:
+        logger.error(
+            "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
+        )
+        raise e
+
+    # we will change the gain dynamically later.
+    # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
+    ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
     try:
         yield from every(
             sampling_rate,

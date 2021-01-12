@@ -187,7 +187,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         except Exception as e:
-            self.logger.error(f"failed {str(e)}.")
+            self.logger.error(f"failed with {str(e)}")
             raise e
 
     def start_passive_listeners(self):
@@ -229,7 +229,7 @@ def growth_rate_calculating(ignore_cache):
         while True:
             signal.pause()
     except Exception as e:
-        logging.getLogger(JOB_NAME).error(f"failed {str(e)}.")
+        logging.getLogger(JOB_NAME).error(f"failed with {str(e)}")
         raise e
 
 
