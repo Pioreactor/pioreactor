@@ -47,6 +47,7 @@ ADS_GAIN_THRESHOLDS = {
     16: (-1, 0.256),
 }
 
+SCL, SDA = 3, 2
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 logger = logging.getLogger(JOB_NAME)
 
@@ -139,8 +140,6 @@ def od_reading(
     sampling_rate=1 / float(config["od_config.od_sampling"]["samples_per_second"]),
 ):
 
-    import board
-
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -155,7 +154,7 @@ def od_reading(
         od_channels.append((angle_label, channel))
 
     try:
-        i2c = busio.I2C(board.SCL, board.SDA)
+        i2c = busio.I2C(SCL, SDA)
     except ValueError as e:
         logger.error(
             "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
