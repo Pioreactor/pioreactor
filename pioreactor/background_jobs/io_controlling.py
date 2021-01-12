@@ -573,7 +573,13 @@ class AlgoController(BackgroundJob):
             self.logger.error(f"failed with {str(e)}")
 
     def on_disconnect(self):
-        self.io_algorithm_job.set_state("disconnected")
+        try:
+            self.io_algorithm_job.set_state("disconnected")
+        except AttributeError:
+            # if disconnect is called right after starting, io_algorithm_job isn't instantiated
+            time.sleep(1)
+            self.on_disconnect()
+            return
         self.clear_mqtt_cache()
 
     def clear_mqtt_cache(self):
