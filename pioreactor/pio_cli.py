@@ -92,6 +92,19 @@ try:
 
             os.system("mosquitto_sub -v -t 'pioreactor/#'")
 
+        @pio.command(name="add-pioreactor", short_help="add new Pioreactor to cluster")
+        @click.argument("new_name")
+        def add_pioreactor(new_name):
+            import subprocess
+
+            subprocess.Popen(
+                [
+                    "bash /home/pi/pioreactor/bash_scripts/add_new_worker_from_leader.sh %s"
+                    % new_name
+                ],
+                shell=True,
+            )
+
     if not am_I_leader() and not am_I_active_worker():
         print(
             "Running `pio` on a non-active Pioreactor. Do you need to add this Pioreactor to `inventory` in `config.ini`?"

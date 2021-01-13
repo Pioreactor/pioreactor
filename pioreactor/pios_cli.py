@@ -259,9 +259,9 @@ def run(ctx, job, units, y):
 
 
 @pios.command(
-    name="update",
+    name="update-settings",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
-    short_help="update a job on workers",
+    short_help="update settings on a job on workers",
 )
 @click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
 @click.option(
