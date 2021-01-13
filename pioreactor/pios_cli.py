@@ -121,7 +121,7 @@ def sync(units):
         try:
 
             client = paramiko.SSHClient()
-            # client.load_system_host_keys()
+            client.load_system_host_keys()
             client.connect(unit, username="pi")
 
             (stdin, stdout, stderr) = client.exec_command(command)
@@ -164,7 +164,7 @@ def sync_configs(units):
         try:
 
             client = paramiko.SSHClient()
-            # client.load_system_host_keys()
+            client.load_system_host_keys()
             client.connect(unit, username="pi")
 
             sync_config_files(client, unit)
