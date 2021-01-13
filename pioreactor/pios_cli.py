@@ -17,7 +17,7 @@ from pioreactor.whoami import (
     UNIVERSAL_IDENTIFIER,
     get_latest_experiment_name,
 )
-from pioreactor.config import get_active_worker_units_and_ips, get_leader_hostname
+from pioreactor.config import get_active_workers_in_inventory, get_leader_hostname
 
 
 ALL_WORKER_JOBS = [
@@ -38,7 +38,7 @@ logger = logging.getLogger("leader CLI")
 
 def universal_identifier_to_all_units(units):
     if units == (UNIVERSAL_IDENTIFIER,):
-        units = get_active_worker_units_and_ips().keys()
+        units = get_active_workers_in_inventory().keys()
     return units
 
 
@@ -94,7 +94,7 @@ def pios():
         print("workers cannot run `pios` commands. Try `pio` instead.")
         sys.exit(0)
 
-    if len(get_active_worker_units_and_ips()) == 0:
+    if len(get_active_workers_in_inventory()) == 0:
         print("No active workers. See `inventory` section in config.ini.")
         sys.exit(0)
 

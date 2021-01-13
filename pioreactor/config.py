@@ -24,11 +24,9 @@ def get_leader_hostname():
     return config["network.topology"]["leader_hostname"]
 
 
-def get_active_worker_units_and_ips():
+def get_active_workers_in_inventory():
     # TODO update to remove IPs
-    return dict(
-        [(unit, None) for unit, available in config["inventory"].items() if available]
-    )
+    return [unit for (unit, available) in config["inventory"].items() if available]
 
 
 leader_hostname = get_leader_hostname()

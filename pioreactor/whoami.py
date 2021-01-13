@@ -54,6 +54,6 @@ def am_I_leader():
 
 
 def am_I_active_worker():
-    from pioreactor.config import get_active_worker_units_and_ips
+    from pioreactor.config import get_active_workers_in_inventory
 
-    return get_unit_name() in get_active_worker_units_and_ips().keys()
+    return get_unit_name() in get_active_workers_in_inventory()
