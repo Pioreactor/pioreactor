@@ -93,7 +93,7 @@ install-db:
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
-	sudo -upi mkdir /home/pi/.ssh
+	sudo -upi mkdir -p /home/pi/.ssh
 
 install-ui:
 	# install NPM and Node
