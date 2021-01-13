@@ -147,6 +147,7 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 install-worker: configure-hostname install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
 
 install-worker-from-args: configure-hostname-from-args install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
+	sudo reboot
 
 install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files install-ui
 	ssh-keygen -t rsa -N "" -f /home/pi/.ssh/id_rsa
