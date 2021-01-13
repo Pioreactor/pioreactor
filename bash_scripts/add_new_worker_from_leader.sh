@@ -3,7 +3,7 @@
 # first argument is the new name of the pioreactor, to replace raspberrypi
 
 # remove from known_hosts if already present
-ssh-keygen -R $1
+ssh-keygen -R $1.local
 ssh-keygen -R raspberrypi.local
 
 # allow us to SSH in
