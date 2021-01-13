@@ -96,9 +96,25 @@ try:
         @click.argument("new_name")
         def add_pioreactor(new_name):
             import subprocess
+            import socket
 
-            # TODO: check to make sure new_name isn't already on the network
-            # TODO: check to make sure raspberrypi.local is on network
+            # check to make sure new_name isn't already on the network
+            try:
+                socket.gethostbyname(new_name)
+            except socket.gaierror:
+                pass
+            else:
+                print(f"Name {new_name} is already on the network. Try another name.")
+
+            # check to make sure raspberrypi.local is on network
+            raspberrypi_on_network = False
+            while not raspberrypi_on_network:
+                try:
+                    socket.gethostbyname("raspberrypi")
+                except socket.gaierror:
+                    pass
+                else:
+                    raspberrypi_on_network = True
 
             subprocess.call(
                 [
