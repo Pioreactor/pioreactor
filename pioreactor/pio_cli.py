@@ -97,6 +97,9 @@ try:
         def add_pioreactor(new_name):
             import subprocess
 
+            # TODO: check to make sure new_name isn't already on the network
+            # TODO: check to make sure raspberrypi.local is on network
+
             subprocess.call(
                 [
                     "bash /home/pi/pioreactor/bash_scripts/add_new_worker_from_leader.sh %s"

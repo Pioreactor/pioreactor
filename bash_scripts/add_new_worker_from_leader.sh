@@ -17,16 +17,16 @@ touch ~/.pioreactor/config_$1.ini
 crudini --set ~/.pioreactor/config.ini inventory $1 1
 
 
-# this needs to happen after the worker is online again (it reboots)
-
-ssh $1
-while test $? -gt 0
-do
-   sleep 3 # highly recommended - if it's in your local network, it can try an awful lot pretty quick...
-   echo "Trying again..."
-   ssh $1
+# more needs to happen after the worker is online again (it reboots)
+while ! ping -c1 $1 &>/dev/null
+        do echo "Ping missed - `date`"
+        sleep(2)
 done
+echo "Host $1 found - `date`"
+sleep(1)
 
 # add to known hosts
 ssh-keyscan -H $1 >> ~/.ssh/known_hosts
+
+# sync-configs
 pios sync-configs
