@@ -28,6 +28,10 @@ done
 echo "Host $1 found - `date`"
 sleep 1
 
+
+# remove from known_hosts if already present idk...
+ssh-keygen -R $1.local
+
 # add to known hosts
 ssh-keyscan -H $1 >> ~/.ssh/known_hosts
 
