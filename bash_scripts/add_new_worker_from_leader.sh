@@ -4,6 +4,7 @@
 
 # remove from known_hosts if already present
 ssh-keygen -R $1
+ssh-keygen -R raspberrypi.local
 
 # allow us to SSH in
 sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local 'mkdir .ssh'
