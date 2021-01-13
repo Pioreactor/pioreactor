@@ -25,12 +25,9 @@ def get_leader_hostname():
 
 
 def get_active_worker_units_and_ips():
+    # TODO update to remove IPs
     return dict(
-        [
-            (unit, ip)
-            for unit, ip in config["network.ips"].items()
-            if config["inventory"].getboolean(unit)
-        ]
+        [(unit, None) for unit, available in config["inventory"].items() if available]
     )
 
 

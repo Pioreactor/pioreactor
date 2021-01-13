@@ -20,10 +20,10 @@ crudini --set ~/.pioreactor/config.ini inventory $1 1
 # more needs to happen after the worker is online again (it reboots)
 while ! ping -c1 $1 &>/dev/null
         do echo "Ping missed - `date`"
-        sleep(2)
+        sleep 2
 done
 echo "Host $1 found - `date`"
-sleep(1)
+sleep 1
 
 # add to known hosts
 ssh-keyscan -H $1 >> ~/.ssh/known_hosts
