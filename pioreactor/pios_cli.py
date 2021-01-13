@@ -38,7 +38,7 @@ logger = logging.getLogger("leader CLI")
 
 def universal_identifier_to_all_units(units):
     if units == (UNIVERSAL_IDENTIFIER,):
-        units = get_active_workers_in_inventory().keys()
+        units = get_active_workers_in_inventory()
     return units
 
 
