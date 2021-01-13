@@ -4,6 +4,7 @@
 
 # remove from known_hosts if already present
 ssh-keygen -R $1.local
+ssh-keygen -R $1
 ssh-keygen -R raspberrypi.local
 ssh-keygen -R $(host raspberrypi.local | awk '/has address/ { print $4 ; exit }')
 ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')
@@ -31,9 +32,10 @@ sleep 1
 
 # remove from known_hosts if already present idk...
 ssh-keygen -R $1
+ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')
 
 # add to known hosts
 ssh-keyscan -H $1 >> ~/.ssh/known_hosts
 
 # sync-configs
-pios sync-configs
+pios sync-configs --units $1
