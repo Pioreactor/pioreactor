@@ -97,7 +97,7 @@ try:
         def add_pioreactor(new_name):
             import subprocess
 
-            subprocess.Popen(
+            subprocess.call(
                 [
                     "bash /home/pi/pioreactor/bash_scripts/add_new_worker_from_leader.sh %s"
                     % new_name
