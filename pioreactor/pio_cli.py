@@ -97,6 +97,7 @@ try:
         def add_pioreactor(new_name):
             import subprocess
             import socket
+            import time
 
             # check to make sure new_name isn't already on the network
             try:
@@ -108,11 +109,18 @@ try:
 
             # check to make sure raspberrypi.local is on network
             raspberrypi_on_network = False
+            checks, max_checks = 0, 60
             while not raspberrypi_on_network:
+                checks += 1
                 try:
                     socket.gethostbyname("raspberrypi")
                 except socket.gaierror:
-                    pass
+                    time.sleep(1)
+                    print("raspberrypi not found - checking again.")
+                    if checks >= max_checks:
+                        raise IOError(
+                            f"raspberrypi not found on network after {max_checks} seconds."
+                        )
                 else:
                     raspberrypi_on_network = True
 
