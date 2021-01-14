@@ -44,11 +44,11 @@ class BackgroundJob:
     So this class controls most of the Homie convention that we follow:
 
     1. The device lifecycle: init -> ready -> disconnect (or lost).
-        1. The job starts in `init`, where we publish `editable_settings` is a list  of variables that will be sent
+        1. The job starts in `init`, where we publish `editable_settings` is a list of variables that will be sent
             to the broker on initialization and retained.
         2. The job moves to `ready`.
         3. We catch key interrupts and kill signals from the underlying machine, and set the state to
-           `disconnected`. This should not empty the attributes, since they may be needed upon node restart.
+           `disconnected`.
         4. If the job exits otherwise (kill -9 or power loss), the state is `lost`, and a last-will saying so is broadcast.
     2. Attributes are broadcast under $properties, and each has $settable set to True. This isn't used at the moment.
 

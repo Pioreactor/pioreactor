@@ -54,10 +54,13 @@ logger = logging.getLogger(JOB_NAME)
 
 class ODReader(BackgroundJob):
     """
+    Produce a stream of OD readings from the sensors.
+
     Parameters
     -----------
 
     od_channels: list of (label, ADS channel), ex: [("90/A", 0), ("90/B", 1), ...]
+    ads: ADS.ADS1x15
 
     """
 

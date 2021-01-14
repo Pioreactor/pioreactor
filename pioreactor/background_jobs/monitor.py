@@ -22,6 +22,10 @@ GPIO.setup(LED_PIN, GPIO.OUT)
 
 
 class Monitor(BackgroundJob):
+    """
+    Reports metadata about the Rpi / Pioreactor back to the leader
+    """
+
     def __init__(self, unit, experiment):
         super(Monitor, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
         self.disk_usage_timer = RepeatedTimer(

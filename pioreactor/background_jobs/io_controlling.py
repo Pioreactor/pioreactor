@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and take action. This is the core of the bioreactor algorithm.
+Continuously monitor the bioreactor and take action. This is the core of the dosing algorithm.
 
 
 To change the algorithm over MQTT,
