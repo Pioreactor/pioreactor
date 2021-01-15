@@ -203,12 +203,12 @@ def kill(process, units, y):
         if confirm != "Y":
             return
 
-    kill = f'nohup pkill -f "run {process}" &'
+    command = f'pio kill {process}"'
 
     def _thread_function(unit):
 
-        print(f"Executing {kill} on {unit}...")
-        ssh(unit, kill)
+        print(f"Executing {command} on {unit}...")
+        ssh(unit, command)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -248,7 +248,7 @@ def run(ctx, job, units, y):
             return
 
     def _thread_function(unit):
-        print(f"Executing {command} on ${unit}.")
+        print(f"Executing {command} on {unit}.")
         ssh(unit, command)
 
     units = universal_identifier_to_all_units(units)
