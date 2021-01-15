@@ -203,7 +203,7 @@ def kill(process, units, y):
         if confirm != "Y":
             return
 
-    command = f'pio kill {process}"'
+    command = f"pio kill {process}"
 
     def _thread_function(unit):
 
