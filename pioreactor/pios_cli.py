@@ -203,7 +203,7 @@ def kill(process, units, y):
         if confirm != "Y":
             return
 
-    kill = f'pkill -f "run {process}" && sleep 100'
+    kill = f'sleep 100 & pkill -f "run {process}" & sleep 100'
 
     def _thread_function(unit):
 
