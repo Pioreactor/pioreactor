@@ -248,6 +248,7 @@ def run(ctx, job, units, y):
             return
 
     def _thread_function(unit):
+        print(f"Executing {command} on ${unit}.")
         ssh(unit, command)
 
     units = universal_identifier_to_all_units(units)
