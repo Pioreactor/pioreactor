@@ -45,11 +45,11 @@ def kill(process):
     """
 
     # TODO this fails for python
-    from sh import kill, pgrep
+    from sh import pkill
 
     try:
         # remove the _oldest_ one
-        kill(int(pgrep("-f", "-o", process)))
+        pkill("-f", f"run {process}")
     except Exception:
         pass
 
@@ -105,7 +105,9 @@ try:
             except socket.gaierror:
                 pass
             else:
-                print(f"Name {new_name} is already on the network. Try another name.")
+                raise IOError(
+                    f"Name {new_name} is already on the network. Try another name."
+                )
 
             # check to make sure raspberrypi.local is on network
             raspberrypi_on_network = False
@@ -133,7 +135,7 @@ try:
             )
 
     if not am_I_leader() and not am_I_active_worker():
-        print(
+        logger.info(
             "Running `pio` on a non-active Pioreactor. Do you need to add this Pioreactor to `inventory` in `config.ini`?"
         )
 

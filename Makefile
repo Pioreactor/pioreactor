@@ -140,7 +140,7 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	set -e ;\
 	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\
 	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
-	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts
+	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts ;\
 	}
 	sudo reboot
 

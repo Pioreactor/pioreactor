@@ -204,12 +204,11 @@ def kill(process, units, y):
             return
 
     kill = f'pkill -f "run {process}"'
-    command = " && ".join([kill])
 
     def _thread_function(unit):
 
-        print(f"Executing on {unit}...")
-        ssh(unit, command)
+        print(f"Executing {kill} on {unit}...")
+        ssh(unit, kill)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
