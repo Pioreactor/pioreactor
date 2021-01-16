@@ -60,12 +60,15 @@ def run():
 
 
 try:
+
+    # this runs on both leader and workers
+    run.add_command(jobs.monitor.click_monitor)
+
     if am_I_active_worker():
         run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
         run.add_command(jobs.stirring.click_stirring)
         run.add_command(jobs.od_reading.click_od_reading)
         run.add_command(jobs.io_controlling.click_io_controlling)
-        run.add_command(jobs.monitor.click_monitor)
 
         run.add_command(actions.add_alt_media.click_add_alt_media)
         run.add_command(actions.add_media.click_add_media)

@@ -24,20 +24,22 @@ install-i2c:
 	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
 	echo "i2c-dev"               | sudo tee /etc/modules -a
 
+systemd-all:
+	sudo cp /home/pi/pioreactor/startup/systemd/monitor_pioreactor.service /lib/systemd/system/monitor_pioreactor.service
+	sudo chmod 644 /lib/systemd/system/monitor_pioreactor.service
+	sudo systemctl enable monitor_pioreactor.service
+
 systemd-worker:
 	sudo cp /home/pi/pioreactor/startup/systemd/stirring.service /lib/systemd/system/stirring.service
 	sudo cp /home/pi/pioreactor/startup/systemd/od_reading.service /lib/systemd/system/od_reading.service
 	sudo cp /home/pi/pioreactor/startup/systemd/growth_rate_calculating.service /lib/systemd/system/growth_rate_calculating.service
-	sudo cp /home/pi/pioreactor/startup/systemd/monitor_pioreactor.service /lib/systemd/system/monitor_pioreactor.service
 
 	sudo chmod 644 /lib/systemd/system/stirring.service
-	sudo chmod 644 /lib/systemd/system/monitor_pioreactor.service
 	sudo chmod 644 /lib/systemd/system/growth_rate_calculating.service
 	sudo chmod 644 /lib/systemd/system/od_reading.service
 
 	sudo systemctl daemon-reload
 	sudo systemctl enable od_reading.service
-	sudo systemctl enable monitor_pioreactor.service
 	sudo systemctl enable stirring.service
 	sudo systemctl enable growth_rate_calculating.service
 
@@ -144,11 +146,11 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	}
 	sudo reboot
 
-install-worker: configure-hostname install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker: configure-hostname install-git install-python configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
 
-install-worker-from-args: configure-hostname-from-args install-git install-python configure-rpi systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker-from-args: configure-hostname-from-args install-git install-python configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-leader logging-files install-ui
+install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
 	ssh-keygen -t rsa -N "" -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass
