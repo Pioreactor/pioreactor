@@ -6,7 +6,7 @@ tunnels:
     inspect: false
   ui:
     proto: http
-    addr: 9000
+    addr: 80
     subdomain: pioreactor
     inspect: false
   ws:

@@ -113,6 +113,7 @@ install-ui:
 	# npm --prefix /home/pi/pioreactorui/client install
 	npm --prefix /home/pi/pioreactorui/backend install
 	sudo npm install pm2@latest -g
+	sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 9000
 
 
 configure-hostname:

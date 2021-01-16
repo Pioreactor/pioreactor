@@ -5,7 +5,7 @@ After=network-online.target
 
 [Service]
 User=pi
-ExecStart=pm2 start app.js --name ui
+ExecStart=sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 9000 && pm2 start app.js --name ui
 WorkingDirectory=/home/pi/pioreactorui/backend
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
