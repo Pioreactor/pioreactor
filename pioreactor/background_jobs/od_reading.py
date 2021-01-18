@@ -76,6 +76,7 @@ class ODReader(BackgroundJob):
 
         for (label, channel) in od_channels:
             if fake_data:
+                print("here")
                 ai = MockAnalogIn(self.ads, getattr(ADS, "P" + channel))
             else:
                 ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
@@ -165,6 +166,12 @@ class MockAnalogIn(AnalogIn):
         import random
 
         return random.randint(1000, 2000)
+
+    @property
+    def voltage(self):
+        import random
+
+        return random.random() * 3
 
 
 def od_reading(
