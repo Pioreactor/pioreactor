@@ -73,7 +73,8 @@ install-pioreactor-leader:
 	sudo apt-get install -y python3-pandas
 	pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
 	mkdir -p /home/pi/.pioreactor
-	cp config.ini /home/pi/.pioreactor/config.ini
+	cp config.example.ini /home/pi/.pioreactor/config.ini
+	crudini --set ~/.pioreactor/config.ini network.topology leader_hostname $$(hostname)
 	sudo python3 setup.py install
 
 install-pioreactor-worker:
@@ -101,7 +102,7 @@ install-ui:
 	# install NPM and Node
 	wget -O - https://raw.githubusercontent.com/audstanley/NodeJs-Raspberry-Pi/master/Install-Node.sh | sudo bash
 
-	# get latest pioreactorUI release from Github.
+	# get latest pioreactorUI code from Github.
 	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/pioreactorui  --depth 1
 	# Use below to not have to use git
 	# mkdir /home/pi/pioreactorui
@@ -111,7 +112,7 @@ install-ui:
 
 	# install required libraries
 	# npm --prefix /home/pi/pioreactorui/client install
-	npm --prefix /home/pi/pioreactorui/backend install
+	npm --prefix /home/pi/pioreactorui/backend install --loglevel verbose
 	sudo npm install pm2@latest -g
 	sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 9000
 
@@ -145,6 +146,7 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
 	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts ;\
 	}
+	crudini --set ~/.pioreactor/config.ini inventory $$(hostname) 1
 	sudo reboot
 
 install-worker: configure-hostname install-git install-python configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
