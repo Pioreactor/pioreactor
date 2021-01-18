@@ -585,11 +585,12 @@ class AlgoController(BackgroundJob):
             self.io_algorithm_job.set_state("disconnected")
         except AttributeError:
             # if disconnect is called right after starting, io_algorithm_job isn't instantiated
-            self.logger.debug("here")
-            time.sleep(1)
-            self.on_disconnect()
-            return
-        self.clear_mqtt_cache()
+            # time.sleep(1)
+            # self.on_disconnect()
+            # return
+            pass
+        finally:
+            self.clear_mqtt_cache()
 
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
