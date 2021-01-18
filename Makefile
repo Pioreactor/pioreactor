@@ -76,6 +76,9 @@ install-pioreactor-leader:
 	cp config.example.ini /home/pi/.pioreactor/config.ini
 	sudo python3 setup.py install
 
+	sudo pip3 install crudini
+	crudini --set ~/.pioreactor/config.ini network.topology leader_hostname $$(hostname)
+
 install-pioreactor-worker:
 	pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
 	mkdir -p /home/pi/.pioreactor
@@ -156,4 +159,3 @@ install-worker-from-args: configure-hostname-from-args install-git install-pytho
 install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
 	ssh-keygen -t rsa -N "" -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass
-	crudini --set ~/.pioreactor/config.ini network.topology leader_hostname $$(hostname)
