@@ -158,10 +158,7 @@ class MockI2C:
         pass
 
 
-class MockAnalogIn:
-    def __init__(self, ads, positive_pin, negative_pin=None):
-        pass
-
+class MockAnalogIn(AnalogIn):
     @property
     def read(self):
         """Returns the value of an ADC pin as an integer."""
