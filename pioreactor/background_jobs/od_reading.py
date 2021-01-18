@@ -182,6 +182,7 @@ def od_reading(
 
         od_channels.append((angle_label, channel))
 
+    print(fake_data)
     if fake_data:
         print("here")
         i2c = MockI2C(SCL, SDA)
@@ -227,6 +228,6 @@ def click_od_reading(od_angle_channel, fake_data):
     """
     Start the optical density reading job
     """
-    reader = od_reading(od_angle_channel, fake_data)
+    reader = od_reading(od_angle_channel, fake_data=fake_data)
     while True:
         next(reader)
