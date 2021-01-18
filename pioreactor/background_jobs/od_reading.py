@@ -143,9 +143,11 @@ INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
 
 class MockI2C:
     def __init__(self, SCL, SDA):
+        print("here2")
         pass
 
     def writeto(self, *args):
+        print("here3")
         return
 
 
@@ -181,6 +183,7 @@ def od_reading(
         od_channels.append((angle_label, channel))
 
     if fake_data:
+        print("here")
         i2c = MockI2C(SCL, SDA)
     else:
         try:
