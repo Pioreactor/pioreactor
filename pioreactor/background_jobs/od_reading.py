@@ -52,6 +52,31 @@ JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 logger = logging.getLogger(JOB_NAME)
 
 
+class MockI2C:
+    def __init__(self, SCL, SDA):
+        pass
+
+    def writeto(self, *args, **kwargs):
+        return
+
+    def try_lock(self, *args, **kwargs):
+        return True
+
+    def unlock(self, *args, **kwargs):
+        pass
+
+
+class MockAnalogIn(AnalogIn):
+    STATE = 0.2
+
+    @property
+    def voltage(self):
+        import random
+
+        self.STATE = self.STATE * random.lognormvariate(0.01, 0.01)
+        return self.STATE
+
+
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -100,7 +125,7 @@ class ODReader(BackgroundJob):
                 # This is not for culture density saturation (different, harder problem)
                 if (counter % 20 == 0) and (raw_signal_ > 2.5):
                     self.logger.warning(
-                        f"OD sensor {angle_label} is recording a very high voltage, {raw_signal_}V."
+                        f"OD sensor {angle_label} is recording a very high voltage, {round(raw_signal_, 2)}V."
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
@@ -139,34 +164,6 @@ class ODReader(BackgroundJob):
 
 
 INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
-
-
-class MockI2C:
-    def __init__(self, SCL, SDA):
-        pass
-
-    def writeto(self, *args, **kwargs):
-        return
-
-    def try_lock(self, *args, **kwargs):
-        return True
-
-    def unlock(self, *args, **kwargs):
-        pass
-
-    def lock(self, *args, **kwargs):
-        pass
-
-
-class MockAnalogIn(AnalogIn):
-    STATE = 1.0
-
-    @property
-    def voltage(self):
-        import random
-
-        self.STATE = self.STATE * random.lognormvariate(0, 0.5)
-        return self.STATE
 
 
 def od_reading(
