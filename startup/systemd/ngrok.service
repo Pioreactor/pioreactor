@@ -8,7 +8,7 @@ ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
 IgnoreSIGPIPE=true
 Restart=always
-RestartSec=3
+RestartSec=300
 Type=simple
 
 [Install]

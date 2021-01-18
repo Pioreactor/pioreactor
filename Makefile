@@ -71,7 +71,7 @@ systemd-leader:
 
 install-pioreactor-leader:
 	sudo apt-get install -y python3-pandas
-	pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
+	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
 	mkdir -p /home/pi/.pioreactor
 	cp config.example.ini /home/pi/.pioreactor/config.ini
 	sudo python3 setup.py install

@@ -30,7 +30,7 @@ def logs():
     from sh import tail
 
     try:
-        tail_sh = tail("-f", config["logging"]["log_file"], _iter=True)
+        tail_sh = tail("-f", "-n", 50, config["logging"]["log_file"], _iter=True)
         for line in tail_sh:
             print(line, end="")
     except KeyboardInterrupt:
