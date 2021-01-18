@@ -76,7 +76,6 @@ class ODReader(BackgroundJob):
 
         for (label, channel) in od_channels:
             if fake_data:
-                print("here")
                 ai = MockAnalogIn(self.ads, getattr(ADS, "P" + channel))
             else:
                 ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
@@ -160,18 +159,14 @@ class MockI2C:
 
 
 class MockAnalogIn(AnalogIn):
-    @property
-    def read(self):
-        """Returns the value of an ADC pin as an integer."""
-        import random
-
-        return random.randint(1000, 2000)
+    STATE = 1.0
 
     @property
     def voltage(self):
         import random
 
-        return random.random() * 3
+        self.STATE = self.STATE * random.lognormvariate(0, 0.5)
+        return self.STATE
 
 
 def od_reading(
@@ -193,9 +188,7 @@ def od_reading(
 
         od_channels.append((angle_label, channel))
 
-    print(fake_data)
     if fake_data:
-        print("here")
         i2c = MockI2C(SCL, SDA)
     else:
         try:
