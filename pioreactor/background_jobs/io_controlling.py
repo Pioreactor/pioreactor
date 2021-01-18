@@ -585,6 +585,7 @@ class AlgoController(BackgroundJob):
             self.io_algorithm_job.set_state("disconnected")
         except AttributeError:
             # if disconnect is called right after starting, io_algorithm_job isn't instantiated
+            self.logger.debug("here")
             time.sleep(1)
             self.on_disconnect()
             return
