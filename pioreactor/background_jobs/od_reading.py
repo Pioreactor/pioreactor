@@ -182,14 +182,14 @@ def od_reading(
 
     if fake_data:
         i2c = MockI2C(SCL, SDA)
-
-    try:
-        i2c = busio.I2C(SCL, SDA)
-    except Exception as e:
-        logger.error(
-            "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
-        )
-        raise e
+    else:
+        try:
+            i2c = busio.I2C(SCL, SDA)
+        except Exception as e:
+            logger.error(
+                "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
+            )
+            raise e
 
     # we will change the gain dynamically later.
     # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
