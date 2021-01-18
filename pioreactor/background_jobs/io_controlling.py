@@ -624,7 +624,6 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
     except Exception as e:
         logging.getLogger("io_controlling").debug(f"failed {str(e)}", exc_info=True)
         logging.getLogger("io_controlling").error(f"failed {str(e)}")
-        raise e
 
 
 @click.command(name="io_controlling")
