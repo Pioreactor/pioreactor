@@ -66,7 +66,7 @@ class ODReader(BackgroundJob):
 
     editable_settings = []
 
-    def __init__(self, od_channels, ads, unit=None, experiment=None):
+    def __init__(self, od_channels, ads, unit=None, experiment=None, fake_data=False):
         super(ODReader, self).__init__(
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
@@ -75,7 +75,10 @@ class ODReader(BackgroundJob):
         self.od_channels_to_analog_in = {}
 
         for (label, channel) in od_channels:
-            ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
+            if fake_data:
+                ai = MockAnalogIn(self.ads, getattr(ADS, "P" + channel))
+            else:
+                ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
             self.od_channels_to_analog_in[label] = ai
 
     def take_reading(self, counter=None):
@@ -138,9 +141,30 @@ class ODReader(BackgroundJob):
 INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
 
 
+class MockI2C:
+    def __init__(self, SCL, SDA):
+        pass
+
+    def writeto(self, *args):
+        return
+
+
+class MockAnalogIn:
+    def __init__(self, ads, positive_pin, negative_pin=None):
+        pass
+
+    @property
+    def read(self):
+        """Returns the value of an ADC pin as an integer."""
+        import random
+
+        return random.randint(1000, 2000)
+
+
 def od_reading(
     od_angle_channel,
     sampling_rate=1 / float(config["od_config.od_sampling"]["samples_per_second"]),
+    fake_data=False,
 ):
 
     unit = get_unit_name()
@@ -156,9 +180,12 @@ def od_reading(
 
         od_channels.append((angle_label, channel))
 
+    if fake_data:
+        i2c = MockI2C(SCL, SDA)
+
     try:
         i2c = busio.I2C(SCL, SDA)
-    except ValueError as e:
+    except Exception as e:
         logger.error(
             "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
         )
@@ -170,7 +197,9 @@ def od_reading(
     try:
         yield from every(
             sampling_rate,
-            ODReader(od_channels, ads, unit=unit, experiment=experiment).take_reading,
+            ODReader(
+                od_channels, ads, unit=unit, experiment=experiment, fake_data=fake_data
+            ).take_reading,
         )
     except Exception as e:
         logger.error(f"failed with {str(e)}.")
@@ -190,10 +219,11 @@ pair of angle,channel for optical density reading. Can be invoked multiple times
 
 """,
 )
-def click_od_reading(od_angle_channel):
+@click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
+def click_od_reading(od_angle_channel, fake_data):
     """
     Start the optical density reading job
     """
-    reader = od_reading(od_angle_channel)
+    reader = od_reading(od_angle_channel, fake_data)
     while True:
         next(reader)
