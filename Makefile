@@ -116,7 +116,6 @@ install-ui:
 	# npm --prefix /home/pi/pioreactorui/client install
 	npm --prefix /home/pi/pioreactorui/backend install --loglevel verbose
 	sudo npm install pm2@latest -g
-	sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 9000
 
 
 configure-hostname:
@@ -157,5 +156,5 @@ install-worker-from-args: configure-hostname-from-args install-git install-pytho
 	sudo reboot
 
 install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
-	ssh-keygen -t rsa -N "" -f /home/pi/.ssh/id_rsa
+	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa <<<y 2>&1 >/dev/null
 	sudo apt-get install sshpass
