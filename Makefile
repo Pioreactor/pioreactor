@@ -156,5 +156,5 @@ install-worker-from-args: configure-hostname-from-args install-git install-pytho
 	sudo reboot
 
 install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
-	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa <<<y 2>&1 >/dev/null
+	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass
