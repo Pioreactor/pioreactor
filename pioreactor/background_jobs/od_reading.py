@@ -151,6 +151,12 @@ class MockI2C:
     def try_lock(self, *args):
         return True
 
+    def unlock(self, *args):
+        pass
+
+    def lock(self, *args):
+        pass
+
 
 class MockAnalogIn:
     def __init__(self, ads, positive_pin, negative_pin=None):
