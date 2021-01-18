@@ -145,16 +145,16 @@ class MockI2C:
     def __init__(self, SCL, SDA):
         pass
 
-    def writeto(self, *args):
+    def writeto(self, *args, **kwargs):
         return
 
-    def try_lock(self, *args):
+    def try_lock(self, *args, **kwargs):
         return True
 
-    def unlock(self, *args):
+    def unlock(self, *args, **kwargs):
         pass
 
-    def lock(self, *args):
+    def lock(self, *args, **kwargs):
         pass
 
 
