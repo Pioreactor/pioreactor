@@ -105,6 +105,7 @@ install-ui:
 	wget -O - https://raw.githubusercontent.com/audstanley/NodeJs-Raspberry-Pi/master/Install-Node.sh | sudo bash
 
 	# get latest pioreactorUI code from Github.
+	# TODO: below is not idempotent
 	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/pioreactorui  --depth 1
 	# Use below to not have to use git
 	# mkdir /home/pi/pioreactorui
@@ -156,5 +157,6 @@ install-worker-from-args: configure-hostname-from-args install-git install-pytho
 	sudo reboot
 
 install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
+	# TODO: below is not idempotent
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass
