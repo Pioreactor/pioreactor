@@ -31,7 +31,7 @@ class Monitor(BackgroundJob):
     def __init__(self, unit, experiment):
         super(Monitor, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
         self.disk_usage_timer = RepeatedTimer(
-            6 * 60 * 60,
+            12 * 60 * 60,
             self.publish_disk_space,
             job_name=self.job_name,
             run_immediately=True,
