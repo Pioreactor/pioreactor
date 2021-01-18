@@ -79,7 +79,7 @@ class AltMediaCalculator(BackgroundSubJob):
         media_ml = media_ml + media_delta
 
         self.latest_alt_media_fraction = alt_media_ml / VIAL_VOLUME
-        self.publish()
+        self.publish_latest_alt_media_fraction()
 
         return self.latest_alt_media_fraction
 
