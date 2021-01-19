@@ -558,8 +558,8 @@ class AlgoController(BackgroundJob):
     def check_for_existing_io_controlling_process(self):
         # this is needed because the running process != the job name. This is techdebt.
         if sum([p == "io_controlling" for p in pio_jobs_running()]) > 1:
-            self.logger.error("Aborting: io_controlling is already running.")
-            raise ValueError("Another io_controlling is running on machine. Aborting.")
+            self.logger.error("io_controlling is already running. Aborting.")
+            raise ValueError("io_controlling is already running. Aborting.")
 
     def set_io_algorithm(self, new_io_algorithm_json):
         # TODO: this needs a better rollback. Ex: in except, something like

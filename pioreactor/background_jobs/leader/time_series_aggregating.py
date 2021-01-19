@@ -208,7 +208,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=10,
-        record_every_n_seconds=5 * 60,  # TODO: move this to a config param
+        record_every_n_seconds=3 * 60,  # TODO: move this to a config param
     )
 
     alt_media_fraction = TimeSeriesAggregation(  # noqa: F841

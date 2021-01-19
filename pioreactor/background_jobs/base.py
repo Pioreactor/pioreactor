@@ -232,8 +232,8 @@ class BackgroundJob:
         if (
             sum([p == self.job_name for p in pio_jobs_running()]) > 1
         ):  # this process counts as one - see if there is another.
-            self.logger.error(f"Aborting: {self.job_name} is already running.")
-            raise ValueError(f"Another {self.job_name} is running on machine. Aborting.")
+            self.logger.error(f"{self.job_name} is already running. Aborting.")
+            raise ValueError(f"{self.job_name} is already running. Aborting.")
 
     def __setattr__(self, name: str, value) -> None:
         super(BackgroundJob, self).__setattr__(name, value)

@@ -36,6 +36,7 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.utils.timing import every
+from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 
 ADS_GAIN_THRESHOLDS = {
@@ -49,32 +50,6 @@ ADS_GAIN_THRESHOLDS = {
 
 SCL, SDA = 3, 2
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
-logger = logging.getLogger(JOB_NAME)
-
-
-class MockI2C:
-    def __init__(self, SCL, SDA):
-        pass
-
-    def writeto(self, *args, **kwargs):
-        return
-
-    def try_lock(self, *args, **kwargs):
-        return True
-
-    def unlock(self, *args, **kwargs):
-        pass
-
-
-class MockAnalogIn(AnalogIn):
-    STATE = 0.2
-
-    @property
-    def voltage(self):
-        import random
-
-        self.STATE = self.STATE * random.lognormvariate(0.00021, 0.0005)
-        return self.STATE
 
 
 class ODReader(BackgroundJob):
@@ -91,12 +66,26 @@ class ODReader(BackgroundJob):
 
     editable_settings = []
 
-    def __init__(self, od_channels, ads, unit=None, experiment=None, fake_data=False):
+    def __init__(self, od_channels, unit=None, experiment=None, fake_data=False):
         super(ODReader, self).__init__(
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
         self.ma = MovingStats(lookback=10)
-        self.ads = ads
+
+        if fake_data:
+            i2c = MockI2C(SCL, SDA)
+        else:
+            try:
+                i2c = busio.I2C(SCL, SDA)
+            except Exception as e:
+                self.logger.error(
+                    "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
+                )
+                raise e
+
+        # we will change the gain dynamically later.
+        # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
+        self.ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
         self.od_channels_to_analog_in = {}
 
         for (label, channel) in od_channels:
@@ -182,32 +171,18 @@ def od_reading(
         # We split input of the form ["135,x", "135,y", "90,z"] into the form
         # "135/A", "135/B", "90/C"
         angle_label = str(angle) + "/" + INPUT_TO_LETTER[channel]
-
         od_channels.append((angle_label, channel))
 
-    if fake_data:
-        i2c = MockI2C(SCL, SDA)
-    else:
-        try:
-            i2c = busio.I2C(SCL, SDA)
-        except Exception as e:
-            logger.error(
-                "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
-            )
-            raise e
-
-    # we will change the gain dynamically later.
-    # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-    ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
     try:
         yield from every(
             sampling_rate,
             ODReader(
-                od_channels, ads, unit=unit, experiment=experiment, fake_data=fake_data
+                od_channels, unit=unit, experiment=experiment, fake_data=fake_data
             ).take_reading,
         )
     except Exception as e:
-        logger.error(f"failed with {str(e)}.")
+        logger = logging.getLogger(JOB_NAME)
+        logger.error(f"{str(e)}. Attempting to continue.")
 
 
 @click.command(name="od_reading")
