@@ -197,6 +197,7 @@ class IOAlgorithm(BackgroundSubJob):
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
+                event = events.NoEvent("")
 
         self.logger.info(f"triggered {event}.")
         self.latest_event = event

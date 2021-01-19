@@ -68,7 +68,9 @@ class RepeatedTimer:
         try:
             self.function(*self.args, **self.kwargs)
         except Exception as e:
+            self.logger.debug(e, exc_info=True)
             self.logger.error(e)
+            raise e
 
     def start(self):
         if not self.is_running:
