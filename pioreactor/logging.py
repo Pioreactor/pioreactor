@@ -25,6 +25,8 @@ class MQTTHandler(logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
+        if record.levelname == "ERROR":
+            msg = "ERROR: " + msg
         publish(self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs)
 
 

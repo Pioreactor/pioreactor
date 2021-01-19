@@ -156,7 +156,9 @@ class GrowthRateCalculator(BackgroundJob):
             return self.set_od_normalization_factors()
 
     def update_ekf_variance_after_io_event(self, message):
-        self.ekf.scale_OD_variance_for_next_n_steps(2e4, 1 * self.samples_per_minute)
+        self.ekf.scale_OD_variance_for_next_n_steps(
+            5e3, round(0.5 * self.samples_per_minute)
+        )
 
     def scale_raw_observations(self, observations):
         return {
