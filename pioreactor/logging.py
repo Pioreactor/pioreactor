@@ -15,6 +15,7 @@ class CustomMQTTFormatter(logging.Formatter):
 
     FORMATS = {
         logging.ERROR: "[%(name)s] Error: %(message)s",
+        logging.WARNING: "[%(name)s] Warning: %(message)s",
         "DEFAULT": "[%(name)s] %(message)s",
     }
 

@@ -49,8 +49,8 @@ class LogAggregation(BackgroundJob):
                     "timestamp": current_time(),
                     "message": payload,
                     "unit": unit,
-                    "is_error": ("failed" in payload.lower())
-                    or ("error" in payload.lower()),
+                    "is_error": "error" in payload.lower(),
+                    "is_warning": "warning" in payload.lower(),
                 },
             )
             self.aggregated_log_table = self.aggregated_log_table[

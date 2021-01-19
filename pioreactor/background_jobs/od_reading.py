@@ -182,7 +182,8 @@ def od_reading(
         )
     except Exception as e:
         logger = logging.getLogger(JOB_NAME)
-        logger.error(f"{str(e)}. Attempting to continue.")
+        logger.error(f"{str(e)}")
+        raise e
 
 
 @click.command(name="od_reading")
