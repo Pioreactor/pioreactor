@@ -73,7 +73,7 @@ class MockAnalogIn(AnalogIn):
     def voltage(self):
         import random
 
-        self.STATE = self.STATE * random.lognormvariate(0.00002, 0.00001)
+        self.STATE = self.STATE * random.lognormvariate(0.00002, 0.0001)
         return self.STATE
 
 
