@@ -82,8 +82,7 @@ class BackgroundJob:
         self.set_up_disconnect_protocol()
 
     def publish(self, *args, **kwargs):
-        r = self.pub_client.publish(*args, **kwargs)
-        r.wait_for_publish()
+        self.pub_client.publish(*args, **kwargs)
 
     def set_up_disconnect_protocol(self):
         # here, we set up how jobs should disconnect and exit.
