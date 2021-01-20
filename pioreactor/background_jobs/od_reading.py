@@ -34,7 +34,6 @@ from pioreactor.utils.streaming_calculations import MovingStats
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.pubsub import publish
 from pioreactor.utils.timing import every
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
@@ -103,7 +102,7 @@ class ODReader(BackgroundJob):
             raw_signals = {}
             for (angle_label, ads_channel) in self.od_channels_to_analog_in.items():
                 raw_signal_ = ads_channel.voltage
-                publish(
+                self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/od_raw/{angle_label}",
                     raw_signal_,
                 )
@@ -119,7 +118,7 @@ class ODReader(BackgroundJob):
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
             # publish the batch of data, too, for growth reading
-            publish(
+            self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
                 json.dumps(raw_signals),
             )
