@@ -102,9 +102,9 @@ class GrowthRateCalculator(BackgroundJob):
 
         d = len(angles)
         variances = {
-            "135": (1e-2 * self.dt) ** 2,
-            "90": (1e-2 * self.dt) ** 2,
-            "45": (1e-2 * self.dt) ** 2,
+            "135": (config.getfloat("growth_rate_kalman", "od_variance") * self.dt) ** 2,
+            "90": (config.getfloat("growth_rate_kalman", "od_variance") * self.dt) ** 2,
+            "45": (config.getfloat("growth_rate_kalman", "od_variance") * self.dt) ** 2,
         }
 
         OD_covariance = 0 * np.ones((d, d))

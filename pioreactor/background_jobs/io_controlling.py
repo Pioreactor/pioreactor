@@ -578,8 +578,8 @@ class AlgoController(BackgroundJob):
             self.io_algorithm = algo_init["io_algorithm"]
 
         except Exception as e:
-            self.logger.debug(f"failed with {str(e)}", exc_info=True)
-            self.logger.error(f"failed with {str(e)}")
+            self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
+            self.logger.warning(f"Change failed because of {str(e)}")
 
     def on_disconnect(self):
         try:
@@ -624,8 +624,8 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
             signal.pause()
 
     except Exception as e:
-        logging.getLogger("io_controlling").debug(f"failed {str(e)}", exc_info=True)
-        logging.getLogger("io_controlling").error(f"failed {str(e)}")
+        logging.getLogger("io_controlling").debug(f"{str(e)}", exc_info=True)
+        logging.getLogger("io_controlling").error(f"{str(e)}")
         raise e
 
 
