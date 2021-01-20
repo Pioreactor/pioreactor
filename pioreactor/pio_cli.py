@@ -136,5 +136,5 @@ if am_I_leader():
 
 if not am_I_leader() and not am_I_active_worker():
     logger.info(
-        "Running `pio` on a non-active Pioreactor. Do you need to add this Pioreactor to `inventory` in `config.ini`?"
+        f"Running `pio` on a non-active Pioreactor. Do you need to add `{get_unit_name()}` to `inventory` in `config.ini`?"
     )

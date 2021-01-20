@@ -8,7 +8,7 @@ import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
 from pioreactor.utils import pio_jobs_running
-from pioreactor.pubsub import publish, subscribe, subscribe_and_callback, QOS
+from pioreactor.pubsub import subscribe, subscribe_and_callback, QOS
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -176,14 +176,14 @@ class GrowthRateCalculator(BackgroundJob):
             scaled_observations = self.scale_raw_observations(observations)
             self.ekf.update(list(scaled_observations.values()))
 
-            publish(
+            self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
                 self.state_[-1],
                 retain=True,
             )
 
             for i, angle_label in enumerate(self.angles):
-                publish(
+                self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{angle_label}",
                     self.state_[i],
                 )

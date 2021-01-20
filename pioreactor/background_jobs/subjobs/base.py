@@ -5,7 +5,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 class BackgroundSubJob(BackgroundJob):
     # don't listen for signal handlers - parents take care of disconnecting us. But we _must_ be a child,
 
-    def setup_disconnect_protocol(self):
+    def set_up_disconnect_protocol(self):
         pass
 
     def disconnected(self):

@@ -15,6 +15,15 @@ class QOS:
     EXACTLY_ONCE = 2
 
 
+def create_publishing_client(hostname=leader_hostname):
+    import paho.mqtt.client as mqtt
+
+    mqttc = mqtt.Client()
+    mqttc.connect(hostname)
+    mqttc.loop_start()
+    return mqttc
+
+
 def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs):
     from paho.mqtt import publish as mqtt_publish
 

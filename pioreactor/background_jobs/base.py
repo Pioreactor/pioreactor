@@ -18,7 +18,7 @@ import RPi.GPIO as GPIO
 
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import pio_jobs_running
-from pioreactor.pubsub import publish, QOS
+from pioreactor.pubsub import QOS, create_publishing_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 GPIO.setmode(GPIO.BCM)
@@ -67,19 +67,25 @@ class BackgroundJob:
     editable_settings = []
 
     def __init__(self, job_name: str, experiment=None, unit=None) -> None:
+        self.pub_client = create_publishing_client()
+        self.pubsub_clients = [self.pub_client]
+
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
-        self.pubsub_clients = []
         self.logger = logging.getLogger(self.job_name)
 
         self.check_for_duplicate_process()
         self.set_state(self.INIT)
         self.set_state(self.READY)
-        self.setup_disconnect_protocol()
+        self.set_up_disconnect_protocol()
 
-    def setup_disconnect_protocol(self):
+    def publish(self, *args, **kwargs):
+        r = self.pub_client.publish(*args, **kwargs)
+        r.wait_for_publish()
+
+    def set_up_disconnect_protocol(self):
         # here, we set up how jobs should disconnect and exit.
         def disconnect_gracefully(*args):
             if self.state == self.DISCONNECTED:
@@ -109,7 +115,8 @@ class BackgroundJob:
             client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
 
-        self.pubsub_clients = []
+        self.pub_client = create_publishing_client()
+        self.pubsub_clients = [self.pub_client]
 
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
@@ -146,14 +153,14 @@ class BackgroundJob:
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
-        publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
             ",".join(self.editable_settings),
             qos=QOS.AT_LEAST_ONCE,
         )
 
         for setting in self.editable_settings:
-            publish(
+            self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
                 True,
                 qos=QOS.AT_LEAST_ONCE,
@@ -197,7 +204,7 @@ class BackgroundJob:
         else:
             attr_name = attr
 
-        publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
             getattr(self, attr),
             retain=True,
