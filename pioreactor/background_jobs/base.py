@@ -135,10 +135,6 @@ class BackgroundJob:
     def disconnected(self):
         # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
-        # disconnect from the passive subscription threads
-        for client in self.pubsub_clients:
-            client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-            client.disconnect()
 
         # clean up any active GPIOs
         GPIO.cleanup()
@@ -146,6 +142,12 @@ class BackgroundJob:
         # set state to disconnect
         self.state = self.DISCONNECTED
         self.logger.info(self.DISCONNECTED)
+
+        # disconnect from the passive subscription threads
+        # this HAS to happen last, because this contains our publishing client
+        for client in self.pubsub_clients:
+            client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+            client.disconnect()
 
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         os.kill(os.getpid(), signal.SIGUSR1)
