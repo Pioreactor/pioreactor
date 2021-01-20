@@ -4,7 +4,6 @@ This file contains N jobs that run on the leader, and is a replacement for the N
 """
 import signal
 import time
-import gzip
 import os
 import json
 
@@ -66,30 +65,25 @@ class TimeSeriesAggregation(BackgroundJob):
 
     @property
     def output(self):
-        return self.output_dir + self.job_name + ".json.gz"
+        return self.output_dir + self.job_name + ".json"
 
     def read(self, ignore_cache):
         if ignore_cache:
             return {"series": [], "data": []}
         try:
             # try except hell
-            with gzip.open(self.output, "r") as f:
+            with open(self.output, "r") as f:
                 return json.loads(f.read().decode("utf-8"))
-        except (OSError, FileNotFoundError):  # TODO: 3.8 replace with BadGzipFile
-            # try loading as json?
-            try:
-                with open(self.output.rstrip(".gz"), "r") as f:
-                    return json.load(f)
-            except Exception as e:
-                self.logger.debug(f"Loading failed or not found. {str(e)}")
-                return {"series": [], "data": []}
+        except (OSError, FileNotFoundError) as e:
+            self.logger.debug(f"Loading failed or not found. {str(e)}")
+            return {"series": [], "data": []}
         except Exception as e:
             self.logger.debug(f"Loading failed or not found. {str(e)}")
             return {"series": [], "data": []}
 
     def write(self):
         self.latest_write = current_time()
-        with gzip.open(self.output, mode="wt") as f:
+        with open(self.output, mode="wt") as f:
             json.dump(self.aggregated_time_series, f)
 
     def append_cache_and_clear(self):
