@@ -24,7 +24,7 @@ import click
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
-from pioreactor.pubsub import publish, subscribe_and_callback, QOS
+from pioreactor.pubsub import subscribe_and_callback, QOS
 from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.streaming_calculations import PID
@@ -109,7 +109,7 @@ class IOAlgorithm(BackgroundSubJob):
         for attr in self.editable_settings:
             if attr == "state":
                 continue
-            publish(
+            self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
                 None,
                 retain=True,
@@ -132,7 +132,7 @@ class IOAlgorithm(BackgroundSubJob):
                 ).start()
 
     def send_details_to_mqtt(self):
-        publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/io_algorithm_settings",
             json.dumps(
                 {
@@ -213,7 +213,7 @@ class IOAlgorithm(BackgroundSubJob):
 
         if log:
             # TODO: this is not being stored or used.
-            publish(
+            self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/io_batched",
                 json.dumps(
                     {
@@ -598,7 +598,7 @@ class AlgoController(BackgroundJob):
         for attr in self.editable_settings:
             if attr == "state":
                 continue
-            publish(
+            self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
                 None,
                 retain=True,

@@ -9,7 +9,7 @@ import RPi.GPIO as GPIO
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT, am_I_leader
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.pubsub import publish, QOS, subscribe_and_callback
+from pioreactor.pubsub import QOS, subscribe_and_callback
 from pioreactor.config import config, get_active_workers_in_inventory
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -58,7 +58,7 @@ class Monitor(BackgroundJob):
 
     def button_down_and_up(self, *args):
         # TODO: test
-        publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
             1,
             qos=QOS.AT_LEAST_ONCE,
@@ -66,18 +66,20 @@ class Monitor(BackgroundJob):
 
         self.led_on()
 
-        publish(f"pioreactor/{self.unit}/{self.experiment}/log", "Pushed tactile button")
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/log", "Pushed tactile button"
+        )
 
         while GPIO.input(BUTTON_PIN) == GPIO.HIGH:
 
             # we keep sending it because the user may change the webpage.
-            publish(
+            self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down", 1
             )
             time.sleep(0.25)
 
         self.led_off()
-        publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
             0,
             qos=QOS.AT_LEAST_ONCE,
@@ -92,7 +94,7 @@ class Monitor(BackgroundJob):
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
-        publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/disk_usage_percent",
             disk_usage_percent,
         )

@@ -6,7 +6,7 @@ Continuously monitor the bioreactor and provide summary statistics on what's goi
 import json
 import os
 
-from pioreactor.pubsub import publish, subscribe_and_callback, subscribe, QOS
+from pioreactor.pubsub import subscribe_and_callback, subscribe, QOS
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
@@ -55,7 +55,7 @@ class AltMediaCalculator(BackgroundSubJob):
             raise ValueError("Unknown event type")
 
     def publish_latest_alt_media_fraction(self):
-        publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
             self.latest_alt_media_fraction,
             retain=True,
