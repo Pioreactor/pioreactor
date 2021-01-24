@@ -73,7 +73,7 @@ class TimeSeriesAggregation(BackgroundJob):
         try:
             # try except hell
             with open(self.output, "r") as f:
-                return json.loads(f.read().decode("utf-8"))
+                return json.loads(f.read())
         except (OSError, FileNotFoundError) as e:
             self.logger.debug(f"Loading failed or not found. {str(e)}")
             return {"series": [], "data": []}
