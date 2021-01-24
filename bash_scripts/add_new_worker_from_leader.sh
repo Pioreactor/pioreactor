@@ -1,13 +1,15 @@
 #!/bin/bash
+# exit if any error
+set -e
 
 # first argument is the new name of the pioreactor, to replace raspberrypi
 
 # remove from known_hosts if already present
-ssh-keygen -R $1.local
-ssh-keygen -R $1
-ssh-keygen -R raspberrypi.local
-ssh-keygen -R $(host raspberrypi.local | awk '/has address/ { print $4 ; exit }')
-ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')
+ssh-keygen -R $1.local                                                             >/dev/null 2>&1
+ssh-keygen -R $1                                                                   >/dev/null 2>&1
+ssh-keygen -R raspberrypi.local                                                    >/dev/null 2>&1
+ssh-keygen -R $(host raspberrypi.local | awk '/has address/ { print $4 ; exit }')  >/dev/null 2>&1
+ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')                 >/dev/null 2>&1
 
 
 # allow us to SSH in
@@ -17,22 +19,23 @@ cat ~/.ssh/id_rsa.pub | sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no r
 # install worker onto Rpi
 ssh -o StrictHostKeyChecking=no raspberrypi.local "wget -O install_pioreactor_as_worker.sh https://gist.githubusercontent.com/CamDavidsonPilon/08aa165a283fb7af7262e4cb598bf6a9/raw/install_pioreactor_as_worker.sh && bash ./install_pioreactor_as_worker.sh $1"
 
-touch ~/.pioreactor/config_$1.ini
+touch /home/pi/.pioreactor/config_$1.ini
+echo "# $1 specific configuration here overrides the configuration in config.ini" >> /home/pi/.pioreactor/config_$1.ini
 crudini --set ~/.pioreactor/config.ini inventory $1 1
 
 
 # more needs to happen after the worker is online again (it reboots)
 while ! ping -c1 $1 &>/dev/null
-        do echo "Ping missed - `date`"
-        sleep 2
+    do echo "Ping missed - `date`"
+    sleep 2
 done
 echo "Host $1 found - `date`"
 sleep 1
 
 
 # remove from known_hosts if already present idk...
-ssh-keygen -R $1
-ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')
+ssh-keygen -R $1                                                     >/dev/null 2>&1
+ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')   >/dev/null 2>&1
 
 # add to known hosts
 ssh-keyscan -H $1 >> ~/.ssh/known_hosts

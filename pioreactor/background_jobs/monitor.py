@@ -23,7 +23,7 @@ GPIO.setup(LED_PIN, GPIO.OUT)
 
 class Monitor(BackgroundJob):
     """
-     - Reports metadata about the Rpi / Pioreactor back to the leader
+     - Reports metadata about the Rpi / Pioreactor  to the leader
      - controls the LED / Button interaction
      - Leader also runs this, and uses it to back up databases to other Rpis.
     """

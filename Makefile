@@ -80,7 +80,7 @@ install-pioreactor-leader:
 	crudini --set ~/.pioreactor/config.ini network.topology leader_hostname $$(hostname)
 
 install-pioreactor-worker:
-	pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
+	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
 	mkdir -p /home/pi/.pioreactor
 	touch /home/pi/.pioreactor/unit_config.ini
 	sudo python3 setup.py install

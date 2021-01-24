@@ -25,13 +25,15 @@ class WatchDog(BackgroundJob):
     def watch_for_lost_state(self, msg):
         if msg.payload.decode() == self.LOST:
             unit = msg.topic.split("/")[1]
-            self.logger.error(f"error: {unit} was lost.")
+            self.logger.error(f"{unit} was lost.")
             pass
 
     def watch_for_disk_space_percent(self, msg):
         if float(msg.payload) >= 90:
             unit = msg.topic.split("/")[1]
-            self.logger.warning(f"{unit} is running low on disk space.")
+            self.logger.warning(
+                f"{unit} is running low on disk space, at {float(msg.payload)}% full."
+            )
             pass
 
     def start_passive_listeners(self):

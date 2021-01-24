@@ -35,7 +35,7 @@ class TimeSeriesAggregation(BackgroundJob):
         output_dir,
         extract_label,
         ignore_cache=False,
-        job_name=DEFAULT_JOB_NAME,  # this is overwritten importantly
+        job_name=DEFAULT_JOB_NAME,  # this is overwritten importantly in instantiation
         record_every_n_seconds=None,  # controls how often we should sample data. Ex: growth_rate is ~5min
         write_every_n_seconds=None,  # controls how often we write to disk. Ex: about 30seconds
         time_window_seconds=None,

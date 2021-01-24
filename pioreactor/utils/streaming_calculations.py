@@ -97,6 +97,7 @@ class ExtendedKalmanFilter:
             == initial_covariance.shape[1]
         ), "Shapes are not correct"
         assert process_noise_covariance.shape == initial_covariance.shape
+        assert observation_noise_covariance.shape[0] == (initial_covariance.shape[0] - 1)
         assert self._is_positive_definite(process_noise_covariance)
         assert self._is_positive_definite(initial_covariance)
         assert self._is_positive_definite(observation_noise_covariance)

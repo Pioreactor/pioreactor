@@ -220,6 +220,35 @@ def test_skip_180():
     assert "180/A" not in calc.angles
 
 
+def test_single_observation():
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        '{"135/A": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"135/A": 1}',
+        retain=True,
+    )
+
+    publish(f"pioreactor/{unit}/{experiment}/growth_rate", None, retain=True)
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/A": 0.20944389172032837}',
+        retain=True,
+    )
+
+    GrowthRateCalculator(unit=unit, experiment=experiment)
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/A": 0.20944389172032837}'
+    )
+    pause()
+
+    assert True
+
+
 def test_scaling_works():
 
     publish(

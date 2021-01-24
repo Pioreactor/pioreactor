@@ -31,11 +31,11 @@ class GrowthRateCalculator(BackgroundJob):
         self.initial_growth_rate = self.set_initial_growth_rate()
         self.od_normalization_factors = self.set_od_normalization_factors()
         self.od_variances = self.set_od_variances()
-        self.samples_per_minute = 60 * float(
-            config["od_config.od_sampling"]["samples_per_second"]
+        self.samples_per_minute = 60 * config.getfloat(
+            "od_config.od_sampling", "samples_per_second"
         )
         self.dt = (
-            1 / float(config["od_config.od_sampling"]["samples_per_second"]) / 60 / 60
+            1 / config.getfloat("od_config.od_sampling", "samples_per_second") / 60 / 60
         )
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
@@ -59,7 +59,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 0.001 * np.diag(initial_state.tolist()[:-1] + [0.0001])
+        initial_covariance = 0.0001 * np.diag(initial_state.tolist()[:-1] + [0.00001])
 
         OD_process_covariance = self.create_OD_covariance(
             angles_and_initial_points.keys()
@@ -94,8 +94,9 @@ class GrowthRateCalculator(BackgroundJob):
         # if a sensor has X times the variance of the other, we should encode this in the obs. covariance.
         obs_variances = np.array([self.od_variances[angle] for angle in angles])
         obs_variances = obs_variances / obs_variances.min()
+
         # add a fudge factor
-        return 100 * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
+        return 200 * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
 
     def create_OD_covariance(self, angles):
         import numpy as np
@@ -233,7 +234,7 @@ def growth_rate_calculating(ignore_cache):
         while True:
             signal.pause()
     except Exception as e:
-        logging.getLogger(JOB_NAME).error(f"failed with {str(e)}")
+        logging.getLogger(JOB_NAME).error(f"{str(e)}")
         raise e
 
 

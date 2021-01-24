@@ -18,6 +18,7 @@ logger = logging.getLogger("od_normalization")
 
 def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=35):
     logger.info("Starting OD normalization")
+
     if "stirring" not in pio_jobs_running():
         logger.error("stirring jobs should be running. Run `mb stirring -b` first.")
         raise ValueError("stirring jobs should be running. Run `mb stirring -b` first. ")
@@ -42,14 +43,12 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
 
     try:
 
-        with click.progressbar(length=N_samples) as bar:
-            for count, batched_reading in enumerate(signal):
-                for (sensor, reading) in batched_reading.items():
-                    readings[sensor].append(reading)
+        for count, batched_reading in enumerate(signal):
+            for (sensor, reading) in batched_reading.items():
+                readings[sensor].append(reading)
 
-                bar.update(1)
-                if count == N_samples:
-                    break
+            if count == N_samples:
+                break
 
         variances = {}
         medians = {}
@@ -78,7 +77,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
 
         return
     except Exception as e:
-        logger.error(f"failed with {str(e)}")
+        logger.error(f"{str(e)}")
         raise e
 
 

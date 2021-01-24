@@ -82,15 +82,15 @@ def remove_waste(
 
         GPIO.output(WASTE_PIN, 0)
     except Exception as e:
-        logger.error(f"failed with {str(e)}")
+        logger.error(f"{str(e)}")
         raise e
 
     finally:
-        GPIO.cleanup(WASTE_PIN)
+        clean_up_gpio()
     return
 
 
-def cleanUpGPIO():
+def clean_up_gpio():
     GPIO.cleanup(int(config["rpi_pins"]["waste"]))
 
 
@@ -110,6 +110,6 @@ def click_remove_waste(ml, duration, duty_cycle, source_of_event):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    signal.signal(signal.SIGTERM, cleanUpGPIO)
+    signal.signal(signal.SIGTERM, clean_up_gpio)
 
     return remove_waste(ml, duration, duty_cycle, source_of_event, unit, experiment)
