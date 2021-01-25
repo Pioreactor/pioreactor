@@ -45,7 +45,9 @@ class Monitor(BackgroundJob):
                 run_immediately=False,
             )
 
-        GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up)
+        GPIO.add_event_detect(
+            BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up, bouncetime=200
+        )
 
         self.start_passive_listeners()
         self.flicker_led()
@@ -57,7 +59,8 @@ class Monitor(BackgroundJob):
         GPIO.output(LED_PIN, GPIO.LOW)
 
     def button_down_and_up(self, *args):
-        # TODO: test
+        # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
+        # don't put anything that is not idempotent in here.
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
             1,
@@ -66,9 +69,7 @@ class Monitor(BackgroundJob):
 
         self.led_on()
 
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/log", "Pushed tactile button"
-        )
+        self.logger.debug("Pushed tactile button")
 
         while GPIO.input(BUTTON_PIN) == GPIO.HIGH:
 
@@ -128,33 +129,17 @@ class Monitor(BackgroundJob):
 
     def flicker_led(self, *args):
         # TODO: what happens when I hear multiple msgs in quick succession?
-        self.led_on()
-        time.sleep(0.2)
-        self.led_off()
-        time.sleep(0.2)
-        self.led_on()
-        time.sleep(0.2)
-        self.led_off()
 
-        time.sleep(0.5)
+        for _ in range(4):
 
-        self.led_on()
-        time.sleep(0.2)
-        self.led_off()
-        time.sleep(0.2)
-        self.led_on()
-        time.sleep(0.2)
-        self.led_off()
-
-        time.sleep(0.5)
-
-        self.led_on()
-        time.sleep(0.2)
-        self.led_off()
-        time.sleep(0.2)
-        self.led_on()
-        time.sleep(0.2)
-        self.led_off()
+            self.led_on()
+            time.sleep(0.1)
+            self.led_off()
+            time.sleep(0.1)
+            self.led_on()
+            time.sleep(0.1)
+            self.led_off()
+            time.sleep(0.4)
 
     def start_passive_listeners(self):
 
