@@ -2,7 +2,6 @@
 # download experiment data
 # See create_tables.sql for all tables
 
-import zipfile
 import os
 from datetime import datetime
 import logging
@@ -14,8 +13,9 @@ logger = logging.getLogger("download_experiment_data")
 
 
 def download_experiment_data(experiment, output, tables):
-    import pandas as pd
     import sqlite3
+    import zipfile
+    import csv
 
     if experiment == "current":
         experiment = get_latest_experiment_name()
@@ -27,18 +27,22 @@ def download_experiment_data(experiment, output, tables):
     con = sqlite3.connect(config["storage"]["database"])
 
     for table in tables:
-        df = pd.read_sql_query(
-            f"""
-            SELECT * from {table} WHERE experiment="{experiment}"
-        """,
-            con,
-        )
-
         filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
         path_to_file = os.path.join(os.path.dirname(output), filename)
-        df.to_csv(path_to_file, index=False)
+
+        query = f"""
+            SELECT * from {table} WHERE experiment="{experiment}"
+        """
+        cursor = con.cursor()
+        cursor.execute(query)
+        with open(filename, "w") as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter="\t")
+            csv_writer.writerow([i[0] for i in cursor.description])
+            csv_writer.writerows(cursor)
+
         zf.write(path_to_file, filename)
 
+    con.close()
     zf.close()
 
     logger.info("Completed export of data.")
