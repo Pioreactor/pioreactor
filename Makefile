@@ -95,6 +95,9 @@ install-db:
 	touch /home/pi/db/pioreactor.sqlite
 	sqlite3 /home/pi/db/pioreactor.sqlite < sql/create_tables.sql
 
+	cat <(crontab -l) <(echo "0 */12 * * * pio run backup_database") | crontab -
+
+
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 	echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a

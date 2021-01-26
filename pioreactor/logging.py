@@ -42,7 +42,7 @@ class MQTTHandler(logging.Handler):
         msg = self.format(record)
         publish(self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs)
 
-        if config.getbool("error_reporting", "send_to_Pioreactor_com", fallback=False):
+        if config.getboolean("error_reporting", "send_to_Pioreactor_com", fallback=False):
             # turned off, by default
             if record.levelno == logging.ERROR:
                 # TODO: build this service!
