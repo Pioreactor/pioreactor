@@ -84,12 +84,13 @@ if am_I_leader():
     run.add_command(jobs.watchdog.click_watchdog)
 
     run.add_command(actions.download_experiment_data.click_download_experiment_data)
+    run.add_command(actions.backup_database.click_backup_database)
 
     @pio.command(short_help="access the db CLI")
     def db():
         import os
 
-        os.system(f"sqlite3 {config['storage']['observation_database']}")
+        os.system(f"sqlite3 {config['storage']['database']}")
 
     @pio.command(short_help="tail MQTT")
     def mqtt():
