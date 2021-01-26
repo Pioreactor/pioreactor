@@ -149,7 +149,7 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
     is_flag=True,
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
-def click_dosing_algorithm(
+def click_dosing_control(
     mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
 ):
     """
