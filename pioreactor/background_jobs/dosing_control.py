@@ -5,7 +5,7 @@ Continuously monitor the bioreactor and take action. This is the core of the dos
 
 To change the algorithm over MQTT,
 
-topic: `pioreactor/<unit>/<experiment>/algorithm_controlling/dosing_algorithm/set`
+topic: `pioreactor/<unit>/<experiment>/dosing_control/dosing_algorithm/set`
 message: a json object with required keyword argument. Specify the new algorithm with name `"dosing_algorithm"`.
 
 """
@@ -44,7 +44,7 @@ class AlgoController(BackgroundJob):
 
     def __init__(self, dosing_algorithm, unit=None, experiment=None, **kwargs):
         super(AlgoController, self).__init__(
-            job_name="algorithm_controlling", unit=unit, experiment=experiment
+            job_name="dosing_control", unit=unit, experiment=experiment
         )
         self.check_for_existing_dosing_algorithm_process()
 

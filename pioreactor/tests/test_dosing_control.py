@@ -499,7 +499,7 @@ def test_changing_algo_over_mqtt_solo():
     assert isinstance(algo.dosing_algorithm_job, Turbidostat)
 
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/algorithm_controlling/dosing_algorithm/set",
+        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_algorithm/set",
         '{"dosing_algorithm": "pid_morbidostat", "duration": 60, "target_od": 1.0, "target_growth_rate": 0.07}',
     )
     time.sleep(8)
@@ -523,7 +523,7 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
     assert isinstance(algo.dosing_algorithm_job, Turbidostat)
     pause()
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/algorithm_controlling/dosing_algorithm/set",
+        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_algorithm/set",
         '{"dosing_algorithm": "pid_morbidostat", "duration": 60}',
     )
     time.sleep(8)
@@ -561,7 +561,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
     assert algo.dosing_algorithm == "pid_turbidostat"
     pause()
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/algorithm_controlling/dosing_algorithm/set",
+        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_algorithm/set",
         '{"dosing_algorithm": "turbidostat", "duration": 60, "target_od": 1.0, "volume": 1.0, "skip_first_run": 1}',
     )
     time.sleep(
@@ -602,7 +602,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
     assert algo.dosing_algorithm == "pid_turbidostat"
     pause()
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/algorithm_controlling/dosing_algorithm/set",
+        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_algorithm/set",
         '{"dosing_algorithm": "pid_turbidostat", "duration": "60", "target_od": "1.0", "volume": "1.0"}',
     )
     time.sleep(
@@ -625,6 +625,6 @@ def test_disconnect_cleanly():
     assert algo.dosing_algorithm == "turbidostat"
     assert isinstance(algo.dosing_algorithm_job, Turbidostat)
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/algorithm_controlling/$state/set", "disconnected"
+        f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
     )
     time.sleep(10)
