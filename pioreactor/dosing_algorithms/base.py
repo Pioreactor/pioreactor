@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+
+
 import time, sys, os
 
 import json
@@ -32,11 +34,12 @@ class DosingAlgorithm(BackgroundSubJob):
     """
     This is the super class that algorithms inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program). If `duration` is left
-    as None, manually call `run`.
+    as None, manually call `run`. This calls the `execute` function, which is what subclasses will define.
 
+    To change setting over MQTT:
 
-    This calls the `execute` function, which is what subclasses will define.
-    TODO: change the job name?
+    `pioreactor/<unit>/<experiment>/dosing_algorithm/<setting>/set` value
+
     """
 
     latest_growth_rate = None
@@ -158,9 +161,9 @@ class DosingAlgorithm(BackgroundSubJob):
                 raise IOError(
                     "failed: `od_reading` and `growth_rate_calculating` should be running."
                 )
-            return events.NoEvent("Waiting for OD and growth rate data to arrive.")
+            event = events.NoEvent("Waiting for OD and growth rate data to arrive.")
 
-        if self.state != self.READY:
+        elif self.state != self.READY:
             event = events.NoEvent(f"currently in state {self.state}")
 
         elif (time.time() - self.most_stale_time) > 5 * 60:

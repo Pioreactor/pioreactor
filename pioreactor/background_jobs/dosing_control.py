@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and take action. This is the core of the dosingmedia_ml_calibration_pioreactor algorithm.
+Continuously monitor the bioreactor and take action. This is the core of the dosing algorithm.
 
 
 To change the algorithm over MQTT,
 
 topic: `pioreactor/<unit>/<experiment>/algorithm_controlling/dosing_algorithm/set`
 message: a json object with required keyword argument. Specify the new algorithm with name `"dosing_algorithm"`.
-
-To change setting over MQTT:
-
-`pioreactor/<unit>/<experiment>/dosing_algorithm/<setting>/set` value
 
 """
 import signal
