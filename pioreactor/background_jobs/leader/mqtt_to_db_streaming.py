@@ -92,7 +92,7 @@ def click_mqtt_to_db_streaming():
             "angle": "".join(topic.split("/")[-2:]),
         }
 
-    def parse_io_events(topic, payload):
+    def parse_dosing_events(topic, payload):
         payload = json.loads(payload)
         metadata = produce_metadata(topic)
 
@@ -154,7 +154,7 @@ def click_mqtt_to_db_streaming():
             "message": payload.decode(),
         }
 
-    def parse_io_algorithm_settings(topic, payload):
+    def parse_dosing_algorithm_settings(topic, payload):
         payload = json.loads(payload.decode())
         return payload
 
@@ -170,9 +170,9 @@ def click_mqtt_to_db_streaming():
             "parser": parse_od,
         },
         {
-            "topic": "pioreactor/+/+/io_events",
-            "table": "io_events",
-            "parser": parse_io_events,
+            "topic": "pioreactor/+/+/dosing_events",
+            "table": "dosing_events",
+            "parser": parse_dosing_events,
         },
         {
             "topic": "pioreactor/+/+/growth_rate",
@@ -191,9 +191,9 @@ def click_mqtt_to_db_streaming():
         },
         {"topic": "pioreactor/+/+/log", "table": "logs", "parser": parse_logs},
         {
-            "topic": "pioreactor/+/+/io_controlling/io_algorithm_settings",
-            "table": "io_algorithm_settings",
-            "parser": parse_io_algorithm_settings,
+            "topic": "pioreactor/+/+/dosing_control/dosing_algorithm_settings",
+            "table": "dosing_algorithm_settings",
+            "parser": parse_dosing_algorithm_settings,
         },
     ]
 

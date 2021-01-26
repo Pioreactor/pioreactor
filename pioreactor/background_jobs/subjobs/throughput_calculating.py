@@ -19,16 +19,6 @@ class ThroughputCalculator(BackgroundSubJob):
     Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
     has been spent, so that triggers can be set up to replace media stock.
 
-    on leader:
-        one source for aggregation data
-        useful metric only in aggregate
-    on worker
-        better api (runs when io_controlling runs AND won't be dirtied with cleaning-vial events)
-        used in tests (maybe an anti-pattern)
-        useless metric for an individual unit, makes it hard to "reset" (i.e. if I wanted to set it back to 0 after a media exchange)
-        UI has to aggregate - this is tricky: the totals are not summable.
-            Sol: I need the totals, and then the deltas, or keep state of individual totals in react state, and aggregate in the render...
-
     """
 
     editable_settings = ["media_throughput", "alt_media_throughput"]
@@ -43,7 +33,7 @@ class ThroughputCalculator(BackgroundSubJob):
 
         self.start_passive_listeners()
 
-    def on_io_event(self, message):
+    def on_dosing_event(self, message):
         payload = json.loads(message.payload)
         volume, event = float(payload["volume_change"]), payload["event"]
         if event == "add_media":
@@ -85,8 +75,8 @@ class ThroughputCalculator(BackgroundSubJob):
     def start_passive_listeners(self) -> None:
         self.pubsub_clients.append(
             subscribe_and_callback(
-                callback=self.on_io_event,
-                topics=f"pioreactor/{self.unit}/{self.experiment}/io_events",
+                callback=self.on_dosing_event,
+                topics=f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
                 qos=QOS.EXACTLY_ONCE,
                 job_name=self.job_name,
             )

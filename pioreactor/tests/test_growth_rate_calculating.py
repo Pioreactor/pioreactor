@@ -52,7 +52,7 @@ def test_subscribing(monkeypatch):
         '{"135/A": 0.778586260567034, "90/A": 0.20944389172032837}',
     )
     publish(
-        f"pioreactor/{unit}/{experiment}/io_event",
+        f"pioreactor/{unit}/{experiment}/dosing_events",
         '{"volume_change": "1.5", "event": "add_media"}',
     )
     publish(

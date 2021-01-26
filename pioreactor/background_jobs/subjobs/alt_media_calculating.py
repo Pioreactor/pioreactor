@@ -42,7 +42,7 @@ class AltMediaCalculator(BackgroundSubJob):
     def on_disconnect(self):
         self.publish_periodically_thead.cancel()
 
-    def on_io_event(self, message):
+    def on_dosing_event(self, message):
         payload = json.loads(message.payload)
         volume, event = float(payload["volume_change"]), payload["event"]
         if event == "add_media":
@@ -97,8 +97,8 @@ class AltMediaCalculator(BackgroundSubJob):
     def start_passive_listeners(self) -> None:
         self.pubsub_clients.append(
             subscribe_and_callback(
-                callback=self.on_io_event,
-                topics=f"pioreactor/{self.unit}/{self.experiment}/io_events",
+                callback=self.on_dosing_event,
+                topics=f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
                 qos=QOS.EXACTLY_ONCE,
                 job_name=self.job_name,
             )

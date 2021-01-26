@@ -37,6 +37,7 @@ from pioreactor.config import config
 from pioreactor.utils.timing import every
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.actions.leds import led_intensity
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
@@ -70,6 +71,7 @@ class ODReader(BackgroundJob):
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
         self.ma = MovingStats(lookback=10)
+        self.start_ir_led()
 
         if fake_data:
             i2c = MockI2C(SCL, SDA)
@@ -93,6 +95,14 @@ class ODReader(BackgroundJob):
             else:
                 ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
             self.od_channels_to_analog_in[label] = ai
+
+    def start_ir_led(self):
+        ir_channel = config.get("leds", "ir_led")
+        r = led_intensity(
+            channel=ir_channel, intensity=100, unit=self.unit, experiment=self.experiment
+        )
+        if not r:
+            raise ValueError("IR LED could not be started. Stopping OD reading.")
 
     def take_reading(self, counter=None):
         while self.state != self.READY:

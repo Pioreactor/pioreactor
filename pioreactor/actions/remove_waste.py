@@ -53,7 +53,7 @@ def remove_waste(
         )
 
     publish(
-        f"pioreactor/{unit}/{experiment}/io_events",
+        f"pioreactor/{unit}/{experiment}/dosing_events",
         dumps(
             {
                 "volume_change": ml,

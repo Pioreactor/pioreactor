@@ -223,7 +223,7 @@ class ExtendedKalmanFilter:
 
 class PID:
 
-    # used in io_controlling classes
+    # used in dosing_control classes
 
     def __init__(
         self,

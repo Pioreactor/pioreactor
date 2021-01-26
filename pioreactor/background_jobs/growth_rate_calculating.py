@@ -158,7 +158,7 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization(unit=self.unit, experiment=self.experiment)
             return self.set_od_normalization_factors()
 
-    def update_ekf_variance_after_io_event(self, message):
+    def update_ekf_variance_after_dosing_event(self, message):
         self.ekf.scale_OD_variance_for_next_n_steps(
             5e3, round(0.5 * self.samples_per_minute)
         )
@@ -208,8 +208,8 @@ class GrowthRateCalculator(BackgroundJob):
         )
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.update_ekf_variance_after_io_event,
-                f"pioreactor/{self.unit}/{self.experiment}/io_events",
+                self.update_ekf_variance_after_dosing_event,
+                f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
                 qos=QOS.EXACTLY_ONCE,
                 job_name=self.job_name,
             )

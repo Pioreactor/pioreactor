@@ -23,17 +23,6 @@ CREATE INDEX IF NOT EXISTS alt_media_fraction_ix
 ON alt_media_fraction (experiment, pioreactor_unit);
 
 
-CREATE TABLE IF NOT EXISTS fluoresence_readings_raw (
-    timestamp              TEXT  NOT NULL,
-    pioreactor_unit        TEXT  NOT NULL,
-    fluoresence_reading_v  REAL  NOT NULL,
-    experiment             TEXT  NOT NULL,
-    ex_nm                  REAL  NOT NULL,
-    em_nm                  REAL  NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS fluoresence_readings_raw_ix
-ON fluoresence_readings_raw (experiment, pioreactor_unit);
 
 CREATE TABLE IF NOT EXISTS od_readings_filtered (
     timestamp              TEXT  NOT NULL,
@@ -47,7 +36,7 @@ CREATE INDEX IF NOT EXISTS od_readings_filtered_ix
 ON od_readings_filtered (experiment, pioreactor_unit, angle);
 
 
-CREATE TABLE IF NOT EXISTS io_events (
+CREATE TABLE IF NOT EXISTS dosing_events (
     timestamp              TEXT  NOT NULL,
     experiment             TEXT  NOT NULL,
     event                  TEXT  NOT NULL,
@@ -56,8 +45,8 @@ CREATE TABLE IF NOT EXISTS io_events (
     source_of_event        TEXT
 );
 
-CREATE INDEX IF NOT EXISTS io_events_ix
-ON io_events (experiment);
+CREATE INDEX IF NOT EXISTS dosing_events_ix
+ON dosing_events (experiment);
 
 
 
@@ -115,7 +104,7 @@ CREATE INDEX IF NOT EXISTS pid_logs_ix
 ON pid_logs (experiment);
 
 
-CREATE TABLE IF NOT EXISTS io_algorithm_settings (
+CREATE TABLE IF NOT EXISTS dosing_algorithm_settings (
     pioreactor_unit          TEXT  NOT NULL,
     experiment               TEXT  NOT NULL,
     started_at               TEXT  NOT NULL,
@@ -128,5 +117,5 @@ CREATE TABLE IF NOT EXISTS io_algorithm_settings (
 );
 
 
-CREATE INDEX IF NOT EXISTS io_algorithm_settings_ix
-ON io_algorithm_settings (experiment);
+CREATE INDEX IF NOT EXISTS dosing_algorithm_settings_ix
+ON dosing_algorithm_settings (experiment);

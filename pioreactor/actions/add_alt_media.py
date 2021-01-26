@@ -52,7 +52,7 @@ def add_alt_media(
     assert duration >= 0
 
     publish(
-        f"pioreactor/{unit}/{experiment}/io_events",
+        f"pioreactor/{unit}/{experiment}/dosing_events",
         dumps(
             {
                 "volume_change": ml,

@@ -23,7 +23,7 @@ from pioreactor.config import get_active_workers_in_inventory, get_leader_hostna
 ALL_WORKER_JOBS = [
     "stirring",
     "growth_rate_calculating",
-    "io_controlling",
+    "dosing_control",
     "stirring",
     "od_reading",
     "add_alt_media",
