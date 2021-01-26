@@ -37,9 +37,7 @@ class Monitor(BackgroundJob):
         GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(LED_PIN, GPIO.OUT)
 
-        GPIO.add_event_detect(
-            BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up, bouncetime=2000
-        )
+        GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up)
 
         self.start_passive_listeners()
         self.flicker_led()
