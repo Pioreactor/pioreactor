@@ -35,15 +35,13 @@ def download_experiment_data(experiment, output, tables):
         """
         cursor = con.cursor()
         cursor.execute(query)
-        print(cursor)
-        print(_filename)
-        print(path_to_file)
+
         with open(path_to_file, "w") as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=",")
             csv_writer.writerow([i[0] for i in cursor.description])
             csv_writer.writerows(cursor)
 
-        zf.write(path_to_file)
+        zf.write(path_to_file, arcname=_filename)
 
     con.close()
     zf.close()
