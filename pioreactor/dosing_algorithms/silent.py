@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from pioreactor.dosing_algorithm import DosingAlgorithm
-from pioreactor.dosing_algorithm import events
+from pioreactor.dosing_algorithms.base import DosingAlgorithm
+from pioreactor.dosing_algorithms import events
 
 
 class Silent(DosingAlgorithm):
