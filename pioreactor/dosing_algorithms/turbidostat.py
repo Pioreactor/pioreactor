@@ -5,8 +5,10 @@ from pioreactor.dosing_algorithms import events
 
 class Turbidostat(DosingAlgorithm):
     """
-    turbidostat mode - try to keep cell density constant. The algorithm should run at
-    near every minute (limited by the OD reading rate) to react quickly to when the target OD is hit.
+    Turbidostat mode - try to keep cell density constant. The algorithm should run at
+    high frequency (every 5-10m) to react quickly to when the target OD is hit.
+
+    This algo is very naive, and probably shouldn't be used.
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):

@@ -20,16 +20,13 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.config import config
 
 from pioreactor.dosing_algorithms.morbidostat import Morbidostat
 from pioreactor.dosing_algorithms.pid_morbidostat import PIDMorbidostat
 from pioreactor.dosing_algorithms.pid_turbidostat import PIDTurbidostat
 from pioreactor.dosing_algorithms.silent import Silent
 from pioreactor.dosing_algorithms.turbidostat import Turbidostat
-
-
-VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
+from pioreactor.dosing_algorithms.chemostat import Chemostat
 
 
 class AlgoController(BackgroundJob):
@@ -38,6 +35,7 @@ class AlgoController(BackgroundJob):
         "silent": Silent,
         "morbidostat": Morbidostat,
         "turbidostat": Turbidostat,
+        "chemostat": Chemostat,
         "pid_turbidostat": PIDTurbidostat,
         "pid_morbidostat": PIDMorbidostat,
     }

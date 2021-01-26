@@ -11,12 +11,12 @@ from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
-from pioreactor.background_jobs.od_reading import od_reading
 
 logger = logging.getLogger("od_normalization")
 
 
 def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=35):
+
     logger.info("Starting OD normalization")
 
     if "stirring" not in pio_jobs_running():
@@ -24,6 +24,8 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         raise ValueError("stirring jobs should be running. Run `mb stirring -b` first. ")
 
     if "od_reading" not in pio_jobs_running():
+        from pioreactor.background_jobs.od_reading import od_reading
+
         # we sample faster, because we can...
         # TODO: write tests for this
         assert od_angle_channel is not None, "od_angle_channel is not set"
