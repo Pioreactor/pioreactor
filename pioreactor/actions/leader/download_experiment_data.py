@@ -34,7 +34,7 @@ def download_experiment_data(experiment, output, tables):
             con,
         )
 
-        filename = f"{experiment}-{table}-{time}.dump.csv"
+        filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
         path_to_file = os.path.join(os.path.dirname(output), filename)
         df.to_csv(path_to_file, index=False)
         zf.write(path_to_file, filename)
