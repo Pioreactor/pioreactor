@@ -27,20 +27,22 @@ def download_experiment_data(experiment, output, tables):
     con = sqlite3.connect(config["storage"]["database"])
 
     for table in tables:
-        filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
-        path_to_file = os.path.join(os.path.dirname(output), filename)
+        _filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
+        path_to_file = os.path.join(os.path.dirname(output), _filename)
 
         query = f"""
             SELECT * from {table} WHERE experiment="{experiment}"
         """
         cursor = con.cursor()
         cursor.execute(query)
-        with open(filename, "w") as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter="\t")
+        print(cursor)
+        print(_filename)
+        with open(_filename, "w") as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=",")
             csv_writer.writerow([i[0] for i in cursor.description])
             csv_writer.writerows(cursor)
 
-        zf.write(path_to_file, filename)
+        zf.write(path_to_file, _filename)
 
     con.close()
     zf.close()
