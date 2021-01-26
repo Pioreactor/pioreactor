@@ -25,7 +25,7 @@ def execute_query_against_db(query):
     import sqlite3
     from pioreactor.config import config
 
-    conn = sqlite3.connect(config["storage"]["observation_database"])
+    conn = sqlite3.connect(config["storage"]["database"])
     cur = conn.cursor()
     cur.execute(query)
     rows = cur.fetchall()

@@ -7,22 +7,10 @@ import threading
 import atexit
 from collections import namedtuple
 import logging
-
-if "pytest" in sys.modules or os.environ.get("TESTING"):
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
-import RPi.GPIO as GPIO
-
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import QOS, create_publishing_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
-
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
 
 
 def split_topic_for_setting(topic):
@@ -135,9 +123,6 @@ class BackgroundJob:
     def disconnected(self):
         # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
-
-        # clean up any active GPIOs
-        GPIO.cleanup()
 
         # set state to disconnect
         self.state = self.DISCONNECTED

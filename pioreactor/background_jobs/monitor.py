@@ -6,11 +6,11 @@ import time
 
 import RPi.GPIO as GPIO
 
-from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT, am_I_leader
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import QOS, subscribe_and_callback
-from pioreactor.config import config, get_active_workers_in_inventory
+from pioreactor.config import config
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 BUTTON_PIN = config.getint("rpi_pins", "tactile_button")
@@ -36,14 +36,6 @@ class Monitor(BackgroundJob):
             job_name=self.job_name,
             run_immediately=True,
         )
-
-        if am_I_leader():
-            self.backup_timer = RepeatedTimer(
-                12 * 60 * 60,
-                self.backup_db_to_other_pis,
-                job_name=self.job_name,
-                run_immediately=False,
-            )
 
         GPIO.add_event_detect(
             BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up, bouncetime=200
@@ -100,37 +92,11 @@ class Monitor(BackgroundJob):
             disk_usage_percent,
         )
 
-    def backup_db_to_other_pis(self):
-        # this should only run on the leader
-        assert am_I_leader(), "This should only run on the leader..."
-        from sh import scp, ErrorReturnCode
-
-        db_location = config["storage"]["observation_database"]
-
-        n_backups = 2
-        available_workers = get_active_workers_in_inventory()
-
-        backups_complete = 0
-        while (backups_complete < n_backups) and (len(available_workers) > 0):
-            backup_unit = available_workers.pop()
-            if backup_unit == get_unit_name():
-                continue
-
-            try:
-                scp(
-                    db_location,
-                    f"{backup_unit}:/home/pi/.pioreactor/pioreactor.backup.sqlite",
-                )
-            except ErrorReturnCode:
-                self.logger.error(f"Unable to backup database to {backup_unit}.")
-            else:
-                self.logger.debug(f"Backing up database to {backup_unit}.")
-                backups_complete += 1
-
     def flicker_led(self, *args):
-        # TODO: what happens when I hear multiple msgs in quick succession?
+        # what happens when I hear multiple msgs in quick succession? Seems like calls to this function
+        # are queued.
 
-        for _ in range(4):
+        for _ in range(5):
 
             self.led_on()
             time.sleep(0.1)

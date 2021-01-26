@@ -19,7 +19,11 @@ logger = logging.getLogger(f"{get_unit_name()}-CLI")
 
 @click.group()
 def pio():
-    pass
+    """
+    Execute commands on this Pioreactor.
+    See full documentation here: https://github.com/Pioreactor/pioreactor/wiki/Command-line-interface
+    Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
+    """
 
 
 @pio.command(name="logs", short_help="tail the log file")

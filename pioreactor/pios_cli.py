@@ -86,7 +86,9 @@ def sync_config_files(ssh_client, unit):
 @click.group()
 def pios():
     """
-    Command each of the worker pioreactors with the `pios` command
+    Command each of the worker Pioreactors with the `pios` command.
+    See full documentation here: https://github.com/Pioreactor/pioreactor/wiki/Command-line-interface#leader-commands
+    Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
     import sys
 
@@ -101,14 +103,17 @@ def pios():
 
 @pios.command("sync", short_help="sync code and config")
 @click.option(
-    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="specify a hostname, default is all active units",
 )
 def sync(units):
     """
     Deploys the config.inis from the leader to the workers, pulls and installs the latest code from Github to the
     workers.
     """
-
     import paramiko
 
     cd = "cd ~/pioreactor"
@@ -150,13 +155,16 @@ def sync(units):
 
 @pios.command(name="sync-configs", short_help="sync config")
 @click.option(
-    "--units", multiple=True, default=(UNIVERSAL_IDENTIFIER,), type=click.STRING
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="specify a hostname, default is all active units",
 )
 def sync_configs(units):
     """
-    Deploys the leader's config.inis to the workers.
+    Deploys the global config.ini and worker specific config.inis to the workers.
     """
-
     import paramiko
 
     def _thread_function(unit):
@@ -181,7 +189,7 @@ def sync_configs(units):
 
 
 @pios.command("kill", short_help="kill a job on workers")
-@click.argument("process")
+@click.argument("job")
 @click.option(
     "--units",
     multiple=True,
@@ -190,20 +198,23 @@ def sync_configs(units):
     help="specify a hostname, default is all active units",
 )
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
-def kill(process, units, y):
+def kill(job, units, y):
     """
-    send a SIGTERM signal to PROCESS. PROCESS can be any job name or "python" (the
-    later will clear all jobs, but maybe other python scripts too.)
+    Send a SIGTERM signal to JOB. JOB can be any Pioreactor job name, like "stirring".
+    Example:
+
+    > pios kill stirring
+
 
     """
     from sh import ssh
 
     if not y:
-        confirm = input(f"Confirm killing `{process}` on {units}? Y/n: ").strip()
+        confirm = input(f"Confirm killing `{job}` on {units}? Y/n: ").strip()
         if confirm != "Y":
             return
 
-    command = f"pio kill {process}"
+    command = f"pio kill {job}"
 
     def _thread_function(unit):
 
@@ -226,11 +237,27 @@ def kill(process, units, y):
     multiple=True,
     default=(UNIVERSAL_IDENTIFIER,),
     type=click.STRING,
-    help="Run on specific unit, default all.",
+    help="specify a hostname, default is all active units",
 )
 @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
 @click.pass_context
 def run(ctx, job, units, y):
+    """
+    Run a job on all, or specific, workers. Ex:
+
+    > pios run stirring
+
+    Will start stirring on all workers, after asking for confirmation.
+    Each job has their own unique options:
+
+    > pios run stirring --duty-cycle 10
+    > pios run od_reading --od-angle-channel 135,0
+
+    To specify specific units, use the `--units` keyword multiple times, ex:
+
+    > pios run stirring --units pioreactor2 --units pioreactor3
+
+    """
     from sh import ssh
 
     extra_args = list(ctx.args)
@@ -269,7 +296,7 @@ def run(ctx, job, units, y):
     multiple=True,
     default=(UNIVERSAL_IDENTIFIER,),
     type=click.STRING,
-    help="Run on specific unit, default all.",
+    help="specify a hostname, default is all active units",
 )
 @click.pass_context
 def update(ctx, job, units):
