@@ -22,7 +22,7 @@ def backup_database(output):
     bck = sqlite3.connect(output)
 
     with bck:
-        con.backup(bck, pages=5, progress=progress)
+        con.backup(bck, pages=1, progress=progress)
 
     bck.close()
     con.close()
