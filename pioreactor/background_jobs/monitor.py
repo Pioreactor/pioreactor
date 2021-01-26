@@ -15,10 +15,7 @@ from pioreactor.config import config
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 BUTTON_PIN = config.getint("rpi_pins", "tactile_button")
 LED_PIN = config.getint("rpi_pins", "led")
-
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-GPIO.setup(LED_PIN, GPIO.OUT)
 
 
 class Monitor(BackgroundJob):
@@ -36,6 +33,9 @@ class Monitor(BackgroundJob):
             job_name=self.job_name,
             run_immediately=True,
         )
+
+        GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(LED_PIN, GPIO.OUT)
 
         GPIO.add_event_detect(
             BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up, bouncetime=200

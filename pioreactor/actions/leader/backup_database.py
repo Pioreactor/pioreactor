@@ -13,7 +13,8 @@ def backup_database(output):
     from sh import scp, ErrorReturnCode
 
     def progress(status, remaining, total):
-        logger.debug(f"Copied {total-remaining} of {total} pages...")
+        if remaining % 100 == 0:
+            logger.debug(f"Copied {total-remaining} of {total} pages...")
 
     logger.debug(f"Starting backup of database to {output}")
 
@@ -21,7 +22,7 @@ def backup_database(output):
     bck = sqlite3.connect(output)
 
     with bck:
-        con.backup(bck, pages=1, progress=progress)
+        con.backup(bck, pages=5, progress=progress)
 
     bck.close()
     con.close()
@@ -37,9 +38,10 @@ def backup_database(output):
             continue
 
         try:
-            scp(config["storage"]["database"], f"{backup_unit}:{output}")
+            scp(output, f"{backup_unit}:{output}")
         except ErrorReturnCode:
-            logger.error(f"Unable to backup database to {backup_unit}.")
+            logger.debug(f"Unable to backup database to {backup_unit}.", exc_info=True)
+            logger.warning(f"Unable to backup database to {backup_unit}.")
         else:
             logger.debug(f"Backed up database to {backup_unit}:{output}.")
             backups_complete += 1
