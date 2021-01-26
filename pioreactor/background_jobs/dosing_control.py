@@ -128,7 +128,7 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
         raise e
 
 
-@click.command(name="dosing_algorithm")
+@click.command(name="dosing_control")
 @click.option(
     "--mode",
     default="silent",
