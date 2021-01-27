@@ -76,7 +76,7 @@ class LEDAlgorithm(BackgroundSubJob):
         try:
             self.timer_thread.cancel()
         except AttributeError:
-            self.logger.debug("no timer_thread", exc_info=True)
+            pass
         finally:
             if self.duration is not None:
                 self.timer_thread = RepeatedTimer(
@@ -136,7 +136,7 @@ class LEDAlgorithm(BackgroundSubJob):
         try:
             self.timer_thread.cancel()
         except AttributeError:
-            self.logger.debug("no timer_thread", exc_info=True)
+            pass
         for job in self.sub_jobs:
             job.set_state("disconnected")
 
@@ -213,18 +213,16 @@ class LEDAlgorithm(BackgroundSubJob):
 
 
 class Silent(LEDAlgorithm):
-    def __init__(self, duration=None, **kwargs):
+    def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
-        self.set_duration(duration)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        return events.NoEvent()
+        return events.NoEvent("nothing occurs in Silent.")
 
 
 class TrackOD(LEDAlgorithm):
-    def __init__(self, duration=None, **kwargs):
+    def __init__(self, **kwargs):
         super(TrackOD, self).__init__(**kwargs)
-        self.set_duration(duration)
 
         self.white_light = config.get("leds", "white_light")
         # set luminosity to 10% initially
@@ -236,9 +234,8 @@ class TrackOD(LEDAlgorithm):
 
 
 class FlashUV(LEDAlgorithm):
-    def __init__(self, duration=None, **kwargs):
+    def __init__(self, **kwargs):
         super(FlashUV, self).__init__(**kwargs)
-        self.set_duration(duration)
         self.uv_led = config.get("leds", "uv380")
 
         self.set_led_intensity(self.uv_led, 0)
