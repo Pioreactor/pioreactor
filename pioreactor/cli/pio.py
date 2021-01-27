@@ -98,7 +98,7 @@ if am_I_leader():
 
         os.system("mosquitto_sub -v -t 'pioreactor/#'")
 
-    @pio.command(name="add-pioreactor", short_help="add new Pioreactor to cluster")
+    @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("new_name")
     def add_pioreactor(new_name):
         import subprocess

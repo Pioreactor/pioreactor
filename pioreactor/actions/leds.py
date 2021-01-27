@@ -1,13 +1,42 @@
 # -*- coding: utf-8 -*-
 import logging
+import json
+from pioreactor.pubsub import publish, subscribe
+
 
 logger = logging.getLogger("led_intensity")
 
 
-def led_intensity(channel=None, intensity=0.0):
+def get_current_state_from_broker(unit, experiment):
+    msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=1)
+    if msg:
+        return json.loads(msg.payload)
+    else:
+        return {"A": 0, "B": 0, "C": 0, "D": 0}
+
+
+def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
+    """
+    state is also updated in
+
+    pioreactor/<unit>/<experiment>/leds/<channel>/intensity intensity
+
+    and
+
+    pioreactor/<unit>/<experiment>/leds/intensity {'A': intensityA, 'B': 0, ...}
+
+    the way state is handeled in the second topic is tech debt.
+
+    """
     assert 0 <= intensity <= 100
     assert channel in ["A", "B", "C", "D"]
     try:
+        # do work here.
+
+        publish(f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity", intensity)
+        state = get_current_state_from_broker()
+        state[channel] = intensity
+        publish(f"pioreactor/{unit}/{experiment}/leds/intensity", json.dumps(state))
         return True
     except Exception as e:
         logger.debug(e, exc_info=True)
