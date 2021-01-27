@@ -13,8 +13,7 @@ def backup_database(output):
     from sh import scp, ErrorReturnCode
 
     def progress(status, remaining, total):
-        if (total - remaining) % 10000 == 0:
-            logger.debug(f"Copied {total-remaining} of {total} pages...")
+        logger.debug(f"Copied {total-remaining} of {total} pages...")
 
     logger.debug(f"Starting backup of database to {output}")
 
