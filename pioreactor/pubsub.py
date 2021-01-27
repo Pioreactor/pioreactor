@@ -154,8 +154,7 @@ def subscribe_and_callback(
 
             except Exception as e:
                 logger = logging.getLogger(userdata.get("job_name", "pioreactor"))
-                logger.debug(e, exc_info=True)
-                logger.error(e)
+                logger.error(e, exc_info=True)
                 raise e
 
         return _callback
