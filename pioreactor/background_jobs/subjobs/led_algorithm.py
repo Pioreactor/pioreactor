@@ -214,7 +214,7 @@ class LEDAlgorithm(BackgroundSubJob):
 
 class Silent(LEDAlgorithm):
     def __init__(self, duration=None, **kwargs):
-        super(TrackOD, self).__init__(**kwargs)
+        super(Silent, self).__init__(**kwargs)
         self.set_duration(duration)
 
     def execute(self, *args, **kwargs) -> events.Event:
@@ -237,7 +237,7 @@ class TrackOD(LEDAlgorithm):
 
 class FlashUV(LEDAlgorithm):
     def __init__(self, duration=None, **kwargs):
-        super(TrackOD, self).__init__(**kwargs)
+        super(FlashUV, self).__init__(**kwargs)
         self.set_duration(duration)
         self.uv_led = config.get("leds", "uv380")
 
