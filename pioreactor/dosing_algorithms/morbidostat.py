@@ -5,7 +5,8 @@ from pioreactor.dosing_algorithms import events
 
 class Morbidostat(DosingAlgorithm):
     """
-    As defined in Toprak 2013.
+    As defined in Toprak 2013., keep cell density below and threshold using chemical means. The conc.
+    of the chemical is diluted slowly over time, allowing the microbes to recover.
     """
 
     def __init__(self, target_od=None, volume=None, **kwargs):
@@ -14,10 +15,6 @@ class Morbidostat(DosingAlgorithm):
         self.volume = float(volume)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        """
-        pioreactor mode - keep cell density below and threshold using chemical means. The conc.
-        of the chemical is diluted slowly over time, allowing the microbes to recover.
-        """
         if self.previous_od is None:
             return events.NoEvent("skip first event to wait for OD readings.")
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:

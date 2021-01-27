@@ -56,11 +56,12 @@ class RepeatedTimer:
         self.is_running = False
         self.logger = logging.getLogger(job_name or "RepeatedTimer")
         self.daemon = True
-        self.start()
         if run_immediately:
             self._timer = Timer(0, self.function, self.args, self.kwargs)
             self._timer.daemon = True
             self._timer.start()
+
+        self.start()
 
     def _run(self):
         self.is_running = False

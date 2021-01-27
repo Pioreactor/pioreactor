@@ -14,3 +14,4 @@ class Chemostat(DosingAlgorithm):
 
     def execute(self, *args, **kwargs) -> events.Event:
         self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
+        return events.DilutionEvent()

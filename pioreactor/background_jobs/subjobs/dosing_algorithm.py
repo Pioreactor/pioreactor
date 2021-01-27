@@ -99,7 +99,7 @@ class DosingAlgorithm(BackgroundSubJob):
         try:
             self.timer_thread.cancel()
         except AttributeError:
-            pass
+            self.logger.debug("no timer_thread", exc_info=True)
         finally:
             if self.duration is not None:
                 self.timer_thread = RepeatedTimer(
@@ -136,7 +136,7 @@ class DosingAlgorithm(BackgroundSubJob):
         try:
             self.timer_thread.cancel()
         except AttributeError:
-            pass
+            self.logger.debug("no timer_thread", exc_info=True)
         for job in self.sub_jobs:
             job.set_state("disconnected")
 
@@ -151,7 +151,7 @@ class DosingAlgorithm(BackgroundSubJob):
             self.latest_settings_ended_at = None
 
     def run(self, counter=None):
-        time.sleep(10)  # wait some time for data to arrive, and try again.
+        time.sleep(10)  # wait some time for data to arrive
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive.")
             if not ("od_reading" in pio_jobs_running()) and (
@@ -160,7 +160,7 @@ class DosingAlgorithm(BackgroundSubJob):
                 raise IOError(
                     "failed: `od_reading` and `growth_rate_calculating` should be running."
                 )
-            event = events.NoEvent("Waiting for OD and growth rate data to arrive.")
+            event = events.NoEvent("waiting for OD and growth rate data to arrive.")
 
         elif self.state != self.READY:
             event = events.NoEvent(f"currently in state {self.state}")
