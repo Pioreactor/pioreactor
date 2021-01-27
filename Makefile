@@ -89,12 +89,7 @@ logging-files:
 	sudo chown pi /var/log/pioreactor.log
 
 install-db:
-	sudo apt-get install -y sqlite3
-	mkdir -p /home/pi/db
-	touch /home/pi/db/pioreactor.sqlite
-	sqlite3 /home/pi/db/pioreactor.sqlite < sql/create_tables.sql
-
-	cat <(crontab -l) <(echo "0 */12 * * * pio run backup_database") | crontab -
+	bash bash_scripts/install_db.sh
 
 
 configure-rpi:
