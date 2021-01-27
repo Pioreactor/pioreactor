@@ -222,33 +222,29 @@ class Silent(LEDAlgorithm):
 
 
 class TrackOD(LEDAlgorithm):
-
-    WHITE_LIGHT = config.get("leds", "white_light")
-
     def __init__(self, duration=None, **kwargs):
         super(TrackOD, self).__init__(**kwargs)
         self.set_duration(duration)
 
+        self.white_light = config.get("leds", "white_light")
         # set luminosity to 10% initially
-        self.set_led_intensity(self.WHITE_LIGHT, 0.1)
+        self.set_led_intensity(self.white_light, 0.1)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        self.set_led_intensity(self.WHITE_LIGHT, 0.1 * (self.latest_od - 1) + 0.1)
+        self.set_led_intensity(self.white_light, 0.1 * (self.latest_od - 1) + 0.1)
         return events.IncreasedLuminosity()
 
 
 class FlashUV(LEDAlgorithm):
-
-    UV_LED = config.get("leds", "uv380")
-
     def __init__(self, duration=None, **kwargs):
         super(TrackOD, self).__init__(**kwargs)
         self.set_duration(duration)
+        self.uv_led = config.get("leds", "uv380")
 
-        self.set_led_intensity(self.UV_LED, 0)
+        self.set_led_intensity(self.uv_led, 0)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        self.set_led_intensity(self.UV_LED, 100)
+        self.set_led_intensity(self.uv_led, 100)
         time.sleep(1)
-        self.set_led_intensity(self.UV_LED, 0)
+        self.set_led_intensity(self.uv_led, 0)
         return events.UvFlash("Flashed UV for 1 second")
