@@ -13,8 +13,8 @@ def backup_database(output):
     from sh import scp, ErrorReturnCode
 
     def progress(status, remaining, total):
-        print(status, remaining, total)
-        logger.debug(f"Copied {total-remaining} of {total} pages...")
+        if (total - remaining) % 10000 == 0:
+            logger.debug(f"Copied {total-remaining} of {total} pages...")
 
     logger.debug(f"Starting backup of database to {output}")
 
@@ -22,7 +22,7 @@ def backup_database(output):
     bck = sqlite3.connect(output)
 
     with bck:
-        con.backup(bck, pages=5, progress=progress)
+        con.backup(bck, pages=1, progress=progress)
 
     bck.close()
     con.close()
