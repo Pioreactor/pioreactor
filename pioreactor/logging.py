@@ -3,7 +3,7 @@ import logging
 from pioreactor.pubsub import publish
 from pioreactor.whoami import (
     get_unit_name,
-    am_I_leader,
+    am_I_active_worker,
     UNIVERSAL_EXPERIMENT,
     get_latest_experiment_name,
 )
@@ -79,7 +79,7 @@ console_handler.setFormatter(
 
 
 # create MQTT handler
-exp = UNIVERSAL_EXPERIMENT if am_I_leader() else get_latest_experiment_name()
+exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 topic = f"pioreactor/{get_unit_name()}/{exp}/log"
 mqtt_handler = MQTTHandler(topic)
 mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))

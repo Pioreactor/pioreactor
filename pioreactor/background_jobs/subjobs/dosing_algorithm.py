@@ -82,18 +82,6 @@ class DosingAlgorithm(BackgroundSubJob):
             f"starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
         )
 
-    def clear_mqtt_cache(self):
-        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        for attr in self.editable_settings:
-            if attr == "state":
-                continue
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                retain=True,
-                qos=QOS.EXACTLY_ONCE,
-            )
-
     def set_duration(self, value):
         self.duration = float(value)
         try:
@@ -109,49 +97,8 @@ class DosingAlgorithm(BackgroundSubJob):
                     run_immediately=(not self.skip_first_run),
                 ).start()
 
-    def send_details_to_mqtt(self):
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/dosing_algorithm_settings",
-            json.dumps(
-                {
-                    "pioreactor_unit": self.unit,
-                    "experiment": self.experiment,
-                    "started_at": self.latest_settings_started_at,
-                    "ended_at": self.latest_settings_ended_at,
-                    "algorithm": self.__class__.__name__,
-                    "duration": getattr(self, "duration", None),
-                    "target_od": getattr(self, "target_od", None),
-                    "target_growth_rate": getattr(self, "target_growth_rate", None),
-                    "volume": getattr(self, "volume", None),
-                }
-            ),
-            qos=QOS.EXACTLY_ONCE,
-            retain=True,
-        )
-
-    def on_disconnect(self):
-        self.latest_settings_ended_at = current_time()
-        self.send_details_to_mqtt()
-
-        try:
-            self.timer_thread.cancel()
-        except AttributeError:
-            self.logger.debug("no timer_thread", exc_info=True)
-        for job in self.sub_jobs:
-            job.set_state("disconnected")
-
-        self.clear_mqtt_cache()
-
-    def __setattr__(self, name, value) -> None:
-        super(DosingAlgorithm, self).__setattr__(name, value)
-        if name in self.editable_settings and name != "state":
-            self.latest_settings_ended_at = current_time()
-            self.send_details_to_mqtt()
-            self.latest_settings_started_at = current_time()
-            self.latest_settings_ended_at = None
-
     def run(self, counter=None):
-        time.sleep(10)  # wait some time for data to arrive
+        time.sleep(8)  # wait some time for data to arrive
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive.")
             if not ("od_reading" in pio_jobs_running()) and (
@@ -212,7 +159,7 @@ class DosingAlgorithm(BackgroundSubJob):
             if alt_media_ml > 0:
                 add_alt_media(
                     ml=alt_media_ml,
-                    source_of_event="dosing_algorithm",
+                    source_of_event=self.job_name,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
@@ -220,7 +167,7 @@ class DosingAlgorithm(BackgroundSubJob):
             if media_ml > 0:
                 add_media(
                     ml=media_ml,
-                    source_of_event="dosing_algorithm",
+                    source_of_event=self.job_name,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
@@ -228,44 +175,99 @@ class DosingAlgorithm(BackgroundSubJob):
             if waste_ml > 0:
                 remove_waste(
                     ml=waste_ml,
-                    source_of_event="dosing_algorithm",
+                    source_of_event=self.job_name,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 remove_waste(
                     duration=2,
-                    source_of_event="dosing_algorithm",
+                    source_of_event=self.job_name,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
                 brief_pause()
 
-    def set_growth_rate(self, message):
-        self.previous_growth_rate = self.latest_growth_rate
-        self.latest_growth_rate = float(message.payload)
-        self.latest_growth_rate_timestamp = time.time()
-
-    def set_OD(self, message):
-        self.previous_od = self.latest_od
-        self.latest_od = float(message.payload)
-        self.latest_od_timestamp = time.time()
-
     @property
     def most_stale_time(self):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
+    ########## Private & internal methods
+
+    def on_disconnect(self):
+        self.latest_settings_ended_at = current_time()
+        self._send_details_to_mqtt()
+
+        try:
+            self.timer_thread.cancel()
+        except AttributeError:
+            self.logger.debug("no timer_thread", exc_info=True)
+        for job in self.sub_jobs:
+            job.set_state("disconnected")
+
+        self._clear_mqtt_cache()
+
+    def __setattr__(self, name, value) -> None:
+        super(DosingAlgorithm, self).__setattr__(name, value)
+        if name in self.editable_settings and name != "state":
+            self.latest_settings_ended_at = current_time()
+            self._send_details_to_mqtt()
+            self.latest_settings_started_at = current_time()
+            self.latest_settings_ended_at = None
+
+    def _set_growth_rate(self, message):
+        self.previous_growth_rate = self.latest_growth_rate
+        self.latest_growth_rate = float(message.payload)
+        self.latest_growth_rate_timestamp = time.time()
+
+    def _set_OD(self, message):
+        self.previous_od = self.latest_od
+        self.latest_od = float(message.payload)
+        self.latest_od_timestamp = time.time()
+
+    def _clear_mqtt_cache(self):
+        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
+        for attr in self.editable_settings:
+            if attr == "state":
+                continue
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
+                None,
+                retain=True,
+                qos=QOS.EXACTLY_ONCE,
+            )
+
+    def _send_details_to_mqtt(self):
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/dosing_algorithm_settings",
+            json.dumps(
+                {
+                    "pioreactor_unit": self.unit,
+                    "experiment": self.experiment,
+                    "started_at": self.latest_settings_started_at,
+                    "ended_at": self.latest_settings_ended_at,
+                    "algorithm": self.__class__.__name__,
+                    "duration": getattr(self, "duration", None),
+                    "target_od": getattr(self, "target_od", None),
+                    "target_growth_rate": getattr(self, "target_growth_rate", None),
+                    "volume": getattr(self, "volume", None),
+                }
+            ),
+            qos=QOS.EXACTLY_ONCE,
+            retain=True,
+        )
+
     def start_passive_listeners(self):
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.set_OD,
+                self._set_OD,
                 f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
                 job_name=self.job_name,
             )
         )
         self.pubsub_clients.append(
             subscribe_and_callback(
-                self.set_growth_rate,
+                self._set_growth_rate,
                 f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
                 job_name=self.job_name,
             )

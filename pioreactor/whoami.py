@@ -2,12 +2,15 @@
 import sys
 import os
 
+# from functools import cache
+
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
 
 
 def get_latest_experiment_name():
+    print("called")
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return "testing_experiment"
 

@@ -32,7 +32,3 @@ class DilutionEvent(Event):
 
 class AltMediaEvent(Event):
     pass
-
-
-class FlashUVEvent(Event):
-    pass
