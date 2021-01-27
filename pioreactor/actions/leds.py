@@ -8,7 +8,7 @@ logger = logging.getLogger("led_intensity")
 
 
 def get_current_state_from_broker(unit, experiment):
-    msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=1)
+    msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=0.5)
     if msg:
         return json.loads(msg.payload)
     else:
@@ -25,7 +25,7 @@ def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
 
     pioreactor/<unit>/<experiment>/leds/intensity {'A': intensityA, 'B': 0, ...}
 
-    the way state is handeled in the second topic is tech debt.
+    the way state is handled in the second topic is tech debt.
 
     """
     assert 0 <= intensity <= 100
@@ -33,10 +33,18 @@ def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
     try:
         # do work here.
 
-        publish(f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity", intensity)
+        publish(
+            f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
+            intensity,
+            retain=True,
+        )
         state = get_current_state_from_broker(unit, experiment)
         state[channel] = intensity
-        publish(f"pioreactor/{unit}/{experiment}/leds/intensity", json.dumps(state))
+        publish(
+            f"pioreactor/{unit}/{experiment}/leds/intensity",
+            json.dumps(state),
+            retain=True,
+        )
         return True
     except Exception as e:
         logger.debug(e, exc_info=True)
