@@ -34,7 +34,7 @@ def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
         # do work here.
 
         publish(f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity", intensity)
-        state = get_current_state_from_broker()
+        state = get_current_state_from_broker(unit, experiment)
         state[channel] = intensity
         publish(f"pioreactor/{unit}/{experiment}/leds/intensity", json.dumps(state))
         return True
