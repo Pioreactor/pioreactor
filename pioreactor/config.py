@@ -24,9 +24,20 @@ def get_leader_hostname():
     return config["network.topology"]["leader_hostname"]
 
 
+def _config_bool(value):
+    if value in ("0", "false", "False", "no", "off", "No", "NO", "Off", "OFF") or (
+        not value
+    ):
+        return False
+    return True
+
+
 def get_active_workers_in_inventory():
-    # TODO update to remove IPs
-    return [unit for (unit, available) in config["inventory"].items() if available]
+    return [
+        unit
+        for (unit, available) in config["inventory"].items()
+        if _config_bool(available)
+    ]
 
 
 leader_hostname = get_leader_hostname()

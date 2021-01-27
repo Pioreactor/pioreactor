@@ -14,7 +14,7 @@ class BackgroundSubJob(BackgroundJob):
         # call job specific on_disconnect to clean up subjobs, etc.
         self.on_disconnect()
 
-        # set state to disconnect
+        # set state to disconnect before disconnecting our pubsub clients.
         self.state = self.DISCONNECTED
 
         # disconnect from the passive subscription threads
