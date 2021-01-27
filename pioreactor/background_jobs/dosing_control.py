@@ -29,7 +29,7 @@ from pioreactor.dosing_algorithms.turbidostat import Turbidostat
 from pioreactor.dosing_algorithms.chemostat import Chemostat
 
 
-class AlgoController(BackgroundJob):
+class DosingController(BackgroundJob):
 
     algorithms = {
         "silent": Silent,
@@ -43,7 +43,7 @@ class AlgoController(BackgroundJob):
     editable_settings = ["dosing_algorithm"]
 
     def __init__(self, dosing_algorithm, unit=None, experiment=None, **kwargs):
-        super(AlgoController, self).__init__(
+        super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
         self.check_for_existing_dosing_algorithm_process()
@@ -117,7 +117,7 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
         kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
 
-        controller = AlgoController(mode, **kwargs)  # noqa: F841
+        controller = DosingController(mode, **kwargs)  # noqa: F841
 
         while True:
             signal.pause()

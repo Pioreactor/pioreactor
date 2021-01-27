@@ -24,6 +24,7 @@ ALL_WORKER_JOBS = [
     "stirring",
     "growth_rate_calculating",
     "dosing_control",
+    "led_control",
     "stirring",
     "od_reading",
     "add_alt_media",
