@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from pioreactor.dosing_algorithms.base import DosingAlgorithm
+from pioreactor.background_jobs.subjobs.dosing_algorithm import DosingAlgorithm
 from pioreactor.dosing_algorithms import events
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.config import config
