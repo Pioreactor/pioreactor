@@ -13,6 +13,7 @@ def backup_database(output):
     from sh import scp, ErrorReturnCode
 
     def progress(status, remaining, total):
+        print(status, remaining, total)
         logger.debug(f"Copied {total-remaining} of {total} pages...")
 
     logger.debug(f"Starting backup of database to {output}")
