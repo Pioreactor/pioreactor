@@ -42,7 +42,7 @@ class LEDController(BackgroundJob):
     def check_for_existing_led_algorithm_process(self):
         # this is needed because the running process != the job name. This is techdebt.
         if sum([p == "led_algorithm" for p in pio_jobs_running()]) > 1:
-            self.logger.error("led_algorithm is already running. Aborting.")
+            self.logger.warn("led_algorithm is already running. Aborting.")
             raise ValueError("led_algorithm is already running. Aborting.")
 
     def set_led_algorithm(self, new_led_algorithm_json):

@@ -37,7 +37,7 @@ class MqttToDBStreamer(BackgroundJob):
 
         super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
         self.sqliteworker = Sqlite3Worker(
-            config["storage"]["database"], max_queue_size=1000
+            config["storage"]["database"], max_queue_size=1000, raise_on_error=False
         )
         self.topics_and_callbacks = [
             {

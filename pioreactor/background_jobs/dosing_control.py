@@ -57,7 +57,7 @@ class DosingController(BackgroundJob):
     def check_for_existing_dosing_algorithm_process(self):
         # this is needed because the running process != the job name. This is techdebt.
         if sum([p == "dosing_algorithm" for p in pio_jobs_running()]) > 1:
-            self.logger.error("dosing_algorithm is already running. Aborting.")
+            self.logger.warn("dosing_algorithm is already running. Aborting.")
             raise ValueError("dosing_algorithm is already running. Aborting.")
 
     def set_dosing_algorithm(self, new_dosing_algorithm_json):
