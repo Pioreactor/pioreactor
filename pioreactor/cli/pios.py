@@ -189,8 +189,8 @@ def sync_configs(units):
         executor.map(_thread_function, units)
 
 
-@pios.command("kill", short_help="kill a job on workers")
-@click.argument("job")
+@pios.command("kill", short_help="kill a job(s) on workers")
+@click.argument("job", nargs=-1)
 @click.option(
     "--units",
     multiple=True,
@@ -206,6 +206,10 @@ def kill(job, units, y):
 
     > pios kill stirring
 
+    multiple jobs accepted:
+
+    > pios kill stirring dosing_control
+
 
     """
     from sh import ssh
@@ -215,7 +219,7 @@ def kill(job, units, y):
         if confirm != "Y":
             return
 
-    command = f"pio kill {job}"
+    command = f"pio kill {' '.join(job)}"
 
     def _thread_function(unit):
 
