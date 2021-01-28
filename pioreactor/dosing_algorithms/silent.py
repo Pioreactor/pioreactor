@@ -6,7 +6,6 @@ from pioreactor.dosing_algorithms import events
 class Silent(DosingAlgorithm):
     """
     Do nothing, ever. Just pass.
-
     """
 
     def __init__(self, **kwargs):

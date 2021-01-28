@@ -56,7 +56,7 @@ class LEDAlgorithm(BackgroundSubJob):
         **kwargs,
     ):
         super(LEDAlgorithm, self).__init__(
-            job_name="LED_algorithm", unit=unit, experiment=experiment
+            job_name="led_algorithm", unit=unit, experiment=experiment
         )
 
         self.latest_event = None

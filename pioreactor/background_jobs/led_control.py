@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and take action. This is the core of the LED algorithm.
-
+Continuously monitor the bioreactor and perform LED actions. This is the core of the LED algorithm.
 
 To change the algorithm over MQTT,
 
 topic: `pioreactor/<unit>/<experiment>/led_control/led_algorithm/set`
 message: a json object with required keyword argument. Specify the new algorithm with name `"led_algorithm"`.
-
 """
 import signal
 
@@ -92,7 +90,7 @@ class LEDController(BackgroundJob):
             )
 
 
-def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs):
+def run(algorithm=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -104,7 +102,7 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
         kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
 
-        controller = LEDController(mode, **kwargs)  # noqa: F841
+        controller = LEDController(algorithm, **kwargs)  # noqa: F841
 
         while True:
             signal.pause()
@@ -117,9 +115,9 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
 
 @click.command(name="led_control")
 @click.option(
-    "--mode",
+    "--algorithm",
     default="silent",
-    help="set the mode of the system: silent, etc.",
+    help="set the algorithm of the system: silent, etc.",
     show_default=True,
 )
 @click.option("--target-od", default=None, type=float)
@@ -137,13 +135,13 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 def click_led_control(
-    mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
+    algorithm, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
 ):
     """
     Start an LED algorithm
     """
     controller = run(  # noqa: F841
-        mode=mode,
+        algorithm=algorithm,
         target_od=target_od,
         target_growth_rate=target_growth_rate,
         duration=duration,

@@ -105,7 +105,7 @@ class DosingController(BackgroundJob):
             )
 
 
-def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs):
+def run(algorithm=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -117,7 +117,7 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
         kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
 
-        controller = DosingController(mode, **kwargs)  # noqa: F841
+        controller = DosingController(algorithm, **kwargs)  # noqa: F841
 
         while True:
             signal.pause()
@@ -130,9 +130,9 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
 
 @click.command(name="dosing_control")
 @click.option(
-    "--mode",
+    "--algorithm",
     default="silent",
-    help="set the mode of the system: turbidostat, morbidostat, silent, etc.",
+    help="set the algorithm of the system: turbidostat, morbidostat, silent, etc.",
     show_default=True,
 )
 @click.option("--target-od", default=None, type=float)
@@ -150,13 +150,13 @@ def run(mode=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
 def click_dosing_control(
-    mode, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
+    algorithm, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
 ):
     """
     Start a dosing algorithm
     """
     controller = run(  # noqa: F841
-        mode=mode,
+        algorithm=algorithm,
         target_od=target_od,
         target_growth_rate=target_growth_rate,
         duration=duration,
