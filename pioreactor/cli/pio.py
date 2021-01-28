@@ -41,21 +41,20 @@ def logs():
         tail_sh.kill()
 
 
-@pio.command(name="kill", short_help="kill job")
-@click.argument("process")
-def kill(process):
+@pio.command(name="kill", short_help="kill job(s)")
+@click.argument("job", nargs=-1)
+def kill(job):
     """
-    send SIGTERM signal to PROCESS
+    send SIGTERM signal to JOB
     """
 
-    # TODO this fails for python
     from sh import pkill
 
-    try:
-        # remove the _oldest_ one
-        pkill("-f", f"run {process}")
-    except Exception:
-        pass
+    for j in job:
+        try:
+            pkill("-f", f"run {job}")
+        except Exception:
+            pass
 
 
 @pio.group(short_help="run a job")

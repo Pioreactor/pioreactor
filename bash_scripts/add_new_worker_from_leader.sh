@@ -1,7 +1,4 @@
 #!/bin/bash
-# exit if any error
-set -e
-
 # first argument is the new name of the pioreactor, to replace raspberrypi
 
 # remove from known_hosts if already present
