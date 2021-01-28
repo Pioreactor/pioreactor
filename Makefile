@@ -122,20 +122,18 @@ configure-hostname:
 		read -p "Enter new Pioreactor name: " userEnteredPioName ;\
 		sudo hostname $$userEnteredPioName ;\
 		hostname | sudo tee /etc/hostname ;\
-		wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm ;\
-		chmod a+x hostess_linux_arm ;\
-		sudo ./hostess_linux_arm rm raspberrypi ;\
-		sudo ./hostess_linux_arm add "$$(hostname)" 127.0.1.1 ;\
+		sudo pip3 install pyhostman ;\
+		sudo hostman remove --names raspberrypi ;\
+		sudo hostman add 127.0.1.1 "$$(hostname)" ;\
 	fi ;\
 	}
 
 configure-hostname-from-args:
 	sudo hostname $(newHostname)
 	hostname | sudo tee /etc/hostname
-	wget https://github.com/cbednarski/hostess/releases/download/v0.5.2/hostess_linux_arm
-	chmod a+x hostess_linux_arm
-	sudo ./hostess_linux_arm rm raspberrypi
-	sudo ./hostess_linux_arm add $(newHostname) 127.0.1.1
+	sudo pip3 install pyhostman
+	sudo hostman remove --names raspberrypi
+	sudo hostman add 127.0.1.1 $(newHostname)
 
 install-leader-as-worker: configure-hostname install-leader install-worker
 	{ \
@@ -147,12 +145,12 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	crudini --set ~/.pioreactor/config.ini inventory $$(hostname) 1
 	sudo reboot
 
-install-worker: configure-hostname install-git install-python configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker: install-git install-python configure-hostname configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
 
-install-worker-from-args: configure-hostname-from-args install-git install-python configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: configure-hostname install-git install-python install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
+install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
 	# TODO: below is not idempotent
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass

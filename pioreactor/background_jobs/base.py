@@ -207,7 +207,7 @@ class BackgroundJob:
         }
 
         # listen to changes in editable properties
-        # everyone listens to $BROADCAST (TODO: even leader?)
+        # everyone listens to $BROADCAST
         client = subscribe_and_callback(
             self.set_attr_from_message,
             [

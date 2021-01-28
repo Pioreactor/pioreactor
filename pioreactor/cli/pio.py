@@ -63,6 +63,13 @@ def run():
     pass
 
 
+@pio.command(name="version", short_help="print the version")
+def version():
+    import pioreactor
+
+    click.echo(pioreactor.__version__)
+
+
 # this runs on both leader and workers
 run.add_command(jobs.monitor.click_monitor)
 
@@ -102,16 +109,25 @@ if am_I_leader():
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("new_name")
     def add_pioreactor(new_name):
-        import subprocess
+        """
+        fill me in
+
+        """
         import socket
+        import subprocess
         import time
 
+        def is_host_on_network(hostname):
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                s.connect((hostname, 22))
+                s.close()
+                return True
+            except socket.error:
+                return False
+
         # check to make sure new_name isn't already on the network
-        try:
-            socket.gethostbyname(new_name)
-        except socket.gaierror:
-            pass
-        else:
+        if is_host_on_network(new_name):
             raise IOError(f"Name {new_name} is already on the network. Try another name.")
 
         # check to make sure raspberrypi.local is on network
