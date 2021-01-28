@@ -52,7 +52,7 @@ def kill(job):
 
     for j in job:
         try:
-            pkill("-f", f"run {job}")
+            pkill("-f", f"run {j}")
         except Exception:
             pass
 
