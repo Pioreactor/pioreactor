@@ -16,6 +16,8 @@ from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
+from pioreactor.hardware_mappings import PWM_TO_PIN
+
 
 GPIO.setmode(GPIO.BCM)
 logger = logging.getLogger("add_alt_media")
@@ -70,7 +72,7 @@ def add_alt_media(
 
     try:
 
-        ALT_MEDIA_PIN = int(config["rpi_pins"]["alt_media"])
+        ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "alt_media")]
         GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
         GPIO.output(ALT_MEDIA_PIN, 0)
         pwm = GPIO.PWM(ALT_MEDIA_PIN, hz)
@@ -90,7 +92,7 @@ def add_alt_media(
 
 
 def clean_up_gpio():
-    GPIO.cleanup(int(config["rpi_pins"]["alt_media"]))
+    GPIO.cleanup(PWM_TO_PIN[config.getint("PWM", "alt_media")])
 
 
 @click.command(name="add_alt_media")

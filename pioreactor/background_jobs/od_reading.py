@@ -38,6 +38,7 @@ from pioreactor.utils.timing import every
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.actions.leds import led_intensity
+from pioreactor.hardware_mappings import SCL, SDA
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
@@ -48,7 +49,6 @@ ADS_GAIN_THRESHOLDS = {
     16: (-1, 0.256),
 }
 
-SCL, SDA = 3, 2
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 

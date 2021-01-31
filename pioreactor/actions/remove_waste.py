@@ -17,6 +17,8 @@ from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
+from pioreactor.hardware_mappings import PWM_TO_PIN
+
 
 GPIO.setmode(GPIO.BCM)
 logger = logging.getLogger("remove_waste")
@@ -71,7 +73,7 @@ def remove_waste(
 
     try:
 
-        WASTE_PIN = int(config["rpi_pins"]["waste"])
+        WASTE_PIN = PWM_TO_PIN[config.getint("PWM", "waste")]
         GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 0)
         pwm = GPIO.PWM(WASTE_PIN, hz)
@@ -91,7 +93,7 @@ def remove_waste(
 
 
 def clean_up_gpio():
-    GPIO.cleanup(int(config["rpi_pins"]["waste"]))
+    GPIO.cleanup(PWM_TO_PIN[config.getint("PWM", "waste")])
 
 
 @click.command(name="remove_waste")

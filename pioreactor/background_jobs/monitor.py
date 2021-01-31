@@ -10,11 +10,12 @@ from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import QOS, subscribe_and_callback
-from pioreactor.config import config
+from pioreactor.hardware_mappings import (
+    PCB_LED_PIN as LED_PIN,
+    PCB_BUTTON_PIN as BUTTON_PIN,
+)
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
-BUTTON_PIN = config.getint("rpi_pins", "tactile_button")
-LED_PIN = config.getint("rpi_pins", "led")
 GPIO.setmode(GPIO.BCM)
 
 
@@ -81,7 +82,7 @@ class Monitor(BackgroundJob):
 
         disk_usage_percent = psutil.disk_usage("/").percent
 
-        if disk_usage_percent <= 90:
+        if disk_usage_percent <= 70:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
@@ -94,7 +95,7 @@ class Monitor(BackgroundJob):
         # what happens when I hear multiple msgs in quick succession? Seems like calls to this function
         # are queued.
 
-        for _ in range(5):
+        for _ in range(4):
 
             self.led_on()
             time.sleep(0.1)

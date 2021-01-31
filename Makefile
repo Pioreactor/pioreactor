@@ -1,10 +1,10 @@
 install-git:
 	sudo apt update
-	sudo apt install -y  git
+	sudo apt install -y git
 
 install-python:
 	sudo apt install -y python3-pip
-	# the following is needed for numpy
+	# the following is needed for numpy on Rpi
 	sudo apt-get install -y python3-numpy
 
 install-mqtt:
@@ -77,6 +77,10 @@ install-pioreactor-leader:
 
 	sudo pip3 install crudini
 	crudini --set ~/.pioreactor/config.ini network.topology leader_hostname $$(hostname)
+
+	# the below will remove swap, which should help extend the life of SD cards:
+	# https://raspberrypi.stackexchange.com/questions/169/how-can-i-extend-the-life-of-my-sd-card
+	sudo apt-get remove dphys-swapfile -y
 
 install-pioreactor-worker:
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt

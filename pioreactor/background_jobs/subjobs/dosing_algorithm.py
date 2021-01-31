@@ -87,7 +87,7 @@ class DosingAlgorithm(BackgroundSubJob):
         try:
             self.timer_thread.cancel()
         except AttributeError:
-            self.logger.debug("no timer_thread", exc_info=True)
+            pass
         finally:
             if self.duration is not None:
                 self.timer_thread = RepeatedTimer(

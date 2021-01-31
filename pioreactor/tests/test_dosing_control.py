@@ -7,7 +7,7 @@ from pioreactor.background_jobs.dosing_control import (
     PIDTurbidostat,
     Silent,
     Turbidostat,
-    AlgoController,
+    DosingController,
 )
 from pioreactor.background_jobs.subjobs.dosing_algorithm import DosingAlgorithm
 from pioreactor.dosing_algorithms import events
@@ -487,7 +487,7 @@ def test_changing_duration_over_mqtt():
 
 def test_changing_algo_over_mqtt_solo():
 
-    algo = AlgoController(
+    algo = DosingController(
         "turbidostat",
         target_od=1.0,
         duration=5 / 60,
@@ -511,7 +511,7 @@ def test_changing_algo_over_mqtt_solo():
 
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
 
-    algo = AlgoController(
+    algo = DosingController(
         "turbidostat",
         target_od=1.0,
         duration=5 / 60,
@@ -550,7 +550,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
         retain=True,
     )
 
-    algo = AlgoController(
+    algo = DosingController(
         "pid_turbidostat",
         volume=1.0,
         target_od=0.4,
@@ -591,7 +591,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
         retain=True,
     )
 
-    algo = AlgoController(
+    algo = DosingController(
         "pid_turbidostat",
         volume=1.0,
         target_od=0.4,
@@ -614,7 +614,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
 
 def test_disconnect_cleanly():
 
-    algo = AlgoController(
+    algo = DosingController(
         "turbidostat",
         target_od=1.0,
         duration=5 / 60,

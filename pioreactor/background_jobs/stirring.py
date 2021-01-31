@@ -15,6 +15,8 @@ import RPi.GPIO as GPIO
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.hardware_mappings import PWM_TO_PIN
+
 
 GPIO.setmode(GPIO.BCM)
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -30,13 +32,11 @@ class Stirrer(BackgroundJob):
 
     editable_settings = ["duty_cycle"]
 
-    def __init__(
-        self, duty_cycle, unit, experiment, hertz=50, pin=int(config["rpi_pins"]["fan"])
-    ):
+    def __init__(self, duty_cycle, unit, experiment, hertz=50):
         super(Stirrer, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
 
         self.hertz = hertz
-        self.pin = pin
+        self.pin = PWM_TO_PIN[config.getint("PWM", "stirring")]
 
         GPIO.setup(self.pin, GPIO.OUT)
         GPIO.output(self.pin, 0)

@@ -37,11 +37,11 @@ class MqttToDBStreamer(BackgroundJob):
 
         super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
         self.sqliteworker = Sqlite3Worker(
-            config["storage"]["database"], max_queue_size=1000, raise_on_error=False
+            config["storage"]["database"], max_queue_size=250, raise_on_error=False
         )
         self.topics_and_callbacks = [
             {
-                "topic": topic_and_parser["topic"],
+                "topic": topic_and_parser.topic,
                 "callback": self.create_on_message(topic_and_parser),
             }
             for topic_and_parser in topics_and_parsers
@@ -54,11 +54,11 @@ class MqttToDBStreamer(BackgroundJob):
 
     def create_on_message(self, topic_and_parser):
         def _callback(message):
-            cols_to_values = topic_and_parser["parser"](message.topic, message.payload)
+            cols_to_values = topic_and_parser.parser(message.topic, message.payload)
 
             cols_placeholder = ", ".join(cols_to_values.keys())
             values_placeholder = ", ".join([":" + c for c in cols_to_values.keys()])
-            SQL = f"""INSERT INTO {topic_and_parser['table']} ({cols_placeholder}) VALUES ({values_placeholder})"""
+            SQL = f"""INSERT INTO {topic_and_parser.table} ({cols_placeholder}) VALUES ({values_placeholder})"""
             self.sqliteworker.execute(SQL, cols_to_values)
 
         return _callback
@@ -158,43 +158,25 @@ def click_mqtt_to_db_streaming():
         payload = json.loads(payload.decode())
         return payload
 
+    Metadata = namedtuple("Metadata", ["topic", "table", "parser"])
+
     topics_and_parsers = [
-        {
-            "topic": "pioreactor/+/+/od_filtered/+/+",
-            "table": "od_readings_filtered",
-            "parser": parse_od,
-        },
-        {
-            "topic": "pioreactor/+/+/od_raw/+/+",
-            "table": "od_readings_raw",
-            "parser": parse_od,
-        },
-        {
-            "topic": "pioreactor/+/+/dosing_events",
-            "table": "dosing_events",
-            "parser": parse_dosing_events,
-        },
-        {
-            "topic": "pioreactor/+/+/growth_rate",
-            "table": "growth_rates",
-            "parser": parse_growth_rate,
-        },
-        {
-            "topic": "pioreactor/+/+/pid_log",
-            "table": "pid_logs",
-            "parser": parse_pid_logs,
-        },
-        {
-            "topic": "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
-            "table": "alt_media_fraction",
-            "parser": parse_alt_media_fraction,
-        },
-        {"topic": "pioreactor/+/+/log", "table": "logs", "parser": parse_logs},
-        {
-            "topic": "pioreactor/+/+/dosing_control/dosing_algorithm_settings",
-            "table": "dosing_algorithm_settings",
-            "parser": parse_dosing_algorithm_settings,
-        },
+        Metadata("pioreactor/+/+/od_filtered/+/+", "od_readings_filtered", parse_od),
+        Metadata("pioreactor/+/+/od_raw/+/+", "od_readings_raw", parse_od),
+        Metadata("pioreactor/+/+/dosing_events", "dosing_events", parse_dosing_events),
+        Metadata("pioreactor/+/+/growth_rate", "growth_rates", parse_growth_rate),
+        Metadata("pioreactor/+/+/pid_log", "pid_logs", parse_pid_logs),
+        Metadata(
+            "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
+            "alt_media_fraction",
+            parse_alt_media_fraction,
+        ),
+        Metadata("pioreactor/+/+/log", "logs", parse_logs),
+        Metadata(
+            "pioreactor/+/+/dosing_control/dosing_algorithm_settings",
+            "dosing_algorithm_settings",
+            parse_dosing_algorithm_settings,
+        ),
     ]
 
     streamer = MqttToDBStreamer(  # noqa: F841

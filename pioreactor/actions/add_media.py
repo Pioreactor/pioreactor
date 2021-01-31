@@ -18,6 +18,7 @@ from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
+from pioreactor.hardware_mappings import PWM_TO_PIN
 
 GPIO.setmode(GPIO.BCM)
 logger = logging.getLogger("add_media")
@@ -72,7 +73,7 @@ def add_media(
         logger.info(f"add media: {round(duration,2)}s")
 
     try:
-        MEDIA_PIN = int(config["rpi_pins"]["media"])
+        MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "media")]
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 0)
         pwm = GPIO.PWM(MEDIA_PIN, hz)
@@ -84,7 +85,7 @@ def add_media(
         GPIO.output(MEDIA_PIN, 0)
 
     except Exception as e:
-        logger.error(f"{str(e)}")
+        logger.error(e, exc_info=True)
         raise e
     finally:
         clean_up_gpio()
@@ -92,7 +93,7 @@ def add_media(
 
 
 def clean_up_gpio():
-    GPIO.cleanup(int(config["rpi_pins"]["media"]))
+    GPIO.cleanup(PWM_TO_PIN[config.getint("PWM", "media")])
 
 
 @click.command(name="add_media")

@@ -122,7 +122,12 @@ class BackgroundJob:
 
     def disconnected(self):
         # call job specific on_disconnect to clean up subjobs, etc.
-        self.on_disconnect()
+        # however, if it fails, nothing below executes, so we don't get a clean
+        # disconnect, etc.
+        try:
+            self.on_disconnect()
+        except Exception as e:
+            self.logger.error(e, exc_info=True)
 
         # set state to disconnect
         self.state = self.DISCONNECTED
