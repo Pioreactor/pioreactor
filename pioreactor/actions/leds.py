@@ -26,7 +26,6 @@ def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
     pioreactor/<unit>/<experiment>/leds/intensity {'A': intensityA, 'B': 0, ...}
 
     1. The way state is handled in the second topic is tech debt.
-    2. No way to change the setting via MQTT yet.
 
     """
     assert 0 <= intensity <= 100

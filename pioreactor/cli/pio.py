@@ -79,6 +79,19 @@ def update():
     command = " && ".join([cd, gitp, setup])
     subprocess_run(command, shell=True, universal_newlines=True)
 
+    # hack for now: update the UI too:
+
+    from subprocess import run as subprocess_run
+
+    cd = "cd ~/pioreactorui"
+    gitp = "git pull origin master"
+    setup = "pm2 restart ui"
+    command = " && ".join([cd, gitp, setup])
+    try:
+        subprocess_run(command, shell=True, universal_newlines=True)
+    except Exception:
+        pass
+
 
 # this runs on both leader and workers
 run.add_command(jobs.monitor.click_monitor)
