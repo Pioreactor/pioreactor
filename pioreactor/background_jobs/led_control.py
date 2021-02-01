@@ -46,11 +46,6 @@ class LEDController(BackgroundJob):
             raise ValueError("led_algorithm is already running. Aborting.")
 
     def set_led_algorithm(self, new_led_algorithm_json):
-        # TODO: this needs a better rollback. Ex: in except, something like
-        # self.led_algorithm_job.set_state("init")
-        # self.led_algorithm_job.set_state("ready")
-        # [ ] write tests
-        # OR should just bail...
         try:
             algo_init = json.loads(new_led_algorithm_json)
 

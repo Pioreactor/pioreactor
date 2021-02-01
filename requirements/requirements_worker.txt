@@ -1,2 +1,3 @@
 -r requirements.txt
 RPi.GPIO
+https://github.com/Pioreactor/DAC43608/archive/main.zip

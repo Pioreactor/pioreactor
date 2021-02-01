@@ -2,6 +2,7 @@
 import logging
 import json
 from pioreactor.pubsub import publish, subscribe
+from DAC43608 import DAC43608
 
 
 logger = logging.getLogger("led_intensity")
@@ -31,7 +32,8 @@ def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
     assert 0 <= intensity <= 100
     assert channel in ["A", "B", "C", "D"]
     try:
-        # do work here.
+        dac = DAC43608()
+        dac.power_to(getattr(dac, channel), intensity / 100)
 
         publish(
             f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",

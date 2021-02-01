@@ -43,20 +43,6 @@ def universal_identifier_to_all_units(units):
     return units
 
 
-def checksum_git(s):
-    from subprocess import run as subprocess_run
-
-    cksum_command = "cd ~/pioreactor/ && git rev-parse HEAD"
-    (stdin, stdout, stderr) = s.exec_command(cksum_command)
-    checksum_worker = stdout.readlines()[0].strip()
-    checksum_leader = subprocess_run(
-        cksum_command, shell=True, capture_output=True, universal_newlines=True
-    ).stdout.strip()
-    assert (
-        checksum_worker == checksum_leader
-    ), f"checksum on git failed, {checksum_worker}, {checksum_leader}. Update leader, then try running `pios sync`"
-
-
 def sync_config_files(ssh_client, unit):
     """
     this function occurs in a thread

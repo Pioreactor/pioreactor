@@ -45,6 +45,7 @@ class LEDAlgorithm(BackgroundSubJob):
     latest_settings_started_at = current_time()
     latest_settings_ended_at = None
     editable_settings = ["duration"]
+    edited_channels = []
 
     def __init__(
         self,
@@ -125,6 +126,7 @@ class LEDAlgorithm(BackgroundSubJob):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def set_led_intensity(self, channel, intensity):
+        self.edited_channels.append(channel)
         led_intensity(channel, intensity, unit=self.unit, experiment=self.experiment)
 
     ########## Private & internal methods
@@ -139,6 +141,9 @@ class LEDAlgorithm(BackgroundSubJob):
             pass
         for job in self.sub_jobs:
             job.set_state("disconnected")
+
+        for channel in self.edited_channels:
+            led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
 
         self._clear_mqtt_cache()
 

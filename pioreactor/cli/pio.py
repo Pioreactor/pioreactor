@@ -29,7 +29,7 @@ def pio():
 @pio.command(name="logs", short_help="tail the log file")
 def logs():
     """
-    Tail the logs from /var/log/pioreactor.log to the terminal. CTRL-C to exit.
+    Tail and stream the logs from /var/log/pioreactor.log to the terminal. CTRL-C to exit.
     """
     from sh import tail
 
@@ -69,28 +69,36 @@ def version():
     click.echo(pioreactor.__version__)
 
 
-@pio.command(name="update", short_help="update the PioreactorApp to latest")
+@pio.command(name="update", short_help="update the PioreactorApp and UI to latest")
 def update():
-    from subprocess import run as subprocess_run
+    import subprocess
 
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
     command = " && ".join([cd, gitp, setup])
-    subprocess_run(command, shell=True, universal_newlines=True)
+    subprocess.run(
+        command,
+        shell=True,
+        universal_newlines=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
+    )
 
     # hack for now: update the UI too:
 
-    from subprocess import run as subprocess_run
-
-    cd = "cd ~/pioreactorui"
-    gitp = "git pull origin master"
-    setup = "pm2 restart ui"
-    command = " && ".join([cd, gitp, setup])
-    try:
-        subprocess_run(command, shell=True, universal_newlines=True)
-    except Exception:
-        pass
+    if am_I_leader():
+        cd = "cd ~/pioreactorui"
+        gitp = "git pull origin master"
+        setup = "pm2 restart ui"
+        command = " && ".join([cd, gitp, setup])
+        subprocess.run(
+            command,
+            shell=True,
+            universal_newlines=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+        )
 
 
 # this runs on both leader and workers
