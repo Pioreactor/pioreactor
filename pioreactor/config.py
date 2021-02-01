@@ -21,7 +21,7 @@ config = get_config()
 
 
 def get_leader_hostname():
-    return config["network.topology"]["leader_hostname"]
+    return config.get("network.topology", "leader_hostname")
 
 
 def _config_bool(value):

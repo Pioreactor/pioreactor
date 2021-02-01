@@ -17,7 +17,7 @@ def get_current_state_from_broker(unit, experiment):
 
 def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
     """
-    state is also updated in
+    State is also updated in
 
     pioreactor/<unit>/<experiment>/leds/<channel>/intensity intensity
 
@@ -25,7 +25,8 @@ def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
 
     pioreactor/<unit>/<experiment>/leds/intensity {'A': intensityA, 'B': 0, ...}
 
-    the way state is handled in the second topic is tech debt.
+    1. The way state is handled in the second topic is tech debt.
+    2. No way to change the setting via MQTT yet.
 
     """
     assert 0 <= intensity <= 100

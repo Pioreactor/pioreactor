@@ -69,6 +69,17 @@ def version():
     click.echo(pioreactor.__version__)
 
 
+@pio.command(name="update", short_help="update the PioreactorApp to latest")
+def update():
+    from subprocess import run as subprocess_run
+
+    cd = "cd ~/pioreactor"
+    gitp = "git pull origin master"
+    setup = "sudo python3 setup.py install"
+    command = " && ".join([cd, gitp, setup])
+    subprocess_run(command, shell=True, universal_newlines=True)
+
+
 # this runs on both leader and workers
 run.add_command(jobs.monitor.click_monitor)
 

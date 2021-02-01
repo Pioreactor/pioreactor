@@ -23,7 +23,6 @@ class Monitor(BackgroundJob):
     """
      - Reports metadata about the Rpi / Pioreactor  to the leader
      - controls the LED / Button interaction
-     - Leader also runs this, and uses it to back up databases to other Rpis.
     """
 
     def __init__(self, unit, experiment):

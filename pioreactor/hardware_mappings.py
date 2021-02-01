@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 # All GPIO pins below are BCM
 
 PWM_TO_PIN = {
@@ -15,4 +16,5 @@ PCB_LED_PIN = 23
 PCB_BUTTON_PIN = 24
 
 # I2C GPIO pins
-SCL, SDA = 3, 2
+SDA = 2
+SCL = 3

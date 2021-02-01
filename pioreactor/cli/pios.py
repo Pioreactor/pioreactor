@@ -117,10 +117,7 @@ def sync(units):
     """
     import paramiko
 
-    cd = "cd ~/pioreactor"
-    gitp = "git pull origin master"
-    setup = "sudo python3 setup.py install"
-    command = " && ".join([cd, gitp, setup])
+    command = "pio update"
 
     def _thread_function(unit):
         print(f"Executing on {unit}...")
@@ -133,13 +130,6 @@ def sync(units):
             (stdin, stdout, stderr) = client.exec_command(command)
             for line in stderr.readlines():
                 pass
-
-            try:
-                checksum_git(client)
-            except AssertionError as e:
-                logger.debug(e, exc_info=True)
-                print(e)
-                return
 
             sync_config_files(client, unit)
 
