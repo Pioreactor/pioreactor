@@ -1,4 +1,4 @@
-### 2021.2.2
+### 21.2.1
 
  - new SQL tables: `led_events`, `led_algorithm_settings`
  - `dosing_algorithm_settings` has a new schema: a json blob to represent any editable settings.
