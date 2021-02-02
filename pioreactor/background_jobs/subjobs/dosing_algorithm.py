@@ -100,14 +100,14 @@ class DosingAlgorithm(BackgroundSubJob):
     def run(self, counter=None):
         time.sleep(8)  # wait some time for data to arrive
         if (self.latest_growth_rate is None) or (self.latest_od is None):
-            self.logger.debug("Waiting for OD and growth rate data to arrive.")
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not ("od_reading" in pio_jobs_running()) and (
                 "growth_rate_calculating" in pio_jobs_running()
             ):
                 raise IOError(
                     "failed: `od_reading` and `growth_rate_calculating` should be running."
                 )
-            event = events.NoEvent("waiting for OD and growth rate data to arrive.")
+            event = events.NoEvent("waiting for OD and growth rate data to arrive")
 
         elif self.state != self.READY:
             event = events.NoEvent(f"currently in state {self.state}")
