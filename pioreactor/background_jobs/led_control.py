@@ -18,12 +18,12 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.subjobs.led_algorithm import Silent
+from pioreactor.background_jobs.subjobs.led_algorithm import Silent, FlashUV, TrackOD
 
 
 class LEDController(BackgroundJob):
 
-    algorithms = {"silent": Silent}
+    algorithms = {"silent": Silent, "flash_uv": FlashUV, "track_od": TrackOD}
 
     editable_settings = ["led_algorithm"]
 

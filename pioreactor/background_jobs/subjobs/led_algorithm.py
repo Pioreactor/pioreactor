@@ -46,6 +46,7 @@ class LEDAlgorithm(BackgroundSubJob):
     latest_settings_ended_at = None
     editable_settings = ["duration"]
     edited_channels = []
+    sub_jobs = []
 
     def __init__(
         self,
@@ -235,7 +236,9 @@ class TrackOD(LEDAlgorithm):
 
     def execute(self, *args, **kwargs) -> events.Event:
         self.set_led_intensity(self.white_light, 0.1 * (self.latest_od - 1) + 0.1)
-        return events.IncreasedLuminosity()
+        return events.IncreasedLuminosity(
+            f"new output:{0.1 * (self.latest_od - 1) + 0.1}"
+        )
 
 
 class FlashUV(LEDAlgorithm):

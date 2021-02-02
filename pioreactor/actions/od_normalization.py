@@ -87,7 +87,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
 @click.option(
     "--od-angle-channel",
     multiple=True,
-    default=list(config["od_config.sensor_to_adc_pin"].values()),
+    default=list(config["od_config.photodiode_channel"].values()),
     type=click.STRING,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:

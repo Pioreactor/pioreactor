@@ -26,3 +26,26 @@ class MockAnalogIn(AnalogIn):
 
         self.STATE = self.STATE * random.lognormvariate(0.15 * 5 / 60 / 60, 0.0001)
         return self.STATE
+
+
+class MockDAC43608:
+
+    _DEVICE_CONFIG = 1
+    _STATUS = 2
+    _BRDCAST = 3
+    A = 8
+    B = 9
+    C = 10
+    D = 11
+    E = 12
+    F = 13
+    G = 14
+    H = 15
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def power_to(self, channel, intensity):
+        assert 0 <= intensity <= 1
+        assert channel in list(range(16))
+        return

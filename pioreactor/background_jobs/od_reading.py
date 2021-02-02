@@ -103,6 +103,7 @@ class ODReader(BackgroundJob):
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
+        time.sleep(0.25)  # give it a moment to get to set value
 
     def stop_ir_led(self):
         ir_channel = config.get("leds", "ir_led")
@@ -168,7 +169,7 @@ class ODReader(BackgroundJob):
             raise e
 
 
-INPUT_TO_LETTER = {"0": "A", "1": "B", "2": "C", "3": "D"}
+LETTER_TO_ADS_CHANNEL = {"A": "0", "B": "1", "C": "2", "D": "3"}
 
 
 def od_reading(
@@ -184,10 +185,10 @@ def od_reading(
     for input_ in od_angle_channel:
         angle, channel = input_.split(",")
 
-        # We split input of the form ["135,x", "135,y", "90,z"] into the form
-        # "135/A", "135/B", "90/C"
-        angle_label = str(angle) + "/" + INPUT_TO_LETTER[channel]
-        od_channels.append((angle_label, channel))
+        # We split input of the form ["135,A", "135,B", "90,D"] into the form
+        # "135/A", "135/B", "90/D"
+        angle_label = str(angle) + "/" + channel
+        od_channels.append((angle_label, LETTER_TO_ADS_CHANNEL[channel]))
 
     try:
         yield from every(
@@ -198,7 +199,7 @@ def od_reading(
         )
     except Exception as e:
         logger = logging.getLogger(JOB_NAME)
-        logger.error(f"{str(e)}")
+        logger.error(e)
         raise e
 
 
@@ -206,13 +207,13 @@ def od_reading(
 @click.option(
     "--od-angle-channel",
     multiple=True,
-    default=config.get("od_config.sensor_to_adc_pin", "od_angle_channel").split("|"),
+    default=config.get("od_config.photodiode_channel", "od_angle_channel").split("|"),
     type=click.STRING,
     show_default=True,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
 
---od-angle-channel 135,0 --od-angle-channel 90,1 --od-angle-channel 45,2
+--od-angle-channel 135,A --od-angle-channel 90,B --od-angle-channel 45,D
 
 """,
 )

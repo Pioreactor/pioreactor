@@ -2,7 +2,12 @@
 import logging
 import json
 from pioreactor.pubsub import publish, subscribe
-from DAC43608 import DAC43608
+
+try:
+    from DAC43608 import DAC43608
+except NotImplementedError:
+    print("DAC43608 not imported; using MockDAC43608")
+    from pioreactor.utils.mock import MockDAC43608 as DAC43608
 
 
 logger = logging.getLogger("led_intensity")

@@ -32,3 +32,7 @@ class DilutionEvent(Event):
 
 class AltMediaEvent(Event):
     pass
+
+
+class IncreasedLuminosity(Event):
+    pass
