@@ -72,8 +72,9 @@ class ODReader(BackgroundJob):
         )
         self.ma = MovingStats(lookback=10)
         self.start_ir_led()
+        self.fake_data = fake_data
 
-        if fake_data:
+        if self.fake_data:
             i2c = MockI2C(SCL, SDA)
         else:
             try:
@@ -90,13 +91,15 @@ class ODReader(BackgroundJob):
         self.od_channels_to_analog_in = {}
 
         for (label, channel) in od_channels:
-            if fake_data:
+            if self.fake_data:
                 ai = MockAnalogIn(self.ads, getattr(ADS, "P" + channel))
             else:
                 ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
             self.od_channels_to_analog_in[label] = ai
 
     def start_ir_led(self):
+        if self.fake_data:
+            return
         ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
             ir_channel,
@@ -108,8 +111,11 @@ class ODReader(BackgroundJob):
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
         time.sleep(0.25)  # give it a moment to get to set value
+        return
 
     def stop_ir_led(self):
+        if self.fake_data:
+            return
         ir_channel = config.get("leds", "ir_led")
         led_intensity(ir_channel, intensity=0, unit=self.unit, experiment=self.experiment)
 
