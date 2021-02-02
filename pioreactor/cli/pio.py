@@ -69,8 +69,9 @@ def version():
     click.echo(pioreactor.__version__)
 
 
-@pio.command(name="update", short_help="update the PioreactorApp and UI to latest")
-def update():
+@pio.command(name="update", short_help="update the PioreactorApp (and UI) to latest")
+@click.option("--ui", is_flag=True)
+def update(ui):
     import subprocess
 
     click.echo("Updating PioreactorApp to latest version.")
@@ -88,7 +89,7 @@ def update():
 
     # hack for now: update the UI too:
 
-    if am_I_leader():
+    if am_I_leader() and ui:
         click.echo("Updating PioreactorUI to latest version.")
         cd = "cd ~/pioreactorui"
         gitp = "git pull origin master"
