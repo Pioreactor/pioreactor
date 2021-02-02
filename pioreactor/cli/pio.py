@@ -69,8 +69,8 @@ def version():
     click.echo(pioreactor.__version__)
 
 
-@pio.command(name="update", short_help="update the PioreactorApp (and UI) to latest")
-@click.option("--ui", is_flag=True)
+@pio.command(name="update", short_help="update the PioreactorApp to latest")
+@click.option("--ui", is_flag=True, help="also update the PioreactoUI to latest")
 def update(ui):
     import subprocess
 

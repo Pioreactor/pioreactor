@@ -43,7 +43,8 @@ def led_intensity(
         assert 0 <= intensity <= 100
         assert channel in CHANNELS
         dac = DAC43608()
-        dac.power_to(getattr(dac, channel), intensity / 100)
+        dac.power_up(getattr(dac, channel))
+        dac.set_intensity_to(getattr(dac, channel), intensity / 100)
     except Exception as e:
         logger.debug(e, exc_info=True)
         logger.error(e)
