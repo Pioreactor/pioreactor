@@ -281,7 +281,7 @@ def run(ctx, job, units, y):
     help="specify a hostname, default is all active units",
 )
 @click.pass_context
-def update(ctx, job, units):
+def update_settings(ctx, job, units):
 
     exp = get_latest_experiment_name()
     extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}

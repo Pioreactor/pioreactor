@@ -73,6 +73,7 @@ def version():
 def update():
     import subprocess
 
+    click.echo("Updating PioreactorApp to latest version.")
     cd = "cd ~/pioreactor"
     gitp = "git pull origin master"
     setup = "sudo python3 setup.py install"
@@ -88,6 +89,7 @@ def update():
     # hack for now: update the UI too:
 
     if am_I_leader():
+        click.echo("Updating PioreactorUI to latest version.")
         cd = "cd ~/pioreactorui"
         gitp = "git pull origin master"
         setup = "pm2 restart ui"
