@@ -10,7 +10,7 @@ from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.dosing_algorithms import events  # change later
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
-from pioreactor.actions.leds import led_intensity
+from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
 
 

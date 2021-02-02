@@ -37,7 +37,7 @@ from pioreactor.config import config
 from pioreactor.utils.timing import every
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.actions.leds import led_intensity
+from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.hardware_mappings import SCL, SDA
 
 ADS_GAIN_THRESHOLDS = {
