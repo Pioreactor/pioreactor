@@ -154,7 +154,7 @@ def click_mqtt_to_db_streaming():
             "message": payload.decode(),
         }
 
-    def parse_dosing_algorithm_settings(topic, payload):
+    def parse_algorithm_settings(topic, payload):
         payload = json.loads(payload.decode())
         return payload
 
@@ -175,7 +175,12 @@ def click_mqtt_to_db_streaming():
         Metadata(
             "pioreactor/+/+/dosing_control/dosing_algorithm_settings",
             "dosing_algorithm_settings",
-            parse_dosing_algorithm_settings,
+            parse_algorithm_settings,
+        ),
+        Metadata(
+            "pioreactor/+/+/led_control/led_algorithm_settings",
+            "led_algorithm_settings",
+            parse_algorithm_settings,
         ),
     ]
 

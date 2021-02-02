@@ -188,10 +188,12 @@ class LEDAlgorithm(BackgroundSubJob):
                     "started_at": self.latest_settings_started_at,
                     "ended_at": self.latest_settings_ended_at,
                     "algorithm": self.__class__.__name__,
-                    "duration": getattr(self, "duration", None),
-                    "target_od": getattr(self, "target_od", None),
-                    "target_growth_rate": getattr(self, "target_growth_rate", None),
-                    "volume": getattr(self, "volume", None),
+                    "settings": json.dumps(
+                        {
+                            attr: getattr(self, attr, None)
+                            for attr in self.editable_settings
+                        }
+                    ),
                 }
             ),
             qos=QOS.EXACTLY_ONCE,

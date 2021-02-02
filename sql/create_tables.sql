@@ -110,12 +110,23 @@ CREATE TABLE IF NOT EXISTS dosing_algorithm_settings (
     started_at               TEXT  NOT NULL,
     ended_at                 TEXT,
     algorithm                TEXT  NOT NULL,
-    duration                 REAL,
-    target_od                REAL,
-    target_growth_rate       REAL,
-    volume                   REAL
+    settings                 TEXT  NOT NULL
 );
 
 
 CREATE INDEX IF NOT EXISTS dosing_algorithm_settings_ix
 ON dosing_algorithm_settings (experiment);
+
+
+CREATE TABLE IF NOT EXISTS led_algorithm_settings (
+    pioreactor_unit          TEXT  NOT NULL,
+    experiment               TEXT  NOT NULL,
+    started_at               TEXT  NOT NULL,
+    ended_at                 TEXT,
+    algorithm                TEXT  NOT NULL,
+    settings                 TEXT  NOT NULL
+);
+
+
+CREATE INDEX IF NOT EXISTS led_algorithm_settings_ix
+ON led_algorithm_settings (experiment);
