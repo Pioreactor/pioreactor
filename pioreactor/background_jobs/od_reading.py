@@ -70,9 +70,9 @@ class ODReader(BackgroundJob):
         super(ODReader, self).__init__(
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
+        self.fake_data = fake_data
         self.ma = MovingStats(lookback=10)
         self.start_ir_led()
-        self.fake_data = fake_data
 
         if self.fake_data:
             i2c = MockI2C(SCL, SDA)
