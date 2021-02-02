@@ -105,6 +105,20 @@ def click_mqtt_to_db_streaming():
             "source_of_event": payload["source_of_event"],
         }
 
+    def parse_led_events(topic, payload):
+        payload = json.loads(payload)
+        metadata = produce_metadata(topic)
+
+        return {
+            "experiment": metadata.experiment,
+            "pioreactor_unit": metadata.pioreactor_unit,
+            "timestamp": metadata.timestamp,
+            "channel": payload["channel"],
+            "intensity": payload["intensity"],
+            "event": payload["event"],
+            "source_of_event": payload["source_of_event"],
+        }
+
     def parse_growth_rate(topic, payload):
         metadata = produce_metadata(topic)
 
@@ -164,6 +178,7 @@ def click_mqtt_to_db_streaming():
         Metadata("pioreactor/+/+/od_filtered/+/+", "od_readings_filtered", parse_od),
         Metadata("pioreactor/+/+/od_raw/+/+", "od_readings_raw", parse_od),
         Metadata("pioreactor/+/+/dosing_events", "dosing_events", parse_dosing_events),
+        Metadata("pioreactor/+/+/led_events", "led_events", parse_led_events),
         Metadata("pioreactor/+/+/growth_rate", "growth_rates", parse_growth_rate),
         Metadata("pioreactor/+/+/pid_log", "pid_logs", parse_pid_logs),
         Metadata(

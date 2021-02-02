@@ -99,7 +99,11 @@ class ODReader(BackgroundJob):
     def start_ir_led(self):
         ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
-            ir_channel, intensity=100, unit=self.unit, experiment=self.experiment
+            ir_channel,
+            intensity=100,
+            source_of_event=self.job_name,
+            unit=self.unit,
+            experiment=self.experiment,
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")

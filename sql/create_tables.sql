@@ -49,6 +49,20 @@ CREATE INDEX IF NOT EXISTS dosing_events_ix
 ON dosing_events (experiment);
 
 
+CREATE TABLE IF NOT EXISTS led_events (
+    timestamp              TEXT  NOT NULL,
+    experiment             TEXT  NOT NULL,
+    event                  TEXT  NOT NULL,
+    channel                TEXT  NOT NULL,
+    intensity              REAL  NOT NULL,
+    pioreactor_unit        TEXT  NOT NULL,
+    source_of_event        TEXT
+);
+
+CREATE INDEX IF NOT EXISTS led_events_ix
+ON led_events (experiment);
+
+
 
 CREATE TABLE IF NOT EXISTS growth_rates (
     timestamp              TEXT  NOT NULL,
