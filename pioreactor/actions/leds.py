@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import logging
 import json
-from pioreactor.pubsub import publish, subscribe
+import click
+from pioreactor.pubsub import publish, subscribe, QOS
+from pioreactor.whoami import get_latest_experiment_name, get_unit_name
 
 try:
     from DAC43608 import DAC43608
@@ -11,6 +13,7 @@ except NotImplementedError:
 
 
 logger = logging.getLogger("led_intensity")
+CHANNELS = ["A", "B", "C", "D"]
 
 
 def get_current_state_from_broker(unit, experiment):
@@ -18,10 +21,12 @@ def get_current_state_from_broker(unit, experiment):
     if msg:
         return json.loads(msg.payload)
     else:
-        return {"A": 0, "B": 0, "C": 0, "D": 0}
+        return {c: 0 for c in CHANNELS}
 
 
-def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
+def led_intensity(
+    channel, intensity=0.0, source_of_event=None, unit=None, experiment=None
+):
     """
     State is also updated in
 
@@ -34,26 +39,61 @@ def led_intensity(channel, intensity=0.0, unit=None, experiment=None):
     1. The way state is handled in the second topic is tech debt.
 
     """
-    assert 0 <= intensity <= 100
-    assert channel in ["A", "B", "C", "D"]
     try:
+        assert 0 <= intensity <= 100
+        assert channel in CHANNELS
         dac = DAC43608()
         dac.power_to(getattr(dac, channel), intensity / 100)
+    except Exception as e:
+        logger.debug(e, exc_info=True)
+        logger.error(e)
+        return False
+    else:
+        state = get_current_state_from_broker(unit, experiment)
+        state[channel] = intensity
 
         publish(
             f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
             intensity,
             retain=True,
         )
-        state = get_current_state_from_broker(unit, experiment)
-        state[channel] = intensity
+
         publish(
             f"pioreactor/{unit}/{experiment}/leds/intensity",
             json.dumps(state),
             retain=True,
         )
+
+        publish(
+            f"pioreactor/{unit}/{experiment}/led_events",
+            json.dumps(
+                {
+                    "channel": channel,
+                    "intensity": intensity,
+                    "event": "change_intensity",
+                    "source_of_event": source_of_event,
+                }
+            ),
+            qos=QOS.EXACTLY_ONCE,
+        )
+
         return True
-    except Exception as e:
-        logger.debug(e, exc_info=True)
-        logger.error(e)
-        return False
+
+
+@click.command(name="led_intensity")
+@click.option("--channel", type=click.Choice(CHANNELS, case_sensitive=False))
+@click.option("--intensity", help="value between 0 and 100", type=click.IntRange(0, 100))
+@click.option(
+    "--source-of-event",
+    default="app",
+    type=str,
+    help="who is calling this function - data goes into database and MQTT",
+)
+def click_led_intensity(channel, intensity, source_of_event):
+    """
+    Modify the intensity of an LED
+    """
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    return led_intensity(channel, intensity, source_of_event, unit, experiment)

@@ -32,6 +32,7 @@ ALL_WORKER_JOBS = [
     "remove_waste",
     "od_normalization",
     "monitor",
+    "led_intensity",
 ]
 
 logger = logging.getLogger("leader CLI")
