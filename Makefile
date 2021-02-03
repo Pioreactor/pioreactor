@@ -70,7 +70,7 @@ systemd-leader:
 
 	sudo cp /home/pi/pioreactor/startup/systemd/avahi-alias@.service /lib/systemd/system/avahi-alias@.service
 	sudo chmod 644 /lib/systemd/system/avahi-alias@.service
-	sudo systemctl enable --now avahi-alias@pioreactor.local.service
+	sudo systemctl enable avahi-alias@pioreactor.local.service
 
 install-pioreactor-leader:
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt

@@ -9,11 +9,18 @@ logger = logging.getLogger("backup_database")
 
 
 def backup_database(output):
+    """
+    This action will create a backup of the SQLite3 database into specified output. It then
+    will try to scp the backup to any available worker Pioreactors as a futher backup.
+
+    A cronjob is set up as well to run this action every 12 hours.
+
+    """
     import sqlite3
     from sh import scp, ErrorReturnCode
 
     def progress(status, remaining, total):
-        logger.debug(f"Copied {total-remaining} of {total} pages...")
+        logger.debug(f"Copied {total-remaining} of {total} pages.")
 
     logger.debug(f"Starting backup of database to {output}")
 
