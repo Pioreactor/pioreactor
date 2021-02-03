@@ -88,13 +88,16 @@ def update(ui, app):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.STDOUT,
         )
+        logger.info("Updated PioreactorApp to latest version.")
 
     if ui and am_I_leader():
         click.echo("Updating PioreactorUI to latest version.")
-        cd = "cd ~/pioreactorui"
+        cd = "cd ~/pioreactorui/backend"
         gitp = "git pull origin master"
         setup = "pm2 restart ui"
-        command = " && ".join([cd, gitp, setup])
+        npm_install = "npm install"
+        unedit_edited_files = "git checkout ."
+        command = " && ".join([cd, gitp, setup, npm_install, unedit_edited_files])
         subprocess.run(
             command,
             shell=True,
@@ -102,6 +105,7 @@ def update(ui, app):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.STDOUT,
         )
+        logger.info("Updated PioreactorUI to latest version.")
 
 
 # this runs on both leader and workers

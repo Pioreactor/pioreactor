@@ -53,6 +53,7 @@ def led_intensity(
         state = get_current_state_from_broker(unit, experiment)
         state[channel] = intensity
 
+        logger.info(f"Updated LED {channel} to {intensity}.")
         publish(
             f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
             intensity,

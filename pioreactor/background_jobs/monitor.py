@@ -112,6 +112,7 @@ class Monitor(BackgroundJob):
                 self.flicker_led,
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/flicker_led",
                 job_name=self.job_name,
+                qos=QOS.AT_LEAST_ONCE,
             )
         )
 

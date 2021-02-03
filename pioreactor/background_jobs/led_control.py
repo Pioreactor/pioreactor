@@ -15,7 +15,6 @@ import logging
 import click
 
 from pioreactor.pubsub import QOS
-from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.led_algorithm import Silent, FlashUV, TrackOD
@@ -31,19 +30,11 @@ class LEDController(BackgroundJob):
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
-        self.check_for_existing_led_algorithm_process()
-
         self.led_algorithm = led_algorithm
 
         self.led_algorithm_job = self.algorithms[self.led_algorithm](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-
-    def check_for_existing_led_algorithm_process(self):
-        # this is needed because the running process != the job name. This is techdebt.
-        if sum([p == "led_algorithm" for p in pio_jobs_running()]) > 1:
-            self.logger.warn("led_algorithm is already running. Aborting.")
-            raise ValueError("led_algorithm is already running. Aborting.")
 
     def set_led_algorithm(self, new_led_algorithm_json):
         try:

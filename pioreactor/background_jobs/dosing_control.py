@@ -17,7 +17,6 @@ import logging
 import click
 
 from pioreactor.pubsub import QOS
-from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 
@@ -46,19 +45,11 @@ class DosingController(BackgroundJob):
         super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
-        self.check_for_existing_dosing_algorithm_process()
-
         self.dosing_algorithm = dosing_algorithm
 
         self.dosing_algorithm_job = self.algorithms[self.dosing_algorithm](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-
-    def check_for_existing_dosing_algorithm_process(self):
-        # this is needed because the running process != the job name. This is techdebt.
-        if sum([p == "dosing_algorithm" for p in pio_jobs_running()]) > 1:
-            self.logger.warn("dosing_algorithm is already running. Aborting.")
-            raise ValueError("dosing_algorithm is already running. Aborting.")
 
     def set_dosing_algorithm(self, new_dosing_algorithm_json):
         # TODO: this needs a better rollback. Ex: in except, something like
