@@ -89,22 +89,21 @@ def pios():
         sys.exit(0)
 
 
-@pios.command("sync", short_help="sync code and config")
+@pios.command("update", short_help="update PioreactorApp on workers")
 @click.option(
     "--units",
     multiple=True,
     default=(UNIVERSAL_IDENTIFIER,),
     type=click.STRING,
-    help="specify a hostname, default is all active units",
+    help="specify a Pioreactor name, default is all active units",
 )
-def sync(units):
+def update(units):
     """
-    Deploys the config.inis from the leader to the workers, pulls and installs the latest code from Github to the
-    workers.
+    Pulls and installs the latest code from Github to the workers.
     """
     import paramiko
 
-    command = "pio update"
+    command = "pio update --app"
 
     def _thread_function(unit):
         print(f"Executing on {unit}...")
@@ -117,8 +116,6 @@ def sync(units):
             (stdin, stdout, stderr) = client.exec_command(command)
             for line in stderr.readlines():
                 pass
-
-            sync_config_files(client, unit)
 
             client.close()
 

@@ -1,10 +1,8 @@
-### 21.2.3
-
- - test
 
 ### 21.2.2
 
- - test
+ - `pios sync` is now `pios upgrade`.
+ - `pio upgrade` requires flags: `--app` and / or `--ui` to upgrade the PioreactorApp and PioreactorUI respectively.
 
 
 ### 21.2.1

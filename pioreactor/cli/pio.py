@@ -69,27 +69,27 @@ def version():
     click.echo(pioreactor.__version__)
 
 
-@pio.command(name="update", short_help="update the PioreactorApp to latest")
-@click.option("--ui", is_flag=True, help="also update the PioreactoUI to latest")
-def update(ui):
+@pio.command(name="update", short_help="update the Pioreactor software (app and ui)")
+@click.option("--ui", is_flag=True, help="update the PioreactoUI to latest")
+@click.option("--app", is_flag=True, help="update the PioreactoApp to latest")
+def update(ui, app):
     import subprocess
 
-    click.echo("Updating PioreactorApp to latest version.")
-    cd = "cd ~/pioreactor"
-    gitp = "git pull origin master"
-    setup = "sudo python3 setup.py install"
-    command = " && ".join([cd, gitp, setup])
-    subprocess.run(
-        command,
-        shell=True,
-        universal_newlines=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT,
-    )
+    if app:
+        click.echo("Updating PioreactorApp to latest version.")
+        cd = "cd ~/pioreactor"
+        gitp = "git pull origin master"
+        setup = "sudo python3 setup.py install"
+        command = " && ".join([cd, gitp, setup])
+        subprocess.run(
+            command,
+            shell=True,
+            universal_newlines=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
+        )
 
-    # hack for now: update the UI too:
-
-    if am_I_leader() and ui:
+    if ui and am_I_leader():
         click.echo("Updating PioreactorUI to latest version.")
         cd = "cd ~/pioreactorui"
         gitp = "git pull origin master"
