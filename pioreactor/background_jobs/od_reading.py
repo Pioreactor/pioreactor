@@ -200,17 +200,12 @@ def od_reading(
         angle_label = str(angle) + "/" + channel
         od_channels.append((angle_label, LETTER_TO_ADS_CHANNEL[channel]))
 
-    try:
         yield from every(
             sampling_rate,
             ODReader(
                 od_channels, unit=unit, experiment=experiment, fake_data=fake_data
             ).take_reading,
         )
-    except Exception as e:
-        logger = logging.getLogger(JOB_NAME)
-        logger.error(e)
-        raise e
 
 
 @click.command(name="od_reading")
@@ -232,6 +227,11 @@ def click_od_reading(od_angle_channel, fake_data):
     """
     Start the optical density reading job
     """
-    reader = od_reading(od_angle_channel, fake_data=fake_data)
-    while True:
-        next(reader)
+    try:
+        reader = od_reading(od_angle_channel, fake_data=fake_data)
+        while True:
+            next(reader)
+    except Exception as e:
+        logger = logging.getLogger(JOB_NAME)
+        logger.error(e)
+        raise e

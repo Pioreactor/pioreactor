@@ -12,7 +12,11 @@ import click
 
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import (
+    get_unit_name,
+    UNIVERSAL_EXPERIMENT,
+    get_latest_experiment_name,
+)
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.config import config
 
@@ -155,6 +159,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
     (leader only) Aggregate time series for UI.
     """
     unit = get_unit_name()
+    current_experiment = get_latest_experiment_name()
 
     def single_sensor_label_from_topic(topic):
         split_topic = topic.split("/")
@@ -166,7 +171,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         return split_topic[1]
 
     raw135 = TimeSeriesAggregation(  # noqa: F841
-        "pioreactor/+/+/od_raw/+/+",
+        f"pioreactor/{current_experiment}/+/od_raw/+/+",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_raw_time_series_aggregating",
@@ -180,7 +185,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
     )
 
     filtered135 = TimeSeriesAggregation(  # noqa: F841
-        "pioreactor/+/+/od_filtered/+/+",
+        f"pioreactor/+/{current_experiment}/od_filtered/+/+",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_filtered_time_series_aggregating",
@@ -194,7 +199,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
     )
 
     growth_rate = TimeSeriesAggregation(  # noqa: F841
-        "pioreactor/+/+/growth_rate",
+        f"pioreactor/+/{current_experiment}/growth_rate",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="growth_rate_time_series_aggregating",
@@ -202,11 +207,11 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=10,
-        record_every_n_seconds=3 * 60,  # TODO: move this to a config param
+        record_every_n_seconds=1 * 60,  # TODO: move this to a config param
     )
 
     alt_media_fraction = TimeSeriesAggregation(  # noqa: F841
-        "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
+        f"pioreactor/+/{current_experiment}/alt_media_calculating/alt_media_fraction",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="alt_media_fraction_time_series_aggregating",
