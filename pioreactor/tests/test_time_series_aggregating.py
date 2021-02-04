@@ -217,3 +217,33 @@ def test_drops_really_old_data():
     pause()
     pause()
     assert len(ts.aggregated_time_series["data"][0]) == 0
+
+
+def test_drops_retained_messages():
+
+    publish(f"pioreactor/{unit}/exp1/growth_rate", None, retain=True)
+    publish(f"pioreactor/{unit}/exp2/growth_rate", None, retain=True)
+
+    def unit_from_topic(topic):
+        return topic.split("/")[1]
+
+    publish(f"pioreactor/{unit}/exp2/growth_rate", 0.9, retain=True)
+
+    # NOTE: see the +, this is what is used in production
+    ts = TimeSeriesAggregation(
+        "pioreactor/+/+/growth_rate",
+        output_dir="./",
+        experiment=experiment,
+        unit=leader,
+        ignore_cache=True,
+        extract_label=unit_from_topic,
+        record_every_n_seconds=0.1,
+    )
+    pause()
+    pause()
+    pause()
+    publish(f"pioreactor/{unit}/exp2/growth_rate", 1.0, retain=True)
+    pause()
+    publish(f"pioreactor/{unit}/exp2/growth_rate", 1.1, retain=True)
+    pause()
+    assert [_["y"] for _ in ts.aggregated_time_series["data"][0]] == [1.0, 1.1]

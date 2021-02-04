@@ -12,11 +12,7 @@ import click
 
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.whoami import (
-    get_unit_name,
-    UNIVERSAL_EXPERIMENT,
-    get_latest_experiment_name,
-)
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.config import config
 
@@ -135,7 +131,9 @@ class TimeSeriesAggregation(BackgroundJob):
 
     def start_passive_listeners(self):
         self.pubsub_clients.append(
-            subscribe_and_callback(self.on_message, self.topic, job_name=self.job_name)
+            subscribe_and_callback(
+                self.on_message, self.topic, job_name=self.job_name, allow_retained=False
+            )
         )
         self.pubsub_clients.append(
             subscribe_and_callback(
@@ -157,9 +155,15 @@ class TimeSeriesAggregation(BackgroundJob):
 def click_time_series_aggregating(output_dir, ignore_cache):
     """
     (leader only) Aggregate time series for UI.
+
+    Why do we not filter on the experiment? We want leader jobs to
+    always be running without being tied to an experiment. This job would
+    need to be restarted for it to pick up the new, latest experiment.
+
+    However, when this job starts, we _don't_ want older experiments / pioreactors
+    from showing up. So we don't allow retained messages.
     """
     unit = get_unit_name()
-    current_experiment = get_latest_experiment_name()
 
     def single_sensor_label_from_topic(topic):
         split_topic = topic.split("/")
@@ -171,7 +175,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         return split_topic[1]
 
     raw135 = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/{current_experiment}/+/od_raw/+/+",
+        "pioreactor/+/+/od_raw/+/+",  # see note above about why we have no filter on experiment
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_raw_time_series_aggregating",
@@ -185,7 +189,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
     )
 
     filtered135 = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/+/{current_experiment}/od_filtered/+/+",
+        "pioreactor/+/+/od_filtered/+/+",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="od_filtered_time_series_aggregating",
@@ -199,7 +203,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
     )
 
     growth_rate = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/+/{current_experiment}/growth_rate",
+        "pioreactor/+/+/growth_rate",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="growth_rate_time_series_aggregating",
@@ -207,11 +211,11 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=10,
-        record_every_n_seconds=1 * 60,  # TODO: move this to a config param
+        record_every_n_seconds=3 * 60,  # TODO: move this to a config param
     )
 
     alt_media_fraction = TimeSeriesAggregation(  # noqa: F841
-        f"pioreactor/+/{current_experiment}/alt_media_calculating/alt_media_fraction",
+        "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
         output_dir,
         experiment=UNIVERSAL_EXPERIMENT,
         job_name="alt_media_fraction_time_series_aggregating",

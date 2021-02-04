@@ -114,6 +114,7 @@ def subscribe_and_callback(
     max_msgs=None,
     last_will=None,
     job_name=None,
+    allow_retained=True,
     **mqtt_kwargs,
 ):
     """
@@ -129,6 +130,11 @@ def subscribe_and_callback(
         a dictionary describing the last will details: topic, qos, retain, msg.
     job_name:
         Optional: provide the job name, and logging will include it.
+    allow_retained: bool
+        if True, all messages are allowed, including messages that the broker has retained. Note
+        that client can fire a msg with retain=True, but because the broker is serving it to a
+        subscriber "fresh", it will have retain=False on the client side. More here:
+        https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
     """
     import paho.mqtt.client as mqtt
 
@@ -149,6 +155,9 @@ def subscribe_and_callback(
                         client.loop_stop()
                         client.disconnect()
                         return
+
+                if not allow_retained and message.retain:
+                    return
 
                 return actual_callback(message)
 

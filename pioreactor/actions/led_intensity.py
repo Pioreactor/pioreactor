@@ -36,7 +36,7 @@ def led_intensity(
     try:
         from DAC43608 import DAC43608
     except NotImplementedError:
-        print("DAC43608 not imported; using MockDAC43608")
+        print("DAC43608 not available; using MockDAC43608")
         from pioreactor.utils.mock import MockDAC43608 as DAC43608
 
     try:
@@ -51,9 +51,10 @@ def led_intensity(
         return False
     else:
         state = get_current_state_from_broker(unit, experiment)
+        old_intensity = state[channel]
         state[channel] = intensity
 
-        logger.info(f"Updated LED {channel} to {intensity}.")
+        logger.info(f"Updated LED {channel} to {intensity} from {old_intensity}.")
         publish(
             f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
             intensity,
