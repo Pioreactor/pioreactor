@@ -155,6 +155,12 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	crudini --set ~/.pioreactor/config.ini inventory $$(hostname) 1
 	sudo reboot
 
+seed-experiment:
+	# not idempotent
+	# techdebt: seed.sql adds an experiment to the db, so we need to match it in mqtt too
+	sqlite3 /home/pi/db/pioreactor.sqlite < /home/pi/pioreactor/sql/seed.sql
+	mosquitto_pub -t "pioreactor/latest_experiment" -m "Demo experiment" -r
+
 install-worker: install-git install-python configure-hostname configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
 
 install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
