@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 
 CREATE INDEX IF NOT EXISTS logs_ix
-ON logs (experiment, pioreactor_unit);
+ON logs (experiment);
 
 
 CREATE TABLE IF NOT EXISTS experiments (
