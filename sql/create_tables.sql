@@ -80,7 +80,8 @@ CREATE TABLE IF NOT EXISTS logs (
     timestamp              TEXT  NOT NULL,
     experiment             TEXT  NOT NULL,
     message                TEXT  NOT NULL,
-    pioreactor_unit        TEXT  NOT NULL
+    pioreactor_unit        TEXT  NOT NULL,
+    source                 TEXT
 );
 
 CREATE INDEX IF NOT EXISTS logs_ix

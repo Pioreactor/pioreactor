@@ -166,6 +166,7 @@ def click_mqtt_to_db_streaming():
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": metadata.timestamp,
             "message": payload.decode(),
+            "source": topic.split("/")[0],  # should be app, ui, etc.
         }
 
     def parse_algorithm_settings(topic, payload):
@@ -186,7 +187,7 @@ def click_mqtt_to_db_streaming():
             "alt_media_fraction",
             parse_alt_media_fraction,
         ),
-        Metadata("pioreactor/+/+/log", "logs", parse_logs),
+        Metadata("pioreactor/+/+/logs/+", "logs", parse_logs),
         Metadata(
             "pioreactor/+/+/dosing_control/dosing_algorithm_settings",
             "dosing_algorithm_settings",

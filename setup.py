@@ -4,7 +4,6 @@ from setuptools import setup, find_packages
 
 exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exec"))
 
-
 with open("requirements/requirements.txt") as f:
     REQUIREMENTS = f.read().splitlines()
 

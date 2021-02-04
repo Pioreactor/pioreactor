@@ -10,8 +10,8 @@ from pioreactor.whoami import (
 from pioreactor.config import config
 
 
-class CustomMQTTFormatter(logging.Formatter):
-    """Add in Error so the UI shows up in red."""
+class CustomMQTTtoUIFormatter(logging.Formatter):
+    """Add in Error/Warning so the UI shows up in red/yellow."""
 
     FORMATS = {
         logging.ERROR: "[%(name)s] Error: %(message)s",
@@ -78,12 +78,19 @@ console_handler.setFormatter(
 )
 
 
-# create MQTT handler
+# create MQTT handlers for logging to DB
 exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
-topic = f"pioreactor/{get_unit_name()}/{exp}/log"
+topic = f"pioreactor/{get_unit_name()}/{exp}/logs/app"
 mqtt_handler = MQTTHandler(topic)
 mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))
-mqtt_handler.setFormatter(CustomMQTTFormatter())
+mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(levelname)-2s %(message)s"))
+
+# create MQTT handlers for logging to UI
+exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+topic = f"pioreactor/{get_unit_name()}/{exp}/app_logs_for_ui"
+ui_handler = MQTTHandler(topic)
+ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
+ui_handler.setFormatter(CustomMQTTtoUIFormatter())
 
 
 # add the handlers to the root logger
