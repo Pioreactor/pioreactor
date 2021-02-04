@@ -108,7 +108,7 @@ def click_log_aggregating(output):
     (leader only) Aggregate logs for the UI
     """
     logs = LogAggregation(  # noqa: F841
-        ["pioreactor/+/+/logs/app_logs_for_ui"],
+        ["pioreactor/+/+/app_logs_for_ui"],
         output,
         experiment=UNIVERSAL_EXPERIMENT,
         unit=get_unit_name(),
