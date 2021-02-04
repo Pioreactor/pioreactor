@@ -166,7 +166,7 @@ def click_mqtt_to_db_streaming():
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": metadata.timestamp,
             "message": payload.decode(),
-            "source": topic.split("/")[0],  # should be app, ui, etc.
+            "source": topic.split("/")[-1],  # should be app, ui, etc.
         }
 
     def parse_algorithm_settings(topic, payload):
