@@ -192,6 +192,7 @@ class LEDAlgorithm(BackgroundSubJob):
                         {
                             attr: getattr(self, attr, None)
                             for attr in self.editable_settings
+                            if attr != "state"
                         }
                     ),
                 }

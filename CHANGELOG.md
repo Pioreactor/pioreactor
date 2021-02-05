@@ -1,4 +1,13 @@
 
+### 21.2.3
+
+ - The `logs` table in the database now contains, by default, all the DEBUG and up logs
+ from all Pioreactors. It also has a new column to denote the software source of the log. A separate topic is now set up for the logging in the UI.
+ - `pioreactor.local` is now the default URL of the PioreactorUI.
+ - on Pioreactor install, a seed experiment is created so users aren't dropped into a "blank" UI.
+ - `pubsub.subscribe_and_callback` can now filter retained messages.
+
+
 ### 21.2.2
 
  - `pios sync` is now `pios upgrade`.

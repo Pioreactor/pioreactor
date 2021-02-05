@@ -200,12 +200,12 @@ def od_reading(
         angle_label = str(angle) + "/" + channel
         od_channels.append((angle_label, LETTER_TO_ADS_CHANNEL[channel]))
 
-        yield from every(
-            sampling_rate,
-            ODReader(
-                od_channels, unit=unit, experiment=experiment, fake_data=fake_data
-            ).take_reading,
-        )
+    yield from every(
+        sampling_rate,
+        ODReader(
+            od_channels, unit=unit, experiment=experiment, fake_data=fake_data
+        ).take_reading,
+    )
 
 
 @click.command(name="od_reading")

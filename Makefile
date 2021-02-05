@@ -80,6 +80,7 @@ install-pioreactor-leader:
 
 	sudo pip3 install crudini
 	crudini --set ~/.pioreactor/config.ini network.topology leader_hostname $$(hostname)
+	crudini --set ~/.pioreactor/config.ini network.topology leader_address $$(hostname).local
 
 	# the below will remove swap, which should help extend the life of SD cards:
 	# https://raspberrypi.stackexchange.com/questions/169/how-can-i-extend-the-life-of-my-sd-card
@@ -166,7 +167,7 @@ install-worker: install-git install-python configure-hostname configure-rpi syst
 install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui
+install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui seed-experiment
 	# TODO: below is not idempotent
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass

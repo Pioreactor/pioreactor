@@ -75,7 +75,7 @@ def version():
 def update(ui, app):
     import subprocess
 
-    if not app and not ui:
+    if (not app) and (not ui):
         click.echo("Nothing happening. Specify either --app or --ui.")
 
     if app:
