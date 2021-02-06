@@ -27,8 +27,6 @@ class AltMediaCalculator(BackgroundSubJob):
         super(AltMediaCalculator, self).__init__(
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
-        self.unit = unit
-        self.experiment = experiment
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 
         # publish often to fill in gaps in UI chart.
