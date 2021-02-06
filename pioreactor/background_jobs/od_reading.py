@@ -266,7 +266,7 @@ def od_reading(
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    channel_label_map = []
+    channel_label_map = {}
     for input_ in od_angle_channel:
         angle, channel = input_.split(",")
 
