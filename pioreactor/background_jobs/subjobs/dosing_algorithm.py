@@ -54,7 +54,7 @@ class DosingAlgorithm(BackgroundSubJob):
         unit=None,
         experiment=None,
         duration=60,
-        sensor="135/A",
+        sensor="135/0",
         skip_first_run=False,
         **kwargs,
     ):

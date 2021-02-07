@@ -96,7 +96,7 @@ class DosingController(BackgroundJob):
             )
 
 
-def run(algorithm=None, duration=None, sensor="135/A", skip_first_run=False, **kwargs):
+def run(algorithm=None, duration=None, sensor="135/0", skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -134,7 +134,7 @@ def run(algorithm=None, duration=None, sensor="135/A", skip_first_run=False, **k
     "--duration", default=60, help="Time, in minutes, between every monitor check"
 )
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
-@click.option("--sensor", default="135/A", show_default=True)
+@click.option("--sensor", default="135/0", show_default=True)
 @click.option(
     "--skip-first-run",
     is_flag=True,

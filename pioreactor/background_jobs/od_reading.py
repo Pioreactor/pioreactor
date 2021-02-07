@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Continuously take an optical density reading (more accurately: a backscatter reading, which is a proxy for OD).
-This script is designed to run in a background process and push data to MQTT.
+Continuously take an optical density reading (more accurately: a turbidity reading, which is a proxy for OD).
+Internally, a subjob reads all channels from the ADS1115 and pushes to MQTT. The ODReader listens to
+these MQTT topics, and repushes only the data that represents optical densities. Why do it this way? In
+the future, there could be other photodiodes / analog signals that plug into the ADS, and they listen (and republish)
+in the same manner.
 
 >>> pioreactor od_reading --background
 
@@ -12,18 +15,20 @@ Topics published to
 
 Ex:
 
-    pioreactor/1/trial15/od_raw/135/A
+    pioreactor/1/trial15/od_raw/135/0
 
 
 Also published to
 
     pioreactor/<unit>/<experiment>/od_raw_batched
 
+a json like: {"135/0": 0.086, "135/1": 0.086, "135/2": 0.0877, "135/3": 0.0873}
+
+
 """
 import time
 import logging
 import json
-import os
 import signal
 
 import click
@@ -51,8 +56,6 @@ ADS_GAIN_THRESHOLDS = {
     8: (0.256, 0.512),
     16: (-1, 0.256),
 }
-
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 class ADSReader(BackgroundSubJob):
@@ -170,7 +173,7 @@ class ODReader(BackgroundJob):
         experiment=None,
     ):
         super(ODReader, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment
+            job_name="od_reading", unit=unit, experiment=experiment
         )
         self.channel_label_map = channel_label_map
         self.fake_data = fake_data
@@ -311,6 +314,6 @@ def click_od_reading(od_angle_channel, fake_data):
     try:
         od_reading(od_angle_channel, fake_data=fake_data)
     except Exception as e:
-        logger = logging.getLogger(JOB_NAME)
+        logger = logging.getLogger("od_reading")
         logger.error(e)
         raise e

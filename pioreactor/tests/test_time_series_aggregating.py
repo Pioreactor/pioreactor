@@ -66,10 +66,10 @@ def test_subscribe_and_listen_to_clear_different_formatter():
         extract_label=single_sensor_label_from_topic,
     )
 
-    publish(f"pioreactor/{unit}1/{experiment}/od_raw/135/A", 1.0)
-    publish(f"pioreactor/{unit}1/{experiment}/od_raw/135/A", 1.1)
-    publish(f"pioreactor/{unit}1/{experiment}/od_raw/135/B", 1.0)
-    publish(f"pioreactor/{unit}2/{experiment}/od_raw/135/A", 1.0)
+    publish(f"pioreactor/{unit}1/{experiment}/od_raw/135/0", 1.0)
+    publish(f"pioreactor/{unit}1/{experiment}/od_raw/135/0", 1.1)
+    publish(f"pioreactor/{unit}1/{experiment}/od_raw/135/1", 1.0)
+    publish(f"pioreactor/{unit}2/{experiment}/od_raw/135/0", 1.0)
     pause()
     assert ts.aggregated_time_series["series"] == [
         "testing_unit1-A",
