@@ -245,7 +245,7 @@ class ODReader(BackgroundJob):
         self.pubsub_clients.append(
             subscribe_and_callback(
                 self.publish_batch,
-                f"pioreactor/{self.unit}/{self.experiment}/ads/batched",
+                f"pioreactor/{self.unit}/{self.experiment}/ads_batched",
                 qos=QOS.EXACTLY_ONCE,
                 job_name=self.job_name,
             )
