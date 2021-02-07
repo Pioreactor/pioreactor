@@ -94,7 +94,7 @@ class ADSReader(BackgroundSubJob):
         except AttributeError:
             pass
 
-    def take_reading(self, counter=None):
+    def take_reading(self):
         self.counter += 1
         try:
             raw_signals = {}
@@ -108,7 +108,7 @@ class ADSReader(BackgroundSubJob):
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than 2.5V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
-                if (counter % 20 == 0) and (raw_signal_ > 2.5):
+                if (self.counter % 20 == 0) and (raw_signal_ > 2.5):
                     self.logger.warning(
                         f"ADS sensor {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
@@ -128,7 +128,7 @@ class ADSReader(BackgroundSubJob):
             assert (
                 check_gain_every_n >= self.ma._lookback
             ), "ma.mean won't be defined if you peek too soon"
-            if counter % check_gain_every_n == 0 and self.ma.mean is not None:
+            if self.counter % check_gain_every_n == 0 and self.ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if (0.95 * lb <= self.ma.mean < 0.95 * ub) and (
                         self.ads.gain != gain
