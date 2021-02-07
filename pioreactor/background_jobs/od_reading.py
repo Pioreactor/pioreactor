@@ -171,6 +171,7 @@ class ODReader(BackgroundJob):
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
         self.channel_label_map = channel_label_map
+        self.fake_data = fake_data
         self.ads_reader = ADSReader(
             sampling_rate=sampling_rate,
             fake_data=fake_data,
