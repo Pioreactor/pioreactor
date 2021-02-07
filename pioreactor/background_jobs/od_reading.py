@@ -82,9 +82,9 @@ class ADSReader(BackgroundSubJob):
 
         for channel in [0, 1, 2, 3]:
             if self.fake_data:
-                ai = MockAnalogIn(self.ads, getattr(ADS, "P" + channel))
+                ai = MockAnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             else:
-                ai = AnalogIn(self.ads, getattr(ADS, "P" + channel))
+                ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             self.analog_in.append((channel, ai))
 
     def on_disconnect(self):
