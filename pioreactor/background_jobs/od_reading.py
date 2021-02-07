@@ -215,7 +215,7 @@ class ODReader(BackgroundJob):
         ads_readings = json.loads(message.payload)
         od_readings = {}
         for channel, label in self.channel_label_map.items():
-            od_readings[label] = ads_readings[int(channel)]
+            od_readings[label] = ads_readings[str(channel)]
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
