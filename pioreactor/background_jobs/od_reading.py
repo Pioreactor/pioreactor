@@ -219,7 +219,7 @@ class ODReader(BackgroundJob):
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
-            od_readings,
+            json.dumps(od_readings),
             qos=QOS.EXACTLY_ONCE,
         )
 
