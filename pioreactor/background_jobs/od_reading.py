@@ -58,10 +58,10 @@ ADS_GAIN_THRESHOLDS = {
 }
 
 
-class ADSReader(BackgroundSubJob):
+class ADCReader(BackgroundSubJob):
     def __init__(self, sampling_rate=1, fake_data=False, unit=None, experiment=None):
-        super(ADSReader, self).__init__(
-            job_name="ads_reader", unit=unit, experiment=experiment
+        super(ADCReader, self).__init__(
+            job_name="adc_reader", unit=unit, experiment=experiment
         )
         self.fake_data = fake_data
         self.ma = MovingStats(lookback=10)
@@ -177,13 +177,13 @@ class ODReader(BackgroundJob):
         )
         self.channel_label_map = channel_label_map
         self.fake_data = fake_data
-        self.ads_reader = ADSReader(
+        self.adc_reader = ADCReader(
             sampling_rate=sampling_rate,
             fake_data=fake_data,
             unit=self.unit,
             experiment=self.experiment,
         )
-        self.sub_jobs = [self.ads_reader]
+        self.sub_jobs = [self.adc_reader]
         self.start_ir_led()
         self.start_passive_listeners()
 

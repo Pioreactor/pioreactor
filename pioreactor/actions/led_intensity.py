@@ -54,7 +54,7 @@ def led_intensity(
         old_intensity = state[channel]
         state[channel] = intensity
 
-        logger.info(f"Updated LED {channel} to {intensity} from {old_intensity}.")
+        logger.info(f"Updated LED {channel} from {old_intensity} to {intensity}.")
         publish(
             f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
             intensity,
