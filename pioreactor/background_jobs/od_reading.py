@@ -58,7 +58,7 @@ JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 class ADSReader(BackgroundSubJob):
     def __init__(self, sampling_rate=1, fake_data=False, unit=None, experiment=None):
         super(ADSReader, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment
+            job_name="ads_reader", unit=unit, experiment=experiment
         )
         self.fake_data = fake_data
         self.ma = MovingStats(lookback=10)
