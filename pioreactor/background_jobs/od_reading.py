@@ -63,6 +63,7 @@ class ADSReader(BackgroundSubJob):
         self.fake_data = fake_data
         self.ma = MovingStats(lookback=10)
         self.timer = RepeatedTimer(sampling_rate, self.take_reading)
+        self.counter = 0
 
         if self.fake_data:
             i2c = MockI2C(SCL, SDA)
@@ -94,6 +95,7 @@ class ADSReader(BackgroundSubJob):
             pass
 
     def take_reading(self, counter=None):
+        self.counter += 1
         try:
             raw_signals = {}
             for channel, ai in self.analog_in:
