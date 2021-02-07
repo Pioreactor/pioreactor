@@ -120,7 +120,7 @@ class ADSReader(BackgroundSubJob):
                 json.dumps(raw_signals),
             )
 
-            # the max signal should determine the board's gain
+            # the max signal should determine the ADS1115's gain
             self.ma.update(max(raw_signals.values()))
 
             # check if using correct gain
@@ -215,7 +215,7 @@ class ODReader(BackgroundJob):
         ads_readings = json.loads(message.payload)
         od_readings = {}
         for channel, label in self.channel_label_map.items():
-            od_readings[label] = ads_readings[channel]
+            od_readings[label] = ads_readings[int(channel)]
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
@@ -227,7 +227,7 @@ class ODReader(BackgroundJob):
         if self.state != self.READY:
             return
 
-        channel = int(message.topic.split("/")[0])
+        channel = int(message.topic.split("/")[-1])
         if channel not in self.channel_label_map:
             return
 
