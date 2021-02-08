@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from pioreactor.background_jobs.subjobs.dosing_algorithm import DosingAlgorithm
-from pioreactor.dosing_algorithms import events
+from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
+from pioreactor.dosing_automations import events
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.config import config
 
 
-class PIDTurbidostat(DosingAlgorithm):
+class PIDTurbidostat(DosingAutomation):
     """
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 

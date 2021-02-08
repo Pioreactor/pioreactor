@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from pioreactor.background_jobs.subjobs.dosing_algorithm import DosingAlgorithm
-from pioreactor.dosing_algorithms import events
+from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
+from pioreactor.dosing_automations import events
 
 
-class Silent(DosingAlgorithm):
+class Silent(DosingAutomation):
     """
     Do nothing, ever. Just pass.
     """

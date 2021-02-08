@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from pioreactor.background_jobs.subjobs.dosing_algorithm import DosingAlgorithm
-from pioreactor.dosing_algorithms import events
+from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
+from pioreactor.dosing_automations import events
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.config import config
 
@@ -8,7 +8,7 @@ from pioreactor.config import config
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
 
 
-class PIDMorbidostat(DosingAlgorithm):
+class PIDMorbidostat(DosingAutomation):
     """
     As defined in Zhong 2020
     """
