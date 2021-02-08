@@ -6,7 +6,7 @@ Continuously monitor the bioreactor and provide summary statistics on what's goi
 import json
 import os
 
-from pioreactor.pubsub import subscribe_and_callback, subscribe, QOS
+from pioreactor.pubsub import subscribe, QOS
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
@@ -20,7 +20,6 @@ class AltMediaCalculator(BackgroundSubJob):
     Computes the fraction of the vial that is from the alt-media vs the regular media.
     We periodically publish this, too, so the UI
     graph looks better.
-
     """
 
     def __init__(self, unit=None, experiment=None, **kwargs) -> None:
@@ -93,11 +92,8 @@ class AltMediaCalculator(BackgroundSubJob):
             return 0
 
     def start_passive_listeners(self) -> None:
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                callback=self.on_dosing_event,
-                topics=f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
-                qos=QOS.EXACTLY_ONCE,
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            callback=self.on_dosing_event,
+            topics=f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
+            qos=QOS.EXACTLY_ONCE,
         )

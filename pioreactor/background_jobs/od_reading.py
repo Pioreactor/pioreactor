@@ -46,7 +46,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.hardware_mappings import SCL, SDA
-from pioreactor.pubsub import QOS, subscribe_and_callback
+from pioreactor.pubsub import QOS
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
@@ -133,7 +133,7 @@ class ADCReader(BackgroundSubJob):
             ), "ma.mean won't be defined if you peek too soon"
             if self.counter % check_gain_every_n == 0 and self.ma.mean is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if (0.95 * lb <= self.ma.mean < 0.95 * ub) and (
+                    if (0.925 * lb <= self.ma.mean < 0.925 * ub) and (
                         self.ads.gain != gain
                     ):
                         self.ads.gain = gain
@@ -163,6 +163,7 @@ class ODReader(BackgroundJob):
     """
 
     editable_settings = []
+    sub_jobs = []
 
     def __init__(
         self,
@@ -183,7 +184,7 @@ class ODReader(BackgroundJob):
             unit=self.unit,
             experiment=self.experiment,
         )
-        self.sub_jobs = [self.adc_reader]
+        self.sub_jobs.append(self.adc_reader)
         self.start_ir_led()
         self.start_passive_listeners()
 
@@ -245,21 +246,15 @@ class ODReader(BackgroundJob):
     def start_passive_listeners(self):
 
         # process incoming data
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.publish_batch,
-                f"pioreactor/{self.unit}/{self.experiment}/ads_batched",
-                qos=QOS.EXACTLY_ONCE,
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self.publish_batch,
+            f"pioreactor/{self.unit}/{self.experiment}/ads_batched",
+            qos=QOS.EXACTLY_ONCE,
         )
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.publish_single,
-                f"pioreactor/{self.unit}/{self.experiment}/ads/+",
-                qos=QOS.EXACTLY_ONCE,
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self.publish_single,
+            f"pioreactor/{self.unit}/{self.experiment}/ads/+",
+            qos=QOS.EXACTLY_ONCE,
         )
 
 

@@ -9,7 +9,7 @@ import traceback
 import click
 import json
 
-from pioreactor.pubsub import subscribe_and_callback, QOS
+from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
@@ -83,16 +83,11 @@ class LogAggregation(BackgroundJob):
             json.dump(self.aggregated_log_table, f)
 
     def start_passive_listeners(self):
-        self.pubsub_clients.append(
-            subscribe_and_callback(self.on_message, self.topics, job_name=self.job_name)
-        )
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.clear,
-                f"pioreactor/{self.unit}/+/{self.job_name}/aggregated_log_table/set",
-                job_name=self.job_name,
-                qos=QOS.EXACTLY_ONCE,
-            )
+        self.subscribe_and_callback(self.on_message, self.topics)
+        self.subscribe_and_callback(
+            self.clear,
+            f"pioreactor/{self.unit}/+/{self.job_name}/aggregated_log_table/set",
+            qos=QOS.EXACTLY_ONCE,
         )
 
 

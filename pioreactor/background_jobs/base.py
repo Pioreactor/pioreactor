@@ -7,9 +7,8 @@ import threading
 import atexit
 from collections import namedtuple
 import logging
-from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import pio_jobs_running
-from pioreactor.pubsub import QOS, create_publishing_client
+from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -55,22 +54,72 @@ class BackgroundJob:
     editable_settings = []
 
     def __init__(self, job_name: str, experiment=None, unit=None) -> None:
-        self.pub_client = create_publishing_client()
-        self.pubsub_clients = [self.pub_client]
+        self.pubsub_client = create_client()
 
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
         self.logger = logging.getLogger(self.job_name)
+        self.pubsub_client = self.create_pubsub_client()
+        self.pubsub_clients = [self.pubsub_client]
 
         self.check_for_duplicate_process()
         self.set_state(self.INIT)
         self.set_state(self.READY)
         self.set_up_disconnect_protocol()
 
+    def create_pubsub_client(self):
+        last_will = {
+            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
+            "payload": self.LOST,
+            "qos": QOS.EXACTLY_ONCE,
+            "retain": True,
+        }
+
+        client = create_client(last_will=last_will)
+        return client
+
     def publish(self, *args, **kwargs):
-        self.pub_client.publish(*args, **kwargs)
+        self.pubsub_client.publish(*args, **kwargs)
+
+    def subscribe_and_callback(self, callback, topics, allow_retained=True, qos=0):
+        """
+
+        Parameters
+        -------------
+        callback: callable
+            Callbacks only accept a single parameter, message.
+        topics: str, list of str
+        allow_retained: bool
+            if True, all messages are allowed, including messages that the broker has retained. Note
+            that client can fire a msg with retain=True, but because the broker is serving it to a
+            subscriber "fresh", it will have retain=False on the client side. More here:
+            https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
+        """
+
+        def wrap_callback(actual_callback):
+            def _callback(client, userdata, message):
+                if not allow_retained and message.retain:
+                    return
+                try:
+                    return actual_callback(message)
+                except Exception as e:
+                    self.logger.error(e, exc_info=True)
+                    raise e
+
+            return _callback
+
+        assert callable(
+            callback
+        ), "callback should be callable - do you need to change the order of arguments?"
+
+        topics = [topics] if isinstance(topics, str) else topics
+
+        for topic in topics:
+            self.pubsub_client.message_callback_add(topic, wrap_callback(callback))
+            self.pubsub_client.subscribe(topic, qos=qos)
+        return
 
     def set_up_disconnect_protocol(self):
         # here, we set up how jobs should disconnect and exit.
@@ -86,9 +135,9 @@ class BackgroundJob:
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
+            atexit.register(disconnect_gracefully)
             signal.signal(signal.SIGTERM, disconnect_gracefully)
             signal.signal(signal.SIGINT, disconnect_gracefully)
-            atexit.register(disconnect_gracefully)
             signal.signal(signal.SIGUSR1, exit_python)
 
     def init(self):
@@ -100,8 +149,8 @@ class BackgroundJob:
             client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
 
-        self.pub_client = create_publishing_client()
-        self.pubsub_clients = [self.pub_client]
+        self.pubsub_client = self.create_pubsub_client()
+        self.pubsub_clients = [self.pubsub_client]
 
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
@@ -205,27 +254,15 @@ class BackgroundJob:
 
     def start_general_passive_listeners(self) -> None:
 
-        last_will = {
-            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
-            "payload": self.LOST,
-            "qos": QOS.EXACTLY_ONCE,
-            "retain": True,
-        }
-
         # listen to changes in editable properties
         # everyone listens to $BROADCAST
-        client = subscribe_and_callback(
+        self.subscribe_and_callback(
             self.set_attr_from_message,
             [
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
                 f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
             ],
-            qos=QOS.EXACTLY_ONCE,
-            last_will=last_will,
-            job_name=self.job_name,
-            keepalive=20,  # slightly lower than the default 60, as we want to know quickly when the client has failed / broke
         )
-        self.pubsub_clients.append(client)
 
     def check_for_duplicate_process(self):
         if (

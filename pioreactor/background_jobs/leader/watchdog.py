@@ -6,7 +6,6 @@ import click
 
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.pubsub import subscribe_and_callback
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 logger = logging.getLogger(JOB_NAME)
@@ -37,19 +36,11 @@ class WatchDog(BackgroundJob):
             pass
 
     def start_passive_listeners(self):
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.watch_for_lost_state,
-                "pioreactor/+/+/monitor/$state",
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self.watch_for_lost_state, "pioreactor/+/+/monitor/$state"
         )
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.watch_for_disk_space_percent,
-                "pioreactor/+/+/monitor/disk_space_percent",
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self.watch_for_disk_space_percent, "pioreactor/+/+/monitor/disk_space_percent"
         )
 
 

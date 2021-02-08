@@ -11,6 +11,9 @@ CHANNELS = ["A", "B", "C", "D"]
 
 
 def get_current_state_from_broker(unit, experiment):
+    # TODO: It's possible to also get this information from the DAC device. Not
+    # sure what is better
+    # this also ignores the status of "power on"
     msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=0.5)
     if msg:
         return json.loads(msg.payload)

@@ -49,6 +49,7 @@ class MQTTHandler(logging.Handler):
                 publish(self.topic, msg, hostname="mqtt.pioreactor.com")
 
 
+logging.raiseExceptions = False
 # reduce logging from third party libs
 logging.getLogger("sh").setLevel("ERROR")
 logging.getLogger("paramiko").setLevel("ERROR")

@@ -3,10 +3,7 @@ import socket
 import time
 import threading
 import logging
-from click import echo, style
 from pioreactor.config import leader_hostname
-
-# this can be improved by including job name, thread name, etc.
 
 
 class QOS:
@@ -15,13 +12,17 @@ class QOS:
     EXACTLY_ONCE = 2
 
 
-def create_publishing_client(hostname=leader_hostname):
-    import paho.mqtt.client as mqtt
+def create_client(hostname=leader_hostname, last_will=None):
+    from paho.mqtt.client import Client
 
-    mqttc = mqtt.Client()
-    mqttc.connect(hostname)
-    mqttc.loop_start()
-    return mqttc
+    client = Client()
+
+    if last_will is not None:
+        client.will_set(**last_will)
+
+    client.connect(hostname)
+    client.loop_start()
+    return client
 
 
 def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs):
@@ -32,20 +33,19 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
         try:
             mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
             return
-        except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout) as e:
+        except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
             # possible that leader is down/restarting, keep trying, but log to local machine.
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            echo(
-                style(f"{current_time}:", fg="white")
-                + style(
-                    f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}",
-                    fg="red",
-                )
+            logger = logging.getLogger("pioreactor")
+            logger.debug(
+                f"Attempt {retry_count}: Unable to connect to host: {hostname}",
+                exc_info=True,
             )
             time.sleep(5 * retry_count)  # linear backoff
             retry_count += 1
 
         if retry_count == retries:
+            logger = logging.getLogger("pioreactor")
+            logger.error(f"Unable to connect to host: {hostname}. Exiting.")
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
@@ -88,30 +88,27 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
 
             return userdata["messages"]
 
-        except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout) as e:
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            # possible that leader is down/restarting, keep trying, but log to local machine.
-            echo(
-                style(f"{current_time}:", fg="white")
-                + style(
-                    f"Attempt {retry_count}: Unable to connect to host: {hostname}. {str(e)}",
-                    fg="red",
-                )
+        except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
+            logger = logging.getLogger("pioreactor")
+            logger.debug(
+                f"Attempt {retry_count}: Unable to connect to host: {hostname}",
+                exc_info=True,
             )
+
             time.sleep(5 * retry_count)  # linear backoff
             retry_count += 1
 
         if retry_count == retries:
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            logger = logging.getLogger("pioreactor")
+            logger.error(f"Unable to connect to host: {hostname}. Exiting.")
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
 def subscribe_and_callback(
     callback,
     topics,
+    client=None,
     hostname=leader_hostname,
-    timeout=None,
-    max_msgs=None,
     last_will=None,
     job_name=None,
     allow_retained=True,
@@ -122,10 +119,6 @@ def subscribe_and_callback(
 
     Parameters
     -------------
-    timeout: float
-        the client will  only listen for <timeout> seconds before disconnecting. (kinda)
-    max_msgs: int
-        the client will process <max_msgs> messages before disconnecting.
     last_will: dict
         a dictionary describing the last will details: topic, qos, retain, msg.
     job_name:
@@ -136,7 +129,7 @@ def subscribe_and_callback(
         subscriber "fresh", it will have retain=False on the client side. More here:
         https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
     """
-    import paho.mqtt.client as mqtt
+    from paho.mqtt.client import Client
 
     assert callable(
         callback
@@ -148,13 +141,6 @@ def subscribe_and_callback(
     def wrap_callback(actual_callback):
         def _callback(client, userdata, message):
             try:
-
-                if "max_msgs" in userdata:
-                    userdata["count"] += 1
-                    if userdata["count"] > userdata["max_msgs"]:
-                        client.loop_stop()
-                        client.disconnect()
-                        return
 
                 if not allow_retained and message.retain:
                     return
@@ -174,11 +160,7 @@ def subscribe_and_callback(
         "job_name": job_name,
     }
 
-    if max_msgs:
-        userdata["count"] = 0
-        userdata["max_msgs"] = max_msgs
-
-    client = mqtt.Client(userdata=userdata)
+    client = Client(userdata=userdata)
     client.on_connect = on_connect
     client.on_message = wrap_callback(callback)
 
@@ -191,9 +173,6 @@ def subscribe_and_callback(
     def stop_and_disconnect():
         client.loop_stop()
         client.disconnect()
-
-    if timeout:
-        threading.Timer(timeout, lambda: stop_and_disconnect()).start()
 
     return client
 

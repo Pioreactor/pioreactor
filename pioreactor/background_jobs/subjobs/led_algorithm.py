@@ -5,7 +5,7 @@ import time, sys, os
 import json
 from datetime import datetime
 
-from pioreactor.pubsub import subscribe_and_callback, QOS
+from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.dosing_algorithms import events  # change later
@@ -202,19 +202,12 @@ class LEDAlgorithm(BackgroundSubJob):
         )
 
     def start_passive_listeners(self):
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self._set_OD,
-                f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self._set_OD,
+            f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
         )
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self._set_growth_rate,
-                f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self._set_growth_rate, f"pioreactor/{self.unit}/{self.experiment}/growth_rate"
         )
 
 

@@ -7,8 +7,7 @@ import os
 import json
 
 
-from pioreactor.pubsub import subscribe_and_callback, QOS
-from pioreactor.pubsub import subscribe
+from pioreactor.pubsub import subscribe, QOS
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
@@ -73,11 +72,8 @@ class ThroughputCalculator(BackgroundSubJob):
             return 0
 
     def start_passive_listeners(self) -> None:
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                callback=self.on_dosing_event,
-                topics=f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
-                qos=QOS.EXACTLY_ONCE,
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            callback=self.on_dosing_event,
+            topics=f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
+            qos=QOS.EXACTLY_ONCE,
         )

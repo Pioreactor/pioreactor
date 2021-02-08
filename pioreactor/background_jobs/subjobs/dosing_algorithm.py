@@ -8,7 +8,7 @@ from datetime import datetime
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
-from pioreactor.pubsub import subscribe_and_callback, QOS
+from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
@@ -48,6 +48,7 @@ class DosingAlgorithm(BackgroundSubJob):
     latest_settings_started_at = current_time()
     latest_settings_ended_at = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
+    sub_jobs = []
 
     def __init__(
         self,
@@ -74,7 +75,7 @@ class DosingAlgorithm(BackgroundSubJob):
         self.throughput_calculator = ThroughputCalculator(
             unit=self.unit, experiment=self.experiment
         )
-        self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
+        self.sub_jobs.extend([self.alt_media_calculator, self.throughput_calculator])
         self.set_duration(duration)
         self.start_passive_listeners()
 
@@ -261,17 +262,10 @@ class DosingAlgorithm(BackgroundSubJob):
         )
 
     def start_passive_listeners(self):
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self._set_OD,
-                f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self._set_OD,
+            f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
         )
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self._set_growth_rate,
-                f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self._set_growth_rate, f"pioreactor/{self.unit}/{self.experiment}/growth_rate"
         )

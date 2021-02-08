@@ -8,7 +8,7 @@ import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
 from pioreactor.utils import pio_jobs_running
-from pioreactor.pubsub import subscribe, subscribe_and_callback, QOS
+from pioreactor.pubsub import subscribe, QOS
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -198,21 +198,15 @@ class GrowthRateCalculator(BackgroundJob):
     def start_passive_listeners(self):
 
         # process incoming data
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.update_state_from_observation,
-                f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
-                qos=QOS.EXACTLY_ONCE,
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self.update_state_from_observation,
+            f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
+            qos=QOS.EXACTLY_ONCE,
         )
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.update_ekf_variance_after_dosing_event,
-                f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
-                qos=QOS.EXACTLY_ONCE,
-                job_name=self.job_name,
-            )
+        self.subscribe_and_callback(
+            self.update_ekf_variance_after_dosing_event,
+            f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
+            qos=QOS.EXACTLY_ONCE,
         )
 
     @staticmethod

@@ -9,7 +9,7 @@ import RPi.GPIO as GPIO
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.pubsub import QOS, subscribe_and_callback
+from pioreactor.pubsub import QOS
 from pioreactor.hardware_mappings import (
     PCB_LED_PIN as LED_PIN,
     PCB_BUTTON_PIN as BUTTON_PIN,
@@ -106,14 +106,10 @@ class Monitor(BackgroundJob):
             time.sleep(0.4)
 
     def start_passive_listeners(self):
-
-        self.pubsub_clients.append(
-            subscribe_and_callback(
-                self.flicker_led,
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/flicker_led",
-                job_name=self.job_name,
-                qos=QOS.AT_LEAST_ONCE,
-            )
+        self.subscribe_and_callback(
+            self.flicker_led,
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/flicker_led",
+            qos=QOS.AT_LEAST_ONCE,
         )
 
 
