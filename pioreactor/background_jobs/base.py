@@ -215,7 +215,7 @@ class BackgroundJob:
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect too late and a last-will was sent.
         # previously had 0.25, needed to bump it.
-        time.sleep(0.4)
+        time.sleep(10)
         os.kill(os.getpid(), signal.SIGUSR1)
 
     def declare_settable_properties_to_broker(self):
