@@ -73,7 +73,7 @@ class ThroughputCalculator(BackgroundSubJob):
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
-            callback=self.on_dosing_event,
-            topics=f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
+            self.on_dosing_event,
+            f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
             qos=QOS.EXACTLY_ONCE,
         )

@@ -199,8 +199,13 @@ class BackgroundJob:
         # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
         for client in self.pubsub_clients:
-            client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-            client.disconnect()
+            self.logger.debug("client about to disconnect.")
+            self.logger.debug(client)
+            self.logger.debug(
+                client.loop_stop()
+            )  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+            self.logger.debug(client.disconnect())
+            self.logger.debug("client disc.")
 
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect too late and a last-will was sent.
