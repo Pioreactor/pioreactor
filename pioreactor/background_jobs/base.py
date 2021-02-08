@@ -81,6 +81,13 @@ class BackgroundJob:
             last_will=last_will, client_id=f"{self.job_name}-{id(self)}"
         )
         self.logger.debug(f"created {client._client_id}")
+
+        def on_disconnect(client, userdata, rc):
+            self.logger.debug(f"{client._client_id}, {userdata}, {rc}")
+
+        client.on_disconnect = on_disconnect
+        client.enable_logger(self.logger)
+
         return client
 
     def publish(self, *args, **kwargs):
@@ -204,13 +211,8 @@ class BackgroundJob:
         # this HAS to happen last, because this contains our publishing client
         for client in self.pubsub_clients:
             self.logger.debug("client about to disconnect.")
-            self.logger.debug(client._client_id)
-            self.logger.debug(client)
-            self.logger.debug(
-                client.loop_stop()
-            )  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-            self.logger.debug(client.disconnect())
-            self.logger.debug("client disc.")
+            client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+            client.disconnect()
 
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect too late and a last-will was sent.
