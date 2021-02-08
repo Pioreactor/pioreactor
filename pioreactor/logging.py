@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from pioreactor.pubsub import publish
+from pioreactor.pubsub import create_client, publish
 from pioreactor.whoami import (
     get_unit_name,
     am_I_active_worker,
@@ -31,16 +31,15 @@ class MQTTHandler(logging.Handler):
     to a MQTT server to a topic.
     """
 
-    def __init__(self, topic, qos=0, retain=False, **mqtt_kwargs):
+    def __init__(self, topic, qos=2):
         logging.Handler.__init__(self)
         self.topic = topic
         self.qos = qos
-        self.retain = retain
-        self.mqtt_kwargs = mqtt_kwargs
+        self.client = create_client(client_id=f"{get_unit_name()}-pub-logging-{id(self)}")
 
     def emit(self, record):
         msg = self.format(record)
-        publish(self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs)
+        self.client.publish(self.topic, msg, qos=self.qos, retain=False)
 
         if config.getboolean("error_reporting", "send_to_Pioreactor_com", fallback=False):
             # turned off, by default
