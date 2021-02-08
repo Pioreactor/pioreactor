@@ -78,6 +78,7 @@ class BackgroundJob:
         }
 
         client = create_client(last_will=last_will)
+        self.logger.debug(client._client_id)
         return client
 
     def publish(self, *args, **kwargs):
@@ -200,6 +201,7 @@ class BackgroundJob:
         # this HAS to happen last, because this contains our publishing client
         for client in self.pubsub_clients:
             self.logger.debug("client about to disconnect.")
+            self.logger.debug(client._client_id)
             self.logger.debug(client)
             self.logger.debug(
                 client.loop_stop()
