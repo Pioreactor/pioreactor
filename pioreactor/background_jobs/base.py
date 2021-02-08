@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import signal
+import faulthandler
+
 import os
 import sys
 import threading
@@ -9,6 +11,8 @@ import logging
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
+
+faulthandler.enable()
 
 
 def split_topic_for_setting(topic):
