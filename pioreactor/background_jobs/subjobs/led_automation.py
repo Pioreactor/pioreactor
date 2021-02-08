@@ -8,7 +8,7 @@ from datetime import datetime
 from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.dosing_algorithms import events  # change later
+from pioreactor.dosing_automations import events  # change later
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
@@ -26,15 +26,15 @@ def current_time():
     return datetime.now().isoformat()
 
 
-class LEDAlgorithm(BackgroundSubJob):
+class LEDAutomation(BackgroundSubJob):
     """
-    This is the super class that LED algorithms inherit from. The `run` function will
+    This is the super class that LED automations inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program). If `duration` is left
     as None, manually call `run`. This calls the `execute` function, which is what subclasses will define.
 
     To change setting over MQTT:
 
-    `pioreactor/<unit>/<experiment>/led_algorithm/<setting>/set` value
+    `pioreactor/<unit>/<experiment>/led_automation/<setting>/set` value
 
     """
 
@@ -57,8 +57,8 @@ class LEDAlgorithm(BackgroundSubJob):
         skip_first_run=False,
         **kwargs,
     ):
-        super(LEDAlgorithm, self).__init__(
-            job_name="led_algorithm", unit=unit, experiment=experiment
+        super(LEDAutomation, self).__init__(
+            job_name="led_automation", unit=unit, experiment=experiment
         )
 
         self.latest_event = None
@@ -95,9 +95,10 @@ class LEDAlgorithm(BackgroundSubJob):
             if not ("od_reading" in pio_jobs_running()) and (
                 "growth_rate_calculating" in pio_jobs_running()
             ):
-                raise IOError(
-                    "failed: `od_reading` and `growth_rate_calculating` should be running."
+                self.logger.warn(
+                    "`od_reading` and `growth_rate_calculating` should be running."
                 )
+
             event = events.NoEvent("waiting for OD and growth rate data to arrive")
 
         elif self.state != self.READY:
@@ -149,7 +150,7 @@ class LEDAlgorithm(BackgroundSubJob):
         self._clear_mqtt_cache()
 
     def __setattr__(self, name, value) -> None:
-        super(LEDAlgorithm, self).__setattr__(name, value)
+        super(LEDAutomation, self).__setattr__(name, value)
         if name in self.editable_settings and name != "state":
             self.latest_settings_ended_at = current_time()
             self._send_details_to_mqtt()
@@ -180,14 +181,14 @@ class LEDAlgorithm(BackgroundSubJob):
 
     def _send_details_to_mqtt(self):
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/led_algorithm_settings",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/led_automation_settings",
             json.dumps(
                 {
                     "pioreactor_unit": self.unit,
                     "experiment": self.experiment,
                     "started_at": self.latest_settings_started_at,
                     "ended_at": self.latest_settings_ended_at,
-                    "algorithm": self.__class__.__name__,
+                    "automation": self.__class__.__name__,
                     "settings": json.dumps(
                         {
                             attr: getattr(self, attr, None)
@@ -214,7 +215,7 @@ class LEDAlgorithm(BackgroundSubJob):
 # not tested, experimental
 
 
-class Silent(LEDAlgorithm):
+class Silent(LEDAutomation):
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 
@@ -222,7 +223,7 @@ class Silent(LEDAlgorithm):
         return events.NoEvent("nothing occurs in Silent.")
 
 
-class TrackOD(LEDAlgorithm):
+class TrackOD(LEDAutomation):
     def __init__(self, **kwargs):
         super(TrackOD, self).__init__(**kwargs)
 
@@ -237,7 +238,7 @@ class TrackOD(LEDAlgorithm):
         )
 
 
-class FlashUV(LEDAlgorithm):
+class FlashUV(LEDAutomation):
     def __init__(self, **kwargs):
         super(FlashUV, self).__init__(**kwargs)
         self.uv_led = config.get("leds", "uv380")

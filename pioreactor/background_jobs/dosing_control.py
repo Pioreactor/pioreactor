@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and take action. This is the core of the dosing algorithm.
+Continuously monitor the bioreactor and take action. This is the core of the dosing automation.
 
 
-To change the algorithm over MQTT,
+To change the automation over MQTT,
 
-topic: `pioreactor/<unit>/<experiment>/dosing_control/dosing_algorithm/set`
-message: a json object with required keyword argument. Specify the new algorithm with name `"dosing_algorithm"`.
+topic: `pioreactor/<unit>/<experiment>/dosing_control/dosing_automation/set`
+message: a json object with required keyword argument. Specify the new automation with name `"dosing_automation"`.
 
 """
 import signal
@@ -20,17 +20,17 @@ from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 
-from pioreactor.dosing_algorithms.morbidostat import Morbidostat
-from pioreactor.dosing_algorithms.pid_morbidostat import PIDMorbidostat
-from pioreactor.dosing_algorithms.pid_turbidostat import PIDTurbidostat
-from pioreactor.dosing_algorithms.silent import Silent
-from pioreactor.dosing_algorithms.turbidostat import Turbidostat
-from pioreactor.dosing_algorithms.chemostat import Chemostat
+from pioreactor.dosing_automations.morbidostat import Morbidostat
+from pioreactor.dosing_automations.pid_morbidostat import PIDMorbidostat
+from pioreactor.dosing_automations.pid_turbidostat import PIDTurbidostat
+from pioreactor.dosing_automations.silent import Silent
+from pioreactor.dosing_automations.turbidostat import Turbidostat
+from pioreactor.dosing_automations.chemostat import Chemostat
 
 
 class DosingController(BackgroundJob):
 
-    algorithms = {
+    automations = {
         "silent": Silent,
         "morbidostat": Morbidostat,
         "turbidostat": Turbidostat,
@@ -39,33 +39,33 @@ class DosingController(BackgroundJob):
         "pid_morbidostat": PIDMorbidostat,
     }
 
-    editable_settings = ["dosing_algorithm"]
+    editable_settings = ["dosing_automation"]
 
-    def __init__(self, dosing_algorithm, unit=None, experiment=None, **kwargs):
+    def __init__(self, dosing_automation, unit=None, experiment=None, **kwargs):
         super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
-        self.dosing_algorithm = dosing_algorithm
+        self.dosing_automation = dosing_automation
 
-        self.dosing_algorithm_job = self.algorithms[self.dosing_algorithm](
+        self.dosing_automation_job = self.automations[self.dosing_automation](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 
-    def set_dosing_algorithm(self, new_dosing_algorithm_json):
+    def set_dosing_automation(self, new_dosing_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
-        # self.dosing_algorithm_job.set_state("init")
-        # self.dosing_algorithm_job.set_state("ready")
+        # self.dosing_automation_job.set_state("init")
+        # self.dosing_automation_job.set_state("ready")
         # [ ] write tests
         # OR should just bail...
         try:
-            algo_init = json.loads(new_dosing_algorithm_json)
+            algo_init = json.loads(new_dosing_automation_json)
 
-            self.dosing_algorithm_job.set_state("disconnected")
+            self.dosing_automation_job.set_state("disconnected")
 
-            self.dosing_algorithm_job = self.algorithms[algo_init["dosing_algorithm"]](
+            self.dosing_automation_job = self.automations[algo_init["dosing_automation"]](
                 unit=self.unit, experiment=self.experiment, **algo_init
             )
-            self.dosing_algorithm = algo_init["dosing_algorithm"]
+            self.dosing_automation = algo_init["dosing_automation"]
 
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -73,10 +73,10 @@ class DosingController(BackgroundJob):
 
     def on_disconnect(self):
         try:
-            self.dosing_algorithm_job.set_state("disconnected")
+            self.dosing_automation_job.set_state("disconnected")
             self.clear_mqtt_cache()
         except AttributeError:
-            # if disconnect is called right after starting, dosing_algorithm_job isn't instantiated
+            # if disconnect is called right after starting, dosing_automation_job isn't instantiated
             # time.sleep(1)
             # self.on_disconnect()
             # return
@@ -96,7 +96,7 @@ class DosingController(BackgroundJob):
             )
 
 
-def run(algorithm=None, duration=None, sensor="135/0", skip_first_run=False, **kwargs):
+def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -108,22 +108,22 @@ def run(algorithm=None, duration=None, sensor="135/0", skip_first_run=False, **k
         kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
 
-        controller = DosingController(algorithm, **kwargs)  # noqa: F841
+        controller = DosingController(automation, **kwargs)  # noqa: F841
 
         while True:
             signal.pause()
 
     except Exception as e:
-        logging.getLogger("dosing_algorithm").debug(f"{str(e)}", exc_info=True)
-        logging.getLogger("dosing_algorithm").error(f"{str(e)}")
+        logging.getLogger("dosing_automation").debug(f"{str(e)}", exc_info=True)
+        logging.getLogger("dosing_automation").error(f"{str(e)}")
         raise e
 
 
 @click.command(name="dosing_control")
 @click.option(
-    "--algorithm",
+    "--automation",
     default="silent",
-    help="set the algorithm of the system: turbidostat, morbidostat, silent, etc.",
+    help="set the automation of the system: turbidostat, morbidostat, silent, etc.",
     show_default=True,
 )
 @click.option("--target-od", default=None, type=float)
@@ -141,13 +141,13 @@ def run(algorithm=None, duration=None, sensor="135/0", skip_first_run=False, **k
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
 def click_dosing_control(
-    algorithm, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
+    automation, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
 ):
     """
-    Start a dosing algorithm
+    Start a dosing automation
     """
     controller = run(  # noqa: F841
-        algorithm=algorithm,
+        automation=automation,
         target_od=target_od,
         target_growth_rate=target_growth_rate,
         duration=duration,

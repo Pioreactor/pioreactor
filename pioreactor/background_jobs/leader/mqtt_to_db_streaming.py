@@ -166,7 +166,7 @@ def click_mqtt_to_db_streaming():
             "source": topic.split("/")[-1],  # should be app, ui, etc.
         }
 
-    def parse_algorithm_settings(topic, payload):
+    def parse_automation_settings(topic, payload):
         payload = json.loads(payload.decode())
         return payload
 
@@ -186,14 +186,14 @@ def click_mqtt_to_db_streaming():
         ),
         Metadata("pioreactor/+/+/logs/+", "logs", parse_logs),
         Metadata(
-            "pioreactor/+/+/dosing_control/dosing_algorithm_settings",
-            "dosing_algorithm_settings",
-            parse_algorithm_settings,
+            "pioreactor/+/+/dosing_control/dosing_automation_settings",
+            "dosing_automation_settings",
+            parse_automation_settings,
         ),
         Metadata(
-            "pioreactor/+/+/led_control/led_algorithm_settings",
-            "led_algorithm_settings",
-            parse_algorithm_settings,
+            "pioreactor/+/+/led_control/led_automation_settings",
+            "led_automation_settings",
+            parse_automation_settings,
         ),
     ]
 

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-from pioreactor.background_jobs.subjobs.dosing_algorithm import DosingAlgorithm
+from pioreactor.background_jobs.subjobs.dosing_algorithm import DosingAutomation
 from pioreactor.dosing_algorithms import events
 
 
-class Chemostat(DosingAlgorithm):
+class Chemostat(DosingAutomation):
     """
     Chemostat mode - try to keep [nutrient] constant.
     """

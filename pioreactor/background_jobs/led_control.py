@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and perform LED actions. This is the core of the LED algorithm.
+Continuously monitor the bioreactor and perform LED actions. This is the core of the LED automation.
 
-To change the algorithm over MQTT,
+To change the automation over MQTT,
 
-topic: `pioreactor/<unit>/<experiment>/led_control/led_algorithm/set`
-message: a json object with required keyword argument. Specify the new algorithm with name `"led_algorithm"`.
+topic: `pioreactor/<unit>/<experiment>/led_control/led_automation/set`
+message: a json object with required keyword argument. Specify the new automation with name `"led_automation"`.
 """
 import signal
 
@@ -17,35 +17,35 @@ import click
 from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.subjobs.led_algorithm import Silent, FlashUV, TrackOD
+from pioreactor.background_jobs.subjobs.led_automation import Silent, FlashUV, TrackOD
 
 
 class LEDController(BackgroundJob):
 
-    algorithms = {"silent": Silent, "flash_uv": FlashUV, "track_od": TrackOD}
+    automations = {"silent": Silent, "flash_uv": FlashUV, "track_od": TrackOD}
 
-    editable_settings = ["led_algorithm"]
+    editable_settings = ["led_automation"]
 
-    def __init__(self, led_algorithm, unit=None, experiment=None, **kwargs):
+    def __init__(self, led_automation, unit=None, experiment=None, **kwargs):
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
-        self.led_algorithm = led_algorithm
+        self.led_automation = led_automation
 
-        self.led_algorithm_job = self.algorithms[self.led_algorithm](
+        self.led_automation_job = self.automations[self.led_automation](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 
-    def set_led_algorithm(self, new_led_algorithm_json):
+    def set_led_automation(self, new_led_automation_json):
         try:
-            algo_init = json.loads(new_led_algorithm_json)
+            algo_init = json.loads(new_led_automation_json)
 
-            self.led_algorithm_job.set_state("disconnected")
+            self.led_automation_job.set_state("disconnected")
 
-            self.led_algorithm_job = self.algorithms[algo_init["led_algorithm"]](
+            self.led_automation_job = self.automations[algo_init["led_automation"]](
                 unit=self.unit, experiment=self.experiment, **algo_init
             )
-            self.led_algorithm = algo_init["led_algorithm"]
+            self.led_automation = algo_init["led_automation"]
 
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -53,10 +53,10 @@ class LEDController(BackgroundJob):
 
     def on_disconnect(self):
         try:
-            self.led_algorithm_job.set_state("disconnected")
+            self.led_automation_job.set_state("disconnected")
             self.clear_mqtt_cache()
         except AttributeError:
-            # if disconnect is called right after starting, led_algorithm_job isn't instantiated
+            # if disconnect is called right after starting, led_automation_job isn't instantiated
             # time.sleep(1)
             # self.on_disconnect()
             # return
@@ -76,7 +76,7 @@ class LEDController(BackgroundJob):
             )
 
 
-def run(algorithm=None, duration=None, sensor="135/0", skip_first_run=False, **kwargs):
+def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -88,22 +88,22 @@ def run(algorithm=None, duration=None, sensor="135/0", skip_first_run=False, **k
         kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
 
-        controller = LEDController(algorithm, **kwargs)  # noqa: F841
+        controller = LEDController(automation, **kwargs)  # noqa: F841
 
         while True:
             signal.pause()
 
     except Exception as e:
-        logging.getLogger("led_algorithm").debug(e, exc_info=True)
-        logging.getLogger("led_algorithm").error(e)
+        logging.getLogger("led_automation").debug(e, exc_info=True)
+        logging.getLogger("led_automation").error(e)
         raise e
 
 
 @click.command(name="led_control")
 @click.option(
-    "--algorithm",
+    "--automation",
     default="silent",
-    help="set the algorithm of the system: silent, etc.",
+    help="set the automation of the system: silent, etc.",
     show_default=True,
 )
 @click.option("--target-od", default=None, type=float)
@@ -121,13 +121,13 @@ def run(algorithm=None, duration=None, sensor="135/0", skip_first_run=False, **k
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 def click_led_control(
-    algorithm, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
+    automation, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
 ):
     """
-    Start an LED algorithm
+    Start an LED automation
     """
     controller = run(  # noqa: F841
-        algorithm=algorithm,
+        automation=automation,
         target_od=target_od,
         target_growth_rate=target_growth_rate,
         duration=duration,

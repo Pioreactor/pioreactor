@@ -13,7 +13,7 @@ from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
-from pioreactor.dosing_algorithms import events
+from pioreactor.dosing_automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 
 
@@ -29,15 +29,15 @@ def current_time():
     return datetime.now().isoformat()
 
 
-class DosingAlgorithm(BackgroundSubJob):
+class DosingAutomation(BackgroundSubJob):
     """
-    This is the super class that algorithms inherit from. The `run` function will
+    This is the super class that automations inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program). If `duration` is left
     as None, manually call `run`. This calls the `execute` function, which is what subclasses will define.
 
     To change setting over MQTT:
 
-    `pioreactor/<unit>/<experiment>/dosing_algorithm/<setting>/set` value
+    `pioreactor/<unit>/<experiment>/dosing_automation/<setting>/set` value
 
     """
 
@@ -59,8 +59,8 @@ class DosingAlgorithm(BackgroundSubJob):
         skip_first_run=False,
         **kwargs,
     ):
-        super(DosingAlgorithm, self).__init__(
-            job_name="dosing_algorithm", unit=unit, experiment=experiment
+        super(DosingAutomation, self).__init__(
+            job_name="dosing_automation", unit=unit, experiment=experiment
         )
 
         self.latest_event = None
@@ -105,8 +105,8 @@ class DosingAlgorithm(BackgroundSubJob):
             if not ("od_reading" in pio_jobs_running()) and (
                 "growth_rate_calculating" in pio_jobs_running()
             ):
-                raise IOError(
-                    "failed: `od_reading` and `growth_rate_calculating` should be running."
+                self.logger.warn(
+                    "`od_reading` and `growth_rate_calculating` should be running."
                 )
             event = events.NoEvent("waiting for OD and growth rate data to arrive")
 
@@ -209,7 +209,7 @@ class DosingAlgorithm(BackgroundSubJob):
         self._clear_mqtt_cache()
 
     def __setattr__(self, name, value) -> None:
-        super(DosingAlgorithm, self).__setattr__(name, value)
+        super(DosingAutomation, self).__setattr__(name, value)
         if name in self.editable_settings and name != "state":
             self.latest_settings_ended_at = current_time()
             self._send_details_to_mqtt()
@@ -240,14 +240,14 @@ class DosingAlgorithm(BackgroundSubJob):
 
     def _send_details_to_mqtt(self):
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/dosing_algorithm_settings",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/dosing_automation_settings",
             json.dumps(
                 {
                     "pioreactor_unit": self.unit,
                     "experiment": self.experiment,
                     "started_at": self.latest_settings_started_at,
                     "ended_at": self.latest_settings_ended_at,
-                    "algorithm": self.__class__.__name__,
+                    "automation": self.__class__.__name__,
                     "settings": json.dumps(
                         {
                             attr: getattr(self, attr, None)

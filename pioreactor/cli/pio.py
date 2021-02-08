@@ -79,7 +79,6 @@ def update(ui, app):
         click.echo("Nothing happening. Specify either --app or --ui.")
 
     if app:
-        click.echo("Updating PioreactorApp to latest version.")
         cd = "cd ~/pioreactor"
         gitp = "git pull origin master"
         setup = "sudo python3 setup.py install"
@@ -94,7 +93,6 @@ def update(ui, app):
         logger.info("Updated PioreactorApp to latest version.")
 
     if ui and am_I_leader():
-        click.echo("Updating PioreactorUI to latest version.")
         cd = "cd ~/pioreactorui/backend"
         gitp = "git pull origin master"
         setup = "pm2 restart ui"
@@ -152,7 +150,8 @@ if am_I_leader():
     @click.argument("new_name")
     def add_pioreactor(new_name):
         """
-        fill me in
+        Add a new pioreactor to the cluster. new_name should be lowercase
+        characters with only [a-z] and [0-9]
 
         """
         import socket
@@ -200,5 +199,5 @@ if am_I_leader():
 
 if not am_I_leader() and not am_I_active_worker():
     logger.info(
-        f"Running `pio` on a non-active Pioreactor. Do you need to add `{get_unit_name()}` to `inventory` in `config.ini`?"
+        f"Running `pio` on a non-active Pioreactor. Do you need to change `{get_unit_name()}` in `inventory` section in `config.ini`?"
     )

@@ -38,6 +38,13 @@ def add_media(
 
     hz = 100
 
+    try:
+        config["pump_calibration"][f"media_ml_calibration_{unit}"]
+    except KeyError:
+        logger.error(
+            f"Calibration not defined. Add `pump_calibration` section to config_{unit}.ini."
+        )
+
     if ml is not None:
         user_submitted_ml = True
         assert ml >= 0

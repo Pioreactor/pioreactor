@@ -83,20 +83,34 @@ class BackgroundJob:
     def publish(self, *args, **kwargs):
         self.pubsub_client.publish(*args, **kwargs)
 
-    def subscribe_and_callback(self, callback, topics, allow_retained=True, qos=0):
+    def subscribe_and_callback(self, callback, subscriptions, allow_retained=True, qos=0):
         """
 
         Parameters
         -------------
         callback: callable
             Callbacks only accept a single parameter, message.
-        topics: str, list of str
+        subscriptions: str, list of str
         allow_retained: bool
             if True, all messages are allowed, including messages that the broker has retained. Note
             that client can fire a msg with retain=True, but because the broker is serving it to a
             subscriber "fresh", it will have retain=False on the client side. More here:
             https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
         """
+
+        def check_for_duplicate_subs(subs):
+
+            from itertools import combinations
+            from paho.mqtt.client import topic_matches_sub
+
+            for pair in combinations(subs, 2):
+                if topic_matches_sub(*subs):
+                    self.logger.debug(
+                        f"found equivalent pair of subs with same callback - this could cause duplication of callbacks: {pair}"
+                    )
+                    raise ValueError(
+                        f"found equivalent pair of subs with same callback - this could cause duplication of callbacks: {pair}"
+                    )
 
         def wrap_callback(actual_callback):
             def _callback(client, userdata, message):
@@ -114,11 +128,13 @@ class BackgroundJob:
             callback
         ), "callback should be callable - do you need to change the order of arguments?"
 
-        topics = [topics] if isinstance(topics, str) else topics
+        subscriptions = (
+            [subscriptions] if isinstance(subscriptions, str) else subscriptions
+        )
 
-        for topic in topics:
-            self.pubsub_client.message_callback_add(topic, wrap_callback(callback))
-            self.pubsub_client.subscribe(topic, qos=qos)
+        for sub in subscriptions:
+            self.pubsub_client.message_callback_add(sub, wrap_callback(callback))
+            self.pubsub_client.subscribe(sub, qos=qos)
         return
 
     def set_up_disconnect_protocol(self):
@@ -253,7 +269,6 @@ class BackgroundJob:
         )
 
     def start_general_passive_listeners(self) -> None:
-
         # listen to changes in editable properties
         # everyone listens to $BROADCAST
         self.subscribe_and_callback(

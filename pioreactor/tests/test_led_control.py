@@ -25,7 +25,7 @@ def test_silent():
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", "1.0")
     pause()
     r = pubsub.subscribe(
-        f"pioreactor/{unit}/{experiment}/led_control/led_algorithm", timeout=1
+        f"pioreactor/{unit}/{experiment}/led_control/led_automation", timeout=1
     )
     assert r.payload.decode() == "silent"
 
@@ -45,7 +45,7 @@ def test_track_od():
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", "0.01")
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", "2.0")
     pause()
-    con.led_algorithm_job.run()
+    con.led_automation_job.run()
     pause()
     r = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/leds/B/intensity", timeout=1)
     assert float(r.payload.decode()) == 0.2

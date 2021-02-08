@@ -35,6 +35,13 @@ def add_alt_media(
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
+    try:
+        config["pump_calibration"][f"alt_media_ml_calibration_{unit}"]
+    except KeyError:
+        logger.error(
+            f"Calibration not defined. Add `pump_calibration` section to config_{unit}.ini."
+        )
+
     hz = 100
     if ml is not None:
         user_submitted_ml = True

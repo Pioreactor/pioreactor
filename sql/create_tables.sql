@@ -119,29 +119,29 @@ CREATE INDEX IF NOT EXISTS pid_logs_ix
 ON pid_logs (experiment);
 
 
-CREATE TABLE IF NOT EXISTS dosing_algorithm_settings (
+CREATE TABLE IF NOT EXISTS dosing_automation_settings (
     pioreactor_unit          TEXT  NOT NULL,
     experiment               TEXT  NOT NULL,
     started_at               TEXT  NOT NULL,
     ended_at                 TEXT,
-    algorithm                TEXT  NOT NULL,
+    automation                TEXT  NOT NULL,
     settings                 TEXT  NOT NULL
 );
 
 
-CREATE INDEX IF NOT EXISTS dosing_algorithm_settings_ix
-ON dosing_algorithm_settings (experiment);
+CREATE INDEX IF NOT EXISTS dosing_automation_settings_ix
+ON dosing_automation_settings (experiment);
 
 
-CREATE TABLE IF NOT EXISTS led_algorithm_settings (
+CREATE TABLE IF NOT EXISTS led_automation_settings (
     pioreactor_unit          TEXT  NOT NULL,
     experiment               TEXT  NOT NULL,
     started_at               TEXT  NOT NULL,
     ended_at                 TEXT,
-    algorithm                TEXT  NOT NULL,
+    automation                TEXT  NOT NULL,
     settings                 TEXT  NOT NULL
 );
 
 
-CREATE INDEX IF NOT EXISTS led_algorithm_settings_ix
-ON led_algorithm_settings (experiment);
+CREATE INDEX IF NOT EXISTS led_automation_settings_ix
+ON led_automation_settings (experiment);
