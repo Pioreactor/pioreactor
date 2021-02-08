@@ -80,6 +80,7 @@ class BackgroundJob:
         client = create_client(
             last_will=last_will, client_id=f"{self.job_name}-{id(self)}"
         )
+        self.logger.debug(f"created {client._client_id}")
         return client
 
     def publish(self, *args, **kwargs):
