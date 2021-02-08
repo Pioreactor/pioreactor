@@ -77,8 +77,9 @@ class BackgroundJob:
             "retain": True,
         }
 
-        client = create_client(last_will=last_will)
-        self.logger.debug(client._client_id)
+        client = create_client(
+            last_will=last_will, client_id=f"{self.job_name}-{id(self)}"
+        )
         return client
 
     def publish(self, *args, **kwargs):
@@ -161,13 +162,14 @@ class BackgroundJob:
         self.state = self.INIT
         self.logger.debug(self.INIT)
 
-        # if we re-init (via MQTT, close previous threads)
-        for client in self.pubsub_clients:
-            client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-            client.disconnect()
+        if threading.current_thread() is not threading.main_thread():
+            # if we re-init (via MQTT, close previous threads), but don't do this in main thread
+            for client in self.pubsub_clients:
+                client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+                client.disconnect()
 
-        self.pubsub_client = self.create_pubsub_client()
-        self.pubsub_clients = [self.pubsub_client]
+            self.pubsub_client = self.create_pubsub_client()
+            self.pubsub_clients = [self.pubsub_client]
 
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()

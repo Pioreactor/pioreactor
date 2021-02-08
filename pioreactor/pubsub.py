@@ -12,10 +12,10 @@ class QOS:
     EXACTLY_ONCE = 2
 
 
-def create_client(hostname=leader_hostname, last_will=None):
+def create_client(hostname=leader_hostname, last_will=None, client_id=None):
     from paho.mqtt.client import Client
 
-    client = Client()
+    client = Client(client_id=client_id)
 
     if last_will is not None:
         client.will_set(**last_will)
