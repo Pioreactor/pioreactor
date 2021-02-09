@@ -104,7 +104,9 @@ class ADCReader(BackgroundSubJob):
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
                 self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/ads/{channel}", raw_signal_
+                    f"pioreactor/{self.unit}/{self.experiment}/ads/{channel}",
+                    raw_signal_,
+                    qos=QOS.EXACTLY_ONCE,
                 )
                 raw_signals[channel] = raw_signal_
 
@@ -121,6 +123,7 @@ class ADCReader(BackgroundSubJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/ads_batched",
                 json.dumps(raw_signals),
+                qos=QOS.EXACTLY_ONCE,
             )
 
             # the max signal should determine the ADS1115's gain

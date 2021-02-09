@@ -12,7 +12,7 @@ class QOS:
     EXACTLY_ONCE = 2
 
 
-def create_client(hostname=leader_hostname, last_will=None, client_id=None):
+def create_client(hostname=leader_hostname, last_will=None, client_id=None, keepalive=60):
     from paho.mqtt.client import Client
 
     client = Client(client_id=client_id)
@@ -20,7 +20,7 @@ def create_client(hostname=leader_hostname, last_will=None, client_id=None):
     if last_will is not None:
         client.will_set(**last_will)
 
-    client.connect(hostname)
+    client.connect(hostname, keepalive=keepalive)
     client.loop_start()
     return client
 

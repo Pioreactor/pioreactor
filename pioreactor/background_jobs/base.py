@@ -82,7 +82,9 @@ class BackgroundJob:
         }
 
         client = create_client(
-            last_will=last_will, client_id=f"{self.unit}-pub-{self.job_name}-{id(self)}"
+            last_will=last_will,
+            client_id=f"{self.unit}-pub-{self.job_name}-{id(self)}",
+            keepalive=10,
         )
 
         return client

@@ -123,6 +123,7 @@ install-ui:
 	sudo npm install pm2@latest -g
 
 	# we add another entry to mDNS: pioreactor.local, need the following:
+	# see avahi-alias.service for how this works
 	sudo apt-get install avahi-utils
 
 

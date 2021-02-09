@@ -10,6 +10,7 @@ import json
 import click
 
 
+from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.utils.timing import RepeatedTimer
@@ -129,10 +130,13 @@ class TimeSeriesAggregation(BackgroundJob):
             self.logger.warning("Only empty messages allowed to empty the cache.")
 
     def start_passive_listeners(self):
-        self.subscribe_and_callback(self.on_message, self.topic, allow_retained=False)
+        self.subscribe_and_callback(
+            self.on_message, self.topic, qos=QOS.EXACTLY_ONCE, allow_retained=False
+        )
         self.subscribe_and_callback(
             self.on_clear,
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/aggregated_time_series/set",
+            qos=QOS.AT_LEAST_ONCE,
         )
 
 
