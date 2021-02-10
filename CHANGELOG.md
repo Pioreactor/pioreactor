@@ -6,6 +6,10 @@
  - `pioreactor.local` is now the default URL of the PioreactorUI.
  - on Pioreactor install, a seed experiment is created so users aren't dropped into a "blank" UI.
  - `pubsub.subscribe_and_callback` can now filter retained messages.
+ - "algorithms" is now called "automations" throughout
+ - reduced the number of threads per job
+ - new topic for raw ADC measurements: `pioreactor/<unit>/<experiment>/adc/<channel>`
+ - improved MQTT QOS for important jobs
 
 
 ### 21.2.2

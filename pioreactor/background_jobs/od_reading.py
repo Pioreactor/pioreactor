@@ -104,7 +104,7 @@ class ADCReader(BackgroundSubJob):
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
                 self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/ads/{channel}",
+                    f"pioreactor/{self.unit}/{self.experiment}/adc/{channel}",
                     raw_signal_,
                     qos=QOS.EXACTLY_ONCE,
                 )
@@ -121,7 +121,7 @@ class ADCReader(BackgroundSubJob):
 
             # publish the batch of data, too, for reading
             self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/ads_batched",
+                f"pioreactor/{self.unit}/{self.experiment}/adc_batched",
                 json.dumps(raw_signals),
                 qos=QOS.EXACTLY_ONCE,
             )
@@ -251,12 +251,12 @@ class ODReader(BackgroundJob):
         # process incoming data
         self.subscribe_and_callback(
             self.publish_batch,
-            f"pioreactor/{self.unit}/{self.experiment}/ads_batched",
+            f"pioreactor/{self.unit}/{self.experiment}/adc_batched",
             qos=QOS.EXACTLY_ONCE,
         )
         self.subscribe_and_callback(
             self.publish_single,
-            f"pioreactor/{self.unit}/{self.experiment}/ads/+",
+            f"pioreactor/{self.unit}/{self.experiment}/adc/+",
             qos=QOS.EXACTLY_ONCE,
         )
 
