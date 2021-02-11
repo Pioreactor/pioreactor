@@ -27,7 +27,6 @@ a json like: {"135/0": 0.086, "135/1": 0.086, "135/2": 0.0877, "135/3": 0.0873}
 
 """
 import time
-import logging
 import json
 import signal
 
@@ -79,8 +78,9 @@ class ADCReader(BackgroundSubJob):
             self.ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
         except ValueError as e:
             self.logger.error(
-                "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for optical density measurements."
+                "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for ADC measurements."
             )
+            self.logger.debug(e, exc_info=True)
             raise e
 
         self.analog_in = []
@@ -310,9 +310,4 @@ def click_od_reading(od_angle_channel, fake_data):
     """
     Start the optical density reading job
     """
-    try:
-        od_reading(od_angle_channel, fake_data=fake_data)
-    except Exception as e:
-        logger = logging.getLogger("od_reading")
-        logger.error(e)
-        raise e
+    od_reading(od_angle_channel, fake_data=fake_data)

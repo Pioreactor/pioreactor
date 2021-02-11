@@ -102,14 +102,17 @@ def update(ui, app):
         npm_install = "npm install"
         unedit_edited_files = "git checkout ."
         command = " && ".join([cd, gitp, setup, npm_install, unedit_edited_files])
-        subprocess.run(
+        p = subprocess.run(
             command,
             shell=True,
             universal_newlines=True,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
         )
-        logger.info("Updated PioreactorUI to latest version.")
+        if p.returncode == 0:
+            logger.info("Updated PioreactorUI to latest version.")
+        else:
+            logger.error(p.stderr)
 
 
 # this runs on both leader and workers
