@@ -83,14 +83,17 @@ def update(ui, app):
         gitp = "git pull origin master"
         setup = "sudo python3 setup.py install"
         command = " && ".join([cd, gitp, setup])
-        subprocess.run(
+        p = subprocess.run(
             command,
             shell=True,
             universal_newlines=True,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT,
+            stderr=subprocess.PIPE,
         )
-        logger.info("Updated PioreactorApp to latest version.")
+        if p.returncode == 0:
+            logger.info("Updated PioreactorApp to latest version.")
+        else:
+            logger.error(p.stderr)
 
     if ui and am_I_leader():
         cd = "cd ~/pioreactorui/backend"
