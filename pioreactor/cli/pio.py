@@ -152,11 +152,14 @@ if am_I_leader():
         """
         Add a new pioreactor to the cluster. new_name should be lowercase
         characters with only [a-z] and [0-9]
-
         """
         import socket
         import subprocess
+        import re
         import time
+
+        def is_allowable_hostname(hostname):
+            return True if re.match(r"^[0-9a-zA-Z\-]+$", hostname) else False
 
         def is_host_on_network(hostname):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -170,6 +173,10 @@ if am_I_leader():
         # check to make sure new_name isn't already on the network
         if is_host_on_network(new_name):
             raise IOError(f"Name {new_name} is already on the network. Try another name.")
+        elif is_allowable_hostname(new_name):
+            raise IOError(
+                "New name should only contain numbers, -, and English alphabet: a-z."
+            )
 
         # check to make sure raspberrypi.local is on network
         raspberrypi_on_network = False
@@ -180,7 +187,7 @@ if am_I_leader():
                 socket.gethostbyname("raspberrypi")
             except socket.gaierror:
                 time.sleep(1)
-                print("raspberrypi not found - checking again.")
+                print("`raspberrypi` not found - checking again.")
                 if checks >= max_checks:
                     raise IOError(
                         f"raspberrypi not found on network after {max_checks} seconds."

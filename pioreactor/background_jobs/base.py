@@ -57,7 +57,6 @@ class BackgroundJob:
     editable_settings = []
 
     def __init__(self, job_name: str, experiment=None, unit=None) -> None:
-        self.pubsub_client = create_client()
 
         self.job_name = job_name
         self.experiment = experiment
@@ -95,6 +94,19 @@ class BackgroundJob:
 
     def publish(self, *args, **kwargs):
         self.pub_client.publish(*args, **kwargs)
+
+    def publish_attr(self, attr: str) -> None:
+        if attr == "state":
+            attr_name = "$state"
+        else:
+            attr_name = attr
+
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
+            getattr(self, attr),
+            retain=True,
+            qos=QOS.EXACTLY_ONCE,
+        )
 
     def subscribe_and_callback(self, callback, subscriptions, allow_retained=True, qos=0):
         """
@@ -273,18 +285,9 @@ class BackgroundJob:
             f"Updated {attr} from {previous_value} to {getattr(self, attr)}."
         )
 
-    def publish_attr(self, attr: str) -> None:
-        if attr == "state":
-            attr_name = "$state"
-        else:
-            attr_name = attr
-
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
-            getattr(self, attr),
-            retain=True,
-            qos=QOS.EXACTLY_ONCE,
-        )
+    def confirm_state_to_broker(self, message):
+        if message.payload.decode() != self.state:
+            self.publish_attr("state")
 
     def start_general_passive_listeners(self) -> None:
         # listen to changes in editable properties
@@ -295,6 +298,13 @@ class BackgroundJob:
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
                 f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
             ],
+        )
+        # listen for my own state changes and check if we should republish our state
+        # the brokers state might not equal my state in the event that the leader fails,
+        # and the last wills are triggered.
+        self.subscribe_and_callback(
+            self.confirm_state_to_broker,
+            [f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state"],
         )
 
     def check_for_duplicate_process(self):
