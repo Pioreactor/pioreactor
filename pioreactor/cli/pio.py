@@ -173,7 +173,7 @@ if am_I_leader():
         # check to make sure new_name isn't already on the network
         if is_host_on_network(new_name):
             raise IOError(f"Name {new_name} is already on the network. Try another name.")
-        elif is_allowable_hostname(new_name):
+        elif not is_allowable_hostname(new_name):
             raise IOError(
                 "New name should only contain numbers, -, and English alphabet: a-z."
             )

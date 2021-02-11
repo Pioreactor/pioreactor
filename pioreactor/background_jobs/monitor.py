@@ -21,7 +21,7 @@ GPIO.setmode(GPIO.BCM)
 
 class Monitor(BackgroundJob):
     """
-     - Reports metadata about the Rpi / Pioreactor  to the leader
+     - Reports metadata about the Rpi / Pioreactor to the leader
      - controls the LED / Button interaction
     """
 
@@ -108,7 +108,7 @@ class Monitor(BackgroundJob):
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self.flicker_led,
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/flicker_led",
+            f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led",
             qos=QOS.AT_LEAST_ONCE,
         )
 
