@@ -66,7 +66,10 @@ class ADCReader(BackgroundSubJob):
         self.ma = MovingStats(lookback=10)
         self.timer = RepeatedTimer(sampling_rate, self.take_reading)
         self.counter = 0
+        self.ads = None
+        self.analog_in = []
 
+    def setup_adc(self):
         if self.fake_data:
             i2c = MockI2C(SCL, SDA)
         else:
@@ -82,8 +85,6 @@ class ADCReader(BackgroundSubJob):
             )
             self.logger.debug(e, exc_info=True)
             raise e
-
-        self.analog_in = []
 
         for channel in [0, 1, 2, 3]:
             if self.fake_data:
@@ -189,6 +190,7 @@ class ODReader(BackgroundJob):
             experiment=self.experiment,
         )
         self.sub_jobs.append(self.adc_reader)
+        self.adc_reader.setup_adc()
         self.start_ir_led()
         self.start_passive_listeners()
 
