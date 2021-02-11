@@ -10,6 +10,7 @@ ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')              
 
 
 # allow us to SSH in
+# I've seen the frst sshpass fail to detect rpi.local, but the second succeed (then fail because dir is not created)
 sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local 'mkdir -p .ssh'
 cat ~/.ssh/id_rsa.pub | sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local 'cat >> .ssh/authorized_keys'
 

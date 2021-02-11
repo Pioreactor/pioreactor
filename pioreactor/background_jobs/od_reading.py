@@ -71,17 +71,18 @@ class ADCReader(BackgroundSubJob):
         if self.fake_data:
             i2c = MockI2C(SCL, SDA)
         else:
-            try:
-                i2c = busio.I2C(SCL, SDA)
-            except Exception as e:
-                self.logger.error(
-                    "Unable to find I2C for OD measurements. Is the Pioreactor hardware installed? Check the connections."
-                )
-                raise e
+            i2c = busio.I2C(SCL, SDA)
 
-        # we will change the gain dynamically later.
-        # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-        self.ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
+        try:
+            # we will change the gain dynamically later.
+            # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
+            self.ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
+        except ValueError as e:
+            self.logger.error(
+                "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for optical density measurements."
+            )
+            raise e
+
         self.analog_in = []
 
         for channel in [0, 1, 2, 3]:
@@ -115,7 +116,7 @@ class ADCReader(BackgroundSubJob):
                 # This is not for culture density saturation (different, harder problem)
                 if (self.counter % 20 == 0) and (raw_signal_ > 2.5):
                     self.logger.warning(
-                        f"ADS sensor {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
+                        f"ADC sensor {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
@@ -202,7 +203,7 @@ class ODReader(BackgroundJob):
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
-        time.sleep(0.25)  # give it a moment to get to set value
+        time.sleep(0.25)  # give LED a moment to get to max value
         return
 
     def stop_ir_led(self):
