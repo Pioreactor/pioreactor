@@ -58,13 +58,17 @@ ADS_GAIN_THRESHOLDS = {
 
 
 class ADCReader(BackgroundSubJob):
-    def __init__(self, sampling_rate=1, fake_data=False, unit=None, experiment=None):
+
+    editable_settings = ["interval", "first_ads_obs_time"]
+
+    def __init__(self, interval=1, fake_data=False, unit=None, experiment=None):
         super(ADCReader, self).__init__(
             job_name="adc_reader", unit=unit, experiment=experiment
         )
         self.fake_data = fake_data
+        self.interval = interval
         self.ma = MovingStats(lookback=10)
-        self.timer = RepeatedTimer(sampling_rate, self.take_reading)
+        self.timer = RepeatedTimer(self.interval, self.take_reading)
         self.counter = 0
         self.ads = None
         self.analog_in = []
@@ -93,6 +97,7 @@ class ADCReader(BackgroundSubJob):
                 ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             self.analog_in.append((channel, ai))
 
+        self.first_ads_obs_time = time.time()
         self.timer.start()
 
     def on_disconnect(self):
@@ -187,7 +192,7 @@ class ODReader(BackgroundJob):
         self.channel_label_map = channel_label_map
         self.fake_data = fake_data
         self.adc_reader = ADCReader(
-            sampling_rate=sampling_rate,
+            interval=sampling_rate,
             fake_data=fake_data,
             unit=self.unit,
             experiment=self.experiment,
