@@ -90,6 +90,13 @@ class BackgroundJob:
 
     def create_sub_client(self):
         client = create_client(client_id=f"{self.unit}-sub-{self.job_name}-{id(self)}")
+
+        # when we reconnect to the broker, we want to republish our state
+        # to overwrite potential last-will losts...
+        def publish_state_on_reconnect(*args):
+            self.publish_attr("state")
+
+        client.on_connect = publish_state_on_reconnect
         return client
 
     def publish(self, *args, **kwargs):
@@ -285,10 +292,6 @@ class BackgroundJob:
             f"Updated {attr} from {previous_value} to {getattr(self, attr)}."
         )
 
-    def confirm_state_to_broker(self, message):
-        if message.payload.decode() != self.state:
-            self.publish_attr("state")
-
     def start_general_passive_listeners(self) -> None:
         # listen to changes in editable properties
         # everyone listens to $BROADCAST
@@ -298,13 +301,6 @@ class BackgroundJob:
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
                 f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
             ],
-        )
-        # listen for my own state changes and check if we should republish our state
-        # the brokers state might not equal my state in the event that the leader fails,
-        # and the last wills are triggered.
-        self.subscribe_and_callback(
-            self.confirm_state_to_broker,
-            [f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state"],
         )
 
     def check_for_duplicate_process(self):

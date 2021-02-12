@@ -48,7 +48,6 @@ def test_pause_stirring_mid_cycle():
 
     publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
     pause()
-    print(f"pioreactor/{unit}/{exp}/stirring/$state/set")
 
     assert st.duty_cycle == 0
 

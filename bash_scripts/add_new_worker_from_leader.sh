@@ -12,7 +12,7 @@ ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')              
 # allow us to SSH in, but make sure we can first before continuing.
 while ! sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local "true"
     do echo "SSH to raspberrypi.local missed - `date`"
-    sleep 1
+    sleep 2
 done
 
 sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local 'mkdir -p .ssh'
@@ -48,6 +48,9 @@ ssh-keyscan -H $1 >> ~/.ssh/known_hosts
 
 # sync-configs
 pios sync-configs --units $1
+
+# techdebt
+ssh -o StrictHostKeyChecking=no $1 'sudo rm -rf ~/pioreactor && git clone --depth 1 https://github.com/Pioreactor/pioreactor.git'
 
 # reboot once more (previous reboot didn't have config.inis)
 ssh -o StrictHostKeyChecking=no $1 'sudo reboot'
