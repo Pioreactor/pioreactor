@@ -101,6 +101,7 @@ class ADCReader(BackgroundSubJob):
 
     def take_reading(self):
         self.counter += 1
+        self.logger.debug(f"start = {time.time()}")
         try:
             raw_signals = {}
             for channel, ai in self.analog_in:
@@ -120,6 +121,7 @@ class ADCReader(BackgroundSubJob):
                         f"ADC sensor {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
+            self.logger.debug(f"end = {time.time()}")
 
             # publish the batch of data, too, for reading
             self.publish(
