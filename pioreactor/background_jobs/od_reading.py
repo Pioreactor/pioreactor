@@ -97,7 +97,7 @@ class ADCReader(BackgroundSubJob):
 
     def on_disconnect(self):
         try:
-            self.timer_thread.cancel()
+            self.timer.cancel()
         except AttributeError:
             pass
 

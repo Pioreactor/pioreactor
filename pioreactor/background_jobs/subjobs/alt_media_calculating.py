@@ -32,8 +32,6 @@ class AltMediaCalculator(BackgroundSubJob):
         self.publish_periodically_thread = RepeatedTimer(
             5 * 60, self.publish_latest_alt_media_fraction, job_name=self.job_name
         )
-        self.logger.info(self.publish_periodically_thread)
-        self.logger.info(type(self.publish_periodically_thread))
         self.publish_periodically_thread.start()
 
         self.start_passive_listeners()
