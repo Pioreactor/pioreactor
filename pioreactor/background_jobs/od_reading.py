@@ -59,6 +59,7 @@ ADS_GAIN_THRESHOLDS = {
 
 class ADCReader(BackgroundSubJob):
 
+    first_ads_obs_time = None
     editable_settings = ["interval", "first_ads_obs_time"]
 
     def __init__(self, interval=1, fake_data=False, unit=None, experiment=None):
@@ -97,7 +98,6 @@ class ADCReader(BackgroundSubJob):
                 ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             self.analog_in.append((channel, ai))
 
-        self.first_ads_obs_time = time.time()
         self.timer.start()
 
     def on_disconnect(self):
@@ -107,6 +107,9 @@ class ADCReader(BackgroundSubJob):
             pass
 
     def take_reading(self):
+        if self.first_ads_obs_time is None:
+            self.first_ads_obs_time = time.time()
+
         self.counter += 1
         self.logger.debug(f"start = {time.time()}")
         try:
