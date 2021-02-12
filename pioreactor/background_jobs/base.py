@@ -93,10 +93,13 @@ class BackgroundJob:
 
         # when we reconnect to the broker, we want to republish our state
         # to overwrite potential last-will losts...
-        def publish_state_on_reconnect(*args):
+        # also reconnect to our old topics.
+        def reconnect_protocol(*args):
             self.publish_attr("state")
+            self.start_general_passive_listeners()
+            self.start_passive_listeners()
 
-        client.on_connect = publish_state_on_reconnect
+        client.on_connect = reconnect_protocol
         return client
 
     def publish(self, *args, **kwargs):
@@ -291,6 +294,11 @@ class BackgroundJob:
         self.logger.info(
             f"Updated {attr} from {previous_value} to {getattr(self, attr)}."
         )
+
+    def start_passive_listeners(self):
+        # overwrite this to in subclasses to subscribe to topics in MQTT
+        # using this handles reconnects correctly.
+        pass
 
     def start_general_passive_listeners(self) -> None:
         # listen to changes in editable properties
