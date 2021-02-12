@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, sys, logging
-from threading import Timer
+from threading import Event, Thread
 
 
 def every(delay, task, *args, **kwargs):
@@ -46,41 +46,27 @@ class RepeatedTimer:
     """
 
     def __init__(
-        self, interval, function, run_immediately=False, job_name=None, *args, **kwargs
+        self, interval, function, job_name=None, run_immediately=False, *args, **kwargs
     ):
-        self._timer = None
         self.interval = interval
         self.function = function
         self.args = args
         self.kwargs = kwargs
-        self.is_running = False
         self.logger = logging.getLogger(job_name or "RepeatedTimer")
+        self.start = time.time()
+        self.event = Event()
+        self.thread = Thread(target=self._target)
         self.daemon = True
-        if run_immediately:
-            self._timer = Timer(0, self.function, self.args, self.kwargs)
-            self._timer.daemon = True
-            self._timer.start()
+        self.thread.start()
 
-        self.start()
-
-    def _run(self):
-        self.is_running = False
-        self.start()
-        try:
+    def _target(self):
+        while not self.event.wait(self._time):
             self.function(*self.args, **self.kwargs)
-        except Exception as e:
-            self.logger.debug(e, exc_info=True)
-            self.logger.error(e)
-            raise e
 
-    def start(self):
-        if not self.is_running:
-            self._timer = Timer(self.interval, self._run)
-            self._timer.daemon = True
-            self._timer.start()
-            self.is_running = True
-        return self
+    @property
+    def _time(self):
+        return self.interval - ((time.time() - self.start) % self.interval)
 
-    def cancel(self):
-        self._timer.cancel()
-        self.is_running = False
+    def stop(self):
+        self.event.set()
+        self.thread.join()
