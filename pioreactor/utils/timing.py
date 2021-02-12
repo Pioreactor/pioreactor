@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, sys, logging
-from threading import Event, Thread
+from threading import Event, Thread, Timer
 
 
 def every(delay, task, *args, **kwargs):
@@ -32,7 +32,7 @@ def every(delay, task, *args, **kwargs):
 
 class RepeatedTimer:
     """
-    A class for repeating a function in the background every N seconds.
+    A class for repeating a function in the background exactly every N seconds.
 
     Use like:
 
@@ -53,11 +53,16 @@ class RepeatedTimer:
         self.args = args
         self.kwargs = kwargs
         self.logger = logging.getLogger(job_name or "RepeatedTimer")
-        self.start = time.time()
+
+        if run_immediately:
+            temp_thread = Timer(0, self.function, self.args, self.kwargs)
+            temp_thread.daemon = True
+            temp_thread.start()
+
+        self.start_time = time.time()
         self.event = Event()
         self.thread = Thread(target=self._target)
         self.daemon = True
-        self.thread.start()
 
     def _target(self):
         while not self.event.wait(self._time):
@@ -65,8 +70,12 @@ class RepeatedTimer:
 
     @property
     def _time(self):
-        return self.interval - ((time.time() - self.start) % self.interval)
+        return self.interval - ((time.time() - self.start_time) % self.interval)
 
-    def stop(self):
+    def cancel(self):
         self.event.set()
         self.thread.join()
+
+    def start(self):
+        self.thread.start()
+        return self

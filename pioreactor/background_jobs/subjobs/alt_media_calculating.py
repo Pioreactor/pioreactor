@@ -29,15 +29,17 @@ class AltMediaCalculator(BackgroundSubJob):
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 
         # publish often to fill in gaps in UI chart.
-        self.publish_periodically_thead = RepeatedTimer(
+        self.publish_periodically_thread = RepeatedTimer(
             5 * 60, self.publish_latest_alt_media_fraction, job_name=self.job_name
         )
-        self.publish_periodically_thead.start()
+        self.logger.info(self.publish_periodically_thread)
+        self.logger.info(type(self.publish_periodically_thread))
+        self.publish_periodically_thread.start()
 
         self.start_passive_listeners()
 
     def on_disconnect(self):
-        self.publish_periodically_thead.cancel()
+        self.publish_periodically_thread.cancel()
 
     def on_dosing_event(self, message):
         payload = json.loads(message.payload)
