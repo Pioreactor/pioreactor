@@ -94,10 +94,16 @@ class BackgroundJob:
         # when we reconnect to the broker, we want to republish our state
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
-        def reconnect_protocol(*args):
+        def reconnect_protocol(client, userdata, flags, rc, properties=None):
+
             self.publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()
+
+        # the client connects async, but we want it to be connected before adding
+        # our reconnect callback
+        while not client.is_connected():
+            pass
 
         client.on_connect = reconnect_protocol
         return client

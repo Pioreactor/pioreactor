@@ -196,7 +196,6 @@ class GrowthRateCalculator(BackgroundJob):
             raise e
 
     def start_passive_listeners(self):
-
         # process incoming data
         self.subscribe_and_callback(
             self.update_state_from_observation,
