@@ -76,8 +76,12 @@ class DosingController(BackgroundJob):
             self.dosing_automation_job.set_state(self.SLEEPING)
 
     def on_ready(self):
-        if self.dosing_automation_job.state != self.READY:
-            self.dosing_automation_job.set_state(self.READY)
+        try:
+            if self.dosing_automation_job.state != self.READY:
+                self.dosing_automation_job.set_state(self.READY)
+        except AttributeError:
+            # attribute error occurs on first init of _control
+            pass
 
     def on_disconnect(self):
         try:
@@ -142,7 +146,7 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
     "--duration", default=60, help="Time, in minutes, between every monitor check"
 )
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
-@click.option("--sensor", default="135/0", show_default=True)
+@click.option("--sensor", default="+", show_default=True)
 @click.option(
     "--skip-first-run",
     is_flag=True,

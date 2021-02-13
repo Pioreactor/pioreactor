@@ -1,4 +1,12 @@
 
+### 21.2.4
+ - fixed reconnect issues when leader went offline and then online
+ - pausing `dosing_control` now pauses sub jobs `dosing_automation`
+ - renamed `_algorithm` to `_automation` everywhere.
+ - ADC measurements are now run at exact time intervals (previously there was some drift). The `adc` job now publishes metadata about it's recording times.
+ - Improved error handling in `od_reading`
+
+
 ### 21.2.3
 
  - The `logs` table in the database now contains, by default, all the DEBUG and up logs

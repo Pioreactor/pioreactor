@@ -56,8 +56,12 @@ class LEDController(BackgroundJob):
             self.led_automation_job.set_state(self.SLEEPING)
 
     def on_ready(self):
-        if self.led_automation_job.state != self.READY:
-            self.led_automation_job.set_state(self.READY)
+        try:
+            if self.led_automation_job.state != self.READY:
+                self.led_automation_job.set_state(self.READY)
+        except AttributeError:
+            # attribute error occurs on first init of _control
+            pass
 
     def on_disconnect(self):
         try:
