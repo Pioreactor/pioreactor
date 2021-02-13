@@ -75,9 +75,9 @@ def add_media(
     )
 
     if user_submitted_ml:
-        logger.info(f"add media: {round(ml,2)}mL")
+        logger.info(f"{round(ml, 2)}mL")
     else:
-        logger.info(f"add media: {round(duration,2)}s")
+        logger.info(f"{round(duration, 2)}s")
 
     try:
         MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "media")]

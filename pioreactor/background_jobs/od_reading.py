@@ -58,6 +58,19 @@ ADS_GAIN_THRESHOLDS = {
 
 
 class ADCReader(BackgroundSubJob):
+    """
+    This job publishes the voltage reading from _all_ channels, and downstream
+    jobs can selectively choose a channel to listen to.
+
+
+    We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
+    make decisions. For example, if a bubbler is active, it should time itself
+    s.t. it is _not_ running when an turbidity measurement is about to occur.
+    `interval` is there so that it's clear the duration between readings,
+    and in case the config.ini is changed between this job starting and the downstream
+    job starting.
+
+    """
 
     first_ads_obs_time = None
     editable_settings = ["interval", "first_ads_obs_time"]
@@ -111,7 +124,6 @@ class ADCReader(BackgroundSubJob):
             self.first_ads_obs_time = time.time()
 
         self.counter += 1
-        self.logger.debug(f"start = {time.time()}")
         try:
             raw_signals = {}
             for channel, ai in self.analog_in:

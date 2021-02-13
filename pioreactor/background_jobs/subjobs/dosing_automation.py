@@ -47,15 +47,15 @@ class DosingAutomation(BackgroundSubJob):
     latest_growth_rate_timestamp = None
     latest_settings_started_at = current_time()
     latest_settings_ended_at = None
-    editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
     sub_jobs = []
+    editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
 
     def __init__(
         self,
         unit=None,
         experiment=None,
         duration=60,
-        sensor="135/0",
+        sensor="+",  # take first observed, and keep using only that.
         skip_first_run=False,
         **kwargs,
     ):
@@ -64,7 +64,6 @@ class DosingAutomation(BackgroundSubJob):
         )
 
         self.latest_event = None
-
         self.sensor = sensor
         self.skip_first_run = skip_first_run
 
@@ -99,7 +98,7 @@ class DosingAutomation(BackgroundSubJob):
                 ).start()
 
     def run(self, counter=None):
-        time.sleep(8)  # wait some time for data to arrive
+        time.sleep(10)  # wait some time for data to arrive
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not ("od_reading" in pio_jobs_running()) and (
@@ -193,8 +192,6 @@ class DosingAutomation(BackgroundSubJob):
     def most_stale_time(self):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
-    ########## Private & internal methods
-
     def on_disconnect(self):
         self.latest_settings_ended_at = current_time()
         self._send_details_to_mqtt()
@@ -222,6 +219,14 @@ class DosingAutomation(BackgroundSubJob):
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
+        # todo: test me
+        if self.sensor == "+":
+            split_topic = message.topic.split("/")
+            self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
+
+        if not message.topic.endswith(self.sensor):
+            return
+
         self.previous_od = self.latest_od
         self.latest_od = float(message.payload)
         self.latest_od_timestamp = time.time()

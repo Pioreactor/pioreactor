@@ -231,7 +231,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter():
     algo.set_state("disconnected")
 
 
-def test_pause_in_dosing_control():
+def test_pause_in_dosing_automation():
 
     algo = DosingAutomation(
         target_growth_rate=0.05,
@@ -252,6 +252,31 @@ def test_pause_in_dosing_control():
     )
     pause()
     assert algo.state == "ready"
+    algo.set_state("disconnected")
+
+
+def test_pause_in_dosing_control_also_pauses_automation():
+
+    algo = DosingController(
+        "turbidostat",
+        target_od=1.0,
+        duration=5 / 60,
+        volume=1.0,
+        unit=unit,
+        experiment=experiment,
+    )
+    pause()
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "sleeping"
+    )
+    pause()
+    assert algo.state == "sleeping"
+    assert algo.dosing_automation_job.state == "sleeping"
+
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "ready")
+    pause()
+    assert algo.state == "ready"
+    assert algo.dosing_automation_job.state == "ready"
     algo.set_state("disconnected")
 
 

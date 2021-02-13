@@ -71,9 +71,17 @@ class DosingController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
+    def on_sleeping(self):
+        if self.dosing_automation_job.state != self.SLEEPING:
+            self.dosing_automation_job.set_state(self.SLEEPING)
+
+    def on_ready(self):
+        if self.dosing_automation_job.state != self.READY:
+            self.dosing_automation_job.set_state(self.READY)
+
     def on_disconnect(self):
         try:
-            self.dosing_automation_job.set_state("disconnected")
+            self.dosing_automation_job.set_state(self.DISCONNECTED)
             self.clear_mqtt_cache()
         except AttributeError:
             # if disconnect is called right after starting, dosing_automation_job isn't instantiated

@@ -51,6 +51,14 @@ class LEDController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
+    def on_sleeping(self):
+        if self.led_automation_job.state != self.SLEEPING:
+            self.led_automation_job.set_state(self.SLEEPING)
+
+    def on_ready(self):
+        if self.led_automation_job.state != self.READY:
+            self.led_automation_job.set_state(self.READY)
+
     def on_disconnect(self):
         try:
             self.led_automation_job.set_state("disconnected")

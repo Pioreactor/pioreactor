@@ -218,11 +218,25 @@ class BackgroundJob:
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 
+    def on_ready(self):
+        pass
+
     def ready(self):
+        try:
+            self.on_ready()
+        except Exception as e:
+            self.logger.error(e, exc_info=True)
         self.state = self.READY
         self.logger.info(self.READY)
 
+    def on_sleeping(self):
+        pass
+
     def sleeping(self):
+        try:
+            self.on_sleeping()
+        except Exception as e:
+            self.logger.error(e, exc_info=True)
         self.state = self.SLEEPING
         self.logger.debug(self.SLEEPING)
 
