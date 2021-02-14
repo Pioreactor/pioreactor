@@ -35,7 +35,16 @@ class MQTTHandler(logging.Handler):
         logging.Handler.__init__(self)
         self.topic = topic
         self.qos = qos
-        self.client = create_client(client_id=f"{get_unit_name()}-pub-logging-{id(self)}")
+        self._client = None
+
+    @property
+    def client(self):
+        # we don't connect until needed, this makes tools like the CLI faster.
+        if self._client is None:
+            self._client = create_client(
+                client_id=f"{get_unit_name()}-pub-logging-{id(self)}"
+            )
+        return self._client
 
     def emit(self, record):
         msg = self.format(record)
@@ -83,7 +92,6 @@ mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))
 mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(levelname)-2s %(message)s"))
 
 # create MQTT handlers for logging to UI
-exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 topic = f"pioreactor/{get_unit_name()}/{exp}/app_logs_for_ui"
 ui_handler = MQTTHandler(topic)
 ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
