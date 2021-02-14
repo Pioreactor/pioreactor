@@ -49,6 +49,7 @@ class MQTTHandler(logging.Handler):
 
     @property
     def topic(self):
+        # we don't connect until needed, this makes tools like the CLI faster.
         if not self._filled:
             exp = (
                 get_latest_experiment_name()

@@ -57,20 +57,20 @@ class BackgroundJob:
     editable_settings = []
 
     def __init__(self, job_name: str, experiment=None, unit=None) -> None:
-
         self.job_name = job_name
+        self.logger = logging.getLogger(self.job_name)
+        self.check_for_duplicate_process()
+
         self.experiment = experiment
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
-        self.logger = logging.getLogger(self.job_name)
         self.pub_client = self.create_pub_client()
         self.sub_client = self.create_sub_client()
         self.pubsub_clients = [self.pub_client, self.sub_client]
 
-        self.check_for_duplicate_process()
         self.set_state(self.INIT)
-        self.set_state(self.READY)
         self.set_up_disconnect_protocol()
+        self.set_state(self.READY)
 
     def create_pub_client(self):
         last_will = {
@@ -252,7 +252,6 @@ class BackgroundJob:
             self.on_disconnect()
         except Exception as e:
             self.logger.error(e, exc_info=True)
-
         # set state to disconnect
         self.state = self.DISCONNECTED
         self.logger.info(self.DISCONNECTED)
