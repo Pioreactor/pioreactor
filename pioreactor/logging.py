@@ -33,9 +33,10 @@ class MQTTHandler(logging.Handler):
 
     def __init__(self, topic, qos=2):
         logging.Handler.__init__(self)
-        self.topic = topic
         self.qos = qos
         self._client = None
+        self._topic = topic
+        self._filled = False
 
     @property
     def client(self):
@@ -45,6 +46,18 @@ class MQTTHandler(logging.Handler):
                 client_id=f"{get_unit_name()}-pub-logging-{id(self)}"
             )
         return self._client
+
+    @property
+    def topic(self):
+        if not self._filled:
+            exp = (
+                get_latest_experiment_name()
+                if am_I_active_worker()
+                else UNIVERSAL_EXPERIMENT
+            )
+            self._topic = self._topic.format(exp, get_unit_name())
+            self._filled = True
+        return self._topic
 
     def emit(self, record):
         msg = self.format(record)
@@ -85,15 +98,14 @@ console_handler.setFormatter(
 
 
 # create MQTT handlers for logging to DB
-exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
-topic = f"pioreactor/{get_unit_name()}/{exp}/logs/app"
+topic = "pioreactor/{}/{}/logs/app"
 mqtt_handler = MQTTHandler(topic)
 mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))
 mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(levelname)-2s %(message)s"))
 
 # create MQTT handlers for logging to UI
-topic = f"pioreactor/{get_unit_name()}/{exp}/app_logs_for_ui"
-ui_handler = MQTTHandler(topic)
+topic = "pioreactor/{}/{}/app_logs_for_ui"
+ui_handler = MQTTHandler(topic, qos=0)
 ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
 ui_handler.setFormatter(CustomMQTTtoUIFormatter())
 
