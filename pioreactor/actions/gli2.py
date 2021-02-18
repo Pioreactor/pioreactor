@@ -41,6 +41,12 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
     led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
 
+    # take baseline measurements
+    adc.take_reading()
+    baselineA = getattr(adc, f"A{pd_A}")
+    baselineB = getattr(adc, f"A{pd_B}")
+    print(baselineA, baselineB)
+
     # find values of LED intensity s.t. we don't overload the 180 degree sensor, i.e. aim for 2.25V, or max
     # A first
     for i in range(1, 100):
@@ -69,15 +75,17 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
         led_intensity(led_A, intensity=A_max, verbose=False, source_of_event="gli2")
 
         adc.take_reading()
-        signal1 = getattr(adc, f"A{pd_B}") / getattr(adc, f"A{pd_A}")
-        print(getattr(adc, f"A{pd_B}"), getattr(adc, f"A{pd_A}"))
+        signal1 = (getattr(adc, f"A{pd_B}") - baselineB) / (
+            getattr(adc, f"A{pd_A}") - baselineA
+        )
 
         led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
         led_intensity(led_B, intensity=B_max, verbose=False, source_of_event="gli2")
 
         adc.take_reading()
-        signal2 = getattr(adc, f"A{pd_A}") / getattr(adc, f"A{pd_B}")
-        print(getattr(adc, f"A{pd_A}"), getattr(adc, f"A{pd_B}"))
+        signal2 = (getattr(adc, f"A{pd_A}") - baselineA) / (
+            getattr(adc, f"A{pd_B}") - baselineB
+        )
 
         led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
         led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
