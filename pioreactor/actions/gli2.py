@@ -9,27 +9,27 @@ from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
 
 
-def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
+def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
     """
     Advisable that stirring is turned on. OD reading should be turned off.
 
-    The pd_X and led_X are the (integer) channels on the Pioreactor HAT. They map to the pairs of pockets at 90° angles in the Pioreactor, see below
+    The pd_Z and led_Z are the channels on the Pioreactor HAT. They map to the pairs of pockets at 90° angles in the Pioreactor, see below
 
 
 
-               pd_B
+               pd_Y
            , - ~ ~ ~ - ,
       x, '               ' ,x
      ,                       ,
     ,                         ,
    ,                           ,
- led_A                        pd_A
+ led_X                        pd_X
    ,                           ,
     ,                         ,
      ,                       ,
       x,                  , 'x
          ' - , _ _ _ ,  '
-               led_B
+               led_Y
 
     """
     assert "od_reading" not in pio_jobs_running(), "Turn off od_reading job first."
@@ -38,63 +38,60 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     adc.setup_adc()
 
     # reset all to 0
-    led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
-    led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
+    led_intensity(led_X, intensity=0, verbose=False, source_of_event="gli2")
+    led_intensity(led_Y, intensity=0, verbose=False, source_of_event="gli2")
 
     # take baseline measurements
     adc.take_reading()
-    baselineA = getattr(adc, f"A{pd_A}")
-    baselineB = getattr(adc, f"A{pd_B}")
-    print(baselineA, baselineB)
+    baselineX = getattr(adc, f"A{pd_X}")
+    baselineY = getattr(adc, f"A{pd_Y}")
 
     # find values of LED intensity s.t. we don't overload the 180 degree sensor
-    # A first
+    # X first
     for i in range(1, 100):
-        led_intensity(led_A, intensity=i, verbose=False, source_of_event="gli2")
+        led_intensity(led_X, intensity=i, verbose=False, source_of_event="gli2")
         adc.take_reading()
-        if getattr(adc, f"A{pd_A}") >= 2.048:
-            A_max = i - 1
-            led_intensity(led_A, 0, verbose=False, source_of_event="gli2")
+        if getattr(adc, f"A{pd_X}") >= 2.048:
+            X_max = i - 1
+            led_intensity(led_X, 0, verbose=False, source_of_event="gli2")
             break
     else:
-        A_max = 100
+        X_max = 100
 
-    # B next
+    # Y next
     for i in range(1, 100):
-        led_intensity(led_B, intensity=i, verbose=False, source_of_event="gli2")
+        led_intensity(led_Y, intensity=i, verbose=False, source_of_event="gli2")
         adc.take_reading()
-        if getattr(adc, f"A{pd_B}") >= 2.048:
-            B_max = i - 1
-            led_intensity(led_B, 0, verbose=False, source_of_event="gli2")
+        if getattr(adc, f"A{pd_Y}") >= 2.048:
+            Y_max = i - 1
+            led_intensity(led_Y, 0, verbose=False, source_of_event="gli2")
             break
     else:
-        B_max = 100
+        Y_max = 100
 
     def make_measurement():
-        led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
-        led_intensity(led_A, intensity=A_max, verbose=False, source_of_event="gli2")
+        led_intensity(led_Y, intensity=0, verbose=False, source_of_event="gli2")
+        led_intensity(led_X, intensity=X_max, verbose=False, source_of_event="gli2")
 
         adc.take_reading()
-        signal1 = (getattr(adc, f"A{pd_B}") - baselineB) / (
-            getattr(adc, f"A{pd_A}") - baselineA
+        signal1 = (getattr(adc, f"A{pd_Y}") - baselineY) / (
+            getattr(adc, f"A{pd_X}") - baselineX
         )
 
-        led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
-        led_intensity(led_B, intensity=B_max, verbose=False, source_of_event="gli2")
+        led_intensity(led_X, intensity=0, verbose=False, source_of_event="gli2")
+        led_intensity(led_Y, intensity=Y_max, verbose=False, source_of_event="gli2")
 
         adc.take_reading()
-        signal2 = (getattr(adc, f"A{pd_A}") - baselineA) / (
-            getattr(adc, f"A{pd_B}") - baselineB
+        signal2 = (getattr(adc, f"A{pd_X}") - baselineX) / (
+            getattr(adc, f"A{pd_Y}") - baselineY
         )
 
-        led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
-        led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
+        led_intensity(led_X, intensity=0, verbose=False, source_of_event="gli2")
+        led_intensity(led_Y, intensity=0, verbose=False, source_of_event="gli2")
         return sqrt(signal1 * signal2)
 
     signal = make_measurement()
-    print(signal)
     adc.set_state(adc.DISCONNECTED)
-    print("Here")
 
     return signal
 
@@ -105,28 +102,29 @@ def click_gli2():
     Take a GLI Method 2 measurement, uncalibrated output.
     """
     try:
-        led_A = config.get("leds", "ir_ledA")
-        led_B = config.get("leds", "ir_ledB")
+        led_X = config.get("leds", "ir_led_X")
+        led_Y = config.get("leds", "ir_led_Y")
 
-        pd_A = config.getint("pd_inputs", "pd_A")
-        pd_B = config.getint("pd_inputs", "pd_B")
+        pd_X = config.getint("pd_inputs", "pd_X")
+        pd_Y = config.getint("pd_inputs", "pd_Y")
     except KeyError:
         raise KeyError(
             """
 Requires following populated in config.ini:
 
 [leds]
-ir_ledA=
-ir_ledB=
+ir_led_X=
+ir_led_Y=
 
 [pd_inputs]
-pd_A=
-pd_B=
+pd_X=
+pd_Y=
 
         """
         )
-    return gli2(pd_A, pd_B, led_A, led_B)
+    click.echo(gli2(pd_X, pd_Y, led_X, led_Y))
+    return
 
 
 if __name__ == "__main__":
-    print(click_gli2())
+    click_gli2()
