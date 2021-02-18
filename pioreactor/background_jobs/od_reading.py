@@ -276,6 +276,10 @@ class ODReader(BackgroundJob):
         ads_readings = json.loads(message.payload)
         od_readings = {}
         for channel, label in self.channel_label_map.items():
+            self.logger.debug(od_readings)
+            self.logger.debug(label)
+            self.logger.debug(ads_readings)
+            self.logger.debug(str(channel))
             od_readings[label] = ads_readings[str(channel)]
 
         self.publish(
