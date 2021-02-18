@@ -276,7 +276,6 @@ class ODReader(BackgroundJob):
         ads_readings = json.loads(message.payload)
         od_readings = {}
         for channel, label in self.channel_label_map.items():
-            self.logger.debug(ads_readings)
             od_readings[label] = ads_readings[str(channel)]
 
         self.publish(
@@ -304,16 +303,19 @@ class ODReader(BackgroundJob):
     def start_passive_listeners(self):
 
         # process incoming data
+        # allow_retained is False because we don't want to process (stale) retained ADS values
         self.subscribe_and_callback(
             self.publish_batch,
             f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/batched_readings",
             qos=QOS.EXACTLY_ONCE,
+            allow_retained=False,
         )
         for channel in ["A0", "A1", "A2", "A3"]:
             self.subscribe_and_callback(
                 self.publish_single,
                 f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/{channel}",
                 qos=QOS.EXACTLY_ONCE,
+                allow_retained=False,
             )
 
 
