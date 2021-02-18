@@ -148,7 +148,7 @@ class ADCReader(BackgroundSubJob):
                 raw_signal_ = ai.voltage
                 raw_signals[channel] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{channel}
-                setattr(f"A{channel}", raw_signal_)
+                setattr(self, f"A{channel}", raw_signal_)
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than 2.5V, which is well above anything normal.

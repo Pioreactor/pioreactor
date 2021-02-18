@@ -22,7 +22,7 @@ def get_current_state_from_broker(unit, experiment):
 
 
 def led_intensity(
-    channel, intensity=0.0, source_of_event=None, unit=None, experiment=None
+    channel, intensity=0.0, source_of_event=None, unit=None, experiment=None, verbose=True
 ):
     """
     State is also updated in
@@ -59,7 +59,9 @@ def led_intensity(
         old_intensity = state[channel]
         state[channel] = intensity
 
-        logger.info(f"Updated LED {channel} from {old_intensity} to {intensity}.")
+        if verbose:
+            logger.info(f"Updated LED {channel} from {old_intensity} to {intensity}.")
+
         publish(
             f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
             intensity,

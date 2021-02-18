@@ -38,13 +38,13 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     adc.setup_adc()
 
     # reset all to 0
-    led_intensity(led_A, intensity=0)
-    led_intensity(led_B, intensity=0)
+    led_intensity(led_A, intensity=0, verbose=True)
+    led_intensity(led_B, intensity=0, verbose=True)
 
     # find values of LED intensity s.t. we don't overload the 180 degree sensor, i.e. aim for 2.25V, or max
     # A first
     for i in range(5, 100, 5):
-        led_intensity(led_A, intensity=i)
+        led_intensity(led_A, intensity=i, verbose=True)
         adc.take_reading()
         if getattr(adc, f"A{pd_A}") > 2.25:
             A_max = i
@@ -53,11 +53,11 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
         A_max = 1
 
     # turn LED off again
-    led_intensity(led_A, 0)
+    led_intensity(led_A, 0, verbose=True)
 
     # B next
     for i in range(5, 100, 5):
-        led_intensity(led_B, intensity=i)
+        led_intensity(led_B, intensity=i, verbose=True)
         adc.take_reading()
         if getattr(adc, f"A{pd_B}") > 2.25:
             B_max = i
@@ -66,25 +66,25 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
         B_max = 1
 
     # turn LED off again
-    led_intensity(led_B, 0)
+    led_intensity(led_B, 0, verbose=True)
 
     def make_measurement():
-        led_intensity(led_B, intensity=0)
-        led_intensity(led_A, intensity=A_max)
+        led_intensity(led_B, intensity=0, verbose=True)
+        led_intensity(led_A, intensity=A_max, verbose=True)
         time.sleep(0.025)
 
         adc.take_reading()
         signal1 = getattr(adc, f"A{pd_B}") / getattr(adc, f"A{pd_A}")
 
-        led_intensity(led_A, intensity=0)
-        led_intensity(led_B, intensity=B_max)
+        led_intensity(led_A, intensity=0, verbose=True)
+        led_intensity(led_B, intensity=B_max, verbose=True)
         time.sleep(0.025)
 
         adc.take_reading()
         signal2 = getattr(adc, f"A{pd_A}") / getattr(adc, f"A{pd_B}")
 
-        led_intensity(led_A, intensity=0)
-        led_intensity(led_B, intensity=0)
+        led_intensity(led_A, intensity=0, verbose=True)
+        led_intensity(led_B, intensity=0, verbose=True)
         return sqrt(signal1 * signal2)
 
     return make_measurement()
