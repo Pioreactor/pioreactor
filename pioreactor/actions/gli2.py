@@ -45,9 +45,12 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
             experiment=experiment,
         )
 
+    def adc_reading(adc, channel):
+        return getattr(adc, f"A{channel}")
+
     assert "od_reading" not in pio_jobs_running(), "Turn off od_reading job first."
 
-    adc = ADCReader(unit=unit, experiment=experiment, dynamic_gain=False)
+    adc = ADCReader(unit=unit, experiment=experiment, initial_gain=2, dynamic_gain=False)
     adc.setup_adc()
 
     # reset all to 0
@@ -56,15 +59,15 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
 
     # take baseline measurements
     adc.take_reading()
-    baselineX = getattr(adc, f"A{pd_X}")
-    baselineY = getattr(adc, f"A{pd_Y}")
+    baselineX = adc_reading(adc, "X")
+    baselineY = adc_reading(adc, "Y")
 
     # find values of LED intensity s.t. we don't overload the 180 degree sensor
     # X first
     for i in range(1, 100):
         update_intensity(led_X, i)
         adc.take_reading()
-        if getattr(adc, f"A{pd_X}") >= 2.048:
+        if adc_reading(adc, "X") >= 2.048:
             X_max = i - 1
             update_intensity(led_X, 0)
             break
@@ -75,7 +78,7 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
     for i in range(1, 100):
         update_intensity(led_Y, i)
         adc.take_reading()
-        if getattr(adc, f"A{pd_Y}") >= 2.048:
+        if adc_reading(adc, "Y") >= 2.048:
             Y_max = i - 1
             update_intensity(led_Y, 0)
             break
@@ -87,16 +90,16 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
         update_intensity(led_X, X_max)
 
         adc.take_reading()
-        signal1 = (getattr(adc, f"A{pd_Y}") - baselineY) / (
-            getattr(adc, f"A{pd_X}") - baselineX
+        signal1 = (adc_reading(adc, "Y") - baselineY) / (
+            adc_reading(adc, "X") - baselineX
         )
 
         update_intensity(led_X, 0)
         update_intensity(led_Y, Y_max)
 
         adc.take_reading()
-        signal2 = (getattr(adc, f"A{pd_X}") - baselineX) / (
-            getattr(adc, f"A{pd_Y}") - baselineY
+        signal2 = (adc_reading(adc, "X") - baselineX) / (
+            adc_reading(adc, "Y") - baselineY
         )
 
         update_intensity(led_X, 0)

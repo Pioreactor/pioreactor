@@ -98,6 +98,7 @@ class ADCReader(BackgroundSubJob):
         unit=None,
         experiment=None,
         dynamic_gain=True,
+        initial_gain=2,
     ):
         super(ADCReader, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment
@@ -105,6 +106,7 @@ class ADCReader(BackgroundSubJob):
         self.fake_data = fake_data
         self.interval = interval
         self.dynamic_gain = dynamic_gain
+        self.initial_gain = initial_gain
         self.counter = 0
         self.ema = ExponentialMovingAverage(alpha=0.15)
         self.ads = None
@@ -121,7 +123,7 @@ class ADCReader(BackgroundSubJob):
         try:
             # we will change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-            self.ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
+            self.ads = ADS.ADS1115(i2c, gain=self.initial_gain, data_rate=8)
         except ValueError as e:
             self.logger.error(
                 "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for ADC measurements."
