@@ -7,13 +7,15 @@ from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 
 
 def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
     """
     Advisable that stirring is turned on. OD reading should be turned off.
 
-    The pd_Z and led_Z are the channels on the Pioreactor HAT. They map to the pairs of pockets at 90° angles in the Pioreactor, see below
+    The pd_Z and led_Z are the channels on the Pioreactor HAT.
+    They map to the pairs of pockets at 180° angles in the Pioreactor, see below
 
 
 
@@ -120,7 +122,16 @@ pd_Y=
 
         """
         )
-    click.echo(gli2(pd_X, pd_Y, led_X, led_Y))
+    click.echo(
+        gli2(
+            pd_X,
+            pd_Y,
+            led_X,
+            led_Y,
+            unit=get_unit_name(),
+            experiment=UNIVERSAL_EXPERIMENT,
+        )
+    )
     return
 
 
