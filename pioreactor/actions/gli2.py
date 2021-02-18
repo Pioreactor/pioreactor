@@ -117,3 +117,7 @@ pd_B=
         """
         )
     return gli2(pd_A, pd_B, led_A, led_B)
+
+
+if __name__ == "__main__":
+    click_gli2()
