@@ -59,15 +59,15 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
 
     # take baseline measurements
     adc.take_reading()
-    baselineX = adc_reading(adc, "X")
-    baselineY = adc_reading(adc, "Y")
+    baselineX = adc_reading(adc, pd_X)
+    baselineY = adc_reading(adc, pd_Y)
 
     # find values of LED intensity s.t. we don't overload the 180 degree sensor
     # X first
     for i in range(1, 100):
         update_intensity(led_X, i)
         adc.take_reading()
-        if adc_reading(adc, "X") >= 2.048:
+        if adc_reading(adc, pd_X) >= 2.048:
             X_max = i - 1
             update_intensity(led_X, 0)
             break
@@ -78,7 +78,7 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
     for i in range(1, 100):
         update_intensity(led_Y, i)
         adc.take_reading()
-        if adc_reading(adc, "Y") >= 2.048:
+        if adc_reading(adc, pd_Y) >= 2.048:
             Y_max = i - 1
             update_intensity(led_Y, 0)
             break
@@ -90,16 +90,16 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
         update_intensity(led_X, X_max)
 
         adc.take_reading()
-        signal1 = (adc_reading(adc, "Y") - baselineY) / (
-            adc_reading(adc, "X") - baselineX
+        signal1 = (adc_reading(adc, pd_Y) - baselineY) / (
+            adc_reading(adc, pd_X) - baselineX
         )
 
         update_intensity(led_X, 0)
         update_intensity(led_Y, Y_max)
 
         adc.take_reading()
-        signal2 = (adc_reading(adc, "X") - baselineX) / (
-            adc_reading(adc, "Y") - baselineY
+        signal2 = (adc_reading(adc, pd_X) - baselineX) / (
+            adc_reading(adc, pd_Y) - baselineY
         )
 
         update_intensity(led_X, 0)
