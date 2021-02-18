@@ -156,7 +156,7 @@ class ADCReader(BackgroundSubJob):
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
-                raw_signals[channel] = raw_signal_
+                raw_signals[f"A{channel}"] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{channel}
                 setattr(self, f"A{channel}", raw_signal_)
 
@@ -276,10 +276,6 @@ class ODReader(BackgroundJob):
         ads_readings = json.loads(message.payload)
         od_readings = {}
         for channel, label in self.channel_label_map.items():
-            self.logger.debug(od_readings)
-            self.logger.debug(label)
-            self.logger.debug(ads_readings)
-            self.logger.debug(str(channel))
             od_readings[label] = ads_readings[str(channel)]
 
         self.publish(
