@@ -7,7 +7,6 @@ class ExponentialMovingAverage:
         self.value = None
 
     def update(self, new_value):
-        assert len(self.values) == self._lookback
         if self.value is None:
             self.value = new_value
         else:
