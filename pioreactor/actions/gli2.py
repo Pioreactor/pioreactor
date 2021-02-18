@@ -46,8 +46,8 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     for i in range(1, 100, 1):
         led_intensity(led_A, intensity=i, verbose=True)
         adc.take_reading()
-        if getattr(adc, f"A{pd_A}") > 2.25:
-            A_max = i
+        if getattr(adc, f"A{pd_A}") > 2.048:
+            A_max = i - 1
             break
     else:
         A_max = 100
@@ -59,9 +59,8 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     for i in range(1, 100, 1):
         led_intensity(led_B, intensity=i, verbose=True)
         adc.take_reading()
-        if getattr(adc, f"A{pd_B}") > 2.25:
-            B_max = i
-            break
+        if getattr(adc, f"A{pd_B}") > 2.048:
+            B_max = i - 1
     else:
         B_max = 100
 
@@ -88,7 +87,7 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
         return sqrt(signal1 * signal2)
 
     signal = make_measurement()
-    adc.disconnect()
+    adc.set_state(adc.DISCONNECTED)
     return signal
 
 

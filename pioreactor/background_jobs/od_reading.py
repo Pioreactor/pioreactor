@@ -121,7 +121,7 @@ class ADCReader(BackgroundSubJob):
         try:
             # we will change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-            self.ads = ADS.ADS1115(i2c, gain=1, data_rate=8)
+            self.ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
         except ValueError as e:
             self.logger.error(
                 "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for ADC measurements."
