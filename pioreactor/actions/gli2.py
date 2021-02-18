@@ -70,12 +70,14 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
 
         adc.take_reading()
         signal1 = getattr(adc, f"A{pd_B}") / getattr(adc, f"A{pd_A}")
+        print(getattr(adc, f"A{pd_B}"), getattr(adc, f"A{pd_A}"))
 
         led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
         led_intensity(led_B, intensity=B_max, verbose=False, source_of_event="gli2")
 
         adc.take_reading()
         signal2 = getattr(adc, f"A{pd_A}") / getattr(adc, f"A{pd_B}")
+        print(getattr(adc, f"A{pd_A}"), getattr(adc, f"A{pd_B}"))
 
         led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
         led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
