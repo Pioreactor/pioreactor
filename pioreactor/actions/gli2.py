@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time
+
 from math import sqrt
 import click
 
@@ -67,14 +67,12 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     def make_measurement():
         led_intensity(led_B, intensity=0, verbose=True, source_of_event="gli2")
         led_intensity(led_A, intensity=A_max, verbose=True, source_of_event="gli2")
-        time.sleep(0.025)
 
         adc.take_reading()
         signal1 = getattr(adc, f"A{pd_B}") / getattr(adc, f"A{pd_A}")
 
         led_intensity(led_A, intensity=0, verbose=True, source_of_event="gli2")
         led_intensity(led_B, intensity=B_max, verbose=True, source_of_event="gli2")
-        time.sleep(0.025)
 
         adc.take_reading()
         signal2 = getattr(adc, f"A{pd_A}") / getattr(adc, f"A{pd_B}")
@@ -118,4 +116,4 @@ pd_B=
 
 
 if __name__ == "__main__":
-    click_gli2()
+    print(click_gli2())
