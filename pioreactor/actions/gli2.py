@@ -46,9 +46,7 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     for i in range(1, 100):
         led_intensity(led_A, intensity=i, verbose=True, source_of_event="gli2")
         adc.take_reading()
-        print(getattr(adc, f"A{pd_A}"))
-        if getattr(adc, f"A{pd_A}") > 2.048:
-            print("here")
+        if getattr(adc, f"A{pd_A}") >= 2.048:
             A_max = i - 1
             led_intensity(led_A, 0, verbose=True, source_of_event="gli2")
             break
@@ -59,7 +57,7 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     for i in range(1, 100):
         led_intensity(led_B, intensity=i, verbose=True, source_of_event="gli2")
         adc.take_reading()
-        if getattr(adc, f"A{pd_B}") > 2.048:
+        if getattr(adc, f"A{pd_B}") >= 2.048:
             B_max = i - 1
             led_intensity(led_B, 0, verbose=True, source_of_event="gli2")
             break
