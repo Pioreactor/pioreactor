@@ -82,7 +82,10 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
         return sqrt(signal1 * signal2)
 
     signal = make_measurement()
+    print(signal)
     adc.set_state(adc.DISCONNECTED)
+    print("Here")
+
     return signal
 
 
