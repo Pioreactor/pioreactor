@@ -305,13 +305,13 @@ class ODReader(BackgroundJob):
         # process incoming data
         self.subscribe_and_callback(
             self.publish_batch,
-            f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.job_name}/batched_readings",
+            f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/batched_readings",
             qos=QOS.EXACTLY_ONCE,
         )
         for channel in ["A0", "A1", "A2", "A3"]:
             self.subscribe_and_callback(
                 self.publish_single,
-                f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.job_name}/{channel}",
+                f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/{channel}",
                 qos=QOS.EXACTLY_ONCE,
             )
 
