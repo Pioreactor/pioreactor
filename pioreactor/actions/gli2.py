@@ -96,8 +96,8 @@ def click_gli2():
     Take a GLI Method 2 measurement, uncalibrated output.
     """
     try:
-        led_A = config.getint("leds", "ir_ledA")
-        led_B = config.getint("leds", "ir_ledB")
+        led_A = config.get("leds", "ir_ledA")
+        led_B = config.get("leds", "ir_ledB")
 
         pd_A = config.getint("pd_inputs", "pd_A")
         pd_B = config.getint("pd_inputs", "pd_B")
