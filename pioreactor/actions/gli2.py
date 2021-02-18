@@ -43,27 +43,27 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
 
     # find values of LED intensity s.t. we don't overload the 180 degree sensor, i.e. aim for 2.25V, or max
     # A first
-    for i in range(5, 100, 5):
+    for i in range(1, 100, 1):
         led_intensity(led_A, intensity=i, verbose=True)
         adc.take_reading()
         if getattr(adc, f"A{pd_A}") > 2.25:
             A_max = i
             break
     else:
-        A_max = 1
+        A_max = 100
 
     # turn LED off again
     led_intensity(led_A, 0, verbose=True)
 
     # B next
-    for i in range(5, 100, 5):
+    for i in range(1, 100, 1):
         led_intensity(led_B, intensity=i, verbose=True)
         adc.take_reading()
         if getattr(adc, f"A{pd_B}") > 2.25:
             B_max = i
             break
     else:
-        B_max = 1
+        B_max = 100
 
     # turn LED off again
     led_intensity(led_B, 0, verbose=True)
