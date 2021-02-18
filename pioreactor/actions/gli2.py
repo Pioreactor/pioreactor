@@ -102,21 +102,19 @@ def click_gli2():
     Take a GLI Method 2 measurement, uncalibrated output.
     """
     try:
-        led_X = config.get("leds", "ir_led_X")
-        led_Y = config.get("leds", "ir_led_Y")
+        led_X = config.get("gli2", "ir_led_X")
+        led_Y = config.get("gli2", "ir_led_Y")
 
-        pd_X = config.getint("pd_inputs", "pd_X")
-        pd_Y = config.getint("pd_inputs", "pd_Y")
+        pd_X = config.getint("gli2", "pd_X")
+        pd_Y = config.getint("gli2", "pd_Y")
     except KeyError:
         raise KeyError(
             """
 Requires following populated in config.ini:
 
-[leds]
+[gli2]
 ir_led_X=
 ir_led_Y=
-
-[pd_inputs]
 pd_X=
 pd_Y=
 
