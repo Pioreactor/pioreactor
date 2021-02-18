@@ -128,7 +128,8 @@ class ADCReader(BackgroundSubJob):
                 ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             self.analog_in.append((channel, ai))
 
-        self.timer.start()
+        if self.timer:
+            self.timer.start()
 
     def on_disconnect(self):
         try:
