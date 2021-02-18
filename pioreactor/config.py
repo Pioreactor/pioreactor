@@ -7,6 +7,10 @@ import os
 
 def get_config():
     config = configparser.ConfigParser()
+    config.BOOLEAN_STATES = {
+        **{k: False for k in ["0", "false", "no", "off"]},
+        **{k: True for k in ["1", "yes", "true", "on"]},
+    }
 
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         config.read("./config.dev.ini")
@@ -24,20 +28,8 @@ def get_leader_hostname():
     return config.get("network.topology", "leader_hostname")
 
 
-def _config_bool(value):
-    if value in ("0", "false", "False", "no", "off", "No", "NO", "Off", "OFF") or (
-        not value
-    ):
-        return False
-    return True
-
-
 def get_active_workers_in_inventory():
-    return [
-        unit
-        for (unit, available) in config["inventory"].items()
-        if _config_bool(available)
-    ]
+    return [unit for (unit, available) in config["inventory"].items() if available]
 
 
 leader_hostname = get_leader_hostname()

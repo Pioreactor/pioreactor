@@ -54,6 +54,9 @@ class BackgroundJob:
 
     # initial state is disconnected
     state = DISCONNECTED
+
+    # editable settings is typically overwritten in the subclasses. Attributes here will
+    # be published to MQTT and available to be edited (but not all _should_ be edited)
     editable_settings = []
 
     def __init__(self, job_name: str, experiment=None, unit=None) -> None:

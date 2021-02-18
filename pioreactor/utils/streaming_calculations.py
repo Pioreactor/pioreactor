@@ -1,31 +1,17 @@
 # -*- coding: utf-8 -*-
-from statistics import mean, stdev, StatisticsError
-import json
+from json import dumps
 
 
-class MovingStats:
-    def __init__(self, lookback=5):
-        self.values = [0] * lookback
-        self._lookback = lookback
+class ExponentialMovingAverage:
+    def __init__(self, alpha):
+        self.value = None
 
     def update(self, new_value):
-        self.values.pop(0)
-        self.values.append(new_value)
         assert len(self.values) == self._lookback
-
-    @property
-    def mean(self):
-        try:
-            return mean(self.values)
-        except (StatisticsError, TypeError):
-            pass
-
-    @property
-    def std(self):
-        try:
-            return stdev(self.values)
-        except (StatisticsError, TypeError):
-            pass
+        if self.value is None:
+            self.value = new_value
+        else:
+            self.value = (1 - self.alpha) * new_value + self.alpha * self.value
 
 
 class ExtendedKalmanFilter:
@@ -278,4 +264,4 @@ class PID:
             "latest_input": self.pid._last_input,
             "latest_output": self.pid._last_output,
         }
-        publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", json.dumps(to_send))
+        publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", dumps(to_send))

@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+TODO: we currently create two clients, one for each MQTT handler. Each
+client requires a thread - can we do better?
+
+"""
 import logging
 from pioreactor.pubsub import create_client, publish
 from pioreactor.whoami import (
@@ -56,7 +61,7 @@ class MQTTHandler(logging.Handler):
                 if am_I_active_worker()
                 else UNIVERSAL_EXPERIMENT
             )
-            self._topic = self._topic.format(exp, get_unit_name())
+            self._topic = self._topic.format(get_unit_name(), exp)
             self._filled = True
         return self._topic
 

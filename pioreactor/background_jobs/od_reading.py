@@ -35,7 +35,7 @@ from adafruit_ads1x15.analog_in import AnalogIn
 import adafruit_ads1x15.ads1115 as ADS
 import busio
 
-from pioreactor.utils.streaming_calculations import MovingStats
+from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -72,20 +72,37 @@ class ADCReader(BackgroundSubJob):
 
     """
 
-    first_ads_obs_time = None
-    editable_settings = ["interval", "first_ads_obs_time"]
+    JOB_NAME = "adc_reader"
 
-    def __init__(self, interval=1, fake_data=False, unit=None, experiment=None):
+    A0 = 0.0
+    A1 = 0.0
+    A2 = 0.0
+    A3 = 0.0
+    timer = None
+    batched_readings = {}
+    first_ads_obs_time = None
+    editable_settings = [
+        "interval",
+        "first_ads_obs_time",
+        "A0",
+        "A1",
+        "A2",
+        "A3",
+        "batched_readings",
+    ]
+
+    def __init__(self, interval=None, fake_data=False, unit=None, experiment=None):
         super(ADCReader, self).__init__(
-            job_name="adc_reader", unit=unit, experiment=experiment
+            job_name=self.JOB_NAME, unit=unit, experiment=experiment
         )
         self.fake_data = fake_data
         self.interval = interval
-        self.ma = MovingStats(lookback=10)
-        self.timer = RepeatedTimer(self.interval, self.take_reading)
         self.counter = 0
+        self.ema = ExponentialMovingAverage(alpha=0.15)
         self.ads = None
         self.analog_in = []
+        if self.interval:
+            self.timer = RepeatedTimer(self.interval, self.take_reading)
 
     def setup_adc(self):
         if self.fake_data:
@@ -96,7 +113,7 @@ class ADCReader(BackgroundSubJob):
         try:
             # we will change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-            self.ads = ADS.ADS1115(i2c, gain=2, data_rate=8)
+            self.ads = ADS.ADS1115(i2c, gain=1, data_rate=8)
         except ValueError as e:
             self.logger.error(
                 "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for ADC measurements."
@@ -128,40 +145,31 @@ class ADCReader(BackgroundSubJob):
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/adc/{channel}",
-                    raw_signal_,
-                    qos=QOS.EXACTLY_ONCE,
-                )
                 raw_signals[channel] = raw_signal_
+                # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{channel}
+                setattr(f"A{channel}", raw_signal_)
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than 2.5V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
-                if (self.counter % 20 == 0) and (raw_signal_ > 2.5):
+                if (self.counter % 20 == 0) and (raw_signal_ > 2.75):
                     self.logger.warning(
                         f"ADC sensor {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
-            # publish the batch of data, too, for reading
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/adc_batched",
-                json.dumps(raw_signals),
-                qos=QOS.EXACTLY_ONCE,
-            )
+            # publish the batch of data, too, for reading,
+            # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
+            self.batched_readings = raw_signals
 
             # the max signal should determine the ADS1115's gain
-            self.ma.update(max(raw_signals.values()))
+            self.ema.update(max(raw_signals.values()))
 
             # check if using correct gain
-            check_gain_every_n = 10
-            assert (
-                check_gain_every_n >= self.ma._lookback
-            ), "ma.mean won't be defined if you peek too soon"
-            if self.counter % check_gain_every_n == 0 and self.ma.mean is not None:
+            check_gain_every_n = 5
+            if self.counter % check_gain_every_n == 0 and self.ema.value is not None:
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if (0.925 * lb <= self.ma.mean < 0.925 * ub) and (
+                    if (0.925 * lb <= self.ema.value < 0.925 * ub) and (
                         self.ads.gain != gain
                     ):
                         self.ads.gain = gain
@@ -186,7 +194,7 @@ class ODReader(BackgroundJob):
     Parameters
     -----------
 
-    channel_label_map: dict of (ADS channel: label) pairs, ex: {0: "135/0", 1: "90/1"}
+    channel_label_map: dict of (ADS channel: label) pairs, ex: {"A0": "135/0", "A1": "90/1"}
 
     """
 
@@ -213,7 +221,10 @@ class ODReader(BackgroundJob):
             experiment=self.experiment,
         )
         self.sub_jobs.append(self.adc_reader)
+
+        # we delay the "setup" in case the adc_reader class fails init
         self.adc_reader.setup_adc()
+
         self.start_ir_led()
         self.start_passive_listeners()
 
@@ -228,7 +239,9 @@ class ODReader(BackgroundJob):
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
-        time.sleep(0.25)  # give LED a moment to get to max value
+        # give LED a moment to stabilize: post-power_up, setting to 1 tends to overshoot and then
+        # fall to steady value.
+        time.sleep(0.25)
         return
 
     def stop_ir_led(self):
@@ -260,7 +273,7 @@ class ODReader(BackgroundJob):
         if self.state != self.READY:
             return
 
-        channel = int(message.topic.split("/")[-1])
+        channel = message.topic.rsplit("/", maxsplit=1)[1]
         if channel not in self.channel_label_map:
             return
 
@@ -277,14 +290,15 @@ class ODReader(BackgroundJob):
         # process incoming data
         self.subscribe_and_callback(
             self.publish_batch,
-            f"pioreactor/{self.unit}/{self.experiment}/adc_batched",
+            f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.job_name}/batched_readings",
             qos=QOS.EXACTLY_ONCE,
         )
-        self.subscribe_and_callback(
-            self.publish_single,
-            f"pioreactor/{self.unit}/{self.experiment}/adc/+",
-            qos=QOS.EXACTLY_ONCE,
-        )
+        for channel in ["A0", "A1", "A2", "A3"]:
+            self.subscribe_and_callback(
+                self.publish_single,
+                f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.job_name}/{channel}",
+                qos=QOS.EXACTLY_ONCE,
+            )
 
 
 def od_reading(
@@ -303,7 +317,7 @@ def od_reading(
         # We split input of the form ["135,0", "135,1", "90,3"] into the form
         # "135/0", "135/1", "90/3"
         angle_label = f"{angle}/{channel}"
-        channel_label_map[int(channel)] = angle_label
+        channel_label_map[f"A{channel}"] = angle_label
 
     ODReader(
         channel_label_map,

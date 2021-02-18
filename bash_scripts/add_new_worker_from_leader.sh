@@ -22,7 +22,7 @@ cat ~/.ssh/id_rsa.pub | sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no r
 ssh -o StrictHostKeyChecking=no raspberrypi.local "wget -O install_pioreactor_as_worker.sh https://gist.githubusercontent.com/CamDavidsonPilon/08aa165a283fb7af7262e4cb598bf6a9/raw/install_pioreactor_as_worker.sh && bash ./install_pioreactor_as_worker.sh $1"
 
 touch /home/pi/.pioreactor/config_$1.ini
-echo -e "# $1 specific configuration here overrides the configuration in config.ini" >> /home/pi/.pioreactor/config_$1.ini
+echo -e "# Any settings here and specific to $1 and override the settings in config.ini" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "\n" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "[stirring]" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "duty_cycle_$1=0\n" >> /home/pi/.pioreactor/config_$1.ini
