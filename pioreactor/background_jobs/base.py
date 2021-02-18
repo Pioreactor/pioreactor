@@ -122,7 +122,7 @@ class BackgroundJob:
             attr_name = attr
 
         payload = getattr(self, attr)
-        if not isinstance(payload, (str, bytearray, int, float, None)):
+        if not isinstance(payload, (str, bytearray, int, float)) or (payload is not None):
             payload = dumps(payload)
 
         self.publish(
