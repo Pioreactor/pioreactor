@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 import signal
 import faulthandler
-
 import os
 import sys
 import threading
 import atexit
 from collections import namedtuple
 import logging
+from json import dumps
+
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
@@ -120,9 +121,13 @@ class BackgroundJob:
         else:
             attr_name = attr
 
+        payload = getattr(self, attr)
+        if not isinstance(payload, (str, bytearray, int, float, None)):
+            payload = dumps(payload)
+
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
-            getattr(self, attr),
+            payload,
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
