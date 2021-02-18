@@ -38,47 +38,47 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     adc.setup_adc()
 
     # reset all to 0
-    led_intensity(led_A, intensity=0, verbose=True, source_of_event="gli2")
-    led_intensity(led_B, intensity=0, verbose=True, source_of_event="gli2")
+    led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
+    led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
 
     # find values of LED intensity s.t. we don't overload the 180 degree sensor, i.e. aim for 2.25V, or max
     # A first
     for i in range(1, 100):
-        led_intensity(led_A, intensity=i, verbose=True, source_of_event="gli2")
+        led_intensity(led_A, intensity=i, verbose=False, source_of_event="gli2")
         adc.take_reading()
         if getattr(adc, f"A{pd_A}") >= 2.048:
             A_max = i - 1
-            led_intensity(led_A, 0, verbose=True, source_of_event="gli2")
+            led_intensity(led_A, 0, verbose=False, source_of_event="gli2")
             break
     else:
         A_max = 100
 
     # B next
     for i in range(1, 100):
-        led_intensity(led_B, intensity=i, verbose=True, source_of_event="gli2")
+        led_intensity(led_B, intensity=i, verbose=False, source_of_event="gli2")
         adc.take_reading()
         if getattr(adc, f"A{pd_B}") >= 2.048:
             B_max = i - 1
-            led_intensity(led_B, 0, verbose=True, source_of_event="gli2")
+            led_intensity(led_B, 0, verbose=False, source_of_event="gli2")
             break
     else:
         B_max = 100
 
     def make_measurement():
-        led_intensity(led_B, intensity=0, verbose=True, source_of_event="gli2")
-        led_intensity(led_A, intensity=A_max, verbose=True, source_of_event="gli2")
+        led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
+        led_intensity(led_A, intensity=A_max, verbose=False, source_of_event="gli2")
 
         adc.take_reading()
         signal1 = getattr(adc, f"A{pd_B}") / getattr(adc, f"A{pd_A}")
 
-        led_intensity(led_A, intensity=0, verbose=True, source_of_event="gli2")
-        led_intensity(led_B, intensity=B_max, verbose=True, source_of_event="gli2")
+        led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
+        led_intensity(led_B, intensity=B_max, verbose=False, source_of_event="gli2")
 
         adc.take_reading()
         signal2 = getattr(adc, f"A{pd_A}") / getattr(adc, f"A{pd_B}")
 
-        led_intensity(led_A, intensity=0, verbose=True, source_of_event="gli2")
-        led_intensity(led_B, intensity=0, verbose=True, source_of_event="gli2")
+        led_intensity(led_A, intensity=0, verbose=False, source_of_event="gli2")
+        led_intensity(led_B, intensity=0, verbose=False, source_of_event="gli2")
         return sqrt(signal1 * signal2)
 
     signal = make_measurement()
