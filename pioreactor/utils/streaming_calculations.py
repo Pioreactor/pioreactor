@@ -5,6 +5,7 @@ from json import dumps
 class ExponentialMovingAverage:
     def __init__(self, alpha):
         self.value = None
+        self.alpha = alpha
 
     def update(self, new_value):
         if self.value is None:
