@@ -29,7 +29,13 @@ def get_leader_hostname():
 
 
 def get_active_workers_in_inventory():
-    return [unit for (unit, available) in config["inventory"].items() if available]
+    # because we are not using config.getbool here, values like "0" are seen as true,
+    # hence we use the built in config.BOOLEAN_STATES to determine truthiness
+    return [
+        unit
+        for (unit, available) in config["inventory"].items()
+        if config.BOOLEAN_STATES[available]
+    ]
 
 
 leader_hostname = get_leader_hostname()
