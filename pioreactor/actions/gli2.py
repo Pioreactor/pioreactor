@@ -34,7 +34,7 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
     """
     assert "od_reading" not in pio_jobs_running(), "Turn off od_reading job first."
 
-    adc = ADCReader(unit=unit, experiment=experiment)
+    adc = ADCReader(unit=unit, experiment=experiment, dynamic_gain=False)
     adc.setup_adc()
 
     # reset all to 0
@@ -87,7 +87,9 @@ def gli2(pd_A, pd_B, led_A, led_B, unit=None, experiment=None):
         led_intensity(led_B, intensity=0, verbose=True)
         return sqrt(signal1 * signal2)
 
-    return make_measurement()
+    signal = make_measurement()
+    adc.disconnect()
+    return signal
 
 
 @click.command(name="gli2")

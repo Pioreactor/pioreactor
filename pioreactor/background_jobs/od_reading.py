@@ -91,12 +91,20 @@ class ADCReader(BackgroundSubJob):
         "batched_readings",
     ]
 
-    def __init__(self, interval=None, fake_data=False, unit=None, experiment=None):
+    def __init__(
+        self,
+        interval=None,
+        fake_data=False,
+        unit=None,
+        experiment=None,
+        dynamic_gain=True,
+    ):
         super(ADCReader, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment
         )
         self.fake_data = fake_data
         self.interval = interval
+        self.dynamic_gain = dynamic_gain
         self.counter = 0
         self.ema = ExponentialMovingAverage(alpha=0.15)
         self.ads = None
@@ -168,7 +176,11 @@ class ADCReader(BackgroundSubJob):
 
             # check if using correct gain
             check_gain_every_n = 5
-            if self.counter % check_gain_every_n == 0 and self.ema.value is not None:
+            if (
+                self.dynamic_gain
+                and self.counter % check_gain_every_n == 0
+                and self.ema.value is not None
+            ):
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
                     if (0.925 * lb <= self.ema.value < 0.925 * ub) and (
                         self.ads.gain != gain
