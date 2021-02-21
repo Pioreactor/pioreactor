@@ -33,7 +33,7 @@ def get_active_workers_in_inventory():
     # hence we use the built in config.BOOLEAN_STATES to determine truthiness
     return [
         unit
-        for (unit, available) in config["inventory"].items()
+        for (unit, available) in config["network.inventory"].items()
         if config.BOOLEAN_STATES[available]
     ]
 

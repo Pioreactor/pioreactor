@@ -92,7 +92,9 @@ def led_intensity(
 
 @click.command(name="led_intensity")
 @click.option("--channel", type=click.Choice(CHANNELS, case_sensitive=False))
-@click.option("--intensity", help="value between 0 and 100", type=click.IntRange(0, 100))
+@click.option(
+    "--intensity", help="value between 0 and 100", type=click.FloatRange(0, 100)
+)
 @click.option(
     "--source-of-event",
     default="app",

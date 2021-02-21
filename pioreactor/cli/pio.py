@@ -212,5 +212,5 @@ if am_I_leader():
 
 if not am_I_leader() and not am_I_active_worker():
     logger.info(
-        f"Running `pio` on a non-active Pioreactor. Do you need to change `{get_unit_name()}` in `inventory` section in `config.ini`?"
+        f"Running `pio` on a non-active Pioreactor. Do you need to change `{get_unit_name()}` in `network.inventory` section in `config.ini`?"
     )

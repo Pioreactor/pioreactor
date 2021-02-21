@@ -28,9 +28,9 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         self.ignore_cache = ignore_cache
-        self.initial_growth_rate = self.set_initial_growth_rate()
-        self.od_normalization_factors = self.set_od_normalization_factors()
-        self.od_variances = self.set_od_variances()
+        self.initial_growth_rate, self.od_normalization_factors, self.od_variances = (
+            self.set_precomputed_values()
+        )
         self.samples_per_minute = 60 * config.getfloat(
             "od_config.od_sampling", "samples_per_second"
         )
@@ -43,6 +43,15 @@ class GrowthRateCalculator(BackgroundJob):
     @property
     def state_(self):
         return self.ekf.state_
+
+    def on_sleeping(self):
+        # when the job sleeps, we expect a "big" jump in OD due to a few things:
+        # 1. The delay between sleeping and resuming can causing a change in OD (as OD will keep changing)
+        # 2. The user picks up the vial for inspection, places it back, but this causes an OD shift
+        #    due to variation in the glass
+        #
+        # so to "fix" this, we will treat it like a dilution event, and modify the variances
+        self.update_ekf_variance_after_event()
 
     def initialize_extended_kalman_filter(self):
         import numpy as np
@@ -96,7 +105,8 @@ class GrowthRateCalculator(BackgroundJob):
         obs_variances = obs_variances / obs_variances.min()
 
         # add a fudge factor
-        return 200 * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
+        fudge = 250
+        return fudge * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
 
     def create_OD_covariance(self, angles):
         import numpy as np
@@ -115,10 +125,22 @@ class GrowthRateCalculator(BackgroundJob):
                     OD_covariance[i, i] = variances[k]
         return OD_covariance
 
-    def set_initial_growth_rate(self):
+    def set_precomputed_values(self):
         if self.ignore_cache:
-            return 0
+            assert (
+                "od_reading" in pio_jobs_running()
+            ), "OD reading should be running. Stopping."
+            # the below will populate od_norm and od_variance too
+            od_normalization(unit=self.unit, experiment=self.experiment)
+            initial_growth_rate = 0
+        else:
+            initial_growth_rate = self.get_growth_rate_from_broker()
 
+        od_normalization_factors = self.get_od_normalization_from_broker()
+        od_variances = self.get_od_variances_from_broker()
+        return initial_growth_rate, od_normalization_factors, od_variances
+
+    def get_growth_rate_from_broker(self):
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
             timeout=2,
@@ -129,36 +151,31 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             return 0
 
-    def set_od_normalization_factors(self):
-        # we check if the broker has variance/median stats, and if not, run it ourselves.
+    def get_od_normalization_from_broker(self):
+        # we check if the broker has variance/median stats
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_normalization/median",
             timeout=2,
             qos=QOS.EXACTLY_ONCE,
         )
-        if message and not self.ignore_cache:
+        if message:
             return self.json_to_sorted_dict(message.payload)
         else:
-            assert (
-                "od_reading" in pio_jobs_running()
-            ), "OD reading should be running. Stopping."
-            od_normalization(unit=self.unit, experiment=self.experiment)
-            return self.set_od_normalization_factors()
+            self.logger.debug("od_normalization/median not found in broker.")
 
-    def set_od_variances(self):
-        # we check if the broker has variance/median stats, and if not, run it ourselves.
+    def get_od_variances_from_broker(self):
+        # we check if the broker has variance/median stats
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_normalization/variance",
             timeout=2,
             qos=QOS.EXACTLY_ONCE,
         )
-        if message and not self.ignore_cache:
+        if message:
             return self.json_to_sorted_dict(message.payload)
         else:
-            od_normalization(unit=self.unit, experiment=self.experiment)
-            return self.set_od_normalization_factors()
+            self.logger.debug("od_normalization/variance not found in broker.")
 
-    def update_ekf_variance_after_dosing_event(self, message):
+    def update_ekf_variance_after_event(self):
         self.ekf.scale_OD_variance_for_next_n_steps(
             5e3, round(0.5 * self.samples_per_minute)
         )
@@ -203,7 +220,7 @@ class GrowthRateCalculator(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
         )
         self.subscribe_and_callback(
-            self.update_ekf_variance_after_dosing_event,
+            lambda m: self.update_ekf_variance_after_event(),
             f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
             qos=QOS.EXACTLY_ONCE,
         )

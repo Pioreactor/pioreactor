@@ -76,6 +76,23 @@ class BackgroundJob:
         self.set_up_disconnect_protocol()
         self.set_state(self.READY)
 
+    def on_ready(self):
+        pass
+
+    def on_sleeping(self):
+        pass
+
+    def on_disconnect(self):
+        # specific things to do when a job disconnects / exits
+        pass
+
+    def start_passive_listeners(self):
+        # overwrite this to in subclasses to subscribe to topics in MQTT
+        # using this handles reconnects correctly.
+        pass
+
+    ########## private
+
     def create_pub_client(self):
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
@@ -99,7 +116,7 @@ class BackgroundJob:
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
         def reconnect_protocol(client, userdata, flags, rc, properties=None):
-
+            self.logger.debug("Reconnecting to MQTT")
             self.publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()
@@ -218,8 +235,8 @@ class BackgroundJob:
         if threading.current_thread() is not threading.main_thread():
             # if we re-init (via MQTT, close previous threads), but don't do this in main thread
             for client in self.pubsub_clients:
-                client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
                 client.disconnect()
+                client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
 
             self.pub_client = self.create_pub_client()
             self.sub_client = self.create_sub_client()
@@ -227,9 +244,6 @@ class BackgroundJob:
 
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
-
-    def on_ready(self):
-        pass
 
     def ready(self):
         try:
@@ -239,9 +253,6 @@ class BackgroundJob:
         self.state = self.READY
         self.logger.info(self.READY)
 
-    def on_sleeping(self):
-        pass
-
     def sleeping(self):
         try:
             self.on_sleeping()
@@ -249,10 +260,6 @@ class BackgroundJob:
             self.logger.error(e, exc_info=True)
         self.state = self.SLEEPING
         self.logger.debug(self.SLEEPING)
-
-    def on_disconnect(self):
-        # specific things to do when a job disconnects / exits
-        pass
 
     def disconnected(self):
         # call job specific on_disconnect to clean up subjobs, etc.
@@ -323,11 +330,6 @@ class BackgroundJob:
         self.logger.info(
             f"Updated {attr} from {previous_value} to {getattr(self, attr)}."
         )
-
-    def start_passive_listeners(self):
-        # overwrite this to in subclasses to subscribe to topics in MQTT
-        # using this handles reconnects correctly.
-        pass
 
     def start_general_passive_listeners(self) -> None:
         # listen to changes in editable properties

@@ -85,7 +85,7 @@ def pios():
         sys.exit(0)
 
     if len(get_active_workers_in_inventory()) == 0:
-        print("No active workers. See `inventory` section in config.ini.")
+        print("No active workers. See `network.inventory` section in config.ini.")
         sys.exit(0)
 
 

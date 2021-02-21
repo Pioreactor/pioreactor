@@ -22,12 +22,12 @@ cat ~/.ssh/id_rsa.pub | sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no r
 ssh -o StrictHostKeyChecking=no raspberrypi.local "wget -O install_pioreactor_as_worker.sh https://gist.githubusercontent.com/CamDavidsonPilon/08aa165a283fb7af7262e4cb598bf6a9/raw/install_pioreactor_as_worker.sh && bash ./install_pioreactor_as_worker.sh $1"
 
 touch /home/pi/.pioreactor/config_$1.ini
-echo -e "# Any settings here and specific to $1 and override the settings in config.ini" >> /home/pi/.pioreactor/config_$1.ini
+echo -e "# Any settings here are specific to $1, and override the settings in config.ini" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "\n" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "[stirring]" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "duty_cycle_$1=0\n" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "[pump_calibration]" >> /home/pi/.pioreactor/config_$1.ini
-crudini --set ~/.pioreactor/config.ini inventory $1 1
+crudini --set ~/.pioreactor/config.ini network.inventory $1 1
 
 
 # more needs to happen after the worker is online again (it reboots)
