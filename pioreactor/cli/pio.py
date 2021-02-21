@@ -147,10 +147,11 @@ if am_I_leader():
         os.system(f"sqlite3 {config['storage']['database']}")
 
     @pio.command(short_help="tail MQTT")
-    def mqtt():
+    @click.option("--topic", "-t", default="pioreactor/#")
+    def mqtt(topic):
         import os
 
-        os.system("mosquitto_sub -v -t 'pioreactor/#'")
+        os.system(f"mosquitto_sub -v -t '{topic}'")
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("new_name")

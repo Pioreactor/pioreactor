@@ -162,6 +162,8 @@ class GrowthRateCalculator(BackgroundJob):
             return self.json_to_sorted_dict(message.payload)
         else:
             self.logger.debug("od_normalization/median not found in broker.")
+            od_normalization(unit=self.unit, experiment=self.experiment)
+            return self.get_od_normalization_from_broker()
 
     def get_od_variances_from_broker(self):
         # we check if the broker has variance/median stats
@@ -174,6 +176,8 @@ class GrowthRateCalculator(BackgroundJob):
             return self.json_to_sorted_dict(message.payload)
         else:
             self.logger.debug("od_normalization/variance not found in broker.")
+            od_normalization(unit=self.unit, experiment=self.experiment)
+            return self.get_od_variances_from_broker()
 
     def update_ekf_variance_after_event(self):
         self.ekf.scale_OD_variance_for_next_n_steps(
