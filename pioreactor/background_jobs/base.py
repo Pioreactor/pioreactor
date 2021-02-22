@@ -3,12 +3,10 @@ import signal
 import faulthandler
 import os
 import sys
-import time
 import threading
 import atexit
 from collections import namedtuple
 import logging
-import uuid
 from json import dumps
 
 from pioreactor.utils import pio_jobs_running
@@ -70,7 +68,15 @@ class BackgroundJob:
         self.experiment = experiment
         self.unit = unit
         self.editable_settings = self.editable_settings + ["state"]
-        self.pubsub_client = self.create_pubsub_client()
+
+        # why do we need two clients? Paho lib can't publish a message in a callback,
+        # but this is critical to our usecase: listen for events, and fire a response (ex: state change)
+        # so we split the listening and publishing. I've tried combining them and got stuck a lot
+        # https://github.com/Pioreactor/pioreactor/blob/cb54974c9be68616a7f4fb45fe60fdc063c81238/pioreactor/background_jobs/base.py
+        # See issue: https://github.com/eclipse/paho.mqtt.python/issues/527
+        self.pub_client = self.create_pub_client()
+        self.sub_client = self.create_sub_client()
+        self.pubsub_clients = [self.pub_client, self.sub_client]
 
         self.set_state(self.INIT)
         self.set_up_disconnect_protocol()
@@ -93,36 +99,39 @@ class BackgroundJob:
 
     ########## private
 
-    def create_pubsub_client(self):
-        """
-        TODO: why do I need a single client for pub and sub? That is, why _dont_ I need two?
+    def create_pub_client(self):
+        # see note above as to why we split pub and sub.
+        client = create_client(client_id=f"{self.unit}-pub-{self.job_name}-{id(self)}")
 
-        """
+        return client
+
+    def create_sub_client(self):
+        # see note above as to why we split pub and sub.
+
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
             "payload": self.LOST,
             "qos": QOS.EXACTLY_ONCE,
             "retain": True,
         }
-        client = create_client(
-            client_id=f"{self.unit}-{self.job_name}-{uuid.uuid1()}",
-            last_will=last_will,
-            keepalive=25,
-        )
 
-        def on_disconnect(client, userdata, rc, properties=None):
-            # let's log when we disconnect, to help debugging
-            self.logger.debug("Disconnected from MQTT")
+        client = create_client(
+            client_id=f"{self.unit}-sub-{self.job_name}-{id(self)}",
+            last_will=last_will,
+            keepalive=20,
+        )
 
         # when we reconnect to the broker, we want to republish our state
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
-        # TODO: this currently doesn't re-add a last-will.
         def reconnect_protocol(client, userdata, flags, rc, properties=None):
             self.logger.debug("Reconnecting to MQTT")
             self.publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()
+
+        def on_disconnect(*args):
+            self.logging.debug("Disconnected from MQTT")
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
@@ -134,7 +143,7 @@ class BackgroundJob:
         return client
 
     def publish(self, *args, **kwargs):
-        return self.pubsub_client.publish(*args, **kwargs)
+        self.pub_client.publish(*args, **kwargs)
 
     def publish_attr(self, attr: str) -> None:
         if attr == "state":
@@ -148,7 +157,7 @@ class BackgroundJob:
         ):
             payload = dumps(payload)
 
-        return self.publish(
+        self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
             payload,
             retain=True,
@@ -205,8 +214,8 @@ class BackgroundJob:
         )
 
         for sub in subscriptions:
-            self.pubsub_client.message_callback_add(sub, wrap_callback(callback))
-            self.pubsub_client.subscribe(sub, qos=qos)
+            self.sub_client.message_callback_add(sub, wrap_callback(callback))
+            self.sub_client.subscribe(sub, qos=qos)
         return
 
     def set_up_disconnect_protocol(self):
@@ -237,11 +246,14 @@ class BackgroundJob:
         self.logger.debug(self.INIT)
 
         if threading.current_thread() is not threading.main_thread():
-
             # if we re-init (via MQTT, close previous threads), but don't do this in main thread
-            self.pubsub_client.disconnect()
-            self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called from a thread, ex: when we disconnect over MQTT call: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-            self.pubsub_client = self.create_pubsub_client()
+            for client in self.pubsub_clients:
+                client.disconnect()
+                client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+
+            self.pub_client = self.create_pub_client()
+            self.sub_client = self.create_sub_client()
+            self.pubsub_clients = [self.pub_client, self.sub_client]
 
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
@@ -266,26 +278,23 @@ class BackgroundJob:
         # call job specific on_disconnect to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean
         # disconnect, etc.
-        self.state = self.DISCONNECTED
         try:
             self.on_disconnect()
         except Exception as e:
             self.logger.error(e, exc_info=True)
         # set state to disconnect
+        self.state = self.DISCONNECTED
         self.logger.info(self.DISCONNECTED)
 
-        # because disconnect will not wait for all queued message to be sent,
-        # there were race conditions when we would disconnect the client, but
-        # "state == disconnected" events were not yet sent.
-        # we only want to block on these critical times, so we have the time here
-        time.sleep(0.5)
         # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
-        self.pubsub_client.disconnect()
-        self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called from a thread, ex: when we disconnect over MQTT call: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-        time.sleep(0.5)
+        for client in self.pubsub_clients:
+            client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+            client.disconnect()
 
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
+        # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect too late and a last-will was sent.
+        # previously had 0.25, needed to bump it.
         os.kill(os.getpid(), signal.SIGUSR1)
 
     def declare_settable_properties_to_broker(self):
@@ -323,6 +332,7 @@ class BackgroundJob:
         # for example, see Stirring, and `set_state` here
         if hasattr(self, "set_%s" % attr):
             getattr(self, "set_%s" % attr)(new_value)
+
         else:
             try:
                 # make sure to cast the input to the same value

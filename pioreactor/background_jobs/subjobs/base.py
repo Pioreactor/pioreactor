@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import time
 from pioreactor.background_jobs.base import BackgroundJob
 
 
@@ -11,21 +10,20 @@ class BackgroundSubJob(BackgroundJob):
 
     def disconnected(self):
         # subjobs don't send a USR signal to end the job.
-        self.state = self.DISCONNECTED
 
+        # call job specific on_disconnect to clean up subjobs, etc.
+        # however, if it fails, nothing below executes, so we don't get a clean
+        # disconnect, etc. Hence the `try` block.
         try:
-            # call job specific on_disconnect to clean up subjobs, etc.
-            # however, if it fails, nothing below executes, so we don't get a clean
-            # disconnect, etc. Hence the `try` block.
             self.on_disconnect()
         except Exception as e:
             self.logger.error(e, exc_info=True)
 
-        time.sleep(0.5)
-
         # set state to disconnect before disconnecting our pubsub clients.
+        self.state = self.DISCONNECTED
         self.logger.info(self.DISCONNECTED)
 
         # disconnect from the passive subscription threads
-        self.pubsub_client.disconnect()
-        self.pubsub_client.loop_stop()  # takes a second or two.
+        for client in self.pubsub_clients:
+            client.loop_stop()  # takes a second or two.
+            client.disconnect()
