@@ -105,7 +105,7 @@ class GrowthRateCalculator(BackgroundJob):
         obs_variances = obs_variances / obs_variances.min()
 
         # add a fudge factor
-        fudge = 250
+        fudge = 100
         return fudge * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
 
     def create_OD_covariance(self, angles):
