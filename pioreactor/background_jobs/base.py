@@ -133,7 +133,7 @@ class BackgroundJob:
         return client
 
     def publish(self, *args, **kwargs):
-        self.pubsub_client.publish(*args, **kwargs)
+        return self.pubsub_client.publish(*args, **kwargs)
 
     def publish_attr(self, attr: str) -> None:
         if attr == "state":
@@ -147,7 +147,7 @@ class BackgroundJob:
         ):
             payload = dumps(payload)
 
-        self.publish(
+        return self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
             payload,
             retain=True,
@@ -238,8 +238,8 @@ class BackgroundJob:
         if threading.current_thread() is not threading.main_thread():
 
             # if we re-init (via MQTT, close previous threads), but don't do this in main thread
-            self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             self.pubsub_client.disconnect()
+            self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called from a thread, ex: when we disconnect over MQTT call: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             self.pubsub_client = self.create_pubsub_client()
 
         self.declare_settable_properties_to_broker()
@@ -275,12 +275,10 @@ class BackgroundJob:
 
         # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
-        self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pubsub_client.disconnect()
+        self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called from a thread, ex: when we disconnect over MQTT call: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
 
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
-        # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect too late and a last-will was sent.
-        # previously had 0.25, needed to bump it.
         os.kill(os.getpid(), signal.SIGUSR1)
 
     def declare_settable_properties_to_broker(self):
@@ -351,4 +349,11 @@ class BackgroundJob:
     def __setattr__(self, name: str, value) -> None:
         super(BackgroundJob, self).__setattr__(name, value)
         if (name in self.editable_settings) and hasattr(self, name):
-            self.publish_attr(name)
+            msg = self.publish_attr(name)
+
+            # because disconnect will not wait for all queued message to be sent,
+            # there were race conditions when we would disconnect the client, but
+            # "state == disconnected" events were not yet sent.
+            # we only want to block on these critical times, so we have the condition here:
+            if name == "state":
+                msg.wait_for_publish()

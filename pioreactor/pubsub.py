@@ -114,6 +114,7 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
             client.connect(leader_hostname)
 
             if timeout:
+                # TODO: this could be `loop(timeout=timeout)` instead of `loop_forever`
                 threading.Timer(timeout, lambda: client.disconnect()).start()
 
             client.loop_forever()
