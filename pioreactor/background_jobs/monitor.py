@@ -97,13 +97,13 @@ class Monitor(BackgroundJob):
         for _ in range(4):
 
             self.led_on()
-            time.sleep(0.1)
+            time.sleep(0.15)
             self.led_off()
-            time.sleep(0.1)
+            time.sleep(0.15)
             self.led_on()
-            time.sleep(0.1)
+            time.sleep(0.15)
             self.led_off()
-            time.sleep(0.4)
+            time.sleep(0.45)
 
     def start_passive_listeners(self):
         self.subscribe_and_callback(

@@ -247,23 +247,25 @@ class ODReader(BackgroundJob):
         ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
             ir_channel,
-            intensity=100,
+            intensity=90,  # we choose 90 because it has less amp. variance than 100
             source_of_event=self.job_name,
             unit=self.unit,
             experiment=self.experiment,
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
-        # give LED a moment to stabilize: post-power_up, setting to 1 tends to overshoot and then
+
+        # give LED a moment to stabilize: post-power_up, setting to high tends to overshoot and then
         # fall to steady value.
-        time.sleep(0.25)
+        time.sleep(1.0)
         return
 
     def stop_ir_led(self):
-        if self.fake_data:
-            return
-        ir_channel = config.get("leds", "ir_led")
-        led_intensity(ir_channel, intensity=0, unit=self.unit, experiment=self.experiment)
+        if not self.fake_data:
+            ir_channel = config.get("leds", "ir_led")
+            led_intensity(
+                ir_channel, intensity=0, unit=self.unit, experiment=self.experiment
+            )
 
     def on_disconnect(self):
         self.stop_ir_led()

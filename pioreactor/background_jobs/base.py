@@ -7,6 +7,7 @@ import threading
 import atexit
 from collections import namedtuple
 import logging
+import uuid
 from json import dumps
 
 from pioreactor.utils import pio_jobs_running
@@ -103,7 +104,7 @@ class BackgroundJob:
             "retain": True,
         }
         client = create_client(
-            client_id=f"{self.unit}-sub-{self.job_name}-{id(self)}",
+            client_id=f"{self.unit}-{self.job_name}-{uuid.uuid1()}",
             last_will=last_will,
             keepalive=25,
         )

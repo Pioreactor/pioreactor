@@ -11,6 +11,10 @@ install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
 	sudo systemctl enable mosquitto.service
 
+	grep -qxF 'connection_messages true' /etc/mosquitto/mosquitto.conf || echo "connection_messages true" | sudo tee /etc/mosquitto/mosquitto.conf -a
+	grep -qxF 'autosave_interval 300' /etc/mosquitto/mosquitto.conf || echo "autosave_interval 300" | sudo tee /etc/mosquitto/mosquitto.conf -a
+
+
 configure-mqtt-websockets:
 	# append if not already present
 	grep -qxF 'listener 1883' /etc/mosquitto/mosquitto.conf || echo "listener 1883" | sudo tee /etc/mosquitto/mosquitto.conf -a
