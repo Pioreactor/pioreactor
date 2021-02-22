@@ -49,6 +49,38 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
+def publish_multiple(
+    list_of_topic_message_tuples, hostname=leader_hostname, retries=10, **mqtt_kwargs
+):
+    """
+    list_of_topic_message_tuples is of the form ("<topic>", "<payload>", qos, retain)
+
+    """
+    from paho.mqtt import publish as mqtt_publish
+
+    retry_count = 1
+    while True:
+        try:
+            mqtt_publish.multiple(
+                list_of_topic_message_tuples, hostname=hostname, **mqtt_kwargs
+            )
+            return
+        except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
+            # possible that leader is down/restarting, keep trying, but log to local machine.
+            logger = logging.getLogger("pioreactor")
+            logger.debug(
+                f"Attempt {retry_count}: Unable to connect to host: {hostname}",
+                exc_info=True,
+            )
+            time.sleep(5 * retry_count)  # linear backoff
+            retry_count += 1
+
+        if retry_count == retries:
+            logger = logging.getLogger("pioreactor")
+            logger.error(f"Unable to connect to host: {hostname}. Exiting.")
+            raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
+
+
 def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt_kwargs):
     """
     Modeled closely after the paho version, this also includes some try/excepts and

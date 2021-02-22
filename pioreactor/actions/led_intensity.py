@@ -2,7 +2,7 @@
 import logging
 import json
 import click
-from pioreactor.pubsub import publish, subscribe, QOS
+from pioreactor.pubsub import publish_multiple, subscribe, QOS
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name
 
 
@@ -11,9 +11,7 @@ CHANNELS = ["A", "B", "C", "D"]
 
 
 def get_current_state_from_broker(unit, experiment):
-    # TODO: It's possible to also get this information from the DAC device. Not
-    # sure what is better
-    # this also ignores the status of "power on"
+    # this ignores the status of "power on"
     msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=0.5)
     if msg:
         return json.loads(msg.payload)
@@ -62,31 +60,35 @@ def led_intensity(
         if verbose:
             logger.info(f"Updated LED {channel} from {old_intensity} to {intensity}.")
 
-        publish(
-            f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
-            intensity,
-            retain=True,
-        )
+        event = {
+            "channel": channel,
+            "intensity": intensity,
+            "event": "change_intensity",
+            "source_of_event": source_of_event,
+        }
 
-        publish(
-            f"pioreactor/{unit}/{experiment}/leds/intensity",
-            json.dumps(state),
-            retain=True,
+        publish_multiple(
+            [
+                (
+                    f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
+                    intensity,
+                    QOS.AT_MOST_ONCE,
+                    True,
+                ),
+                (
+                    f"pioreactor/{unit}/{experiment}/leds/intensity",
+                    json.dumps(state),
+                    QOS.AT_MOST_ONCE,
+                    True,
+                ),
+                (
+                    f"pioreactor/{unit}/{experiment}/led_events",
+                    json.dumps(event),
+                    QOS.EXACTLY_ONCE,
+                    False,
+                ),
+            ]
         )
-
-        publish(
-            f"pioreactor/{unit}/{experiment}/led_events",
-            json.dumps(
-                {
-                    "channel": channel,
-                    "intensity": intensity,
-                    "event": "change_intensity",
-                    "source_of_event": source_of_event,
-                }
-            ),
-            qos=QOS.EXACTLY_ONCE,
-        )
-
         return True
 
 
