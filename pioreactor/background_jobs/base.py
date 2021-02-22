@@ -3,6 +3,7 @@ import signal
 import faulthandler
 import os
 import sys
+import time
 import threading
 import atexit
 from collections import namedtuple
@@ -273,6 +274,12 @@ class BackgroundJob:
         self.state = self.DISCONNECTED
         self.logger.info(self.DISCONNECTED)
 
+        # because disconnect will not wait for all queued message to be sent,
+        # there were race conditions when we would disconnect the client, but
+        # "state == disconnected" events were not yet sent.
+        # we only want to block on these critical times, so we have the time here
+        time.sleep(0.1)
+
         # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
         self.pubsub_client.disconnect()
@@ -349,11 +356,4 @@ class BackgroundJob:
     def __setattr__(self, name: str, value) -> None:
         super(BackgroundJob, self).__setattr__(name, value)
         if (name in self.editable_settings) and hasattr(self, name):
-            msg = self.publish_attr(name)
-
-            # because disconnect will not wait for all queued message to be sent,
-            # there were race conditions when we would disconnect the client, but
-            # "state == disconnected" events were not yet sent.
-            # we only want to block on these critical times, so we have the condition here:
-            if name == "state":
-                msg.wait_for_publish()
+            self.publish_attr(name)

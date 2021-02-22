@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import time
 from pioreactor.background_jobs.base import BackgroundJob
 
 
@@ -18,6 +19,8 @@ class BackgroundSubJob(BackgroundJob):
             self.on_disconnect()
         except Exception as e:
             self.logger.error(e, exc_info=True)
+
+        time.sleep(0.1)
 
         # set state to disconnect before disconnecting our pubsub clients.
         self.state = self.DISCONNECTED
