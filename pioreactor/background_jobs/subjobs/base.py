@@ -20,7 +20,7 @@ class BackgroundSubJob(BackgroundJob):
         except Exception as e:
             self.logger.error(e, exc_info=True)
 
-        time.sleep(0.1)
+        time.sleep(0.5)
 
         # set state to disconnect before disconnecting our pubsub clients.
         self.state = self.DISCONNECTED

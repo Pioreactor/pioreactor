@@ -278,7 +278,7 @@ class BackgroundJob:
         # there were race conditions when we would disconnect the client, but
         # "state == disconnected" events were not yet sent.
         # we only want to block on these critical times, so we have the time here
-        time.sleep(0.1)
+        time.sleep(0.5)
 
         # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
