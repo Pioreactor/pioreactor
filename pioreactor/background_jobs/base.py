@@ -278,12 +278,12 @@ class BackgroundJob:
         # there were race conditions when we would disconnect the client, but
         # "state == disconnected" events were not yet sent.
         # we only want to block on these critical times, so we have the time here
-        time.sleep(1.0)
-
+        time.sleep(0.5)
         # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
-        self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called from a thread, ex: when we disconnect over MQTT call: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pubsub_client.disconnect()
+        self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called from a thread, ex: when we disconnect over MQTT call: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+        time.sleep(0.5)
 
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         os.kill(os.getpid(), signal.SIGUSR1)
