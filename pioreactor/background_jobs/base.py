@@ -109,9 +109,14 @@ class BackgroundJob:
             keepalive=25,
         )
 
+        def on_disconnect(client, userdata, rc, properties=None):
+            # let's log when we disconnect, to help debugging
+            self.logger.debug("Disconnected from MQTT")
+
         # when we reconnect to the broker, we want to republish our state
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
+        # TODO: this currently doesn't re-add a last-will.
         def reconnect_protocol(client, userdata, flags, rc, properties=None):
             self.logger.debug("Reconnecting to MQTT")
             self.publish_attr("state")
@@ -124,6 +129,7 @@ class BackgroundJob:
             pass
 
         client.on_connect = reconnect_protocol
+        client.on_disconnect = on_disconnect
         return client
 
     def publish(self, *args, **kwargs):
