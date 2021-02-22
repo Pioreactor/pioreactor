@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
-
-# from functools import cache
+from functools import lru_cache
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
 
 
+@lru_cache()
 def get_latest_experiment_name():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
         return "testing_experiment"

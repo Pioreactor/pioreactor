@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-import logging
-from pioreactor.pubsub import publish
+import logging, uuid
+from pioreactor.pubsub import create_client, publish
 from pioreactor.whoami import (
     get_unit_name,
     am_I_active_worker,
@@ -31,16 +31,19 @@ class MQTTHandler(logging.Handler):
     to a MQTT server to a topic.
     """
 
-    def __init__(self, topic, qos=2, retain=False, **mqtt_kwargs):
+    def __init__(self, topic, client, qos=2, retain=False, **mqtt_kwargs):
         logging.Handler.__init__(self)
         self.topic = topic
         self.qos = qos
         self.retain = retain
         self.mqtt_kwargs = mqtt_kwargs
+        self.client = client
 
     def emit(self, record):
         msg = self.format(record)
-        publish(self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs)
+        self.client.publish(
+            self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
+        )
 
         if config.getboolean("error_reporting", "send_to_Pioreactor_com", fallback=False):
             # turned off, by default
@@ -77,16 +80,18 @@ console_handler.setFormatter(
 
 
 # create MQTT handlers for logging to DB
+client = create_client(client_id=f"{get_unit_name()}-logging-{uuid.uuid1()}")
+
 exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 topic = f"pioreactor/{get_unit_name()}/{exp}/logs/app"
-mqtt_handler = MQTTHandler(topic)
+mqtt_handler = MQTTHandler(topic, client)
 mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))
 mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(levelname)-2s %(message)s"))
 
 # create MQTT handlers for logging to UI
 exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 topic = f"pioreactor/{get_unit_name()}/{exp}/app_logs_for_ui"
-ui_handler = MQTTHandler(topic)
+ui_handler = MQTTHandler(topic, client)
 ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
 ui_handler.setFormatter(CustomMQTTtoUIFormatter())
 
