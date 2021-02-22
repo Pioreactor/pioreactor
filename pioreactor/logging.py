@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
-"""
-TODO: we currently create two clients, one for each MQTT handler. Each
-client requires a thread - can we do better?
-
-"""
 import logging
-from pioreactor.pubsub import create_client, publish
+from pioreactor.pubsub import publish
 from pioreactor.whoami import (
     get_unit_name,
     am_I_active_worker,
@@ -36,38 +31,16 @@ class MQTTHandler(logging.Handler):
     to a MQTT server to a topic.
     """
 
-    def __init__(self, topic, qos=2):
+    def __init__(self, topic, qos=2, retain=False, **mqtt_kwargs):
         logging.Handler.__init__(self)
+        self.topic = topic
         self.qos = qos
-        self._client = None
-        self._topic = topic
-        self._filled = False
-
-    @property
-    def client(self):
-        # we don't connect until needed, this makes tools like the CLI faster.
-        if self._client is None:
-            self._client = create_client(
-                client_id=f"{get_unit_name()}-pub-logging-{id(self)}"
-            )
-        return self._client
-
-    @property
-    def topic(self):
-        # we don't connect until needed, this makes tools like the CLI faster.
-        if not self._filled:
-            exp = (
-                get_latest_experiment_name()
-                if am_I_active_worker()
-                else UNIVERSAL_EXPERIMENT
-            )
-            self._topic = self._topic.format(get_unit_name(), exp)
-            self._filled = True
-        return self._topic
+        self.retain = retain
+        self.mqtt_kwargs = mqtt_kwargs
 
     def emit(self, record):
         msg = self.format(record)
-        self.client.publish(self.topic, msg, qos=self.qos, retain=False)
+        publish(self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs)
 
         if config.getboolean("error_reporting", "send_to_Pioreactor_com", fallback=False):
             # turned off, by default
@@ -104,14 +77,16 @@ console_handler.setFormatter(
 
 
 # create MQTT handlers for logging to DB
-topic = "pioreactor/{}/{}/logs/app"
+exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+topic = f"pioreactor/{get_unit_name()}/{exp}/logs/app"
 mqtt_handler = MQTTHandler(topic)
 mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))
 mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(levelname)-2s %(message)s"))
 
 # create MQTT handlers for logging to UI
-topic = "pioreactor/{}/{}/app_logs_for_ui"
-ui_handler = MQTTHandler(topic, qos=0)
+exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+topic = f"pioreactor/{get_unit_name()}/{exp}/app_logs_for_ui"
+ui_handler = MQTTHandler(topic)
 ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
 ui_handler.setFormatter(CustomMQTTtoUIFormatter())
 
