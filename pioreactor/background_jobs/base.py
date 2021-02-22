@@ -282,8 +282,8 @@ class BackgroundJob:
 
         # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
-        self.pubsub_client.disconnect()
         self.pubsub_client.loop_stop()  # pretty sure this doesn't close the thread if called from a thread, ex: when we disconnect over MQTT call: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+        self.pubsub_client.disconnect()
 
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         os.kill(os.getpid(), signal.SIGUSR1)
