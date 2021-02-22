@@ -11,6 +11,7 @@ class BackgroundSubJob(BackgroundJob):
 
     def disconnected(self):
         # subjobs don't send a USR signal to end the job.
+        self.state = self.DISCONNECTED
 
         try:
             # call job specific on_disconnect to clean up subjobs, etc.
@@ -23,7 +24,6 @@ class BackgroundSubJob(BackgroundJob):
         time.sleep(0.5)
 
         # set state to disconnect before disconnecting our pubsub clients.
-        self.state = self.DISCONNECTED
         self.logger.info(self.DISCONNECTED)
 
         # disconnect from the passive subscription threads
