@@ -55,7 +55,7 @@ class DosingAutomation(BackgroundSubJob):
         unit=None,
         experiment=None,
         duration=60,
-        sensor="+",  # take first observed, and keep using only that.
+        sensor="+/+",  # take first observed, and keep using only that.
         skip_first_run=False,
         **kwargs,
     ):
@@ -219,8 +219,7 @@ class DosingAutomation(BackgroundSubJob):
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
-        # todo: test me
-        if self.sensor == "+":
+        if self.sensor == "+/+":
             split_topic = message.topic.split("/")
             self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
 

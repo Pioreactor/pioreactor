@@ -108,6 +108,8 @@ class BackgroundJob:
     def create_sub_client(self):
         # see note above as to why we split pub and sub.
 
+        # we give the last_will to this sub client because when it reconnects, it
+        # will republish state.
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$state",
             "payload": self.LOST,
