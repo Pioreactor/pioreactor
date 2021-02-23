@@ -133,7 +133,7 @@ class BackgroundJob:
             self.start_passive_listeners()
 
         def on_disconnect(*args):
-            self.logging.debug("Disconnected from MQTT")
+            self.logger.debug("Disconnected from MQTT")
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
