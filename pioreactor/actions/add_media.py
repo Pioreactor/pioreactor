@@ -87,14 +87,13 @@ def add_media(
 
         pwm.start(duty_cycle)
         time.sleep(duration)
-        pwm.stop()
-
-        GPIO.output(MEDIA_PIN, 0)
 
     except Exception as e:
-        GPIO.output(MEDIA_PIN, 0)
-        logger.error(e, exc_info=True)
+        logger.debug("Stopped")
+        logger.error(e)
     finally:
+        pwm.stop()
+        GPIO.output(MEDIA_PIN, 0)
         clean_up_gpio()
     return
 

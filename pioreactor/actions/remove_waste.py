@@ -87,14 +87,13 @@ def remove_waste(
 
         pwm.start(duty_cycle)
         time.sleep(duration)
-        pwm.stop()
 
-        GPIO.output(WASTE_PIN, 0)
     except Exception as e:
-        logger.error(f"{str(e)}")
-        raise e
-
+        logger.debug("Stopped")
+        logger.error(e)
     finally:
+        pwm.stop()
+        GPIO.output(WASTE_PIN, 0)
         clean_up_gpio()
     return
 
