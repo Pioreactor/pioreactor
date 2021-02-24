@@ -128,7 +128,7 @@ configure-hostname-from-args:
 	sudo hostname $(newHostname)
 	hostname | sudo tee /etc/hostname
 	sudo pip3 install pyhostman
-	sudo hostman remove --names raspberrypi
+	-sudo hostman remove --names raspberrypi # the - is important: hostman returns a error if not found, we want to ignore it, hence use -
 	sudo hostman add 127.0.1.1 $(newHostname)
 
 install-leader-as-worker: configure-hostname install-leader install-worker
