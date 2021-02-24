@@ -86,20 +86,13 @@ def add_alt_media(
 
         pwm.start(duty_cycle)
         time.sleep(duration)
-        pwm.stop()
-
-        GPIO.output(ALT_MEDIA_PIN, 0)
 
     except Exception as e:
-        print("here1")
         logger.debug("Stopped")
         logger.error(e)
+    finally:
         pwm.stop()
         GPIO.output(ALT_MEDIA_PIN, 0)
-        print("here1B")
-
-    finally:
-        print("here2")
         clean_up_gpio()
     return
 
