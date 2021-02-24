@@ -91,7 +91,9 @@ def add_alt_media(
         GPIO.output(ALT_MEDIA_PIN, 0)
 
     except Exception as e:
-        logger.error(f"{str(e)}")
+        logger.debug("Stopped")
+        logger.error(e)
+        pwm.stop()
         GPIO.output(ALT_MEDIA_PIN, 0)
 
     finally:
