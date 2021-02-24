@@ -147,9 +147,9 @@ seed-experiment:
 	sqlite3 /home/pi/db/pioreactor.sqlite < /home/pi/pioreactor/sql/seed.sql
 	mosquitto_pub -t "pioreactor/latest_experiment" -m "Demo experiment" -r
 
-install-worker: install-git install-python configure-hostname configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker: install-git install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 
-install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-all systemd-worker install-i2c install-pioreactor-worker logging-files
+install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
 install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui seed-experiment

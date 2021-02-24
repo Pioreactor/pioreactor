@@ -3,16 +3,22 @@ import logging
 import json
 import click
 from pioreactor.pubsub import publish_multiple, subscribe, QOS
-from pioreactor.whoami import get_latest_experiment_name, get_unit_name
+from pioreactor.whoami import (
+    UNIVERSAL_EXPERIMENT,
+    get_unit_name,
+    get_latest_experiment_name,
+)
 
 
 logger = logging.getLogger("led_intensity")
 CHANNELS = ["A", "B", "C", "D"]
 
 
-def get_current_state_from_broker(unit, experiment):
+def get_current_state_from_broker(unit):
     # this ignores the status of "power on"
-    msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=0.5)
+    msg = subscribe(
+        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity", timeout=0.5
+    )
     if msg:
         return json.loads(msg.payload)
     else:
@@ -67,16 +73,19 @@ def led_intensity(
             "source_of_event": source_of_event,
         }
 
+        # we publish some state to UNIVERSAL_EXPERIMENT because
+        # LED intensity can stay on over multiple experiments,
+        # and is more of a "state" than a measurement.
         publish_multiple(
             [
                 (
-                    f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
+                    f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/{channel}/intensity",
                     intensity,
                     QOS.AT_MOST_ONCE,
                     True,
                 ),
                 (
-                    f"pioreactor/{unit}/{experiment}/leds/intensity",
+                    f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity",
                     json.dumps(state),
                     QOS.AT_MOST_ONCE,
                     True,

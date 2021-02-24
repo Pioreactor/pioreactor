@@ -86,7 +86,18 @@ def click_mqtt_to_db_streaming():
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": metadata.timestamp,
             "od_reading_v": float(payload),
-            "angle": "".join(topic.split("/")[-2:]),
+            "angle": topic.split("/")[-2],
+        }
+
+    def parse_od_filtered(topic, payload):
+        metadata = produce_metadata(topic)
+
+        return {
+            "experiment": metadata.experiment,
+            "pioreactor_unit": metadata.pioreactor_unit,
+            "timestamp": metadata.timestamp,
+            "normalized_od_reading": float(payload),
+            "angle": topic.split("/")[-2],
         }
 
     def parse_dosing_events(topic, payload):
@@ -173,7 +184,9 @@ def click_mqtt_to_db_streaming():
     Metadata = namedtuple("Metadata", ["topic", "table", "parser"])
 
     topics_and_parsers = [
-        Metadata("pioreactor/+/+/od_filtered/+/+", "od_readings_filtered", parse_od),
+        Metadata(
+            "pioreactor/+/+/od_filtered/+/+", "od_readings_filtered", parse_od_filtered
+        ),
         Metadata("pioreactor/+/+/od_raw/+/+", "od_readings_raw", parse_od),
         Metadata("pioreactor/+/+/dosing_events", "dosing_events", parse_dosing_events),
         Metadata("pioreactor/+/+/led_events", "led_events", parse_led_events),

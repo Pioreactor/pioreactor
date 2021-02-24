@@ -12,7 +12,7 @@ ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')              
 # allow us to SSH in, but make sure we can first before continuing.
 while ! sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local "true"
     do echo "SSH to raspberrypi.local missed - `date`"
-    sleep 2
+    sleep 3
 done
 
 sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local 'mkdir -p .ssh'
@@ -32,7 +32,7 @@ crudini --set ~/.pioreactor/config.ini network.inventory $1 1
 
 # more needs to happen after the worker is online again (it reboots)
 while ! ping -c1 $1 &>/dev/null
-    do echo "Ping missed - `date`"
+    do echo "Ping to $1 missed - `date`"
     sleep 2
 done
 echo "Host $1 found - `date`"

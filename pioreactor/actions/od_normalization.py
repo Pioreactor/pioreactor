@@ -17,7 +17,7 @@ logger = logging.getLogger("od_normalization")
 
 def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=35):
 
-    logger.info("Starting OD normalization")
+    logger.debug("Starting OD normalization")
 
     if "stirring" not in pio_jobs_running():
         logger.error("stirring jobs should be running. Run `mb stirring -b` first.")
@@ -75,7 +75,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
             retain=True,
         )
 
-        logger.info("OD normalization finished")
+        logger.debug("OD normalization finished")
 
         return
     except Exception as e:

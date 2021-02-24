@@ -131,6 +131,9 @@ class GrowthRateCalculator(BackgroundJob):
                 "od_reading" in pio_jobs_running()
             ), "OD reading should be running. Stopping."
             # the below will populate od_norm and od_variance too
+            self.logger.info(
+                "Computing OD normalization metrics. This may take a few minutes"
+            )
             od_normalization(unit=self.unit, experiment=self.experiment)
             initial_growth_rate = 0
         else:
@@ -162,6 +165,9 @@ class GrowthRateCalculator(BackgroundJob):
             return self.json_to_sorted_dict(message.payload)
         else:
             self.logger.debug("od_normalization/median not found in broker.")
+            self.logger.info(
+                "Computing OD normalization metrics. This may take a few minutes"
+            )
             od_normalization(unit=self.unit, experiment=self.experiment)
             return self.get_od_normalization_from_broker()
 
@@ -176,6 +182,9 @@ class GrowthRateCalculator(BackgroundJob):
             return self.json_to_sorted_dict(message.payload)
         else:
             self.logger.debug("od_normalization/variance not found in broker.")
+            self.logger.info(
+                "Computing OD normalization metrics. This may take a few minutes"
+            )
             od_normalization(unit=self.unit, experiment=self.experiment)
             return self.get_od_variances_from_broker()
 
