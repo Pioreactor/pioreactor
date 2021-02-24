@@ -92,8 +92,8 @@ def add_media(
         GPIO.output(MEDIA_PIN, 0)
 
     except Exception as e:
+        GPIO.output(MEDIA_PIN, 0)
         logger.error(e, exc_info=True)
-        raise e
     finally:
         clean_up_gpio()
     return

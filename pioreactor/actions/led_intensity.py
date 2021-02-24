@@ -59,7 +59,7 @@ def led_intensity(
         )
         return False
     else:
-        state = get_current_state_from_broker(unit, experiment)
+        state = get_current_state_from_broker(unit)
         old_intensity = state[channel]
         state[channel] = intensity
 

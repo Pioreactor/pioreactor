@@ -92,7 +92,8 @@ def add_alt_media(
 
     except Exception as e:
         logger.error(f"{str(e)}")
-        raise e
+        GPIO.output(ALT_MEDIA_PIN, 0)
+
     finally:
         clean_up_gpio()
     return
