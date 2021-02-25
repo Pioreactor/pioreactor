@@ -39,6 +39,15 @@ class ExtendedKalmanFilter:
         ekf.update(...)
         ekf.state_
 
+
+    Scaling
+    ---------
+    1. Because our OD measurements are non-stationary (we expect them to increase), the process covariance matrix needs
+    to be scaled by an appropriate amount.
+
+    2. Part of https://github.com/Pioreactor/pioreactor/issues/74
+
+
     Tuning
     --------
 
@@ -49,13 +58,15 @@ class ExtendedKalmanFilter:
     p(x_t | y_t, z_t), where x_t is our unknown state vector, and y_t is our prediction, and z_t is our
     latest observation. This is a Bayesian update:
 
-    y_t ~ Normal(F(x_{t-1}), Prediction Uncertainty + Q), where F is the dynamical system
+    y_t ~ Normal( F(x_{t-1}), Prediction Uncertainty + Q), where F is the dynamical system
     z_t ~ Normal(mu, R)
 
     First, note the covariance of y_t. If Q is large, then we are _less_ confident in our prediction. How should we pick values of
     Q? Because our model says that r_t = r_{t-1} + var, we should choose var s.t. it is the expected movement in one
-    time step. Back of the envelope: in 1 hour, a rate change of 0.05 is exceptional => a 2 std. movement. => hourly std = 0.025
-    => per interval std = 0.025 * 5 / 3600 => var = (0.025 * 5 / 3600) ** 2
+    time step. Back of the envelope: in 1 hour, a rate change of 0.05 is exceptional => a 2 std. movement.
+    => hourly std = 0.025
+    => per observation-interval std =  0.025 * (5 / 3600)
+    => per observation-interval var = (0.025 * (5 / 3600)) ** 2
 
     The paper above suggests to make the process variance of OD equal to a small number. This means we (almost) fully trust the dynamic model to tell us what
     OD is. However, this means that changes in observed OD are due to changes in rate. What happens when there is a large jump due to noise? We can apply the same
@@ -121,7 +132,9 @@ class ExtendedKalmanFilter:
         residual_state = observation - state_prediction[:-1]
         H = self._jacobian_observation()
         residual_covariance = (
-            H @ covariance_prediction @ H.T + self.observation_noise_covariance
+            # see Scaling note above for why we multiple by state_
+            H @ covariance_prediction @ H.T
+            + self.state_[:-1] * self.observation_noise_covariance
         )
         kalman_gain = covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
         self.state_ = state_prediction + kalman_gain @ residual_state
@@ -155,9 +168,15 @@ class ExtendedKalmanFilter:
         )
 
     def _predict_covariance(self, state, covariance):
+        # see note on Scaling in docs.
+        scaled_process_noise_covariance = self.process_noise_covariance.copy()
+        scaled_process_noise_covariance[:-1, :-1] = (
+            state[:-1] ** 2 * self.process_noise_covariance[:-1, :-1]
+        )
+
         return (
             self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T
-            + self.process_noise_covariance
+            + scaled_process_noise_covariance
         )
 
     def _jacobian_process(self, state):

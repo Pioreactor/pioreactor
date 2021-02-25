@@ -27,7 +27,7 @@ logger = logging.getLogger("add_media")
 def add_media(
     ml=None,
     duration=None,
-    duty_cycle=33,
+    duty_cycle=66,
     source_of_event=None,
     unit=None,
     experiment=None,
@@ -105,7 +105,7 @@ def clean_up_gpio():
 @click.command(name="add_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
-@click.option("--duty-cycle", default=33, type=int, show_default=True)
+@click.option("--duty-cycle", default=66, type=int, show_default=True)
 @click.option(
     "--source-of-event",
     default="app",

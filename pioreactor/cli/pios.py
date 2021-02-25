@@ -196,9 +196,12 @@ def kill(job, units, y):
     command = f"pio kill {' '.join(job)}"
 
     def _thread_function(unit):
-
-        print(f"Executing {command} on {unit}...")
-        ssh(unit, command)
+        print(f"Executing {command} on {unit}.")
+        try:
+            ssh(unit, command)
+        except Exception as e:
+            logger.debug(e, exc_info=True)
+            logger.error(e)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -255,7 +258,11 @@ def run(ctx, job, units, y):
 
     def _thread_function(unit):
         print(f"Executing {core_command} on {unit}.")
-        ssh(unit, command)
+        try:
+            ssh(unit, command)
+        except Exception as e:
+            logger.debug(e, exc_info=True)
+            logger.error(e)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:

@@ -51,7 +51,7 @@ ssh-keyscan -H $1 >> ~/.ssh/known_hosts
 # sync-configs
 pios sync-configs --units $1
 
-# techdebt
+# techdebt - I think I can remove the StrictHostKeyChecking
 ssh -o StrictHostKeyChecking=no $1 'sudo rm -rf ~/pioreactor && git clone --depth 1 https://github.com/Pioreactor/pioreactor.git'
 
 # reboot once more (previous reboot didn't have config.inis)
