@@ -257,7 +257,7 @@ class ODReader(BackgroundJob):
 
         # give LED a moment to stabilize: post-power_up, setting to high tends to overshoot and then
         # fall to steady value.
-        time.sleep(1.0)
+        time.sleep(5.0)
         return
 
     def stop_ir_led(self):

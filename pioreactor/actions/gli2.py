@@ -88,7 +88,7 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
     def make_measurement():
         update_intensity(led_Y, 0)
         update_intensity(led_X, X_max)
-
+        # TODO: put a pause here to make sure the LED output is stable.
         adc.take_reading()
         signal1 = (adc_reading(adc, pd_Y) - baselineY) / (
             adc_reading(adc, pd_X) - baselineX
