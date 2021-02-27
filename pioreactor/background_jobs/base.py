@@ -225,7 +225,7 @@ class BackgroundJob:
         def disconnect_gracefully(*args):
             if self.state == self.DISCONNECTED:
                 return
-            self.set_state("disconnected")
+            self.set_state(self.DISCONNECTED)
 
         def exit_python(*args):
             self.logger.debug("Calling sys.exit(0)")
@@ -368,3 +368,23 @@ class BackgroundJob:
         super(BackgroundJob, self).__setattr__(name, value)
         if (name in self.editable_settings) and hasattr(self, name):
             self.publish_attr(name)
+
+
+# w.r.t. the code below: I don't think this is the "correct" place to put this business
+# logic - it is a bandaid fix.
+
+
+# class WorkerBackgroundJob:
+#
+#     def kill_myself(self):
+#         self.set_state(self.DISCONNECTED)
+#
+#     def start_general_passive_listeners(self) -> None:
+#
+#         super(self, WorkerBackgroundJob).start_general_passive_listeners()
+#
+#         # list to a change in latest_experiment, as this means the user
+#         # is doing something new.
+#         self.subscribe_and_callback(
+#             self.kill_myself, f"pioreactor/latest_experiment", allow_retained=False
+#         )

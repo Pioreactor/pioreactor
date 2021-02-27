@@ -2,8 +2,11 @@
 ### 21.2.5
  - fixed a bug where a job's state would change to `lost` when another job (of the same type) would try to start.
  - in `ADCReader`, changed from windowed moving average to exp. moving average to be more sensitive to recent changes in signal.
- - Growth rate calculating is a bit more robust to users pausing the job to inspect the vial.
- - mDNS alias is now configurable via the config.ini, so users could have multiple clusters without confusing the DNS.
+ - Growth rate calculating is a bit more robust to i) users pausing the job to inspect the vial, and ii) to changing the stirring speed.
+ - mDNS alias is now configurable via the config.ini, so users could have multiple clusters without domain aliases colliding in the DNS.
+ - fixed GPIO mappings for PWM Amplifiers
+ - `inventory` in config.ini is now called `network.inventory`
+ - `ui.overview.rename` in config.ini is now called `ui.rename`
 
 ### 21.2.4
  - fixed reconnect issues when leader went offline and then online

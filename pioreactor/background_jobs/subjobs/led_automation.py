@@ -53,7 +53,7 @@ class LEDAutomation(BackgroundSubJob):
         unit=None,
         experiment=None,
         duration=60,
-        sensor="135/0",
+        sensor="+/+",
         skip_first_run=False,
         **kwargs,
     ):
@@ -128,6 +128,16 @@ class LEDAutomation(BackgroundSubJob):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def set_led_intensity(self, channel, intensity):
+        """
+        Parameters
+        ------------
+
+        Channel:
+            The LED channel to modify.
+        Intensity: float
+            A float between 0-100, inclusive.
+
+        """
         self.edited_channels.append(channel)
         led_intensity(channel, intensity, unit=self.unit, experiment=self.experiment)
 
@@ -163,6 +173,13 @@ class LEDAutomation(BackgroundSubJob):
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
+        if self.sensor == "+/+":
+            split_topic = message.topic.split("/")
+            self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
+
+        if not message.topic.endswith(self.sensor):
+            return
+
         self.previous_od = self.latest_od
         self.latest_od = float(message.payload)
         self.latest_od_timestamp = time.time()
@@ -224,18 +241,23 @@ class Silent(LEDAutomation):
 
 
 class TrackOD(LEDAutomation):
-    def __init__(self, **kwargs):
-        super(TrackOD, self).__init__(**kwargs)
+    """
+    max_od: float
+        the theoretical maximum (normalized) OD we expect to see.
 
+    """
+
+    def __init__(self, max_od=None, **kwargs):
+        super(TrackOD, self).__init__(**kwargs)
+        assert max_od is not None, "max_od should be set"
+        self.max_od = max_od
         self.white_light = config.get("leds", "white_light")
-        # set luminosity to 10% initially
-        self.set_led_intensity(self.white_light, 0.1)
+        self.set_led_intensity(self.white_light, 0)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        self.set_led_intensity(self.white_light, 0.1 * (self.latest_od - 1) + 0.1)
-        return events.IncreasedLuminosity(
-            f"new output:{0.1 * (self.latest_od - 1) + 0.1}"
-        )
+        new_intensity = 100 ** (min(self.latest_od, self.max_od) / self.max_od)
+        self.set_led_intensity(self.white_light, new_intensity)
+        return events.IncreasedLuminosity(f"new output: {new_intensity}")
 
 
 class FlashUV(LEDAutomation):
