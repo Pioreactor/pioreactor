@@ -35,7 +35,7 @@ def test_silent_automation():
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", "1.1")
     pause()
     assert isinstance(algo.run(), events.NoEvent)
-    algo.set_state("disconnected")
+    # algo.set_state("disconnected")
 
 
 def test_turbidostat_automation():
@@ -475,7 +475,7 @@ def test_duration_and_timer():
     assert algo.latest_event is None
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.08)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", 0.500)
-    time.sleep(5)
+    time.sleep(10)
     pause()
     assert isinstance(algo.latest_event, events.NoEvent)
 
@@ -498,16 +498,14 @@ def test_changing_duration_over_mqtt():
     assert algo.latest_event is None
     pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", 0.08)
     pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", 0.500)
-    time.sleep(5)
-    pause()
-    time.sleep(5)
+    time.sleep(10)
 
     assert isinstance(algo.latest_event, events.NoEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set", 60 / 60
     )
-    pause()
+    time.sleep(10)
     assert algo.timer_thread.interval == 60
     algo.set_state("disconnected")
 

@@ -214,7 +214,6 @@ class ODReader(BackgroundJob):
     """
 
     editable_settings = []
-    sub_jobs = []
 
     def __init__(
         self,
@@ -235,7 +234,7 @@ class ODReader(BackgroundJob):
             unit=self.unit,
             experiment=self.experiment,
         )
-        self.sub_jobs.append(self.adc_reader)
+        self.sub_jobs = [self.adc_reader]
 
         # we delay the "setup" in case the adc_reader class fails init
         self.adc_reader.setup_adc()

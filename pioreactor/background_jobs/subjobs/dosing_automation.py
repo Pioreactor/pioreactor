@@ -47,7 +47,6 @@ class DosingAutomation(BackgroundSubJob):
     latest_growth_rate_timestamp = None
     latest_settings_started_at = current_time()
     latest_settings_ended_at = None
-    sub_jobs = []
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
 
     def __init__(
@@ -74,7 +73,7 @@ class DosingAutomation(BackgroundSubJob):
         self.throughput_calculator = ThroughputCalculator(
             unit=self.unit, experiment=self.experiment
         )
-        self.sub_jobs.extend([self.alt_media_calculator, self.throughput_calculator])
+        self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
         self.set_duration(duration)
         self.start_passive_listeners()
 
@@ -98,7 +97,7 @@ class DosingAutomation(BackgroundSubJob):
                 ).start()
 
     def run(self, counter=None):
-        time.sleep(10)  # wait some time for data to arrive
+        time.sleep(7)  # wait some time for data to arrive
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.

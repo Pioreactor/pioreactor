@@ -45,8 +45,6 @@ class LEDAutomation(BackgroundSubJob):
     latest_settings_started_at = current_time()
     latest_settings_ended_at = None
     editable_settings = ["duration"]
-    edited_channels = []
-    sub_jobs = []
 
     def __init__(
         self,
@@ -61,6 +59,7 @@ class LEDAutomation(BackgroundSubJob):
             job_name="led_automation", unit=unit, experiment=experiment
         )
 
+        self.edited_channels = []
         self.latest_event = None
 
         self.sensor = sensor

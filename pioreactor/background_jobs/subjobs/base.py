@@ -6,7 +6,8 @@ class BackgroundSubJob(BackgroundJob):
     # don't listen for signal handlers - parents take care of disconnecting us. But we _must_ be a child.
 
     def set_up_disconnect_protocol(self):
-        pass
+        # NOOP: subjobs don't disconnect, parents do.
+        return
 
     def disconnected(self):
         # subjobs don't send a USR signal to end the job.
