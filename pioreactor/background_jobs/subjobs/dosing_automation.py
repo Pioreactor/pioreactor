@@ -99,7 +99,11 @@ class DosingAutomation(BackgroundSubJob):
 
     def run(self, counter=None):
         time.sleep(10)  # wait some time for data to arrive
-        if (self.latest_growth_rate is None) or (self.latest_od is None):
+        if self.state == self.DISCONNECTED:
+            # NOOP
+            # we ended early.
+            return
+        elif (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not ("od_reading" in pio_jobs_running()) and (
                 "growth_rate_calculating" in pio_jobs_running()
@@ -200,6 +204,7 @@ class DosingAutomation(BackgroundSubJob):
             self.timer_thread.cancel()
         except AttributeError:
             self.logger.debug("no timer_thread", exc_info=True)
+
         for job in self.sub_jobs:
             job.set_state("disconnected")
 

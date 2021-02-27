@@ -609,6 +609,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
     pause()
     pause()
     assert algo.dosing_automation_job.target_od == 1.5
+    algo.set_state("disconnected")
 
 
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
@@ -637,6 +638,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
     )  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.dosing_automation_job, PIDTurbidostat)
     assert algo.dosing_automation_job.target_od == 1.0
+    algo.set_state("disconnected")
 
 
 def test_disconnect_cleanly():
@@ -644,7 +646,7 @@ def test_disconnect_cleanly():
     algo = DosingController(
         "turbidostat",
         target_od=1.0,
-        duration=5 / 60,
+        duration=50,
         unit=unit,
         volume=1.0,
         experiment=experiment,
@@ -655,3 +657,4 @@ def test_disconnect_cleanly():
         f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
     )
     time.sleep(10)
+    algo.set_state("disconnected")

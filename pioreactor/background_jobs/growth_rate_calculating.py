@@ -243,7 +243,7 @@ class GrowthRateCalculator(BackgroundJob):
             lambda m: self.update_ekf_variance_after_event(0.3),
             f"pioreactor/{self.unit}/{self.experiment}/stirring/duty_cycle",
             qos=QOS.EXACTLY_ONCE,
-            allowed_retained=False,
+            allow_retained=False,
         )
 
     @staticmethod

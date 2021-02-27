@@ -229,6 +229,11 @@ class BackgroundJob:
 
         def exit_python(*args):
             self.logger.debug("Calling sys.exit(0)")
+
+            # don't exit in test mode
+            if "pytest" in sys.modules or os.environ.get("TESTING"):
+                return
+
             sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,

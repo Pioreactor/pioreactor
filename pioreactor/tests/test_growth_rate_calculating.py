@@ -55,6 +55,7 @@ def test_subscribing(monkeypatch):
         f"pioreactor/{unit}/{experiment}/dosing_events",
         '{"volume_change": "1.5", "event": "add_media"}',
     )
+    publish(f"pioreactor/{unit}/{experiment}/stirring/duty_cycle", 45)
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"135/0": 1.778586260567034, "90/0": 1.20944389172032837}',
@@ -66,6 +67,7 @@ def test_subscribing(monkeypatch):
     pause()
 
     assert calc.state_ is not None
+    calc.set_state("disconnected")
 
 
 def test_same_angles(monkeypatch):
@@ -87,7 +89,7 @@ def test_same_angles(monkeypatch):
         retain=True,
     )
 
-    GrowthRateCalculator(unit=unit, experiment=experiment)
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"135/0": 0.778586260567034, "135/1": 0.20944389172032837, "90/0": 0.1}',
@@ -100,6 +102,7 @@ def test_same_angles(monkeypatch):
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
         '{"135/0": 0.808586260567034, "135/1": 0.21944389172032837, "90/0": 0.2}',
     )
+    calc.set_state("disconnected")
 
 
 def test_mis_shapen_data(monkeypatch):
@@ -121,7 +124,7 @@ def test_mis_shapen_data(monkeypatch):
         retain=True,
     )
 
-    GrowthRateCalculator(unit=unit, experiment=experiment)
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched",
@@ -133,6 +136,7 @@ def test_mis_shapen_data(monkeypatch):
         f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.808586260567034}'
     )
     pause()
+    calc.set_state("disconnected")
 
 
 def test_restart():
@@ -184,10 +188,12 @@ def test_restart():
     pause()
 
     assert calc1.state_[-1] != 0
+    calc1.set_state("disconnected")
 
     calc2 = GrowthRateCalculator(unit=unit, experiment=experiment)
     pause()
     assert calc2.initial_growth_rate != 0
+    calc2.set_state("disconnected")
 
 
 def test_skip_180():
@@ -218,6 +224,7 @@ def test_skip_180():
     pause()
 
     assert "180/2" not in calc.angles
+    calc.set_state("disconnected")
 
 
 def test_single_observation():
@@ -239,7 +246,7 @@ def test_single_observation():
         retain=True,
     )
 
-    GrowthRateCalculator(unit=unit, experiment=experiment)
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.20944389172032837}'
@@ -247,6 +254,7 @@ def test_single_observation():
     pause()
 
     assert True
+    calc.set_state("disconnected")
 
 
 def test_scaling_works():
@@ -288,3 +296,4 @@ def test_scaling_works():
         )
         < 1e-7
     ).all()
+    calc.set_state("disconnected")
