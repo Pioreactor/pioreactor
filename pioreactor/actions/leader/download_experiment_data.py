@@ -23,7 +23,7 @@ def download_experiment_data(experiment, output, tables):
     logger.info("Starting export of data.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
-    zf = zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED)
+    zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED)
     con = sqlite3.connect(config["storage"]["database"])
 
     for table in tables:
@@ -33,6 +33,7 @@ def download_experiment_data(experiment, output, tables):
         query = f"""
             SELECT * from {table} WHERE experiment="{experiment}"
         """
+        logger.info(query)
         cursor = con.cursor()
         cursor.execute(query)
 

@@ -56,11 +56,9 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         medians = {}
         for sensor, reading_series in readings.items():
             # measure the variance and publish. The variance will be used in downstream jobs.
-            var = variance(reading_series)
-            variances[sensor] = var
+            variances[sensor] = variance(reading_series)
             # measure the median and publish. The median will be used to normalize the readings in downstream jobs
-            med = median(reading_series)
-            medians[sensor] = med
+            medians[sensor] = median(reading_series)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_normalization/variance",
