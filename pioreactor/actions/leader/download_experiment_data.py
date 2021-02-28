@@ -33,7 +33,6 @@ def download_experiment_data(experiment, output, tables):
         query = f"""
             SELECT * from {table} WHERE experiment="{experiment}"
         """
-        logger.info(query)
         cursor = con.cursor()
         cursor.execute(query)
 
