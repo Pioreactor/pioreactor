@@ -53,7 +53,7 @@ def download_experiment_data(experiment, output, tables):
             """
                 % table
             )
-            cursor.execute(query, {"table": table, "experiment": experiment})
+            cursor.execute(query, {"experiment": experiment})
 
         with open(path_to_file, "w") as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=",")

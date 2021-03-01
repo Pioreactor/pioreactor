@@ -106,7 +106,7 @@ def update(units):
     command = "pio update --app"
 
     def _thread_function(unit):
-        print(f"Executing on {unit}...")
+        print(f"Executing `{command}` on {unit}...")
         try:
 
             client = paramiko.SSHClient()
@@ -143,7 +143,7 @@ def sync_configs(units):
     import paramiko
 
     def _thread_function(unit):
-        print(f"Executing on {unit}...")
+        print(f"Syncing configs on {unit}...")
         try:
 
             client = paramiko.SSHClient()
@@ -196,7 +196,7 @@ def kill(job, units, y):
     command = f"pio kill {' '.join(job)}"
 
     def _thread_function(unit):
-        print(f"Executing {command} on {unit}.")
+        print(f"Executing `{command}` on {unit}.")
         try:
             ssh(unit, command)
         except Exception as e:
@@ -257,7 +257,7 @@ def run(ctx, job, units, y):
             return
 
     def _thread_function(unit):
-        print(f"Executing {core_command} on {unit}.")
+        print(f"Executing `{core_command}` on {unit}.")
         try:
             ssh(unit, command)
         except Exception as e:

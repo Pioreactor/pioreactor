@@ -7,6 +7,8 @@ After=network-online.target
 User=pi
 ExecStartPre=sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 9000
 ExecStart=pm2 start app.js --name ui --time
+ExecStartPost=tail -f -n 0 /home/pi/.pm2/logs/ui-out.log  | sed -u -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}: stdout: /[PioreactorUI] /g' -e 'tx' -e 'd' -e ':x' | mosquitto_pub -l -t "pioreactor/$(hostname)/\$experiment/logs/ui"
+ExecStartPost=tail -f -n 0 /home/pi/.pm2/logs/ui-error.log  | sed -u -e 's/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\}: stdout: /[PioreactorUI] /g' -e 'tx' -e 'd' -e ':x' | mosquitto_pub -l -t "pioreactor/$(hostname)/\$experiment/logs/ui"
 WorkingDirectory=/home/pi/pioreactorui/backend
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
