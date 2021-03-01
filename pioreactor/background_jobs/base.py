@@ -61,6 +61,7 @@ class BackgroundJob:
     editable_settings = []
 
     def __init__(self, job_name: str, experiment=None, unit=None) -> None:
+        self.sub_jobs = []
         self.job_name = job_name
         self.logger = logging.getLogger(self.job_name)
         self.check_for_duplicate_process()
@@ -74,9 +75,11 @@ class BackgroundJob:
         # so we split the listening and publishing. I've tried combining them and got stuck a lot
         # https://github.com/Pioreactor/pioreactor/blob/cb54974c9be68616a7f4fb45fe60fdc063c81238/pioreactor/background_jobs/base.py
         # See issue: https://github.com/eclipse/paho.mqtt.python/issues/527
+        # The order we add them to the list is important too, as disconnects occur async,
+        # we want to give the sub_client (has the will msg) as much time as possible to disconnect.
         self.pub_client = self.create_pub_client()
         self.sub_client = self.create_sub_client()
-        self.pubsub_clients = [self.pub_client, self.sub_client]
+        self.pubsub_clients = [self.sub_client, self.pub_client]
 
         self.set_state(self.INIT)
         self.set_up_disconnect_protocol()
@@ -260,7 +263,7 @@ class BackgroundJob:
 
             self.pub_client = self.create_pub_client()
             self.sub_client = self.create_sub_client()
-            self.pubsub_clients = [self.pub_client, self.sub_client]
+            self.pubsub_clients = [self.sub_client, self.pub_client]
 
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()

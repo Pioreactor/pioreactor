@@ -1,29 +1,32 @@
 # -*- coding: utf-8 -*-
 """
 Continuously take an optical density reading (more accurately: a turbidity reading, which is a proxy for OD).
-Internally, a subjob reads all channels from the ADS1115 and pushes to MQTT. The ODReader listens to
-these MQTT topics, and repushes only the data that represents optical densities. Why do it this way? In
-the future, there could be other photodiodes / analog signals that plug into the ADS, and they listen (and republish)
-in the same manner.
-
->>> pioreactor od_reading --background
-
-
 Topics published to
 
     pioreactor/<unit>/<experiment>/od_raw/<angle>/<label>
 
 Ex:
 
-    pioreactor/1/trial15/od_raw/135/0
-
+    pioreactor/pioreactor1/trial15/od_raw/135/0
 
 Also published to
 
     pioreactor/<unit>/<experiment>/od_raw_batched
 
-a json like: {"135/0": 0.086, "135/1": 0.086, "135/2": 0.0877, "135/3": 0.0873}
+a serialized json like: "{"135/0": 0.086, "135/1": 0.086, "135/2": 0.0877, "135/3": 0.0873}"
 
+
+Internally, the subjob ADCReader reads all channels from the ADC and pushes to MQTT. The ODReader listens to
+these MQTT topics, and re-publishes only the data that represents optical densities. Why do it this way? In
+the future, there could be other photodiodes / analog signals that plug into the ADS, and they listen (and republish)
+in the same manner.
+
+
+In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other jobs can read it and
+make decisions. For example, if a bubbler/visible light LED is active, it should time itself
+s.t. it is _not_ running when an turbidity measurement is about to occur. `interval` is there so
+that it's clear the duration between readings, and in case the config.ini is changed between this job
+starting and the downstream job starting.
 
 """
 import time
@@ -277,7 +280,13 @@ class ODReader(BackgroundJob):
         ads_readings = json.loads(message.payload)
         od_readings = {}
         for channel, label in self.channel_label_map.items():
-            od_readings[label] = ads_readings[str(channel)]
+            try:
+                od_readings[label] = ads_readings[str(channel)]
+            except KeyError:
+                self.logger.error(
+                    "Inputted wrong channel. Only valid channels are 0, 1, 2, 3."
+                )
+                self.set_state(self.DISCONNECTED)
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",

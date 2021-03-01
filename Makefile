@@ -11,12 +11,12 @@ install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
 	sudo systemctl enable mosquitto.service
 
+
+configure-mqtt:
+	# append if not already present
 	grep -qxF 'connection_messages true' /etc/mosquitto/mosquitto.conf || echo "connection_messages true" | sudo tee /etc/mosquitto/mosquitto.conf -a
 	grep -qxF 'autosave_interval 300' /etc/mosquitto/mosquitto.conf || echo "autosave_interval 300" | sudo tee /etc/mosquitto/mosquitto.conf -a
 
-
-configure-mqtt-websockets:
-	# append if not already present
 	grep -qxF 'listener 1883' /etc/mosquitto/mosquitto.conf || echo "listener 1883" | sudo tee /etc/mosquitto/mosquitto.conf -a
 	grep -qxF 'protocol mqtt' /etc/mosquitto/mosquitto.conf || echo "protocol mqtt" | sudo tee /etc/mosquitto/mosquitto.conf -a
 	grep -qxF 'listener 9001' /etc/mosquitto/mosquitto.conf || echo "listener 9001" | sudo tee /etc/mosquitto/mosquitto.conf -a
@@ -152,7 +152,7 @@ install-worker: install-git install-python configure-hostname configure-rpi syst
 install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt-websockets configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui seed-experiment
+install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-all systemd-leader logging-files install-ui seed-experiment
 	# TODO: below is not idempotent
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass
