@@ -11,6 +11,11 @@ from pioreactor.config import config
 logger = logging.getLogger("download_experiment_data")
 
 
+def exists_table(cursor, name):
+    query = "SELECT 1 FROM sqlite_master WHERE type='table' and name = ?"
+    return cursor.execute(query, (name,)).fetchone() is not None
+
+
 def download_experiment_data(experiment, output, tables):
     """
     Set an experiment, else it defaults to the entire table.
@@ -32,14 +37,22 @@ def download_experiment_data(experiment, output, tables):
         path_to_file = os.path.join(os.path.dirname(output), _filename)
         cursor = con.cursor()
 
+        # so apparently, you can't parameterise the table name in python's sqlite3, so I
+        # have to use string formatting (SQL-injection vector), but first check that the table exists (else fail)
+        if not exists_table(cursor, table):
+            raise ValueError("table %s does not exist." % table)
+
         if experiment is None:
-            query = """SELECT * from :table"""
-            cursor.execute(query, {"table": table})
+            query = """SELECT * from %s""" % table
+            cursor.execute(query)
 
         else:
-            query = """
-                SELECT * from :table WHERE experiment=:experiment
+            query = (
+                """
+                SELECT * from %s WHERE experiment=:experiment
             """
+                % table
+            )
             cursor.execute(query, {"table": table, "experiment": experiment})
 
         with open(path_to_file, "w") as csv_file:
