@@ -10,7 +10,10 @@ class Event:
         self.message = message
 
     def __str__(self):
-        return f"{self.human_readable_name()}: {self.message}"
+        if self.message:
+            return f"{self.human_readable_name()}: {self.message}"
+        else:
+            return self.human_readable_name()
 
     def human_readable_name(self):
         name = type(self).__name__

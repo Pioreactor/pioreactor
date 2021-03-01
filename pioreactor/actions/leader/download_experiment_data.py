@@ -6,19 +6,20 @@ import os
 from datetime import datetime
 import logging
 import click
-from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.config import config
 
 logger = logging.getLogger("download_experiment_data")
 
 
 def download_experiment_data(experiment, output, tables):
+    """
+    Set an experiment, else it defaults to the entire table.
+
+
+    """
     import sqlite3
     import zipfile
     import csv
-
-    if experiment == "current":
-        experiment = get_latest_experiment_name()
 
     logger.info("Starting export of data.")
 
@@ -29,12 +30,17 @@ def download_experiment_data(experiment, output, tables):
     for table in tables:
         _filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
         path_to_file = os.path.join(os.path.dirname(output), _filename)
-
-        query = f"""
-            SELECT * from {table} WHERE experiment="{experiment}"
-        """
         cursor = con.cursor()
-        cursor.execute(query)
+
+        if experiment is None:
+            query = """SELECT * from :table"""
+            cursor.execute(query, {"table": table})
+
+        else:
+            query = """
+                SELECT * from :table WHERE experiment=:experiment
+            """
+            cursor.execute(query, {"table": table, "experiment": experiment})
 
         with open(path_to_file, "w") as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=",")
@@ -51,7 +57,7 @@ def download_experiment_data(experiment, output, tables):
 
 
 @click.command(name="download_experiment_data")
-@click.option("--experiment", default="current")
+@click.option("--experiment", default=None)
 @click.option("--output", default="/home/pi/exports/export.zip")
 @click.option("--tables", multiple=True, default=[])
 def click_download_experiment_data(experiment, output, tables):
