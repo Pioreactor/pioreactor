@@ -56,7 +56,7 @@ logging.raiseExceptions = False
 # reduce logging from third party libs
 logging.getLogger("sh").setLevel("ERROR")
 logging.getLogger("paramiko").setLevel("ERROR")
-logging.getLogger("sqlite3worker").setLevel("CRITICAL")
+logging.getLogger("sqlite3worker").setLevel("ERROR")
 
 
 # file handler

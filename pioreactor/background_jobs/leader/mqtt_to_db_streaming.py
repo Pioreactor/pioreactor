@@ -87,6 +87,7 @@ def click_mqtt_to_db_streaming():
             "timestamp": metadata.timestamp,
             "od_reading_v": float(payload),
             "angle": topic.split("/")[-2],
+            "channel": topic.split("/")[-1],
         }
 
     def parse_od_filtered(topic, payload):
@@ -98,6 +99,7 @@ def click_mqtt_to_db_streaming():
             "timestamp": metadata.timestamp,
             "normalized_od_reading": float(payload),
             "angle": topic.split("/")[-2],
+            "channel": topic.split("/")[-1],
         }
 
     def parse_dosing_events(topic, payload):

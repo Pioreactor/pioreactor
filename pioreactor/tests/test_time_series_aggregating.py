@@ -72,9 +72,9 @@ def test_subscribe_and_listen_to_clear_different_formatter():
     publish(f"pioreactor/{unit}2/{experiment}/od_raw/135/0", 1.0)
     pause()
     assert ts.aggregated_time_series["series"] == [
-        "testing_unit1-A",
-        "testing_unit1-B",
-        "testing_unit2-A",
+        "testing_unit1-0",
+        "testing_unit1-1",
+        "testing_unit2-0",
     ]
 
     publish(

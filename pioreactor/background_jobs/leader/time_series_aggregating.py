@@ -82,9 +82,15 @@ class TimeSeriesAggregation(BackgroundJob):
             return {"series": [], "data": []}
 
     def write(self):
+        # dumping large jsons is slow, and our UI will try to read from
+        # a being-written json file, hence causing json errors on the frontend.
+        # so we write to  temp file, and do a hotswap when done.
         self.latest_write = current_time()
-        with open(self.output, mode="wt") as f:
+        temp_file = self.output + ".temp"
+        with open(temp_file, mode="wt") as f:  # wt is write in text mode
             json.dump(self.aggregated_time_series, f)
+
+        os.rename(temp_file, self.output)
 
     def append_cache_and_clear(self):
         self.update_data_series()

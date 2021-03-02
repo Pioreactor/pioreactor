@@ -33,8 +33,6 @@ def download_experiment_data(experiment, output, tables):
     con = sqlite3.connect(config["storage"]["database"])
 
     for table in tables:
-        _filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
-        path_to_file = os.path.join(os.path.dirname(output), _filename)
         cursor = con.cursor()
 
         # so apparently, you can't parameterise the table name in python's sqlite3, so I
@@ -45,6 +43,7 @@ def download_experiment_data(experiment, output, tables):
         if experiment is None:
             query = """SELECT * from %s""" % table
             cursor.execute(query)
+            _filename = f"{table}-{time}.dump.csv".replace(" ", "_")
 
         else:
             query = (
@@ -54,7 +53,9 @@ def download_experiment_data(experiment, output, tables):
                 % table
             )
             cursor.execute(query, {"experiment": experiment})
+            _filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
 
+        path_to_file = os.path.join(os.path.dirname(output), _filename)
         with open(path_to_file, "w") as csv_file:
             csv_writer = csv.writer(csv_file, delimiter=",")
             csv_writer.writerow([i[0] for i in cursor.description])
