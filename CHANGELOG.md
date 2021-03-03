@@ -1,5 +1,9 @@
 
-### 21.2.5
+
+### 21.3.3
+ - fix GPIO mappings
+ - fix keyboard interrupts in pump actions
+ - fix race conditions in MQTT disconnects
  - fixed a bug where a job's state would change to `lost` when another job (of the same type) would try to start.
  - in `ADCReader`, changed from windowed moving average to exp. moving average to be more sensitive to recent changes in signal.
  - Growth rate calculating is a bit more robust to i) users pausing the job to inspect the vial, and ii) to changing the stirring speed.

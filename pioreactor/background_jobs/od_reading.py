@@ -111,7 +111,7 @@ class ADCReader(BackgroundSubJob):
         self.dynamic_gain = dynamic_gain
         self.initial_gain = initial_gain
         self.counter = 0
-        self.ema = ExponentialMovingAverage(alpha=0.15)
+        self.ema = ExponentialMovingAverage(alpha=0.20)
         self.ads = None
         self.analog_in = []
         if self.interval:

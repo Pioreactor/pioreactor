@@ -184,7 +184,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_seconds=10,
+        write_every_n_seconds=15,
         time_window_seconds=60
         * int(config["ui.overview.settings"]["raw_od_lookback_minutes"]),
         record_every_n_seconds=5,
@@ -198,7 +198,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=single_sensor_label_from_topic,
-        write_every_n_seconds=10,
+        write_every_n_seconds=15,
         time_window_seconds=60
         * int(config["ui.overview.settings"]["filtered_od_lookback_minutes"]),
         record_every_n_seconds=4,
@@ -212,7 +212,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
-        write_every_n_seconds=10,
+        write_every_n_seconds=15,
         record_every_n_seconds=3 * 60,  # TODO: move this to a config param
     )
 
@@ -224,7 +224,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         unit=unit,
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
-        write_every_n_seconds=10,
+        write_every_n_seconds=15,
         record_every_n_seconds=1,
     )
 
