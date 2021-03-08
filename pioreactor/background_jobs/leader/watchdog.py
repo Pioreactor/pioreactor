@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 import os, signal
 import logging
+import time
 
 import click
 
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.pubsub import subscribe
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 logger = logging.getLogger(JOB_NAME)
@@ -23,8 +25,33 @@ class WatchDog(BackgroundJob):
 
     def watch_for_lost_state(self, msg):
         if msg.payload.decode() == self.LOST:
+            # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
+
+            # let's try pinging the unit a few times first:
             unit = msg.topic.split("/")[1]
-            self.logger.error(f"{unit} was lost.")
+
+            self.logger.warning(
+                f"{unit} seems to be disconnected. Try to re-establish connection..."
+            )
+
+            self.pub_client.publish(
+                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.INIT
+            )
+            time.sleep(1)
+            self.pub_client.publish(
+                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.READY
+            )
+            time.sleep(1)
+
+            current_state = subscribe(
+                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=2
+            )
+
+            if current_state == self.LOST:
+                # failed, let's confirm to user
+                self.logger.error(f"{unit} was lost.")
+            else:
+                self.logger.info(f"{unit} is fine.")
 
     def watch_for_disk_space_percent(self, msg):
         if float(msg.payload) >= 90:

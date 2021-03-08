@@ -110,7 +110,7 @@ class ADCReader(BackgroundSubJob):
         self.interval = interval
         self.dynamic_gain = dynamic_gain
         self.initial_gain = initial_gain
-        self.counter = 0
+        self.counter = -1
         self.ema = ExponentialMovingAverage(alpha=0.20)
         self.ads = None
         self.analog_in = []
@@ -180,6 +180,7 @@ class ADCReader(BackgroundSubJob):
             self.ema.update(max(raw_signals.values()))
 
             # check if using correct gain
+            # this should update after first observation
             check_gain_every_n = 5
             if (
                 self.dynamic_gain
@@ -259,7 +260,7 @@ class ODReader(BackgroundJob):
 
         # give LED a moment to stabilize: post-power_up, setting to high tends to overshoot and then
         # fall to steady value.
-        time.sleep(5.0)
+        time.sleep(1.0)
         return
 
     def stop_ir_led(self):
