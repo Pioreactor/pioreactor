@@ -97,6 +97,7 @@ class DosingAutomation(BackgroundSubJob):
                 ).start()
 
     def run(self, counter=None):
+        self.logger.debug("in run")
         time.sleep(7)  # wait some time for data to arrive
         if self.state == self.DISCONNECTED:
             # NOOP
@@ -104,8 +105,9 @@ class DosingAutomation(BackgroundSubJob):
             return
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not ("od_reading" in pio_jobs_running()) and (
-                "growth_rate_calculating" in pio_jobs_running()
+            self.logger.debug(("od_reading" not in pio_jobs_running()))
+            if ("od_reading" not in pio_jobs_running()) or (
+                "growth_rate_calculating" not in pio_jobs_running()
             ):
                 self.logger.warn(
                     "`od_reading` and `growth_rate_calculating` should be running."
