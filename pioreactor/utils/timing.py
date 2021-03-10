@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, sys, logging
-from threading import Event, Thread, Timer
+from threading import Event, Thread
 
 
 def every(delay, task, *args, **kwargs):
@@ -53,12 +53,6 @@ class RepeatedTimer:
         self.args = args
         self.kwargs = kwargs
         self.logger = logging.getLogger(job_name or "RepeatedTimer")
-
-        if run_immediately:
-            temp_thread = Timer(0, self.function, self.args, self.kwargs)
-            temp_thread.daemon = True
-            temp_thread.start()
-            temp_thread.join()
 
         self.start_time = time.time()
         self.event = Event()
