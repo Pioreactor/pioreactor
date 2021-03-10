@@ -94,6 +94,7 @@ def remove_waste(
     finally:
         pwm.stop()
         GPIO.setmode(GPIO.BCM)
+        GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 0)
         clean_up_gpio()
     return
