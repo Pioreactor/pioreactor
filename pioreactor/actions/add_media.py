@@ -93,6 +93,8 @@ def add_media(
         logger.error(e)
     finally:
         pwm.stop()
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 0)
         clean_up_gpio()
     return
