@@ -25,7 +25,6 @@ class ContinuouslyRunning(DosingAutomation):
 
     def __init__(self, **kwargs):
         super(ContinuouslyRunning, self).__init__(**kwargs)
-        self.set_duration(10000000)
         self.remove_waste_thread = threading.Thread(
             target=self.remove_waste_continuously, daemon=True
         )
