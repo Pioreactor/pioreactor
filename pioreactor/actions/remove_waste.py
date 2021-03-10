@@ -93,6 +93,7 @@ def remove_waste(
         logger.error(e)
     finally:
         pwm.stop()
+        GPIO.setmode(GPIO.BCM)
         GPIO.output(WASTE_PIN, 0)
         clean_up_gpio()
     return
