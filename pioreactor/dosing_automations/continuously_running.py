@@ -27,20 +27,17 @@ class ContinuouslyRunning(DosingAutomation):
         super(ContinuouslyRunning, self).__init__(**kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        while True:
-            add_media(
-                ml=1,
-                source_of_event=self.job_name,
-                unit=self.unit,
-                experiment=self.experiment,
-            )
-            time.sleep(1)
-            remove_waste(
-                ml=1.1,
-                source_of_event=self.job_name,
-                unit=self.unit,
-                experiment=self.experiment,
-            )
-        # self.remove_waste_thread.start()
-        # self.add_media_thread.start()
-        # return events.ContinuouslyDosing("Pumps will always run")
+        add_media(
+            ml=1,
+            source_of_event=self.job_name,
+            unit=self.unit,
+            experiment=self.experiment,
+        )
+        time.sleep(1)
+        remove_waste(
+            ml=1.1,
+            source_of_event=self.job_name,
+            unit=self.unit,
+            experiment=self.experiment,
+        )
+        return events.ContinuouslyDosing("Pumps will always run")
