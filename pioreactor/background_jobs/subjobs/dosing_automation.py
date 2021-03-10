@@ -17,8 +17,6 @@ from pioreactor.background_jobs.subjobs.throughput_calculating import Throughput
 from pioreactor.dosing_automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 
-GPIO.setmode(GPIO.BCM)
-
 
 def brief_pause():
     if "pytest" in sys.modules or os.environ.get("TESTING"):
@@ -210,6 +208,7 @@ class DosingAutomation(BackgroundSubJob):
             job.set_state("disconnected")
 
         self._clear_mqtt_cache()
+        GPIO.setmode(GPIO.BCM)
         GPIO.cleanup()
 
     def __setattr__(self, name, value) -> None:
