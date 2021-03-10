@@ -28,14 +28,14 @@ class ContinuouslyRunning(DosingAutomation):
 
     def execute(self, *args, **kwargs) -> events.Event:
         add_media(
-            ml=1,
+            ml=0.5,
             source_of_event=self.job_name,
             unit=self.unit,
             experiment=self.experiment,
         )
         time.sleep(1)
         remove_waste(
-            ml=1.1,
+            ml=0.6,
             source_of_event=self.job_name,
             unit=self.unit,
             experiment=self.experiment,

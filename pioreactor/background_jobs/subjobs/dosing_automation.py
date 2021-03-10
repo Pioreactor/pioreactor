@@ -4,7 +4,6 @@ import time, sys, os
 
 import json
 from datetime import datetime
-import RPi.GPIO as GPIO
 
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
@@ -110,9 +109,8 @@ class DosingAutomation(BackgroundSubJob):
                 self.logger.warn(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
-            event = events.NoEvent("waiting for OD and growth rate data to arrive")
             time.sleep(7)  # wait some time for data to arrive
-            self.run()
+            return self.run()
 
         elif self.state != self.READY:
             event = events.NoEvent(f"currently in state {self.state}")
@@ -210,8 +208,6 @@ class DosingAutomation(BackgroundSubJob):
             job.set_state("disconnected")
 
         self._clear_mqtt_cache()
-        GPIO.setmode(GPIO.BCM)
-        GPIO.cleanup()
 
     def __setattr__(self, name, value) -> None:
         super(DosingAutomation, self).__setattr__(name, value)
