@@ -206,6 +206,7 @@ class GrowthRateCalculator(BackgroundJob):
             scaled_observations = self.scale_raw_observations(observations)
             self.ekf.update(list(scaled_observations.values()))
 
+            # TODO: EKF values can be nans...
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
                 self.state_[-1],

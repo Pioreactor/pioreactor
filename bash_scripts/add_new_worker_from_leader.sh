@@ -27,7 +27,7 @@ touch /home/pi/.pioreactor/config_$1.ini
 echo -e "# Any settings here are specific to $1, and override the settings in config.ini" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "\n" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "[stirring]" >> /home/pi/.pioreactor/config_$1.ini
-echo -e "duty_cycle_$1=0\n" >> /home/pi/.pioreactor/config_$1.ini
+echo -e "duty_cycle_$1=80\n" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "[pump_calibration]" >> /home/pi/.pioreactor/config_$1.ini
 crudini --set ~/.pioreactor/config.ini network.inventory $1 1
 

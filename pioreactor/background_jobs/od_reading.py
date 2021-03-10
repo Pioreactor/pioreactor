@@ -101,7 +101,7 @@ class ADCReader(BackgroundSubJob):
         unit=None,
         experiment=None,
         dynamic_gain=True,
-        initial_gain=2,
+        initial_gain=1,
     ):
         super(ADCReader, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment
@@ -110,7 +110,7 @@ class ADCReader(BackgroundSubJob):
         self.interval = interval
         self.dynamic_gain = dynamic_gain
         self.initial_gain = initial_gain
-        self.counter = -1
+        self.counter = 0
         self.ema = ExponentialMovingAverage(alpha=0.20)
         self.ads = None
         self.analog_in = []
@@ -177,11 +177,13 @@ class ADCReader(BackgroundSubJob):
             self.batched_readings = raw_signals
 
             # the max signal should determine the ADS1115's gain
-            self.ema.update(max(raw_signals.values()))
+            if self.dynamic_gain:
+                self.ema.update(max(raw_signals.values()))
 
             # check if using correct gain
             # this should update after first observation
-            check_gain_every_n = 5
+            # this may need to be adjusted for higher rates of data collection
+            check_gain_every_n = 2
             if (
                 self.dynamic_gain
                 and self.counter % check_gain_every_n == 0
@@ -267,7 +269,11 @@ class ODReader(BackgroundJob):
         if not self.fake_data:
             ir_channel = config.get("leds", "ir_led")
             led_intensity(
-                ir_channel, intensity=0, unit=self.unit, experiment=self.experiment
+                ir_channel,
+                intensity=0,
+                unit=self.unit,
+                experiment=self.experiment,
+                source_of_event=self.job_name,
             )
 
     def on_disconnect(self):

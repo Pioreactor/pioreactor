@@ -93,7 +93,7 @@ install-ui:
 	wget -O - https://raw.githubusercontent.com/audstanley/NodeJs-Raspberry-Pi/master/Install-Node.sh | sudo bash
 
 	# get latest pioreactorUI code from Github.
-	# TODO: below is not idempotent
+	rm -rf /home/pi/pioreactorui
 	git clone https://github.com/Pioreactor/pioreactorui.git /home/pi/pioreactorui  --depth 1
 	# Use below to not have to use git
 	# mkdir /home/pi/pioreactorui
@@ -103,12 +103,12 @@ install-ui:
 
 	# install required libraries
 	# npm --prefix /home/pi/pioreactorui/client install
-	npm --prefix /home/pi/pioreactorui/backend install --loglevel verbose
+	npm --prefix /home/pi/pioreactorui/backend install
 	sudo npm install pm2@latest -g
 
-	# we add another entry to mDNS: pioreactor.local, need the following:
+	# we add another entry to mDNS: pioreactor.local (can be modified in config.ini), and we need the following:
 	# see avahi-alias.service for how this works
-	sudo apt-get install avahi-utils
+	sudo apt-get install avahi-utils -y
 
 
 configure-hostname:
@@ -134,11 +134,19 @@ configure-hostname-from-args:
 install-leader-as-worker: configure-hostname install-leader install-worker
 	{ \
 	set -e ;\
+
 	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\
+	echo -e "# Any settings here are specific to $1, and override the settings in config.ini" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
+	echo -e "\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
+	echo -e "[stirring]" >> /home/pi/.pioreactor/config_$$(hostname).ini   ;\
+	echo -e "duty_cycle_$1=80\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
+	echo -e "[pump_calibration]" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
+
 	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
 	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts ;\
+
 	}
-	crudini --set ~/.pioreactor/config.ini inventory $$(hostname) 1
+	crudini --set ~/.pioreactor/config.ini network.inventory $$(hostname) 1
 	sudo reboot
 
 seed-experiment:
