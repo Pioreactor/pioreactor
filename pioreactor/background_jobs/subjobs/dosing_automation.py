@@ -220,19 +220,15 @@ class DosingAutomation(BackgroundSubJob):
         self.previous_growth_rate = self.latest_growth_rate
         self.latest_growth_rate = float(message.payload)
         self.latest_growth_rate_timestamp = time.time()
-        self.logger.debug("here _set_growth_rate")
 
     def _set_OD(self, message):
-        self.logger.debug("_set_OD")
         if self.sensor == "+/+":
             split_topic = message.topic.split("/")
             self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
 
-        self.logger.debug(self.sensor)
         if not message.topic.endswith(self.sensor):
             return
 
-        self.logger.debug("here _set_OD")
         self.previous_od = self.latest_od
         self.latest_od = float(message.payload)
         self.latest_od_timestamp = time.time()

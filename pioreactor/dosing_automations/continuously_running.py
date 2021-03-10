@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import threading
+import time
 from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
 from pioreactor.dosing_automations import events
 from pioreactor.actions.add_media import add_media
@@ -25,12 +25,6 @@ class ContinuouslyRunning(DosingAutomation):
 
     def __init__(self, **kwargs):
         super(ContinuouslyRunning, self).__init__(**kwargs)
-        self.remove_waste_thread = threading.Thread(
-            target=self.remove_waste_continuously, daemon=True
-        )
-        self.add_media_thread = threading.Thread(
-            target=self.add_media_continuously, daemon=True
-        )
 
     def remove_waste_continuously(self):
         # dc is slightly higher to make sure we never overflow the vessel
@@ -51,6 +45,20 @@ class ContinuouslyRunning(DosingAutomation):
         )
 
     def execute(self, *args, **kwargs) -> events.Event:
-        self.remove_waste_thread.start()
-        self.add_media_thread.start()
-        return events.ContinuouslyDosing("Pumps will always run.")
+        while True:
+            add_media(
+                ml=1,
+                source_of_event=self.job_name,
+                unit=self.unit,
+                experiment=self.experiment,
+            )
+            time.sleep(1)
+            remove_waste(
+                ml=1.5,
+                source_of_event=self.job_name,
+                unit=self.unit,
+                experiment=self.experiment,
+            )
+        # self.remove_waste_thread.start()
+        # self.add_media_thread.start()
+        # return events.ContinuouslyDosing("Pumps will always run")
