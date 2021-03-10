@@ -96,7 +96,6 @@ class DosingAutomation(BackgroundSubJob):
                 ).start()
 
     def run(self, counter=None):
-        self.logger.debug("in run")
         time.sleep(7)  # wait some time for data to arrive
         if self.state == self.DISCONNECTED:
             # NOOP
@@ -104,7 +103,6 @@ class DosingAutomation(BackgroundSubJob):
             return
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            self.logger.debug(("od_reading" not in pio_jobs_running()))
             if ("od_reading" not in pio_jobs_running()) or (
                 "growth_rate_calculating" not in pio_jobs_running()
             ):
@@ -222,15 +220,19 @@ class DosingAutomation(BackgroundSubJob):
         self.previous_growth_rate = self.latest_growth_rate
         self.latest_growth_rate = float(message.payload)
         self.latest_growth_rate_timestamp = time.time()
+        self.logger.debug("here _set_growth_rate")
 
     def _set_OD(self, message):
+        self.logger.debug("_set_OD")
         if self.sensor == "+/+":
             split_topic = message.topic.split("/")
             self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
 
+        self.logger.debug(self.sensor)
         if not message.topic.endswith(self.sensor):
             return
 
+        self.logger.debug("here _set_OD")
         self.previous_od = self.latest_od
         self.latest_od = float(message.payload)
         self.latest_od_timestamp = time.time()
