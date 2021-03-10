@@ -26,24 +26,6 @@ class ContinuouslyRunning(DosingAutomation):
     def __init__(self, **kwargs):
         super(ContinuouslyRunning, self).__init__(**kwargs)
 
-    def remove_waste_continuously(self):
-        # dc is slightly higher to make sure we never overflow the vessel
-        remove_waste(
-            duration=10000000,
-            duty_cycle=70,
-            source_of_event=self.job_name,
-            unit=self.unit,
-            experiment=self.experiment,
-        )
-
-    def add_media_continuously(self):
-        add_media(
-            duration=10000000,
-            source_of_event=self.job_name,
-            unit=self.unit,
-            experiment=self.experiment,
-        )
-
     def execute(self, *args, **kwargs) -> events.Event:
         while True:
             add_media(
@@ -54,7 +36,7 @@ class ContinuouslyRunning(DosingAutomation):
             )
             time.sleep(1)
             remove_waste(
-                ml=1.5,
+                ml=1.1,
                 source_of_event=self.job_name,
                 unit=self.unit,
                 experiment=self.experiment,

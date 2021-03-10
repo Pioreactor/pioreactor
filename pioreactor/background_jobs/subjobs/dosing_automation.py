@@ -4,6 +4,7 @@ import time, sys, os
 
 import json
 from datetime import datetime
+import RPi.GPIO as GPIO
 
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
@@ -15,6 +16,8 @@ from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCal
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.dosing_automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
+
+GPIO.setmode(GPIO.BCM)
 
 
 def brief_pause():
@@ -207,6 +210,7 @@ class DosingAutomation(BackgroundSubJob):
             job.set_state("disconnected")
 
         self._clear_mqtt_cache()
+        GPIO.cleanup()
 
     def __setattr__(self, name, value) -> None:
         super(DosingAutomation, self).__setattr__(name, value)
