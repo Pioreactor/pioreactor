@@ -92,7 +92,10 @@ def add_media(
         logger.debug("Stopped")
         logger.error(e)
     finally:
-        pwm.stop()
+        try:
+            pwm.stop()
+        except Exception:
+            pass
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(MEDIA_PIN, GPIO.OUT)
         GPIO.output(MEDIA_PIN, 0)

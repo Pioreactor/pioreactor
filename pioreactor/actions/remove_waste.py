@@ -92,7 +92,10 @@ def remove_waste(
         logger.debug("Stopped")
         logger.error(e)
     finally:
-        pwm.stop()
+        try:
+            pwm.stop()
+        except Exception:
+            pass
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(WASTE_PIN, GPIO.OUT)
         GPIO.output(WASTE_PIN, 0)

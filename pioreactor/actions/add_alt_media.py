@@ -91,7 +91,12 @@ def add_alt_media(
         logger.debug("Stopped")
         logger.error(e)
     finally:
-        pwm.stop()
+        try:
+            pwm.stop()
+        except Exception:
+            pass
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
         GPIO.output(ALT_MEDIA_PIN, 0)
         clean_up_gpio()
     return

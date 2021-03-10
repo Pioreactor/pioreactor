@@ -234,6 +234,7 @@ class GrowthRateCalculator(BackgroundJob):
         if payload["source_of_event"] == "dosing_automation:ContinuouslyRunning":
             return
 
+        # an improvement to this: the variance factor is proportional to the amount exchanged.
         self.update_ekf_variance_after_event(0.5, 5e3)
 
     def start_passive_listeners(self):

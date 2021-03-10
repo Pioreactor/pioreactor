@@ -4,6 +4,7 @@ from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomatio
 from pioreactor.dosing_automations import events
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
+from pioreactor.pubsub import subscribe
 
 
 class ContinuouslyRunning(DosingAutomation):
@@ -25,20 +26,40 @@ class ContinuouslyRunning(DosingAutomation):
     ✅ Idea 3: set duration very small, and fire small dosing events
         - follows closest to existing dosing automation patterns.
 
+
+
+    TODO: this is a good example of waiting to execute between the ADS readings.
     """
 
     def __init__(self, volume=None, **kwargs):
         super(ContinuouslyRunning, self).__init__(**kwargs)
         self.volume = volume
+        self.ads_start_time = float(
+            subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
+            ).payload
+        )
+        self.ads_interval = float(
+            subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
+            ).payload
+        )
 
     def execute(self, *args, **kwargs) -> events.Event:
+
+        # we will wait until the _next_ ads reading - so the duration should be atleast twice the ADS reading interval
+        time_to_next_ads_reading = self.ads_interval - (
+            (time.time() - self.ads_start_time) % self.ads_interval
+        )
+        time.sleep(time_to_next_ads_reading + 0.2)  # add a small buffer
+        self.logger.debug("firing, should come right after ADS reading")
         add_media(
             ml=self.volume,
             source_of_event=f"{self.job_name}:{self.__class__.__name__}",
             unit=self.unit,
             experiment=self.experiment,
         )
-        time.sleep(3)
+        time.sleep(2)
         remove_waste(
             ml=1.1 * self.volume,  # slightly more, to avoid overflow
             source_of_event=f"{self.job_name}:{self.__class__.__name__}",
