@@ -145,7 +145,10 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
     "--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only"
 )
 @click.option(
-    "--duration", default=60, help="Time, in minutes, between every monitor check"
+    "--duration",
+    default=60,
+    type=float,
+    help="Time, in minutes, between every monitor check",
 )
 @click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
 @click.option("--sensor", default="+/+", show_default=True)
