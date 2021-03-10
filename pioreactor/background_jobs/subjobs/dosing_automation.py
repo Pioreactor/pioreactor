@@ -61,6 +61,9 @@ class DosingAutomation(BackgroundSubJob):
         super(DosingAutomation, self).__init__(
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
+        self.logger.info(
+            f"starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
+        )
 
         self.latest_event = None
         self.sensor = sensor
@@ -76,10 +79,6 @@ class DosingAutomation(BackgroundSubJob):
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
         self.set_duration(duration)
         self.start_passive_listeners()
-
-        self.logger.info(
-            f"starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
-        )
 
     def set_duration(self, value):
         self.duration = float(value)

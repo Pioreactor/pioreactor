@@ -58,12 +58,14 @@ class RepeatedTimer:
             temp_thread = Timer(0, self.function, self.args, self.kwargs)
             temp_thread.daemon = True
             temp_thread.start()
+            self.logger.debug("waiting for run_im thread")
             temp_thread.join()
 
         self.start_time = time.time()
         self.event = Event()
         self.thread = Thread(target=self._target)
         self.thread.daemon = True
+        self.logger.debug("finished RepeatedTimer __init__")
 
     def _target(self):
         while not self.event.wait(self._time):
@@ -71,6 +73,9 @@ class RepeatedTimer:
 
     @property
     def _time(self):
+        self.logger.debug(
+            self.interval - ((time.time() - self.start_time) % self.interval)
+        )
         return self.interval - ((time.time() - self.start_time) % self.interval)
 
     def cancel(self):
