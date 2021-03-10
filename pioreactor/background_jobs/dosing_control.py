@@ -26,6 +26,7 @@ from pioreactor.dosing_automations.pid_turbidostat import PIDTurbidostat
 from pioreactor.dosing_automations.silent import Silent
 from pioreactor.dosing_automations.turbidostat import Turbidostat
 from pioreactor.dosing_automations.chemostat import Chemostat
+from pioreactor.dosing_automations.continuously_running import ContinuouslyRunning
 
 
 class DosingController(BackgroundJob):
@@ -37,6 +38,7 @@ class DosingController(BackgroundJob):
         "chemostat": Chemostat,
         "pid_turbidostat": PIDTurbidostat,
         "pid_morbidostat": PIDMorbidostat,
+        "continuously_running": ContinuouslyRunning,
     }
 
     editable_settings = ["dosing_automation"]

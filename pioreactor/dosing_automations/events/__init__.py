@@ -39,3 +39,7 @@ class AltMediaEvent(Event):
 
 class IncreasedLuminosity(Event):
     pass
+
+
+class ContinuouslyDosing(Event):
+    pass
