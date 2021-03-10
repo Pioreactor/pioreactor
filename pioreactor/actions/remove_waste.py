@@ -74,9 +74,9 @@ def remove_waste(
     )
 
     if user_submitted_ml:
-        logger.info(f"remove waste: {round(ml,2)}mL")
+        logger.info(f"{round(ml,2)}mL")
     else:
-        logger.info(f"remove waste: {round(duration,2)}s")
+        logger.info(f"{round(duration,2)}s")
 
     try:
 

@@ -162,7 +162,7 @@ class DosingAutomation(BackgroundSubJob):
             if alt_media_ml > 0:
                 add_alt_media(
                     ml=alt_media_ml,
-                    source_of_event=self.job_name,
+                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
                     unit=self.unit,
                     experiment=self.experiment,
                 )
@@ -170,7 +170,7 @@ class DosingAutomation(BackgroundSubJob):
             if media_ml > 0:
                 add_media(
                     ml=media_ml,
-                    source_of_event=self.job_name,
+                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
                     unit=self.unit,
                     experiment=self.experiment,
                 )
@@ -178,14 +178,14 @@ class DosingAutomation(BackgroundSubJob):
             if waste_ml > 0:
                 remove_waste(
                     ml=waste_ml,
-                    source_of_event=self.job_name,
+                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
                     unit=self.unit,
                     experiment=self.experiment,
                 )
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 remove_waste(
                     duration=2,
-                    source_of_event=self.job_name,
+                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
                     unit=self.unit,
                     experiment=self.experiment,
                 )
