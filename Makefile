@@ -136,7 +136,7 @@ install-leader-as-worker: configure-hostname install-leader install-worker
 	set -e ;\
 
 	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\
-	echo -e "# Any settings here are specific to $1, and override the settings in config.ini" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
+	echo -e "# Any settings here are specific to $1, and override the settings in shared config.ini" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
 	echo -e "\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
 	echo -e "[stirring]" >> /home/pi/.pioreactor/config_$$(hostname).ini   ;\
 	echo -e "duty_cycle_$1=80\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\

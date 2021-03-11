@@ -24,7 +24,7 @@ ssh -o StrictHostKeyChecking=no raspberrypi.local "wget -O install_pioreactor_as
 # remove any existing config (for idempotent)
 rm -f /home/pi/.pioreactor/config*.ini
 touch /home/pi/.pioreactor/config_$1.ini
-echo -e "# Any settings here are specific to $1, and override the settings in config.ini" >> /home/pi/.pioreactor/config_$1.ini
+echo -e "# Any settings here are specific to $1, and override the settings in shared config.ini" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "\n" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "[stirring]" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "duty_cycle_$1=80\n" >> /home/pi/.pioreactor/config_$1.ini

@@ -7,7 +7,7 @@ from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.pubsub import subscribe
 
 
-class ContinuouslyRunning(DosingAutomation):
+class ContinuousCycle(DosingAutomation):
     """
     Useful for using the Pioreactor as an inline sensor.
 
@@ -32,7 +32,7 @@ class ContinuouslyRunning(DosingAutomation):
     """
 
     def __init__(self, volume=None, **kwargs):
-        super(ContinuouslyRunning, self).__init__(**kwargs)
+        super(ContinuousCycle, self).__init__(**kwargs)
         self.volume = volume
         self.ads_start_time = float(
             subscribe(
@@ -51,8 +51,8 @@ class ContinuouslyRunning(DosingAutomation):
         time_to_next_ads_reading = self.ads_interval - (
             (time.time() - self.ads_start_time) % self.ads_interval
         )
-        time.sleep(time_to_next_ads_reading + 0.2)  # add a small buffer
-        self.logger.debug("firing, should come right after ADS reading")
+        time.sleep(time_to_next_ads_reading + 0.5)  # add a small buffer
+
         add_media(
             ml=self.volume,
             source_of_event=f"{self.job_name}:{self.__class__.__name__}",
@@ -66,4 +66,4 @@ class ContinuouslyRunning(DosingAutomation):
             unit=self.unit,
             experiment=self.experiment,
         )
-        return events.ContinuouslyDosing("Pumps will always run")
+        return events.Cycle("Pumps will always run")

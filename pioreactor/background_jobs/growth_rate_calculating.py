@@ -267,7 +267,12 @@ class GrowthRateCalculator(BackgroundJob):
         }
 
 
-def growth_rate_calculating_simulation(df, rate_variance=None, od_variance=None):
+def growth_rate_calculating_simulation(
+    df,
+    rate_variance=config.getfloat("growth_rate_kalman", "rate_variance"),
+    od_variance=config.getfloat("growth_rate_kalman", "od_variance"),
+    obs_variance_factor=100,
+):
     """
     Since the KF is so finicky w.r.t. its parameters, it's useful for have a function that can "replay"
     a sequence of OD readings, and produce a new growth rate curve.
@@ -281,10 +286,6 @@ def growth_rate_calculating_simulation(df, rate_variance=None, od_variance=None)
     samples_per_minute = (
         12
     )  # 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
-    if rate_variance is None:
-        rate_variance = config.getfloat("growth_rate_kalman", "rate_variance")
-    if od_variance is None:
-        od_variance = config.getfloat("growth_rate_kalman", "od_variance")
     dt = 1 / (samples_per_minute * 60)
 
     # pandas munging to get data in the correct format
@@ -335,7 +336,7 @@ def growth_rate_calculating_simulation(df, rate_variance=None, od_variance=None)
         obs_variances = obs_variances / obs_variances.min()
 
         # add a fudge factor
-        fudge = 100
+        fudge = obs_variance_factor
         return fudge * (0.05 * dt) ** 2 * np.diag(obs_variances)
 
     # get the latest observation

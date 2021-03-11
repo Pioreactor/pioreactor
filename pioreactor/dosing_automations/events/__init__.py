@@ -41,5 +41,5 @@ class IncreasedLuminosity(Event):
     pass
 
 
-class ContinuouslyDosing(Event):
+class Cycle(Event):
     pass
