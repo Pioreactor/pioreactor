@@ -57,6 +57,28 @@ def test_pause_stirring_mid_cycle():
     assert st.duty_cycle == 50
 
 
+def test_pause_stirring_mid_cycle_with_modified_dc():
+    original_dc = 50
+
+    st = Stirrer(original_dc, unit, exp)
+    assert st.duty_cycle == original_dc
+
+    new_dc = 80
+    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", new_dc)
+
+    pause()
+
+    publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
+    pause()
+
+    assert st.duty_cycle == 0
+
+    publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "ready")
+    pause()
+
+    assert st.duty_cycle == new_dc
+
+
 def test_publish_duty_cycle():
     publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle", None, retain=True)
     pause()

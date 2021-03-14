@@ -46,7 +46,7 @@ class Stirrer(BackgroundJob):
 
     def on_disconnect(self):
         # not necessary, but will update the UI to show that the speed is 0 (off)
-        self.set_duty_cycle(0)
+        self.stop_stirring()
         GPIO.cleanup()
 
     def start_stirring(self):
@@ -55,6 +55,8 @@ class Stirrer(BackgroundJob):
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
+        # if the user unpauses, we want to go back to their previous value, and not the default.
+        self._previous_duty_cycle = self.duty_cycle
         self.set_duty_cycle(0)
 
     def __setattr__(self, name, value):
@@ -65,9 +67,7 @@ class Stirrer(BackgroundJob):
                 except AttributeError:
                     pass
             elif (value == self.READY) and (self.state == self.SLEEPING):
-                self.duty_cycle = config.getint(
-                    "stirring", f"duty_cycle_{self.unit}", fallback=0
-                )
+                self.duty_cycle = self._previous_duty_cycle
                 self.start_stirring()
         super(Stirrer, self).__setattr__(name, value)
 
