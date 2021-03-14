@@ -4,7 +4,6 @@ from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomatio
 from pioreactor.dosing_automations import events
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
-from pioreactor.pubsub import subscribe
 
 
 class ContinuousCycle(DosingAutomation):
@@ -26,24 +25,13 @@ class ContinuousCycle(DosingAutomation):
     ✅ Idea 3: set duration very small, and fire small dosing events
         - follows closest to existing dosing automation patterns.
 
-
-
-    TODO: this is a good example of waiting to execute between the ADS readings.
     """
 
     def __init__(self, volume=None, **kwargs):
         super(ContinuousCycle, self).__init__(**kwargs)
-        self.volume = volume
-        self.ads_start_time = float(
-            subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
-            ).payload
-        )
-        self.ads_interval = float(
-            subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
-            ).payload
-        )
+        self.volume = float(volume)
+
+        self.start_passive_listeners()
 
     def execute(self, *args, **kwargs) -> events.Event:
 
@@ -67,3 +55,21 @@ class ContinuousCycle(DosingAutomation):
             experiment=self.experiment,
         )
         return events.Cycle("Pumps will always run")
+
+    def set_ads_start_time(self, message):
+        self.ads_start_time = float(message.payload)
+
+    def set_ads_interval(self, message):
+        self.ads_interval = float(message.payload)
+
+    def start_passive_listeners(self):
+        # these need to be passive listeners - if ADC job is restarted, these values will change
+        self.subscribe_and_callback(
+            self.set_ads_start_time,
+            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
+        )
+
+        self.subscribe_and_callback(
+            self.set_ads_interval,
+            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval",
+        )

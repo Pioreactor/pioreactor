@@ -60,6 +60,10 @@ class WatchDog(BackgroundJob):
                 f"{unit} is running low on disk space, at {float(msg.payload)}% full."
             )
 
+    def watch_for_new_experiment(self, msg):
+        new_experiment_name = msg.payload.decode()
+        self.logger.debug(f"New latest experiment in MQTT: {new_experiment_name}")
+
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self.watch_for_lost_state,
@@ -69,6 +73,11 @@ class WatchDog(BackgroundJob):
         self.subscribe_and_callback(
             self.watch_for_disk_space_percent,
             "pioreactor/+/+/monitor/disk_space_percent",
+            allow_retained=False,
+        )
+        self.subscribe_and_callback(
+            self.watch_for_new_experiment,
+            "pioreactor/latest_experiment",
             allow_retained=False,
         )
 

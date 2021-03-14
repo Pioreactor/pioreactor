@@ -129,6 +129,7 @@ class TimeSeriesAggregation(BackgroundJob):
     def on_clear(self, message):
         payload = message.payload
         if not payload:
+            self.logger.debug("cleared time series cache.")
             self.cache = {}
             self.aggregated_time_series = {"series": [], "data": []}
             self.write()
