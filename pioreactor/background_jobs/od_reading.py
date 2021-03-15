@@ -21,12 +21,12 @@ these MQTT topics, and re-publishes only the data that represents optical densit
 the future, there could be other photodiodes / analog signals that plug into the ADS, and they listen (and republish)
 in the same manner.
 
-
 In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other jobs can read it and
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur. `interval` is there so
 that it's clear the duration between readings, and in case the config.ini is changed between this job
-starting and the downstream job starting.
+starting and the downstream job starting. It takes about 0.5-0.6 seconds to read (and publish) *all*
+the channels. This can be shortened by publishing later in the code.
 
 """
 import time
