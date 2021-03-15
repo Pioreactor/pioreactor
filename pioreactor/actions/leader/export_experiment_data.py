@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# download experiment data
+# export experiment data
 # See create_tables.sql for all tables
 
 import os
@@ -8,7 +8,7 @@ import logging
 import click
 from pioreactor.config import config
 
-logger = logging.getLogger("download_experiment_data")
+logger = logging.getLogger("export_experiment_data")
 
 
 def exists_table(cursor, name):
@@ -16,7 +16,7 @@ def exists_table(cursor, name):
     return cursor.execute(query, (name,)).fetchone() is not None
 
 
-def download_experiment_data(experiment, output, tables):
+def export_experiment_data(experiment, output, tables):
     """
     Set an experiment, else it defaults to the entire table.
 
@@ -70,12 +70,12 @@ def download_experiment_data(experiment, output, tables):
     return
 
 
-@click.command(name="download_experiment_data")
+@click.command(name="exportoad_experiment_data")
 @click.option("--experiment", default=None)
 @click.option("--output", default="/home/pi/exports/export.zip")
 @click.option("--tables", multiple=True, default=[])
-def click_download_experiment_data(experiment, output, tables):
+def click_export_experiment_data(experiment, output, tables):
     """
     (leader only) Export tables from db.
     """
-    return download_experiment_data(experiment, output, tables)
+    return export_experiment_data(experiment, output, tables)

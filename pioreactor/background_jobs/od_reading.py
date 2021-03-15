@@ -155,7 +155,6 @@ class ADCReader(BackgroundSubJob):
             self.first_ads_obs_time = time.time()
 
         self.counter += 1
-        start_time = time.time()
         try:
             raw_signals = {}
             for channel, ai in self.analog_in:
@@ -173,8 +172,6 @@ class ADCReader(BackgroundSubJob):
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
-            end_time = time.time()
-            self.logger.debug(f"ADS read time: {end_time - start_time}s")
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
             self.batched_readings = raw_signals

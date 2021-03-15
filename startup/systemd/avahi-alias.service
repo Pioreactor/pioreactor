@@ -3,7 +3,7 @@ Description=Publish an alias for %H.local via mdns
 
 [Service]
 Type=simple
-ExecStart=/bin/bash -c "/usr/bin/avahi-publish -a -R $(crudini --get /home/pi/.pioreactor/config.ini ui url) $(avahi-resolve -4 -n %H.local | cut -f 2)"
+ExecStart=/bin/bash -c "/usr/bin/avahi-publish -a -R $(crudini --get /home/pi/.pioreactor/config.ini ui url_alias) $(avahi-resolve -4 -n %H.local | cut -f 2)"
 Restart=always
 RestartSec=30
 

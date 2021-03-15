@@ -137,7 +137,7 @@ if am_I_leader():
     run.add_command(jobs.time_series_aggregating.click_time_series_aggregating)
     run.add_command(jobs.watchdog.click_watchdog)
 
-    run.add_command(actions.download_experiment_data.click_download_experiment_data)
+    run.add_command(actions.export_experiment_data.click_export_experiment_data)
     run.add_command(actions.backup_database.click_backup_database)
 
     @pio.command(short_help="access the db CLI")
