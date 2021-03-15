@@ -7,7 +7,7 @@ After=network-online.target
 User=pi
 ExecStartPre=sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 9000
 ExecStart=pm2 start app.js --name ui --time
-ExecStartPost=/home/pi/pioreactor/bash_scripts/push_ui_logs_to_mqtt.sh
+ExecStartPost=sudo sh /home/pi/pioreactor/bash_scripts/push_ui_logs_to_mqtt.sh
 WorkingDirectory=/home/pi/pioreactorui/backend
 Restart=no
 Environment="PATH=/home/pi/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
