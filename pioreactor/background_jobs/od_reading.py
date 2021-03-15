@@ -155,12 +155,13 @@ class ADCReader(BackgroundSubJob):
             self.first_ads_obs_time = time.time()
 
         self.counter += 1
-        start_time = time.time()
         try:
             raw_signals = {}
+            start_time = time.time()
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
                 raw_signals[f"A{channel}"] = raw_signal_
+                print(time.time())
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
