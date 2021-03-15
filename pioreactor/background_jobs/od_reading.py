@@ -155,16 +155,15 @@ class ADCReader(BackgroundSubJob):
             self.first_ads_obs_time = time.time()
 
         self.counter += 1
+        start_time = time.time()
         try:
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
                 raw_signals[f"A{channel}"] = raw_signal_
-                # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
-                setattr(self, f"A{channel}", raw_signal_)
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
-                # also damage the ADC). We'll alert the user if the voltage gets higher than 2.5V, which is well above anything normal.
+                # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
                 if (self.counter % 20 == 0) and (raw_signal_ > 2.75):
                     self.logger.warning(
@@ -172,6 +171,12 @@ class ADCReader(BackgroundSubJob):
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
+            end_time = time.time()
+            self.logger.debug(f"ADS read time: {end_time - start_time}s")
+
+            for channel, raw_signal_ in raw_signals:
+                # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
+                setattr(self, channel, raw_signal_)
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
             self.batched_readings = raw_signals
