@@ -25,8 +25,8 @@ In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other job
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur. `interval` is there so
 that it's clear the duration between readings, and in case the config.ini is changed between this job
-starting and the downstream job starting. It takes about 0.5-0.6 seconds to read (and publish) *all*
-the channels. This can be shortened by publishing later in the code.
+starting and the downstream job starting. It takes about 0.5-0.6 seconds to read (and publish) *all
+the channels. This can be shortened by changing the data_rate in the ADS to a higher value.
 
 """
 import time
@@ -126,7 +126,11 @@ class ADCReader(BackgroundSubJob):
         try:
             # we will change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-            self.ads = ADS.ADS1115(i2c, gain=self.initial_gain, data_rate=128)
+            self.ads = ADS.ADS1115(
+                i2c,
+                gain=self.initial_gain,
+                data_rate=config.getint("od_reading.od_sampling", "data_rate"),
+            )
         except ValueError as e:
             self.logger.error(
                 "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for ADC measurements."
@@ -157,12 +161,11 @@ class ADCReader(BackgroundSubJob):
         self.counter += 1
         try:
             raw_signals = {}
-            start_time = time.time()
-            print("start: ", time.time())
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
                 raw_signals[f"A{channel}"] = raw_signal_
-                print(f"{channel}: {time.time()}")
+                # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
+                setattr(self, f"A{channel}", raw_signal_)
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
@@ -173,12 +176,6 @@ class ADCReader(BackgroundSubJob):
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 
-            end_time = time.time()
-            self.logger.debug(f"ADS read time: {end_time - start_time}s")
-
-            for channel, raw_signal_ in raw_signals:
-                # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
-                setattr(self, channel, raw_signal_)
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
             self.batched_readings = raw_signals
@@ -345,7 +342,7 @@ class ODReader(BackgroundJob):
 
 def od_reading(
     od_angle_channel,
-    sampling_rate=1 / float(config["od_config.od_sampling"]["samples_per_second"]),
+    sampling_rate=1 / config.getfloat("od_config.od_sampling", "samples_per_second"),
     fake_data=False,
 ):
 
