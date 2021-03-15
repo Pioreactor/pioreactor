@@ -3,7 +3,7 @@ Description=start ngrok on startup
 After=network.target
 
 [Service]
-ExecStart=/opt/ngrok/ngrok start ssh ui ws --config /opt/ngrok/ngrok.yml
+ExecStart=/opt/ngrok/ngrok start ui ws --config /home/pi/.ngrok2/ngrok.yml
 Type=simple
 
 [Install]
