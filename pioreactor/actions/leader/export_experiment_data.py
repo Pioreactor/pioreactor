@@ -70,7 +70,7 @@ def export_experiment_data(experiment, output, tables):
     return
 
 
-@click.command(name="exportoad_experiment_data")
+@click.command(name="export_experiment_data")
 @click.option("--experiment", default=None)
 @click.option("--output", default="/home/pi/exports/export.zip")
 @click.option("--tables", multiple=True, default=[])
