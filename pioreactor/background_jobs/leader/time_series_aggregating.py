@@ -82,13 +82,24 @@ class TimeSeriesAggregation(BackgroundJob):
             return {"series": [], "data": []}
 
     def write(self):
+        # we don't need to write _every_ data point. In fact, the client downsamples anyways
+        # however, the client filtering is slow, so we filter here too.
+        aggregated_time_series_ = self.aggregated_time_series.copy()
+
+        for i in range(len(aggregated_time_series_["data"])):
+            n_datapoints = len(aggregated_time_series_["data"][i])
+            if n_datapoints > 2000:
+                aggregated_time_series_["data"][i] = aggregated_time_series_["data"][i][
+                    :: n_datapoints // 2000
+                ]
+
         # dumping large jsons is slow, and our UI will try to read from
         # a being-written json file, hence causing json errors on the frontend.
         # so we write to  temp file, and do a hotswap when done.
         self.latest_write = current_time()
         temp_file = self.output + ".temp"
         with open(temp_file, mode="wt") as f:  # wt is write in text mode
-            json.dump(self.aggregated_time_series, f)
+            json.dump(aggregated_time_series_, f)
 
         os.rename(temp_file, self.output)
 
