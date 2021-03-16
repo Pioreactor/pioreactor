@@ -26,7 +26,7 @@ make decisions. For example, if a bubbler/visible light LED is active, it should
 s.t. it is _not_ running when an turbidity measurement is about to occur. `interval` is there so
 that it's clear the duration between readings, and in case the config.ini is changed between this job
 starting and the downstream job starting. It takes about 0.5-0.6 seconds to read (and publish) *all
-the channels. This can be shortened by changing the data_rate in the ADS to a higher value.
+the channels. This can be shortened by changing the data_rate in the config to a higher value.
 
 """
 import time
@@ -82,7 +82,7 @@ class ADCReader(BackgroundSubJob):
     A2 = 0.0
     A3 = 0.0
     timer = None
-    batched_readings = {}
+    batched_readings = dict()
     first_ads_obs_time = None
     editable_settings = [
         "interval",
@@ -180,7 +180,7 @@ class ADCReader(BackgroundSubJob):
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
             self.batched_readings = raw_signals
 
-            # the max signal should determine the ADS1115's gain
+            # the max signal should determine the ADS1x15's gain
             if self.dynamic_gain:
                 self.ema.update(max(raw_signals.values()))
 

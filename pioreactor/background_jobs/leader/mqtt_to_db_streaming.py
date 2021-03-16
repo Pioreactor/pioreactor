@@ -69,6 +69,7 @@ class MqttToDBStreamer(BackgroundJob):
                 topic_and_callback["callback"],
                 topic_and_callback["topic"],
                 qos=QOS.EXACTLY_ONCE,
+                allow_retained=False,
             )
 
 

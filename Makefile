@@ -32,7 +32,7 @@ systemd-all:
 	sudo systemctl enable pioreactor_startup@monitor.service
 
 systemd-worker:
-	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/pioreactor_startup@.service
+	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/
 
 	sudo systemctl daemon-reload
 	sudo systemctl enable pioreactor_startup@od_reading.service
@@ -40,7 +40,7 @@ systemd-worker:
 	sudo systemctl enable pioreactor_startup@growth_rate_calculating.service
 
 systemd-leader:
-	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/pioreactor_startup@.service
+	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/
 
 	sudo systemctl daemon-reload
 	sudo systemctl enable pioreactor_startup@time_series_aggregating.service
@@ -48,13 +48,17 @@ systemd-leader:
 	sudo systemctl enable pioreactor_startup@mqtt_to_db_streaming.service
 	sudo systemctl enable pioreactor_startup@watchdog.service
 
-	sudo cp /home/pi/pioreactor/startup/systemd/start_pioreactorui.service /lib/systemd/system/start_pioreactorui.service
+	sudo cp /home/pi/pioreactor/startup/systemd/start_pioreactorui.service /lib/systemd/system/
 	sudo chmod 644 /lib/systemd/system/start_pioreactorui.service
 	sudo systemctl enable start_pioreactorui.service
 
-	sudo cp /home/pi/pioreactor/startup/systemd/avahi-alias.service /lib/systemd/system/avahi-alias.service
+	sudo cp /home/pi/pioreactor/startup/systemd/avahi-alias.service /lib/systemd/system/
 	sudo chmod 644 /lib/systemd/system/avahi-alias.service
 	sudo systemctl enable avahi-alias.service
+
+	sudo cp /home/pi/pioreactor/startup/systemd/timezone.service /lib/systemd/system/
+	sudo chmod 644 /lib/systemd/system/timezone.service
+	sudo systemctl enable timezone.service
 
 install-pioreactor-leader:
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt

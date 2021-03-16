@@ -34,7 +34,6 @@ class ContinuousCycle(DosingAutomation):
         self.start_passive_listeners()
 
     def execute(self, *args, **kwargs) -> events.Event:
-
         # we will wait until the _next_ ads reading - so the duration should be atleast twice the ADS reading interval
         time_to_next_ads_reading = self.ads_interval - (
             (time.time() - self.ads_start_time) % self.ads_interval
