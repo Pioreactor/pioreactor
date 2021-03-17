@@ -109,11 +109,13 @@ def test_dynamic_stirring():
     adc_reader.setup_adc()
     pause()
 
-    time.sleep(10)
+    time.sleep(15)
     assert st.duty_cycle == original_dc
-    time.sleep(13)
+    time.sleep(2)
+    assert st.duty_cycle == 75
+    time.sleep(2)
     assert st.duty_cycle == original_dc
-    time.sleep(5)
+    time.sleep(7)
 
     adc_reader.set_state("disconnected")
     assert True

@@ -30,10 +30,16 @@ def clamp(minimum, x, maximum):
 
 class Stirrer(BackgroundJob):
     """
-    Send message to "pioreactor/{unit}/{experiment}/stirring/duty_cycle/set" to change the stirring speed.
+    Parameters
+    ------------
 
 
-    TODO: dynamic_stirring: listen for ADC reading events, and increasing stirring when not reading.
+    duty_cycle: int
+        Send message to "pioreactor/{unit}/{experiment}/stirring/duty_cycle/set" to change the stirring speed.
+
+    dc_increase_between_adc_readings: bool
+         listen for ADC reading events, and increasing stirring when not reading.
+
     """
 
     editable_settings = ["duty_cycle", "dc_increase_between_adc_readings"]
@@ -73,53 +79,41 @@ class Stirrer(BackgroundJob):
         self._previous_duty_cycle = self.duty_cycle
         self.set_duty_cycle(0)
 
-    def __setattr__(self, name, value):
-        if name == "state":
-            if value != self.READY:
-                try:
-                    self.stop_stirring()
-                except AttributeError:
-                    pass
-            elif (value == self.READY) and (self.state == self.SLEEPING):
-                self.duty_cycle = self._previous_duty_cycle
-                self.start_stirring()
-        super(Stirrer, self).__setattr__(name, value)
+    def set_state(self, new_state):
+        if new_state != self.READY:
+            try:
+                self.stop_stirring()
+            except AttributeError:
+                pass
+        elif (new_state == self.READY) and (self.state == self.SLEEPING):
+            self.duty_cycle = self._previous_duty_cycle
+            self.start_stirring()
+        super(Stirrer, self).set_state(new_state)
 
     def set_duty_cycle(self, value):
         self.duty_cycle = clamp(0, int(value), 100)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def set_dc_increase_between_adc_readings(self, dc_increase_between_adc_readings):
-        # TODO: gross clean me up
         self.dc_increase_between_adc_readings = dc_increase_between_adc_readings
-        if not dc_increase_between_adc_readings:
+
+        if not self.dc_increase_between_adc_readings:
             try:
-                self.sneak_out_timer.cancel()
+                self.sub_client.message_callback_remove(
+                    f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
+                )
                 self.sneak_in_timer.cancel()
             except AttributeError:
                 pass
 
         else:
-            if hasattr(self, "sneak_out_timer"):
-                self.sneak_action_between_readings(0.6, 2)
-            else:
-                self.subscribe_and_callback(
-                    self.start_sneaking,
-                    f"pioreactor/{self.unit}/{self.experiment}/adc_reader/$state",
-                )
+            self.subscribe_and_callback(
+                self.start_sneaking,
+                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
+            )
 
-    def start_sneaking(self, message):
-        if message.payload.decode() != self.READY:
-            return
-
-        self.logger.debug("here")
+    def start_sneaking(self, _):
         self.sneak_action_between_readings(0.6, 2)
-
-    def sneak_in(self):
-        self.duty_cycle = 1.5 * self.duty_cycle
-
-    def sneak_out(self):
-        self.duty_cycle = self.duty_cycle / 1.5
 
     def sneak_action_between_readings(self, post_duration, pre_duration):
         """
@@ -128,7 +122,15 @@ class Stirrer(BackgroundJob):
         """
         # get interval, and confirm that the requirements are possible: post_duration + pre_duration <= ADS interval
 
-        # set up two repeated timers, with correct offsets, that fire sneak_in and sneak_out respectively.
+        try:
+            self.sneak_in_timer.cancel()
+        except AttributeError:
+            pass
+
+        def sneak_in():
+            self.set_duty_cycle(1.5 * self.duty_cycle)
+            time.sleep(ads_interval - (post_duration + pre_duration))
+            self.set_duty_cycle(self.duty_cycle / 1.5)
 
         ads_start_time = float(
             subscribe(
@@ -141,22 +143,16 @@ class Stirrer(BackgroundJob):
             ).payload
         )
 
-        self.sneak_in_timer = RepeatedTimer(
-            ads_interval, self.sneak_in, run_immediately=False
-        )
-        self.sneak_out_timer = RepeatedTimer(
-            ads_interval, self.sneak_out, run_immediately=False
-        )
+        assert ads_interval - (post_duration + pre_duration) > 0
+
+        self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
 
         time_to_next_ads_reading = ads_interval - (
             (time.time() - ads_start_time) % ads_interval
         )
-        time.sleep(time_to_next_ads_reading)
 
-        time.sleep(post_duration)
+        time.sleep(time_to_next_ads_reading + post_duration)
         self.sneak_in_timer.start()
-        time.sleep(ads_interval - (post_duration + pre_duration))
-        self.sneak_out_timer.start()
 
 
 def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None):
