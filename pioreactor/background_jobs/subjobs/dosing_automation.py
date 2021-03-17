@@ -110,7 +110,7 @@ class DosingAutomation(BackgroundSubJob):
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
             time.sleep(7)  # wait some time for data to arrive
-            return self.run()
+            return self.run(counter=counter)
 
         elif self.state != self.READY:
             event = events.NoEvent(f"currently in state {self.state}")
@@ -218,11 +218,15 @@ class DosingAutomation(BackgroundSubJob):
             self.latest_settings_ended_at = None
 
     def _set_growth_rate(self, message):
+        self.logger.debug("here _set_growth_rate")
+
         self.previous_growth_rate = self.latest_growth_rate
         self.latest_growth_rate = float(message.payload)
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
+        self.logger.debug("here _set_OD")
+
         if self.sensor == "+/+":
             split_topic = message.topic.split("/")
             self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
@@ -270,6 +274,7 @@ class DosingAutomation(BackgroundSubJob):
         )
 
     def start_passive_listeners(self):
+        self.logger.debug("here start_passive_listeners")
         self.subscribe_and_callback(
             self._set_OD,
             f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
