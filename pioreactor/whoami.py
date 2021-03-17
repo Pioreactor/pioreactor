@@ -10,7 +10,10 @@ NO_EXPERIMENT = "$no_experiment_present"
 
 @lru_cache()
 def get_latest_experiment_name():
-    if "pytest" in sys.modules or os.environ.get("TESTING"):
+
+    if os.environ.get("EXPERIMENT"):
+        return os.environ.get("EXPERIMENT")
+    elif "pytest" in sys.modules or os.environ.get("TESTING"):
         return "testing_experiment"
 
     from pioreactor.pubsub import subscribe

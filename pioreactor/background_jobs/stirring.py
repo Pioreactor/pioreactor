@@ -91,6 +91,7 @@ class Stirrer(BackgroundJob):
         super(Stirrer, self).set_state(new_state)
 
     def set_duty_cycle(self, value):
+        self.logger.debug(f"duty_cycle being set to {value}.")
         self.duty_cycle = clamp(0, int(value), 100)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
