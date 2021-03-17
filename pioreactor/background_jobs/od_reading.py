@@ -149,6 +149,14 @@ class ADCReader(BackgroundSubJob):
             self.timer.start()
 
     def on_disconnect(self):
+        for attr in ["first_ads_obs_time", "interval"]:
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
+                None,
+                retain=True,
+                qos=QOS.EXACTLY_ONCE,
+            )
+
         try:
             self.timer.cancel()
         except AttributeError:
