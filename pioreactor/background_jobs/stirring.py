@@ -95,13 +95,13 @@ class Stirrer(BackgroundJob):
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def set_dc_increase_between_adc_readings(self, dc_increase_between_adc_readings):
-        self.dc_increase_between_adc_readings = dc_increase_between_adc_readings
+        self.dc_increase_between_adc_readings = int(dc_increase_between_adc_readings)
 
         if not self.dc_increase_between_adc_readings:
+            self.sub_client.message_callback_remove(
+                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
+            )
             try:
-                self.sub_client.message_callback_remove(
-                    f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
-                )
                 self.sneak_in_timer.cancel()
             except AttributeError:
                 pass

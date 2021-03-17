@@ -117,5 +117,7 @@ def test_dynamic_stirring():
     assert st.duty_cycle == original_dc
     time.sleep(7)
 
+    publish(f"pioreactor/{unit}/{exp}/stirring/dc_increase_between_adc_readings/set", 0)
+
     adc_reader.set_state("disconnected")
     assert True
