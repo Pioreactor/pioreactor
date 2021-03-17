@@ -65,9 +65,7 @@ class RepeatedTimer:
 
     def _target(self):
         while not self.event.wait(self._time):
-            self.logger.debug("here4")
             self.function(*self.args, **self.kwargs)
-            self.logger.debug("here5")
 
     @property
     def _time(self):
@@ -80,5 +78,4 @@ class RepeatedTimer:
     def start(self):
         self.start_time = time.time()
         self.thread.start()
-        self.logger.debug("here3")
         return self

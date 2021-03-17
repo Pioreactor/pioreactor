@@ -77,11 +77,8 @@ class DosingAutomation(BackgroundSubJob):
             unit=self.unit, experiment=self.experiment
         )
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
-        self.logger.debug("here1")
         self.set_duration(duration)
-        self.logger.debug("here2")
         self.start_passive_listeners()
-        self.logger.debug("end")
 
     def set_duration(self, value):
         self.duration = float(value)
@@ -221,15 +218,11 @@ class DosingAutomation(BackgroundSubJob):
             self.latest_settings_ended_at = None
 
     def _set_growth_rate(self, message):
-        self.logger.debug("here _set_growth_rate")
-
         self.previous_growth_rate = self.latest_growth_rate
         self.latest_growth_rate = float(message.payload)
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
-        self.logger.debug("here _set_OD")
-
         if self.sensor == "+/+":
             split_topic = message.topic.split("/")
             self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
@@ -277,7 +270,6 @@ class DosingAutomation(BackgroundSubJob):
         )
 
     def start_passive_listeners(self):
-        self.logger.debug("here start_passive_listeners")
         self.subscribe_and_callback(
             self._set_OD,
             f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",

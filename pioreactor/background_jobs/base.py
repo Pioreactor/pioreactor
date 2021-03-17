@@ -98,7 +98,6 @@ class BackgroundJob:
     def start_passive_listeners(self):
         # overwrite this to in subclasses to subscribe to topics in MQTT
         # using this handles reconnects correctly.
-        self.logger.debug("why am I here?")
         pass
 
     ########## private

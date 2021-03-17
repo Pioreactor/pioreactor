@@ -72,3 +72,4 @@ class ContinuousCycle(DosingAutomation):
             self.set_ads_interval,
             f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval",
         )
+        super(self, ContinuousCycle).start_passive_listeners()
