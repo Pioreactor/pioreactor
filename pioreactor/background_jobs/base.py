@@ -389,7 +389,7 @@ class BackgroundJob:
 #
 #     def start_general_passive_listeners(self) -> None:
 #
-#         super(self, WorkerBackgroundJob).start_general_passive_listeners()
+#         super(WorkerBackgroundJob, self).start_general_passive_listeners()
 #
 #         # list to a change in latest_experiment, as this means the user
 #         # is doing something new.
