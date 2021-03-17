@@ -227,11 +227,11 @@ class GrowthRateCalculator(BackgroundJob):
 
     def response_to_dosing_event(self, message):
         # here we can add custom logic to handle dosing events.
-        # for example, in continuous_running automation, we dont want to respond to
+        # for example, in continuous_cycle automation, we dont want to respond to
         # dosing events (because they are so small and so frequent)
 
         payload = json.loads(message.payload)
-        if payload["source_of_event"] == "dosing_automation:ContinuouslyRunning":
+        if payload["source_of_event"] == "dosing_automation:ContinuousCycle":
             return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
