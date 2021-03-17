@@ -81,6 +81,7 @@ class DosingAutomation(BackgroundSubJob):
         self.set_duration(duration)
         self.logger.debug("here2")
         self.start_passive_listeners()
+        self.logger.debug("end")
 
     def set_duration(self, value):
         self.duration = float(value)
