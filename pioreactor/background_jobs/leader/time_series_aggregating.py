@@ -82,8 +82,12 @@ class TimeSeriesAggregation(BackgroundJob):
             return {"series": [], "data": []}
 
     def write(self):
+
         # we don't need to write _every_ data point. In fact, the client downsamples anyways
         # however, the client filtering is slow, so we filter here too.
+        # TODO: this actually doesn't work when the job is restarted in the middle
+        # of an experiment, since this cache is used to seed the data. It would bias the
+        # points to the start of the experiment vs the latter.
         aggregated_time_series_ = self.aggregated_time_series.copy()
 
         for i in range(len(aggregated_time_series_["data"])):

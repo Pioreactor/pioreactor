@@ -59,7 +59,6 @@ class RepeatedTimer:
             temp_thread.daemon = True
             temp_thread.start()
 
-        self.start_time = time.time()
         self.event = Event()
         self.thread = Thread(target=self._target)
         self.thread.daemon = True
@@ -77,5 +76,6 @@ class RepeatedTimer:
         self.thread.join()
 
     def start(self):
+        self.start_time = time.time()
         self.thread.start()
         return self

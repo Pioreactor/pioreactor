@@ -90,3 +90,30 @@ def test_publish_duty_cycle():
     pause()
     message = subscribe(f"pioreactor/{unit}/{exp}/stirring/duty_cycle")
     assert float(message.payload) == 50
+
+
+def test_dynamic_stirring():
+
+    from pioreactor.background_jobs.od_reading import ADCReader
+
+    # clear cache
+    publish(f"pioreactor/{unit}/{exp}/adc_reader/first_ads_obs_time", None, retain=True)
+    publish(f"pioreactor/{unit}/{exp}/adc_reader/interval", None, retain=True)
+    pause()
+
+    original_dc = 50
+    st = Stirrer(original_dc, unit, exp, dc_increase_between_adc_readings=True)
+    pause()
+
+    adc_reader = ADCReader(interval=5, unit=unit, experiment=exp, fake_data=True)
+    adc_reader.setup_adc()
+    pause()
+
+    time.sleep(10)
+    assert st.duty_cycle == original_dc
+    time.sleep(13)
+    assert st.duty_cycle == original_dc
+    time.sleep(5)
+
+    adc_reader.set_state("disconnected")
+    assert True

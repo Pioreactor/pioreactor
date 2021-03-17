@@ -129,7 +129,7 @@ class ADCReader(BackgroundSubJob):
             self.ads = ADS.ADS1115(
                 i2c,
                 gain=self.initial_gain,
-                data_rate=config.getint("od_reading.od_sampling", "data_rate"),
+                data_rate=config.getint("od_config.od_sampling", "data_rate"),
             )
         except ValueError as e:
             self.logger.error(
