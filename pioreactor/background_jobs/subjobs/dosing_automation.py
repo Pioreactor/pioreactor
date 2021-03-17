@@ -77,7 +77,9 @@ class DosingAutomation(BackgroundSubJob):
             unit=self.unit, experiment=self.experiment
         )
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
+        self.logger.debug("here1")
         self.set_duration(duration)
+        self.logger.debug("here2")
         self.start_passive_listeners()
 
     def set_duration(self, value):
