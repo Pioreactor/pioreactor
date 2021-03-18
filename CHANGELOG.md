@@ -1,3 +1,11 @@
+### 21.3.18
+
+ - new dosing automation: `continous_cycle`. Designed for using the Pioreactor as an inline sensor.
+ - stirring can now be dynamically adjusted between OD readings, for improved mixing (and hence more oxygen transfer). See settings in UI.
+ - custom timezone support is added in config.ini
+ - `download_experiment_data` is now called `export_experiment_data` - this has been updated on the UI as well.
+ - unpausing stirring will return the rate to the previous value, not necessarily the default value.
+
 ### 21.3.3
  - fix GPIO mappings
  - fix keyboard interrupts in pump actions
