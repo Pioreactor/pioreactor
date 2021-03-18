@@ -213,7 +213,7 @@ class ADCReader(BackgroundSubJob):
             check_gain_every_n = 2
             if (
                 self.dynamic_gain
-                and self.counter % check_gain_every_n == 0
+                and self.counter % check_gain_every_n == 1
                 and self.ema.value is not None
             ):
                 for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():

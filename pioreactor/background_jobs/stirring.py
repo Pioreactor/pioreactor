@@ -66,6 +66,9 @@ class Stirrer(BackgroundJob):
 
     def on_disconnect(self):
         # not necessary, but will update the UI to show that the speed is 0 (off)
+        if hasattr(self, "sneak_in_timer"):
+            self.sneak_in_timer.cancel()
+
         self.stop_stirring()
         GPIO.cleanup()
 

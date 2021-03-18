@@ -256,12 +256,13 @@ class GrowthRateCalculator(BackgroundJob):
 
         # if the stirring is changed, this can effect the OD level, but not the
         # growth rate. Let's treat it the same how we treat a dosing event.
-        self.subscribe_and_callback(
-            lambda m: self.update_ekf_variance_after_event(0.3, 5e2),
-            f"pioreactor/{self.unit}/{self.experiment}/stirring/duty_cycle",
-            qos=QOS.EXACTLY_ONCE,
-            allow_retained=False,
-        )
+        # self.subscribe_and_callback(
+        #     lambda m: self.update_ekf_variance_after_event(0.3, 5e2),
+        #     f"pioreactor/{self.unit}/{self.experiment}/stirring/duty_cycle",
+        #     qos=QOS.EXACTLY_ONCE,
+        #     allow_retained=False,
+        # )
+        # removed for now, because it was messing with the new dynamic stirring
 
     @staticmethod
     def json_to_sorted_dict(json_dict):
