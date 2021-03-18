@@ -56,10 +56,12 @@ class ContinuousCycle(DosingAutomation):
         return events.Cycle("Pumps will always run")
 
     def set_ads_start_time(self, message):
-        self.ads_start_time = float(message.payload)
+        if message.payload:
+            self.ads_start_time = float(message.payload)
 
     def set_ads_interval(self, message):
-        self.ads_interval = float(message.payload)
+        if message.payload:
+            self.ads_interval = float(message.payload)
 
     def start_passive_listeners(self):
         # these need to be passive listeners - if ADC job is restarted, these values will change

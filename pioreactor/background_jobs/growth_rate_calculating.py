@@ -134,6 +134,7 @@ class GrowthRateCalculator(BackgroundJob):
                 "Computing OD normalization metrics. This may take a few minutes"
             )
             od_normalization(unit=self.unit, experiment=self.experiment)
+            self.logger.info("Computing OD normalization metrics completed.")
             initial_growth_rate = 0
         else:
             initial_growth_rate = self.get_growth_rate_from_broker()
@@ -168,6 +169,7 @@ class GrowthRateCalculator(BackgroundJob):
                 "Computing OD normalization metrics. This may take a few minutes"
             )
             od_normalization(unit=self.unit, experiment=self.experiment)
+            self.logger.info("Computing OD normalization metrics completed.")
             return self.get_od_normalization_from_broker()
 
     def get_od_variances_from_broker(self):
@@ -185,6 +187,8 @@ class GrowthRateCalculator(BackgroundJob):
                 "Computing OD normalization metrics. This may take a few minutes"
             )
             od_normalization(unit=self.unit, experiment=self.experiment)
+            self.logger.info("Computing OD normalization metrics completed.")
+
             return self.get_od_variances_from_broker()
 
     def update_ekf_variance_after_event(self, minutes, factor):
