@@ -5,6 +5,7 @@ This file contains N jobs that run on the leader, and is a replacement for the N
 import signal
 import time
 import os
+import copy
 import json
 
 import click
@@ -88,7 +89,8 @@ class TimeSeriesAggregation(BackgroundJob):
         # TODO: this actually doesn't work when the job is restarted in the middle
         # of an experiment, since this cache is used to seed the data. It would bias the
         # points to the start of the experiment vs the latter.
-        aggregated_time_series_ = self.aggregated_time_series.copy()
+
+        aggregated_time_series_ = copy.deepcopy(self.aggregated_time_series)
 
         for i in range(len(aggregated_time_series_["data"])):
             n_datapoints = len(aggregated_time_series_["data"][i])
