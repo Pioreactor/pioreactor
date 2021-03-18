@@ -33,11 +33,7 @@ systemd-all:
 
 systemd-worker:
 	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/
-
 	sudo systemctl daemon-reload
-	sudo systemctl enable pioreactor_startup@od_reading.service
-	sudo systemctl enable pioreactor_startup@stirring.service
-	sudo systemctl enable pioreactor_startup@growth_rate_calculating.service
 
 systemd-leader:
 	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/

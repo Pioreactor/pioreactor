@@ -45,7 +45,10 @@ class MockDAC43608:
     def __init__(self, *args, **kwargs):
         pass
 
-    def power_to(self, channel, intensity):
+    def set_intensity_to(self, channel, intensity):
         assert 0 <= intensity <= 1
         assert channel in list(range(16))
         return
+
+    def power_up(*args):
+        pass

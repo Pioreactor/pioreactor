@@ -82,7 +82,7 @@ class BackgroundJob:
         self.pubsub_clients = [self.sub_client, self.pub_client]
 
         self.set_state(self.INIT)
-        self.set_up_disconnect_protocol()
+        self.set_up_exit_protocol()
         self.set_state(self.READY)
 
     def on_ready(self):
@@ -136,7 +136,7 @@ class BackgroundJob:
             self.start_passive_listeners()
 
         def on_disconnect(*args):
-            self.logger.debug("Disconnected from MQTT")
+            self.on_mqtt_disconnect()
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
@@ -146,6 +146,10 @@ class BackgroundJob:
         client.on_connect = reconnect_protocol
         client.on_disconnect = on_disconnect
         return client
+
+    def on_mqtt_disconnect(self):
+        self.logger.debug("Disconnected from MQTT")
+        os.kill(os.getpid(), signal.SIGUSR1)
 
     def publish(self, *args, **kwargs):
         self.pub_client.publish(*args, **kwargs)
@@ -223,7 +227,7 @@ class BackgroundJob:
             self.sub_client.subscribe(sub, qos=qos)
         return
 
-    def set_up_disconnect_protocol(self):
+    def set_up_exit_protocol(self):
         # here, we set up how jobs should disconnect and exit.
         def disconnect_gracefully(*args):
             if self.state == self.DISCONNECTED:
@@ -305,7 +309,8 @@ class BackgroundJob:
         # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
         # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect too late and a last-will was sent.
         # previously had 0.25, needed to bump it.
-        os.kill(os.getpid(), signal.SIGUSR1)
+        # Note that this can't move to a callback (like on_disconnect), since
+        # time.sleep(0.25)
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/

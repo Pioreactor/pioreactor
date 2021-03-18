@@ -170,12 +170,21 @@ class ADCReader(BackgroundSubJob):
         try:
             raw_signals = {}
             for channel, ai in self.analog_in:
-                raw_signal_ = ai.voltage
+                # raw_signal_ = ai.voltage
 
                 # temp code to mimic a 12-bit from a 16-bit
-                # I think this is write.
-                # _ADS1X15_PGA_RANGE = {2 / 3: 6.144, 1: 4.096, 2: 2.048, 4: 1.024, 8: 0.512, 16: 0.256}
-                # raw_signal_ = (ai.value//(2**3)) * _ADS1X15_PGA_RANGE[ai._ads.gain] / 2047
+                # I think this is right.
+                _ADS1X15_PGA_RANGE = {
+                    2 / 3: 6.144,
+                    1: 4.096,
+                    2: 2.048,
+                    4: 1.024,
+                    8: 0.512,
+                    16: 0.256,
+                }
+                raw_signal_ = (
+                    (ai.value // (2 ** 3)) * _ADS1X15_PGA_RANGE[ai._ads.gain] / 2047
+                )
 
                 raw_signals[f"A{channel}"] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
