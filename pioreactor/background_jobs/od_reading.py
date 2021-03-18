@@ -279,7 +279,7 @@ class ODReader(BackgroundJob):
         ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
             ir_channel,
-            intensity=95,  # we choose 95 because it has less current variance than 100
+            intensity=100,
             source_of_event=self.job_name,
             unit=self.unit,
             experiment=self.experiment,

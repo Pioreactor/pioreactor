@@ -116,7 +116,7 @@ class Stirrer(BackgroundJob):
             )
 
     def start_sneaking(self, _):
-        self.sneak_action_between_readings(0.6, 2)
+        self.sneak_action_between_readings(0.6, 2.1)
 
     def sneak_action_between_readings(self, post_duration, pre_duration):
         """
@@ -131,9 +131,9 @@ class Stirrer(BackgroundJob):
             pass
 
         def sneak_in():
-            self.set_duty_cycle(1.5 * self.duty_cycle)
+            self.set_duty_cycle(1.4 * self.duty_cycle)
             time.sleep(ads_interval - (post_duration + pre_duration))
-            self.set_duty_cycle(self.duty_cycle / 1.5)
+            self.set_duty_cycle(self.duty_cycle / 1.4)
 
         ads_start_time = float(
             subscribe(
@@ -146,7 +146,9 @@ class Stirrer(BackgroundJob):
             ).payload
         )
 
-        assert ads_interval - (post_duration + pre_duration) > 0
+        assert (
+            ads_interval - (post_duration + pre_duration) > 0
+        ), "Your samples_per_second is too high to squeeze in stirring."
 
         self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
 
