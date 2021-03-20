@@ -276,11 +276,17 @@ class ODReader(BackgroundJob):
 
         # somewhere here we should test the relationship between light and ADC readings
 
+        self.start_ir_led()
         self.set_IR_led_during_ADC_readings()
         self.start_passive_listeners()
 
     def set_IR_led_during_ADC_readings(self):
-        self.start_ir_led()
+        """
+        This suppose IR LED is always on, and the "sneak in" turns it off.
+
+        post_duration: how long to wait (seconds) after the ADS reading before running sneak_in
+        pre_duration: duration between stopping the action and the next ADS reading
+        """
 
         post_duration = 0.6
         pre_duration = 0.2
@@ -318,6 +324,7 @@ class ODReader(BackgroundJob):
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
+            verbose=False,
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
@@ -333,6 +340,7 @@ class ODReader(BackgroundJob):
                 unit=self.unit,
                 experiment=self.experiment,
                 source_of_event=self.job_name,
+                verbose=False,
             )
 
     def on_disconnect(self):

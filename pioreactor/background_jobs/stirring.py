@@ -121,7 +121,7 @@ class Stirrer(BackgroundJob):
     def sneak_action_between_readings(self, post_duration, pre_duration):
         """
         post_duration: how long to wait (seconds) after the ADS reading before running sneak_in
-        pre_duration: stop the action (i.e. run sneak_out) pre_duration seconds before the next ADS reading
+        pre_duration: duration between stopping the action and the next ADS reading
         """
         # get interval, and confirm that the requirements are possible: post_duration + pre_duration <= ADS interval
 
