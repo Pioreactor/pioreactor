@@ -276,7 +276,7 @@ class ODReader(BackgroundJob):
 
         # somewhere here we should test the relationship between light and ADC readings
 
-        self.start_ir_led()
+        self.set_IR_led_during_ADC_readings()
         self.start_passive_listeners()
 
     def set_IR_led_during_ADC_readings(self):
