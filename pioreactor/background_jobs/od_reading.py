@@ -48,7 +48,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.hardware_mappings import SCL, SDA
-from pioreactor.pubsub import QOS
+from pioreactor.pubsub import QOS, subscribe
 
 ADS_GAIN_THRESHOLDS = {
     2 / 3: (4.096, 6.144),
@@ -114,8 +114,15 @@ class ADCReader(BackgroundSubJob):
         self.ema = ExponentialMovingAverage(alpha=0.20)
         self.ads = None
         self.analog_in = []
+
         if self.interval:
             self.timer = RepeatedTimer(self.interval, self.take_reading)
+
+        self.setup_adc()
+
+    def start_periodic_reading(self):
+        if self.timer:
+            self.timer.start()
 
     def setup_adc(self):
         if self.fake_data:
@@ -144,9 +151,6 @@ class ADCReader(BackgroundSubJob):
             else:
                 ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             self.analog_in.append((channel, ai))
-
-        if self.timer:
-            self.timer.start()
 
     def on_disconnect(self):
         for attr in ["first_ads_obs_time", "interval"]:
@@ -268,28 +272,56 @@ class ODReader(BackgroundJob):
             experiment=self.experiment,
         )
         self.sub_jobs = [self.adc_reader]
+        self.adc_reader.start_periodic_reading()
 
-        # we delay the "setup" in case the adc_reader class fails init
-        self.adc_reader.setup_adc()
+        # somewhere here we should test the relationship between light and ADC readings
 
         self.start_ir_led()
         self.start_passive_listeners()
+
+    def set_IR_led_during_ADC_readings(self):
+        self.start_ir_led()
+
+        post_duration = 0.6
+        pre_duration = 0.2
+
+        def sneak_in():
+            self.stop_ir_led()
+            time.sleep(ads_interval - (post_duration + pre_duration))
+            self.start_ir_led()
+
+        ads_start_time = float(
+            subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
+            ).payload
+        )
+        ads_interval = float(
+            subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
+            ).payload
+        )
+
+        self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
+
+        time_to_next_ads_reading = ads_interval - (
+            (time.time() - ads_start_time) % ads_interval
+        )
+
+        time.sleep(time_to_next_ads_reading + post_duration)
+        self.sneak_in_timer.start()
 
     def start_ir_led(self):
         ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
             ir_channel,
             intensity=100,
-            source_of_event=self.job_name,
             unit=self.unit,
             experiment=self.experiment,
+            source_of_event=self.job_name,
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
 
-        # give LED a moment to stabilize: post-power_up, setting to high tends to overshoot and then
-        # fall to steady value.
-        time.sleep(1.0)
         return
 
     def stop_ir_led(self):

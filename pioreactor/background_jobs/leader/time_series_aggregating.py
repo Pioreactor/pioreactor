@@ -117,8 +117,9 @@ class TimeSeriesAggregation(BackgroundJob):
         time = current_time()
 
         # .copy because a thread may try to update this while iterating.
+        counter = 0
         for (label, latest_value) in self.cache.copy().items():
-
+            counter += 1
             if label not in self.aggregated_time_series["series"]:
                 self.aggregated_time_series["series"].append(label)
                 self.aggregated_time_series["data"].append([])
@@ -126,6 +127,7 @@ class TimeSeriesAggregation(BackgroundJob):
             ix = self.aggregated_time_series["series"].index(label)
             self.aggregated_time_series["data"][ix].append({"x": time, "y": latest_value})
 
+        self.logger.debug(f"counter in {self.topic} cache: {counter}.")
         if self.time_window_seconds:
             for ix, _ in enumerate(self.aggregated_time_series["data"]):
                 # this is pretty inefficient, but okay for now.
@@ -141,6 +143,7 @@ class TimeSeriesAggregation(BackgroundJob):
             self.cache[label] = float(message.payload)
         except ValueError:
             # sometimes a empty string is sent to clear the MQTT cache - that's okay - just pass.
+            # TODO: wait - why would this callback fire when a clear is sent?
             pass
 
     def on_clear(self, message):

@@ -294,20 +294,24 @@ def growth_rate_calculating_simulation(
     dt = 1 / (samples_per_minute * 60)
 
     # pandas munging to get data in the correct format
+    df["channel"] = df["channel"].astype(str)
+    df["angle"] = df["angle"].astype(str)
+
     df["timestamp"] = pd.to_datetime(df["timestamp"])
     df = df.set_index("timestamp")
     df = df.sort_index()
+    df["angle_channel"] = df["angle"] + df["channel"]
 
     # compute the od normalization and od variance using the first 35 samples
-    n_angles = df["angle"].nunique()
+    n_angles = df["angle_channel"].nunique()
     first_obs_for_med_and_variance = df.head(n_angles * 35)
     od_normalization_factors = (
-        first_obs_for_med_and_variance.groupby("angle", sort=True)["od_reading_v"]
+        first_obs_for_med_and_variance.groupby("angle_channel", sort=True)["od_reading_v"]
         .median()
         .to_dict()
     )
     od_obs_var = (
-        first_obs_for_med_and_variance.groupby("angle", sort=True)["od_reading_v"]
+        first_obs_for_med_and_variance.groupby("angle_channel", sort=True)["od_reading_v"]
         .var()
         .to_dict()
     )
@@ -347,7 +351,7 @@ def growth_rate_calculating_simulation(
     # get the latest observation
     angles_and_initial_points = scale_raw_observations(
         first_obs_for_med_and_variance.tail(n_angles)
-        .groupby("angle", sort=True)["od_reading_v"]
+        .groupby("angle_channel", sort=True)["od_reading_v"]
         .first()
         .to_dict()
     )
@@ -380,7 +384,7 @@ def growth_rate_calculating_simulation(
     )
 
     grouped = (
-        df[["angle", "od_reading_v"]]
+        df[["angle_channel", "od_reading_v"]]
         .iloc[(n_angles * 35) :]
         .groupby(pd.Grouper(freq="5S"))
     )
@@ -389,7 +393,7 @@ def growth_rate_calculating_simulation(
     index = []
 
     for ts, obs in grouped:
-        obs = obs.set_index("angle")["od_reading_v"].to_dict()
+        obs = obs.set_index("angle_channel")["od_reading_v"].to_dict()
         scaled_observations = scale_raw_observations(obs)
         ekf.update(list(scaled_observations.values()))
         results.append(ekf.state_)

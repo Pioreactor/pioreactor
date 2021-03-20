@@ -32,9 +32,7 @@ def backup_database(output):
 
     bck.close()
     con.close()
-    logger.debug(
-        f"Completed backup of database to {output}. Attempting distributed backup..."
-    )
+    logger.debug(f"Completed backup of database to {output}.")
 
     n_backups = 2
     backups_complete = 0
