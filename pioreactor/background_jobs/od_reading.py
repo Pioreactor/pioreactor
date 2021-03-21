@@ -174,22 +174,7 @@ class ADCReader(BackgroundSubJob):
         try:
             raw_signals = {}
             for channel, ai in self.analog_in:
-                # raw_signal_ = ai.voltage
-
-                # temp code to mimic a 12-bit from a 16-bit
-                # I think this is right.
-                _ADS1X15_PGA_RANGE = {
-                    2 / 3: 6.144,
-                    1: 4.096,
-                    2: 2.048,
-                    4: 1.024,
-                    8: 0.512,
-                    16: 0.256,
-                }
-                raw_signal_ = (
-                    (ai.value // (2 ** 3)) * _ADS1X15_PGA_RANGE[ai._ads.gain] / 2047
-                )
-
+                raw_signal_ = ai.voltage
                 raw_signals[f"A{channel}"] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
                 setattr(self, f"A{channel}", raw_signal_)
@@ -282,20 +267,25 @@ class ODReader(BackgroundJob):
 
     def set_IR_led_during_ADC_readings(self):
         """
-        This suppose IR LED is always on, and the "sneak in" turns it off.
+        This supposes IR LED is always on, and the "sneak in" turns it off.
 
         post_duration: how long to wait (seconds) after the ADS reading before running sneak_in
         pre_duration: duration between stopping the action and the next ADS reading
         """
 
-        post_duration = 0.6
-        pre_duration = 0.2
+        post_duration = (
+            0.6
+        )  # can be lowered to < 0.3 safely I believe since each reading takes 1/8=0.125 seconds
+        pre_duration = 0.4
 
         def sneak_in():
             self.stop_ir_led()
             time.sleep(ads_interval - (post_duration + pre_duration))
             self.start_ir_led()
 
+        # this could fail in the following way:
+        # in the same experiment, the od_reading fails (lost) so that the ADC attributes are never
+        # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
         ads_start_time = float(
             subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
@@ -320,7 +310,7 @@ class ODReader(BackgroundJob):
         ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
             ir_channel,
-            intensity=100,
+            intensity=config.getint("od_config.od_sampling", "ir_intensity"),
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -358,7 +348,7 @@ class ODReader(BackgroundJob):
                 od_readings[label] = ads_readings[str(channel)]
             except KeyError:
                 self.logger.error(
-                    "Inputted wrong channel. Only valid channels are 0, 1, 2, 3."
+                    "Input wrong channel. Only valid channels are 0, 1, 2, 3."
                 )
                 self.set_state(self.DISCONNECTED)
 

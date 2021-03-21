@@ -135,6 +135,9 @@ class Stirrer(BackgroundJob):
             time.sleep(ads_interval - (post_duration + pre_duration))
             self.set_duty_cycle(self.duty_cycle / 1.4)
 
+        # this could fail in the following way:
+        # in the same experiment, the od_reading fails so that the ADC attributes are never
+        # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
         ads_start_time = float(
             subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
