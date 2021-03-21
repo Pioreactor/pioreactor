@@ -49,7 +49,7 @@ class Stirrer(BackgroundJob):
         duty_cycle,
         unit,
         experiment,
-        hertz=50,
+        hertz=config.getint("stirring", "hertz"),
         dc_increase_between_adc_readings=False,
     ):
         super(Stirrer, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
