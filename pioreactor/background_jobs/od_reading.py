@@ -42,7 +42,7 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import RepeatedTimer, catchtime
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
@@ -279,8 +279,12 @@ class ODReader(BackgroundJob):
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
-            self.stop_ir_led()
-            time.sleep(ads_interval - (post_duration + pre_duration))
+            with catchtime() as delta_to_stop:
+                self.stop_ir_led()
+
+            time.sleep(
+                max(0, ads_interval - (post_duration + pre_duration + delta_to_stop))
+            )
             self.start_ir_led()
 
         # this could fail in the following way:
@@ -334,6 +338,7 @@ class ODReader(BackgroundJob):
             )
 
     def on_disconnect(self):
+        self.sneak_in_timer.stop()
         self.stop_ir_led()
         for job in self.sub_jobs:
             job.set_state("disconnected")

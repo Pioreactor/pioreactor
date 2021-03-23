@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import time, sys, logging
 from threading import Event, Thread, Timer
+from time import perf_counter
+from contextlib import contextmanager
 
 
 def every(delay, task, *args, **kwargs):
@@ -28,6 +30,12 @@ def every(delay, task, *args, **kwargs):
             time.sleep(max(0, next_time - time.time()))
         # skip tasks if we are behind schedule:
         next_time += (time.time() - next_time) // delay * delay + delay
+
+
+@contextmanager
+def catchtime() -> float:
+    start = perf_counter()
+    yield lambda: perf_counter() - start
 
 
 class RepeatedTimer:
