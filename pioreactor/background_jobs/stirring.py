@@ -98,11 +98,9 @@ class Stirrer(BackgroundJob):
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def set_dc_increase_between_adc_readings(self, dc_increase_between_adc_readings):
-        self.logger.debug("set_dc_increase_between_adc_readings")
 
         self.dc_increase_between_adc_readings = int(dc_increase_between_adc_readings)
         if not self.dc_increase_between_adc_readings:
-            self.logger.debug("removing")
             self.sub_client.message_callback_remove(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
             )
@@ -119,8 +117,6 @@ class Stirrer(BackgroundJob):
 
     def start_sneaking(self, msg):
         if msg.payload:
-            self.logger.debug("start_sneaking")
-            self.logger.debug(msg.payload)
             self.sneak_action_between_readings(0.6, 2.1)
 
     def sneak_action_between_readings(self, post_duration, pre_duration):
@@ -129,12 +125,9 @@ class Stirrer(BackgroundJob):
         pre_duration: duration between stopping the action and the next ADS reading
         """
         # get interval, and confirm that the requirements are possible: post_duration + pre_duration <= ADS interval
-        self.logger.debug("sneak_action_between_readings")
 
         try:
             self.sneak_in_timer.cancel()
-            self.logger.debug("here1")
-
         except AttributeError:
             pass
 
@@ -151,14 +144,12 @@ class Stirrer(BackgroundJob):
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
             ).payload
         )
-        self.logger.debug("here2," + str(ads_start_time))
 
         ads_interval = float(
             subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
             ).payload
         )
-        self.logger.debug("here3," + str(ads_interval))
 
         assert (
             ads_interval - (post_duration + pre_duration) > 0
@@ -169,11 +160,9 @@ class Stirrer(BackgroundJob):
         time_to_next_ads_reading = ads_interval - (
             (time.time() - ads_start_time) % ads_interval
         )
-        self.logger.debug("here4")
 
         time.sleep(time_to_next_ads_reading + post_duration)
         self.sneak_in_timer.start()
-        self.logger.debug("here5")
 
 
 def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None):
