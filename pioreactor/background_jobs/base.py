@@ -247,13 +247,17 @@ class BackgroundJob:
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
             atexit.register(disconnect_gracefully)
-            signal.signal(
-                signal.SIGTERM, disconnect_gracefully
-            )  # terminate command, ex: pkill
-            signal.signal(signal.SIGINT, disconnect_gracefully)  # keyboard interrupt
-            signal.signal(
-                signal.SIGUSR1, exit_python
-            )  # user defined signal, we use to exit
+            # terminate command, ex: pkill
+            signal.signal(signal.SIGTERM, disconnect_gracefully)
+
+            # keyboard interrupt
+            signal.signal(signal.SIGINT, disconnect_gracefully)
+
+            signal.signal(signal.SIGHUP, disconnect_gracefully)
+            signal.signal(signal.SIGHUP, disconnect_gracefully)
+
+            # user defined signal, we use to exit
+            signal.signal(signal.SIGUSR1, exit_python)
 
     def init(self):
         self.state = self.INIT

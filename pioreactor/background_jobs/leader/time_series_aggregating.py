@@ -127,7 +127,6 @@ class TimeSeriesAggregation(BackgroundJob):
             ix = self.aggregated_time_series["series"].index(label)
             self.aggregated_time_series["data"][ix].append({"x": time, "y": latest_value})
 
-        self.logger.debug(f"counter in {self.topic} cache: {counter}.")
         if self.time_window_seconds:
             for ix, _ in enumerate(self.aggregated_time_series["data"]):
                 # this is pretty inefficient, but okay for now.
@@ -222,7 +221,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         write_every_n_seconds=15,
         time_window_seconds=60
         * int(config["ui.overview.settings"]["filtered_od_lookback_minutes"]),
-        record_every_n_seconds=4,
+        record_every_n_seconds=5,
     )
 
     growth_rate = TimeSeriesAggregation(  # noqa: F841
@@ -246,7 +245,7 @@ def click_time_series_aggregating(output_dir, ignore_cache):
         ignore_cache=ignore_cache,
         extract_label=unit_from_topic,
         write_every_n_seconds=15,
-        record_every_n_seconds=1,
+        record_every_n_seconds=15,
     )
 
     while True:

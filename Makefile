@@ -84,8 +84,9 @@ install-db:
 	bash bash_scripts/install_db.sh
 
 configure-rpi:
-	# echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
-	# echo "/usr/bin/tvservice -o" | sudo tee /etc/rc.local -a
+	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
+	sudo sed -i '2s/^/\/usr\/bin\/tvservice -o\n/' /etc/rc.local
+
 	sudo -upi mkdir -p /home/pi/.ssh
 
 install-ui:
