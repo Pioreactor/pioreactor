@@ -117,9 +117,11 @@ class Stirrer(BackgroundJob):
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
             )
 
-    def start_sneaking(self, _):
-        self.logger.debug("start_sneaking")
-        self.sneak_action_between_readings(0.6, 2.1)
+    def start_sneaking(self, msg):
+        if msg.payload:
+            self.logger.debug("start_sneaking")
+            self.logger.debug(msg.payload)
+            self.sneak_action_between_readings(0.6, 2.1)
 
     def sneak_action_between_readings(self, post_duration, pre_duration):
         """
