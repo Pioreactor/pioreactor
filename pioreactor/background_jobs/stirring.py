@@ -131,6 +131,8 @@ class Stirrer(BackgroundJob):
 
         try:
             self.sneak_in_timer.cancel()
+            self.logger.debug("here1")
+
         except AttributeError:
             pass
 
@@ -147,11 +149,14 @@ class Stirrer(BackgroundJob):
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
             ).payload
         )
+        self.logger.debug("here2," + str(ads_start_time))
+
         ads_interval = float(
             subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
             ).payload
         )
+        self.logger.debug("here3," + str(ads_interval))
 
         assert (
             ads_interval - (post_duration + pre_duration) > 0
@@ -162,10 +167,11 @@ class Stirrer(BackgroundJob):
         time_to_next_ads_reading = ads_interval - (
             (time.time() - ads_start_time) % ads_interval
         )
+        self.logger.debug("here4")
 
         time.sleep(time_to_next_ads_reading + post_duration)
         self.sneak_in_timer.start()
-        self.logger.debug("here")
+        self.logger.debug("here5")
 
 
 def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None):
