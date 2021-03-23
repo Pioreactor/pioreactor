@@ -310,12 +310,6 @@ class BackgroundJob:
             client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
 
-        # exit from python using a signal - this works in threads (sometimes `disconnected` is called in a thread)
-        # this time.sleep is for race conflicts - without it was causing the MQTT client to disconnect too late and a last-will was sent.
-        # previously had 0.25, needed to bump it.
-        # Note that this can't move to a callback (like on_disconnect), since
-        # time.sleep(0.25)
-
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         self.publish(

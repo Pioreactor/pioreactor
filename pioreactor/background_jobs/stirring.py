@@ -118,6 +118,7 @@ class Stirrer(BackgroundJob):
             )
 
     def start_sneaking(self, _):
+        self.logger.debug("start_sneaking")
         self.sneak_action_between_readings(0.6, 2.1)
 
     def sneak_action_between_readings(self, post_duration, pre_duration):
@@ -126,6 +127,7 @@ class Stirrer(BackgroundJob):
         pre_duration: duration between stopping the action and the next ADS reading
         """
         # get interval, and confirm that the requirements are possible: post_duration + pre_duration <= ADS interval
+        self.logger.debug("sneak_action_between_readings")
 
         try:
             self.sneak_in_timer.cancel()
@@ -163,6 +165,7 @@ class Stirrer(BackgroundJob):
 
         time.sleep(time_to_next_ads_reading + post_duration)
         self.sneak_in_timer.start()
+        self.logger.debug("here")
 
 
 def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None):

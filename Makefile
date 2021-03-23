@@ -85,6 +85,8 @@ install-db:
 
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
+
+	# add to second line of script...
 	sudo sed -i '2s/^/\/usr\/bin\/tvservice -o\n/' /etc/rc.local
 
 	sudo -upi mkdir -p /home/pi/.ssh
