@@ -281,9 +281,8 @@ class ODReader(BackgroundJob):
         def sneak_in():
             with catchtime() as delta_to_stop:
                 self.stop_ir_led()
-
             time.sleep(
-                max(0, ads_interval - (post_duration + pre_duration + delta_to_stop))
+                max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
             )
             self.start_ir_led()
 
@@ -338,7 +337,7 @@ class ODReader(BackgroundJob):
             )
 
     def on_disconnect(self):
-        self.sneak_in_timer.stop()
+        self.sneak_in_timer.cancel()
         self.stop_ir_led()
         for job in self.sub_jobs:
             job.set_state("disconnected")
