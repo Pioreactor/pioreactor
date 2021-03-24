@@ -173,13 +173,9 @@ class ADCReader(BackgroundSubJob):
 
             T = self.interval
             w = 2 * 3.141_592_6 * 0.05
-            self.logger.debug(f"w = {w}")
 
             a0 = a1 = 1 / (1 + 2 / (w * T))
-            self.logger.debug(f"a1 = {a1}")
-            self.logger.debug(f"a0 = {a0}")
             b1 = (1 - 2 / (w * T)) / (1 + 2 / (w * T))
-            self.logger.debug(f"b1 = {b1}")
 
             output = a0 * signal + a1 * last_signal - b1 * last_output
 
@@ -187,6 +183,7 @@ class ADCReader(BackgroundSubJob):
             output = signal
 
         self._low_pass_filter_cache[channel] = (signal, output)
+        self.logger.debug((signal, output))
         return output
 
     def take_reading(self):
