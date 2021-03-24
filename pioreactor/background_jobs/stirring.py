@@ -111,20 +111,21 @@ class Stirrer(BackgroundJob):
 
         else:
             self.subscribe_and_callback(
-                self.start_sneaking,
+                self.start_or_stop_sneaking,
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
             )
 
-    def start_sneaking(self, msg):
+    def start_or_stop_sneaking(self, msg):
         if msg.payload:
-            self.sneak_action_between_readings(0.6, 2.1)
+            self.sneak_action_between_readings(0.6, 2.5)
+        else:
+            self.sneak_in_timer.cancel()
 
     def sneak_action_between_readings(self, post_duration, pre_duration):
         """
         post_duration: how long to wait (seconds) after the ADS reading before running sneak_in
         pre_duration: duration between stopping the action and the next ADS reading
         """
-        # get interval, and confirm that the requirements are possible: post_duration + pre_duration <= ADS interval
 
         try:
             self.sneak_in_timer.cancel()
@@ -132,9 +133,12 @@ class Stirrer(BackgroundJob):
             pass
 
         def sneak_in():
-            self.set_duty_cycle(1.4 * self.duty_cycle)
+            factor = (
+                1.4
+            )  # this could be a config param? Once RPM is established, maybe a max is needed.
+            self.set_duty_cycle(factor * self.duty_cycle)
             time.sleep(ads_interval - (post_duration + pre_duration))
-            self.set_duty_cycle(self.duty_cycle / 1.4)
+            self.set_duty_cycle(self.duty_cycle / factor)
 
         # this could fail in the following way:
         # in the same experiment, the od_reading fails so that the ADC attributes are never
@@ -151,9 +155,11 @@ class Stirrer(BackgroundJob):
             ).payload
         )
 
-        assert (
-            ads_interval - (post_duration + pre_duration) > 0
-        ), "Your samples_per_second is too high to squeeze in stirring."
+        # get interval, and confirm that the requirements are possible: post_duration + pre_duration <= ADS interval
+        if ads_interval > (post_duration + pre_duration):
+            raise ValueError(
+                "Your samples_per_second is too high to add in dynamic stirring."
+            )
 
         self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
 

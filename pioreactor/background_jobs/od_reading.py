@@ -110,6 +110,7 @@ class ADCReader(BackgroundSubJob):
         self.interval = interval
         self.dynamic_gain = dynamic_gain
         self.initial_gain = initial_gain
+        self._low_pass_filter_cache = dict()
         self.counter = 0
         self.ema = ExponentialMovingAverage(alpha=0.20)
         self.ads = None
@@ -166,6 +167,24 @@ class ADCReader(BackgroundSubJob):
         except AttributeError:
             pass
 
+    def first_order_low_pass_filter(self, signal, channel):
+        try:
+            last_signal, last_output = self._low_pass_filter_cache[channel]
+        except KeyError:
+            self._low_pass_filter_cache[channel] = (signal, signal)
+            return signal
+
+        T = self.interval
+        w = 2 * 3.141_592_6 * 0.05
+        a0 = a1 = 1 / (1 + 2 / (w * T))
+        b1 = (1 - 2 / (w * T)) / (1 + 2 / (w * T))
+
+        output = a0 * signal + a1 * last_signal - b1 * last_output
+
+        self._low_pass_filter_cache[channel] = (signal, output)
+
+        return output
+
     def take_reading(self):
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
@@ -175,9 +194,13 @@ class ADCReader(BackgroundSubJob):
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
-                raw_signals[f"A{channel}"] = raw_signal_
+                filtered_signal_ = self.first_order_low_pass_filter(
+                    raw_signal_, channel=channel
+                )
+
+                raw_signals[f"A{channel}"] = filtered_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
-                setattr(self, f"A{channel}", raw_signal_)
+                setattr(self, f"A{channel}", filtered_signal_)
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
