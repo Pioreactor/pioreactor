@@ -170,19 +170,23 @@ class ADCReader(BackgroundSubJob):
     def first_order_low_pass_filter(self, signal, channel):
         try:
             last_signal, last_output = self._low_pass_filter_cache[channel]
+
+            T = self.interval
+            w = 2 * 3.141_592_6 * 0.05
+            self.logger.debug(f"w = {w}")
+
+            a0 = a1 = 1 / (1 + 2 / (w * T))
+            self.logger.debug(f"a1 = {a1}")
+            self.logger.debug(f"a0 = {a0}")
+            b1 = (1 - 2 / (w * T)) / (1 + 2 / (w * T))
+            self.logger.debug(f"b1 = {b1}")
+
+            output = a0 * signal + a1 * last_signal - b1 * last_output
+
         except KeyError:
-            self._low_pass_filter_cache[channel] = (signal, signal)
-            return signal
-
-        T = self.interval
-        w = 2 * 3.141_592_6 * 0.05
-        a0 = a1 = 1 / (1 + 2 / (w * T))
-        b1 = (1 - 2 / (w * T)) / (1 + 2 / (w * T))
-
-        output = a0 * signal + a1 * last_signal - b1 * last_output
+            output = signal
 
         self._low_pass_filter_cache[channel] = (signal, output)
-
         return output
 
     def take_reading(self):
