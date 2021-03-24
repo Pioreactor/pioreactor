@@ -201,7 +201,6 @@ class ADCReader(BackgroundSubJob):
                 filtered_signal_ = self.first_order_low_pass_filter(
                     raw_signal_, channel=channel
                 )
-                self.logger.debug((raw_signal_, filtered_signal_))
 
                 raw_signals[f"A{channel}"] = filtered_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
@@ -291,7 +290,7 @@ class ODReader(BackgroundJob):
 
         self.start_ir_led()
         self.start_passive_listeners()
-        # self.set_IR_led_during_ADC_readings()
+        self.set_IR_led_during_ADC_readings()
 
     def set_IR_led_during_ADC_readings(self):
         """
