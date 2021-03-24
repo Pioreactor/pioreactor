@@ -360,10 +360,10 @@ class ODReader(BackgroundJob):
             )
 
     def on_disconnect(self):
-        self.sneak_in_timer.cancel()
-        self.stop_ir_led()
         for job in self.sub_jobs:
             job.set_state("disconnected")
+        self.sneak_in_timer.cancel()
+        self.stop_ir_led()
 
     def publish_batch(self, message):
         if self.state != self.READY:

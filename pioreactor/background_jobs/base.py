@@ -210,6 +210,7 @@ class BackgroundJob:
                     return actual_callback(message)
                 except Exception as e:
                     self.logger.error(e, exc_info=True)
+                    self.logger.debug(e, exc_info=True)
                     raise e
 
             return _callback
