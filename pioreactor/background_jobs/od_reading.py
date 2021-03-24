@@ -183,7 +183,6 @@ class ADCReader(BackgroundSubJob):
             output = signal
 
         self._low_pass_filter_cache[channel] = (signal, output)
-        self.logger.debug((signal, output))
         return output
 
     def take_reading(self):
@@ -195,6 +194,7 @@ class ADCReader(BackgroundSubJob):
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
+                self.logger.debug(raw_signal_)
                 filtered_signal_ = self.first_order_low_pass_filter(
                     raw_signal_, channel=channel
                 )
