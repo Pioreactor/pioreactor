@@ -156,7 +156,7 @@ class Stirrer(BackgroundJob):
         )
 
         # get interval, and confirm that the requirements are possible: post_duration + pre_duration <= ADS interval
-        if ads_interval > (post_duration + pre_duration):
+        if ads_interval <= (post_duration + pre_duration):
             raise ValueError(
                 "Your samples_per_second is too high to add in dynamic stirring."
             )

@@ -101,7 +101,7 @@ class ADCReader(BackgroundSubJob):
         unit=None,
         experiment=None,
         dynamic_gain=True,
-        initial_gain=16,
+        initial_gain=1,
     ):
         super(ADCReader, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment
@@ -194,7 +194,6 @@ class ADCReader(BackgroundSubJob):
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
-
                 filtered_signal_ = self.first_order_low_pass_filter(
                     raw_signal_, channel=channel
                 )
