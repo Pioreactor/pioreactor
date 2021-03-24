@@ -58,7 +58,7 @@ class PIDMorbidostat(DosingAutomation):
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_od > self.max_od:
                 self.logger.info(
-                    f"executing triple dilution since we are above max OD, {self.max_od:.2f}."
+                    f"executing triple dilution since we are above max OD, {self.max_od:.2f}AU."
                 )
                 volume = 2.5 * self.volume
             else:

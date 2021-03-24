@@ -125,6 +125,8 @@ class BackgroundJob:
             last_will=last_will,
             keepalive=20,
         )
+        # we catch exceptions and report them in our software
+        client.suppress_exceptions = True
 
         # when we reconnect to the broker, we want to republish our state
         # to overwrite potential last-will losts...

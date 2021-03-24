@@ -76,14 +76,6 @@ class ADCReader(BackgroundSubJob):
     """
 
     JOB_NAME = "adc_reader"
-
-    A0 = 0.0
-    A1 = 0.0
-    A2 = 0.0
-    A3 = 0.0
-    timer = None
-    batched_readings = dict()
-    first_ads_obs_time = None
     editable_settings = [
         "interval",
         "first_ads_obs_time",
@@ -115,6 +107,16 @@ class ADCReader(BackgroundSubJob):
         self.ema = ExponentialMovingAverage(alpha=0.20)
         self.ads = None
         self.analog_in = []
+
+        # this is actually important to set in the init. When this job starts, setting these the "default" values
+        # will clear any cache in mqtt (if a cache exists).
+        self.first_ads_obs_time = None
+        self.timer = None
+        self.A0 = None
+        self.A1 = None
+        self.A2 = None
+        self.A3 = None
+        self.batched_readings = dict()
 
         if self.interval:
             self.timer = RepeatedTimer(self.interval, self.take_reading)
@@ -172,7 +174,9 @@ class ADCReader(BackgroundSubJob):
             last_signal, last_output = self._low_pass_filter_cache[channel]
 
             T = self.interval
-            w = 2 * 3.141_592_6 * 0.05
+            freq_cutoff = 0.05
+            tau = 2 * 3.141_592_6
+            w = tau * freq_cutoff
 
             a0 = a1 = 1 / (1 + 2 / (w * T))
             b1 = (1 - 2 / (w * T)) / (1 + 2 / (w * T))
@@ -197,6 +201,7 @@ class ADCReader(BackgroundSubJob):
                 filtered_signal_ = self.first_order_low_pass_filter(
                     raw_signal_, channel=channel
                 )
+                self.logger.debug((raw_signal_, filtered_signal_))
 
                 raw_signals[f"A{channel}"] = filtered_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
@@ -286,7 +291,7 @@ class ODReader(BackgroundJob):
 
         self.start_ir_led()
         self.start_passive_listeners()
-        self.set_IR_led_during_ADC_readings()
+        # self.set_IR_led_during_ADC_readings()
 
     def set_IR_led_during_ADC_readings(self):
         """
@@ -304,13 +309,14 @@ class ODReader(BackgroundJob):
         def sneak_in():
             with catchtime() as delta_to_stop:
                 self.stop_ir_led()
+
             time.sleep(
                 max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
             )
             self.start_ir_led()
 
         # this could fail in the following way:
-        # in the same experiment, the od_reading fails (lost) so that the ADC attributes are never
+        # in the same experiment, the od_reading fails (lost or rpi shutdown) so that the ADC attributes are never
         # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
         ads_start_time = float(
             subscribe(
@@ -362,6 +368,8 @@ class ODReader(BackgroundJob):
     def on_disconnect(self):
         for job in self.sub_jobs:
             job.set_state("disconnected")
+
+        # turn off the LED after we have take our last ADC reading..
         self.sneak_in_timer.cancel()
         self.stop_ir_led()
 
