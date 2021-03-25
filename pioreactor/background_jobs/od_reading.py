@@ -164,7 +164,7 @@ class ADCReader(BackgroundSubJob):
         # this should update after first observation
         # this may need to be adjusted for higher rates of data collection
         if self.dynamic_gain:
-            max_signal = max(raw_signals.values())
+            max_signal = max(raw_signals)
             self.check_on_gain(max_signal)
 
     def check_on_gain(self, value):
