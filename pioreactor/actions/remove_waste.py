@@ -37,10 +37,10 @@ def remove_waste(
     assert not ((ml is not None) and (duration is not None)), "Only input ml or duration"
 
     try:
-        config["pump_calibration"][f"waste_ml_calibration_{unit}"]
+        config["pump_calibration"]["waste_ml_calibration"]
     except KeyError:
         logger.error(
-            f"Calibration not defined. Add `pump_calibration` section to config_{unit}.ini."
+            f"Calibration not defined. Add `waste_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
         )
 
     hz = 100
@@ -48,9 +48,7 @@ def remove_waste(
         user_submitted_ml = True
         assert ml >= 0
         duration = pump_ml_to_duration(
-            ml,
-            duty_cycle,
-            **loads(config["pump_calibration"][f"waste_ml_calibration_{unit}"]),
+            ml, duty_cycle, **loads(config["pump_calibration"]["waste_ml_calibration"])
         )
     elif duration is not None:
         user_submitted_ml = False
@@ -58,7 +56,7 @@ def remove_waste(
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
-            **loads(config["pump_calibration"][f"waste_ml_calibration_{unit}"]),
+            **loads(config["pump_calibration"]["waste_ml_calibration"]),
         )
 
     publish(

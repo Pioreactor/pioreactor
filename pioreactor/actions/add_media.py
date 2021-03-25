@@ -39,26 +39,24 @@ def add_media(
     hz = 100
 
     try:
-        config["pump_calibration"][f"media_ml_calibration_{unit}"]
+        config["pump_calibration"]["media_ml_calibration"]
     except KeyError:
         logger.error(
-            f"Calibration not defined. Add `pump_calibration` section to config_{unit}.ini."
+            f"Calibration not defined. Add `media_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
         )
 
     if ml is not None:
         user_submitted_ml = True
         assert ml >= 0
         duration = pump_ml_to_duration(
-            ml,
-            duty_cycle,
-            **loads(config["pump_calibration"][f"media_ml_calibration_{unit}"]),
+            ml, duty_cycle, **loads(config["pump_calibration"]["media_ml_calibration"])
         )
     elif duration is not None:
         user_submitted_ml = False
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
-            **loads(config["pump_calibration"][f"media_ml_calibration_{unit}"]),
+            **loads(config["pump_calibration"]["media_ml_calibration"]),
         )
     assert duration >= 0
 

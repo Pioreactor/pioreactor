@@ -36,10 +36,10 @@ def add_alt_media(
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     try:
-        config["pump_calibration"][f"alt_media_ml_calibration_{unit}"]
+        config["pump_calibration"]["alt_media_ml_calibration"]
     except KeyError:
         logger.error(
-            f"Calibration not defined. Add `pump_calibration` section to config_{unit}.ini."
+            f"Calibration not defined. Add `alt_media_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
         )
 
     hz = 100
@@ -49,14 +49,14 @@ def add_alt_media(
         duration = pump_ml_to_duration(
             ml,
             duty_cycle,
-            **loads(config["pump_calibration"][f"alt_media_ml_calibration_{unit}"]),
+            **loads(config["pump_calibration"]["alt_media_ml_calibration"]),
         )
     elif duration is not None:
         user_submitted_ml = False
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
-            **loads(config["pump_calibration"][f"alt_media_ml_calibration_{unit}"]),
+            **loads(config["pump_calibration"]["alt_media_ml_calibration"]),
         )
     assert duration >= 0
 
