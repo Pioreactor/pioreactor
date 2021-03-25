@@ -145,8 +145,8 @@ install-leader-as-worker: install-leader install-worker
 
 	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
 	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts ;\
-
 	}
+
 	crudini --set ~/.pioreactor/config.ini network.inventory $$(hostname) 1
 	sudo reboot
 
