@@ -1,7 +1,7 @@
 install-git:
 	sudo apt update
 	sudo apt install -y git
-	sudo rm -rf /home/pi/pioreactor && git clone --depth 1 https://github.com/Pioreactor/pioreactor.git /home/pi/
+	sudo rm -rf /home/pi/pioreactor && git clone --depth 1 https://github.com/Pioreactor/pioreactor.git /home/pi/pioreactor
 
 install-python:
 	sudo apt install -y python3-pip
