@@ -198,6 +198,7 @@ class ADCReader(BackgroundSubJob):
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
+                self.logger.debug((channel, raw_signal_))
                 filtered_signal_ = self.first_order_low_pass_filter(
                     raw_signal_, channel=channel
                 )
