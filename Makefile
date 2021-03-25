@@ -62,7 +62,7 @@ install-pioreactor-leader:
 	cp config.example.ini /home/pi/.pioreactor/config.ini
 	sudo python3 setup.py install
 
-	sudo pip3 install crudini
+	# crudini is installed as part of requirements_leader.txt
 	crudini --set ~/.pioreactor/config.ini network.topology leader_hostname $$(hostname)
 	crudini --set ~/.pioreactor/config.ini network.topology leader_address $$(hostname).local
 

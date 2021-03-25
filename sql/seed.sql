@@ -1,1 +1,1 @@
-INSERT INTO experiments (timestamp, experiment, description) VALUES (STRFTIME('%Y-%m-%d   %H:%M', 'NOW','localtime'), 'Demo experiment', 'This is a demo experiment. Feel free to click around. When you are ready, click the "New experiment" above.');
+INSERT OR IGNORE INTO experiments (timestamp, experiment, description) VALUES (STRFTIME('%Y-%m-%d   %H:%M', 'NOW','localtime'), 'Demo experiment', 'This is a demo experiment. Feel free to click around. When you are ready, click the "New experiment" above.');
