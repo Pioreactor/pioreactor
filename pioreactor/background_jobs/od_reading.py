@@ -93,7 +93,7 @@ class ADCReader(BackgroundSubJob):
         unit=None,
         experiment=None,
         dynamic_gain=True,
-        initial_gain=16,
+        initial_gain=1,
     ):
         super(ADCReader, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment
