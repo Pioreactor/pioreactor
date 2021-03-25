@@ -4,8 +4,7 @@ install-git:
 
 install-python:
 	sudo apt install -y python3-pip
-	# the following is needed for numpy on Rpi
-	sudo apt-get install -y python3-numpy
+
 
 install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
@@ -55,6 +54,9 @@ systemd-leader:
 	sudo systemctl enable timezone.service
 
 install-pioreactor-leader:
+	# the following is needed for numpy on Rpi
+	sudo apt-get install -y python3-numpy
+
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
 	mkdir -p /home/pi/.pioreactor
 	cp config.example.ini /home/pi/.pioreactor/config.ini
@@ -69,6 +71,9 @@ install-pioreactor-leader:
 	sudo apt-get remove dphys-swapfile -y
 
 install-pioreactor-worker:
+	# the following is needed for numpy on Rpi
+	sudo apt-get install -y python3-numpy
+
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
 	mkdir -p /home/pi/.pioreactor
 	touch /home/pi/.pioreactor/unit_config.ini
