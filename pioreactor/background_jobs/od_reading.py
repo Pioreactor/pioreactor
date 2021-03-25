@@ -148,12 +148,31 @@ class ADCReader(BackgroundSubJob):
             self.logger.debug(e, exc_info=True)
             raise e
 
+        # we will instantiate and sweep through to set the gain
+        raw_signals = []
         for channel in [0, 1, 2, 3]:
             if self.fake_data:
                 ai = MockAnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             else:
                 ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             self.analog_in.append((channel, ai))
+
+            raw_signal_ = ai.voltage
+            raw_signals.append(raw_signal_)
+
+        # check if using correct gain
+        # this should update after first observation
+        # this may need to be adjusted for higher rates of data collection
+        if self.dynamic_gain:
+            max_signal = max(raw_signals.values())
+            self.check_on_gain(max_signal)
+
+    def check_on_gain(self, value):
+        for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
+            if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
+                self.ads.gain = gain
+                self.logger.debug(f"ADC gain updated to {self.ads.gain}.")
+                break
 
     def on_disconnect(self):
         for attr in ["first_ads_obs_time", "interval"]:
@@ -227,19 +246,13 @@ class ADCReader(BackgroundSubJob):
             # check if using correct gain
             # this should update after first observation
             # this may need to be adjusted for higher rates of data collection
-            check_gain_every_n = 2
+            check_gain_every_n = 5
             if (
                 self.dynamic_gain
                 and self.counter % check_gain_every_n == 1
                 and self.ema.value is not None
             ):
-                for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
-                    if (0.925 * lb <= self.ema.value < 0.925 * ub) and (
-                        self.ads.gain != gain
-                    ):
-                        self.ads.gain = gain
-                        self.logger.debug(f"ADC gain updated to {self.ads.gain}.")
-                        break
+                self.check_on_gain(self.ema.value)
 
             return raw_signals
 
