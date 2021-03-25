@@ -154,7 +154,6 @@ install-leader-as-worker: install-leader install-worker
 	sudo reboot
 
 seed-experiment:
-	# not idempotent
 	# techdebt: seed.sql adds an experiment to the db, so we need to match it in mqtt too
 	sqlite3 /home/pi/db/pioreactor.sqlite < /home/pi/pioreactor/sql/seed.sql
 	mosquitto_pub -t "pioreactor/latest_experiment" -m "Demo experiment" -r
@@ -165,6 +164,5 @@ install-worker-from-args: install-git install-python configure-hostname-from-arg
 	sudo reboot
 
 install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-leader systemd-all logging-files install-ui seed-experiment
-	# TODO: below is not idempotent
-	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
+	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa <<< y
 	sudo apt-get install sshpass
