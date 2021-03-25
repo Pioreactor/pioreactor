@@ -22,7 +22,7 @@ cat ~/.ssh/id_rsa.pub | sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no r
 ssh -o StrictHostKeyChecking=no raspberrypi.local "wget -O install_pioreactor_as_worker.sh https://gist.githubusercontent.com/CamDavidsonPilon/08aa165a283fb7af7262e4cb598bf6a9/raw/install_pioreactor_as_worker.sh && bash ./install_pioreactor_as_worker.sh $1"
 
 # remove any existing config (for idempotent)
-rm -f /home/pi/.pioreactor/config*.ini
+rm -f /home/pi/.pioreactor/config_$1.ini
 touch /home/pi/.pioreactor/config_$1.ini
 echo -e "# Any settings here are specific to $1, and override the settings in shared config.ini" >> /home/pi/.pioreactor/config_$1.ini
 echo -e "\n" >> /home/pi/.pioreactor/config_$1.ini

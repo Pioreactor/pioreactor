@@ -138,6 +138,7 @@ configure-hostname-from-args:
 	sudo hostman add -f 127.0.1.1 $(newHostname)
 
 install-leader-as-worker: install-leader install-worker
+	# this doesn't work.
 	{ \
 	set -e ;\
 	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\

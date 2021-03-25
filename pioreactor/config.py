@@ -3,6 +3,9 @@
 import configparser
 import sys
 import os
+import logging
+
+logger = logging.getLogger("config")
 
 
 def get_config():
@@ -17,7 +20,18 @@ def get_config():
     else:
         global_config_path = "/home/pi/.pioreactor/config.ini"
         local_config_path = "/home/pi/.pioreactor/unit_config.ini"
-        config.read([global_config_path, local_config_path])
+        try:
+            config.read([global_config_path, local_config_path])
+        except configparser.MissingSectionHeaderError:
+            # this can happen in the following situation:
+            # on the leader (as worker) Rpi, the unit_config.ini is malformed. When leader_config.ini is fixed in the UI
+            # pios sync tries to run, it uses a malformed unit_config.ini and hence the leader_config.ini can't be deployed
+            # to replace the malformed unit_config.ini.
+            logger.debug(
+                "MissingSectionHeaderError raised. Check unit_config.ini on leader?"
+            )
+            config.read([global_config_path])
+
     return config
 
 
