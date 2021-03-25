@@ -31,7 +31,7 @@ class WatchDog(BackgroundJob):
             unit = msg.topic.split("/")[1]
 
             self.logger.warning(
-                f"{unit} seems to be disconnected. Try to re-establish connection..."
+                f"{unit} seems to be lost. Trying to re-establish connection..."
             )
 
             self.pub_client.publish(
@@ -45,13 +45,13 @@ class WatchDog(BackgroundJob):
 
             current_state = subscribe(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=2
-            )
+            ).payload.decode()
 
             if current_state == self.LOST:
                 # failed, let's confirm to user
                 self.logger.error(f"{unit} was lost.")
             else:
-                self.logger.info(f"{unit} is fine.")
+                self.logger.info(f"Update: {unit} is connected again.")
 
     def watch_for_disk_space_percent(self, msg):
         if float(msg.payload) >= 90:

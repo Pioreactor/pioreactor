@@ -132,7 +132,7 @@ configure-hostname-from-args:
 	-sudo hostman remove --names raspberrypi # the - is important: hostman returns a error if not found, we want to ignore it, hence use the ignore error flag. This makes this script idempotent.
 	sudo hostman add -f 127.0.1.1 $(newHostname)
 
-install-leader-as-worker: configure-hostname install-leader install-worker
+install-leader-as-worker: install-leader install-worker
 	{ \
 	set -e ;\
 

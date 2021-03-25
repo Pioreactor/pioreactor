@@ -262,7 +262,7 @@ class TrackOD(LEDAutomation):
 class FlashUV(LEDAutomation):
     def __init__(self, **kwargs):
         super(FlashUV, self).__init__(**kwargs)
-        self.uv_led = config.get("leds", "uv380")
+        self.uv_led = config.get("leds", "uv")
 
         self.set_led_intensity(self.uv_led, 0)
 

@@ -26,7 +26,7 @@ def get_current_state_from_broker(unit):
 
 
 def led_intensity(
-    channel, intensity=0.0, source_of_event=None, unit=None, experiment=None, verbose=True
+    channel, intensity, source_of_event=None, unit=None, experiment=None, verbose=True
 ):
     """
     State is also updated in
@@ -55,7 +55,7 @@ def led_intensity(
     except ValueError as e:
         logger.debug(e, exc_info=True)
         logger.error(
-            "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for LED driver."
+            "Is the Pioreactor HAT attached to the RaspberryPi? Unable to find I²C for LED driver."
         )
         return False
     else:

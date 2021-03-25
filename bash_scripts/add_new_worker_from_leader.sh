@@ -1,5 +1,5 @@
 #!/bin/bash
-# first argument is the new name of the pioreactor, to replace raspberrypi
+# first argument is the new hostname of the pioreactor, to replace raspberrypi
 
 # remove from known_hosts if already present
 ssh-keygen -R $1.local                                                             >/dev/null 2>&1
