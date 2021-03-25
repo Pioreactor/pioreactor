@@ -1,7 +1,6 @@
 install-git:
 	sudo apt update
 	sudo apt install -y git
-	sudo rm -rf /home/pi/pioreactor && git clone --depth 1 https://github.com/Pioreactor/pioreactor.git /home/pi/pioreactor
 
 install-python:
 	sudo apt install -y python3-pip
@@ -60,7 +59,7 @@ install-pioreactor-leader:
 
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
 	mkdir -p /home/pi/.pioreactor
-	cp config.example.ini /home/pi/.pioreactor/config.ini
+	cp /home/pi/pioreactor/config.example.ini /home/pi/.pioreactor/config.ini
 	sudo python3 setup.py install
 
 	# crudini is installed as part of requirements_leader.txt
@@ -85,7 +84,7 @@ logging-files:
 	sudo chown pi /var/log/pioreactor.log
 
 install-db:
-	bash bash_scripts/install_db.sh
+	bash /home/pi/pioreactor/bash_scripts/install_db.sh
 
 configure-rpi:
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
