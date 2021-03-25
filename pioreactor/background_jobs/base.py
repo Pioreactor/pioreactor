@@ -257,12 +257,14 @@ class BackgroundJob:
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
             atexit.register(disconnect_gracefully)
+
             # terminate command, ex: pkill
             signal.signal(signal.SIGTERM, disconnect_gracefully)
 
             # keyboard interrupt
             signal.signal(signal.SIGINT, disconnect_gracefully)
 
+            # TODO: not sure
             signal.signal(signal.SIGHUP, disconnect_gracefully)
             signal.signal(signal.SIGHUP, disconnect_gracefully)
 
@@ -303,15 +305,19 @@ class BackgroundJob:
         self.logger.debug(self.SLEEPING)
 
     def disconnected(self):
+        # set state to disconnect
+        # call this first to make sure that it gets published to the broker.
+        self.state = self.DISCONNECTED
+
         # call job specific on_disconnect to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean
         # disconnect, etc.
+        # ideally, the on_disconnect shouldn't care what state it was in prior to being called.
         try:
             self.on_disconnect()
         except Exception as e:
             self.logger.error(e, exc_info=True)
-        # set state to disconnect
-        self.state = self.DISCONNECTED
+
         self.logger.info(self.DISCONNECTED)
 
         # disconnect from the passive subscription threads
@@ -319,6 +325,7 @@ class BackgroundJob:
         for client in self.pubsub_clients:
             client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
+        # a disconnect callback calls sys.exit(), so no code below will run.
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
