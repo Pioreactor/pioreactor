@@ -137,8 +137,8 @@ class BackgroundJob:
             self.start_general_passive_listeners()
             self.start_passive_listeners()
 
-        def on_disconnect(*args):
-            self.on_mqtt_disconnect()
+        def on_disconnect(client, userdata, rc):
+            self.on_mqtt_disconnect(rc)
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
@@ -149,9 +149,16 @@ class BackgroundJob:
         client.on_disconnect = on_disconnect
         return client
 
-    def on_mqtt_disconnect(self):
-        self.logger.debug("Disconnected from MQTT")
-        os.kill(os.getpid(), signal.SIGUSR1)
+    def on_mqtt_disconnect(self, rc):
+        if (
+            rc == 0
+        ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
+            self.logger.debug("Disconnected successfully from MQTT.")
+            os.kill(os.getpid(), signal.SIGUSR1)
+        else:
+            # we won't exit - the client object will try to reconnect
+            self.logger.debug(f"Disconnected from MQTT with rc {rc}.")
+            return
 
     def publish(self, *args, **kwargs):
         self.pub_client.publish(*args, **kwargs)

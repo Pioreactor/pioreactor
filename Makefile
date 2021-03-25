@@ -1,8 +1,12 @@
 install-git:
 	sudo apt update
 	sudo apt install -y git
+	# below works because we are in the pioreactor/ dir
 	git init
 	git remote add origin https://github.com/Pioreactor/pioreactor.git
+	git clean -fd
+	git pull origin master --allow-unrelated-histories
+
 
 install-python:
 	sudo apt install -y python3-pip

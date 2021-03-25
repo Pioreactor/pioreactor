@@ -42,6 +42,9 @@ class Monitor(BackgroundJob):
         self.start_passive_listeners()
         self.flicker_led()
 
+    def on_disconnect(self):
+        GPIO.cleanup(LED_PIN)
+
     def led_on(self):
         GPIO.output(LED_PIN, GPIO.HIGH)
 
