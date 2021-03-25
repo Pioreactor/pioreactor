@@ -76,6 +76,13 @@ install-pioreactor-leader:
 	# https://raspberrypi.stackexchange.com/questions/169/how-can-i-extend-the-life-of-my-sd-card
 	sudo apt-get remove dphys-swapfile -y
 
+install-log2ram:
+	sudo echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
+	sudo wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
+	sudo apt update
+	sudo apt install log2ram
+	sudo crudini --set /etc/log2ram.conf "" SIZE 100M
+
 install-pioreactor-worker:
 	# the following is needed for numpy on Rpi
 	sudo apt-get install -y python3-numpy
@@ -144,15 +151,13 @@ configure-hostname-from-args:
 	sudo hostman add -f 127.0.1.1 $(newHostname)
 
 install-leader-as-worker: install-leader install-worker
-	# this doesn't work.
 	{ \
 	set -e ;\
 	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\
-	echo -e "# Any settings here are specific to $1, and override the settings in shared config.ini" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
-	echo -e "\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
-	echo -e "[stirring]" >> /home/pi/.pioreactor/config_$$(hostname).ini   ;\
-	echo -e "duty_cycle_$1=80\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
-	echo -e "[pump_calibration]" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
+	printf "# Any settings here are specific to $1, and override the settings in shared config.ini\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
+	printf "[stirring]\n" >> /home/pi/.pioreactor/config_$$(hostname).ini   ;\
+	printf "duty_cycle_$1=80\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
+	printf "[pump_calibration]" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
 	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
 	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts ;\
 	}
@@ -170,7 +175,7 @@ install-worker: install-git install-python configure-hostname configure-rpi syst
 install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-leader systemd-all logging-files install-ui seed-experiment
+install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
 	rm -f /home/pi/.ssh/id_rsa
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass
