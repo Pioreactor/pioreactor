@@ -50,11 +50,9 @@ ssh-keyscan -H $1 >> ~/.ssh/known_hosts
 
 # sync-configs
 pios sync-configs --units $1
-cat /etc/timezone | ssh -o StrictHostKeyChecking=no $1 'cat >> sudo timedatectl set-timezone'
 
-
-# techdebt - I think I can remove the StrictHostKeyChecking
-ssh -o StrictHostKeyChecking=no $1 'sudo rm -rf ~/pioreactor && git clone --depth 1 https://github.com/Pioreactor/pioreactor.git'
+# doesn't work
+# cat /etc/timezone | ssh -o StrictHostKeyChecking=no $1 'cat >> sudo timedatectl set-timezone'
 
 # reboot once more (previous reboot didn't have config.inis)
 ssh -o StrictHostKeyChecking=no $1 'sudo reboot'
