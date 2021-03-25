@@ -50,20 +50,13 @@ from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS, subscribe
 
-ADS_GAIN_THRESHOLDS = {
-    2 / 3: (4.096, 6.144),
-    1: (2.048, 4.096),
-    2: (1.024, 2.048),
-    4: (0.512, 1.024),
-    8: (0.256, 0.512),
-    16: (-1, 0.256),
-}
-
 
 class ADCReader(BackgroundSubJob):
     """
     This job publishes the voltage reading from _all_ channels, and downstream
-    jobs can selectively choose a channel to listen to.
+    jobs can selectively choose a channel to listen to. We don't publish until
+    `start_periodic_reading()` is called, otherwise, call `take_reading` manually.
+    The read values are stored in A0, A1, A2, and A3.
 
 
     We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
@@ -73,7 +66,18 @@ class ADCReader(BackgroundSubJob):
     and in case the config.ini is changed between this job starting and the downstream
     job starting.
 
+
+
     """
+
+    ADS_GAIN_THRESHOLDS = {
+        2 / 3: (4.096, 6.144),
+        1: (2.048, 4.096),
+        2: (1.024, 2.048),
+        4: (0.512, 1.024),
+        8: (0.256, 0.512),
+        16: (-1, 0.256),
+    }
 
     JOB_NAME = "adc_reader"
     editable_settings = [
@@ -124,6 +128,7 @@ class ADCReader(BackgroundSubJob):
         self.setup_adc()
 
     def start_periodic_reading(self):
+        # start publishing after `interval` seconds.
         if self.timer:
             self.timer.start()
 
@@ -168,7 +173,7 @@ class ADCReader(BackgroundSubJob):
             self.check_on_gain(max_signal)
 
     def check_on_gain(self, value):
-        for gain, (lb, ub) in ADS_GAIN_THRESHOLDS.items():
+        for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
             if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
                 self.ads.gain = gain
                 self.logger.debug(f"ADC gain updated to {self.ads.gain}.")
@@ -217,7 +222,6 @@ class ADCReader(BackgroundSubJob):
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
-                self.logger.debug((channel, raw_signal_))
                 filtered_signal_ = self.first_order_low_pass_filter(
                     raw_signal_, channel=channel
                 )
@@ -383,7 +387,10 @@ class ODReader(BackgroundJob):
             job.set_state("disconnected")
 
         # turn off the LED after we have take our last ADC reading..
-        self.sneak_in_timer.cancel()
+        try:
+            self.sneak_in_timer.cancel()
+        except Exception:
+            pass
         self.stop_ir_led()
 
     def publish_batch(self, message):
