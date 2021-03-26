@@ -158,7 +158,7 @@ install-leader-as-worker: install-leader install-worker
 	printf "[stirring]\n" >> /home/pi/.pioreactor/config_$$(hostname).ini   ;\
 	printf "duty_cycle=80\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
 	printf "[pump_calibration]" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
-	cp /home/pi/.pioreactor/config_$$(hostname).ini /home/pi/.pioreactor/unit_config.ini
+	cp /home/pi/.pioreactor/config_$$(hostname).ini /home/pi/.pioreactor/unit_config.ini ;\
 	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
 	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts ;\
 	}

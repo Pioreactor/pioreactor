@@ -56,3 +56,5 @@ pios sync-configs --units $1
 
 # reboot once more (previous reboot didn't have config.inis)
 ssh -o StrictHostKeyChecking=no $1 'sudo reboot'
+
+exit 0

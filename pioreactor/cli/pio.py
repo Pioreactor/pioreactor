@@ -14,7 +14,7 @@ from pioreactor import background_jobs as jobs
 from pioreactor import actions
 
 
-logger = logging.getLogger(f"{get_unit_name()}-CLI")
+logger = logging.getLogger(f"{get_unit_name()}")
 
 
 @click.group()
@@ -209,13 +209,15 @@ if am_I_leader():
             else:
                 raspberrypi_on_network = True
 
-        subprocess.call(
+        res = subprocess.call(
             [
                 "bash /home/pi/pioreactor/bash_scripts/add_new_worker_from_leader.sh %s"
                 % new_name
             ],
             shell=True,
         )
+        if res == 0:
+            logger.info(f"New pioreactor {new_name} successfully added to cluster.")
 
 
 if not am_I_leader() and not am_I_active_worker():
