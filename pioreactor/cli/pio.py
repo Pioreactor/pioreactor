@@ -6,7 +6,7 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio run od_reading --od-angle-channel 135,0
 > pio log
 """
-import logging
+import logging, sys
 import click
 from pioreactor.whoami import am_I_leader, am_I_active_worker, get_unit_name
 from pioreactor.config import config
@@ -36,7 +36,7 @@ def logs():
     try:
         tail_sh = tail("-f", "-n", 50, config["logging"]["log_file"], _iter=True)
         for line in tail_sh:
-            print(line, end="")
+            click.echo(line)
     except KeyboardInterrupt:
         tail_sh.kill()
 
@@ -179,11 +179,16 @@ if am_I_leader():
 
         # check to make sure new_name isn't already on the network
         if is_host_on_network(new_name):
-            raise IOError(f"Name {new_name} is already on the network. Try another name.")
-        elif not is_allowable_hostname(new_name):
-            raise IOError(
-                "New name should only contain numbers, -, and English alphabet: a-z."
+            click.echo(
+                f"Name {new_name} is already on the network. Try another name.", err=True
             )
+            sys.exit(1)
+        elif not is_allowable_hostname(new_name):
+            click.echo(
+                "New name should only contain numbers, -, and English alphabet: a-z.",
+                err=True,
+            )
+            sys.exit(1)
 
         # check to make sure raspberrypi.local is on network
         raspberrypi_on_network = False
@@ -194,11 +199,13 @@ if am_I_leader():
                 socket.gethostbyname("raspberrypi")
             except socket.gaierror:
                 time.sleep(1)
-                print("`raspberrypi` not found - checking again.")
+                click.echo("`raspberrypi` not found on network- checking again.")
                 if checks >= max_checks:
-                    raise IOError(
-                        f"raspberrypi not found on network after {max_checks} seconds."
+                    click.echo(
+                        f"`raspberrypi` not found on network after {max_checks} seconds. Aborting.",
+                        err=True,
                     )
+                    sys.exit(1)
             else:
                 raspberrypi_on_network = True
 

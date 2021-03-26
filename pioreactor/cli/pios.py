@@ -9,6 +9,7 @@ command line for running the same command on all workers,
 """
 from concurrent.futures import ThreadPoolExecutor
 import logging
+import sys
 
 import click
 
@@ -63,9 +64,11 @@ def sync_config_files(ssh_client, unit):
             f"/home/pi/.pioreactor/config_{unit}.ini",
             "/home/pi/.pioreactor/unit_config.ini",
         )
-    except Exception as e:
-        print(f"Did you forget to create a config_{unit}.ini to ship to {unit}?")
-        raise e
+    except Exception:
+        click.echo(
+            f"Did you forget to create a config_{unit}.ini to deploy to {unit}?", err=True
+        )
+        sys.exit(1)
 
     ftp_client.close()
     return
@@ -81,12 +84,14 @@ def pios():
     import sys
 
     if not am_I_leader():
-        print("workers cannot run `pios` commands. Try `pio` instead.")
-        sys.exit(0)
+        click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
+        sys.exit(1)
 
     if len(get_active_workers_in_inventory()) == 0:
-        print("No active workers. See `network.inventory` section in config.ini.")
-        sys.exit(0)
+        click.echo(
+            "No active workers. See `network.inventory` section in config.ini.", err=True
+        )
+        sys.exit(1)
 
 
 @pios.command("update", short_help="update PioreactorApp on workers")
@@ -106,7 +111,7 @@ def update(units):
     command = "pio update --app"
 
     def _thread_function(unit):
-        print(f"Executing `{command}` on {unit}...")
+        click.echo(f"Executing `{command}` on {unit}...")
         try:
 
             client = paramiko.SSHClient()
@@ -120,7 +125,7 @@ def update(units):
             client.close()
 
         except Exception as e:
-            print(f"unit={unit}")
+            click.echo(f"unit={unit}")
             logger.debug(e, exc_info=True)
 
     units = universal_identifier_to_all_units(units)
@@ -143,7 +148,7 @@ def sync_configs(units):
     import paramiko
 
     def _thread_function(unit):
-        print(f"Syncing configs on {unit}...")
+        click.echo(f"Syncing configs on {unit}...")
         try:
 
             client = paramiko.SSHClient()
@@ -154,7 +159,7 @@ def sync_configs(units):
 
             client.close()
         except Exception as e:
-            print(f"unit={unit}")
+            click.echo(f"Unable to connect to unit {unit}", err=True)
             logger.debug(e, exc_info=True)
             logger.error(f"Unable to connect to unit {unit}.")
 
@@ -196,7 +201,7 @@ def kill(job, units, y):
     command = f"pio kill {' '.join(job)}"
 
     def _thread_function(unit):
-        print(f"Executing `{command}` on {unit}.")
+        click.echo(f"Executing `{command}` on {unit}.")
         try:
             ssh(unit, command)
         except Exception as e:
@@ -245,8 +250,8 @@ def run(ctx, job, units, y):
     extra_args = list(ctx.args)
 
     if "unit" in extra_args:
-        print("Did you mean to use 'units' instead of 'unit'? Exiting.")
-        return
+        click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
+        sys.exit(1)
 
     core_command = " ".join(["pio", "run", job, *extra_args])
     command = " ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"])
@@ -257,7 +262,7 @@ def run(ctx, job, units, y):
             return
 
     def _thread_function(unit):
-        print(f"Executing `{core_command}` on {unit}.")
+        click.echo(f"Executing `{core_command}` on {unit}.")
         try:
             ssh(unit, command)
         except Exception as e:
@@ -291,8 +296,8 @@ def update_settings(ctx, job, units):
     extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
 
     if "unit" in extra_args:
-        print("Did you mean to use 'units' instead of 'unit'? Exiting.")
-        return
+        click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
+        sys.exit(1)
 
     from pioreactor.pubsub import publish
 

@@ -51,7 +51,7 @@ class WatchDog(BackgroundJob):
                 # failed, let's confirm to user
                 self.logger.error(f"{unit} was lost.")
             else:
-                self.logger.info(f"Update: {unit} is connected again.")
+                self.logger.info(f"Update: {unit} is connected. All is well.")
 
     def watch_for_disk_space_percent(self, msg):
         if float(msg.payload) >= 90:

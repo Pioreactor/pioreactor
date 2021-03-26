@@ -88,6 +88,7 @@ class LEDAutomation(BackgroundSubJob):
                 ).start()
 
     def run(self, counter=None):
+        # TODO: this should be close to or equal to the function in DosingAutomation
         time.sleep(8)  # wait some time for data to arrive
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")

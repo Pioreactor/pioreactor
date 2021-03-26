@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, signal
+import signal
 
 import click
 import time
@@ -15,7 +15,6 @@ from pioreactor.hardware_mappings import (
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
 
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 GPIO.setmode(GPIO.BCM)
 
 
@@ -25,8 +24,12 @@ class Monitor(BackgroundJob):
      - controls the LED / Button interaction
     """
 
+    JOB_NAME = "monitor"
+
     def __init__(self, unit, experiment):
-        super(Monitor, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
+        super(Monitor, self).__init__(
+            job_name=self.JOB_NAME, unit=unit, experiment=experiment
+        )
         self.disk_usage_timer = RepeatedTimer(
             12 * 60 * 60,
             self.publish_disk_space,
@@ -70,14 +73,14 @@ class Monitor(BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down", 1
             )
-            time.sleep(0.25)
+            time.sleep(0.05)
 
-        self.led_off()
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
             0,
             qos=QOS.AT_LEAST_ONCE,
         )
+        self.led_off()
 
     def publish_disk_space(self):
         import psutil
@@ -87,6 +90,7 @@ class Monitor(BackgroundJob):
         if disk_usage_percent <= 70:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
+            # TODO: add documentation  to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/disk_usage_percent",

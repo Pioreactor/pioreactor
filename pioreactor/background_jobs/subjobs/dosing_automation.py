@@ -100,6 +100,10 @@ class DosingAutomation(BackgroundSubJob):
             # NOOP
             # we ended early.
             return
+
+        elif self.state != self.READY:
+            event = events.NoEvent(f"currently in state {self.state}")
+
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
@@ -111,9 +115,6 @@ class DosingAutomation(BackgroundSubJob):
                 )
             time.sleep(7)  # wait some time for data to arrive
             return self.run(counter=counter)
-
-        elif self.state != self.READY:
-            event = events.NoEvent(f"currently in state {self.state}")
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(
