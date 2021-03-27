@@ -2,7 +2,7 @@
 import time
 import json
 from collections import defaultdict
-from statistics import median, variance
+from statistics import mean, variance
 import logging
 
 import click
@@ -20,8 +20,8 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     logger.debug("Starting OD normalization")
 
     if "stirring" not in pio_jobs_running():
-        logger.error("stirring jobs should be running. Run `mb stirring -b` first.")
-        raise ValueError("stirring jobs should be running. Run `mb stirring -b` first. ")
+        logger.error("stirring jobs should be running. Run stirring first.")
+        raise ValueError("stirring jobs should be running. Run stirring first. ")
 
     if "od_reading" not in pio_jobs_running():
         from pioreactor.background_jobs.od_reading import od_reading
@@ -53,12 +53,12 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 break
 
         variances = {}
-        medians = {}
+        means = {}
         for sensor, reading_series in readings.items():
             # measure the variance and publish. The variance will be used in downstream jobs.
             variances[sensor] = variance(reading_series)
-            # measure the median and publish. The median will be used to normalize the readings in downstream jobs
-            medians[sensor] = median(reading_series)
+            # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
+            means[sensor] = mean(reading_series)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_normalization/variance",
@@ -67,8 +67,8 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
             retain=True,
         )
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/od_normalization/median",
-            json.dumps(medians),
+            f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+            json.dumps(means),
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,
         )

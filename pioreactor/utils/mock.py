@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
 from adafruit_ads1x15.analog_in import AnalogIn
+from pioreactor import config
 
 
 class MockI2C:
@@ -19,12 +20,19 @@ class MockI2C:
 
 class MockAnalogIn(AnalogIn):
     STATE = 0.2
+    TARGET = 0.15
 
     @property
     def voltage(self):
         import random
 
-        self.STATE = self.STATE * random.lognormvariate(0.15 * 5 / 60 / 60, 0.0001)
+        self.STATE = self.STATE * random.lognormvariate(
+            self.TARGET
+            / 60
+            / 60
+            / config.getfloat("od_config.od_sampling", "samples_per_second"),
+            0.000001,
+        )
         return self.STATE
 
 

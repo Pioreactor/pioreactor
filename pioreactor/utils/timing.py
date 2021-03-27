@@ -73,7 +73,11 @@ class RepeatedTimer:
 
     def _target(self):
         while not self.event.wait(self._time):
-            self.function(*self.args, **self.kwargs)
+            try:
+                self.function(*self.args, **self.kwargs)
+            except Exception as e:
+                self.logger.debug(e, exc_info=True)
+                self.logger.error(e)
 
     @property
     def _time(self):
