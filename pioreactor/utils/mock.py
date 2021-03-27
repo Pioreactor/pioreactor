@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
 from adafruit_ads1x15.analog_in import AnalogIn
-from pioreactor import config
+from pioreactor.config import config
 
 
 class MockI2C:
