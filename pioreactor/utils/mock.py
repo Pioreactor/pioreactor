@@ -56,6 +56,7 @@ class MockDAC43608:
     def set_intensity_to(self, channel, intensity):
         assert 0 <= intensity <= 1
         assert channel in list(range(16))
+        # TODO: this should update MQTT too
         return
 
     def power_up(*args):

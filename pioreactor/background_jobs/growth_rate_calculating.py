@@ -155,16 +155,16 @@ class GrowthRateCalculator(BackgroundJob):
             return 0
 
     def get_od_normalization_from_broker(self):
-        # we check if the broker has variance/median stats
+        # we check if the broker has variance/mean stats
         message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_normalization/median",
+            f"pioreactor/{self.unit}/{self.experiment}/od_normalization/mean",
             timeout=2,
             qos=QOS.EXACTLY_ONCE,
         )
         if message:
             return self.json_to_sorted_dict(message.payload)
         else:
-            self.logger.debug("od_normalization/median not found in broker.")
+            self.logger.debug("od_normalization/mean not found in broker.")
             self.logger.info(
                 "Computing OD normalization metrics. This may take a few minutes"
             )
@@ -173,7 +173,7 @@ class GrowthRateCalculator(BackgroundJob):
             return self.get_od_normalization_from_broker()
 
     def get_od_variances_from_broker(self):
-        # we check if the broker has variance/median stats
+        # we check if the broker has variance/mean stats
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_normalization/variance",
             timeout=2,
@@ -307,7 +307,7 @@ def growth_rate_calculating_simulation(
     first_obs_for_med_and_variance = df.head(n_angles * 35)
     od_normalization_factors = (
         first_obs_for_med_and_variance.groupby("angle_channel", sort=True)["od_reading_v"]
-        .median()
+        .mean()
         .to_dict()
     )
     od_obs_var = (
