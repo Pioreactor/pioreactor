@@ -31,18 +31,17 @@ class MockAnalogIn(AnalogIn):
     def voltage(self):
         import random
 
-        self.STATE *= random.lognormvariate(
+        self.STATE *= np.exp(
             self.growth_rate(
                 self._counter
                 / config.getfloat("od_config.od_sampling", "samples_per_second")
             )
             / 60
             / 60
-            / config.getfloat("od_config.od_sampling", "samples_per_second"),
-            0.001,
+            / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self._counter += 1
-        return self.STATE
+        return self.STATE + random.normalvariate(0, 1e-8)
 
 
 class MockDAC43608:
