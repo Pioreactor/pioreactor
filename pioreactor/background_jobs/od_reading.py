@@ -194,6 +194,7 @@ class ADCReader(BackgroundSubJob):
             pass
 
     def first_order_low_pass_filter(self, signal, channel):
+        return signal
         try:
             last_signal, last_output = self._low_pass_filter_cache[channel]
 
