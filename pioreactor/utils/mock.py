@@ -24,7 +24,7 @@ class MockAnalogIn(AnalogIn):
     _counter = 0
 
     @staticmethod
-    def growth_rate(self, duration_as_seconds):
+    def growth_rate(duration_as_seconds):
         return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60)))
 
     @property
