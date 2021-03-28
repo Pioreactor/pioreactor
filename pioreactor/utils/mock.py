@@ -41,7 +41,7 @@ class MockAnalogIn(AnalogIn):
             / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self._counter += 1
-        return self.STATE + random.normalvariate(0, 1e-8)
+        return self.STATE + random.normalvariate(0, 1e-2)
 
 
 class MockDAC43608:
