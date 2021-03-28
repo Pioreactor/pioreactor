@@ -7,12 +7,10 @@ tunnels:
   ui:
     proto: http
     addr: 80
-    subdomain: pioreactor
     inspect: false
     bind_tls: false
   ws:
     proto: http
     addr: 9001
-    subdomain: pioreactorws
     inspect: false
     bind_tls: false

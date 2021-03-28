@@ -198,7 +198,7 @@ class ADCReader(BackgroundSubJob):
             last_signal, last_output = self._low_pass_filter_cache[channel]
 
             T = self.interval
-            freq_cutoff = 0.05
+            freq_cutoff = 0.025  # should be less than or equal to half the sampling rate
             tau = 2 * 3.141_592_6
             w = tau * freq_cutoff
 
@@ -332,9 +332,6 @@ class ODReader(BackgroundJob):
             )
             self.start_ir_led()
 
-        # this could fail in the following way:
-        # in the same experiment, the od_reading fails (lost or rpi shutdown) so that the ADC attributes are never
-        # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
         ads_start_time = float(
             subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
