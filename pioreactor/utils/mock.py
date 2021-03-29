@@ -20,18 +20,19 @@ class MockI2C:
 
 
 class MockAnalogIn(AnalogIn):
-    STATE = 0.2
+    INIT_STATE = 0.2
+    state = INIT_STATE
     _counter = 0
 
     @staticmethod
     def growth_rate(duration_as_seconds):
-        return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60)))
+        return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 3 * 60 * 60)))
 
     @property
     def voltage(self):
         import random
 
-        self.STATE *= np.exp(
+        self.state *= np.exp(
             self.growth_rate(
                 self._counter
                 / config.getfloat("od_config.od_sampling", "samples_per_second")
@@ -41,7 +42,7 @@ class MockAnalogIn(AnalogIn):
             / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self._counter += 1
-        return self.STATE + random.normalvariate(0, 1e-3)
+        return self.state + self.state / self.INIT_STATE * random.normalvariate(0, 1e-3)
 
 
 class MockDAC43608:

@@ -153,22 +153,22 @@ class ADCReader(BackgroundSubJob):
             self.logger.debug(e, exc_info=True)
             raise e
 
-        # we will instantiate and sweep through to set the gain
-        raw_signals = []
-        for channel in [0, 1, 2, 3]:
-            if self.fake_data:
-                ai = MockAnalogIn(self.ads, getattr(ADS, f"P{channel}"))
-            else:
-                ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
-            self.analog_in.append((channel, ai))
-
-            raw_signal_ = ai.voltage
-            raw_signals.append(raw_signal_)
-
         # check if using correct gain
-        # this should update after first observation
         # this may need to be adjusted for higher rates of data collection
         if self.dynamic_gain:
+
+            # we will instantiate and sweep through to set the gain
+            raw_signals = []
+            for channel in [0, 1, 2, 3]:
+                if self.fake_data:
+                    ai = MockAnalogIn(self.ads, getattr(ADS, f"P{channel}"))
+                else:
+                    ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
+                self.analog_in.append((channel, ai))
+
+                raw_signal_ = ai.voltage
+                raw_signals.append(raw_signal_)
+
             max_signal = max(raw_signals)
             self.check_on_gain(max_signal)
 

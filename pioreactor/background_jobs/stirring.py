@@ -98,7 +98,6 @@ class Stirrer(BackgroundJob):
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def set_dc_increase_between_adc_readings(self, dc_increase_between_adc_readings):
-
         self.dc_increase_between_adc_readings = int(dc_increase_between_adc_readings)
         if not self.dc_increase_between_adc_readings:
             self.sub_client.message_callback_remove(
@@ -119,7 +118,10 @@ class Stirrer(BackgroundJob):
         if msg.payload:
             self.sneak_action_between_readings(0.6, 2.5)
         else:
-            self.sneak_in_timer.cancel()
+            try:
+                self.sneak_in_timer.cancel()
+            except AttributeError:
+                pass
 
     def sneak_action_between_readings(self, post_duration, pre_duration):
         """

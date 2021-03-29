@@ -106,13 +106,14 @@ def test_dynamic_stirring():
     pause()
 
     adc_reader = ADCReader(interval=5, unit=unit, experiment=exp, fake_data=True)
-    adc_reader.setup_adc()
+    adc_reader.start_periodic_reading()
+    pause()
     pause()
 
-    time.sleep(15)
+    time.sleep(19)
     assert st.duty_cycle == original_dc
     time.sleep(2)
-    assert st.duty_cycle == 75
+    assert st.duty_cycle == 70
     time.sleep(2)
     assert st.duty_cycle == original_dc
     time.sleep(7)
