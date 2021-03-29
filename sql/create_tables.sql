@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 
 CREATE INDEX IF NOT EXISTS logs_ix
-ON logs (experiment, level);
+ON logs (experiment, source, level);
 
 
 CREATE TABLE IF NOT EXISTS experiments (

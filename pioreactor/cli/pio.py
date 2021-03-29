@@ -133,7 +133,6 @@ if am_I_active_worker():
 
 if am_I_leader():
     run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
-    run.add_command(jobs.time_series_aggregating.click_time_series_aggregating)
     run.add_command(jobs.watchdog.click_watchdog)
 
     run.add_command(actions.export_experiment_data.click_export_experiment_data)

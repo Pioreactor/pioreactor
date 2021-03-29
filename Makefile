@@ -44,7 +44,6 @@ systemd-leader:
 	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/
 
 	sudo systemctl daemon-reload
-	sudo systemctl enable pioreactor_startup@time_series_aggregating.service
 	sudo systemctl enable pioreactor_startup@mqtt_to_db_streaming.service
 	sudo systemctl enable pioreactor_startup@watchdog.service
 
