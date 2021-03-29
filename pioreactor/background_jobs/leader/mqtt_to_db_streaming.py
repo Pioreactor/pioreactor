@@ -18,8 +18,8 @@ from pioreactor.config import config
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-def current_time():
-    return datetime.now().isoformat()
+def current_utc_time():
+    return datetime.utcnow().isoformat()
 
 
 def produce_metadata(topic):
@@ -27,7 +27,7 @@ def produce_metadata(topic):
         "SetAttrSplitTopic", ["pioreactor_unit", "experiment", "timestamp"]
     )
     v = topic.split("/")
-    return SetAttrSplitTopic(v[1], v[2], current_time())
+    return SetAttrSplitTopic(v[1], v[2], current_utc_time())
 
 
 class MqttToDBStreamer(BackgroundJob):
