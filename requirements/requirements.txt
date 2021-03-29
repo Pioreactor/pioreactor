@@ -1,6 +1,5 @@
-adafruit-circuitpython-ads1x15
 click
 paho-mqtt
-simple-pid
 psutil
 sh
+JSON-log-formatter

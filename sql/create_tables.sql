@@ -83,7 +83,9 @@ CREATE TABLE IF NOT EXISTS logs (
     experiment             TEXT  NOT NULL,
     message                TEXT  NOT NULL,
     pioreactor_unit        TEXT  NOT NULL,
-    source                 TEXT
+    source                 TEXT  NOT NULL,
+    level                  TEXT,
+    task                   TEXT,
 );
 
 CREATE INDEX IF NOT EXISTS logs_ix

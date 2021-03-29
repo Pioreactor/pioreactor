@@ -8,6 +8,21 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
 )
 from pioreactor.config import config
+import json_log_formatter
+
+
+class CustomisedJSONFormatter(json_log_formatter.JSONFormatter):
+    def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
+        extra["message"] = message
+
+        # Include builtins
+        extra["level"] = record.levelname
+        extra["task"] = record.name
+
+        if record.exc_info:
+            extra["exc_info"] = self.formatException(record.exc_info)
+
+        return extra
 
 
 class CustomMQTTtoUIFormatter(logging.Formatter):
@@ -88,7 +103,7 @@ exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERI
 topic = f"pioreactor/{get_unit_name()}/{exp}/logs/app"
 mqtt_handler = MQTTHandler(topic, client)
 mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))
-mqtt_handler.setFormatter(logging.Formatter("[%(name)s] %(levelname)-2s %(message)s"))
+mqtt_handler.setFormatter(CustomisedJSONFormatter())
 
 # create MQTT handlers for logging to UI
 exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT

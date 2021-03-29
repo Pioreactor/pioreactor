@@ -218,7 +218,7 @@ class BackgroundJob:
                 try:
                     return actual_callback(message)
                 except Exception as e:
-                    self.logger.error(e, exc_info=True)
+                    self.logger.error(e)
                     self.logger.debug(e, exc_info=True)
                     raise e
 
@@ -292,7 +292,8 @@ class BackgroundJob:
         try:
             self.on_ready()
         except Exception as e:
-            self.logger.error(e, exc_info=True)
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
         self.state = self.READY
         self.logger.info(self.READY)
 
@@ -300,7 +301,8 @@ class BackgroundJob:
         try:
             self.on_sleeping()
         except Exception as e:
-            self.logger.error(e, exc_info=True)
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
         self.state = self.SLEEPING
         self.logger.debug(self.SLEEPING)
 
@@ -316,7 +318,8 @@ class BackgroundJob:
         try:
             self.on_disconnect()
         except Exception as e:
-            self.logger.error(e, exc_info=True)
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
 
         self.logger.info(self.DISCONNECTED)
 

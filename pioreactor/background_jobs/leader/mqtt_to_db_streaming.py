@@ -172,11 +172,14 @@ def click_mqtt_to_db_streaming():
 
     def parse_logs(topic, payload):
         metadata = produce_metadata(topic)
+        payload = json.loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": metadata.timestamp,
-            "message": payload.decode(),
+            "message": payload["message"],
+            "task": payload["task"],
+            "level": payload["level"],
             "source": topic.split("/")[-1],  # should be app, ui, etc.
         }
 

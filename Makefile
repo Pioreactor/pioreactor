@@ -131,6 +131,9 @@ install-ui:
 	# see avahi-alias.service for how this works
 	sudo apt-get install avahi-utils -y
 
+	# used in piping UI output to our db logs
+	sudo apt install -y jq
+
 
 configure-hostname:
 	{ \
