@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS logs (
     pioreactor_unit        TEXT  NOT NULL,
     source                 TEXT  NOT NULL,
     level                  TEXT,
-    task                   TEXT,
+    task                   TEXT
 );
 
 CREATE INDEX IF NOT EXISTS logs_ix
