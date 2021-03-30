@@ -1,3 +1,11 @@
+### Next
+
+ - IR LED now turns off between OD readings. This allows other LEDs to trigger and take readings.
+ - Removed leader jobs `time_series_aggregating` and `log_aggregating`
+ - `logs` table in database has more metadata
+
+
+
 ### 21.3.18
 
  - new dosing automation: `continous_cycle`. Designed for using the Pioreactor as an inline sensor.

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from json import dumps
+from threading import Timer
 
 
 class ExponentialMovingAverage:
@@ -105,8 +106,8 @@ class ExtendedKalmanFilter:
         self.covariance_ = initial_covariance
         self.dim = self.state_.shape[0]
         self.dt = dt
+        self._currently_scaling_od = False
 
-        self._OD_scale_counter = -1
         import numpy as np
 
         self._original_process_noise_variance = np.diag(self.process_noise_covariance)[
@@ -123,7 +124,6 @@ class ExtendedKalmanFilter:
         import numpy as np
 
         observation = np.asarray(observation)
-        self.update_counters()
         assert (observation.shape[0] + 1) == self.state_.shape[0], (
             (observation.shape[0] + 1),
             self.state_.shape[0],
@@ -141,24 +141,28 @@ class ExtendedKalmanFilter:
         self.covariance_ = (np.eye(self.dim) - kalman_gain @ H) @ covariance_prediction
         return
 
-    def scale_OD_variance_for_next_n_steps(self, factor, n):
+    def scale_OD_variance_for_next_n_seconds(self, factor, seconds):
         import numpy as np
 
         d = self.dim
-        self._OD_scale_counter = n
-        self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
-            factor * self._original_process_noise_variance
-        )
 
-    def update_counters(self):
-        import numpy as np
-
-        if self._OD_scale_counter == 0:
-            d = self.dim
+        def backward():
+            self._currently_scaling_od = False
             self.process_noise_covariance[
                 np.arange(d - 1), np.arange(d - 1)
             ] = self._original_process_noise_variance
-        self._OD_scale_counter -= 1
+
+        def forward():
+            self._currently_scaling_od = True
+            self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
+                factor * self._original_process_noise_variance
+            )
+
+        t = Timer(seconds, backward)
+        t.daemon = True
+
+        forward()
+        t.start()
 
     def _predict_state(self, state, covariance):
         import numpy as np

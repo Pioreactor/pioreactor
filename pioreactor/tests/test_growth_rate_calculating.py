@@ -18,7 +18,7 @@ def pause():
 
 def test_subscribing(monkeypatch):
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         '{"135/0": 1, "90/0": 1}',
         retain=True,
     )
@@ -72,7 +72,7 @@ def test_subscribing(monkeypatch):
 
 def test_same_angles(monkeypatch):
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         '{"135/0": 1, "135/1": 1, "90/0": 1}',
         retain=True,
     )
@@ -108,7 +108,7 @@ def test_same_angles(monkeypatch):
 def test_mis_shapen_data(monkeypatch):
 
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         '{"135/0": 1,  "90/0": 1}',
         retain=True,
     )
@@ -141,7 +141,7 @@ def test_mis_shapen_data(monkeypatch):
 
 def test_restart():
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         '{"135/0": 1, "135/1": 1, "90/0": 1}',
         retain=True,
     )
@@ -156,7 +156,7 @@ def test_restart():
         retain=True,
     )
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         '{"135/0": 0.778586260567034, "135/1": 0.20944389172032837, "90/0": 0.1}',
         retain=True,
     )
@@ -198,7 +198,7 @@ def test_restart():
 
 def test_skip_180():
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         '{"135/0": 1, "180/2": 1, "90/1": 1}',
         retain=True,
     )
@@ -229,7 +229,7 @@ def test_skip_180():
 
 def test_single_observation():
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         '{"135/0": 1}',
         retain=True,
     )
@@ -260,7 +260,7 @@ def test_single_observation():
 def test_scaling_works():
 
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/median",
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
         json.dumps({"135/0": 0.5, "90/1": 0.8}),
         retain=True,
     )
@@ -297,3 +297,44 @@ def test_scaling_works():
         < 1e-7
     ).all()
     calc.set_state("disconnected")
+
+
+def test_shock_from_dosing_works():
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched",
+        '{"135/0": 0.5, "90/1": 0.8}',
+        retain=True,
+    )
+    publish(f"pioreactor/{unit}/{experiment}/growth_rate", "", retain=True)
+
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.51, "90/1": 0.82}'
+    )
+
+    # trigger dosing event
+    publish(
+        f"pioreactor/{unit}/{experiment}/dosing_events",
+        json.dumps(
+            {"source_of_event": "algo", "event": "add_media", "volume_change": 10.0}
+        ),
+    )
+    pause()
+    pause()
+    pause()
+    assert calc.ekf._currently_scaling_od
+
+    time.sleep(30)
+    pause()
+    assert not calc.ekf._currently_scaling_od

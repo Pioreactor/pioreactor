@@ -52,7 +52,7 @@ class GrowthRateCalculator(BackgroundJob):
         #    due to variation in the glass
         #
         # so to "fix" this, we will treat it like a dilution event, and modify the variances
-        self.update_ekf_variance_after_event(0.5, 5e2)
+        self.update_ekf_variance_after_event(minutes=0.5, factor=5e2)
 
     def initialize_extended_kalman_filter(self):
         import numpy as np
@@ -192,9 +192,7 @@ class GrowthRateCalculator(BackgroundJob):
             return self.get_od_variances_from_broker()
 
     def update_ekf_variance_after_event(self, minutes, factor):
-        self.ekf.scale_OD_variance_for_next_n_steps(
-            factor, round(minutes * self.samples_per_minute)
-        )
+        self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
     def scale_raw_observations(self, observations):
         return {
@@ -239,7 +237,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(0.5, 5e3)
+        self.update_ekf_variance_after_event(minutes=0.5, factor=5e3)
 
     def start_passive_listeners(self):
         # process incoming data
