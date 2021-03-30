@@ -151,12 +151,14 @@ class ExtendedKalmanFilter:
             self.process_noise_covariance[
                 np.arange(d - 1), np.arange(d - 1)
             ] = self._original_process_noise_variance
+            self.covariance_ = self._covariance_pre_scale.copy()
 
         def forward():
             self._currently_scaling_od = True
             self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
                 factor * self._original_process_noise_variance
             )
+            self._covariance_pre_scale = self.covariance_.copy()
 
         t = Timer(seconds, backward)
         t.daemon = True

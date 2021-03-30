@@ -331,8 +331,7 @@ def test_shock_from_dosing_works():
         ),
     )
     pause()
-    pause()
-    pause()
+
     assert calc.ekf._currently_scaling_od
 
     time.sleep(30)

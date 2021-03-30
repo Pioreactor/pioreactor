@@ -157,7 +157,7 @@ install-leader-as-worker: install-leader install-worker
 	{ \
 	set -e ;\
 	touch /home/pi/.pioreactor/config_"$$(hostname)".ini ;\
-	printf "# Any settings here are specific to $$1, and override the settings in shared config.ini\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
+	printf "# Any settings here are specific to $$(hostname), and override the settings in config.ini\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
 	printf "[stirring]\n" >> /home/pi/.pioreactor/config_$$(hostname).ini   ;\
 	printf "duty_cycle=80\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
 	printf "[pump_calibration]" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
