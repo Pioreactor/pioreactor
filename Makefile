@@ -1,18 +1,5 @@
-install-git:
-	sudo apt update
-	sudo apt install -y git
-	# below works because we are in the pioreactor/ dir
-	git init
-	# below is not idempotent
-	# I think https://stackoverflow.com/questions/36107101/is-there-a-way-to-force-the-creation-of-a-remote-repository
-	git remote add origin https://github.com/Pioreactor/pioreactor.git
-	git clean -fd
-	git pull origin master --allow-unrelated-histories
-
-
 install-python:
 	sudo apt install -y python3-pip
-
 
 install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
@@ -174,12 +161,12 @@ seed-experiment:
 	sqlite3 /home/pi/db/pioreactor.sqlite < /home/pi/pioreactor/sql/seed.sql
 	mosquitto_pub -t "pioreactor/latest_experiment" -m "Demo experiment" -r
 
-install-worker: install-git install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
+install-worker: install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 
-install-worker-from-args: install-git install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
+install-worker-from-args: install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: install-git install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
+install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
 	rm -f /home/pi/.ssh/id_rsa
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt-get install sshpass

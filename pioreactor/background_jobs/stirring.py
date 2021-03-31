@@ -94,7 +94,7 @@ class Stirrer(BackgroundJob):
         super(Stirrer, self).set_state(new_state)
 
     def set_duty_cycle(self, value):
-        self.duty_cycle = clamp(0, round(value), 100)
+        self.duty_cycle = clamp(0, round(float(value)), 100)
         self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def set_dc_increase_between_adc_readings(self, dc_increase_between_adc_readings):

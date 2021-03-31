@@ -359,7 +359,7 @@ def growth_rate_calculating_simulation(
     d = initial_state.shape[0]
 
     # empirically selected
-    initial_covariance = 0.0001 * np.diag(initial_state.tolist()[:-1] + [0.00001])
+    initial_covariance = 0.00005 * np.diag(initial_state.tolist()[:-1] + [0.00001])
 
     OD_process_covariance = create_OD_covariance(angles_and_initial_points.keys())
 

@@ -20,7 +20,7 @@ class CustomisedJSONFormatter(json_log_formatter.JSONFormatter):
         extra["task"] = record.name
 
         if record.exc_info:
-            extra["exc_info"] = self.formatException(record.exc_info)
+            extra["message"] = self.formatException(record.exc_info)
 
         return extra
 
