@@ -237,7 +237,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=0.5, factor=5e3)
+        self.update_ekf_variance_after_event(minutes=0.5, factor=5e4)
 
     def start_passive_listeners(self):
         # process incoming data
