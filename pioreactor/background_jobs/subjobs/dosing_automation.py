@@ -113,13 +113,14 @@ class DosingAutomation(BackgroundSubJob):
                 self.logger.warn(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
-            time.sleep(30)
+            time.sleep(20)
             return self.run(counter=counter)
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
+
         else:
             try:
                 event = self.execute(counter)
