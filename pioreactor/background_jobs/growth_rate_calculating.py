@@ -239,7 +239,7 @@ class GrowthRateCalculator(BackgroundJob):
         # an improvement to this: the variance factor is proportional to the amount exchanged.
         # TODO: factor * config.growth_rate_kalman.od_variance should be about 1 to 5
         self.update_ekf_variance_after_event(
-            minutes=0.5, factor=1 / config.getfloat("growth_rate_kalman", "od_variance")
+            minutes=0.5, factor=10 / config.getfloat("growth_rate_kalman", "od_variance")
         )
 
     def start_passive_listeners(self):

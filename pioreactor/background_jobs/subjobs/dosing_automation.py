@@ -9,7 +9,6 @@ from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import QOS
-from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
@@ -114,7 +113,7 @@ class DosingAutomation(BackgroundSubJob):
                 self.logger.warn(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
-            time.sleep(1 / config.getfloat("od_config.od_sampling", "samples_per_second"))
+            time.sleep(30)
             return self.run(counter=counter)
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
