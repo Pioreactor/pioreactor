@@ -4,6 +4,7 @@ import numpy as np
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
+import logging
 
 
 class MockI2C:
@@ -21,7 +22,7 @@ class MockI2C:
 
 
 class MockAnalogIn(AnalogIn):
-    INIT_STATE = 0.2
+    INIT_STATE = 0.1
     state = INIT_STATE
     _counter = 0
 
@@ -53,16 +54,14 @@ class MockAnalogIn(AnalogIn):
     def voltage(self):
         import random
 
+        gr = self.growth_rate(
+            self._counter / config.getfloat("od_config.od_sampling", "samples_per_second")
+        )
         self.state *= np.exp(
-            self.growth_rate(
-                self._counter
-                / config.getfloat("od_config.od_sampling", "samples_per_second")
-            )
-            / 60
-            / 60
-            / config.getfloat("od_config.od_sampling", "samples_per_second")
+            gr / 60 / 60 / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self._counter += 1
+        logging.getLogger("MockAnalogIn").debug(f"state={self.state}, gr={gr}")
         return self.state + self.state / self.INIT_STATE * random.normalvariate(0, 1e-3)
 
 

@@ -146,24 +146,24 @@ class ExtendedKalmanFilter:
 
         d = self.dim
 
-        def backward():
+        def reverse_change():
             self._currently_scaling_od = False
             self.process_noise_covariance[
                 np.arange(d - 1), np.arange(d - 1)
             ] = self._original_process_noise_variance
             self.covariance_ = self._covariance_pre_scale.copy()
 
-        def forward():
+        def forward_change():
             self._currently_scaling_od = True
             self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
                 factor * self._original_process_noise_variance
             )
             self._covariance_pre_scale = self.covariance_.copy()
 
-        t = Timer(seconds, backward)
+        t = Timer(seconds, reverse_change)
         t.daemon = True
 
-        forward()
+        forward_change()
         t.start()
 
     def _predict_state(self, state, covariance):
@@ -176,6 +176,8 @@ class ExtendedKalmanFilter:
     def _predict_covariance(self, state, covariance):
         # see note on Scaling in docs.
         scaled_process_noise_covariance = self.process_noise_covariance.copy()
+        # we don't need to scale the elements in [:, -1] or [-1, :] (correlation between OD and rate) because
+        # the elements are 0
         scaled_process_noise_covariance[:-1, :-1] = (
             state[:-1] ** 2 * self.process_noise_covariance[:-1, :-1]
         )

@@ -102,7 +102,7 @@ client = create_client(client_id=f"{get_unit_name()}-logging-{uuid.uuid1()}")
 exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 topic = f"pioreactor/{get_unit_name()}/{exp}/logs/app"
 mqtt_handler = MQTTHandler(topic, client)
-mqtt_handler.setLevel(getattr(logging, config["logging"]["mqtt_log_level"]))
+mqtt_handler.setLevel(logging.DEBUG)
 mqtt_handler.setFormatter(CustomisedJSONFormatter())
 
 # create MQTT handlers for logging to UI
