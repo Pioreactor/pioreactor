@@ -334,6 +334,6 @@ def test_shock_from_dosing_works():
 
     assert calc.ekf._currently_scaling_od
 
-    time.sleep(30)
+    time.sleep(40)
     pause()
     assert not calc.ekf._currently_scaling_od

@@ -221,9 +221,11 @@ class GrowthRateCalculator(BackgroundJob):
                     self.state_[i],
                 )
 
-            self.logger.debug(self.ekf.state_)
-            self.logger.debug(self.ekf.covariance_)
-            self.logger.debug(self.ekf.process_noise_covariance)
+            self.logger.debug(f"state={self.ekf.state_}")
+            self.logger.debug(f"covariance_=\n{self.ekf.covariance_}")
+            self.logger.debug(
+                f"process_noise_covariance=\n{self.ekf.process_noise_covariance}"
+            )
 
             return
 
