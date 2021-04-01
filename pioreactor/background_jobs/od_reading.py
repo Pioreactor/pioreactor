@@ -313,7 +313,8 @@ class ODReader(BackgroundJob):
 
     def set_IR_led_during_ADC_readings(self):
         """
-        This supposes IR LED is always on, and the "sneak in" turns it off.
+        This supposes IR LED is always on, and the "sneak in" turns it off. We also turn off all other LEDs
+        when we turn the IR LED on.
 
         post_duration: how long to wait (seconds) after the ADS reading before running sneak_in
         pre_duration: duration between stopping the action and the next ADS reading

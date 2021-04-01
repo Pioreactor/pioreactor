@@ -3,6 +3,7 @@
 import numpy as np
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
+from pioreactor.pubsub import subscribe_and_callback
 
 
 class MockI2C:
@@ -23,6 +24,26 @@ class MockAnalogIn(AnalogIn):
     INIT_STATE = 0.2
     state = INIT_STATE
     _counter = 0
+
+    def __init__(self, *args, **kwargs):
+
+        # subscribe to dosing events
+        from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+
+        subscribe_and_callback(
+            self.react_to_dosing,
+            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
+        )
+
+    def react_to_dosing(self, message):
+        import json
+
+        payload = json.loads(message.payload)
+
+        if payload["event"] not in ["add_media", "add_alt_media"]:
+            return
+
+        self.state = self.state * (1 - (payload["volume_change"] / 14))
 
     @staticmethod
     def growth_rate(duration_as_seconds):
