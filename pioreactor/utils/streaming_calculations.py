@@ -151,7 +151,6 @@ class ExtendedKalmanFilter:
         if we invoke this function again (i.e. a new dosing event). The if the Timer successfully
         executes its function, then we restore state (add back the covariance matrix.)
 
-
         """
         import numpy as np
 
@@ -168,7 +167,7 @@ class ExtendedKalmanFilter:
 
             self._currently_scaling_od = True
             self.covariance_[np.arange(d - 1), np.arange(d - 1)] = (
-                factor * self.covariance_[np.arange(d - 1), np.arange(d - 1)]
+                factor * self._covariance_pre_scale[np.arange(d - 1), np.arange(d - 1)]
             )
 
         if self._currently_scaling_od:

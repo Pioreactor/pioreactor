@@ -331,7 +331,6 @@ def test_shock_from_dosing_works():
     pause()
 
     previous_covariance_matrix = calc.ekf.covariance_.copy()
-    previous_process_matrix = calc.ekf.process_noise_covariance.copy()
 
     # trigger dosing events, which change the "regime"
     publish(
@@ -365,14 +364,12 @@ def test_shock_from_dosing_works():
     )
     pause()
 
-    time.sleep(35)
+    time.sleep(55)
     assert calc.ekf._currently_scaling_od
     assert not np.array_equal(previous_covariance_matrix, calc.ekf.covariance_)
-    assert not np.array_equal(previous_process_matrix, calc.ekf.process_noise_covariance)
 
     time.sleep(5)
     pause()
     # should revert back
     assert not calc.ekf._currently_scaling_od
     assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
-    assert_array_equal(calc.ekf.process_noise_covariance, previous_process_matrix)
