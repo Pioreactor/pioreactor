@@ -62,7 +62,7 @@ class MockAnalogIn(AnalogIn):
         )
         self._counter += 1
         logging.getLogger("MockAnalogIn").debug(f"state={self.state}, gr={gr}")
-        return self.state + random.normalvariate(0, self.state * 0.025)
+        return self.state + random.normalvariate(0, self.state * 0.01)
 
 
 class MockDAC43608:

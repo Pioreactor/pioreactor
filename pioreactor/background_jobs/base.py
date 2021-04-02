@@ -264,9 +264,7 @@ class BackgroundJob:
             # keyboard interrupt
             signal.signal(signal.SIGINT, disconnect_gracefully)
 
-            # TODO: not sure
-            signal.signal(signal.SIGHUP, disconnect_gracefully)
-            signal.signal(signal.SIGHUP, disconnect_gracefully)
+            # NOHUP is not included here, as it prevents tools like nohup working: https://unix.stackexchange.com/a/261631
 
             # user defined signal, we use to exit
             signal.signal(signal.SIGUSR1, exit_python)
