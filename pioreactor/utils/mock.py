@@ -48,7 +48,7 @@ class MockAnalogIn(AnalogIn):
 
     @staticmethod
     def growth_rate(duration_as_seconds):
-        return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 3 * 60 * 60)))
+        return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60)))
 
     @property
     def voltage(self):
@@ -62,7 +62,7 @@ class MockAnalogIn(AnalogIn):
         )
         self._counter += 1
         logging.getLogger("MockAnalogIn").debug(f"state={self.state}, gr={gr}")
-        return self.state + self.state / self.INIT_STATE * random.normalvariate(0, 1e-3)
+        return self.state + random.normalvariate(0, self.state * 0.025)
 
 
 class MockDAC43608:

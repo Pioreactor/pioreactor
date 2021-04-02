@@ -159,19 +159,17 @@ class ExtendedKalmanFilter:
 
         def reverse_change():
             self._currently_scaling_od = False
-            self.process_noise_covariance[
-                np.arange(d - 1), np.arange(d - 1)
-            ] = self._original_process_noise_variance
             self.covariance_ = self._covariance_pre_scale.copy()
             self._covariance_pre_scale = None
 
         def forward_change():
-            self._currently_scaling_od = True
-            self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
-                factor * self._original_process_noise_variance
-            )
             if self._covariance_pre_scale is None:
                 self._covariance_pre_scale = self.covariance_.copy()
+
+            self._currently_scaling_od = True
+            self.covariance_[np.arange(d - 1), np.arange(d - 1)] = (
+                factor * self.covariance_[np.arange(d - 1), np.arange(d - 1)]
+            )
 
         if self._currently_scaling_od:
             self._scale_timer.cancel()

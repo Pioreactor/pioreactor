@@ -284,6 +284,7 @@ def growth_rate_calculating_simulation(
     rate_variance=config.getfloat("growth_rate_kalman", "rate_variance"),
     od_variance=config.getfloat("growth_rate_kalman", "od_variance"),
     obs_variance_factor=100,
+    freq="5S",
 ):
     """
     Since the KF is so finicky w.r.t. its parameters, it's useful for have a function that can "replay"
@@ -299,6 +300,7 @@ def growth_rate_calculating_simulation(
         12
     )  # 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
     dt = 1 / (samples_per_minute * 60)
+    n_samples_for_normalization = 25
 
     # pandas munging to get data in the correct format
     df["channel"] = df["channel"].astype(str)
@@ -309,9 +311,9 @@ def growth_rate_calculating_simulation(
     df = df.sort_index()
     df["angle_channel"] = df["angle"] + df["channel"]
 
-    # compute the od normalization and od variance using the first 35 samples
+    # compute the od normalization and od variance using the first N samples
     n_angles = df["angle_channel"].nunique()
-    first_obs_for_med_and_variance = df.head(n_angles * 35)
+    first_obs_for_med_and_variance = df.head(n_angles * n_samples_for_normalization)
     od_normalization_factors = (
         first_obs_for_med_and_variance.groupby("angle_channel", sort=True)["od_reading_v"]
         .mean()
@@ -368,7 +370,7 @@ def growth_rate_calculating_simulation(
     d = initial_state.shape[0]
 
     # empirically selected
-    initial_covariance = 0.00005 * np.diag(initial_state.tolist()[:-1] + [0.00001])
+    initial_covariance = 0.0005 * np.diag(initial_state.tolist()[:-1] + [0.00001])
 
     OD_process_covariance = create_OD_covariance(angles_and_initial_points.keys())
 
@@ -392,8 +394,8 @@ def growth_rate_calculating_simulation(
 
     grouped = (
         df[["angle_channel", "od_reading_v"]]
-        .iloc[(n_angles * 35) :]
-        .groupby(pd.Grouper(freq="5S"))
+        .iloc[(n_angles * n_samples_for_normalization) :]
+        .groupby(pd.Grouper(freq=freq))
     )
 
     results = []
