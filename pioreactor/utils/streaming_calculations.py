@@ -106,7 +106,10 @@ class ExtendedKalmanFilter:
         self.covariance_ = initial_covariance
         self.dim = self.state_.shape[0]
         self.dt = dt
+
         self._currently_scaling_od = False
+        self._scale_timer = None
+        self._covariance_pre_scale = None
 
         import numpy as np
 
@@ -142,6 +145,14 @@ class ExtendedKalmanFilter:
         return
 
     def scale_OD_variance_for_next_n_seconds(self, factor, seconds):
+        """
+        This is a bit tricky: we do some state handling here (eg: keeping track of the previous covariance matrix)
+        but we will be invoking this function multiple times. So we start a Timer but cancel it
+        if we invoke this function again (i.e. a new dosing event). The if the Timer successfully
+        executes its function, then we restore state (add back the covariance matrix.)
+
+
+        """
         import numpy as np
 
         d = self.dim
@@ -152,19 +163,25 @@ class ExtendedKalmanFilter:
                 np.arange(d - 1), np.arange(d - 1)
             ] = self._original_process_noise_variance
             self.covariance_ = self._covariance_pre_scale.copy()
+            self._covariance_pre_scale = None
 
         def forward_change():
+
             self._currently_scaling_od = True
             self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
                 factor * self._original_process_noise_variance
             )
-            self._covariance_pre_scale = self.covariance_.copy()
+            if self._covariance_pre_scale is None:
+                self._covariance_pre_scale = self.covariance_.copy()
 
-        t = Timer(seconds, reverse_change)
-        t.daemon = True
+        if self._currently_scaling_od:
+            self._scale_timer.cancel()
+
+        self._scale_timer = Timer(seconds, reverse_change)
+        self._scale_timer.daemon = True
+        self._scale_timer.start()
 
         forward_change()
-        t.start()
 
     def _predict_state(self, state, covariance):
         import numpy as np

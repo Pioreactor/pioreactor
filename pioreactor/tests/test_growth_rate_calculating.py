@@ -2,6 +2,7 @@
 import json
 import time
 import numpy as np
+from numpy.testing import assert_array_equal
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.pubsub import publish
@@ -322,18 +323,35 @@ def test_shock_from_dosing_works():
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.51, "90/1": 0.82}'
     )
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.52, "90/1": 0.81}'
+    )
 
-    # trigger dosing event
+    previous_covariance_matrix = calc.ekf.covariance_
+
+    # trigger dosing events
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
         json.dumps(
-            {"source_of_event": "algo", "event": "add_media", "volume_change": 10.0}
+            {"source_of_event": "algo", "event": "add_media", "volume_change": 1.0}
         ),
     )
     pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.52, "90/1": 0.81}'
+    )
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/dosing_events",
+        json.dumps(
+            {"source_of_event": "algo", "event": "add_media", "volume_change": 1.0}
+        ),
+    )
 
     assert calc.ekf._currently_scaling_od
 
-    time.sleep(40)
+    time.sleep(30)
     pause()
     assert not calc.ekf._currently_scaling_od
+    assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
