@@ -324,13 +324,16 @@ def test_shock_from_dosing_works():
         f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.51, "90/1": 0.82}'
     )
     pause()
+
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.52, "90/1": 0.81}'
     )
+    pause()
 
-    previous_covariance_matrix = calc.ekf.covariance_
+    previous_covariance_matrix = calc.ekf.covariance_.copy()
+    previous_process_matrix = calc.ekf.process_noise_covariance.copy()
 
-    # trigger dosing events
+    # trigger dosing events, which change the "regime"
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
         json.dumps(
@@ -338,9 +341,13 @@ def test_shock_from_dosing_works():
         ),
     )
     pause()
+
     publish(
         f"pioreactor/{unit}/{experiment}/od_raw_batched", '{"135/0": 0.52, "90/1": 0.81}'
     )
+    pause()
+
+    assert not np.array_equal(previous_covariance_matrix, calc.ekf.covariance_)
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
@@ -348,10 +355,15 @@ def test_shock_from_dosing_works():
             {"source_of_event": "algo", "event": "add_media", "volume_change": 1.0}
         ),
     )
-
+    time.sleep(35)
     assert calc.ekf._currently_scaling_od
+    assert not np.array_equal(previous_covariance_matrix, calc.ekf.covariance_)
+    assert not np.array_equal(previous_process_matrix, calc.ekf.process_noise_covariance)
 
-    time.sleep(30)
+    time.sleep(5)
     pause()
+    pause()
+    # should revert back
     assert not calc.ekf._currently_scaling_od
     assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
+    assert_array_equal(calc.ekf.process_noise_covariance, previous_process_matrix)

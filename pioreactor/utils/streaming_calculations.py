@@ -166,7 +166,6 @@ class ExtendedKalmanFilter:
             self._covariance_pre_scale = None
 
         def forward_change():
-
             self._currently_scaling_od = True
             self.process_noise_covariance[np.arange(d - 1), np.arange(d - 1)] = (
                 factor * self._original_process_noise_variance
