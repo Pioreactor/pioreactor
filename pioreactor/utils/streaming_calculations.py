@@ -192,12 +192,26 @@ class ExtendedKalmanFilter:
 
         """
         The prediction process is
-        [
+
             OD_{1, t+1} = OD_{1, t} * exp(r_t ∆t)
             OD_{2, t+1} = OD_{2, t} * exp(r_t ∆t)
             ...
             r_{t+1} = r_t
-        ]
+
+        So jacobian should look like:
+
+             d(OD_1 * exp(r ∆t))/dOD_1   d(OD_1 * exp(r ∆t))/dOD_2 ... d(OD_1 * exp(r ∆t))/dr
+             d(OD_2 * exp(r ∆t))/dOD_1   d(OD_2 * exp(r ∆t))/dOD_2 ... d(OD_2 * exp(r ∆t))/dr
+             ...
+             d(r)/dOD_1                  d(r)/dOD_2 ...                d(r)/dr
+
+
+        Which equals
+
+            exp(r ∆t)   0            ...  OD_1 ∆t exp(r ∆t)
+            0           exp(r ∆t)    ...  OD_2 ∆t exp(r ∆t)
+            ...
+            0            0                1
 
         """
         d = self.dim
@@ -205,9 +219,9 @@ class ExtendedKalmanFilter:
 
         rate = state[-1]
         ODs = state[:-1]
-
         J[np.arange(d - 1), np.arange(d - 1)] = np.exp(rate * self.dt)
-        J[np.arange(d - 1), np.arange(1, d)] = ODs * np.exp(rate * self.dt) * self.dt
+        J[np.arange(d - 1), -1] = ODs * np.exp(rate * self.dt) * self.dt
+
         J[-1, -1] = 1.0
 
         return J
