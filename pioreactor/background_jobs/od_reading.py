@@ -363,6 +363,7 @@ class ODReader(BackgroundJob):
             experiment=self.experiment,
             source_of_event=self.job_name,
             verbose=False,
+            mock=self.fake_data,
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
@@ -379,6 +380,7 @@ class ODReader(BackgroundJob):
                 experiment=self.experiment,
                 source_of_event=self.job_name,
                 verbose=False,
+                mock=self.fake_data,
             )
 
     def on_disconnect(self):

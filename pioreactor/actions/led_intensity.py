@@ -26,7 +26,13 @@ def get_current_state_from_broker(unit):
 
 
 def led_intensity(
-    channel, intensity, source_of_event=None, unit=None, experiment=None, verbose=True
+    channel,
+    intensity,
+    source_of_event=None,
+    unit=None,
+    experiment=None,
+    verbose=True,
+    mock=False,
 ):
     """
     State is also updated in
@@ -43,8 +49,11 @@ def led_intensity(
     try:
         from DAC43608 import DAC43608
     except NotImplementedError:
-        print("DAC43608 not available; using MockDAC43608")
+        logger.debug("DAC43608 not available; using MockDAC43608")
         from pioreactor.utils.mock import MockDAC43608 as DAC43608
+
+    if mock:
+        from pioreactor.utils.mock import MockDAC43608 as DAC43608  # noqa: F811
 
     try:
         assert 0 <= intensity <= 100
