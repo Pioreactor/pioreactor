@@ -309,7 +309,9 @@ def test_shock_from_dosing_works():
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        json.dumps(
+            {"135/0": 8.206_119_663_726_318e-07, "90/1": 8.206_119_663_726_318e-07}
+        ),
         retain=True,
     )
     publish(

@@ -137,7 +137,7 @@ class ExtendedKalmanFilter:
         residual_covariance = (
             # see Scaling note above for why we multiple by state_
             H @ covariance_prediction @ H.T
-            + self.state_[:-1] * self.observation_noise_covariance
+            + self.state_[:-1] ** 2 * self.observation_noise_covariance
         )
         kalman_gain = covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
         self.state_ = state_prediction + kalman_gain @ residual_state

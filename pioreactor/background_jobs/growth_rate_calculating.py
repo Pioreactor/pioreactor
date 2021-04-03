@@ -97,6 +97,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
     def create_obs_noise_covariance(self, angles):
+        """
         import numpy as np
 
         # if a sensor has X times the variance of the other, we should encode this in the obs. covariance.
@@ -106,6 +107,11 @@ class GrowthRateCalculator(BackgroundJob):
         # add a fudge factor
         fudge = config.getfloat("growth_rate_kalman", "obs_variance")
         return fudge * (0.05 * self.dt) ** 2 * np.diag(obs_variances)
+        """
+        import numpy as np
+
+        n = len(angles)
+        return 0.01 ** 2 * np.eye(n)
 
     def create_OD_covariance(self, angles):
         import numpy as np
@@ -226,7 +232,9 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.debug(
                 f"process_noise_covariance=\n{self.ekf.process_noise_covariance}"
             )
-
+            self.logger.debug(
+                f"observation_noise_covariance=\n{self.ekf.observation_noise_covariance}"
+            )
             return
 
         except Exception as e:
