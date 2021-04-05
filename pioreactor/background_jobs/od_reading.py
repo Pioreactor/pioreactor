@@ -290,6 +290,7 @@ class ODReader(BackgroundJob):
         fake_data=False,
         unit=None,
         experiment=None,
+        stop_IR_led_between_ADC_readings=True,
     ):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
@@ -309,7 +310,8 @@ class ODReader(BackgroundJob):
 
         self.start_ir_led()
         self.start_passive_listeners()
-        self.set_IR_led_during_ADC_readings()
+        if stop_IR_led_between_ADC_readings:
+            self.set_IR_led_during_ADC_readings()
 
     def set_IR_led_during_ADC_readings(self):
         """
