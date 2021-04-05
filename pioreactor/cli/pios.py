@@ -8,7 +8,6 @@ command line for running the same command on all workers,
 > pios kill <substring>
 """
 from concurrent.futures import ThreadPoolExecutor
-import logging
 import sys
 
 import click
@@ -19,6 +18,7 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
 )
 from pioreactor.config import get_active_workers_in_inventory, get_leader_hostname
+from pioreactor.logging import create_logger
 
 
 ALL_WORKER_JOBS = [
@@ -35,8 +35,6 @@ ALL_WORKER_JOBS = [
     "monitor",
     "led_intensity",
 ]
-
-logger = logging.getLogger("leader CLI")
 
 
 def universal_identifier_to_all_units(units):
@@ -125,7 +123,8 @@ def update(units):
             client.close()
 
         except Exception as e:
-            click.echo(f"unit={unit}")
+            logger = create_logger("CLI")
+            logger.error(e)
             logger.debug(e, exc_info=True)
 
     units = universal_identifier_to_all_units(units)
@@ -160,6 +159,7 @@ def sync_configs(units):
             client.close()
         except Exception as e:
             click.echo(f"Unable to connect to unit {unit}", err=True)
+            logger = create_logger("CLI")
             logger.debug(e, exc_info=True)
             logger.error(f"Unable to connect to unit {unit}.")
 
@@ -205,6 +205,7 @@ def kill(job, units, y):
         try:
             ssh(unit, command)
         except Exception as e:
+            logger = create_logger("CLI")
             logger.debug(e, exc_info=True)
             logger.error(e)
 
@@ -266,6 +267,7 @@ def run(ctx, job, units, y):
         try:
             ssh(unit, command)
         except Exception as e:
+            logger = create_logger("CLI")
             logger.debug(e, exc_info=True)
             logger.error(e)
 

@@ -23,9 +23,9 @@ def get_latest_experiment_name():
         return mqtt_msg.payload.decode()
     else:
         # if there is no experiment (i.e. on first boot of device), don't run.
-        import logging
+        from pioreactor.logging import create_logger
 
-        logger = logging.getLogger("pioreactor")
+        logger = create_logger("pioreactor")
         logger.info(
             "No experiment running, exiting. Try creating a new experiment first."
         )

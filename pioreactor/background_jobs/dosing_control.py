@@ -12,7 +12,7 @@ message: a json object with required keyword argument. Specify the new automatio
 import signal
 
 import json
-import logging
+
 
 import click
 
@@ -27,6 +27,7 @@ from pioreactor.dosing_automations.silent import Silent
 from pioreactor.dosing_automations.turbidostat import Turbidostat
 from pioreactor.dosing_automations.chemostat import Chemostat
 from pioreactor.dosing_automations.continuous_cycle import ContinuousCycle
+from pioreactor.logging import create_logger
 
 
 class DosingController(BackgroundJob):
@@ -128,8 +129,9 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
             signal.pause()
 
     except Exception as e:
-        logging.getLogger("dosing_automation").debug(f"{str(e)}", exc_info=True)
-        logging.getLogger("dosing_automation").error(f"{str(e)}")
+        logger = create_logger("dosing_automation")
+        logger.error(e)
+        logger.debug(e, exc_info=True)
         raise e
 
 

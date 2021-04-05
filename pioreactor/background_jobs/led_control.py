@@ -10,7 +10,6 @@ message: a json object with required keyword argument. Specify the new automatio
 import signal
 
 import json
-import logging
 
 import click
 
@@ -18,6 +17,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.led_automation import Silent, FlashUV, TrackOD
+from pioreactor.logging import create_logger
 
 
 class LEDController(BackgroundJob):
@@ -106,8 +106,9 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
             signal.pause()
 
     except Exception as e:
-        logging.getLogger("led_automation").debug(e, exc_info=True)
-        logging.getLogger("led_automation").error(e)
+        logger = create_logger("led_automation")
+        logger.error(e)
+        logger.debug(e, exc_info=True)
         raise e
 
 

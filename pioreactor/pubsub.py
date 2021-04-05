@@ -35,7 +35,9 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
             return
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
             # possible that leader is down/restarting, keep trying, but log to local machine.
-            logger = logging.getLogger("pioreactor")
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("pioreactor")
             logger.debug(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
                 exc_info=True,
@@ -44,7 +46,9 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
             retry_count += 1
 
         if retry_count == retries:
-            logger = logging.getLogger("pioreactor")
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("pioreactor")
             logger.error(f"Unable to connect to host: {hostname}. Exiting.")
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 

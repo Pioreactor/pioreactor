@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import time, os, sys, signal
-import logging
 
 import click
 
@@ -177,27 +176,18 @@ class Stirrer(BackgroundJob):
 def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None):
     experiment = get_latest_experiment_name()
 
-    try:
-        stirrer = Stirrer(
-            duty_cycle,
-            dc_increase_between_adc_readings=dc_increase_between_adc_readings,
-            unit=get_unit_name(),
-            experiment=experiment,
-        )
-        stirrer.start_stirring()
+    stirrer = Stirrer(
+        duty_cycle,
+        dc_increase_between_adc_readings=dc_increase_between_adc_readings,
+        unit=get_unit_name(),
+        experiment=experiment,
+    )
+    stirrer.start_stirring()
 
-        if duration is None:
-            signal.pause()
-        else:
-            time.sleep(duration)
-
-    except Exception as e:
-        GPIO.cleanup()
-        logger = logging.getLogger(JOB_NAME)
-        logger.error(f"failed with {str(e)}")
-        raise e
-
-    return
+    if duration is None:
+        signal.pause()
+    else:
+        time.sleep(duration)
 
 
 @click.command(name="stirring")

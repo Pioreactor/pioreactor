@@ -10,6 +10,12 @@ from pioreactor.whoami import (
 from pioreactor.config import config
 import json_log_formatter
 
+logging.raiseExceptions = False
+# reduce logging from third party libs
+logging.getLogger("sh").setLevel("ERROR")
+logging.getLogger("paramiko").setLevel("ERROR")
+logging.getLogger("sqlite3worker").setLevel("ERROR")
+
 
 class CustomisedJSONFormatter(json_log_formatter.JSONFormatter):
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
@@ -69,54 +75,56 @@ class MQTTHandler(logging.Handler):
                 publish(self.topic, msg, hostname="mqtt.pioreactor.com")
 
 
-logging.raiseExceptions = False
-# reduce logging from third party libs
-logging.getLogger("sh").setLevel("ERROR")
-logging.getLogger("paramiko").setLevel("ERROR")
-logging.getLogger("sqlite3worker").setLevel("ERROR")
+def create_logger(name, unit=None, experiment=None, pub_client=None):
 
+    if unit is None:
+        unit = get_unit_name()
 
-# file handler
-file_handler = logging.FileHandler(config["logging"]["log_file"])
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(
-    logging.Formatter(
-        "%(asctime)s [%(name)s] %(levelname)-2s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    if experiment is None:
+        experiment = get_latest_experiment_name()
+
+    if pub_client is None:
+        pub_client = create_client(client_id=f"{unit}-logging-{uuid.uuid1()}")
+
+    # file handler
+    file_handler = logging.FileHandler(config["logging"]["log_file"])
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
     )
-)
 
-
-# define a Handler which writes INFO messages or higher to the sys.stderr
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-console_handler.setFormatter(
-    logging.Formatter(
-        "%(asctime)s [%(name)s] %(levelname)-2s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG)
+    console_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
     )
-)
 
+    exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+    topic = f"pioreactor/{unit}/{exp}/logs/app"
+    mqtt_handler = MQTTHandler(topic, pub_client)
+    mqtt_handler.setLevel(logging.DEBUG)
+    mqtt_handler.setFormatter(CustomisedJSONFormatter())
 
-# create MQTT handlers for logging to DB
-client = create_client(client_id=f"{get_unit_name()}-logging-{uuid.uuid1()}")
+    # create MQTT handlers for logging to UI
+    exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+    topic = f"pioreactor/{unit}/{exp}/app_logs_for_ui"
+    ui_handler = MQTTHandler(topic, pub_client)
+    ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
+    ui_handler.setFormatter(CustomMQTTtoUIFormatter())
 
-exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
-topic = f"pioreactor/{get_unit_name()}/{exp}/logs/app"
-mqtt_handler = MQTTHandler(topic, client)
-mqtt_handler.setLevel(logging.DEBUG)
-mqtt_handler.setFormatter(CustomisedJSONFormatter())
+    # add the handlers to the root logger
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(console_handler)
+    logger.addHandler(mqtt_handler)
+    logger.addHandler(ui_handler)
+    logger.addHandler(file_handler)
 
-# create MQTT handlers for logging to UI
-exp = get_latest_experiment_name() if am_I_active_worker() else UNIVERSAL_EXPERIMENT
-topic = f"pioreactor/{get_unit_name()}/{exp}/app_logs_for_ui"
-ui_handler = MQTTHandler(topic, client)
-ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
-ui_handler.setFormatter(CustomMQTTtoUIFormatter())
-
-
-# add the handlers to the root logger
-root_logger = logging.getLogger("")
-root_logger.setLevel(logging.DEBUG)
-root_logger.addHandler(console_handler)
-root_logger.addHandler(mqtt_handler)
-root_logger.addHandler(ui_handler)
-root_logger.addHandler(file_handler)
+    return logger

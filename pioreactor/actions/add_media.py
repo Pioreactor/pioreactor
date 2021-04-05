@@ -3,7 +3,6 @@
 import time, os, sys
 from json import loads, dumps
 import click
-import logging
 import signal
 
 if "pytest" in sys.modules or os.environ.get("TESTING"):
@@ -19,9 +18,9 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware_mappings import PWM_TO_PIN
+from pioreactor.logging import create_logger
 
 GPIO.setmode(GPIO.BCM)
-logger = logging.getLogger("add_media")
 
 
 def add_media(
@@ -32,6 +31,8 @@ def add_media(
     unit=None,
     experiment=None,
 ):
+    logger = create_logger("add_media")
+
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"

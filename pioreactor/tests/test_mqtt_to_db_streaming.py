@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# test_mqtt_to_db_streaming
 import sqlite3, time, json
 import numpy as np
 from pioreactor.config import config

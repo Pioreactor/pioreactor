@@ -6,12 +6,12 @@ import sys
 import threading
 import atexit
 from collections import namedtuple
-import logging
 from json import dumps
 
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
+from pioreactor.logging import create_logger
 
 faulthandler.enable()
 
@@ -61,13 +61,10 @@ class BackgroundJob:
     editable_settings = []
 
     def __init__(self, job_name: str, experiment=None, unit=None) -> None:
-        self.sub_jobs = []
         self.job_name = job_name
-        self.logger = logging.getLogger(self.job_name)
-        self.check_for_duplicate_process()
-
         self.experiment = experiment
         self.unit = unit
+        self.sub_jobs = []
         self.editable_settings = self.editable_settings + ["state"]
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
@@ -80,6 +77,15 @@ class BackgroundJob:
         self.pub_client = self.create_pub_client()
         self.sub_client = self.create_sub_client()
         self.pubsub_clients = [self.sub_client, self.pub_client]
+
+        self.logger = create_logger(
+            self.job_name,
+            unit=self.unit,
+            experiment=self.experiment,
+            pub_client=self.pub_client,
+        )
+
+        self.check_for_duplicate_process()
 
         self.set_state(self.INIT)
         self.set_up_exit_protocol()
@@ -162,6 +168,10 @@ class BackgroundJob:
 
     def publish(self, *args, **kwargs):
         self.pub_client.publish(*args, **kwargs)
+
+    def publish_with_timestamp(self, *args, **kwargs):
+        # TODO: publish as a json with timestamp field
+        pass
 
     def publish_attr(self, attr: str) -> None:
         if attr == "state":

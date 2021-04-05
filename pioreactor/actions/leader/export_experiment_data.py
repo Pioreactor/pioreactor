@@ -4,11 +4,10 @@
 
 import os
 from datetime import datetime
-import logging
+
 import click
 from pioreactor.config import config
-
-logger = logging.getLogger("export_experiment_data")
+from pioreactor.logging import create_logger
 
 
 def exists_table(cursor, name):
@@ -26,6 +25,7 @@ def export_experiment_data(experiment, output, tables):
     import zipfile
     import csv
 
+    logger = create_logger("export_experiment_data")
     logger.info("Starting export of data.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")

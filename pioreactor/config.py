@@ -3,9 +3,6 @@
 import configparser
 import sys
 import os
-import logging
-
-logger = logging.getLogger("config")
 
 
 def get_config():
@@ -27,6 +24,9 @@ def get_config():
             # on the leader (as worker) Rpi, the unit_config.ini is malformed. When leader_config.ini is fixed in the UI
             # pios sync tries to run, it uses a malformed unit_config.ini and hence the leader_config.ini can't be deployed
             # to replace the malformed unit_config.ini.
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("config")
             logger.debug(
                 "MissingSectionHeaderError raised. Check unit_config.ini on leader?"
             )

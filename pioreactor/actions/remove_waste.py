@@ -2,7 +2,7 @@
 
 import time, os, sys
 from json import loads, dumps
-import logging
+
 import click
 import signal
 
@@ -18,10 +18,9 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware_mappings import PWM_TO_PIN
-
+from pioreactor.logging import create_logger
 
 GPIO.setmode(GPIO.BCM)
-logger = logging.getLogger("remove_waste")
 
 
 def remove_waste(
@@ -32,6 +31,8 @@ def remove_waste(
     unit=None,
     experiment=None,
 ):
+    logger = create_logger("remove_waste")
+
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None), "Input either ml or duration"
     assert not ((ml is not None) and (duration is not None)), "Only input ml or duration"

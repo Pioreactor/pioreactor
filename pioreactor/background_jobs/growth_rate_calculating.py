@@ -2,7 +2,6 @@
 import json
 import os
 import signal
-import logging
 
 import click
 
@@ -74,7 +73,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-4 * np.diag(initial_state.tolist()[:-2] + [1e-5, 1e-7])
+        initial_covariance = 1e-4 * np.diag(initial_state.tolist()[:-2] + [1e-7, 1e-8])
 
         rate_process_variance = (self.rate_variance * self.dt) ** 2
         acc_process_variance = (self.acc_variance * self.dt) ** 2
@@ -387,12 +386,8 @@ def click_growth_rate_calculating(ignore_cache):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    try:
-        calculator = GrowthRateCalculator(  # noqa: F841
-            ignore_cache=ignore_cache, unit=unit, experiment=experiment
-        )
-        while True:
-            signal.pause()
-    except Exception as e:
-        logging.getLogger(JOB_NAME).error(f"{str(e)}")
-        raise e
+    calculator = GrowthRateCalculator(  # noqa: F841
+        ignore_cache=ignore_cache, unit=unit, experiment=experiment
+    )
+    while True:
+        signal.pause()

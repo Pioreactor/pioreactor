@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import logging
 import json
 import click
 from pioreactor.pubsub import publish_multiple, subscribe, QOS
@@ -8,9 +7,9 @@ from pioreactor.whoami import (
     get_unit_name,
     get_latest_experiment_name,
 )
+from pioreactor.logging import create_logger
 
 
-logger = logging.getLogger("led_intensity")
 CHANNELS = ["A", "B", "C", "D"]
 
 
@@ -46,6 +45,7 @@ def led_intensity(
     1. The way state is handled in the second topic is tech debt.
 
     """
+    logger = create_logger("led_intensity")
     try:
         from DAC43608 import DAC43608
     except NotImplementedError:

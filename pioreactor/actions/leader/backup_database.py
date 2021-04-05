@@ -1,11 +1,8 @@
 # -*- coding: utf-8 -*-
-
-import logging
 import click
 from pioreactor.config import config, get_active_workers_in_inventory
 from pioreactor.whoami import get_unit_name
-
-logger = logging.getLogger("backup_database")
+from pioreactor.logging import create_logger
 
 
 def backup_database(output):
@@ -18,6 +15,8 @@ def backup_database(output):
     """
     import sqlite3
     from sh import scp, ErrorReturnCode
+
+    logger = create_logger("backup_database")
 
     def progress(status, remaining, total):
         logger.debug(f"Copied {total-remaining} of {total} pages.")

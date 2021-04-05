@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time, sys, os
 from json import loads, dumps
-import logging
+
 import signal
 import click
 
@@ -17,10 +17,9 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware_mappings import PWM_TO_PIN
-
+from pioreactor.logging import create_logger
 
 GPIO.setmode(GPIO.BCM)
-logger = logging.getLogger("add_alt_media")
 
 
 def add_alt_media(
@@ -31,6 +30,9 @@ def add_alt_media(
     unit=None,
     experiment=None,
 ):
+    logger = create_logger("add_alt_media")
+
+    # TODO: turn these into proper exceptions and logging
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"

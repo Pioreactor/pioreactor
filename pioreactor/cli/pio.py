@@ -6,15 +6,13 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio run od_reading --od-angle-channel 135,0
 > pio log
 """
-import logging, sys
+import sys
 import click
 from pioreactor.whoami import am_I_leader, am_I_active_worker, get_unit_name
 from pioreactor.config import config
 from pioreactor import background_jobs as jobs
 from pioreactor import actions
-
-
-logger = logging.getLogger("CLI")
+from pioreactor.logging import create_logger
 
 
 @click.group()
@@ -74,6 +72,8 @@ def version():
 @click.option("--app", is_flag=True, help="update the PioreactoApp to latest")
 def update(ui, app):
     import subprocess
+
+    logger = create_logger("CLI")
 
     if (not app) and (not ui):
         click.echo("Nothing happening. Specify either --app or --ui.")
@@ -215,10 +215,12 @@ if am_I_leader():
             shell=True,
         )
         if res == 0:
+            logger = create_logger("CLI")
             logger.info(f"New pioreactor {new_name} successfully added to cluster.")
 
 
 if not am_I_leader() and not am_I_active_worker():
+    logger = create_logger("CLI")
     logger.info(
         f"Running `pio` on a non-active Pioreactor. Do you need to change `{get_unit_name()}` in `network.inventory` section in `config.ini`?"
     )
