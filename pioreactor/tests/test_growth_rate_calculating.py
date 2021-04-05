@@ -5,8 +5,11 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
+from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.pubsub import publish
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.config import config
 
 unit = get_unit_name()
 experiment = get_latest_experiment_name()
@@ -375,3 +378,30 @@ def test_shock_from_dosing_works():
     # should revert back
     assert not calc.ekf._currently_scaling_od
     assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
+
+
+def test_end_to_end():
+
+    exp = "experiment"
+    unit = "unit"
+    interval = 0.1
+    config["od_config.od_sampling"]["samples_per_second"] = "0.2"
+
+    publish(f"pioreactor/{unit}/{exp}/growth_rate", None, retain=True)
+    publish(f"pioreactor/{unit}/{exp}/od_normalization/mean", None, retain=True)
+    publish(f"pioreactor/{unit}/{exp}/od_normalization/variance", None, retain=True)
+
+    ODReader(
+        channel_label_map={"A0": "135/0", "A1": "90/1"},
+        sampling_rate=interval,
+        unit=unit,
+        experiment=exp,
+        fake_data=True,
+    )
+    Stirrer(duty_cycle=50, unit=unit, experiment=exp)
+
+    calc = GrowthRateCalculator(unit=unit, experiment=exp)
+
+    time.sleep(35)
+
+    assert calc.ekf.state_[-2] != 1.0

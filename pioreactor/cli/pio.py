@@ -14,7 +14,7 @@ from pioreactor import background_jobs as jobs
 from pioreactor import actions
 
 
-logger = logging.getLogger(f"{get_unit_name()}")
+logger = logging.getLogger("CLI")
 
 
 @click.group()

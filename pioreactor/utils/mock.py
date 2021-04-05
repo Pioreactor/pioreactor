@@ -3,8 +3,7 @@
 import numpy as np
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
-from pioreactor.pubsub import subscribe_and_callback
-import logging
+from pioreactor.pubsub import subscribe_and_callback, publish
 
 
 class MockI2C:
@@ -26,11 +25,12 @@ class MockAnalogIn(AnalogIn):
     state = INIT_STATE
     _counter = 0
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, ads, channel, **kwargs):
 
         # subscribe to dosing events
         from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
+        self.channel = channel
         subscribe_and_callback(
             self.react_to_dosing,
             f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
@@ -48,7 +48,9 @@ class MockAnalogIn(AnalogIn):
 
     @staticmethod
     def growth_rate(duration_as_seconds):
-        return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60)))
+        return (
+            0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60))) - 0.005
+        )  # the minus term so the gr starts near 0
 
     @property
     def voltage(self):
@@ -61,7 +63,7 @@ class MockAnalogIn(AnalogIn):
             gr / 60 / 60 / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self._counter += 1
-        logging.getLogger("MockAnalogIn").debug(f"state={self.state}, gr={gr}")
+        publish(f"pioreactor/mock/{self.channel}/actual_gr", gr)
         return self.state + random.normalvariate(0, self.state * 0.01)
 
 

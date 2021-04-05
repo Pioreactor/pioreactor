@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
-import time
-import json
+import json, sys, os, time, logging
 from collections import defaultdict
 from statistics import mean, variance
-import logging
 
 import click
 
@@ -19,11 +17,19 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
 
     logger.debug("Starting OD normalization")
 
-    if "stirring" not in pio_jobs_running():
+    if (
+        ("stirring" not in pio_jobs_running())
+        # but if test mode, ignore
+        and not ("pytest" in sys.modules or os.environ.get("TESTING"))
+    ):
         logger.error("stirring jobs should be running. Run stirring first.")
         raise ValueError("stirring jobs should be running. Run stirring first. ")
 
-    if "od_reading" not in pio_jobs_running():
+    if (
+        ("od_reading" not in pio_jobs_running())
+        # but if test mode, ignore
+        and not ("pytest" in sys.modules or os.environ.get("TESTING"))
+    ):
         from pioreactor.background_jobs.od_reading import od_reading
 
         # we sample faster, because we can...
