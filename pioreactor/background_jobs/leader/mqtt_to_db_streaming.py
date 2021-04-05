@@ -239,6 +239,11 @@ def mqtt_to_db_streaming():
             "led_automation_settings",
             parse_automation_settings,
         ),
+        Metadata(
+            "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
+            "kalman_filter_outputs",
+            parse_kalman_filter_outputs,
+        ),
     ]
 
     streamer = MqttToDBStreamer(  # noqa: F841
