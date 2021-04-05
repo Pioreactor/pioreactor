@@ -2,7 +2,8 @@
 
 import json
 import time
-from itertools import product
+
+# from itertools import product
 import numpy as np
 import logging
 from matplotlib import pyplot as plt
@@ -23,9 +24,10 @@ unit = "unit"
 interval_for_testing = 0.020
 config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
-for rv, ov, av in product(
-    np.logspace(-2, -6, 5), np.logspace(-2, -6, 5), np.logspace(-2, -6, 5)
-):
+# for rv, ov, av in product(
+#     np.logspace(-2, -6, 5), np.logspace(-2, -6, 5), np.logspace(-2, -6, 5)
+# ):
+for (rv, ov, av) in [(1e-2, 1e-4, 0.5e-3)]:
 
     if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
         print(f"skipping ({av},{ov},{rv})")
@@ -34,9 +36,9 @@ for rv, ov, av in product(
     exp = f"({av},{ov},{rv})"
     print(rv, ov, av)
 
-    config["growth_rate_kalman"]["rate_variance"] = str(rv)  # 0.00300
-    config["growth_rate_kalman"]["obs_variance"] = str(ov)  # 0.00015
-    config["growth_rate_kalman"]["acc_variance"] = str(av)  # 0.00050
+    config["growth_rate_kalman"]["rate_variance"] = str(rv)
+    config["growth_rate_kalman"]["obs_variance"] = str(ov)
+    config["growth_rate_kalman"]["acc_variance"] = str(av)
 
     publish(f"pioreactor/{unit}/{exp}/growth_rate", None, retain=True)
 
@@ -91,6 +93,7 @@ for rv, ov, av in product(
     plt.figure()
     plt.plot(np.arange(0, len(actual_grs)), actual_grs, label="actual_grs")
     plt.plot(np.arange(0, len(estimated_grs)), estimated_grs, label="estimated_grs")
+    plt.ylim(-0.01, 0.17)
     plt.title(f"acc_variance={av},\nobs_variance={ov},\nrate_variance={rv}")
     plt.tight_layout()
     print("saving fig...")

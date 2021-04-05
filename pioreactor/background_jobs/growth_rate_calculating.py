@@ -37,7 +37,6 @@ class GrowthRateCalculator(BackgroundJob):
         )
         self.rate_variance = config.getfloat("growth_rate_kalman", "rate_variance")
         self.acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
-        self.od_variance = config.getfloat("growth_rate_kalman", "od_variance")
         self.dt = 1 / (self.samples_per_minute * 60)
 
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
@@ -108,23 +107,6 @@ class GrowthRateCalculator(BackgroundJob):
         return config.getfloat("growth_rate_kalman", "obs_variance") ** 2 * np.diag(
             obs_variances
         )
-
-    def create_OD_covariance(self, angles):
-        import numpy as np
-
-        d = len(angles)
-        variances = {
-            "135": (self.od_variance * self.dt) ** 2,
-            "90": (self.od_variance * self.dt) ** 2,
-            "45": (self.od_variance * self.dt) ** 2,
-        }
-
-        OD_covariance = 0 * np.ones((d, d))
-        for i, a in enumerate(angles):
-            for k in variances:
-                if a.startswith(k):
-                    OD_covariance[i, i] = variances[k]
-        return OD_covariance
 
     def set_precomputed_values(self):
         if self.ignore_cache:
@@ -280,8 +262,8 @@ class GrowthRateCalculator(BackgroundJob):
 def growth_rate_calculating_simulation(
     df,
     rate_variance=config.getfloat("growth_rate_kalman", "rate_variance"),
-    od_variance=config.getfloat("growth_rate_kalman", "od_variance"),
-    obs_variance_factor=100,
+    acc_variance=config.getfloat("growth_rate_kalman", "acc_variance"),
+    obs_variance=config.getfloat("growth_rate_kalman", "obs_variance"),
     freq="5S",
 ):
     """
@@ -329,31 +311,13 @@ def growth_rate_calculating_simulation(
             for angle in od_normalization_factors.keys()
         }
 
-    def create_OD_covariance(angles):
-
-        d = len(angles)
-        variances = {
-            "135": (od_variance * dt) ** 2,
-            "90": (od_variance * dt) ** 2,
-            "45": (od_variance * dt) ** 2,
-        }
-
-        OD_covariance = 0 * np.ones((d, d))
-        for i, a in enumerate(angles):
-            for k in variances:
-                if a.startswith(k):
-                    OD_covariance[i, i] = variances[k]
-        return OD_covariance
-
     def create_obs_noise_covariance(angles):
 
         # if a sensor has X times the variance of the other, we should encode this in the obs. covariance.
         obs_variances = np.array([od_obs_var[angle] for angle in angles])
         obs_variances = obs_variances / obs_variances.min()
 
-        # add a fudge factor
-        fudge = obs_variance_factor
-        return fudge * (0.05 * dt) ** 2 * np.diag(obs_variances)
+        return obs_variance ** 2 * np.diag(obs_variances)
 
     # get the latest observation
     angles_and_initial_points = scale_raw_observations(
@@ -370,15 +334,13 @@ def growth_rate_calculating_simulation(
     # empirically selected
     initial_covariance = 0.0005 * np.diag(initial_state.tolist()[:-1] + [0.00001])
 
-    OD_process_covariance = create_OD_covariance(angles_and_initial_points.keys())
-
     rate_process_variance = (rate_variance * dt) ** 2
-    process_noise_covariance = np.block(
-        [
-            [OD_process_covariance, 0 * np.ones((d - 1, 1))],
-            [0 * np.ones((1, d - 1)), rate_process_variance],
-        ]
-    )
+    acc_process_variance = (acc_variance * dt) ** 2
+
+    process_noise_covariance = np.zeros((d, d))
+    process_noise_covariance[-2, -2] = rate_process_variance
+    process_noise_covariance[-1, -1] = acc_process_variance
+
     observation_noise_covariance = create_obs_noise_covariance(
         angles_and_initial_points.keys()
     )
