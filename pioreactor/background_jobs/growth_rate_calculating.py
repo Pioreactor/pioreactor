@@ -200,9 +200,13 @@ class GrowthRateCalculator(BackgroundJob):
             )
 
             self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/acc",
-                self.state_[-1],
-                retain=True,
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
+                json.dumps(
+                    {
+                        "state": self.ekf.state_.tolist(),
+                        "covariance_matrix": self.ekf.covariance_.tolist(),
+                    }
+                ),
             )
 
             for i, angle_label in enumerate(self.angles):

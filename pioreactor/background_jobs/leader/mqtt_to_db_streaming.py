@@ -30,6 +30,9 @@ def produce_metadata(topic):
     return SetAttrSplitTopic(v[1], v[2], current_utc_time())
 
 
+Metadata = namedtuple("Metadata", ["topic", "table", "parser"])
+
+
 class MqttToDBStreamer(BackgroundJob):
     def __init__(self, topics_and_parsers, **kwargs):
 
@@ -73,122 +76,144 @@ class MqttToDBStreamer(BackgroundJob):
             )
 
 
-@click.command(name="mqtt_to_db_streaming")
-def click_mqtt_to_db_streaming():
-    """
-    (leader only) Send MQTT streams to the database. Parsers should return a dict of all the entries in the corresponding table.
-    """
+###################
+# parsers
+###################
 
-    def parse_od(topic, payload):
-        metadata = produce_metadata(topic)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "od_reading_v": float(payload),
-            "angle": topic.split("/")[-2],
-            "channel": topic.split("/")[-1],
-        }
+def parse_od(topic, payload):
+    metadata = produce_metadata(topic)
 
-    def parse_od_filtered(topic, payload):
-        metadata = produce_metadata(topic)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "od_reading_v": float(payload),
+        "angle": topic.split("/")[-2],
+        "channel": topic.split("/")[-1],
+    }
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "normalized_od_reading": float(payload),
-            "angle": topic.split("/")[-2],
-            "channel": topic.split("/")[-1],
-        }
 
-    def parse_dosing_events(topic, payload):
-        payload = json.loads(payload)
-        metadata = produce_metadata(topic)
+def parse_od_filtered(topic, payload):
+    metadata = produce_metadata(topic)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "volume_change_ml": payload["volume_change"],
-            "event": payload["event"],
-            "source_of_event": payload["source_of_event"],
-        }
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "normalized_od_reading": float(payload),
+        "angle": topic.split("/")[-2],
+        "channel": topic.split("/")[-1],
+    }
 
-    def parse_led_events(topic, payload):
-        payload = json.loads(payload)
-        metadata = produce_metadata(topic)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "channel": payload["channel"],
-            "intensity": payload["intensity"],
-            "event": payload["event"],
-            "source_of_event": payload["source_of_event"],
-        }
+def parse_dosing_events(topic, payload):
+    payload = json.loads(payload)
+    metadata = produce_metadata(topic)
 
-    def parse_growth_rate(topic, payload):
-        metadata = produce_metadata(topic)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "volume_change_ml": payload["volume_change"],
+        "event": payload["event"],
+        "source_of_event": payload["source_of_event"],
+    }
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "rate": float(payload),
-        }
 
-    def parse_pid_logs(topic, payload):
-        metadata = produce_metadata(topic)
-        payload = json.loads(payload)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "setpoint": payload["setpoint"],
-            "output_limits_lb": payload["output_limits_lb"],
-            "output_limits_ub": payload["output_limits_ub"],
-            "Kd": payload["Kd"],
-            "Ki": payload["Ki"],
-            "Kp": payload["Kp"],
-            "integral": payload["integral"],
-            "proportional": payload["proportional"],
-            "derivative": payload["derivative"],
-            "latest_input": payload["latest_input"],
-            "latest_output": payload["latest_output"],
-        }
+def parse_led_events(topic, payload):
+    payload = json.loads(payload)
+    metadata = produce_metadata(topic)
 
-    def parse_alt_media_fraction(topic, payload):
-        metadata = produce_metadata(topic)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "channel": payload["channel"],
+        "intensity": payload["intensity"],
+        "event": payload["event"],
+        "source_of_event": payload["source_of_event"],
+    }
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "alt_media_fraction": float(payload),
-        }
 
-    def parse_logs(topic, payload):
-        metadata = produce_metadata(topic)
-        payload = json.loads(payload)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "message": payload["message"],
-            "task": payload["task"],
-            "level": payload["level"],
-            "source": topic.split("/")[-1],  # should be app, ui, etc.
-        }
+def parse_growth_rate(topic, payload):
+    metadata = produce_metadata(topic)
 
-    def parse_automation_settings(topic, payload):
-        payload = json.loads(payload.decode())
-        return payload
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "rate": float(payload),
+    }
 
-    Metadata = namedtuple("Metadata", ["topic", "table", "parser"])
 
+def parse_pid_logs(topic, payload):
+    metadata = produce_metadata(topic)
+    payload = json.loads(payload)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "setpoint": payload["setpoint"],
+        "output_limits_lb": payload["output_limits_lb"],
+        "output_limits_ub": payload["output_limits_ub"],
+        "Kd": payload["Kd"],
+        "Ki": payload["Ki"],
+        "Kp": payload["Kp"],
+        "integral": payload["integral"],
+        "proportional": payload["proportional"],
+        "derivative": payload["derivative"],
+        "latest_input": payload["latest_input"],
+        "latest_output": payload["latest_output"],
+    }
+
+
+def parse_alt_media_fraction(topic, payload):
+    metadata = produce_metadata(topic)
+
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "alt_media_fraction": float(payload),
+    }
+
+
+def parse_logs(topic, payload):
+    metadata = produce_metadata(topic)
+    payload = json.loads(payload)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "message": payload["message"],
+        "task": payload["task"],
+        "level": payload["level"],
+        "source": topic.split("/")[-1],  # should be app, ui, etc.
+    }
+
+
+def parse_kalman_filter_outputs(topic, payload):
+    metadata = produce_metadata(topic)
+    payload = json.loads(payload)
+    state = payload["state"]
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "growth_rate": state[-2],
+        "acceleration": state[-1],
+        "od": json.dumps(state[:-2]),
+        "covariance_matrix": json.dumps(payload["covariance_matrix"]),
+    }
+
+
+def parse_automation_settings(topic, payload):
+    payload = json.loads(payload.decode())
+    return payload
+
+
+def mqtt_to_db_streaming():
     topics_and_parsers = [
         Metadata(
             "pioreactor/+/+/od_filtered/+/+", "od_readings_filtered", parse_od_filtered
@@ -222,3 +247,11 @@ def click_mqtt_to_db_streaming():
 
     while True:
         signal.pause()
+
+
+@click.command(name="mqtt_to_db_streaming")
+def click_mqtt_to_db_streaming():
+    """
+    (leader only) Send MQTT streams to the database. Parsers should return a dict of all the entries in the corresponding table.
+    """
+    mqtt_to_db_streaming()

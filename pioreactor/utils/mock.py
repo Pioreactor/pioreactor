@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
+import random
 import numpy as np
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback, publish
+
+random.seed(10)
 
 
 class MockI2C:
@@ -48,13 +51,10 @@ class MockAnalogIn(AnalogIn):
 
     @staticmethod
     def growth_rate(duration_as_seconds):
-        return (
-            0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60))) - 0.005
-        )  # the minus term so the gr starts near 0
+        return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60)))
 
     @property
     def voltage(self):
-        import random
 
         gr = self.growth_rate(
             self._counter / config.getfloat("od_config.od_sampling", "samples_per_second")

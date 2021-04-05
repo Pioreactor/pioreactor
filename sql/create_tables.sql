@@ -1,5 +1,3 @@
-# create_tables.sql
-
 CREATE TABLE IF NOT EXISTS od_readings_raw (
     timestamp              TEXT  NOT NULL,
     pioreactor_unit        TEXT  NOT NULL,
@@ -120,7 +118,7 @@ CREATE TABLE IF NOT EXISTS pid_logs (
 );
 
 CREATE INDEX IF NOT EXISTS pid_logs_ix
-ON pid_logs (experiment);
+ON pid_logs (pioreactor_unit, experiment);
 
 
 CREATE TABLE IF NOT EXISTS dosing_automation_settings (
@@ -128,24 +126,39 @@ CREATE TABLE IF NOT EXISTS dosing_automation_settings (
     experiment               TEXT  NOT NULL,
     started_at               TEXT  NOT NULL,
     ended_at                 TEXT,
-    automation                TEXT  NOT NULL,
+    automation               TEXT  NOT NULL,
     settings                 TEXT  NOT NULL
 );
 
 
 CREATE INDEX IF NOT EXISTS dosing_automation_settings_ix
-ON dosing_automation_settings (experiment);
+ON dosing_automation_settings (pioreactor_unit, experiment);
 
 
 CREATE TABLE IF NOT EXISTS led_automation_settings (
-    pioreactor_unit          TEXT  NOT NULL,
-    experiment               TEXT  NOT NULL,
-    started_at               TEXT  NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    started_at               TEXT NOT NULL,
     ended_at                 TEXT,
-    automation                TEXT  NOT NULL,
-    settings                 TEXT  NOT NULL
+    automation               TEXT NOT NULL,
+    settings                 TEXT NOT NULL
 );
 
 
 CREATE INDEX IF NOT EXISTS led_automation_settings_ix
-ON led_automation_settings (experiment);
+ON led_automation_settings (pioreactor_unit, experiment);
+
+
+CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
+    timestamp                TEXT  NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    growth_rate              REAL NOT NULL,
+    acceleration             REAL NOT NULL,
+    od                       TEXT NOT NULL,
+    covariance_matrix        TEXT NOT NULL
+);
+
+
+CREATE INDEX IF NOT EXISTS kalman_filter_outputs_ix
+ON kalman_filter_outputs (experiment, pioreactor_unit);

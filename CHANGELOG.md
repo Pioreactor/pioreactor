@@ -3,6 +3,9 @@
  - IR LED now turns off between OD readings. This allows other LEDs to trigger and take readings.
  - Removed leader jobs `time_series_aggregating` and `log_aggregating`
  - `logs` table in database has more metadata
+ - New Kalman filter algorithm that includes an acceleration term
+ - New database table, `kalman_filter_outputs`, stores the output of the internal Kalman Filter.
+ - workers report back to leader additional system information including available memory and CPU usage.
 
 
 
