@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import signal
+import signal, json
 
 import click
 import time
@@ -32,7 +32,7 @@ class Monitor(BackgroundJob):
         )
         self.disk_usage_timer = RepeatedTimer(
             12 * 60 * 60,
-            self.publish_disk_space,
+            self.publish_self_statistics,
             job_name=self.job_name,
             run_immediately=True,
         )
@@ -82,19 +82,42 @@ class Monitor(BackgroundJob):
         )
         self.led_off()
 
-    def publish_disk_space(self):
+    def publish_self_statistics(self):
         import psutil
 
         disk_usage_percent = psutil.disk_usage("/").percent
+        cpu_usage_percent = psutil.cpu_percent()
+        available_memory_percent = (
+            100 * psutil.virtual_memory().available / psutil.virtual_memory().total
+        )
 
         if disk_usage_percent <= 70:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
             # TODO: add documentation  to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
+
+        if cpu_usage_percent >= 50:
+            self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")
+        else:
+            # TODO: add documentation
+            self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
+
+        if available_memory_percent <= 50:
+            self.logger.debug(f"Available memory at {available_memory_percent}%.")
+        else:
+            # TODO: add documentation
+            self.logger.warning(f"Available memory at {available_memory_percent}%.")
+
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/disk_usage_percent",
-            disk_usage_percent,
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/computer_statistics",
+            json.dumps(
+                {
+                    "disk_usage_percent": disk_usage_percent,
+                    "cpu_usage_percent": cpu_usage_percent,
+                    "available_memory_percent": available_memory_percent,
+                }
+            ),
         )
 
     def flicker_led(self, *args):

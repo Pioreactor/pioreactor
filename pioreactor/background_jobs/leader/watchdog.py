@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, signal
-import logging
-import time
+import os, signal, logging, json, time
 
 import click
 
@@ -53,12 +51,16 @@ class WatchDog(BackgroundJob):
             else:
                 self.logger.info(f"Update: {unit} is connected. All is well.")
 
-    def watch_for_disk_space_percent(self, msg):
-        if float(msg.payload) >= 90:
-            unit = msg.topic.split("/")[1]
+    def watch_for_computer_statistics(self, msg):
+        stats = json.loads(msg.payload.decode())
+        unit = msg.topic.split("/")[1]
+
+        if stats["disk_usage_percent"] >= 90:
             self.logger.warning(
                 f"{unit} is running low on disk space, at {float(msg.payload)}% full."
             )
+
+        # TODO: add other stats here
 
     def watch_for_new_experiment(self, msg):
         new_experiment_name = msg.payload.decode()
@@ -71,8 +73,8 @@ class WatchDog(BackgroundJob):
             allow_retained=False,
         )
         self.subscribe_and_callback(
-            self.watch_for_disk_space_percent,
-            "pioreactor/+/+/monitor/disk_space_percent",
+            self.watch_for_computer_statistics,
+            "pioreactor/+/+/monitor/computer_statistics",
             allow_retained=False,
         )
         self.subscribe_and_callback(

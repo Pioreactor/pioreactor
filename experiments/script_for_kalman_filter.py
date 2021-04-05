@@ -27,14 +27,14 @@ config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 # for rv, ov, av in product(
 #     np.logspace(-2, -6, 5), np.logspace(-2, -6, 5), np.logspace(-2, -6, 5)
 # ):
-for (rv, ov, av) in [(1e-2, 1e-4, 0.5e-3)]:
+for (av, ov, rv) in [(1e-3, 0.5e-4, 0.5e-3)]:
 
     if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
         print(f"skipping ({av},{ov},{rv})")
         continue
 
     exp = f"({av},{ov},{rv})"
-    print(rv, ov, av)
+    print(av, ov, rv)
 
     config["growth_rate_kalman"]["rate_variance"] = str(rv)
     config["growth_rate_kalman"]["obs_variance"] = str(ov)
