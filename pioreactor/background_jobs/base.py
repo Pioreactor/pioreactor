@@ -67,6 +67,12 @@ class BackgroundJob:
         self.sub_jobs = []
         self.editable_settings = self.editable_settings + ["state"]
 
+        # check_for_duplicate_process needs to come _before_ the pubsub client,
+        # as they will set (and revoke) a new last will.
+        # Ex: job X is running, but we try to rerun it, causing the latter job to abort, and
+        # potentially firing the last_will
+        self.check_for_duplicate_process()
+
         # why do we need two clients? Paho lib can't publish a message in a callback,
         # but this is critical to our usecase: listen for events, and fire a response (ex: state change)
         # so we split the listening and publishing. I've tried combining them and got stuck a lot
@@ -84,8 +90,6 @@ class BackgroundJob:
             experiment=self.experiment,
             pub_client=self.pub_client,
         )
-
-        self.check_for_duplicate_process()
 
         self.set_state(self.INIT)
         self.set_up_exit_protocol()
