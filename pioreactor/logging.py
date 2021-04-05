@@ -76,6 +76,12 @@ class MQTTHandler(logging.Handler):
 
 
 def create_logger(name, unit=None, experiment=None, pub_client=None):
+    # it's possible we've already created and added handlers
+    # we don't want to add duplicate handlers, so exit out if we have any
+    logger = logging.getLogger(name)
+
+    if len(logger.handlers) > 0:
+        return logger
 
     if unit is None:
         unit = get_unit_name()
@@ -120,7 +126,6 @@ def create_logger(name, unit=None, experiment=None, pub_client=None):
     ui_handler.setFormatter(CustomMQTTtoUIFormatter())
 
     # add the handlers to the root logger
-    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(console_handler)
     logger.addHandler(mqtt_handler)
