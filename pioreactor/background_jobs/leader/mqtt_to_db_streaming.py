@@ -204,6 +204,7 @@ def parse_kalman_filter_outputs(topic, payload):
         "growth_rate": state[-1],
         "od": json.dumps(state[:-1]),
         "covariance_matrix": json.dumps(payload["covariance_matrix"]),
+        "kalman_gain": json.dumps(payload["kalman_gain"]),
     }
 
 

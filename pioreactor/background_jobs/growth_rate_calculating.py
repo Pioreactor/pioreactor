@@ -67,7 +67,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-6 * np.diag(initial_state.tolist()[:-1] + [1e-7])
+        initial_covariance = 1e-6 * np.diag([1.0] * (d - 1) + [0.1])
 
         rate_process_variance = (self.rate_variance * self.dt) ** 2
 
@@ -196,6 +196,7 @@ class GrowthRateCalculator(BackgroundJob):
                     {
                         "state": self.ekf.state_.tolist(),
                         "covariance_matrix": self.ekf.covariance_.tolist(),
+                        "kalman_gain": self.ekf.kalman_gain_.tolist(),
                     }
                 ),
             )

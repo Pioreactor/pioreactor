@@ -139,9 +139,13 @@ class ExtendedKalmanFilter:
             H @ covariance_prediction @ H.T
             + self.state_[:-1] ** 2 * self.observation_noise_covariance
         )
-        kalman_gain = covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
-        self.state_ = state_prediction + kalman_gain @ residual_state
-        self.covariance_ = (np.eye(self.dim) - kalman_gain @ H) @ covariance_prediction
+        self.kalman_gain_ = (
+            covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
+        )
+        self.state_ = state_prediction + self.kalman_gain_ @ residual_state
+        self.covariance_ = (
+            np.eye(self.dim) - self.kalman_gain_ @ H
+        ) @ covariance_prediction
         return
 
     def scale_OD_variance_for_next_n_seconds(self, factor, seconds):
@@ -158,7 +162,7 @@ class ExtendedKalmanFilter:
 
         def reverse_change():
             self._currently_scaling_od = False
-            self.covariance_ = self._covariance_pre_scale.copy()
+            # self.covariance_ = self._covariance_pre_scale.copy()
             self._covariance_pre_scale = None
 
         def forward_change():

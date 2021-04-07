@@ -25,19 +25,15 @@ unit = "unit"
 interval_for_testing = 0.01
 config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
-# for rv, ov, av in product(
-#     np.logspace(-2, -6, 5), np.logspace(-2, -6, 5), np.logspace(-2, -6, 5)
-# ):
 
-
-for (av, ov, rv) in [(0, 0.001, 0.01)]:
+for (ov, rv) in [(0.002, 0.01)]:
 
     # if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
     #    print(f"skipping ({av},{ov},{rv})")
     #    continue
 
-    exp = f"({av},{ov},{rv})"
-    print(av, ov, rv)
+    exp = f"({ov},{rv})"
+    print(ov, rv)
 
     config["growth_rate_kalman"]["rate_variance"] = str(rv)
     config["growth_rate_kalman"]["obs_variance"] = str(ov)
@@ -97,10 +93,10 @@ for (av, ov, rv) in [(0, 0.001, 0.01)]:
     plt.figure()
     plt.plot(np.arange(0, len(actual_grs)), actual_grs, label="actual_grs")
     plt.plot(np.arange(0, len(estimated_grs)), estimated_grs, label="estimated_grs")
-    plt.title(f"acc_variance={av},\nobs_variance={ov},\nrate_variance={rv}")
+    plt.title(f"obs_variance={ov},\nrate_variance={rv}")
     plt.tight_layout()
     print("saving fig...")
-    plt.savefig(f"kalman_filter_exp/({av},{ov},{rv}).png")
+    plt.savefig(f"kalman_filter_exp/({ov},{rv}).png")
 
-    with open(f"kalman_filter_exp/({av},{ov},{rv}).json", "w") as f:
+    with open(f"kalman_filter_exp/({ov},{rv}).json", "w") as f:
         json.dump({"target": actual_grs, "estimated": estimated_grs}, f)
