@@ -39,8 +39,6 @@ for (ov, rv) in [(0.002, 0.01)]:
     config["growth_rate_kalman"]["obs_variance"] = str(ov)
 
     publish(f"pioreactor/{unit}/{exp}/growth_rate", None, retain=True)
-    publish(f"pioreactor/{unit}/{exp}/od_normalization/mean", None, retain=True)
-    publish(f"pioreactor/{unit}/{exp}/od_normalization/variance", None, retain=True)
 
     od = ODReader(
         channel_label_map={"A0": "90/0", "A1": "90/1"},
@@ -69,16 +67,25 @@ for (ov, rv) in [(0.002, 0.01)]:
 
     print("Generating data...")
 
-    time.sleep(360)
+    time.sleep(20)
 
     publish(
         f"pioreactor/{unit}/{exp}/dosing_events",
         json.dumps(
-            {"event": "add_media", "volume_change": 1.0, "source_of_event": "mock"}
+            {"event": "add_media", "volume_change": 0.0, "source_of_event": "mock"}
         ),
     )
 
-    time.sleep(40)
+    time.sleep(25)
+
+    publish(
+        f"pioreactor/{unit}/{exp}/dosing_events",
+        json.dumps(
+            {"event": "add_media", "volume_change": 0.0, "source_of_event": "mock"}
+        ),
+    )
+
+    time.sleep(50)
 
     c1.loop_stop()
     c1.disconnect()

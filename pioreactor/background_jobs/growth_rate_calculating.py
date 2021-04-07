@@ -67,7 +67,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-6 * np.diag([1.0] * (d - 1) + [1.0])
+        initial_covariance = 1e-6 * np.diag([1.0] * (d - 1) + [0.5])
 
         rate_process_variance = (self.rate_variance * self.dt) ** 2
 
@@ -222,7 +222,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=1, factor=1000)
+        self.update_ekf_variance_after_event(minutes=1, factor=100_000)
 
     def start_passive_listeners(self):
         # process incoming data
@@ -253,121 +253,6 @@ class GrowthRateCalculator(BackgroundJob):
         return {
             k: float(d[k]) for k in sorted(d, reverse=True) if not k.startswith("180")
         }
-
-
-def growth_rate_calculating_simulation(
-    df,
-    rate_variance=config.getfloat("growth_rate_kalman", "rate_variance"),
-    acc_variance=config.getfloat("growth_rate_kalman", "acc_variance"),
-    obs_variance=config.getfloat("growth_rate_kalman", "obs_variance"),
-    freq="5S",
-):
-    """
-    Since the KF is so finicky w.r.t. its parameters, it's useful for have a function that can "replay"
-    a sequence of OD readings, and produce a new growth rate curve.
-
-    df: DataFrame
-        The dataframe from an export of od_readings_raw, subsetted to a single pioreactor, ex: `df = df[df['pioreactor_unit'] == 'pioreactor1']`
-    """
-    import pandas as pd
-    import numpy as np
-
-    samples_per_minute = (
-        12
-    )  # 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
-    dt = 1 / (samples_per_minute * 60)
-    n_samples_for_normalization = 25
-
-    # pandas munging to get data in the correct format
-    df["channel"] = df["channel"].astype(str)
-    df["angle"] = df["angle"].astype(str)
-
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df = df.set_index("timestamp")
-    df = df.sort_index()
-    df["angle_channel"] = df["angle"] + df["channel"]
-
-    # compute the od normalization and od variance using the first N samples
-    n_angles = df["angle_channel"].nunique()
-    first_obs_for_med_and_variance = df.head(n_angles * n_samples_for_normalization)
-    od_normalization_factors = (
-        first_obs_for_med_and_variance.groupby("angle_channel", sort=True)["od_reading_v"]
-        .mean()
-        .to_dict()
-    )
-    od_obs_var = (
-        first_obs_for_med_and_variance.groupby("angle_channel", sort=True)["od_reading_v"]
-        .var()
-        .to_dict()
-    )
-
-    def scale_raw_observations(observations):
-        return {
-            angle: observations[angle] / od_normalization_factors[angle]
-            for angle in od_normalization_factors.keys()
-        }
-
-    def create_obs_noise_covariance(angles):
-
-        # if a sensor has X times the variance of the other, we should encode this in the obs. covariance.
-        obs_variances = np.array([od_obs_var[angle] for angle in angles])
-        obs_variances = obs_variances / obs_variances.min()
-
-        return obs_variance ** 2 * np.diag(obs_variances)
-
-    # get the latest observation
-    angles_and_initial_points = scale_raw_observations(
-        first_obs_for_med_and_variance.tail(n_angles)
-        .groupby("angle_channel", sort=True)["od_reading_v"]
-        .first()
-        .to_dict()
-    )
-
-    initial_state = np.array([*angles_and_initial_points.values(), 0.0])
-
-    d = initial_state.shape[0]
-
-    # empirically selected
-    initial_covariance = 0.0005 * np.diag(initial_state.tolist()[:-1] + [0.00001])
-
-    rate_process_variance = (rate_variance * dt) ** 2
-    acc_process_variance = (acc_variance * dt) ** 2
-
-    process_noise_covariance = np.zeros((d, d))
-    process_noise_covariance[-2, -2] = rate_process_variance
-    process_noise_covariance[-1, -1] = acc_process_variance
-
-    observation_noise_covariance = create_obs_noise_covariance(
-        angles_and_initial_points.keys()
-    )
-    ekf = ExtendedKalmanFilter(
-        initial_state,
-        initial_covariance,
-        process_noise_covariance.copy(),
-        observation_noise_covariance.copy(),
-        dt=dt,
-    )
-
-    grouped = (
-        df[["angle_channel", "od_reading_v"]]
-        .iloc[(n_angles * n_samples_for_normalization) :]
-        .groupby(pd.Grouper(freq=freq))
-    )
-
-    results = []
-    index = []
-
-    for ts, obs in grouped:
-        obs = obs.set_index("angle_channel")["od_reading_v"].to_dict()
-        scaled_observations = scale_raw_observations(obs)
-        ekf.update(list(scaled_observations.values()))
-        results.append(ekf.state_)
-
-        index.append(ts)
-
-    return pd.DataFrame(
-        results, index=index, columns=[*angles_and_initial_points.keys(), "gr"]
-    )
 
 
 @click.command(name="growth_rate_calculating")
