@@ -67,7 +67,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-6 * np.diag([1.0] * (d - 1) + [0.1])
+        initial_covariance = 1e-6 * np.diag([1.0] * (d - 1) + [1.0])
 
         rate_process_variance = (self.rate_variance * self.dt) ** 2
 
@@ -222,7 +222,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=1, factor=10000)
+        self.update_ekf_variance_after_event(minutes=1, factor=1000)
 
     def start_passive_listeners(self):
         # process incoming data

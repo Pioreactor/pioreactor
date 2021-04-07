@@ -23,6 +23,7 @@ class ExtendedKalmanFilter:
     The idea is that each sensor will evolve like:
 
     OD_{i, t+1} = OD_{i, t} * r_t
+    r_{t+1} = r_t
 
     for all i, t.
 
@@ -52,6 +53,8 @@ class ExtendedKalmanFilter:
     Tuning
     --------
 
+    *Note*: the below didn't work, I just trial-and-error it
+
     Because I had such a pain tuning this, lets talk about what worked.
 
     So, to start our mental model, we are estimating the following:
@@ -77,7 +80,10 @@ class ExtendedKalmanFilter:
     ------------
     Because of the model, the lower bound on the rate estimate's variance is Q[-1, -1].
 
-
+    Resources
+    -----------
+    - https://dsp.stackexchange.com/questions/2347/how-to-understand-kalman-gain-intuitively
+     > R is reflects in noise in the sensors, Q reflects how confident we are in the current state
 
     """
 
@@ -162,7 +168,7 @@ class ExtendedKalmanFilter:
 
         def reverse_change():
             self._currently_scaling_od = False
-            # self.covariance_ = self._covariance_pre_scale.copy()
+            self.covariance_ = self._covariance_pre_scale.copy()
             self._covariance_pre_scale = None
 
         def forward_change():
@@ -170,9 +176,8 @@ class ExtendedKalmanFilter:
                 self._covariance_pre_scale = self.covariance_.copy()
 
             self._currently_scaling_od = True
-            self.covariance_[np.arange(d - 1), np.arange(d - 1)] = (
-                factor * self._covariance_pre_scale[np.arange(d - 1), np.arange(d - 1)]
-            )
+            self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
+            self.covariance_[np.arange(d - 1), np.arange(d - 1)] *= factor
 
         if self._currently_scaling_od:
             self._scale_timer.cancel()
