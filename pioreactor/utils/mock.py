@@ -6,8 +6,6 @@ from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback, publish
 
-random.seed(10)
-
 
 class MockI2C:
     def __init__(self, SCL, SDA):
@@ -29,11 +27,12 @@ class MockAnalogIn(AnalogIn):
     _counter = 0
 
     def __init__(self, ads, channel, **kwargs):
-
-        # subscribe to dosing events
         from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
+        # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
         self.channel = channel
+
+        # subscribe to dosing events
         subscribe_and_callback(
             self.react_to_dosing,
             f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
@@ -65,6 +64,11 @@ class MockAnalogIn(AnalogIn):
         self._counter += 1
         publish(f"pioreactor/mock/{self.channel}/actual_gr", gr)
         return self.state + random.normalvariate(0, self.state * 0.01)
+
+        # try:
+        #     return self.source.iloc[self._counter]['od_reading_v']
+        # except:
+        #    return self.source.iloc[-1]['od_reading_v']
 
 
 class MockDAC43608:

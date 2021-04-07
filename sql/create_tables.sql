@@ -154,7 +154,6 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     pioreactor_unit          TEXT NOT NULL,
     experiment               TEXT NOT NULL,
     growth_rate              REAL NOT NULL,
-    acceleration             REAL NOT NULL,
     od                       TEXT NOT NULL,
     covariance_matrix        TEXT NOT NULL
 );

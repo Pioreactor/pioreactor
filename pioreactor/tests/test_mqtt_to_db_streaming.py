@@ -58,5 +58,5 @@ def test_kalman_filter_entries():
     )
     results = cursor.fetchone()
     assert results[0] == 2
-    assert results[1] == 4
-    assert np.array(json.loads(results[2])).shape == (4, 4)
+    assert results[1] == 3
+    assert np.array(json.loads(results[2])).shape == (3, 3)

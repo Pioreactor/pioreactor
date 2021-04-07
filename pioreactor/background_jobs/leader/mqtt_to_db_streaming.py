@@ -201,9 +201,8 @@ def parse_kalman_filter_outputs(topic, payload):
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": metadata.timestamp,
-        "growth_rate": state[-2],
-        "acceleration": state[-1],
-        "od": json.dumps(state[:-2]),
+        "growth_rate": state[-1],
+        "od": json.dumps(state[:-1]),
         "covariance_matrix": json.dumps(payload["covariance_matrix"]),
     }
 

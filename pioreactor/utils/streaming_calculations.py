@@ -95,7 +95,7 @@ class ExtendedKalmanFilter:
             == initial_covariance.shape[1]
         ), "Shapes are not correct"
         assert process_noise_covariance.shape == initial_covariance.shape
-        assert observation_noise_covariance.shape[0] == (initial_covariance.shape[0] - 2)
+        assert observation_noise_covariance.shape[0] == (initial_covariance.shape[0] - 1)
         assert self._is_positive_definite(process_noise_covariance)
         assert self._is_positive_definite(initial_covariance)
         assert self._is_positive_definite(observation_noise_covariance)
@@ -114,7 +114,7 @@ class ExtendedKalmanFilter:
         import numpy as np
 
         self._original_process_noise_variance = np.diag(self.process_noise_covariance)[
-            : (self.dim - 2)
+            : (self.dim - 1)
         ].copy()
 
     def predict(self):
@@ -127,17 +127,17 @@ class ExtendedKalmanFilter:
         import numpy as np
 
         observation = np.asarray(observation)
-        assert (observation.shape[0] + 2) == self.state_.shape[0], (
-            (observation.shape[0] + 2),
+        assert (observation.shape[0] + 1) == self.state_.shape[0], (
+            (observation.shape[0] + 1),
             self.state_.shape[0],
         )
         state_prediction, covariance_prediction = self.predict()
-        residual_state = observation - state_prediction[:-2]
+        residual_state = observation - state_prediction[:-1]
         H = self._jacobian_observation()
         residual_covariance = (
             # see Scaling note above for why we multiple by state_
             H @ covariance_prediction @ H.T
-            + self.state_[:-2] ** 2 * self.observation_noise_covariance
+            + self.state_[:-1] ** 2 * self.observation_noise_covariance
         )
         kalman_gain = covariance_prediction @ H.T @ np.linalg.inv(residual_covariance)
         self.state_ = state_prediction + kalman_gain @ residual_state
@@ -166,8 +166,8 @@ class ExtendedKalmanFilter:
                 self._covariance_pre_scale = self.covariance_.copy()
 
             self._currently_scaling_od = True
-            self.covariance_[np.arange(d - 2), np.arange(d - 2)] = (
-                factor * self._covariance_pre_scale[np.arange(d - 2), np.arange(d - 2)]
+            self.covariance_[np.arange(d - 1), np.arange(d - 1)] = (
+                factor * self._covariance_pre_scale[np.arange(d - 1), np.arange(d - 1)]
             )
 
         if self._currently_scaling_od:
@@ -186,31 +186,21 @@ class ExtendedKalmanFilter:
             OD_{1, t+1} = OD_{1, t} * exp(r_t ∆t)
             OD_{2, t+1} = OD_{2, t} * exp(r_t ∆t)
             ...
-            r_{t+1} = r_t + a_t ∆t
-            a_{t+1} = a_t
+            r_{t+1} = r_t
 
         """
         import numpy as np
 
-        rate = state[-2]
-        acc = state[-1]
-        ODs = state[:-2]
+        rate = state[-1]
+        ODs = state[:-1]
         dt = self.dt
 
-        return np.array([od * np.exp(rate * dt) for od in ODs] + [rate + acc * dt, acc])
+        return np.array([od * np.exp(rate * dt) for od in ODs] + [rate])
 
     def _predict_covariance(self, state, covariance):
-        # see note on Scaling in docs.
-        scaled_process_noise_covariance = self.process_noise_covariance.copy()
-        # we don't need to scale the elements in [:, -1] or [-1, :] (correlation between OD and rate) because
-        # the elements are 0
-        scaled_process_noise_covariance[:-2, :-2] = (
-            state[:-2] ** 2 * self.process_noise_covariance[:-2, :-2]
-        )
-
         return (
             self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T
-            + scaled_process_noise_covariance
+            + self.process_noise_covariance
         )
 
     def _jacobian_process(self, state):
@@ -222,38 +212,33 @@ class ExtendedKalmanFilter:
             OD_{1, t+1} = OD_{1, t} * exp(r_t ∆t)
             OD_{2, t+1} = OD_{2, t} * exp(r_t ∆t)
             ...
-            r_{t+1} = r_t + a_t  ∆t
-            a_{t+1} = a_t
+            r_{t+1} = r_t
 
         So jacobian should look like:
 
-             d(OD_1 * exp(r ∆t))/dOD_1   d(OD_1 * exp(r ∆t))/dOD_2 ... d(OD_1 * exp(r ∆t))/dr    d(OD_1 * exp(r ∆t))/da
-             d(OD_2 * exp(r ∆t))/dOD_1   d(OD_2 * exp(r ∆t))/dOD_2 ... d(OD_2 * exp(r ∆t))/dr    d(OD_1 * exp(r ∆t))/da
+             d(OD_1 * exp(r ∆t))/dOD_1   d(OD_1 * exp(r ∆t))/dOD_2 ... d(OD_1 * exp(r ∆t))/dr
+             d(OD_2 * exp(r ∆t))/dOD_1   d(OD_2 * exp(r ∆t))/dOD_2 ... d(OD_2 * exp(r ∆t))/dr
              ...
-             d(r)/dOD_1                  d(r)/dOD_2 ...                d(r)/dr                   d(r)/da
-             d(a)/dOD_1                  d(a)/dOD_2 ...                d(a)/dr                   d(a)/da
+             d(r)/dOD_1                  d(r)/dOD_2 ...                d(r)/dr
 
 
         Which equals
 
-            exp(r ∆t)   0            ...  OD_1 ∆t exp(r ∆t)  0
-            0           exp(r ∆t)    ...  OD_2 ∆t exp(r ∆t)  0
+            exp(r ∆t)   0            ...  OD_1 ∆t exp(r ∆t)
+            0           exp(r ∆t)    ...  OD_2 ∆t exp(r ∆t)
             ...
-            0            0                1                  ∆t
-            0            0                0                  1
+            0            0                1
 
         """
         d = self.dim
         J = np.zeros((d, d))
 
-        rate = state[-2]
-        ODs = state[:-2]
-        J[np.arange(d - 2), np.arange(d - 2)] = np.exp(rate * self.dt)
-        J[np.arange(d - 2), -2] = ODs * np.exp(rate * self.dt) * self.dt
+        rate = state[-1]
+        ODs = state[:-1]
+        J[np.arange(d - 1), np.arange(d - 1)] = np.exp(rate * self.dt)
+        J[np.arange(d - 1), -1] = ODs * np.exp(rate * self.dt) * self.dt
 
-        J[-2, -2] = 1.0
         J[-1, -1] = 1.0
-        J[-2, -1] = self.dt
 
         return J
 
@@ -264,7 +249,7 @@ class ExtendedKalmanFilter:
         We only observe the ODs
         """
         d = self.dim
-        return np.eye(d)[: (d - 2)]
+        return np.eye(d)[: (d - 1)]
 
     @staticmethod
     def _is_positive_definite(A):

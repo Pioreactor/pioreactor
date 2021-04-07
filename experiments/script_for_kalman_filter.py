@@ -7,7 +7,8 @@ import time
 import numpy as np
 import logging
 from matplotlib import pyplot as plt
-import os.path
+
+# import os.path
 
 
 logging.disable(logging.WARNING)
@@ -21,26 +22,29 @@ from pioreactor.config import config
 
 
 unit = "unit"
-interval_for_testing = 0.020
+interval_for_testing = 0.01
 config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
 # for rv, ov, av in product(
 #     np.logspace(-2, -6, 5), np.logspace(-2, -6, 5), np.logspace(-2, -6, 5)
 # ):
-for (av, ov, rv) in [(1e-3, 0.5e-4, 0.5e-3)]:
 
-    if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
-        print(f"skipping ({av},{ov},{rv})")
-        continue
+
+for (av, ov, rv) in [(0, 0.001, 0.01)]:
+
+    # if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
+    #    print(f"skipping ({av},{ov},{rv})")
+    #    continue
 
     exp = f"({av},{ov},{rv})"
     print(av, ov, rv)
 
     config["growth_rate_kalman"]["rate_variance"] = str(rv)
     config["growth_rate_kalman"]["obs_variance"] = str(ov)
-    config["growth_rate_kalman"]["acc_variance"] = str(av)
 
     publish(f"pioreactor/{unit}/{exp}/growth_rate", None, retain=True)
+    publish(f"pioreactor/{unit}/{exp}/od_normalization/mean", None, retain=True)
+    publish(f"pioreactor/{unit}/{exp}/od_normalization/variance", None, retain=True)
 
     od = ODReader(
         channel_label_map={"A0": "90/0", "A1": "90/1"},
@@ -69,7 +73,7 @@ for (av, ov, rv) in [(1e-3, 0.5e-4, 0.5e-3)]:
 
     print("Generating data...")
 
-    time.sleep(180)
+    time.sleep(360)
 
     publish(
         f"pioreactor/{unit}/{exp}/dosing_events",
@@ -93,7 +97,6 @@ for (av, ov, rv) in [(1e-3, 0.5e-4, 0.5e-3)]:
     plt.figure()
     plt.plot(np.arange(0, len(actual_grs)), actual_grs, label="actual_grs")
     plt.plot(np.arange(0, len(estimated_grs)), estimated_grs, label="estimated_grs")
-    plt.ylim(-0.01, 0.17)
     plt.title(f"acc_variance={av},\nobs_variance={ov},\nrate_variance={rv}")
     plt.tight_layout()
     print("saving fig...")
