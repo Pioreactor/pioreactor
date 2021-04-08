@@ -6,9 +6,9 @@ set -e
 
 sudo apt-get install -y sqlite3
 mkdir -p /home/pi/db
-touch /home/pi/db/pioreactor.sqlite
-sqlite3 /home/pi/db/pioreactor.sqlite < sql/sqlite_configuration.sql
-sqlite3 /home/pi/db/pioreactor.sqlite < sql/create_tables.sql
+touch /home/pi/.pioreactor/pioreactor.sqlite
+sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < sql/sqlite_configuration.sql
+sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < sql/create_tables.sql
 
 # backup database every N hours
 # this checks for duplicates in cron, too

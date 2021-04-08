@@ -158,7 +158,7 @@ install-leader-as-worker: install-leader install-worker
 
 seed-experiment:
 	# techdebt: seed.sql adds an experiment to the db, so we need to match it in mqtt too
-	sqlite3 /home/pi/db/pioreactor.sqlite < /home/pi/pioreactor/sql/seed_initial_experiment.sql
+	sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < /home/pi/pioreactor/sql/seed_initial_experiment.sql
 	mosquitto_pub -t "pioreactor/latest_experiment" -m "Demo experiment" -r
 
 install-worker: install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
