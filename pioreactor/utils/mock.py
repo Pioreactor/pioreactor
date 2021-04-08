@@ -27,13 +27,16 @@ class MockAnalogIn(AnalogIn):
     _counter = 0
 
     def __init__(self, ads, channel, **kwargs):
+        from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
         # import pandas as pd
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
-        self.channel = channel
 
         # subscribe to dosing events
-        subscribe_and_callback(self.react_to_dosing, "pioreactor/+/+/dosing_events")
+        subscribe_and_callback(
+            self.react_to_dosing,
+            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
+        )
 
     def react_to_dosing(self, message):
         import json

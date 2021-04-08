@@ -34,7 +34,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.samples_per_minute = 60 * config.getfloat(
             "od_config.od_sampling", "samples_per_second"
         )
-        self.acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
         self.dt = 1 / (self.samples_per_minute * 60)
 
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
@@ -74,7 +73,8 @@ class GrowthRateCalculator(BackgroundJob):
         # empirically selected
         initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [0.5, 0.5])
 
-        acc_process_variance = (self.acc_variance * self.dt) ** 2
+        acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
+        acc_process_variance = (acc_variance * self.dt) ** 2
 
         process_noise_covariance = np.zeros((d, d))
         process_noise_covariance[-1, -1] = acc_process_variance
