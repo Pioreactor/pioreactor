@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from json import dumps
 from threading import Timer
+from pioreactor.pubsub import publish
 
 
 class ExponentialMovingAverage:
@@ -203,7 +204,6 @@ class ExtendedKalmanFilter:
         rate = state[-1]
         ODs = state[:-1]
         dt = self.dt
-
         return np.array([od * np.exp(rate * dt) for od in ODs] + [rate])
 
     def _predict_covariance(self, state, covariance):
@@ -314,7 +314,6 @@ class PID:
         return output
 
     def publish_pid_stats(self):
-        from pioreactor.pubsub import publish
 
         to_send = {
             "setpoint": self.pid.setpoint,
