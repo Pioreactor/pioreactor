@@ -31,15 +31,15 @@ class WatchDog(BackgroundJob):
             self.logger.warning(
                 f"{unit} seems to be lost. Trying to re-establish connection..."
             )
-
+            time.sleep(5)
             self.pub_client.publish(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.INIT
             )
-            time.sleep(1)
+            time.sleep(5)
             self.pub_client.publish(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.READY
             )
-            time.sleep(1)
+            time.sleep(5)
 
             current_state = subscribe(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=2

@@ -85,9 +85,9 @@ class Monitor(BackgroundJob):
     def publish_self_statistics(self):
         import psutil
 
-        disk_usage_percent = psutil.disk_usage("/").percent
-        cpu_usage_percent = psutil.cpu_percent()
-        available_memory_percent = (
+        disk_usage_percent = round(psutil.disk_usage("/").percent)
+        cpu_usage_percent = round(psutil.cpu_percent())
+        available_memory_percent = round(
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
 
@@ -97,13 +97,13 @@ class Monitor(BackgroundJob):
             # TODO: add documentation  to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
 
-        if cpu_usage_percent >= 50:
+        if cpu_usage_percent <= 75:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")
         else:
             # TODO: add documentation
             self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
 
-        if available_memory_percent <= 50:
+        if available_memory_percent <= 75:
             self.logger.debug(f"Available memory at {available_memory_percent}%.")
         else:
             # TODO: add documentation

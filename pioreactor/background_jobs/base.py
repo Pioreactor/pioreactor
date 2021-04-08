@@ -88,7 +88,10 @@ class BackgroundJob:
             self.job_name,
             unit=self.unit,
             experiment=self.experiment,
-            pub_client=self.pub_client,
+            # TODO: the following should work, but doesn't. When we disconnect a subjob, like when changing dosing_automations,
+            # the new subjob does _not_ log anything to MQTT - it's like the logger is still using the (disconnected) subjobs pub_client.
+            # For now, we will just create a new client each time.
+            # pub_client=self.pub_client,
         )
 
         self.set_state(self.INIT)
@@ -166,7 +169,9 @@ class BackgroundJob:
             self.logger.debug("Disconnected successfully from MQTT.")
             os.kill(os.getpid(), signal.SIGUSR1)
         else:
-            # we won't exit - the client object will try to reconnect
+            # we won't exit, but the client object will try to reconnect
+            # Error codes are below, but don't always align
+            # https://github.com/eclipse/paho.mqtt.python/blob/42f0b13001cb39aee97c2b60a3b4807314dfcb4d/src/paho/mqtt/client.py#L147
             self.logger.debug(f"Disconnected from MQTT with rc {rc}.")
             return
 

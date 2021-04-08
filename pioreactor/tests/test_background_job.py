@@ -9,7 +9,7 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
     UNIVERSAL_EXPERIMENT,
 )
-from pioreactor.pubsub import publish
+from pioreactor.pubsub import publish, subscribe_and_callback
 from pioreactor.config import leader_hostname
 
 
@@ -61,5 +61,32 @@ def test_watchdog_will_try_to_fix_lost_job():
     pause()
     pause()
     pause()
-    pause()
     assert monitor.sub_client._will
+
+
+def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt():
+    # see note in base.py about create_logger
+
+    unit = get_unit_name()
+    exp = get_latest_experiment_name()
+
+    results = []
+
+    def cb(msg):
+        if "WARNING" in msg.payload.decode():
+            results.append([msg.payload])
+
+    subscribe_and_callback(cb, f"pioreactor/{unit}/{exp}/logs/app")
+
+    bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
+    bj.logger.warning("test1")
+
+    # disonnect, which should clear logger handlers (but may not...)
+    bj.set_state("disconnected")
+
+    bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
+    bj.logger.warning("test2")
+
+    pause()
+    pause()
+    assert len(results) == 2

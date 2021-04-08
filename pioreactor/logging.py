@@ -78,10 +78,6 @@ class MQTTHandler(logging.Handler):
 def create_logger(name, unit=None, experiment=None, pub_client=None):
 
     logger = logging.getLogger(name)
-    logger.handlers = []
-    print(name)
-    print(logger)
-    print(logger.handlers)
 
     if len(logger.handlers) > 0:
         return logger
