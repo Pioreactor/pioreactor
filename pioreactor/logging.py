@@ -76,6 +76,7 @@ class MQTTHandler(logging.Handler):
 
 
 def create_logger(name, unit=None, experiment=None, pub_client=None):
+
     # it's possible we've already created and added handlers
     # we don't want to add duplicate handlers, so exit out if we have any
     logger = logging.getLogger(name)
@@ -113,22 +114,23 @@ def create_logger(name, unit=None, experiment=None, pub_client=None):
     )
 
     exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+
+    # create MQTT handlers for logs table
     topic = f"pioreactor/{unit}/{exp}/logs/app"
-    mqtt_handler = MQTTHandler(topic, pub_client)
-    mqtt_handler.setLevel(logging.DEBUG)
-    mqtt_handler.setFormatter(CustomisedJSONFormatter())
+    mqtt_to_db_handler = MQTTHandler(topic, pub_client)
+    mqtt_to_db_handler.setLevel(logging.DEBUG)
+    mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())
 
     # create MQTT handlers for logging to UI
-    exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
     topic = f"pioreactor/{unit}/{exp}/app_logs_for_ui"
     ui_handler = MQTTHandler(topic, pub_client)
     ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
     ui_handler.setFormatter(CustomMQTTtoUIFormatter())
 
-    # add the handlers to the root logger
+    # add the handlers to the logger
     logger.setLevel(logging.DEBUG)
     logger.addHandler(console_handler)
-    logger.addHandler(mqtt_handler)
+    logger.addHandler(mqtt_to_db_handler)
     logger.addHandler(ui_handler)
     logger.addHandler(file_handler)
 

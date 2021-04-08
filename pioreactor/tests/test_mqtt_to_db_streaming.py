@@ -53,10 +53,10 @@ def test_kalman_filter_entries():
     assert len(results) > 0
 
     cursor.execute(
-        'SELECT json_array_length("od"), json_array_length("covariance_matrix"), json("covariance_matrix") FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1',
+        'SELECT json_array_length("state"), json_array_length("covariance_matrix"), json("covariance_matrix") FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1',
         (exp,),
     )
     results = cursor.fetchone()
-    assert results[0] == 2
-    assert results[1] == 3
-    assert np.array(json.loads(results[2])).shape == (3, 3)
+    assert results[0] == 4
+    assert results[1] == 4
+    assert np.array(json.loads(results[2])).shape == (4, 4)

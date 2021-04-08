@@ -15,7 +15,6 @@ logging.disable(logging.WARNING)
 
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
-from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.pubsub import subscribe_and_callback, publish
 from pioreactor.config import config
@@ -26,16 +25,16 @@ interval_for_testing = 0.01
 config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
 
-for (ov, rv) in [(0.002, 0.01)]:
+for (ov, ac) in [(0.0005, 0.005)]:
 
     # if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
     #    print(f"skipping ({av},{ov},{rv})")
     #    continue
 
-    exp = f"({ov},{rv})"
-    print(ov, rv)
+    exp = f"({ov},{ac})"
+    print(ov, ac)
 
-    config["growth_rate_kalman"]["rate_variance"] = str(rv)
+    config["growth_rate_kalman"]["acc_variance"] = str(ac)
     config["growth_rate_kalman"]["obs_variance"] = str(ov)
 
     publish(f"pioreactor/{unit}/{exp}/growth_rate", None, retain=True)
@@ -48,7 +47,6 @@ for (ov, rv) in [(0.002, 0.01)]:
         fake_data=True,
         stop_IR_led_between_ADC_readings=False,
     )
-    st = Stirrer(duty_cycle=0, unit=unit, experiment=exp)
     calc = GrowthRateCalculator(unit=unit, experiment=exp)
 
     actual_grs = []
@@ -67,15 +65,6 @@ for (ov, rv) in [(0.002, 0.01)]:
 
     print("Generating data...")
 
-    time.sleep(20)
-
-    publish(
-        f"pioreactor/{unit}/{exp}/dosing_events",
-        json.dumps(
-            {"event": "add_media", "volume_change": 0.0, "source_of_event": "mock"}
-        ),
-    )
-
     time.sleep(25)
 
     publish(
@@ -85,7 +74,16 @@ for (ov, rv) in [(0.002, 0.01)]:
         ),
     )
 
-    time.sleep(50)
+    time.sleep(35)
+
+    publish(
+        f"pioreactor/{unit}/{exp}/dosing_events",
+        json.dumps(
+            {"event": "add_media", "volume_change": 0.0, "source_of_event": "mock"}
+        ),
+    )
+
+    time.sleep(300)
 
     c1.loop_stop()
     c1.disconnect()
@@ -94,16 +92,15 @@ for (ov, rv) in [(0.002, 0.01)]:
     c2.disconnect()
 
     od.set_state("disconnected")
-    st.set_state("disconnected")
     calc.set_state("disconnected")
 
     plt.figure()
     plt.plot(np.arange(0, len(actual_grs)), actual_grs, label="actual_grs")
     plt.plot(np.arange(0, len(estimated_grs)), estimated_grs, label="estimated_grs")
-    plt.title(f"obs_variance={ov},\nrate_variance={rv}")
+    plt.title(f"obs_variance={ov},\nacc_variance={ac}")
     plt.tight_layout()
     print("saving fig...")
-    plt.savefig(f"kalman_filter_exp/({ov},{rv}).png")
+    plt.savefig(f"kalman_filter_exp/({ov},{ac}_with_acc).png")
 
-    with open(f"kalman_filter_exp/({ov},{rv}).json", "w") as f:
+    with open(f"kalman_filter_exp/({ov},{ac}).json", "w") as f:
         json.dump({"target": actual_grs, "estimated": estimated_grs}, f)

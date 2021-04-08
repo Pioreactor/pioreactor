@@ -153,10 +153,8 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     timestamp                TEXT  NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
     experiment               TEXT NOT NULL,
-    growth_rate              REAL NOT NULL,
-    od                       TEXT NOT NULL,
-    covariance_matrix        TEXT NOT NULL,
-    kalman_gain              TEXT NOT NULL
+    state                    TEXT NOT NULL,
+    covariance_matrix        TEXT NOT NULL
 );
 
 

@@ -4,7 +4,7 @@ import random
 import numpy as np
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
-from pioreactor.pubsub import subscribe_and_callback, publish
+from pioreactor.pubsub import subscribe_and_callback
 
 
 class MockI2C:
@@ -27,16 +27,13 @@ class MockAnalogIn(AnalogIn):
     _counter = 0
 
     def __init__(self, ads, channel, **kwargs):
-        from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
+        # import pandas as pd
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
         self.channel = channel
 
         # subscribe to dosing events
-        subscribe_and_callback(
-            self.react_to_dosing,
-            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
-        )
+        subscribe_and_callback(self.react_to_dosing, "pioreactor/+/+/dosing_events")
 
     def react_to_dosing(self, message):
         import json
@@ -50,7 +47,7 @@ class MockAnalogIn(AnalogIn):
 
     @staticmethod
     def growth_rate(duration_as_seconds):
-        return 0.15 / (1 + np.exp(-0.0005 * (duration_as_seconds - 2 * 60 * 60)))
+        return 0.25 / (1 + np.exp(-0.00025 * (duration_as_seconds - 2 * 60 * 60)))
 
     @property
     def voltage(self):
@@ -62,13 +59,13 @@ class MockAnalogIn(AnalogIn):
             gr / 60 / 60 / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self._counter += 1
-        publish(f"pioreactor/mock/{self.channel}/actual_gr", gr)
         return self.state + random.normalvariate(0, self.state * 0.01)
-
-        # try:
-        #     return self.source.iloc[self._counter]['od_reading_v']
-        # except:
-        #    return self.source.iloc[-1]['od_reading_v']
+        """
+        try:
+             return self.source.iloc[self._counter]['od_reading_v']
+        except:
+            return self.source.iloc[-1]['od_reading_v']
+        """
 
 
 class MockDAC43608:

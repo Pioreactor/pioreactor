@@ -30,10 +30,11 @@ class GrowthRateCalculator(BackgroundJob):
         self.initial_growth_rate, self.od_normalization_factors, self.od_variances = (
             self.set_precomputed_values()
         )
+        self.initial_acc = 0
         self.samples_per_minute = 60 * config.getfloat(
             "od_config.od_sampling", "samples_per_second"
         )
-        self.rate_variance = config.getfloat("growth_rate_kalman", "rate_variance")
+        self.acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
         self.dt = 1 / (self.samples_per_minute * 60)
 
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
@@ -61,18 +62,22 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         initial_state = np.array(
-            [*angles_and_initial_points.values(), self.initial_growth_rate]
+            [
+                *angles_and_initial_points.values(),
+                self.initial_growth_rate,
+                self.initial_acc,
+            ]
         )
 
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-6 * np.diag([1.0] * (d - 1) + [0.5])
+        initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [0.5, 0.5])
 
-        rate_process_variance = (self.rate_variance * self.dt) ** 2
+        acc_process_variance = (self.acc_variance * self.dt) ** 2
 
         process_noise_covariance = np.zeros((d, d))
-        process_noise_covariance[-1, -1] = rate_process_variance
+        process_noise_covariance[-1, -1] = acc_process_variance
 
         observation_noise_covariance = self.create_obs_noise_covariance(
             angles_and_initial_points.keys()
@@ -186,7 +191,7 @@ class GrowthRateCalculator(BackgroundJob):
             # TODO: EKF values can be nans...
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
-                self.state_[-1],
+                self.state_[-2],
                 retain=True,
             )
 
@@ -196,7 +201,6 @@ class GrowthRateCalculator(BackgroundJob):
                     {
                         "state": self.ekf.state_.tolist(),
                         "covariance_matrix": self.ekf.covariance_.tolist(),
-                        "kalman_gain": self.ekf.kalman_gain_.tolist(),
                     }
                 ),
             )
@@ -222,7 +226,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=1, factor=10000)
+        self.update_ekf_variance_after_event(minutes=1, factor=5000)
 
     def start_passive_listeners(self):
         # process incoming data
