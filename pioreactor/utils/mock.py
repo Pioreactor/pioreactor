@@ -50,7 +50,7 @@ class MockAnalogIn(AnalogIn):
 
     @staticmethod
     def growth_rate(duration_as_seconds):
-        return 0.25 / (1 + np.exp(-0.00025 * (duration_as_seconds - 2 * 60 * 60)))
+        return 0.25 / (1 + np.exp(-0.00025 * (duration_as_seconds - 10 * 60 * 60)))
 
     @property
     def voltage(self):

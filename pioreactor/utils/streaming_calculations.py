@@ -81,11 +81,15 @@ class ExtendedKalmanFilter:
     ------------
     Because of the model, the lower bound on the rate estimate's variance is Q[-1, -1].
 
-    Resources
-    -----------
+    Useful Resources
+    -------------------
     - https://dsp.stackexchange.com/questions/2347/how-to-understand-kalman-gain-intuitively
      > R is reflects in noise in the sensors, Q reflects how confident we are in the current state
 
+    - https://perso.crans.org/club-krobot/doc/kalman.pdf
+     > Another way of thinking about the weighting by K (Kalman Gain) is that as the measurement error covariance R approaches zero, the actual measurement, z, is “trusted” more and more,
+     while the predicted measurement is trusted less and less. On the other hand, as the a priori estimate error covariance, Q, approaches zero the actual measurement, z,
+     is trusted less and less, while the predicted measurement is trusted more and more
     """
 
     def __init__(

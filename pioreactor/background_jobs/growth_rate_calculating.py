@@ -71,7 +71,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [0.5, 0.5])
+        initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [1.0, 0.5])
 
         acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
         acc_process_variance = (acc_variance * self.dt) ** 2

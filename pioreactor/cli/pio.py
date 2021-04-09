@@ -35,7 +35,7 @@ def logs():
         tail_sh = tail("-f", "-n", 50, config["logging"]["log_file"], _iter=True)
         for line in tail_sh:
             click.echo(line, nl=False)
-    except KeyboardInterrupt:
+    except Exception:
         tail_sh.kill()
 
 

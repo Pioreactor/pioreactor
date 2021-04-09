@@ -160,3 +160,15 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
 
 CREATE INDEX IF NOT EXISTS kalman_filter_outputs_ix
 ON kalman_filter_outputs (experiment, pioreactor_unit);
+
+
+CREATE TABLE IF NOT EXISTS temperature_readings (
+    timestamp                TEXT  NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    temperature_c            REAL NOT NULL
+);
+
+
+CREATE INDEX IF NOT EXISTS temperatures
+ON temperatures (experiment, pioreactor_unit);
