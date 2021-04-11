@@ -90,3 +90,33 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt():
     pause()
     pause()
     assert len(results) == 2
+
+
+def test_error_in_subscribe_and_callback_is_logged():
+    class TestJob(BackgroundJob):
+        def __init__(self, *args, **kwargs):
+            super(TestJob, self).__init__(*args, **kwargs)
+            self.start_passive_listeners()
+
+        def start_passive_listeners(self):
+            self.subscribe_and_callback(self.callback, "test/test")
+
+        def callback(self, msg):
+            print(1 / 0)
+
+    error_logs = []
+
+    def collect_error_logs(msg):
+        if "ERROR" in msg.payload.decode():
+            error_logs.append(msg)
+
+    subscribe_and_callback(
+        collect_error_logs, "pioreactor/testing_unit/testing_experiment/logs/app"
+    )
+
+    TestJob(job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name())
+    publish("test/test", "test")
+    pause()
+    pause()
+    assert len(error_logs) > 0
+    assert "division by zero" in error_logs[0].payload.decode()

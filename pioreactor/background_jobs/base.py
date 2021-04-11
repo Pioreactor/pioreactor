@@ -124,6 +124,19 @@ class BackgroundJob:
     def create_sub_client(self):
         # see note above as to why we split pub and sub.
 
+        # the client will try to automatically reconnect if something bad happens
+        # when we reconnect to the broker, we want to republish our state
+        # to overwrite potential last-will losts...
+        # also reconnect to our old topics.
+        def reconnect_protocol(client, userdata, flags, rc, properties=None):
+            self.logger.debug("Reconnecting to MQTT")
+            self.publish_attr("state")
+            self.start_general_passive_listeners()
+            self.start_passive_listeners()
+
+        def on_disconnect(client, userdata, rc):
+            self.on_mqtt_disconnect(rc)
+
         # we give the last_will to this sub client because when it reconnects, it
         # will republish state.
         last_will = {
@@ -141,22 +154,10 @@ class BackgroundJob:
         # we catch exceptions and report them in our software
         client.suppress_exceptions = True
 
-        # when we reconnect to the broker, we want to republish our state
-        # to overwrite potential last-will losts...
-        # also reconnect to our old topics.
-        def reconnect_protocol(client, userdata, flags, rc, properties=None):
-            self.logger.debug("Reconnecting to MQTT")
-            self.publish_attr("state")
-            self.start_general_passive_listeners()
-            self.start_passive_listeners()
-
-        def on_disconnect(client, userdata, rc):
-            self.on_mqtt_disconnect(rc)
-
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
         while not client.is_connected():
-            pass
+            continue
 
         client.on_connect = reconnect_protocol
         client.on_disconnect = on_disconnect

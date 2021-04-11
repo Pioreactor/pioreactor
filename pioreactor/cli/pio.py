@@ -190,17 +190,17 @@ if am_I_leader():
 
         # check to make sure raspberrypi.local is on network
         raspberrypi_on_network = False
-        checks, max_checks = 0, 60
+        checks, max_checks = 0, 20
         while not raspberrypi_on_network:
             checks += 1
             try:
                 socket.gethostbyname("raspberrypi")
             except socket.gaierror:
-                time.sleep(1)
+                time.sleep(3)
                 click.echo("`raspberrypi` not found on network- checking again.")
                 if checks >= max_checks:
                     click.echo(
-                        f"`raspberrypi` not found on network after {max_checks} seconds. Aborting.",
+                        f"`raspberrypi` not found on network after {max_checks} seconds. Check that you provided the right Wifi credentials to the network.",
                         err=True,
                     )
                     sys.exit(1)

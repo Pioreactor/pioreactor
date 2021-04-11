@@ -71,7 +71,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [1.0, 0.5])
+        initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [0.5, 0.5])
 
         acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
         acc_process_variance = (acc_variance * self.dt) ** 2
@@ -187,7 +187,10 @@ class GrowthRateCalculator(BackgroundJob):
             observations = self.json_to_sorted_dict(message.payload)
             scaled_observations = self.scale_raw_observations(observations)
             self.ekf.update(list(scaled_observations.values()))
-
+        except Exception as e:
+            self.logger.error(f"failed with {str(e)}")
+            raise e
+        else:
             # TODO: EKF values can be nans...
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
@@ -211,10 +214,6 @@ class GrowthRateCalculator(BackgroundJob):
                     self.state_[i],
                 )
             return
-
-        except Exception as e:
-            self.logger.error(f"failed with {str(e)}")
-            raise e
 
     def response_to_dosing_event(self, message):
         # here we can add custom logic to handle dosing events.

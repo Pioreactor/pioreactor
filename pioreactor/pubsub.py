@@ -2,7 +2,6 @@
 import socket
 import time
 import threading
-import logging
 from pioreactor.config import leader_hostname
 
 
@@ -15,14 +14,27 @@ class QOS:
 def create_client(hostname=leader_hostname, last_will=None, client_id=None, keepalive=60):
     from paho.mqtt.client import Client
 
+    def on_connect(client, userdata, flags, rc, properties=None):
+        if rc > 1:
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("pubsub.create_client", to_mqtt=False)
+            logger.error(f"Connection failed with error code {rc}.")
+
     client = Client(client_id=client_id)
+    client.on_connect = on_connect
 
     if last_will is not None:
         client.will_set(**last_will)
 
-    client.connect(hostname, keepalive=keepalive)
-    client.loop_start()
-    return client
+    while True:
+        try:
+            client.connect(hostname, keepalive=keepalive)
+        except socket.gaierror:
+            time.sleep(5)
+        else:
+            client.loop_start()
+            return client
 
 
 def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs):
@@ -37,7 +49,7 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
             # possible that leader is down/restarting, keep trying, but log to local machine.
             from pioreactor.logging import create_logger
 
-            logger = create_logger("pioreactor")
+            logger = create_logger("pubsub.publish", to_mqtt=False)
             logger.debug(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
                 exc_info=True,
@@ -48,7 +60,7 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
         if retry_count == retries:
             from pioreactor.logging import create_logger
 
-            logger = create_logger("pioreactor")
+            logger = create_logger("pubsub.publish", to_mqtt=False)
             logger.error(f"Unable to connect to host: {hostname}. Exiting.")
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
@@ -71,7 +83,9 @@ def publish_multiple(
             return
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
             # possible that leader is down/restarting, keep trying, but log to local machine.
-            logger = logging.getLogger("pioreactor")
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("pubsub.publish_multiple", to_mqtt=False)
             logger.debug(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
                 exc_info=True,
@@ -80,7 +94,9 @@ def publish_multiple(
             retry_count += 1
 
         if retry_count == retries:
-            logger = logging.getLogger("pioreactor")
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("pubsub.publish_multiple", to_mqtt=False)
             logger.error(f"Unable to connect to host: {hostname}. Exiting.")
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
@@ -126,7 +142,9 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
             return userdata["messages"]
 
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
-            logger = logging.getLogger("pioreactor")
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("pubsub.subscribe", to_mqtt=False)
             logger.debug(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
                 exc_info=True,
@@ -136,7 +154,9 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
             retry_count += 1
 
         if retry_count == retries:
-            logger = logging.getLogger("pioreactor")
+            from pioreactor.logging import create_logger
+
+            logger = create_logger("pubsub.subscribe", to_mqtt=False)
             logger.error(f"Unable to connect to host: {hostname}. Exiting.")
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
@@ -185,7 +205,9 @@ def subscribe_and_callback(
                 return actual_callback(message)
 
             except Exception as e:
-                logger = logging.getLogger(userdata.get("job_name", "pioreactor"))
+                from pioreactor.logging import create_logger
+
+                logger = create_logger(userdata.get("job_name", "pioreactor"))
                 logger.error(e, exc_info=True)
                 raise e
 

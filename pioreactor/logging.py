@@ -75,12 +75,27 @@ class MQTTHandler(logging.Handler):
                 publish(self.topic, msg, hostname="mqtt.pioreactor.com")
 
 
-def create_logger(name, unit=None, experiment=None, pub_client=None):
+def create_logger(name, unit=None, experiment=None, pub_client=None, to_mqtt=True):
+    """
+
+    Parameters
+    -----------
+    name: string
+        the name of the logger
+    pub_client: paho.mqtt.Client
+        use an existing Client, else one is created
+    to_mqtt: bool
+        connect and log to MQTT
+
+
+    """
 
     logger = logging.getLogger(name)
 
     if len(logger.handlers) > 0:
         return logger
+
+    logger.setLevel(logging.DEBUG)
 
     if unit is None:
         unit = get_unit_name()
@@ -88,7 +103,7 @@ def create_logger(name, unit=None, experiment=None, pub_client=None):
     if experiment is None:
         experiment = get_latest_experiment_name()
 
-    if pub_client is None:
+    if (pub_client is None) and to_mqtt:
         pub_client = create_client(client_id=f"{unit}-logging-{uuid.uuid1()}")
 
     # file handler
@@ -111,25 +126,27 @@ def create_logger(name, unit=None, experiment=None, pub_client=None):
         )
     )
 
-    exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
-
-    # create MQTT handlers for logs table
-    topic = f"pioreactor/{unit}/{exp}/logs/app"
-    mqtt_to_db_handler = MQTTHandler(topic, pub_client)
-    mqtt_to_db_handler.setLevel(logging.DEBUG)
-    mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())
-
-    # create MQTT handlers for logging to UI
-    topic = f"pioreactor/{unit}/{exp}/app_logs_for_ui"
-    ui_handler = MQTTHandler(topic, pub_client)
-    ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
-    ui_handler.setFormatter(CustomMQTTtoUIFormatter())
-
-    # add the handlers to the logger
-    logger.setLevel(logging.DEBUG)
+    # add local log handlers
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
-    logger.addHandler(mqtt_to_db_handler)
-    logger.addHandler(ui_handler)
+
+    if to_mqtt:
+        exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+
+        # create MQTT handlers for logs table
+        topic = f"pioreactor/{unit}/{exp}/logs/app"
+        mqtt_to_db_handler = MQTTHandler(topic, pub_client)
+        mqtt_to_db_handler.setLevel(logging.DEBUG)
+        mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())
+
+        # create MQTT handlers for logging to UI
+        topic = f"pioreactor/{unit}/{exp}/app_logs_for_ui"
+        ui_handler = MQTTHandler(topic, pub_client)
+        ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
+        ui_handler.setFormatter(CustomMQTTtoUIFormatter())
+
+        # add MQTT/remote log handlers
+        logger.addHandler(mqtt_to_db_handler)
+        logger.addHandler(ui_handler)
 
     return logger
