@@ -16,6 +16,7 @@ from pioreactor.whoami import (
     am_I_leader,
     UNIVERSAL_IDENTIFIER,
     get_latest_experiment_name,
+    get_unit_name,
 )
 from pioreactor.config import get_active_workers_in_inventory, get_leader_hostname
 from pioreactor.logging import create_logger
@@ -123,7 +124,9 @@ def update(units):
             client.close()
 
         except Exception as e:
-            logger = create_logger("CLI")
+            logger = create_logger(
+                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            )
             logger.error(e)
             logger.debug(e, exc_info=True)
 
@@ -159,7 +162,9 @@ def sync_configs(units):
             client.close()
         except Exception as e:
             click.echo(f"Unable to connect to unit {unit}", err=True)
-            logger = create_logger("CLI")
+            logger = create_logger(
+                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            )
             logger.debug(e, exc_info=True)
             logger.error(f"Unable to connect to unit {unit}.")
 
@@ -205,7 +210,9 @@ def kill(job, units, y):
         try:
             ssh(unit, command)
         except Exception as e:
-            logger = create_logger("CLI")
+            logger = create_logger(
+                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            )
             logger.debug(e, exc_info=True)
             logger.error(e)
 
@@ -267,7 +274,9 @@ def run(ctx, job, units, y):
         try:
             ssh(unit, command)
         except Exception as e:
-            logger = create_logger("CLI")
+            logger = create_logger(
+                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            )
             logger.debug(e, exc_info=True)
             logger.error(e)
 

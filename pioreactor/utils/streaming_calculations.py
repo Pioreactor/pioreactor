@@ -173,7 +173,8 @@ class ExtendedKalmanFilter:
 
         def reverse_change():
             self._currently_scaling_od = False
-            self.covariance_ = self._covariance_pre_scale.copy()
+            # we take the geometric mean
+            self.covariance_ = np.sqrt(self._covariance_pre_scale * self.covariance_)
             self._covariance_pre_scale = None
 
         def forward_change():

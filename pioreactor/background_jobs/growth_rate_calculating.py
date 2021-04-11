@@ -31,10 +31,10 @@ class GrowthRateCalculator(BackgroundJob):
             self.set_precomputed_values()
         )
         self.initial_acc = 0
-        self.samples_per_minute = 60 * config.getfloat(
-            "od_config.od_sampling", "samples_per_second"
+        samples_per_hour = (
+            60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
         )
-        self.dt = 1 / (self.samples_per_minute * 60)
+        self.dt = 1 / samples_per_hour
 
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
