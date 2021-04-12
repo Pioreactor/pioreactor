@@ -76,14 +76,17 @@ if __name__ == "__main__":
 
         for i in range(12):
             time.sleep(15)
-            """
+
             publish(
                 f"pioreactor/{unit}/{exp}/dosing_events",
                 json.dumps(
-                    {"event": "add_media", "volume_change": 1.0, "source_of_event": "mock"}
+                    {
+                        "event": "add_media",
+                        "volume_change": 1.0,
+                        "source_of_event": "mock",
+                    }
                 ),
             )
-            """
 
         time.sleep(3)
         c1.loop_stop()
@@ -101,7 +104,7 @@ if __name__ == "__main__":
         plt.title(f"obs_variance={ov},\nacc_variance={ac}")
         plt.tight_layout()
         print("saving fig...")
-        plt.savefig(f"kalman_filter_exp/({ov},{ac}_with_acc).png")
+        plt.savefig(f"kalman_filter_exp/({ov},{ac}_with_dosing).png")
 
         with open(f"kalman_filter_exp/({ov},{ac}).json", "w") as f:
             json.dump({"target": actual_grs, "estimated": estimated_grs}, f)

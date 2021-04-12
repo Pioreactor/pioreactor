@@ -172,7 +172,7 @@ class ExtendedKalmanFilter:
         def reverse_change():
             self._currently_scaling_od = False
             # we take the geometric mean
-            self.covariance_ = self._covariance_pre_scale
+            self.covariance_ = np.sqrt(self._covariance_pre_scale * self.covariance_)
             self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
             self._covariance_pre_scale = None
 
@@ -188,7 +188,7 @@ class ExtendedKalmanFilter:
         if self._currently_scaling_od:
             self._scale_timer.cancel()
 
-        self._scale_timer = Timer(seconds / 120, reverse_change)
+        self._scale_timer = Timer(seconds, reverse_change)
         self._scale_timer.daemon = True
         self._scale_timer.start()
 
