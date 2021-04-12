@@ -47,7 +47,6 @@ class MockAnalogIn(AnalogIn):
 
         if payload["event"] not in ["add_media", "add_alt_media"]:
             return
-        print(self._counter)
         self.state = self.state * (1 - (payload["volume_change"] / 14))
 
     @staticmethod

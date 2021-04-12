@@ -78,7 +78,6 @@ class GrowthRateCalculator(BackgroundJob):
 
         process_noise_covariance = np.zeros((d, d))
         process_noise_covariance[-1, -1] = acc_process_variance
-        process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
 
         observation_noise_covariance = self.create_obs_noise_covariance(
             angles_and_initial_points.keys()
@@ -172,7 +171,17 @@ class GrowthRateCalculator(BackgroundJob):
             return self.get_od_variances_from_broker()
 
     def update_ekf_variance_after_event(self, minutes, factor):
-        self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
+        if is_testing_env():
+            interval = float(
+                subscribe(
+                    f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
+                ).payload
+            )
+            self.ekf.scale_OD_variance_for_next_n_seconds(
+                factor, minutes * (12 * interval)
+            )
+        else:
+            self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
     def scale_raw_observations(self, observations):
         return {
@@ -239,7 +248,7 @@ class GrowthRateCalculator(BackgroundJob):
             return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=1, factor=5000)
+        self.update_ekf_variance_after_event(minutes=1, factor=2500)
 
     def start_passive_listeners(self):
         # process incoming data

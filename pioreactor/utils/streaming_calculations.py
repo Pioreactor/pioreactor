@@ -109,6 +109,7 @@ class ExtendedKalmanFilter:
         assert self._is_positive_definite(process_noise_covariance)
         assert self._is_positive_definite(initial_covariance)
         assert self._is_positive_definite(observation_noise_covariance)
+        import numpy as np
 
         self.process_noise_covariance = process_noise_covariance
         self.observation_noise_covariance = observation_noise_covariance
@@ -116,11 +117,10 @@ class ExtendedKalmanFilter:
         self.covariance_ = initial_covariance
         self.dim = self.state_.shape[0]
 
-        self._currently_scaling_od = False
-        self._scale_timer = None
+        self._currently_scaling_covariance = False
+        self._currently_scaling_process_covariance = False
+        self._scale_covariance_timer = None
         self._covariance_pre_scale = None
-
-        import numpy as np
 
         self._original_process_noise_variance = np.diag(self.process_noise_covariance)[
             : (self.dim - 2)
@@ -169,30 +169,49 @@ class ExtendedKalmanFilter:
 
         d = self.dim
 
-        def reverse_change():
-            self._currently_scaling_od = False
+        def reverse_scale_covariance():
+            self._currently_scaling_covariance = False
             # we take the geometric mean
-            self.covariance_ = np.sqrt(self._covariance_pre_scale * self.covariance_)
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
+            self.covariance_ = self._covariance_pre_scale
             self._covariance_pre_scale = None
 
-        def forward_change():
+        def forward_scale_covariance():
             if self._covariance_pre_scale is None:
                 self._covariance_pre_scale = self.covariance_.copy()
 
-            self._currently_scaling_od = True
+            self._currently_scaling_covariance = True
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
             self.covariance_[np.arange(d - 2), np.arange(d - 2)] *= factor
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 1e-9
 
-        if self._currently_scaling_od:
-            self._scale_timer.cancel()
+        def forward_scale_process_covariance():
+            self._currently_scaling_process_covariance = True
+            self._dummy = self.process_noise_covariance[-1, -1]
+            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 1e-6
+            self.process_noise_covariance[-1, -1] = 0
 
-        self._scale_timer = Timer(seconds, reverse_change)
-        self._scale_timer.daemon = True
-        self._scale_timer.start()
+        def reverse_scale_process_covariance():
+            self._currently_scaling_process_covariance = False
+            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
+            self.process_noise_covariance[-1, -1] = self._dummy
 
-        forward_change()
+        if self._currently_scaling_covariance:
+            self._scale_covariance_timer.cancel()
+
+        if self._currently_scaling_process_covariance:
+            self._scale_process_covariance_timer.cancel()
+
+        self._scale_covariance_timer = Timer(seconds, reverse_scale_covariance)
+        self._scale_covariance_timer.daemon = True
+        self._scale_covariance_timer.start()
+
+        self._scale_process_covariance_timer = Timer(
+            3 * seconds, reverse_scale_process_covariance
+        )
+        self._scale_process_covariance_timer.daemon = True
+        self._scale_process_covariance_timer.start()
+
+        forward_scale_covariance()
+        forward_scale_process_covariance()
 
     def _predict_state(self, state, covariance, dt):
         """
@@ -207,9 +226,9 @@ class ExtendedKalmanFilter:
         """
         import numpy as np
 
+        ODs = state[:-2]
         rate = state[-2]
         acc = state[-1]
-        ODs = state[:-2]
         return np.array([od * np.exp(rate * dt) for od in ODs] + [rate + acc * dt, acc])
 
     def _predict_covariance(self, state, covariance, dt):

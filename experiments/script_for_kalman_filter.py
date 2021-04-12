@@ -10,7 +10,7 @@ from matplotlib import pyplot as plt
 
 # import os.path
 
-
+np.set_printoptions(suppress=True)
 logging.disable(logging.WARNING)
 
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         plt.title(f"obs_variance={ov},\nacc_variance={ac}")
         plt.tight_layout()
         print("saving fig...")
-        plt.savefig(f"kalman_filter_exp/({ov},{ac}_with_dosing).png")
+        plt.savefig(f"kalman_filter_exp/({ov},{ac}_with_dosing2).png")
 
         with open(f"kalman_filter_exp/({ov},{ac}).json", "w") as f:
             json.dump({"target": actual_grs, "estimated": estimated_grs}, f)
