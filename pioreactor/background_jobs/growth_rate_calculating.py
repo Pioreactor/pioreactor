@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-import json
-import os
-import signal
+import signal, time, json
 
 import click
 
@@ -9,12 +7,12 @@ from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import subscribe, QOS
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.actions.od_normalization import od_normalization
 
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+JOB_NAME = "growth_rate_calculating"
 
 
 class GrowthRateCalculator(BackgroundJob):
@@ -31,11 +29,10 @@ class GrowthRateCalculator(BackgroundJob):
             self.set_precomputed_values()
         )
         self.initial_acc = 0
-        samples_per_hour = (
+        self.time_of_previous_observation = time.time()
+        self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
         )
-        self.dt = 1 / samples_per_hour
-
         self.ekf, self.angles = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
 
@@ -55,7 +52,10 @@ class GrowthRateCalculator(BackgroundJob):
     def initialize_extended_kalman_filter(self):
         import numpy as np
 
-        latest_od = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched")
+        latest_od = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
+            allow_retained=False,
+        )
         angles_and_initial_points = self.scale_raw_observations(
             self.json_to_sorted_dict(latest_od.payload)
         )
@@ -74,10 +74,11 @@ class GrowthRateCalculator(BackgroundJob):
         initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [0.5, 0.5])
 
         acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
-        acc_process_variance = (acc_variance * self.dt) ** 2
+        acc_process_variance = (acc_variance * self.expected_dt) ** 2
 
         process_noise_covariance = np.zeros((d, d))
         process_noise_covariance[-1, -1] = acc_process_variance
+        process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
 
         observation_noise_covariance = self.create_obs_noise_covariance(
             angles_and_initial_points.keys()
@@ -88,7 +89,6 @@ class GrowthRateCalculator(BackgroundJob):
                 initial_covariance,
                 process_noise_covariance,
                 observation_noise_covariance,
-                dt=self.dt,
             ),
             angles_and_initial_points.keys(),
         )
@@ -183,10 +183,22 @@ class GrowthRateCalculator(BackgroundJob):
     def update_state_from_observation(self, message):
         if self.state != self.READY:
             return
+
+        current_time = time.time()
+
+        if is_testing_env():
+            # when running a mock script, we run at an accelerated rate, but want to mimic
+            # production.
+            dt = self.expected_dt
+        else:
+            dt = (
+                (current_time - self.time_of_previous_observation) / 60 / 60
+            )  # delta time in hours
+
+        observations = self.json_to_sorted_dict(message.payload)
+        scaled_observations = self.scale_raw_observations(observations)
         try:
-            observations = self.json_to_sorted_dict(message.payload)
-            scaled_observations = self.scale_raw_observations(observations)
-            self.ekf.update(list(scaled_observations.values()))
+            self.ekf.update(list(scaled_observations.values()), dt)
         except Exception as e:
             self.logger.error(f"failed with {str(e)}")
             raise e
@@ -213,6 +225,8 @@ class GrowthRateCalculator(BackgroundJob):
                     f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{angle_label}",
                     self.state_[i],
                 )
+
+            self.time_of_previous_observation = current_time
             return
 
     def response_to_dosing_event(self, message):
@@ -233,11 +247,13 @@ class GrowthRateCalculator(BackgroundJob):
             self.update_state_from_observation,
             f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
             qos=QOS.EXACTLY_ONCE,
+            allow_retained=False,
         )
         self.subscribe_and_callback(
             self.response_to_dosing_event,
             f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
             qos=QOS.EXACTLY_ONCE,
+            allow_retained=False,
         )
 
         # if the stirring is changed, this can effect the OD level, but not the

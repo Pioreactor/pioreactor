@@ -1,23 +1,24 @@
 # -*- coding: utf-8 -*-
-import time, sys, os
+import time, sys
 from json import loads, dumps
 
 import signal
 import click
 
-if "pytest" in sys.modules or os.environ.get("TESTING"):
+from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.config import config
+from pioreactor.pubsub import publish, QOS
+from pioreactor.hardware_mappings import PWM_TO_PIN
+from pioreactor.logging import create_logger
+
+if is_testing_env():
     import fake_rpi
 
     sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
     sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
 
 import RPi.GPIO as GPIO
-from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
-from pioreactor.config import config
-from pioreactor.pubsub import publish, QOS
-from pioreactor.hardware_mappings import PWM_TO_PIN
-from pioreactor.logging import create_logger
 
 GPIO.setmode(GPIO.BCM)
 

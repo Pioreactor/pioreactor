@@ -4,20 +4,20 @@ import time, os, sys, signal
 
 import click
 
-if "pytest" in sys.modules or os.environ.get("TESTING"):
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
-import RPi.GPIO as GPIO
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.pubsub import subscribe
 from pioreactor.utils.timing import RepeatedTimer
 
+if is_testing_env():
+    import fake_rpi
+
+    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]

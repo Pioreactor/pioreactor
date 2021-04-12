@@ -13,7 +13,7 @@ def get_latest_experiment_name():
 
     if os.environ.get("EXPERIMENT"):
         return os.environ.get("EXPERIMENT")
-    elif "pytest" in sys.modules or os.environ.get("TESTING"):
+    elif is_testing_env():
         return "testing_experiment"
 
     from pioreactor.pubsub import subscribe
@@ -29,13 +29,20 @@ def get_latest_experiment_name():
         logger.info(
             "No experiment running, exiting. Try creating a new experiment first."
         )
+        logger.info(
+            "No experiment found in `pioreactor/latest_experiment` topic in MQTT, exiting."
+        )
         sys.exit()
+
+
+def is_testing_env():
+    return "pytest" in sys.modules or os.environ.get("TESTING")
 
 
 def get_hostname():
     import socket
 
-    if "pytest" in sys.modules:
+    if is_testing_env():
         return "localhost"
     elif os.environ.get("HOSTNAME"):
         return os.environ.get("HOSTNAME")

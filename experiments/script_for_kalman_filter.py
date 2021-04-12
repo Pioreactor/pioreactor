@@ -23,10 +23,10 @@ from pioreactor.whoami import get_unit_name
 if __name__ == "__main__":
 
     unit = get_unit_name()
-    interval_for_testing = 0.01
+    interval_for_testing = 0.025
     config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
-    for (ov, ac) in [(0.00025, 0.005)]:
+    for (ov, ac) in [(0.0005, 0.006)]:
 
         # if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
         #    print(f"skipping ({av},{ov},{rv})")
@@ -39,7 +39,10 @@ if __name__ == "__main__":
         config["growth_rate_kalman"]["obs_variance"] = str(ov)
 
         publish(f"pioreactor/{unit}/{exp}/growth_rate", None, retain=True)
+        publish(f"pioreactor/{unit}/{exp}/od_normalization/mean", None, retain=True)
+        publish(f"pioreactor/{unit}/{exp}/od_normalization/variance", None, retain=True)
 
+        start_time = time.time()
         od = ODReader(
             channel_label_map={"A0": "90/0", "A1": "90/1"},
             sampling_rate=interval_for_testing,
@@ -57,6 +60,7 @@ if __name__ == "__main__":
             actual_grs.append(float(msg.payload))
 
         def append_estimated_growth_rates(msg):
+            actual_grs.append(od.adc_reader.analog_in[0][1].gr)
             estimated_grs.append(float(msg.payload))
 
         c1 = subscribe_and_callback(
@@ -68,35 +72,20 @@ if __name__ == "__main__":
 
         print("Generating data...")
 
-        time.sleep(100)
+        time.sleep(120)
 
-        publish(
-            f"pioreactor/{unit}/{exp}/dosing_events",
-            json.dumps(
-                {"event": "add_media", "volume_change": 1.0, "source_of_event": "mock"}
-            ),
-        )
+        for i in range(12):
+            time.sleep(15)
+            """
+            publish(
+                f"pioreactor/{unit}/{exp}/dosing_events",
+                json.dumps(
+                    {"event": "add_media", "volume_change": 1.0, "source_of_event": "mock"}
+                ),
+            )
+            """
 
-        time.sleep(50)
-
-        publish(
-            f"pioreactor/{unit}/{exp}/dosing_events",
-            json.dumps(
-                {"event": "add_media", "volume_change": 1.0, "source_of_event": "mock"}
-            ),
-        )
-
-        time.sleep(50)
-
-        publish(
-            f"pioreactor/{unit}/{exp}/dosing_events",
-            json.dumps(
-                {"event": "add_media", "volume_change": 1.0, "source_of_event": "mock"}
-            ),
-        )
-
-        time.sleep(50)
-
+        time.sleep(3)
         c1.loop_stop()
         c1.disconnect()
 

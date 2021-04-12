@@ -10,7 +10,7 @@ from json import dumps
 
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import QOS, create_client
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER, is_testing_env
 from pioreactor.logging import create_logger
 
 faulthandler.enable()
@@ -268,7 +268,7 @@ class BackgroundJob:
             self.logger.debug("Calling sys.exit(0)")
 
             # don't exit in test mode
-            if "pytest" in sys.modules or os.environ.get("TESTING"):
+            if is_testing_env():
                 return
 
             sys.exit(0)

@@ -6,6 +6,8 @@ from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
 
+random.seed(10)
+
 
 class MockI2C:
     def __init__(self, SCL, SDA):
@@ -45,7 +47,7 @@ class MockAnalogIn(AnalogIn):
 
         if payload["event"] not in ["add_media", "add_alt_media"]:
             return
-
+        print(self._counter)
         self.state = self.state * (1 - (payload["volume_change"] / 14))
 
     @staticmethod
@@ -55,11 +57,14 @@ class MockAnalogIn(AnalogIn):
     @property
     def voltage(self):
 
-        gr = self.growth_rate(
+        self.gr = self.growth_rate(
             self._counter / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self.state *= np.exp(
-            gr / 60 / 60 / config.getfloat("od_config.od_sampling", "samples_per_second")
+            self.gr
+            / 60
+            / 60
+            / config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self._counter += 1
         return self.state + random.normalvariate(0, self.state * 0.01)

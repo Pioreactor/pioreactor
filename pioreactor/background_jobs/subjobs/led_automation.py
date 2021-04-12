@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import time, sys, os
-
+import time
 import json
 from datetime import datetime
 
@@ -12,14 +11,6 @@ from pioreactor.dosing_automations import events  # change later
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
-
-
-def brief_pause():
-    if "pytest" in sys.modules or os.environ.get("TESTING"):
-        return
-    else:
-        time.sleep(3)
-        return
 
 
 def current_time():

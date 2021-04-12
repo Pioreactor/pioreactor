@@ -98,7 +98,6 @@ class ExtendedKalmanFilter:
         initial_covariance,
         process_noise_covariance,
         observation_noise_covariance,
-        dt=1,
     ):
         assert (
             initial_state.shape[0]
@@ -116,7 +115,6 @@ class ExtendedKalmanFilter:
         self.state_ = initial_state
         self.covariance_ = initial_covariance
         self.dim = self.state_.shape[0]
-        self.dt = dt
 
         self._currently_scaling_od = False
         self._scale_timer = None
@@ -128,13 +126,13 @@ class ExtendedKalmanFilter:
             : (self.dim - 2)
         ].copy()
 
-    def predict(self):
+    def predict(self, dt):
         return (
-            self._predict_state(self.state_, self.covariance_),
-            self._predict_covariance(self.state_, self.covariance_),
+            self._predict_state(self.state_, self.covariance_, dt),
+            self._predict_covariance(self.state_, self.covariance_, dt),
         )
 
-    def update(self, observation):
+    def update(self, observation, dt):
         import numpy as np
 
         observation = np.asarray(observation)
@@ -142,7 +140,7 @@ class ExtendedKalmanFilter:
             (observation.shape[0] + 2),
             self.state_.shape[0],
         )
-        state_prediction, covariance_prediction = self.predict()
+        state_prediction, covariance_prediction = self.predict(dt)
         residual_state = observation - state_prediction[:-2]
         H = self._jacobian_observation()
         residual_covariance = (
@@ -174,7 +172,8 @@ class ExtendedKalmanFilter:
         def reverse_change():
             self._currently_scaling_od = False
             # we take the geometric mean
-            self.covariance_ = np.sqrt(self._covariance_pre_scale * self.covariance_)
+            self.covariance_ = self._covariance_pre_scale
+            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
             self._covariance_pre_scale = None
 
         def forward_change():
@@ -184,17 +183,18 @@ class ExtendedKalmanFilter:
             self._currently_scaling_od = True
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
             self.covariance_[np.arange(d - 2), np.arange(d - 2)] *= factor
+            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 1e-9
 
         if self._currently_scaling_od:
             self._scale_timer.cancel()
 
-        self._scale_timer = Timer(seconds, reverse_change)
+        self._scale_timer = Timer(seconds / 120, reverse_change)
         self._scale_timer.daemon = True
         self._scale_timer.start()
 
         forward_change()
 
-    def _predict_state(self, state, covariance):
+    def _predict_state(self, state, covariance, dt):
         """
         The prediction process is
 
@@ -210,16 +210,13 @@ class ExtendedKalmanFilter:
         rate = state[-2]
         acc = state[-1]
         ODs = state[:-2]
-        dt = self.dt
         return np.array([od * np.exp(rate * dt) for od in ODs] + [rate + acc * dt, acc])
 
-    def _predict_covariance(self, state, covariance):
-        return (
-            self._jacobian_process(state) @ covariance @ self._jacobian_process(state).T
-            + self.process_noise_covariance
-        )
+    def _predict_covariance(self, state, covariance, dt):
+        jacobian = self._jacobian_process(state, dt)
+        return jacobian @ covariance @ jacobian.T + self.process_noise_covariance
 
-    def _jacobian_process(self, state):
+    def _jacobian_process(self, state, dt):
         import numpy as np
 
         """
@@ -254,11 +251,11 @@ class ExtendedKalmanFilter:
 
         rate = state[-2]
         ODs = state[:-2]
-        J[np.arange(d - 2), np.arange(d - 2)] = np.exp(rate * self.dt)
-        J[np.arange(d - 2), -2] = ODs * np.exp(rate * self.dt) * self.dt
+        J[np.arange(d - 2), np.arange(d - 2)] = np.exp(rate * dt)
+        J[np.arange(d - 2), -2] = ODs * np.exp(rate * dt) * dt
 
         J[-2, -2] = 1.0
-        J[-2, -1] = self.dt
+        J[-2, -1] = dt
         J[-1, -1] = 1.0
 
         return J

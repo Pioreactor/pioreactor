@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import time, sys, os
+import time
 
 import json
 from datetime import datetime
@@ -10,19 +10,11 @@ from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
-from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import RepeatedTimer, brief_pause
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.dosing_automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
-
-
-def brief_pause():
-    if "pytest" in sys.modules or os.environ.get("TESTING"):
-        return
-    else:
-        time.sleep(3)
-        return
 
 
 def current_time():

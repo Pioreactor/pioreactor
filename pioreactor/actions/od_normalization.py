@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json, sys, os, time, logging
+import json, time, logging
 from collections import defaultdict
 from statistics import mean, variance
 
@@ -7,7 +7,7 @@ import click
 
 from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 
 logger = logging.getLogger("od_normalization")
@@ -20,7 +20,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     if (
         ("stirring" not in pio_jobs_running())
         # but if test mode, ignore
-        and not ("pytest" in sys.modules or os.environ.get("TESTING"))
+        and not is_testing_env()
     ):
         logger.error("stirring jobs should be running. Run stirring first.")
         raise ValueError("stirring jobs should be running. Run stirring first. ")
@@ -28,7 +28,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     if (
         ("od_reading" not in pio_jobs_running())
         # but if test mode, ignore
-        and not ("pytest" in sys.modules or os.environ.get("TESTING"))
+        and not is_testing_env()
     ):
         from pioreactor.background_jobs.od_reading import od_reading
 
@@ -41,7 +41,9 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         # TODO: write tests for this
         def yield_from_mqtt():
             while True:
-                msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/od_raw_batched")
+                msg = pubsub.subscribe(
+                    f"pioreactor/{unit}/{experiment}/od_raw_batched", allow_retained=False
+                )
                 yield json.loads(msg.payload)
 
         signal = yield_from_mqtt()
@@ -57,7 +59,6 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
 
             if count == N_samples:
                 break
-
         variances = {}
         means = {}
         for sensor, reading_series in readings.items():

@@ -101,7 +101,14 @@ def publish_multiple(
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
-def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt_kwargs):
+def subscribe(
+    topics,
+    hostname=leader_hostname,
+    retries=10,
+    timeout=None,
+    allow_retained=True,
+    **mqtt_kwargs,
+):
     """
     Modeled closely after the paho version, this also includes some try/excepts and
     a timeout. Note that this _does_ disconnect after receiving a single message.
@@ -118,6 +125,9 @@ def subscribe(topics, hostname=leader_hostname, retries=10, timeout=None, **mqtt
                 return
 
             def on_message(client, userdata, message):
+                if not allow_retained and message.retain:
+                    return
+
                 userdata["messages"] = message
                 client.disconnect()
                 return

@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
-import time, sys, logging
+import time, logging
 from threading import Event, Thread, Timer
 from time import perf_counter
 from contextlib import contextmanager
+from pioreactor.whoami import is_testing_env
+
+
+def brief_pause():
+    if is_testing_env():
+        return
+    else:
+        time.sleep(3)
+        return
 
 
 def every(delay, task, *args, **kwargs):
@@ -24,7 +33,7 @@ def every(delay, task, *args, **kwargs):
             raise e
             # in production code you might want to have this instead of course:
             # logger.exception("Problem while executing repetitive task.")
-        if "pytest" in sys.modules:
+        if is_testing_env():
             time.sleep(0)
         else:
             time.sleep(max(0, next_time - time.time()))
