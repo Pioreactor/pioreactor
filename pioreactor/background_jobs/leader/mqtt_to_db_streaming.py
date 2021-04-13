@@ -245,13 +245,18 @@ def mqtt_to_db_streaming():
         ),
         Metadata("pioreactor/+/+/logs/+", "logs", parse_logs),
         Metadata(
-            "pioreactor/+/+/dosing_control/dosing_automation_settings",
+            "pioreactor/+/+/dosing_automation/dosing_automation_settings",
             "dosing_automation_settings",
             parse_automation_settings,
         ),
         Metadata(
-            "pioreactor/+/+/led_control/led_automation_settings",
+            "pioreactor/+/+/led_automation/led_automation_settings",
             "led_automation_settings",
+            parse_automation_settings,
+        ),
+        Metadata(
+            "pioreactor/+/+/temperature_automation/temperature_automation_settings",
+            "temperature_automation_settings",
             parse_automation_settings,
         ),
         Metadata(

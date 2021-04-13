@@ -151,6 +151,21 @@ CREATE INDEX IF NOT EXISTS led_automation_settings_ix
 ON led_automation_settings (pioreactor_unit, experiment);
 
 
+
+CREATE TABLE IF NOT EXISTS temperature_automation_settings (
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    started_at               TEXT NOT NULL,
+    ended_at                 TEXT,
+    automation               TEXT NOT NULL,
+    settings                 TEXT NOT NULL
+);
+
+
+CREATE INDEX IF NOT EXISTS temperature_automation_settings_ix
+ON temperature_automation_settings (pioreactor_unit, experiment);
+
+
 CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     timestamp                TEXT  NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
