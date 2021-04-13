@@ -105,7 +105,7 @@ class TemperatureAutomation(BackgroundSubJob):
     ########## Private & internal methods
 
     def setup_pwm(self):
-        hertz = 50
+        hertz = 100
         pin = PWM_TO_PIN[config.getint("PWM", "heating")]
 
         GPIO.setup(pin, GPIO.OUT)
