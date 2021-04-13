@@ -26,7 +26,7 @@ if __name__ == "__main__":
     interval_for_testing = 0.025
     config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
-    for (ov, ac) in [(0.0005, 0.0025)]:
+    for (ov, ac) in [(0.0005, 0.006)]:
 
         # if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
         #    print(f"skipping ({av},{ov},{rv})")

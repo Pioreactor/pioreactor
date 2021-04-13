@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import time, os, sys, signal
+import time, sys, signal
 
 import click
 
@@ -20,7 +20,8 @@ if is_testing_env():
 import RPi.GPIO as GPIO
 
 GPIO.setmode(GPIO.BCM)
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
+
+JOB_NAME = "stirring"
 
 
 def clamp(minimum, x, maximum):

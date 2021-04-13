@@ -43,3 +43,7 @@ class IncreasedLuminosity(Event):
 
 class Cycle(Event):
     pass
+
+
+class ErrorOccured(Event):
+    pass
