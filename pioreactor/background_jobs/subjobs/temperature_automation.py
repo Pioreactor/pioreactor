@@ -99,6 +99,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def update_heater(self, new_duty_cycle):
         new_duty_cycle = clamp(0, round(float(new_duty_cycle)), 100)
+        print(new_duty_cycle)
         self.pwm.ChangeDutyCycle(new_duty_cycle)
 
     ########## Private & internal methods
@@ -120,10 +121,14 @@ class TemperatureAutomation(BackgroundSubJob):
             self.timer_thread.cancel()
         except AttributeError:
             pass
+
         for job in self.sub_jobs:
             job.set_state("disconnected")
 
         self._clear_mqtt_cache()
+
+        self.update_heater(0)
+        GPIO.cleanup()
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
