@@ -35,6 +35,7 @@ ALL_WORKER_JOBS = [
     "od_normalization",
     "monitor",
     "led_intensity",
+    "temperature_control",
 ]
 
 
