@@ -187,5 +187,5 @@ CREATE TABLE IF NOT EXISTS temperature_readings (
 );
 
 
-CREATE INDEX IF NOT EXISTS temperatures
-ON temperatures (experiment, pioreactor_unit);
+CREATE INDEX IF NOT EXISTS temperature_readings_ix
+ON temperature_readings (experiment, pioreactor_unit);

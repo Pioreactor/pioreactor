@@ -210,7 +210,7 @@ class ADCReader(BackgroundSubJob):
                 # This is not for culture density saturation (different, harder problem)
                 if (self.counter % 20 == 0) and (raw_signal_ > 2.75):
                     self.logger.warning(
-                        f"ADC sensor {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
+                        f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
                 # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
 

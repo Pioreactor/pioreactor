@@ -98,7 +98,6 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def update_heater(self, new_duty_cycle):
         new_duty_cycle = clamp(0, round(float(new_duty_cycle)), 100)
-        print(new_duty_cycle)
         self._pwm.ChangeDutyCycle(new_duty_cycle)
 
     ########## Private & internal methods
