@@ -26,7 +26,7 @@ if __name__ == "__main__":
     interval_for_testing = 0.025
     config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
-    for (ov, ac) in [(0.0005, 0.006)]:
+    for (ov, ac) in [(0.0005, 0.0025)]:
 
         # if os.path.isfile(f"kalman_filter_exp/({av},{ov},{rv}).json"):
         #    print(f"skipping ({av},{ov},{rv})")
@@ -72,10 +72,10 @@ if __name__ == "__main__":
 
         print("Generating data...")
 
-        time.sleep(120)
+        time.sleep(70)
 
-        for i in range(12):
-            time.sleep(15)
+        for i in range(30):
+            time.sleep(7.5)
 
             publish(
                 f"pioreactor/{unit}/{exp}/dosing_events",

@@ -380,7 +380,7 @@ class ODReader(BackgroundJob):
                 od_readings[label] = ads_readings[str(channel)]
             except KeyError:
                 self.logger.error(
-                    "Input wrong channel. Only valid channels are 0, 1, 2, 3."
+                    f"Input wrong channel, provided {label}. Only valid channels are 0, 1, 2, 3."
                 )
                 self.set_state(self.DISCONNECTED)
 

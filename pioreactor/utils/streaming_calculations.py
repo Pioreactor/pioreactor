@@ -186,7 +186,7 @@ class ExtendedKalmanFilter:
         def forward_scale_process_covariance():
             self._currently_scaling_process_covariance = True
             self._dummy = self.process_noise_covariance[-1, -1]
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 1e-6
+            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 1e-7
             self.process_noise_covariance[-1, -1] = 0
 
         def reverse_scale_process_covariance():
@@ -205,7 +205,7 @@ class ExtendedKalmanFilter:
         self._scale_covariance_timer.start()
 
         self._scale_process_covariance_timer = Timer(
-            3 * seconds, reverse_scale_process_covariance
+            2.5 * seconds, reverse_scale_process_covariance
         )
         self._scale_process_covariance_timer.daemon = True
         self._scale_process_covariance_timer.start()
