@@ -105,7 +105,7 @@ class LEDAutomation(BackgroundSubJob):
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
-                event = events.NoEvent("")
+                event = events.ErrorOccurred()
 
         self.logger.info(f"triggered {event}.")
         self.latest_event = event
@@ -228,7 +228,7 @@ class Silent(LEDAutomation):
         super(Silent, self).__init__(**kwargs)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        return events.NoEvent("nothing occurs in Silent.")
+        return events.NoEvent("nothing occurs in Silent")
 
 
 class TrackOD(LEDAutomation):

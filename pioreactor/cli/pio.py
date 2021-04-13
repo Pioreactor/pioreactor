@@ -124,6 +124,7 @@ if am_I_active_worker():
     run.add_command(jobs.od_reading.click_od_reading)
     run.add_command(jobs.dosing_control.click_dosing_control)
     run.add_command(jobs.led_control.click_led_control)
+    run.add_command(jobs.temperature_control.click_temperature_control)
 
     run.add_command(actions.add_alt_media.click_add_alt_media)
     run.add_command(actions.led_intensity.click_led_intensity)

@@ -147,6 +147,17 @@ def parse_growth_rate(topic, payload):
     }
 
 
+def parse_temperature(topic, payload):
+    metadata = produce_metadata(topic)
+
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "temperature_c": float(payload),
+    }
+
+
 def parse_pid_logs(topic, payload):
     metadata = produce_metadata(topic)
     payload = json.loads(payload)
@@ -165,6 +176,8 @@ def parse_pid_logs(topic, payload):
         "derivative": payload["derivative"],
         "latest_input": payload["latest_input"],
         "latest_output": payload["latest_output"],
+        "job_name": payload["job_name"],
+        "target_name": payload["target_name"],
     }
 
 
@@ -219,6 +232,11 @@ def mqtt_to_db_streaming():
         Metadata("pioreactor/+/+/dosing_events", "dosing_events", parse_dosing_events),
         Metadata("pioreactor/+/+/led_events", "led_events", parse_led_events),
         Metadata("pioreactor/+/+/growth_rate", "growth_rates", parse_growth_rate),
+        Metadata(
+            "pioreactor/+/+/temperature_control/temperature",
+            "temperature_readings",
+            parse_temperature,
+        ),
         Metadata("pioreactor/+/+/pid_log", "pid_logs", parse_pid_logs),
         Metadata(
             "pioreactor/+/+/alt_media_calculating/alt_media_fraction",

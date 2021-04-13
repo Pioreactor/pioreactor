@@ -21,9 +21,9 @@ class PIDTurbidostat(DosingAutomation):
         self.volume = float(volume)
 
         # PID%20controller%20turbidostat.ipynb
-        Kp = config.getfloat("pid_turbidostat", "Kp")
-        Ki = config.getfloat("pid_turbidostat", "Ki")
-        Kd = config.getfloat("pid_turbidostat", "Kd")
+        Kp = config.getfloat("dosing_automation.pid_turbidostat", "Kp")
+        Ki = config.getfloat("dosing_automation.pid_turbidostat", "Ki")
+        Kd = config.getfloat("dosing_automation.pid_turbidostat", "Kd")
 
         self.pid = PID(
             -Kp,
@@ -34,6 +34,8 @@ class PIDTurbidostat(DosingAutomation):
             sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
+            job_name=self.job_name,
+            target_name="od",
         )
 
     def execute(self, *args, **kwargs) -> events.Event:

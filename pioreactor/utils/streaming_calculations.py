@@ -316,6 +316,8 @@ class PID:
         sample_time=None,
         unit=None,
         experiment=None,
+        job_name=None,
+        target_name=None,
         **kwargs,
     ):
         from simple_pid import PID as simple_PID
@@ -332,6 +334,8 @@ class PID:
         )
         self.unit = unit
         self.experiment = experiment
+        self.target_name = target_name
+        self.job_name = job_name
 
     def set_setpoint(self, new_setpoint):
         self.pid.setpoint = new_setpoint
@@ -356,5 +360,7 @@ class PID:
             "derivative": self.pid._derivative,
             "latest_input": self.pid._last_input,
             "latest_output": self.pid._last_output,
+            "job_name": self.job_name,
+            "target_name": self.target_name,
         }
         publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", dumps(to_send))

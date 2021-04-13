@@ -2,6 +2,7 @@
 from pioreactor.background_jobs import growth_rate_calculating
 from pioreactor.background_jobs import dosing_control
 from pioreactor.background_jobs import led_control
+from pioreactor.background_jobs import temperature_control
 from pioreactor.background_jobs import od_reading
 from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs import monitor
@@ -13,6 +14,7 @@ __all__ = (
     growth_rate_calculating,
     dosing_control,
     led_control,
+    temperature_control,
     od_reading,
     stirring,
     mqtt_to_db_streaming,

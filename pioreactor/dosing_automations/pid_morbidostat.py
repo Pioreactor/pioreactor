@@ -21,9 +21,9 @@ class PIDMorbidostat(DosingAutomation):
         self.set_target_growth_rate(target_growth_rate)
         self.target_od = float(target_od)
 
-        Kp = config.getfloat("pid_morbidostat", "Kp")
-        Ki = config.getfloat("pid_morbidostat", "Ki")
-        Kd = config.getfloat("pid_morbidostat", "Kd")
+        Kp = config.getfloat("dosing_automation.pid_morbidostat", "Kp")
+        Ki = config.getfloat("dosing_automation.pid_morbidostat", "Ki")
+        Kd = config.getfloat("dosing_automation.pid_morbidostat", "Kd")
 
         self.pid = PID(
             -Kp,
@@ -34,6 +34,8 @@ class PIDMorbidostat(DosingAutomation):
             sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
+            job_name=self.job_name,
+            target_name="growth_rate",
         )
 
         if volume is not None:
