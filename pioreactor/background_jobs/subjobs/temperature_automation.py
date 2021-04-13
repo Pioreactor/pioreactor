@@ -57,8 +57,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
         self.skip_first_run = skip_first_run
 
-        self.pwm = self.setup_pwm()
-        self.update_heater(0)
+        self._pwm = self.setup_pwm()
 
         self.set_duration(duration)
         self.start_passive_listeners()
@@ -100,7 +99,7 @@ class TemperatureAutomation(BackgroundSubJob):
     def update_heater(self, new_duty_cycle):
         new_duty_cycle = clamp(0, round(float(new_duty_cycle)), 100)
         print(new_duty_cycle)
-        self.pwm.ChangeDutyCycle(new_duty_cycle)
+        self._pwm.ChangeDutyCycle(new_duty_cycle)
 
     ########## Private & internal methods
 
@@ -111,7 +110,9 @@ class TemperatureAutomation(BackgroundSubJob):
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, 0)
 
-        return GPIO.PWM(pin, hertz)
+        pwm = GPIO.PWM(pin, hertz)
+        pwm.start(0)
+        return pwm
 
     def on_disconnect(self):
         self.latest_settings_ended_at = current_time()
