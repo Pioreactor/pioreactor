@@ -31,21 +31,6 @@ class CustomisedJSONFormatter(json_log_formatter.JSONFormatter):
         return extra
 
 
-class CustomMQTTtoUIFormatter(logging.Formatter):
-    """Add in Error/Warning so the UI shows up in red/yellow."""
-
-    FORMATS = {
-        logging.ERROR: "[%(name)s] Error: %(message)s",
-        logging.WARNING: "[%(name)s] Warning: %(message)s",
-        "DEFAULT": "[%(name)s] %(message)s",
-    }
-
-    def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno, self.FORMATS["DEFAULT"])
-        formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
-
-
 class MQTTHandler(logging.Handler):
     """
     A handler class which writes logging records, appropriately formatted,
@@ -139,14 +124,7 @@ def create_logger(name, unit=None, experiment=None, pub_client=None, to_mqtt=Tru
         mqtt_to_db_handler.setLevel(logging.DEBUG)
         mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())
 
-        # create MQTT handlers for logging to UI
-        topic = f"pioreactor/{unit}/{exp}/app_logs_for_ui"
-        ui_handler = MQTTHandler(topic, pub_client)
-        ui_handler.setLevel(getattr(logging, config["logging"]["ui_log_level"]))
-        ui_handler.setFormatter(CustomMQTTtoUIFormatter())
-
         # add MQTT/remote log handlers
         logger.addHandler(mqtt_to_db_handler)
-        logger.addHandler(ui_handler)
 
     return logger
