@@ -176,7 +176,7 @@ class ExtendedKalmanFilter:
             self._covariance_pre_scale = None
 
         def forward_scale_covariance():
-            if self._covariance_pre_scale is None:
+            if not self._currently_scaling_covariance:
                 self._covariance_pre_scale = self.covariance_.copy()
 
             self._currently_scaling_covariance = True
@@ -184,8 +184,10 @@ class ExtendedKalmanFilter:
             self.covariance_[np.arange(d - 2), np.arange(d - 2)] *= factor
 
         def forward_scale_process_covariance():
+            if not self._currently_scaling_process_covariance:
+                self._dummy = self.process_noise_covariance[-1, -1]
+
             self._currently_scaling_process_covariance = True
-            self._dummy = self.process_noise_covariance[-1, -1]
             self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 1e-7
             self.process_noise_covariance[-1, -1] = 0
 
