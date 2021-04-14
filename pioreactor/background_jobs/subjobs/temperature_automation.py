@@ -127,6 +127,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self._clear_mqtt_cache()
 
         self.update_heater(0)
+        self._pwm.stop()
         GPIO.cleanup()
 
     def __setattr__(self, name, value) -> None:
