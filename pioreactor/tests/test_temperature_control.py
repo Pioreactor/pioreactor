@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
-
-from pioreactor.background_jobs.temperature_control import TemperatureController
+import pytest
+from pioreactor.background_jobs import temperature_control
 from pioreactor.background_jobs.subjobs.temperature_automation import Silent, PIDStable
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
@@ -16,7 +16,7 @@ def pause(n=1):
 
 
 def test_temperature_controller_logs_temperature():
-    controller = TemperatureController(
+    controller = temperature_control.TemperatureController(
         temperature_automation="silent", unit=unit, experiment=experiment
     )
     msg = pubsub.subscribe(
@@ -37,7 +37,9 @@ def test_pid_stable_automation():
 
 def test_changing_temperature_algo_over_mqtt_solo():
 
-    algo = TemperatureController("silent", duration=10, unit=unit, experiment=experiment)
+    algo = temperature_control.TemperatureController(
+        "silent", duration=10, unit=unit, experiment=experiment
+    )
     assert algo.temperature_automation == "silent"
     assert isinstance(algo.temperature_automation_job, Silent)
 
@@ -49,3 +51,15 @@ def test_changing_temperature_algo_over_mqtt_solo():
     assert algo.temperature_automation == "pid_stable"
     assert isinstance(algo.temperature_automation_job, PIDStable)
     assert algo.temperature_automation_job.target_temperature == 20
+
+
+def test_disconnect_when_max_temp_is_exceeded():
+    temperature_control.read_temperature = lambda: 60
+
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        temperature_control.TemperatureController(
+            "silent", duration=10, unit=unit, experiment=experiment
+        )
+        time.sleep(10)
+
+    assert pytest_wrapped_e.type == SystemExit

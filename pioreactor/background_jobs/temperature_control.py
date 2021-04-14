@@ -62,6 +62,13 @@ class TemperatureController(BackgroundJob):
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/temperature", temp
         )
 
+        max_temp = 52.0
+        if temp > max_temp:
+            self.logger.warning(
+                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations, and temperature control will be halted. Take caution when touching the heating surface and wetware."
+            )
+            self.set_state("disconnected")
+
     def set_temperature_automation(self, new_temperature_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.temperature_automation_job.set_state("init")

@@ -231,7 +231,7 @@ class PIDStable(TemperatureAutomation):
         return
 
     def set_target_temperature(self, value):
-        self.target_temperature = float(value)
+        self.target_temperature = clamp(0, float(value), 50)
         try:
             # may not be defined yet...
             self.pid.set_setpoint(self.target_temperature)
