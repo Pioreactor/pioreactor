@@ -116,7 +116,7 @@ class TemperatureController(BackgroundJob):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         # TODO: this could move to the base class
         for attr in self.editable_settings:
-            if attr == "state":
+            if attr in ["state", "temperature"]:
                 continue
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",

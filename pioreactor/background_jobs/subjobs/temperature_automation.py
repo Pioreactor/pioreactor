@@ -18,8 +18,6 @@ if is_testing_env():
 
 import RPi.GPIO as GPIO
 
-GPIO.setmode(GPIO.BCM)
-
 
 def clamp(minimum, x, maximum):
     return max(minimum, min(x, maximum))
@@ -106,6 +104,7 @@ class TemperatureAutomation(BackgroundSubJob):
         hertz = 100
         pin = PWM_TO_PIN[config.getint("PWM", "heating")]
 
+        GPIO.setmode(GPIO.BCM)
         GPIO.setup(pin, GPIO.OUT)
         GPIO.output(pin, 0)
 

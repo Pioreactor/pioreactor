@@ -67,6 +67,16 @@ class BackgroundJob:
         self.sub_jobs = []
         self.editable_settings = self.editable_settings + ["state"]
 
+        self.logger = create_logger(
+            self.job_name,
+            unit=self.unit,
+            experiment=self.experiment,
+            # TODO: the following should work, but doesn't. When we disconnect a subjob, like when changing dosing_automations,
+            # the new subjob does _not_ log anything to MQTT - it's like the logger is still using the (disconnected) subjobs pub_client.
+            # For now, we will just create a new client each time.
+            # pub_client=self.pub_client,
+        )
+
         # check_for_duplicate_process needs to come _before_ the pubsub client,
         # as they will set (and revoke) a new last will.
         # Ex: job X is running, but we try to rerun it, causing the latter job to abort, and
@@ -83,16 +93,6 @@ class BackgroundJob:
         self.pub_client = self.create_pub_client()
         self.sub_client = self.create_sub_client()
         self.pubsub_clients = [self.sub_client, self.pub_client]
-
-        self.logger = create_logger(
-            self.job_name,
-            unit=self.unit,
-            experiment=self.experiment,
-            # TODO: the following should work, but doesn't. When we disconnect a subjob, like when changing dosing_automations,
-            # the new subjob does _not_ log anything to MQTT - it's like the logger is still using the (disconnected) subjobs pub_client.
-            # For now, we will just create a new client each time.
-            # pub_client=self.pub_client,
-        )
 
         self.set_state(self.INIT)
         self.set_up_exit_protocol()
