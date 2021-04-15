@@ -14,7 +14,7 @@ def backup_database(output):
 
     """
     import sqlite3
-    from sh import scp, ErrorReturnCode
+    from sh import rsync, ErrorReturnCode
 
     logger = create_logger("backup_database")
 
@@ -43,7 +43,7 @@ def backup_database(output):
             continue
 
         try:
-            scp(output, f"{backup_unit}:{output}")
+            rsync("-hz", "--partial", "--inplace", output, f"{backup_unit}:{output}")
         except ErrorReturnCode:
             logger.debug(
                 f"Unable to backup database to {backup_unit}. Is it online?",

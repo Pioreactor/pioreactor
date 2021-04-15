@@ -76,7 +76,7 @@ def update(ui, app):
     logger = create_logger("CLI")
 
     if (not app) and (not ui):
-        click.echo("Nothing happening. Specify either --app or --ui.")
+        click.echo("Nothing to do. Specify either --app or --ui.")
 
     if app:
         cd = "cd ~/pioreactor"

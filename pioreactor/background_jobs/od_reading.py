@@ -208,7 +208,7 @@ class ADCReader(BackgroundSubJob):
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
-                if (self.counter % 20 == 0) and (raw_signal_ > 2.75):
+                if (self.counter % 60 == 0) and (raw_signal_ > 2.75):
                     self.logger.warning(
                         f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
