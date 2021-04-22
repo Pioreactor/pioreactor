@@ -47,6 +47,7 @@ class GrowthRateCalculator(BackgroundJob):
         #    due to variation in the glass
         #
         # so to "fix" this, we will treat it like a dilution event, and modify the variances
+        # TODO: this should occur _after_ sleeping ends....
         self.update_ekf_variance_after_event(minutes=0.5, factor=5e2)
 
     def initialize_extended_kalman_filter(self):
@@ -71,7 +72,7 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-6 * np.diag([1.0] * (d - 2) + [0.5, 0.5])
+        initial_covariance = 1e-7 * np.diag([1.0] * (d - 2) + [1.0, 1.0])
 
         acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
         acc_process_variance = (acc_variance * self.expected_dt) ** 2

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
 );
 
 CREATE INDEX IF NOT EXISTS od_readings_raw_ix
-ON od_readings_raw (experiment, pioreactor_unit, angle);
+ON od_readings_raw (experiment, pioreactor_unit, channel);
 
 
 CREATE TABLE IF NOT EXISTS alt_media_fraction (
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS od_readings_filtered (
 );
 
 CREATE INDEX IF NOT EXISTS od_readings_filtered_ix
-ON od_readings_filtered (experiment, pioreactor_unit, angle);
+ON od_readings_filtered (experiment, pioreactor_unit, channel);
 
 
 CREATE TABLE IF NOT EXISTS dosing_events (

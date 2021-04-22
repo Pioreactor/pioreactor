@@ -107,7 +107,7 @@ class ADCReader(BackgroundSubJob):
         self.dynamic_gain = dynamic_gain
         self.initial_gain = initial_gain
         self.counter = 0
-        self.ema = ExponentialMovingAverage(alpha=0.20)
+        self.ema = ExponentialMovingAverage(alpha=0.15)
         self.ads = None
         self.analog_in = []
 
@@ -169,6 +169,12 @@ class ADCReader(BackgroundSubJob):
                 raw_signals.append(raw_signal_)
 
             max_signal = max(raw_signals)
+            if max_signal > 3.1:
+                self.logger.error(
+                    f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. We are shutting it down to keep the ADC safe."
+                )
+                self.set_state("disconnected")
+
             self.check_on_gain(max_signal)
 
     def check_on_gain(self, value):
@@ -208,11 +214,20 @@ class ADCReader(BackgroundSubJob):
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
-                if (self.counter % 60 == 0) and (raw_signal_ > 2.75):
+                if (
+                    (self.counter % 60 == 0)
+                    and (raw_signal_ >= 2.75)
+                    and not self.fake_data
+                ):
                     self.logger.warning(
                         f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
-                # TODO: check if more than 3V, and shut down something? to prevent damage to ADC.
+                # check if more than 3V, and shut down something? to prevent damage to ADC.
+                if (raw_signal_ >= 3.1) and not self.fake_data:
+                    self.logger.error(
+                        f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. We are shutting it down to keep the ADC safe."
+                    )
+                    self.set_state("disconnected")
 
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings

@@ -8,7 +8,7 @@ UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
 
 
-@lru_cache()
+@lru_cache(maxsize=1)
 def get_latest_experiment_name():
 
     if os.environ.get("EXPERIMENT"):
@@ -22,7 +22,6 @@ def get_latest_experiment_name():
     if mqtt_msg:
         return mqtt_msg.payload.decode()
     else:
-        # if there is no experiment (i.e. on first boot of device), don't run.
         from pioreactor.logging import create_logger
 
         logger = create_logger("pioreactor")

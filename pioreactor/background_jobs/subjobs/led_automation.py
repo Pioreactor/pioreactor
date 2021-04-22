@@ -2,7 +2,6 @@
 
 import time
 import json
-from datetime import datetime
 
 from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
@@ -11,10 +10,7 @@ from pioreactor.dosing_automations import events  # change later
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
-
-
-def current_time():
-    return datetime.now().isoformat()
+from pioreactor.utils.timing import current_utc_time
 
 
 class LEDAutomation(BackgroundSubJob):
@@ -33,7 +29,7 @@ class LEDAutomation(BackgroundSubJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
-    latest_settings_started_at = current_time()
+    latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     editable_settings = ["duration"]
 
@@ -50,7 +46,7 @@ class LEDAutomation(BackgroundSubJob):
             job_name="led_automation", unit=unit, experiment=experiment
         )
 
-        self.edited_channels = []
+        self.edited_channels = set([])
         self.latest_event = None
 
         self.sensor = sensor
@@ -129,19 +125,20 @@ class LEDAutomation(BackgroundSubJob):
             A float between 0-100, inclusive.
 
         """
-        self.edited_channels.append(channel)
+        self.edited_channels.add(channel)
         led_intensity(channel, intensity, unit=self.unit, experiment=self.experiment)
 
     ########## Private & internal methods
 
     def on_disconnect(self):
-        self.latest_settings_ended_at = current_time()
+        self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
         try:
             self.timer_thread.cancel()
         except AttributeError:
             pass
+
         for job in self.sub_jobs:
             job.set_state("disconnected")
 
@@ -153,9 +150,9 @@ class LEDAutomation(BackgroundSubJob):
     def __setattr__(self, name, value) -> None:
         super(LEDAutomation, self).__setattr__(name, value)
         if name in self.editable_settings and name != "state":
-            self.latest_settings_ended_at = current_time()
+            self.latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
-            self.latest_settings_started_at = current_time()
+            self.latest_settings_started_at = current_utc_time()
             self.latest_settings_ended_at = None
 
     def _set_growth_rate(self, message):

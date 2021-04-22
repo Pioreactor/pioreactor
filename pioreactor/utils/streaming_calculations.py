@@ -188,7 +188,9 @@ class ExtendedKalmanFilter:
                 self._dummy = self.process_noise_covariance[-1, -1]
 
             self._currently_scaling_process_covariance = True
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 1e-7
+            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = (
+                1e-7 * self.state_[:-2]
+            )
             self.process_noise_covariance[-1, -1] = 0
 
         def reverse_scale_process_covariance():

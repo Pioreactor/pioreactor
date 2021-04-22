@@ -89,13 +89,11 @@ class DosingController(BackgroundJob):
     def on_disconnect(self):
         try:
             self.dosing_automation_job.set_state(self.DISCONNECTED)
-            self.clear_mqtt_cache()
         except AttributeError:
             # if disconnect is called right after starting, dosing_automation_job isn't instantiated
-            # time.sleep(1)
-            # self.on_disconnect()
-            # return
             pass
+        finally:
+            self.clear_mqtt_cache()
 
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.

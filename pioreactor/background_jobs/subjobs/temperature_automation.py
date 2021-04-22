@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 import json, sys, time
-from datetime import datetime
 
 from pioreactor.pubsub import QOS
-from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
 from pioreactor.utils.streaming_calculations import PID
@@ -23,10 +22,6 @@ def clamp(minimum, x, maximum):
     return max(minimum, min(x, maximum))
 
 
-def current_time():
-    return datetime.now().isoformat()
-
-
 class TemperatureAutomation(BackgroundSubJob):
     """
     This is the super class that Temperature automations inherit from. The `run` function will
@@ -42,7 +37,7 @@ class TemperatureAutomation(BackgroundSubJob):
     latest_growth_rate = None
     latest_temperature = None
 
-    latest_settings_started_at = current_time()
+    latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     editable_settings = ["duration", "target_temperature"]
 
@@ -113,7 +108,7 @@ class TemperatureAutomation(BackgroundSubJob):
         return pwm
 
     def on_disconnect(self):
-        self.latest_settings_ended_at = current_time()
+        self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
         try:
@@ -133,9 +128,9 @@ class TemperatureAutomation(BackgroundSubJob):
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
         if name in self.editable_settings and name != "state":
-            self.latest_settings_ended_at = current_time()
+            self.latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
-            self.latest_settings_started_at = current_time()
+            self.latest_settings_started_at = current_utc_time()
             self.latest_settings_ended_at = None
 
     def _set_growth_rate(self, message):

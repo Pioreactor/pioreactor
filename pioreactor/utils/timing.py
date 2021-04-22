@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 import time, logging
+from datetime import datetime
 from threading import Event, Thread, Timer
 from time import perf_counter
 from contextlib import contextmanager
 from pioreactor.whoami import is_testing_env
+
+
+def current_utc_time():
+    return datetime.utcnow().isoformat()
 
 
 def brief_pause():

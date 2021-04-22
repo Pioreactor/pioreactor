@@ -1,24 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import time
-
 import json
-from datetime import datetime
 
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
-from pioreactor.utils.timing import RepeatedTimer, brief_pause
+from pioreactor.utils.timing import RepeatedTimer, brief_pause, current_utc_time
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.dosing_automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
-
-
-def current_time():
-    return datetime.now().isoformat()
 
 
 class DosingAutomation(BackgroundSubJob):
@@ -37,7 +31,7 @@ class DosingAutomation(BackgroundSubJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
-    latest_settings_started_at = current_time()
+    latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
 
@@ -190,7 +184,7 @@ class DosingAutomation(BackgroundSubJob):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def on_disconnect(self):
-        self.latest_settings_ended_at = current_time()
+        self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
         try:
@@ -206,9 +200,9 @@ class DosingAutomation(BackgroundSubJob):
     def __setattr__(self, name, value) -> None:
         super(DosingAutomation, self).__setattr__(name, value)
         if name in self.editable_settings and name != "state":
-            self.latest_settings_ended_at = current_time()
+            self.latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
-            self.latest_settings_started_at = current_time()
+            self.latest_settings_started_at = current_utc_time()
             self.latest_settings_ended_at = None
 
     def _set_growth_rate(self, message):

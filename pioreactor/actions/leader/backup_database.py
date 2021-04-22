@@ -8,10 +8,9 @@ from pioreactor.logging import create_logger
 def backup_database(output):
     """
     This action will create a backup of the SQLite3 database into specified output. It then
-    will try to scp the backup to any available worker Pioreactors as a futher backup.
+    will try to copy the backup to any available worker Pioreactors as a further backup.
 
-    A cronjob is set up as well to run this action every 12 hours.
-
+    A cronjob is set up as well to run this action every N days.
     """
     import sqlite3
     from sh import rsync, ErrorReturnCode

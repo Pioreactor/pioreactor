@@ -15,9 +15,9 @@ CHANNELS = ["A", "B", "C", "D"]
 
 def get_current_state_from_broker(unit):
     # this ignores the status of "power on"
-    msg = subscribe(
-        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity", timeout=0.5
-    )
+    # TODO: this is kinda bad, overall. To keep state in MQTT, and if
+    #       we timeout, we basically reset state completely.
+    msg = subscribe(f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity", timeout=5)
     if msg:
         return json.loads(msg.payload)
     else:

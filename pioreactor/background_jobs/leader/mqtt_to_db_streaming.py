@@ -7,19 +7,15 @@ import os
 import click
 import json
 from collections import namedtuple
-from datetime import datetime
 
 
 from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
+from pioreactor.utils.timing import current_utc_time
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
-
-
-def current_utc_time():
-    return datetime.utcnow().isoformat()
 
 
 def produce_metadata(topic):
