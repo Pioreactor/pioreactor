@@ -3,3 +3,4 @@ paho-mqtt
 psutil
 sh
 JSON-log-formatter
+importlib_metadata

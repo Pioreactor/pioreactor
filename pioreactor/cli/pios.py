@@ -22,23 +22,6 @@ from pioreactor.config import get_active_workers_in_inventory, get_leader_hostna
 from pioreactor.logging import create_logger
 
 
-ALL_WORKER_JOBS = [
-    "stirring",
-    "growth_rate_calculating",
-    "dosing_control",
-    "led_control",
-    "stirring",
-    "od_reading",
-    "add_alt_media",
-    "add_media",
-    "remove_waste",
-    "od_normalization",
-    "monitor",
-    "led_intensity",
-    "temperature_control",
-]
-
-
 def universal_identifier_to_all_units(units):
     if units == (UNIVERSAL_IDENTIFIER,):
         units = get_active_workers_in_inventory()
@@ -183,28 +166,39 @@ def sync_configs(units):
     type=click.STRING,
     help="specify a hostname, default is all active units",
 )
+@click.option("--all", is_flag=True, help="kill all worker jobs")
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
-def kill(job, units, y):
+def kill(job, units, all, y):
     """
     Send a SIGTERM signal to JOB. JOB can be any Pioreactor job name, like "stirring".
     Example:
 
     > pios kill stirring
 
+
     multiple jobs accepted:
 
     > pios kill stirring dosing_control
+
+
+    Kill all worker jobs (i.e. this excludes leader jobs like watchdog). Ignores `job` argument.
+
+    > pios kill --all
+
 
 
     """
     from sh import ssh
 
     if not y:
-        confirm = input(f"Confirm killing `{job}` on {units}? Y/n: ").strip()
+        confirm = input(
+            f"Confirm killing {str(job) if (not all) else 'all jobs'} on {units}? Y/n: "
+        ).strip()
         if confirm != "Y":
             return
 
     command = f"pio kill {' '.join(job)}"
+    command += "--all" if all else ""
 
     def _thread_function(unit):
         click.echo(f"Executing `{command}` on {unit}.")
@@ -227,7 +221,7 @@ def kill(job, units, y):
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
     short_help="run a job on workers",
 )
-@click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
+@click.argument("job", type=click.STRING)
 @click.option(
     "--units",
     multiple=True,
@@ -293,7 +287,7 @@ def run(ctx, job, units, y):
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
     short_help="update settings on a job on workers",
 )
-@click.argument("job", type=click.Choice(ALL_WORKER_JOBS, case_sensitive=True))
+@click.argument("job", type=click.STRING)
 @click.option(
     "--units",
     multiple=True,

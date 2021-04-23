@@ -286,6 +286,10 @@ class ODReader(BackgroundJob):
         )
         self.channel_label_map = channel_label_map
         self.fake_data = fake_data
+
+        # start IR led before ADC starts, as it needs it.
+        self.start_ir_led()
+
         self.adc_reader = ADCReader(
             interval=sampling_rate,
             fake_data=fake_data,
@@ -297,7 +301,6 @@ class ODReader(BackgroundJob):
 
         # somewhere here we should test the relationship between light and ADC readings
 
-        self.start_ir_led()
         self.start_passive_listeners()
         if stop_IR_led_between_ADC_readings:
             self.set_IR_led_during_ADC_readings()

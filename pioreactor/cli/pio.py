@@ -42,22 +42,34 @@ def logs():
 
 @pio.command(name="kill", short_help="kill job(s)")
 @click.argument("job", nargs=-1)
-def kill(job):
+@click.option("--all", is_flag=True, help="kill all Pioreactor jobs running")
+def kill(job, all):
     """
     send SIGTERM signal to JOB
     """
 
     from sh import pkill
 
-    for j in job:
+    def safe_pkill(*args):
         try:
-            pkill("-f", f"run {j}")
+            pkill(*args)
         except Exception:
             pass
+
+    if all:
+        safe_pkill("-f", "pio run ")
+    else:
+        for j in job:
+            safe_pkill("-f", f"pio run {j}")
 
 
 @pio.group(short_help="run a job")
 def run():
+    pass
+
+
+@pio.group(name="run-always", short_help="run a permanent job")
+def run_always():
     pass
 
 
@@ -130,7 +142,7 @@ def update(ui, app):
 
 
 # this runs on both leader and workers
-run.add_command(jobs.monitor.click_monitor)
+run_always.add_command(jobs.monitor.click_monitor)
 
 if am_I_active_worker():
     run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
@@ -153,8 +165,8 @@ if am_I_active_worker():
 
 
 if am_I_leader():
-    run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
-    run.add_command(jobs.watchdog.click_watchdog)
+    run_always.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
+    run_always.add_command(jobs.watchdog.click_watchdog)
 
     run.add_command(actions.export_experiment_data.click_export_experiment_data)
     run.add_command(actions.backup_database.click_backup_database)

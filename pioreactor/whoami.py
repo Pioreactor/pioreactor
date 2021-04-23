@@ -41,10 +41,10 @@ def is_testing_env():
 def get_hostname():
     import socket
 
-    if is_testing_env():
-        return "localhost"
-    elif os.environ.get("HOSTNAME"):
+    if os.environ.get("HOSTNAME"):
         return os.environ.get("HOSTNAME")
+    elif is_testing_env():
+        return "localhost"
     else:
         return socket.gethostname()
 
@@ -53,13 +53,7 @@ def get_unit_name():
 
     hostname = get_hostname()
 
-    if hostname == "leader":
-        # running from the leader Rpi
-        return "leader"
-    elif hostname == "localhost":
-        # running tests
-        return "testing_unit"
-    elif hostname == "raspberrypi":
+    if hostname == "raspberrypi":
         raise ValueError("Did you forget to set the hostname?")
     else:
         return hostname

@@ -9,7 +9,7 @@ from pioreactor.version import __version__  # noqa: F401
 
 
 def get_plugins():
-    pioreactor_plugins = entry_points()["pioreactor.plugins"]
+    pioreactor_plugins = entry_points().get("pioreactor.plugins", [])
     plugins = {}
     for plugin in pioreactor_plugins:
         plugins[plugin.name] = plugin.load()
