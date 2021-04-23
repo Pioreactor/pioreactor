@@ -8,6 +8,7 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 import sys
 import click
+import pioreactor
 from pioreactor.whoami import am_I_leader, am_I_active_worker, get_unit_name
 from pioreactor.config import config
 from pioreactor import background_jobs as jobs
@@ -61,10 +62,16 @@ def run():
 
 
 @pio.command(name="version", short_help="print the version")
-def version():
-    import pioreactor
+@click.option("--verbose", "-v", is_flag=True, help="show more system information")
+def version(verbose):
 
     click.echo(pioreactor.__version__)
+    if verbose:
+        import platform
+        import board
+
+        click.echo(platform.platform())
+        click.echo(board.detector.get_device_model())
 
 
 @pio.command(name="update", short_help="update the Pioreactor software (app and ui)")
@@ -131,6 +138,12 @@ if am_I_active_worker():
     run.add_command(actions.add_media.click_add_media)
     run.add_command(actions.remove_waste.click_remove_waste)
     run.add_command(actions.od_normalization.click_od_normalization)
+
+    for plugin in pioreactor.plugins.values():
+        for possible_entry_point in dir(plugin):
+            if possible_entry_point.startswith("click_"):
+                run.add_command(getattr(plugin, possible_entry_point))
+
 
 if am_I_leader():
     run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
