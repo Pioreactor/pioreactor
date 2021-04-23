@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-from importlib.metadata import entry_points
+try:
+    from importlib.metadata import entry_points
+except ImportError:  # TODO: this is available in 3.8+
+    from importlib_metadata import entry_points
+
+
 from pioreactor.version import __version__  # noqa: F401
 
 

@@ -61,6 +61,13 @@ def run():
     pass
 
 
+@pio.command(name="list-plugins", short_help="list the installed plugins")
+def list_plugins():
+
+    for plugin in pioreactor.plugins.keys():
+        click.echo(plugin)
+
+
 @pio.command(name="version", short_help="print the version")
 @click.option("--verbose", "-v", is_flag=True, help="show more system information")
 def version(verbose):
