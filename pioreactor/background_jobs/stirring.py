@@ -135,6 +135,9 @@ class Stirrer(BackgroundJob):
             pass
 
         def sneak_in():
+            if self.state != self.READY:
+                return
+
             factor = (
                 1.4
             )  # this could be a config param? Once RPM is established, maybe a max is needed.

@@ -4,7 +4,7 @@
 def pio_jobs_running():
     import psutil
 
-    jobs = []
+    jobs = set([])
     for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
         try:
             if (
@@ -14,7 +14,7 @@ def pio_jobs_running():
             ):
                 # TODO: needs to be more specific, this fails often
                 job = proc.info["cmdline"][3]
-                jobs.append(job)
+                jobs.add(job)
         except Exception:
             pass
     return jobs

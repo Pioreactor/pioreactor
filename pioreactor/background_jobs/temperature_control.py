@@ -18,8 +18,10 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.temperature_automation import Silent, PIDStable
 from pioreactor.logging import create_logger
-from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.config import config
+from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
+from pioreactor.utils import pio_jobs_running
 
 
 def read_temperature():
@@ -49,6 +51,7 @@ class TemperatureController(BackgroundJob):
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 
+        self.ema = ExponentialMovingAverage(0.25)
         self.publish_temperature_timer = RepeatedTimer(
             1 / config.getfloat("temperature_config.sampling", "samples_per_second"),
             self.read_and_publish_temperature,
@@ -62,10 +65,25 @@ class TemperatureController(BackgroundJob):
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/temperature", temp
         )
 
-        max_temp = 52.0
-        if temp > max_temp:
+        self._check_if_exceeds_max_temp(temp)
+        self._check_for_sudden_temperature_decrease(temp)
+
+        self.ema.update(temp)
+
+    def _check_for_sudden_temperature_decrease(self, latest_temp):
+        # TODO: this needs to be tested in the field
+        if (latest_temp < 0.75 * self.ema.value) and (
+            "dosing_control" in pio_jobs_running()
+        ):
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations, and temperature control will be halted. Take caution when touching the heating surface and wetware."
+                "Noticed a sudden temperature change. This may be caused be a leakage. Suggestion is to check for liquid outside vial."
+            )
+
+    def _check_if_exceeds_max_temp(self, latest_temp):
+        max_temp = 52.0
+        if latest_temp > max_temp:
+            self.logger.warning(
+                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations. Temperature control will be halted. Take caution when touching the heating surface and wetware."
             )
             self.set_state("disconnected")
 
