@@ -75,7 +75,7 @@ class Stirrer(BackgroundJob):
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
         time.sleep(0.5)
-        self.pwm.ChangeDutyCycle(38)
+        self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
@@ -116,7 +116,7 @@ class Stirrer(BackgroundJob):
 
     def start_or_stop_sneaking(self, msg):
         if msg.payload:
-            self.sneak_action_between_readings(0.6, 1.5)
+            self.sneak_action_between_readings(0.6, 2.5)
         else:
             try:
                 self.sneak_in_timer.cancel()
@@ -138,9 +138,13 @@ class Stirrer(BackgroundJob):
             if self.state != self.READY:
                 return
 
-            self.start_stirring()
+            factor = (
+                1.4
+            )  # this could be a config param? Once RPM is established, maybe a max is needed.
+            original_dc = self.duty_cycle
+            self.set_duty_cycle(factor * self.duty_cycle)
             time.sleep(ads_interval - (post_duration + pre_duration))
-            self.stop_stirring()
+            self.set_duty_cycle(original_dc)
 
         # this could fail in the following way:
         # in the same experiment, the od_reading fails so that the ADC attributes are never
