@@ -138,13 +138,9 @@ class Stirrer(BackgroundJob):
             if self.state != self.READY:
                 return
 
-            factor = (
-                1.4
-            )  # this could be a config param? Once RPM is established, maybe a max is needed.
-            original_dc = self.duty_cycle
-            self.set_duty_cycle(factor * self.duty_cycle)
+            self.start_stirring()
             time.sleep(ads_interval - (post_duration + pre_duration))
-            self.set_duty_cycle(original_dc)
+            self.stop_stirring()
 
         # this could fail in the following way:
         # in the same experiment, the od_reading fails so that the ADC attributes are never
