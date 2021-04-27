@@ -116,7 +116,7 @@ class Stirrer(BackgroundJob):
 
     def start_or_stop_sneaking(self, msg):
         if msg.payload:
-            self.sneak_action_between_readings(0.6, 2.5)
+            self.sneak_action_between_readings(0.6, 1.5)
         else:
             try:
                 self.sneak_in_timer.cancel()
