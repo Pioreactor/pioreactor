@@ -75,7 +75,10 @@ class Stirrer(BackgroundJob):
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
         time.sleep(0.5)
-        self.pwm.ChangeDutyCycle(self.duty_cycle)
+        try:
+            self.pwm.ChangeDutyCycle(self._previous_duty_cycle)
+        except AttributeError:
+            self.pwm.ChangeDutyCycle(self.duty_cycle)
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
@@ -116,7 +119,7 @@ class Stirrer(BackgroundJob):
 
     def start_or_stop_sneaking(self, msg):
         if msg.payload:
-            self.sneak_action_between_readings(0.6, 1.0)
+            self.sneak_action_between_readings(0.6, 1.5)
         else:
             try:
                 self.sneak_in_timer.cancel()
