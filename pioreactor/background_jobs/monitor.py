@@ -115,7 +115,7 @@ class Monitor(BackgroundJob):
                 if status & 0x1:
                     hr_status += "Active undervoltage. "
 
-                return hr_status | "Okay."
+                return hr_status or "Okay."
 
             epoll = select.epoll()
             file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
