@@ -75,10 +75,7 @@ class Stirrer(BackgroundJob):
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
         time.sleep(0.5)
-        try:
-            self.pwm.ChangeDutyCycle(self._previous_duty_cycle)
-        except AttributeError:
-            self.pwm.ChangeDutyCycle(self.duty_cycle)
+        self.pwm.ChangeDutyCycle(38)
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
