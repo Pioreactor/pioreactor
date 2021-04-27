@@ -61,6 +61,7 @@ def kill(job, all):
     else:
         for j in job:
             safe_pkill("-f", f"pio run {j}")
+            safe_pkill("-f", f"pio run-always {j}")
 
 
 @pio.group(short_help="run a job")

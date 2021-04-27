@@ -96,16 +96,17 @@ class Monitor(BackgroundJob):
     def watch_for_power_problems(self):
         # copied from https://github.com/raspberrypi/linux/pull/2397
         # and https://github.com/N2Github/Proje
+        import select
 
         def status_to_human_readable(status):
             hr_status = ""
 
             if status & 0x40000:
-                hr_status += "Throttling has occured. "
+                hr_status += "Throttling has occurred. "
             if status & 0x20000:
-                hr_status += "ARM freqency capping has occured. "
+                hr_status += "ARM freqency capping has occurred. "
             if status & 0x10000:
-                hr_status += "Undervoltage has occured. "
+                hr_status += "Undervoltage has occurred. "
             if status & 0x4:
                 hr_status += "Active throttling. "
             if status & 0x2:
@@ -113,12 +114,9 @@ class Monitor(BackgroundJob):
             if status & 0x1:
                 hr_status += "Active undervoltage. "
 
-            return hr_status
-
-        import select
+            return hr_status | "Okay."
 
         epoll = select.epoll()
-
         file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
         epoll.register(file.fileno(), select.EPOLLPRI | select.EPOLLERR)
         status = int(file.read(), 16)
@@ -128,7 +126,7 @@ class Monitor(BackgroundJob):
             epoll.poll()
             file.seek(0)
             status = int(file.read(), 16)
-            self.logger.debug(f"Power status: {status_to_human_readable(status)}")
+            self.logger.warn(f"Power status: {status_to_human_readable(status)}")
 
         epoll.unregister(file.fileno())
         file.close()
