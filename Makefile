@@ -24,25 +24,25 @@ systemd-all:
 	sudo systemctl enable pioreactor_startup@monitor.service
 
 systemd-worker:
-	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup@.service /lib/systemd/system/
 	sudo systemctl daemon-reload
 
 systemd-leader:
-	sudo cp /home/pi/pioreactor/startup/systemd/pioreactor_startup@.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup@.service /lib/systemd/system/
 
 	sudo systemctl daemon-reload
 	sudo systemctl enable pioreactor_startup@mqtt_to_db_streaming.service
 	sudo systemctl enable pioreactor_startup@watchdog.service
 
-	sudo cp /home/pi/pioreactor/startup/systemd/start_pioreactorui.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/start_pioreactorui.service /lib/systemd/system/
 	sudo chmod 644 /lib/systemd/system/start_pioreactorui.service
 	sudo systemctl enable start_pioreactorui.service
 
-	sudo cp /home/pi/pioreactor/startup/systemd/avahi-alias.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/avahi-alias.service /lib/systemd/system/
 	sudo chmod 644 /lib/systemd/system/avahi-alias.service
 	sudo systemctl enable avahi-alias.service
 
-	sudo cp /home/pi/pioreactor/startup/systemd/timezone.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/timezone.service /lib/systemd/system/
 	sudo chmod 644 /lib/systemd/system/timezone.service
 	sudo systemctl enable timezone.service
 
@@ -82,6 +82,9 @@ install-pioreactor-worker:
 logging-files:
 	sudo touch /var/log/pioreactor.log
 	sudo chown pi /var/log/pioreactor.log
+
+	# add a logrotate entry
+	sudo cp /home/pi/pioreactor/system/logrotate/pioreactor /etc/logrotate.d/pioreactor
 
 install-db:
 	bash /home/pi/pioreactor/bash_scripts/install_db.sh
