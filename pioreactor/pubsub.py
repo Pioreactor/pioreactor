@@ -113,6 +113,9 @@ def subscribe(
     Modeled closely after the paho version, this also includes some try/excepts and
     a timeout. Note that this _does_ disconnect after receiving a single message.
 
+    A failure case occurs if this is called in a thread (eg: a callback) and is waiting
+    indefinitely for a message. The parent job may not exit properly.
+
     """
     import paho.mqtt.client as mqtt
 
@@ -144,7 +147,6 @@ def subscribe(
             client.connect(leader_hostname)
 
             if timeout:
-                # TODO: this could be `loop(timeout=timeout)` instead of `loop_forever`
                 threading.Timer(timeout, lambda: client.disconnect()).start()
 
             client.loop_forever()

@@ -17,7 +17,7 @@ def get_current_state_from_broker(unit):
     # this ignores the status of "power on"
     # TODO: this is kinda bad, overall. To keep state in MQTT, and if
     #       we timeout, we basically reset state completely.
-    msg = subscribe(f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity", timeout=5)
+    msg = subscribe(f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity", timeout=2)
     if msg:
         return json.loads(msg.payload)
     else:
@@ -111,21 +111,32 @@ def led_intensity(
 
 
 @click.command(name="led_intensity")
-@click.option("--channel", type=click.Choice(CHANNELS, case_sensitive=False))
 @click.option(
-    "--intensity", help="value between 0 and 100", type=click.FloatRange(0, 100)
+    "--channel",
+    type=click.Choice(CHANNELS, case_sensitive=False),
+    multiple=True,
+    required=True,
+)
+@click.option(
+    "--intensity",
+    help="value between 0 and 100",
+    type=click.FloatRange(0, 100),
+    required=True,
 )
 @click.option(
     "--source-of-event",
-    default="app",
+    default="CLI",
     type=str,
-    help="who is calling this function - data goes into database and MQTT",
+    help="whom is calling this function (for logging)",
 )
 def click_led_intensity(channel, intensity, source_of_event):
     """
-    Modify the intensity of an LED
+    Modify the intensity of LED channel(s)
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    return led_intensity(channel, intensity, source_of_event, unit, experiment)
+    status = True
+    for channel_ in channel:
+        status &= led_intensity(channel_, intensity, source_of_event, unit, experiment)
+    return status

@@ -113,7 +113,7 @@ def clean_up_gpio():
 @click.option("--duty-cycle", default=66, type=int, show_default=True)
 @click.option(
     "--source-of-event",
-    default="app",
+    default="CLI",
     type=str,
     help="who is calling this function - data goes into database and MQTT",
 )

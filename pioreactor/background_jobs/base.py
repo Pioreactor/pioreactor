@@ -10,7 +10,7 @@ from json import dumps
 
 from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import QOS, create_client
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER  # , is_testing_env
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER, is_testing_env
 from pioreactor.logging import create_logger
 
 faulthandler.enable()
@@ -25,12 +25,11 @@ def split_topic_for_setting(topic):
     return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
-class BackgroundJob:
+class _BackgroundJob:
 
     """
     This class handles the fanning out of class attributes, and the setting of those attributes. Use
     `pioreactor/<unit>/<experiment>/<job_name>/<attr>/set` to set an attribute.
-
 
     So this class controls most of the Homie convention that we follow:
 
@@ -43,6 +42,13 @@ class BackgroundJob:
         4. If the job exits otherwise (kill -9 or power loss), the state is `lost`, and a last-will saying so is broadcast.
     2. Attributes are broadcast under $properties, and each has $settable set to True. This isn't used at the moment.
 
+    Parameters
+    -----------
+
+    job_name: str
+        the name of the job
+    source: str
+        the source of where this job lives. "app" if main code base, <plugin name> if from a plugin, etc. This is used in logging.
     """
 
     # Homie lifecycle (normally per device (i.e. an rpi) but we are using it for "nodes", in Homie parlance)
@@ -60,7 +66,9 @@ class BackgroundJob:
     # be published to MQTT and available to be edited (but not all _should_ be edited)
     editable_settings = []
 
-    def __init__(self, job_name: str, experiment=None, unit=None) -> None:
+    def __init__(
+        self, job_name: str, source: str, experiment: str = None, unit: str = None
+    ):
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
@@ -71,6 +79,7 @@ class BackgroundJob:
             self.job_name,
             unit=self.unit,
             experiment=self.experiment,
+            source=source
             # TODO: the following should work, but doesn't. When we disconnect a subjob, like when changing dosing_automations,
             # the new subjob does _not_ log anything to MQTT - it's like the logger is still using the (disconnected) subjobs pub_client.
             # For now, we will just create a new client each time.
@@ -268,8 +277,8 @@ class BackgroundJob:
             self.logger.debug("Calling sys.exit(0)")
 
             # don't exit in test mode
-            # if is_testing_env():
-            #    return
+            if is_testing_env():
+                return
 
             sys.exit(0)
 
@@ -341,10 +350,9 @@ class BackgroundJob:
 
         self.logger.info(self.DISCONNECTED)
 
-        # disconnect from the passive subscription threads
         # this HAS to happen last, because this contains our publishing client
         for client in self.pubsub_clients:
-            client.loop_stop()  # pretty sure this doesn't close the thread if if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+            client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
         # a disconnect callback calls sys.exit(), so no code below will run.
 
@@ -414,26 +422,16 @@ class BackgroundJob:
             raise ValueError(f"{self.job_name} is already running. Aborting.")
 
     def __setattr__(self, name: str, value) -> None:
-        super(BackgroundJob, self).__setattr__(name, value)
+        super(_BackgroundJob, self).__setattr__(name, value)
         if (name in self.editable_settings) and hasattr(self, name):
             self.publish_attr(name)
 
 
-# w.r.t. the code below: I don't think this is the "correct" place to put this business
-# logic - it is a bandaid fix.
+class BackgroundJob(_BackgroundJob):
+    def __init__(self, *args, **kwargs):
+        super(BackgroundJob, self).__init__(*args, **kwargs, source="app")
 
 
-# class WorkerBackgroundJob:
-#
-#     def kill_myself(self):
-#         self.set_state(self.DISCONNECTED)
-#
-#     def start_general_passive_listeners(self) -> None:
-#
-#         super(WorkerBackgroundJob, self).start_general_passive_listeners()
-#
-#         # list to a change in latest_experiment, as this means the user
-#         # is doing something new.
-#         self.subscribe_and_callback(
-#             self.kill_myself, f"pioreactor/latest_experiment", allow_retained=False
-#         )
+class PluginBackgroundJob(_BackgroundJob):
+    def __init__(self, plugin_name, *args, **kwargs):
+        super(PluginBackgroundJob, self).__init__(*args, **kwargs, source=plugin_name)

@@ -57,7 +57,7 @@ def test_subscribing(monkeypatch):
     )
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
-        '{"volume_change": "1.5", "event": "add_media"}',
+        '{"volume_change": "1.5", "event": "add_media", "source_of_event": "test"}',
     )
     publish(f"pioreactor/{unit}/{experiment}/stirring/duty_cycle", 45)
     publish(
@@ -71,7 +71,6 @@ def test_subscribing(monkeypatch):
     pause()
 
     assert calc.state_ is not None
-    calc.set_state("disconnected")
 
 
 def test_same_angles(monkeypatch):

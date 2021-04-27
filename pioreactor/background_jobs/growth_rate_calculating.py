@@ -53,10 +53,7 @@ class GrowthRateCalculator(BackgroundJob):
     def initialize_extended_kalman_filter(self):
         import numpy as np
 
-        latest_od = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
-            allow_retained=False,
-        )
+        latest_od = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched")
         angles_and_initial_points = self.scale_raw_observations(
             self.json_to_sorted_dict(latest_od.payload)
         )
@@ -173,11 +170,14 @@ class GrowthRateCalculator(BackgroundJob):
 
     def update_ekf_variance_after_event(self, minutes, factor):
         if is_testing_env():
-            interval = float(
-                subscribe(
-                    f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
-                ).payload
+            msg = subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval",
+                timeout=1.0,
             )
+            if msg:
+                interval = float(msg.payload)
+            else:
+                interval = 1
             self.ekf.scale_OD_variance_for_next_n_seconds(
                 factor, minutes * (12 * interval)
             )

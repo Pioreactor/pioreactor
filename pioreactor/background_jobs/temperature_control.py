@@ -26,7 +26,7 @@ from pioreactor.utils import pio_jobs_running
 
 def read_temperature():
     """
-    Read the current temperature from our sensor, in celcius
+    Read the current temperature from our sensor, in Celsius
 
 
     Note: this function is here for lack of a better place

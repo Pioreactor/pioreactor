@@ -60,7 +60,9 @@ class MQTTHandler(logging.Handler):
                 publish(self.topic, msg, hostname="mqtt.pioreactor.com")
 
 
-def create_logger(name, unit=None, experiment=None, pub_client=None, to_mqtt=True):
+def create_logger(
+    name, unit=None, experiment=None, source="app", pub_client=None, to_mqtt=True
+):
     """
 
     Parameters
@@ -69,6 +71,8 @@ def create_logger(name, unit=None, experiment=None, pub_client=None, to_mqtt=Tru
         the name of the logger
     pub_client: paho.mqtt.Client
         use an existing Client, else one is created
+    source:
+        "app" for the core Pioreactor codebase, else the name of the plugin.
     to_mqtt: bool
         connect and log to MQTT
 
@@ -119,7 +123,7 @@ def create_logger(name, unit=None, experiment=None, pub_client=None, to_mqtt=Tru
         exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 
         # create MQTT handlers for logs table
-        topic = f"pioreactor/{unit}/{exp}/logs/app"
+        topic = f"pioreactor/{unit}/{exp}/logs/{source}"
         mqtt_to_db_handler = MQTTHandler(topic, pub_client)
         mqtt_to_db_handler.setLevel(logging.DEBUG)
         mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())
