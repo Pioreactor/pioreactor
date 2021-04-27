@@ -70,6 +70,8 @@ class Stirrer(BackgroundJob):
             self.sneak_in_timer.cancel()
 
         self.stop_stirring()
+        self.pwm.stop()
+
         GPIO.cleanup()
 
     def start_stirring(self):

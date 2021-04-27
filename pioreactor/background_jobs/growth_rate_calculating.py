@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import signal, time, json
+import signal, time, json, math
 
 import click
 
@@ -78,7 +78,7 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[-1, -1] = acc_process_variance
 
         observation_noise_covariance = self.create_obs_noise_covariance(
-            angles_and_initial_points.keys()
+            angles_and_initial_points
         )
         return (
             ExtendedKalmanFilter(
@@ -90,16 +90,29 @@ class GrowthRateCalculator(BackgroundJob):
             angles_and_initial_points.keys(),
         )
 
-    def create_obs_noise_covariance(self, angles):
+    def create_obs_noise_covariance(self, angles_and_initial_points):
         import numpy as np
 
-        # if a sensor has X times the variance of the other, we should encode this in the obs. covariance.
-        obs_variances = np.array([self.od_variances[angle] for angle in angles])
-        obs_variances = obs_variances / obs_variances.min()
+        # our obs_variance is tuned well for std = state * 0.01,
+        # so if we _actually_ observe something like std = state * 0.03, we should scale
+        # that sensor's obs variance by 3
+        #
+        # eg: I observed 1.3e-07 in sensor A, with initial state  0.00958
+        # sqrt(1.3e-07) / 0.00958 / 0.01 = 3.76362 is our scaling factor
 
-        return config.getfloat("growth_rate_kalman", "obs_variance") ** 2 * np.diag(
-            obs_variances
+        scaling_obs_variances = np.array(
+            [
+                math.sqrt(self.od_variances[angle])
+                / angles_and_initial_points[angle]
+                / 0.01
+                for angle in angles_and_initial_points
+            ]
         )
+
+        obs_variances = config.getfloat(
+            "growth_rate_kalman", "obs_variance"
+        ) ** 2 * np.diag(scaling_obs_variances)
+        return obs_variances
 
     def set_precomputed_values(self):
         if self.ignore_cache:
