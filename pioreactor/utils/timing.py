@@ -76,6 +76,7 @@ class RepeatedTimer:
         self.kwargs = kwargs
         self.logger = logging.getLogger(job_name or "RepeatedTimer")
 
+        # TODO: should these lines actually go in .start() method? That makes more sense.
         if run_immediately:
             temp_thread = Timer(0, self.function, self.args, self.kwargs)
             temp_thread.daemon = True

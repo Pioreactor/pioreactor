@@ -3,6 +3,7 @@ import signal, json
 
 import click
 import time
+from threading import Thread
 
 import RPi.GPIO as GPIO
 
@@ -30,12 +31,21 @@ class Monitor(BackgroundJob):
         super(Monitor, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment
         )
-        self.disk_usage_timer = RepeatedTimer(
+
+        # report on CPU usage, memory, disk space
+        self.performance_statistics_timer = RepeatedTimer(
             12 * 60 * 60,
             self.publish_self_statistics,
             job_name=self.job_name,
             run_immediately=True,
         )
+        self.performance_statistics_timer.start()
+
+        # watch for undervoltage problems
+        self.power_watchdog_thread = Thread(
+            target=self.watch_for_power_problems, daemon=True
+        )
+        self.power_watchdog_thread.start()
 
         GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(LED_PIN, GPIO.OUT)
@@ -46,6 +56,7 @@ class Monitor(BackgroundJob):
         self.flicker_led()
 
     def on_disconnect(self):
+        self.performance_statistics_timer.cancel()
         GPIO.cleanup(LED_PIN)
 
     def led_on(self):
@@ -81,6 +92,46 @@ class Monitor(BackgroundJob):
             qos=QOS.AT_LEAST_ONCE,
         )
         self.led_off()
+
+    def watch_for_power_problems(self):
+        # copied from https://github.com/raspberrypi/linux/pull/2397
+        # and https://github.com/N2Github/Proje
+
+        def status_to_human_readable(status):
+            hr_status = ""
+
+            if status & 0x40000:
+                hr_status += "Throttling has occured. "
+            if status & 0x20000:
+                hr_status += "ARM freqency capping has occured. "
+            if status & 0x10000:
+                hr_status += "Undervoltage has occured. "
+            if status & 0x4:
+                hr_status += "Active throttling. "
+            if status & 0x2:
+                hr_status += "Active ARM frequency capped. "
+            if status & 0x1:
+                hr_status += "Active undervoltage. "
+
+            return hr_status
+
+        import select
+
+        epoll = select.epoll()
+
+        file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
+        epoll.register(file.fileno(), select.EPOLLPRI | select.EPOLLERR)
+        status = int(file.read(), 16)
+        self.logger.debug(f"Power status: {status_to_human_readable(status)}")
+
+        while True:
+            epoll.poll()
+            file.seek(0)
+            status = int(file.read(), 16)
+            self.logger.debug(f"Power status: {status_to_human_readable(status)}")
+
+        epoll.unregister(file.fileno())
+        file.close()
 
     def publish_self_statistics(self):
         import psutil
