@@ -69,7 +69,8 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected
-        initial_covariance = 1e-7 * np.diag([1.0] * (d - 2) + [1.0, 1.0])
+        initial_covariance = 1e-8 * np.diag([1.0] * (d - 2) + [1.0, 1.0])
+        self.logger.debug(f"Initial covariance matrix: {str(initial_covariance)}")
 
         acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
         acc_process_variance = (acc_variance * self.expected_dt) ** 2
@@ -80,6 +81,10 @@ class GrowthRateCalculator(BackgroundJob):
         observation_noise_covariance = self.create_obs_noise_covariance(
             angles_and_initial_points
         )
+        self.logger.debug(
+            f"Observation noise covariance matrix: {str(observation_noise_covariance)}"
+        )
+
         return (
             ExtendedKalmanFilter(
                 initial_state,

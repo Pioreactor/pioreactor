@@ -13,7 +13,7 @@ from pioreactor import pubsub
 logger = logging.getLogger("od_normalization")
 
 
-def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=20):
+def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
 
     logger.debug("Starting OD normalization")
 
