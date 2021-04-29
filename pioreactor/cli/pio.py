@@ -38,7 +38,7 @@ def logs():
         payload = loads(msg.payload.decode())
         click.echo(f"[{payload['task']}] {payload['level']} {payload['message']}")
 
-    tail("-n", 100, config["logging"]["log_file"])
+    click.echo(tail("-n", 100, config["logging"]["log_file"]))
 
     subscribe_and_callback(cb, "pioreactor/+/+/logs/+")
 
