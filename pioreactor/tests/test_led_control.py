@@ -21,8 +21,12 @@ def test_silent():
     LEDController("silent", unit=unit, experiment=experiment)
     pause()
     pause()
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", "0.01")
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", "1.0")
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", "0.01"
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", "1.0"
+    )
     pause()
     r = pubsub.subscribe(
         f"pioreactor/{unit}/{experiment}/led_control/led_automation", timeout=1
@@ -35,15 +39,23 @@ def test_track_od():
     con = LEDController("track_od", unit=unit, experiment=experiment)
     pause()
     pause()
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", "0.01")
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", "1.0")
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", "0.01"
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", "1.0"
+    )
     pause()
     pause()
     r = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/leds/B/intensity", timeout=1)
     assert float(r.payload.decode()) == 0.1
 
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/growth_rate", "0.01")
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/od_filtered/135/0", "2.0")
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", "0.01"
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", "2.0"
+    )
     pause()
     con.led_automation_job.run()
     pause()

@@ -403,7 +403,7 @@ class ODReader(BackgroundJob):
                 self.set_state(self.DISCONNECTED)
 
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
             json.dumps(od_readings),
             qos=QOS.EXACTLY_ONCE,
         )
@@ -419,7 +419,7 @@ class ODReader(BackgroundJob):
         label = self.channel_label_map[channel]
 
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/od_raw/{label}",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{label}",
             message.payload,
             qos=QOS.EXACTLY_ONCE,
         )

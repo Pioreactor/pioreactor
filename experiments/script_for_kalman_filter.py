@@ -38,7 +38,11 @@ if __name__ == "__main__":
         config["growth_rate_kalman"]["acc_variance"] = str(ac)
         config["growth_rate_kalman"]["obs_variance"] = str(ov)
 
-        publish(f"pioreactor/{unit}/{exp}/growth_rate", None, retain=True)
+        publish(
+            f"pioreactor/{unit}/{exp}/growth_rate_calculating/growth_rate",
+            None,
+            retain=True,
+        )
         publish(f"pioreactor/{unit}/{exp}/od_normalization/mean", None, retain=True)
         publish(f"pioreactor/{unit}/{exp}/od_normalization/variance", None, retain=True)
 
@@ -67,7 +71,8 @@ if __name__ == "__main__":
             append_actual_growth_rates, "pioreactor/mock/0/actual_gr"
         )
         c2 = subscribe_and_callback(
-            append_estimated_growth_rates, f"pioreactor/{unit}/{exp}/growth_rate"
+            append_estimated_growth_rates,
+            f"pioreactor/{unit}/{exp}/growth_rate_calculating/growth_rate",
         )
 
         print("Generating data...")

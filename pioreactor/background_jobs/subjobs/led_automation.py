@@ -212,10 +212,11 @@ class LEDAutomation(BackgroundSubJob):
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self._set_OD,
-            f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{self.sensor}",
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered/{self.sensor}",
         )
         self.subscribe_and_callback(
-            self._set_growth_rate, f"pioreactor/{self.unit}/{self.experiment}/growth_rate"
+            self._set_growth_rate,
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
         )
 
 

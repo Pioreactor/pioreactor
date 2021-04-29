@@ -222,12 +222,18 @@ def parse_automation_settings(topic, payload):
 def mqtt_to_db_streaming():
     topics_and_parsers = [
         Metadata(
-            "pioreactor/+/+/od_filtered/+/+", "od_readings_filtered", parse_od_filtered
+            "pioreactor/+/+/growth_rate_calculating/od_filtered/+/+",
+            "od_readings_filtered",
+            parse_od_filtered,
         ),
         Metadata("pioreactor/+/+/od_raw/+/+", "od_readings_raw", parse_od),
         Metadata("pioreactor/+/+/dosing_events", "dosing_events", parse_dosing_events),
         Metadata("pioreactor/+/+/led_events", "led_events", parse_led_events),
-        Metadata("pioreactor/+/+/growth_rate", "growth_rates", parse_growth_rate),
+        Metadata(
+            "pioreactor/+/+/growth_rate_calculating/growth_rate",
+            "growth_rates",
+            parse_growth_rate,
+        ),
         Metadata(
             "pioreactor/+/+/temperature_control/temperature",
             "temperature_readings",

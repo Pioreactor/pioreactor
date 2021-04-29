@@ -140,7 +140,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def get_growth_rate_from_broker(self):
         message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
             timeout=2,
             qos=QOS.EXACTLY_ONCE,
         )
@@ -233,7 +233,7 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             # TODO: EKF values can be nans...
             self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/growth_rate",
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
                 self.state_[-2],
                 retain=True,
             )
@@ -250,7 +250,7 @@ class GrowthRateCalculator(BackgroundJob):
 
             for i, angle_label in enumerate(self.angles):
                 self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/od_filtered/{angle_label}",
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_filtered/{angle_label}",
                     self.state_[i],
                 )
 
@@ -273,7 +273,7 @@ class GrowthRateCalculator(BackgroundJob):
         # process incoming data
         self.subscribe_and_callback(
             self.update_state_from_observation,
-            f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched",
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched",
             qos=QOS.EXACTLY_ONCE,
             allow_retained=False,
         )
