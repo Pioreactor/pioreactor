@@ -63,7 +63,7 @@ def backup_database(output, force):
     con.close()
 
     with open(LAST_BACKUP_TIMESTAMP_PATH, "w") as f:
-        f.write(current_utc_time)
+        f.write(current_utc_time())
 
     logger.info("Completed backup of database.")
 
@@ -83,7 +83,7 @@ def backup_database(output, force):
                 f"Unable to backup database to {backup_unit}. Is it online?",
                 exc_info=True,
             )
-            logger.warning(f"Unable to backup database to {backup_unit}.")
+            logger.warning(f"Unable to backup database to {backup_unit}. Is it online?")
         else:
             logger.debug(f"Backed up database to {backup_unit}:{output}.")
             backups_complete += 1

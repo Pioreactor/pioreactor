@@ -20,20 +20,20 @@ from pioreactor.logging import create_logger
 def pio():
     """
     Execute commands on this Pioreactor.
-    See full documentation here: https://github.com/Pioreactor/pioreactor/wiki/Command-line-interface
-    Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
+    See full documentation here: pioreactor.com/pages/Command-line-interface
+    Report errors or feedback here: github.com/Pioreactor/pioreactor/issues
     """
 
 
-@pio.command(name="logs", short_help="tail the log file")
+@pio.command(name="logs", short_help="show recent logs")
 def logs():
     """
     Tail and stream the logs from /var/log/pioreactor.log to the terminal. CTRL-C to exit.
     """
-    from sh import tail
+    from sh import less
 
     try:
-        tail_sh = tail("-f", "-n", 50, config["logging"]["log_file"], _iter=True)
+        tail_sh = less("+F", config["logging"]["log_file"], _iter=True)
         for line in tail_sh:
             click.echo(line, nl=False)
     except Exception:

@@ -413,9 +413,6 @@ class ODReader(BackgroundJob):
             return
 
         channel = message.topic.rsplit("/", maxsplit=1)[1]
-        if channel not in self.channel_label_map:
-            return
-
         label = self.channel_label_map[channel]
 
         self.publish(
@@ -434,7 +431,7 @@ class ODReader(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
             allow_retained=False,
         )
-        for channel in ["A0", "A1", "A2", "A3"]:
+        for channel in self.channel_label_map:
             self.subscribe_and_callback(
                 self.publish_single,
                 f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/{channel}",
