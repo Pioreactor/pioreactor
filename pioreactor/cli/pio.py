@@ -28,16 +28,22 @@ def pio():
 @pio.command(name="logs", short_help="show recent logs")
 def logs():
     """
-    Tail and stream the logs from /var/log/pioreactor.log to the terminal. CTRL-C to exit.
+    Tail and stream the logs the terminal. CTRL-C to exit.
     """
-    from sh import less
+    from sh import tail
+    from json import loads
+    from pioreactor.pubsub import subscribe_and_callback
 
-    try:
-        tail_sh = less("+F", config["logging"]["log_file"], _iter=True)
-        for line in tail_sh:
-            click.echo(line, nl=False)
-    except Exception:
-        tail_sh.kill()
+    def cb(msg):
+        payload = loads(msg.payload.decode())
+        click.echo(f"[{payload['task']}] {payload['level']} {payload['message']}")
+
+    tail("-n", 100, config["logging"]["log_file"])
+
+    subscribe_and_callback(cb, "pioreactor/+/+/logs/+")
+
+    while True:
+        pass
 
 
 @pio.command(name="kill", short_help="kill job(s)")
