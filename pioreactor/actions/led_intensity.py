@@ -2,22 +2,18 @@
 import json
 import click
 from pioreactor.pubsub import publish_multiple, subscribe, QOS
-from pioreactor.whoami import (
-    UNIVERSAL_EXPERIMENT,
-    get_unit_name,
-    get_latest_experiment_name,
-)
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.logging import create_logger
 
 
 CHANNELS = ["A", "B", "C", "D"]
 
 
-def get_current_state_from_broker(unit):
+def get_current_state_from_broker(unit, experiment):
     # this ignores the status of "power on"
     # TODO: this is kinda bad, overall. To keep state in MQTT, and if
     #       we timeout, we basically reset state completely.
-    msg = subscribe(f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity", timeout=2)
+    msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=2)
     if msg:
         return json.loads(msg.payload)
     else:
@@ -68,7 +64,7 @@ def led_intensity(
         )
         return False
     else:
-        state = get_current_state_from_broker(unit)
+        state = get_current_state_from_broker(unit, experiment)
         old_intensity = state[channel]
         state[channel] = intensity
 
@@ -88,13 +84,13 @@ def led_intensity(
         publish_multiple(
             [
                 (
-                    f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/{channel}/intensity",
+                    f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
                     intensity,
                     QOS.AT_MOST_ONCE,
                     True,
                 ),
                 (
-                    f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/leds/intensity",
+                    f"pioreactor/{unit}/{experiment}/leds/intensity",
                     json.dumps(state),
                     QOS.AT_MOST_ONCE,
                     True,
