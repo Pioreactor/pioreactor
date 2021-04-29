@@ -52,9 +52,9 @@ class TemperatureAutomation(BackgroundSubJob):
 
         self._pwm = self.setup_pwm()
 
+        self.logger.info(f"starting {self.__class__.__name__} with {duration}s intervals")
         self.set_duration(duration)
         self.start_passive_listeners()
-        self.logger.info(f"starting {self.__class__.__name__} with {duration}s intervals")
 
     def set_duration(self, value):
         self.duration = float(value)
@@ -72,7 +72,7 @@ class TemperatureAutomation(BackgroundSubJob):
                 ).start()
 
     def run(self, counter=None):
-        time.sleep(8)  # wait some time for data to arrive
+        time.sleep(2)  # wait some time for data to arrive
         if self.latest_temperature is None:
             self.logger.debug("Waiting for temperature data to arrive")
 

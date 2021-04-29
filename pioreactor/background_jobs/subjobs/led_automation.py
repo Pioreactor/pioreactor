@@ -86,10 +86,12 @@ class LEDAutomation(BackgroundSubJob):
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
-            event = events.NoEvent("waiting for OD and growth rate data to arrive")
+            time.sleep(20)
+            return self.run(counter=counter)
 
         elif self.state != self.READY:
-            event = events.NoEvent(f"currently in state {self.state}")
+            time.sleep(5)
+            return self.run(counter=counter)
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(

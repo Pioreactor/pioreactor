@@ -42,8 +42,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
     So this class controls most of the Homie convention that we follow:
 
     1. The device lifecycle: init -> ready -> disconnect (or lost).
-        1. The job starts in `init`, where we publish `editable_settings` is a list of variables that will be sent
-            to the broker on initialization and retained.
+        1. The job starts in `init`,
+            - we publish `editable_settings` is a list of variables that will be sent to the broker on initialization and retained.
+            - we set up how to disconnect
+            - the child class runs their __init__ method
         2. The job moves to `ready`.
         3. We catch key interrupts and kill signals from the underlying machine, and set the state to
            `disconnected`.

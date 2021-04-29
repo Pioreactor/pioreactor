@@ -88,7 +88,8 @@ class DosingAutomation(BackgroundSubJob):
             return
 
         elif self.state != self.READY:
-            event = events.NoEvent(f"currently in state {self.state}")
+            time.sleep(5)
+            return self.run(counter=counter)
 
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             # this should really only happen on the initialization.
