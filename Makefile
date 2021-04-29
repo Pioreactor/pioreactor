@@ -5,7 +5,6 @@ install-mqtt:
 	sudo apt install -y mosquitto mosquitto-clients
 	sudo systemctl enable mosquitto.service
 
-
 configure-mqtt:
 	# append if not already present
 	grep -qxF 'autosave_interval 300' /etc/mosquitto/mosquitto.conf || echo "autosave_interval 300" | sudo tee /etc/mosquitto/mosquitto.conf -a
@@ -15,8 +14,8 @@ configure-mqtt:
 	grep -qxF 'protocol websockets'   /etc/mosquitto/mosquitto.conf || echo "protocol websockets"   | sudo tee /etc/mosquitto/mosquitto.conf -a
 
 install-i2c:
-	sudo apt-get install -y python-smbus
-	sudo apt-get install -y i2c-tools
+	sudo apt install -y python-smbus
+	sudo apt install -y i2c-tools
 	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
 	echo "i2c-dev"               | sudo tee /etc/modules -a
 
@@ -48,7 +47,7 @@ systemd-leader:
 
 install-pioreactor-leader:
 	# the following is needed for numpy on Rpi
-	sudo apt-get install -y python3-numpy
+	sudo apt install -y python3-numpy
 
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
 	mkdir -p /home/pi/.pioreactor
@@ -61,7 +60,7 @@ install-pioreactor-leader:
 
 	# the below will remove swap, which should help extend the life of SD cards:
 	# https://raspberrypi.stackexchange.com/questions/169/how-can-i-extend-the-life-of-my-sd-card
-	sudo apt-get remove dphys-swapfile -y
+	sudo apt remove dphys-swapfile -y
 
 install-log2ram:
 	sudo echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
@@ -72,7 +71,7 @@ install-log2ram:
 
 install-pioreactor-worker:
 	# the following is needed for numpy on Rpi
-	sudo apt-get install -y python3-numpy
+	sudo apt install -y python3-numpy
 
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
 	mkdir -p /home/pi/.pioreactor
@@ -90,8 +89,14 @@ install-db:
 	bash /home/pi/pioreactor/bash_scripts/install_db.sh
 
 configure-rpi:
+	# assign minimial memory to GPU
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 
+	# disable bluetooth
+	sudo systemctl disable hciuart
+	echo "dtoverlay=disable-bt" | sudo tee -a /boot/config.txt
+
+	# disable HDMI
 	# add to second line of script...
 	sudo sed -i '2s/^/\/usr\/bin\/tvservice -o\n/' /etc/rc.local
 
@@ -117,7 +122,7 @@ install-ui:
 
 	# we add another entry to mDNS: pioreactor.local (can be modified in config.ini), and we need the following:
 	# see avahi-alias.service for how this works
-	sudo apt-get install avahi-utils -y
+	sudo apt install avahi-utils -y
 
 	# used in piping UI output to our db logs
 	sudo apt install -y jq
@@ -172,4 +177,4 @@ install-worker-from-args: install-python configure-hostname-from-args configure-
 install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
 	rm -f /home/pi/.ssh/id_rsa
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
-	sudo apt-get install sshpass
+	sudo apt install sshpass
