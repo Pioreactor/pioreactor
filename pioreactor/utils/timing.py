@@ -100,7 +100,12 @@ class RepeatedTimer:
 
     def cancel(self):
         self.event.set()
-        self.thread.join()
+        try:
+            self.thread.join()
+        except RuntimeError:
+            # possible to happen if self.thread hasn't started yet,
+            # so cancelling doesn't make sense.
+            pass
 
     def start(self):
         self.start_time = time.time()
