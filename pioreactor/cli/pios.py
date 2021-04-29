@@ -198,16 +198,18 @@ def kill(job, units, all, y):
             return
 
     command = f"pio kill {' '.join(job)}"
-    command += (
-        "--all ; pio run led_intensity --intensity 0 --channel A --channel B --channel C --channel D"
-        if all
-        else ""
-    )
+    command += "--all" if all else ""
 
     def _thread_function(unit):
         click.echo(f"Executing `{command}` on {unit}.")
         try:
             ssh(unit, command)
+            if all:  # tech debt
+                ssh(
+                    unit,
+                    "pio run led_intensity --intensity 0 --channel A --channel B --channel C --channel D",
+                )
+
         except Exception as e:
             logger = create_logger(
                 "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
