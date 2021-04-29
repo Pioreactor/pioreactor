@@ -169,13 +169,15 @@ class ADCReader(BackgroundSubJob):
                 raw_signals.append(raw_signal_)
 
             max_signal = max(raw_signals)
-            if max_signal > 3.1:
-                self.logger.error(
-                    f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. We are shutting it down to keep the ADC safe."
-                )
-                self.set_state("disconnected")
-
+            self.check_on_max(max_signal)
             self.check_on_gain(max_signal)
+
+    def check_on_max(self, value):
+        if value > 3.1:
+            self.logger.error(
+                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting it down to keep the ADC safe."
+            )
+            self.set_state("disconnected")
 
     def check_on_gain(self, value):
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
@@ -223,11 +225,7 @@ class ADCReader(BackgroundSubJob):
                         f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
                 # check if more than 3V, and shut down something? to prevent damage to ADC.
-                if (raw_signal_ >= 3.1) and not self.fake_data:
-                    self.logger.error(
-                        f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. We are shutting it down to keep the ADC safe."
-                    )
-                    self.set_state("disconnected")
+                self.check_on_max(raw_signal_)
 
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
@@ -284,6 +282,9 @@ class ODReader(BackgroundJob):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
         )
+        self.logger.debug(
+            f"Starting od_reading with sampling_rate {sampling_rate}s and channels {channel_label_map}."
+        )
         self.channel_label_map = channel_label_map
         self.fake_data = fake_data
 
@@ -300,7 +301,6 @@ class ODReader(BackgroundJob):
         self.adc_reader.start_periodic_reading()
 
         # somewhere here we should test the relationship between light and ADC readings
-
         self.start_passive_listeners()
         if stop_IR_led_between_ADC_readings:
             self.set_IR_led_during_ADC_readings()

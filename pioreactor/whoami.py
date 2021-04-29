@@ -44,7 +44,7 @@ def get_hostname():
     if os.environ.get("HOSTNAME"):
         return os.environ.get("HOSTNAME")
     elif is_testing_env():
-        return "localhost"
+        return "testing_unit"
     else:
         return socket.gethostname()
 

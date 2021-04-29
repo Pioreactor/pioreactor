@@ -7,6 +7,10 @@
  - New database table, `kalman_filter_outputs`, stores the output of the internal Kalman Filter.
  - workers report back to leader additional system information including available memory and CPU usage.
  - Added new temperature control and temperature automations for this app and to the UI.
+ - Added undervoltage alerts to logging
+ - Added initial version of a plugin system
+ - `pio run-always` for jobs not tied to an experiment (monitor, watchdog, etc.)
+ - faster database backup sync between Pioreactors
 
 
 ### 21.3.18
