@@ -226,7 +226,7 @@ def mqtt_to_db_streaming():
             "od_readings_filtered",
             parse_od_filtered,
         ),
-        Metadata("pioreactor/+/+/od_raw/+/+", "od_readings_raw", parse_od),
+        Metadata("pioreactor/+/+/od_reading/od_raw/+/+", "od_readings_raw", parse_od),
         Metadata("pioreactor/+/+/dosing_events", "dosing_events", parse_dosing_events),
         Metadata("pioreactor/+/+/led_events", "led_events", parse_led_events),
         Metadata(

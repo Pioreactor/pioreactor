@@ -72,8 +72,10 @@ class TemperatureController(BackgroundJob):
 
     def _check_for_sudden_temperature_decrease(self, latest_temp):
         # TODO: this needs to be tested in the field
-        if (latest_temp < 0.75 * self.ema.value) and (
-            "dosing_control" in pio_jobs_running()
+        if (
+            (self.ema.value is not None)
+            and (latest_temp < 0.75 * self.ema.value)
+            and ("dosing_control" in pio_jobs_running())
         ):
             self.logger.warning(
                 "Noticed a sudden temperature change. This may be caused be a leakage. Suggestion is to check for liquid outside vial."

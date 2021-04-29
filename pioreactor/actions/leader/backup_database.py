@@ -12,7 +12,7 @@ from pioreactor.utils.timing import current_utc_time
 LAST_BACKUP_TIMESTAMP_PATH = "/home/pi/.pioreactor/.last_backup_time"
 
 
-def backup_database(output):
+def backup_database(output, force):
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
@@ -26,7 +26,7 @@ def backup_database(output):
     logger = create_logger("backup_database")
 
     # Skip if in an experiment. See issue #81
-    if "od_reading" in pio_jobs_running():
+    if ("od_reading" in pio_jobs_running()) and (not force):
 
         # however, let's check to see how old the last backup is and alert the user if too old.
         if os.path.isfile(LAST_BACKUP_TIMESTAMP_PATH):
@@ -93,8 +93,9 @@ def backup_database(output):
 
 @click.command(name="backup_database")
 @click.option("--output", default="/home/pi/.pioreactor/pioreactor.sqlite.backup")
-def click_backup_database(output):
+@click.option("-f", "--force", is_flag=True, help="force a database backup")
+def click_backup_database(output, force):
     """
     (leader only) Backup db to workers.
     """
-    return backup_database(output)
+    return backup_database(output, force)
