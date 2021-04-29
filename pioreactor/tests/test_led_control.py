@@ -36,7 +36,7 @@ def test_silent():
 
 def test_track_od():
 
-    con = LEDController("track_od", unit=unit, experiment=experiment)
+    con = LEDController("track_od", unit=unit, experiment=experiment, max_od=2.0)
     pause()
     pause()
     pubsub.publish(
@@ -48,7 +48,7 @@ def test_track_od():
     pause()
     pause()
     r = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/leds/B/intensity", timeout=1)
-    assert float(r.payload.decode()) == 0.1
+    assert float(r.payload.decode()) == 10
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", "0.01"
@@ -60,4 +60,4 @@ def test_track_od():
     con.led_automation_job.run()
     pause()
     r = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/leds/B/intensity", timeout=1)
-    assert float(r.payload.decode()) == 0.2
+    assert float(r.payload.decode()) == 100

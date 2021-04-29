@@ -76,7 +76,7 @@ class LEDAutomation(BackgroundSubJob):
 
     def run(self, counter=None):
         # TODO: this should be close to or equal to the function in DosingAutomation
-        time.sleep(8)  # wait some time for data to arrive
+        time.sleep(2)  # wait some time for data to arrive
         if (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not ("od_reading" in pio_jobs_running()) and (
@@ -86,11 +86,11 @@ class LEDAutomation(BackgroundSubJob):
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
-            time.sleep(20)
+            time.sleep(5)
             return self.run(counter=counter)
 
         elif self.state != self.READY:
-            time.sleep(5)
+            time.sleep(1)
             return self.run(counter=counter)
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
