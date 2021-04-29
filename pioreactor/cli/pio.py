@@ -45,7 +45,7 @@ def logs():
 @click.option("--all", is_flag=True, help="kill all Pioreactor jobs running")
 def kill(job, all):
     """
-    send SIGTERM signal to JOB
+    stop a job by sending a SIGTERM to it.
     """
 
     from sh import pkill
@@ -53,15 +53,17 @@ def kill(job, all):
     def safe_pkill(*args):
         try:
             pkill(*args)
+            return 0
         except Exception:
-            pass
+            return 1
 
     if all:
         safe_pkill("-f", "pio run ")
     else:
         for j in job:
-            safe_pkill("-f", f"pio run {j}")
-            safe_pkill("-f", f"pio run-always {j}")
+            result = safe_pkill("-f", f"pio run {j}")
+            if not result:
+                safe_pkill("-f", f"pio run-always {j}")
 
 
 @pio.group(short_help="run a job")

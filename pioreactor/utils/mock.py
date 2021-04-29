@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
 import random
-import numpy as np
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
@@ -51,10 +50,13 @@ class MockAnalogIn(AnalogIn):
 
     @staticmethod
     def growth_rate(duration_as_seconds):
+        import numpy as np
+
         return 0.25 / (1 + np.exp(-0.00025 * (duration_as_seconds - 8 * 60 * 60)))
 
     @property
     def voltage(self):
+        import numpy as np
 
         self.gr = self.growth_rate(
             self._counter / config.getfloat("od_config.od_sampling", "samples_per_second")
