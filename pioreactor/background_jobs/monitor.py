@@ -100,42 +100,63 @@ class Monitor(BackgroundJob):
             import select
 
             def status_to_human_readable(status):
-                hr_status = ""
+                hr_status = []
 
-                if status & 0x40000:
-                    hr_status += "Throttling has occurred. "
-                if status & 0x20000:
-                    hr_status += "ARM freqency capping has occurred. "
-                if status & 0x10000:
-                    hr_status += "Undervoltage has occurred. "
+                # if status & 0x40000:
+                #     hr_status.append("Throttling has occurred.")
+                # if status & 0x20000:
+                #     hr_status.append("ARM frequency capping has occurred.")
+                # if status & 0x10000:
+                #     hr_status.append("Undervoltage has occurred.")
                 if status & 0x4:
-                    hr_status += "Active throttling. "
+                    hr_status.append("Active throttling.")
                 if status & 0x2:
-                    hr_status += "Active ARM frequency capped. "
+                    hr_status.append("Active ARM frequency capped.")
                 if status & 0x1:
-                    hr_status += "Active undervoltage. "
+                    hr_status.append("Active undervoltage.")
 
-                return hr_status or "Okay."
+                hr_status.append(
+                    "Suggestion: use a larger external power supply. See docs at: https://pioreactor.com/pages/using-an-external-power-supply"
+                )
+                return ". ".join(hr_status)
 
+            def currently_throttling(status):
+                return (status & 0x2) or (status & 0x1) or (status & 0x4)
+
+            time_of_last_warning = None
             epoll = select.epoll()
             file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
             epoll.register(file.fileno(), select.EPOLLPRI | select.EPOLLERR)
             status = int(file.read(), 16)
-            self.logger.debug(f"Power status: {status_to_human_readable(status)}")
+
+            if not currently_throttling(status):
+                self.logger.debug("Power status okay.")
+            else:
+                self.logger.warning(f"Power status: {status_to_human_readable(status)}")
 
             while True:
                 epoll.poll()
                 file.seek(0)
                 status = int(file.read(), 16)
-                self.logger.warn(f"Power status: {status_to_human_readable(status)}")
+                if not currently_throttling(status):
+                    self.logger.info("Power status okay.")
+                else:
+
+                    # we don't want to spam the user.
+                    if (time_of_last_warning is None) or (
+                        time_of_last_warning - time.time() > 60 * 60
+                    ):
+                        self.logger.warning(
+                            f"Power status: {status_to_human_readable(status)}"
+                        )
+                        time_of_last_warning = time.time()
 
             epoll.unregister(file.fileno())
             file.close()
-        except Exception as e:
-            import traceback
 
-            traceback.print_exc()
+        except Exception as e:
             self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
 
     def publish_self_statistics(self):
         import psutil
