@@ -97,13 +97,13 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def setup_pwm(self):
         hertz = 100
-        pin = PWM_TO_PIN[config.getint("PWM", "heating")]
+        self.pin = PWM_TO_PIN[config.getint("PWM", "heating")]
 
         GPIO.setmode(GPIO.BCM)
-        GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, 0)
+        GPIO.setup(self.pin, GPIO.OUT)
+        GPIO.output(self.pin, 0)
 
-        pwm = GPIO.PWM(pin, hertz)
+        pwm = GPIO.PWM(self.pin, hertz)
         pwm.start(0)
         return pwm
 
@@ -123,7 +123,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
         self.update_heater(0)
         self._pwm.stop()
-        GPIO.cleanup()
+        GPIO.cleanup(self.pin)
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
