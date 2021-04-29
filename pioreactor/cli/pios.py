@@ -199,7 +199,7 @@ def kill(job, units, all, y):
 
     command = f"pio kill {' '.join(job)}"
     command += (
-        "--all && pio run led_intensity --intensity 0 --channel A --channel B --channel C --channel D"
+        "--all ; pio run led_intensity --intensity 0 --channel A --channel B --channel C --channel D"
         if all
         else ""
     )

@@ -121,7 +121,6 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
 @click.option(
     "--duration", default=60, help="Time, in minutes, between every monitor check"
 )
-@click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
 @click.option("--sensor", default="+/+", show_default=True)
 @click.option(
     "--skip-first-run",
@@ -129,7 +128,7 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 def click_led_control(
-    automation, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
+    automation, target_od, target_growth_rate, duration, sensor, skip_first_run
 ):
     """
     Start an LED automation
@@ -139,7 +138,6 @@ def click_led_control(
         target_od=target_od,
         target_growth_rate=target_growth_rate,
         duration=duration,
-        volume=volume,
         skip_first_run=skip_first_run,
         sensor=sensor,
     )
