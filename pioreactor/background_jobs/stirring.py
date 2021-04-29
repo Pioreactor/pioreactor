@@ -54,6 +54,7 @@ class Stirrer(BackgroundJob):
     ):
         super(Stirrer, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
 
+        self.logger.debug(f"Starting stirring with initial duty cycle {duty_cycle}.")
         self.hertz = hertz
         self.pin = PWM_TO_PIN[config.getint("PWM", "stirring")]
         self.set_dc_increase_between_adc_readings(dc_increase_between_adc_readings)
@@ -72,7 +73,7 @@ class Stirrer(BackgroundJob):
         self.stop_stirring()
         self.pwm.stop()
 
-        GPIO.cleanup()
+        GPIO.cleanup(self.pin)
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
