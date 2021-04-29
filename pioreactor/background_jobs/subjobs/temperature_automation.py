@@ -52,7 +52,9 @@ class TemperatureAutomation(BackgroundSubJob):
 
         self._pwm = self.setup_pwm()
 
-        self.logger.info(f"starting {self.__class__.__name__} with {duration}s intervals")
+        self.logger.info(
+            f"starting {self.__class__.__name__} with {duration}s intervals, and {kwargs}."
+        )
         self.set_duration(duration)
         self.start_passive_listeners()
 

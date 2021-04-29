@@ -198,7 +198,11 @@ def kill(job, units, all, y):
             return
 
     command = f"pio kill {' '.join(job)}"
-    command += "--all" if all else ""
+    command += (
+        "--all && pio run led_intensity --intensity 0 --channel A --channel B --channel C --channel D"
+        if all
+        else ""
+    )
 
     def _thread_function(unit):
         click.echo(f"Executing `{command}` on {unit}.")
