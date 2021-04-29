@@ -25,7 +25,15 @@ def split_topic_for_setting(topic):
     return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
-class _BackgroundJob:
+class PostInitCaller(type):
+    def __call__(cls, *args, **kwargs):
+        """Called when you call MyNewClass() """
+        obj = type.__call__(cls, *args, **kwargs)
+        obj.__post__init__()
+        return obj
+
+
+class _BackgroundJob(metaclass=PostInitCaller):
 
     """
     This class handles the fanning out of class attributes, and the setting of those attributes. Use
@@ -104,7 +112,8 @@ class _BackgroundJob:
         self.pubsub_clients = [self.sub_client, self.pub_client]
 
         self.set_state(self.INIT)
-        self.set_up_exit_protocol()
+
+    def __post__init__(self):
         self.set_state(self.READY)
 
     def on_ready(self):
@@ -178,6 +187,7 @@ class _BackgroundJob:
         ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
             os.kill(os.getpid(), signal.SIGUSR1)
+
         else:
             # we won't exit, but the client object will try to reconnect
             # Error codes are below, but don't always align
@@ -312,6 +322,7 @@ class _BackgroundJob:
             self.sub_client = self.create_sub_client()
             self.pubsub_clients = [self.sub_client, self.pub_client]
 
+        self.set_up_exit_protocol()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 
@@ -354,6 +365,7 @@ class _BackgroundJob:
         for client in self.pubsub_clients:
             client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
+
         # a disconnect callback calls sys.exit(), so no code below will run.
 
     def declare_settable_properties_to_broker(self):
