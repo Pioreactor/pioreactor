@@ -22,51 +22,51 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
         retain=True,
     )
 
-    logger.debug("Starting od_blank.")
-    logger.info("Starting reading of blank OD. This will take less than a minute.")
-
-    if (
-        ("stirring" not in pio_jobs_running())
-        # but if test mode, ignore
-        and not is_testing_env()
-    ):
-        logger.error("stirring jobs should be running. Run stirring first.")
-        raise ValueError("stirring jobs should be running. Run stirring first. ")
-
-    from pioreactor.background_jobs.od_reading import (
-        ODReader,
-        create_channel_label_map_from_string,
-    )
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/od_blank/$state",
-        "ready",
-        qos=pubsub.QOS.AT_LEAST_ONCE,
-        retain=True,
-    )
-
-    # we sample faster, because we can...
-    sampling_rate = 0.75
-
-    # start od_reading
-    ODReader(
-        create_channel_label_map_from_string(od_angle_channel),
-        sampling_rate=sampling_rate,
-        unit=unit,
-        experiment=f"{experiment}-blank",
-    )
-
-    def yield_from_mqtt():
-        while True:
-            msg = pubsub.subscribe(
-                f"pioreactor/{unit}/{experiment}-blank/od_reading/od_raw_batched"
-            )
-            yield json.loads(msg.payload)
-
-    signal = yield_from_mqtt()
-    readings = defaultdict(list)
-
     try:
+
+        logger.debug("Starting od_blank.")
+        logger.info("Starting reading of blank OD. This will take less than a minute.")
+
+        if (
+            ("stirring" not in pio_jobs_running())
+            # but if test mode, ignore
+            and not is_testing_env()
+        ):
+            logger.error("stirring jobs should be running. Run stirring first.")
+            raise ValueError("stirring jobs should be running. Run stirring first. ")
+
+        from pioreactor.background_jobs.od_reading import (
+            ODReader,
+            create_channel_label_map_from_string,
+        )
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_blank/$state",
+            "ready",
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
+
+        # we sample faster, because we can...
+        sampling_rate = 0.75
+
+        # start od_reading
+        ODReader(
+            create_channel_label_map_from_string(od_angle_channel),
+            sampling_rate=sampling_rate,
+            unit=unit,
+            experiment=f"{experiment}-blank",
+        )
+
+        def yield_from_mqtt():
+            while True:
+                msg = pubsub.subscribe(
+                    f"pioreactor/{unit}/{experiment}-blank/od_reading/od_raw_batched"
+                )
+                yield json.loads(msg.payload)
+
+        signal = yield_from_mqtt()
+        readings = defaultdict(list)
 
         for count, batched_reading in enumerate(signal):
             for (sensor, reading) in batched_reading.items():
