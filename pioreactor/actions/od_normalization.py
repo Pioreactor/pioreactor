@@ -13,9 +13,17 @@ from pioreactor.logging import create_logger
 
 
 def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
-    logger = create_logger("od_normalization")
 
+    action_name = "od_normalization"
+    logger = create_logger(action_name)
     logger.debug("Starting OD normalization")
+
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/{action_name}/$state",
+        "ready",
+        qos=pubsub.QOS.AT_LEAST_ONCE,
+        retain=True,
+    )
 
     if (
         ("stirring" not in pio_jobs_running())
@@ -62,13 +70,13 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
             means[sensor] = mean(reading_series)
 
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+            f"pioreactor/{unit}/{experiment}/{action_name}/variance",
             json.dumps(variances),
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,
         )
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+            f"pioreactor/{unit}/{experiment}/{action_name}/mean",
             json.dumps(means),
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,
@@ -79,7 +87,13 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         return
     except Exception as e:
         logger.error(f"{str(e)}")
-        raise e
+    finally:
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/{action_name}/$state",
+            "disconnected",
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
 
 
 @click.command(name="od_normalization")

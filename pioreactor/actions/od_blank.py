@@ -15,7 +15,15 @@ from pioreactor.logging import create_logger
 def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
     logger = create_logger("od_blank")
 
-    logger.debug("Starting OD blank reading")
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/od_blank/$state",
+        "ready",
+        qos=pubsub.QOS.AT_LEAST_ONCE,
+        retain=True,
+    )
+
+    logger.debug("Starting od_blank.")
+    logger.info("Starting reading of blank OD. This will take less than a minute.")
 
     if (
         ("stirring" not in pio_jobs_running())
@@ -30,9 +38,14 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
         create_channel_label_map_from_string,
     )
 
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/od_blank/$state",
+        "ready",
+        qos=pubsub.QOS.AT_LEAST_ONCE,
+        retain=True,
+    )
+
     # we sample faster, because we can...
-    # TODO: write tests for this
-    assert od_angle_channel is not None, "od_angle_channel is not set"
     sampling_rate = 0.75
 
     # start od_reading
@@ -74,12 +87,18 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             retain=True,
         )
 
-        logger.debug("OD blank finished")
+        logger.info("OD blank reading finished.")
 
         return
     except Exception as e:
         logger.error(f"{str(e)}")
-        raise e
+    finally:
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_blank/$state",
+            "disconnected",
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
 
 
 @click.command(name="od_blank")
