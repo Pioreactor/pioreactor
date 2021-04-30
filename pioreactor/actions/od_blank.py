@@ -12,7 +12,7 @@ from pioreactor import pubsub
 from pioreactor.logging import create_logger
 
 
-def od_blank(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
+def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
     logger = create_logger("od_blank")
 
     logger.debug("Starting OD blank reading")
@@ -25,7 +25,10 @@ def od_blank(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
         logger.error("stirring jobs should be running. Run stirring first.")
         raise ValueError("stirring jobs should be running. Run stirring first. ")
 
-    from pioreactor.background_jobs.od_reading import od_reading
+    from pioreactor.background_jobs.od_reading import (
+        ODReader,
+        create_channel_label_map_from_string,
+    )
 
     # we sample faster, because we can...
     # TODO: write tests for this
@@ -33,8 +36,11 @@ def od_blank(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
     sampling_rate = 0.75
 
     # start od_reading
-    od_reading(
-        od_angle_channel, sampling_rate, unit=unit, experiment=f"{experiment}-blank"
+    ODReader(
+        create_channel_label_map_from_string(od_angle_channel),
+        sampling_rate=sampling_rate,
+        unit=unit,
+        experiment=f"{experiment}-blank",
     )
 
     def yield_from_mqtt():

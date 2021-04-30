@@ -445,6 +445,18 @@ class ODReader(BackgroundJob):
             )
 
 
+def create_channel_label_map_from_string(od_angle_channel):
+    # We split input of the form ["135,0", "135,1", "90,3"] into the form
+    # {"A0": 135/0", "A1": "135/1", "A3":"90/3"}
+    channel_label_map = {}
+    for input_ in od_angle_channel:
+        angle, channel = input_.split(",")
+
+        angle_label = f"{angle}/{channel}"
+        channel_label_map[f"A{channel}"] = angle_label
+    return channel_label_map
+
+
 def od_reading(
     od_angle_channel,
     sampling_rate=1 / config.getfloat("od_config.od_sampling", "samples_per_second"),
@@ -455,15 +467,7 @@ def od_reading(
 
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
-
-    channel_label_map = {}
-    for input_ in od_angle_channel:
-        angle, channel = input_.split(",")
-
-        # We split input of the form ["135,0", "135,1", "90,3"] into the form
-        # "135/0", "135/1", "90/3"
-        angle_label = f"{angle}/{channel}"
-        channel_label_map[f"A{channel}"] = angle_label
+    channel_label_map = create_channel_label_map_from_string(od_angle_channel)
 
     ODReader(
         channel_label_map,
