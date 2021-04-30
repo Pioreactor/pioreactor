@@ -449,10 +449,12 @@ def od_reading(
     od_angle_channel,
     sampling_rate=1 / config.getfloat("od_config.od_sampling", "samples_per_second"),
     fake_data=False,
+    unit=None,
+    experiment=None,
 ):
 
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    unit = unit or get_unit_name()
+    experiment = experiment or get_latest_experiment_name()
 
     channel_label_map = {}
     for input_ in od_angle_channel:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json, time
+import json
 from collections import defaultdict
 from statistics import mean
 
@@ -30,10 +30,22 @@ def od_blank(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
     # we sample faster, because we can...
     # TODO: write tests for this
     assert od_angle_channel is not None, "od_angle_channel is not set"
-    sampling_rate = 0.5
-    signal = od_reading(od_angle_channel, sampling_rate)
+    sampling_rate = 0.75
 
-    time.sleep(0.5)
+    # start od_reading
+    od_reading(
+        od_angle_channel, sampling_rate, unit=unit, experiment=f"{experiment}-blank"
+    )
+
+    def yield_from_mqtt():
+        while True:
+            msg = pubsub.subscribe(
+                f"pioreactor/{unit}/{experiment}-blank/od_raw_batched",
+                allow_retained=False,
+            )
+            yield json.loads(msg.payload)
+
+    signal = yield_from_mqtt()
     readings = defaultdict(list)
 
     try:
