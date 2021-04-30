@@ -53,6 +53,8 @@ class Monitor(BackgroundJob):
         GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up)
 
         self.start_passive_listeners()
+
+    def on_ready(self):
         self.flicker_led()
 
     def on_disconnect(self):
@@ -96,6 +98,10 @@ class Monitor(BackgroundJob):
     def watch_for_power_problems(self):
         # copied from https://github.com/raspberrypi/linux/pull/2397
         # and https://github.com/N2Github/Proje
+
+        # TODO: eventually these problems should be surfaced to the user, but they
+        # are too noisy atm.
+
         try:
             import select
 
@@ -109,11 +115,11 @@ class Monitor(BackgroundJob):
                 # if status & 0x10000:
                 #     hr_status.append("Undervoltage has occurred.")
                 if status & 0x4:
-                    hr_status.append("Active throttling.")
+                    hr_status.append("Active throttling")
                 if status & 0x2:
-                    hr_status.append("Active ARM frequency capped.")
+                    hr_status.append("Active ARM frequency capped")
                 if status & 0x1:
-                    hr_status.append("Active undervoltage.")
+                    hr_status.append("Active undervoltage")
 
                 hr_status.append(
                     "Suggestion: use a larger external power supply. See docs at: https://pioreactor.com/pages/using-an-external-power-supply"
@@ -123,7 +129,9 @@ class Monitor(BackgroundJob):
             def currently_throttling(status):
                 return (status & 0x2) or (status & 0x1) or (status & 0x4)
 
-            time_of_last_warning = None
+            def non_ignorable_status(status):
+                return (status & 0x1) or (status & 0x4)
+
             epoll = select.epoll()
             file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
             epoll.register(file.fileno(), select.EPOLLPRI | select.EPOLLERR)
@@ -132,24 +140,16 @@ class Monitor(BackgroundJob):
             if not currently_throttling(status):
                 self.logger.debug("Power status okay.")
             else:
-                self.logger.warning(f"Power status: {status_to_human_readable(status)}")
+                self.logger.debug(f"Power status: {status_to_human_readable(status)}")
 
             while True:
                 epoll.poll()
                 file.seek(0)
                 status = int(file.read(), 16)
                 if not currently_throttling(status):
-                    self.logger.info("Power status okay.")
+                    self.logger.debug("Power status okay.")
                 else:
-
-                    # we don't want to spam the user.
-                    if (time_of_last_warning is None) or (
-                        time_of_last_warning - time.time() > 60 * 60
-                    ):
-                        self.logger.warning(
-                            f"Power status: {status_to_human_readable(status)}"
-                        )
-                        time_of_last_warning = time.time()
+                    self.logger.debug(f"Power status: {status_to_human_readable(status)}")
 
             epoll.unregister(file.fileno())
             file.close()
