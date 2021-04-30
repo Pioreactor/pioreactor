@@ -333,11 +333,16 @@ class ODReader(BackgroundJob):
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
             ).payload
         )
+
         ads_interval = float(
             subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
             ).payload
         )
+
+        if ads_interval < 1.5:
+            # if this is too small, like 1.5s, we should just skip this whole thing and keep the IR LED always on.
+            return
 
         self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
 
