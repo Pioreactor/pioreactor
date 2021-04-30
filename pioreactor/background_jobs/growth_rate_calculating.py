@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import signal, time, json, math
-
+from collections import defaultdict
 import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
@@ -25,8 +25,8 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         self.ignore_cache = ignore_cache
-        self.initial_growth_rate, self.od_normalization_factors, self.od_variances = (
-            self.set_precomputed_values()
+        self.initial_growth_rate, self.od_normalization_factors, self.od_variances, self.od_blank = (
+            self.get_precomputed_values()
         )
         self.initial_acc = 0
         self.time_of_previous_observation = time.time()
@@ -53,7 +53,10 @@ class GrowthRateCalculator(BackgroundJob):
     def initialize_extended_kalman_filter(self):
         import numpy as np
 
-        latest_od = subscribe(f"pioreactor/{self.unit}/{self.experiment}/od_raw_batched")
+        latest_od = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched"
+        )
+
         angles_and_initial_points = self.scale_raw_observations(
             self.json_to_sorted_dict(latest_od.payload)
         )
@@ -119,7 +122,7 @@ class GrowthRateCalculator(BackgroundJob):
         ) ** 2 * np.diag(scaling_obs_variances)
         return obs_variances
 
-    def set_precomputed_values(self):
+    def get_precomputed_values(self):
         if self.ignore_cache:
             assert (
                 "od_reading" in pio_jobs_running()
@@ -136,7 +139,19 @@ class GrowthRateCalculator(BackgroundJob):
 
         od_normalization_factors = self.get_od_normalization_from_broker()
         od_variances = self.get_od_variances_from_broker()
-        return initial_growth_rate, od_normalization_factors, od_variances
+        od_blank = self.get_od_blank_from_broker()
+        return initial_growth_rate, od_normalization_factors, od_variances, od_blank
+
+    def get_od_blank_from_broker(self):
+        message = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_blank/mean",
+            timeout=2,
+            qos=QOS.EXACTLY_ONCE,
+        )
+        if message:
+            return json.loads(message.payload)
+        else:
+            return defaultdict(lambda: 0)
 
     def get_growth_rate_from_broker(self):
         message = subscribe(
@@ -204,7 +219,8 @@ class GrowthRateCalculator(BackgroundJob):
 
     def scale_raw_observations(self, observations):
         return {
-            angle: observations[angle] / self.od_normalization_factors[angle]
+            angle: (observations[angle] - self.od_blank[angle])
+            / (self.od_normalization_factors[angle] - self.od_blank[angle])
             for angle in self.od_normalization_factors.keys()
         }
 

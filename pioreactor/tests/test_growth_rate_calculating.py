@@ -448,3 +448,94 @@ def test_end_to_end():
     time.sleep(35)
 
     assert calc.ekf.state_[-2] != 1.0
+
+
+def test_od_blank_being_non_zero():
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_blank/mean",
+        json.dumps({"135/0": 0.25, "90/1": 0.4}),
+        retain=True,
+    )
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        retain=True,
+    )
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        None,
+        retain=True,
+    )
+
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    pause()
+
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        '{"135/0": 0.5, "90/1": 0.8}',
+        retain=True,
+    )
+    pause()
+    pause()
+    assert calc.od_normalization_factors == {"90/1": 0.8, "135/0": 0.5}
+    assert calc.od_blank == {"90/1": 0.4, "135/0": 0.25}
+    results = calc.scale_raw_observations({"90/1": 1.0, "135/0": 0.6})
+    assert abs(results["90/1"] - 1.5) < 0.00001
+    assert abs(results["135/0"] - 1.4) < 0.00001
+
+    calc.set_state("disconnected")
+
+
+def test_od_blank_being_zero():
+
+    publish(f"pioreactor/{unit}/{experiment}/od_blank/mean", None, retain=True)
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        retain=True,
+    )
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        None,
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        '{"135/0": 0.5, "90/1": 0.8}',
+        retain=True,
+    )
+
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    pause()
+
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        '{"135/0": 0.5, "90/1": 0.8}',
+        retain=True,
+    )
+    pause()
+    pause()
+    assert calc.od_normalization_factors == {"90/1": 0.8, "135/0": 0.5}
+    assert calc.od_blank == {"90/1": 0.0, "135/0": 0.0}
+    results = calc.scale_raw_observations({"90/1": 1.0, "135/0": 0.6})
+    assert abs(results["90/1"] - 1.25) < 0.00001
+    assert abs(results["135/0"] - 1.2) < 0.00001
+
+    calc.set_state("disconnected")

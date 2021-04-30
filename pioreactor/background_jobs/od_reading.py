@@ -11,7 +11,7 @@ Ex:
 
 Also published to
 
-    pioreactor/<unit>/<experiment>/od_raw_batched
+    pioreactor/<unit>/<experiment>/od_reading/od_raw_batched
 
 a serialized json like: "{"135/0": 0.086, "135/1": 0.086, "135/2": 0.0877, "135/3": 0.0873}"
 

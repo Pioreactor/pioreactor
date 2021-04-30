@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json, time
+import json
 from collections import defaultdict
 from statistics import mean, variance
 
@@ -30,26 +30,19 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         # but if test mode, ignore
         and not is_testing_env()
     ):
-        from pioreactor.background_jobs.od_reading import od_reading
+        logger.error("od_reading jobs should be running. Run od_reading first.")
+        raise ValueError("od_reading jobs should be running. Run od_reading first. ")
 
-        # we sample faster, because we can...
-        # TODO: write tests for this
-        assert od_angle_channel is not None, "od_angle_channel is not set"
-        sampling_rate = 0.5
-        signal = od_reading(od_angle_channel, sampling_rate)
-    else:
-        # TODO: write tests for this
-        def yield_from_mqtt():
-            while True:
-                msg = pubsub.subscribe(
-                    f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-                    allow_retained=False,
-                )
-                yield json.loads(msg.payload)
+    # TODO: write tests for this
+    def yield_from_mqtt():
+        while True:
+            msg = pubsub.subscribe(
+                f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+                allow_retained=False,
+            )
+            yield json.loads(msg.payload)
 
-        signal = yield_from_mqtt()
-
-    time.sleep(0.5)
+    signal = yield_from_mqtt()
     readings = defaultdict(list)
 
     try:

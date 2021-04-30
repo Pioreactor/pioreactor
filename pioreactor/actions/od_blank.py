@@ -45,12 +45,9 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
 
     def yield_from_mqtt():
         while True:
-            print("waiting")
-            print(f"pioreactor/{unit}/{experiment}-blank/od_reading/od_raw_batched")
             msg = pubsub.subscribe(
                 f"pioreactor/{unit}/{experiment}-blank/od_reading/od_raw_batched"
             )
-            print(msg)
             yield json.loads(msg.payload)
 
     signal = yield_from_mqtt()
@@ -62,7 +59,6 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             for (sensor, reading) in batched_reading.items():
                 readings[sensor].append(reading)
 
-            print(count)
             if count == N_samples:
                 break
 
