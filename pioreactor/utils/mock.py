@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
-import random
+from json import loads
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
-
-random.seed(10)
 
 
 class MockI2C:
@@ -29,6 +27,9 @@ class MockAnalogIn(AnalogIn):
 
     def __init__(self, ads, channel, **kwargs):
         from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+        import random
+
+        random.seed(10)
 
         # import pandas as pd
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
@@ -40,9 +41,8 @@ class MockAnalogIn(AnalogIn):
         )
 
     def react_to_dosing(self, message):
-        import json
 
-        payload = json.loads(message.payload)
+        payload = loads(message.payload)
 
         if payload["event"] not in ["add_media", "add_alt_media"]:
             return
@@ -56,6 +56,7 @@ class MockAnalogIn(AnalogIn):
 
     @property
     def voltage(self):
+        import random
         import numpy as np
 
         self.gr = self.growth_rate(
