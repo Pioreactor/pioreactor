@@ -33,10 +33,13 @@ def logs():
     from sh import tail
     from json import loads
     from pioreactor.pubsub import subscribe_and_callback
+    from datetime import datetime
 
     def cb(msg):
         payload = loads(msg.payload.decode())
-        click.echo(f"[{payload['task']}] {payload['level']} {payload['message']}")
+        click.echo(
+            f"{datetime.utcnow().isoformat()} [{payload['task']}] {payload['level']} {payload['message']}"
+        )
 
     click.echo(tail("-n", 100, config["logging"]["log_file"]))
 
@@ -166,6 +169,7 @@ if am_I_active_worker():
     run.add_command(actions.add_media.click_add_media)
     run.add_command(actions.remove_waste.click_remove_waste)
     run.add_command(actions.od_normalization.click_od_normalization)
+    run.add_command(actions.od_blank.click_od_blank)
 
     for plugin in pioreactor.plugins.values():
         for possible_entry_point in dir(plugin):
