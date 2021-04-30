@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import signal
-import faulthandler
 import os
 import sys
 import threading
@@ -12,8 +11,6 @@ from pioreactor.utils import pio_jobs_running
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, is_testing_env
 from pioreactor.logging import create_logger
-
-faulthandler.enable()
 
 
 def split_topic_for_setting(topic):
