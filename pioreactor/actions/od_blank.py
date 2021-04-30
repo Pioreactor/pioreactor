@@ -39,7 +39,9 @@ def od_blank(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
 
     def yield_from_mqtt():
         while True:
-            msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}-blank/od_raw_batched")
+            msg = pubsub.subscribe(
+                f"pioreactor/{unit}/{experiment}-blank/od_reading/od_raw_batched"
+            )
             print(msg)
             yield json.loads(msg.payload)
 

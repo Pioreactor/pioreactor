@@ -42,7 +42,8 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         def yield_from_mqtt():
             while True:
                 msg = pubsub.subscribe(
-                    f"pioreactor/{unit}/{experiment}/od_raw_batched", allow_retained=False
+                    f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+                    allow_retained=False,
                 )
                 yield json.loads(msg.payload)
 
