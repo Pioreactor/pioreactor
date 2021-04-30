@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json, time, logging
+import json, time
 from collections import defaultdict
 from statistics import mean, variance
 
@@ -9,11 +9,11 @@ from pioreactor.config import config
 from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
-
-logger = logging.getLogger("od_normalization")
+from pioreactor.logging import create_logger
 
 
 def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
+    logger = create_logger("od_normalization")
 
     logger.debug("Starting OD normalization")
 
