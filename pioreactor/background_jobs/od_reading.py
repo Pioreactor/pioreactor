@@ -111,6 +111,8 @@ class ADCReader(BackgroundSubJob):
         self.ads = None
         self.analog_in = []
 
+        self.data_rate = config.getint("od_config.od_sampling", "data_rate")
+
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
         self.first_ads_obs_time = None
@@ -140,11 +142,7 @@ class ADCReader(BackgroundSubJob):
         try:
             # we will change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-            self.ads = ADS.ADS1115(
-                i2c,
-                gain=self.initial_gain,
-                data_rate=config.getint("od_config.od_sampling", "data_rate"),
-            )
+            self.ads = ADS.ADS1115(i2c, gain=self.initial_gain, data_rate=self.data_rate)
         except ValueError as e:
             self.logger.error(
                 "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for ADC measurements."

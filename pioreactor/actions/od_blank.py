@@ -48,15 +48,16 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
         )
 
         # we sample faster, because we can...
-        sampling_rate = 0.75
+        sampling_rate = 0.1
 
         # start od_reading
-        ODReader(
+        od_reader = ODReader(
             create_channel_label_map_from_string(od_angle_channel),
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=f"{experiment}-blank",
         )
+        od_reader.adc_reader.data_rate = 32
 
         def yield_from_mqtt():
             while True:
