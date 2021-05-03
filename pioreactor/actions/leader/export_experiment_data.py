@@ -47,7 +47,7 @@ def export_experiment_data(experiment, output, tables):
     import csv
 
     logger = create_logger("export_experiment_data")
-    logger.info(f"Starting export of table(s) {tables}.")
+    logger.info(f"Starting export of table(s) {', '.join(tables)}.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED)
@@ -59,7 +59,7 @@ def export_experiment_data(experiment, output, tables):
         # so apparently, you can't parameterise the table name in python's sqlite3, so I
         # have to use string formatting (SQL-injection vector), but first check that the table exists (else fail)
         if not exists_table(cursor, table):
-            raise ValueError("table %s does not exist." % table)
+            raise ValueError(f"Table {table} does not exist.")
 
         timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
             cursor, table
