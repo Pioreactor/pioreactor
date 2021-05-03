@@ -33,8 +33,8 @@ def generate_timestamp_to_localtimestamp_clause(cursor, table_name):
     )
     if clause:
         clause += ","
-    else:
-        return ""
+
+    return clause
 
 
 def export_experiment_data(experiment, output, tables):
