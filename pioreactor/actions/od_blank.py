@@ -36,8 +36,8 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             # but if test mode, ignore
             and not is_testing_env()
         ):
-            logger.error("stirring jobs should be running. Run stirring first.")
-            raise ValueError("stirring jobs should be running. Run stirring first.")
+            logger.error("stirring should be running. Run stirring first.")
+            raise ValueError("stirring should be running. Run stirring first.")
 
         # running this will mess with OD Reading - best to just not let it happen.
         if (
@@ -45,10 +45,8 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             # but if test mode, ignore
             and not is_testing_env()
         ):
-            logger.error("od_reading jobs should not be running. Stop od_reading first.")
-            raise ValueError(
-                "od_reading jobs should not be running. Stop od_reading first"
-            )
+            logger.error("od_reading should not be running. Stop od_reading first.")
+            raise ValueError("od_reading should not be running. Stop od_reading first.")
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_blank/$state",

@@ -96,13 +96,16 @@ def list_plugins():
 @click.option("--verbose", "-v", is_flag=True, help="show more system information")
 def version(verbose):
 
-    click.echo(pioreactor.__version__)
     if verbose:
         import platform
         import board
 
-        click.echo(platform.platform())
-        click.echo(board.detector.get_device_model())
+        # TODO include HAT version and latest git shas
+        click.echo(f"PioreactorApp: {pioreactor.__version__}")
+        click.echo(f"OS:            {platform.platform()}")
+        click.echo(f"Raspberry Pi:  {board.detector.get_device_model()}")
+    else:
+        click.echo(pioreactor.__version__)
 
 
 @pio.command(name="update", short_help="update the Pioreactor software (app and ui)")

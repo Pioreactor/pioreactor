@@ -167,7 +167,7 @@ ON temperature_automation_settings (pioreactor_unit, experiment);
 
 
 CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
-    timestamp                TEXT  NOT NULL,
+    timestamp                TEXT NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
     experiment               TEXT NOT NULL,
     state                    TEXT NOT NULL,
