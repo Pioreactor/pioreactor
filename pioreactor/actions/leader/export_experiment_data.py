@@ -72,6 +72,7 @@ def export_experiment_data(experiment, output, tables):
 
         else:
             query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment"
+            print(query)
             cursor.execute(query, {"experiment": experiment})
             _filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
 
