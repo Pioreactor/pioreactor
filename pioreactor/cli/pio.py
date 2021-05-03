@@ -101,9 +101,9 @@ def version(verbose):
         import board
 
         # TODO include HAT version and latest git shas
-        click.echo(f"PioreactorApp: {pioreactor.__version__}")
-        click.echo(f"OS:            {platform.platform()}")
-        click.echo(f"Raspberry Pi:  {board.detector.get_device_model()}")
+        click.echo(f"Pioreactor:             {pioreactor.__version__}")
+        click.echo(f"Operating system:       {platform.platform()}")
+        click.echo(f"Raspberry Pi:           {board.detector.get_device_model()}")
     else:
         click.echo(pioreactor.__version__)
 
