@@ -9,7 +9,7 @@ topic: `pioreactor/<unit>/<experiment>/dosing_control/temperature_automation/set
 message: a json object with required keyword argument. Specify the new automation with name `"temperature_automation"`.
 
 """
-import json, random, signal
+import json, signal
 
 import click
 
@@ -31,8 +31,9 @@ def read_temperature():
 
     Note: this function is here for lack of a better place
     """
+    import time, math, random
 
-    return 25.0 + random.randint(-3, 3)
+    return 3 * math.sin(0.1 * time.time() / 60) + 25 + 0.2 * random.random()
 
 
 class TemperatureController(BackgroundJob):

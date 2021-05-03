@@ -10,6 +10,10 @@ from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
+from pioreactor.background_jobs.od_reading import (
+    ODReader,
+    create_channel_label_map_from_string,
+)
 
 
 def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
@@ -33,12 +37,18 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             and not is_testing_env()
         ):
             logger.error("stirring jobs should be running. Run stirring first.")
-            raise ValueError("stirring jobs should be running. Run stirring first. ")
+            raise ValueError("stirring jobs should be running. Run stirring first.")
 
-        from pioreactor.background_jobs.od_reading import (
-            ODReader,
-            create_channel_label_map_from_string,
-        )
+        # running this will mess with OD Reading - best to just not let it happen.
+        if (
+            ("od_reading" in pio_jobs_running())
+            # but if test mode, ignore
+            and not is_testing_env()
+        ):
+            logger.error("od_reading jobs should not be running. Stop od_reading first.")
+            raise ValueError(
+                "od_reading jobs should not be running. Stop od_reading first"
+            )
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_blank/$state",
@@ -47,7 +57,9 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             retain=True,
         )
 
-        # we sample faster, because we can...
+        # we sample faster, because we can, but we need to increase the data rate.
+        # note we can't do this for od_normalization, because we need an accurate
+        # estimate of variance.
         sampling_rate = 0.1
 
         # start od_reading

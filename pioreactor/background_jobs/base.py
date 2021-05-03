@@ -309,7 +309,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def init(self):
         self.state = self.INIT
-        self.logger.debug(self.INIT)
+        self.logger.debug("Initializing.")
 
         if threading.current_thread() is not threading.main_thread():
             # if we re-init (via MQTT, close previous threads), but don't do this in main thread
@@ -332,7 +332,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
         self.state = self.READY
-        self.logger.info(self.READY)
+        self.logger.info("Ready.")
 
     def sleeping(self):
         try:
@@ -341,7 +341,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
         self.state = self.SLEEPING
-        self.logger.debug(self.SLEEPING)
+        self.logger.debug("Sleeping.")
 
     def disconnected(self):
         # set state to disconnect
@@ -358,7 +358,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
 
-        self.logger.info(self.DISCONNECTED)
+        self.logger.info("Disconnected.")
 
         # this HAS to happen last, because this contains our publishing client
         for client in self.pubsub_clients:
