@@ -5,9 +5,9 @@
 PWM_TO_PIN = {
     # map between PCB labels and GPIO pins
     0: 6,
-    1: 13,
+    1: 13,  # hardware PWM available
     2: 16,
-    3: 12,
+    3: 12,  # hardware PWM available
     4: 18,
 }
 

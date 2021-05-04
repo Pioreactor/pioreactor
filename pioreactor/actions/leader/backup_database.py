@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-import click
-import os
+import os, time
 from datetime import datetime
+import click
 from pioreactor.config import config, get_active_workers_in_inventory
 from pioreactor.whoami import get_unit_name
 from pioreactor.logging import create_logger
@@ -52,6 +52,7 @@ def backup_database(output, force):
         logger.debug(f"Copied {total-remaining} of {total} pages.")
 
     logger.debug(f"Starting backup of database to {output}")
+    time.sleep(1)  # pause a second so the log entry above gets recorded into the DB.
 
     con = sqlite3.connect(config.get("storage", "database"))
     bck = sqlite3.connect(output)

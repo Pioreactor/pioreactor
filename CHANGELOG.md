@@ -1,4 +1,4 @@
-### Next
+### 21.5.0
 
  - IR LED now turns off between OD readings. This allows other LEDs to trigger and take readings.
  - Removed leader jobs `time_series_aggregating` and `log_aggregating`
@@ -11,6 +11,9 @@
  - Added initial version of a plugin system
  - `pio run-always` for jobs not tied to an experiment (monitor, watchdog, etc.)
  - faster database backup sync between Pioreactors
+ - Ability to measure your blank vials is available using the `pio run od_blank`, and in the UI under "Calibrate"
+ - Smarter algorithm for displaying time series in the UI
+ - Log table only shows the past 24 hours of events.
 
 
 ### 21.3.18

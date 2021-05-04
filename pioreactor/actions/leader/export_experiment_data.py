@@ -47,7 +47,7 @@ def export_experiment_data(experiment, output, tables):
     import csv
 
     logger = create_logger("export_experiment_data")
-    logger.info(f"Starting export of table(s) {', '.join(tables)}.")
+    logger.info(f"Starting export of table(s): {', '.join(tables)}.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED)

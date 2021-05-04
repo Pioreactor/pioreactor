@@ -91,10 +91,14 @@ def update(units):
     """
     import paramiko
 
+    logger = create_logger(
+        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+    )
+
     command = "pio update --app"
 
     def _thread_function(unit):
-        click.echo(f"Executing `{command}` on {unit}...")
+        logger.debug(f"Executing `{command}` on {unit}...")
         try:
 
             client = paramiko.SSHClient()
@@ -108,9 +112,6 @@ def update(units):
             client.close()
 
         except Exception as e:
-            logger = create_logger(
-                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-            )
             logger.error(e)
             logger.debug(e, exc_info=True)
 
@@ -133,8 +134,12 @@ def sync_configs(units):
     """
     import paramiko
 
+    logger = create_logger(
+        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+    )
+
     def _thread_function(unit):
-        click.echo(f"Syncing configs on {unit}...")
+        logger.debug(f"Syncing configs on {unit}...")
         try:
 
             client = paramiko.SSHClient()
@@ -145,12 +150,8 @@ def sync_configs(units):
 
             client.close()
         except Exception as e:
-            click.echo(f"Unable to connect to unit {unit}", err=True)
-            logger = create_logger(
-                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-            )
-            logger.debug(e, exc_info=True)
             logger.error(f"Unable to connect to unit {unit}.")
+            logger.debug(e, exc_info=True)
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -200,8 +201,12 @@ def kill(job, units, all, y):
     command = f"pio kill {' '.join(job)}"
     command += "--all" if all else ""
 
+    logger = create_logger(
+        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+    )
+
     def _thread_function(unit):
-        click.echo(f"Executing `{command}` on {unit}.")
+        logger.debug(f"Executing `{command}` on {unit}.")
         try:
             ssh(unit, command)
             if all:  # tech debt
@@ -211,9 +216,6 @@ def kill(job, units, all, y):
                 )
 
         except Exception as e:
-            logger = create_logger(
-                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-            )
             logger.debug(e, exc_info=True)
             logger.error(e)
 

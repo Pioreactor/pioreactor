@@ -179,11 +179,11 @@ class Monitor(BackgroundJob):
             # TODO: add documentation
             self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
 
-        if available_memory_percent <= 75:
-            self.logger.debug(f"Available memory at {available_memory_percent}%.")
+        if available_memory_percent <= 90:
+            self.logger.debug(f"Available RAM at {available_memory_percent}%.")
         else:
             # TODO: add documentation
-            self.logger.warning(f"Available memory at {available_memory_percent}%.")
+            self.logger.warning(f"Available RAM at {available_memory_percent}%.")
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/computer_statistics",

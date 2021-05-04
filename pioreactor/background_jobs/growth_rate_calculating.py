@@ -71,7 +71,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         d = initial_state.shape[0]
 
-        # empirically selected
+        # empirically selected - TODO: this should probably scale with `expected_dt`
         initial_covariance = 1e-8 * np.diag([1.0] * (d - 2) + [1.0, 5.0])
         self.logger.debug(f"Initial covariance matrix: {str(initial_covariance)}")
 

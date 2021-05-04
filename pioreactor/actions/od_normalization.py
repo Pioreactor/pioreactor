@@ -81,8 +81,9 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,
         )
-
-        logger.debug("OD normalization finished")
+        logger.debug(f"measured mean: {means}")
+        logger.debug(f"measured variances: {variances}")
+        logger.debug("OD normalization finished.")
 
         return
     except Exception as e:

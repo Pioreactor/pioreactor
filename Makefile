@@ -99,8 +99,8 @@ configure-rpi:
 	sudo systemctl disable hciuart
 	echo "dtoverlay=disable-bt" | sudo tee -a /boot/config.txt
 
-	# disable USB
-	echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind
+	# disable USB - this fails for the RPi Zero
+	# echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind
 
 	# disable HDMI
 	# add to second line of script...
