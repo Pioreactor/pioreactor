@@ -59,28 +59,25 @@ class HardwarePWM:
         return os.path.isdir(self.chippath)
 
     def is_export_writable(self):
-        return os.access(f"{self.chippath}/export", os.W_OK)
+        return os.access(os.path.join(self.chippath, "export"), os.W_OK)
 
     def does_pwmX_exists(self):
         return os.path.isdir(self.pwm_dir)
 
     def echo(self, m, fil):
+        print(m, fil)
         with open(fil, "w") as f:
             f.write(f"{m}\n")
 
     def create_pwmX(self):
-        pwmexport = f"{self.chippath}/export"
+        pwmexport = os.path.join(self.chippath, "export")
         self.echo(self.pwm_channel, pwmexport)
 
     def start(self):
-        enable = f"{self.pwm_dir}/enable"
-        num = 1
-        self.echo(num, enable)
+        self.echo(1, os.path.join(self.pwm_dir, "enable"))
 
     def stop(self):
-        enable = f"{self.pwm_dir}/enable"
-        num = 0
-        self.echo(num, enable)
+        self.echo(0, os.path.join(self.pwm_dir, "enable"))
 
     def set_duty_cycle(self, duty_cycle):
         # a value between 0 and 100
@@ -88,8 +85,8 @@ class HardwarePWM:
         per = 1 / float(self.hz)
         per *= 1000  # now in milliseconds
         per *= 1_000_000  # now in.. whatever
-        dc = int(per * duty_cycle)
-        self.echo(dc, f"{self.pwm_dir}/duty_cycle")
+        dc = int(per * duty_cycle / 100)
+        self.echo(dc, os.path.join(self.pwm_dir, "duty_cycle"))
 
     def set_frequency(self, hz):
         self.hz = hz
@@ -97,5 +94,4 @@ class HardwarePWM:
         per *= 1000  # now in milliseconds
         per *= 1_000_000  # now in.. whatever
         per = int(per)
-        period = f"{self.pwm_dir}/period"
-        self.echo(per, period)
+        self.echo(per, os.path.join(self.pwm_dir, "period"))
