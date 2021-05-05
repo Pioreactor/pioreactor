@@ -1,28 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import time, sys
+import time
 from json import loads, dumps
 
 import click
-import signal
 
-
-import RPi.GPIO as GPIO
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.logging import create_logger
-
-if is_testing_env():
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
-
-GPIO.setmode(GPIO.BCM)
+from pioreactor.utils.pwm import PWM
 
 
 def remove_waste(
@@ -82,30 +71,18 @@ def remove_waste(
     try:
 
         WASTE_PIN = PWM_TO_PIN[config.getint("PWM", "waste")]
-        GPIO.setup(WASTE_PIN, GPIO.OUT)
-        GPIO.output(WASTE_PIN, 0)
-        pwm = GPIO.PWM(WASTE_PIN, hz)
+        pwm = PWM(WASTE_PIN, hz)
 
         pwm.start(duty_cycle)
         time.sleep(duration)
 
     except Exception as e:
-        logger.debug("Stopped")
+        logger.debug("Remove waste failed", exc_info=True)
         logger.error(e)
     finally:
-        try:
-            pwm.stop()
-        except Exception:
-            pass
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(WASTE_PIN, GPIO.OUT)
-        GPIO.output(WASTE_PIN, 0)
-        clean_up_gpio()
+        pwm.stop()
+        pwm.cleanup()
     return
-
-
-def clean_up_gpio():
-    GPIO.cleanup(PWM_TO_PIN[config.getint("PWM", "waste")])
 
 
 @click.command(name="remove_waste")
@@ -124,6 +101,5 @@ def click_remove_waste(ml, duration, duty_cycle, source_of_event):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    signal.signal(signal.SIGTERM, clean_up_gpio)
 
     return remove_waste(ml, duration, duty_cycle, source_of_event, unit, experiment)

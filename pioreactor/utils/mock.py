@@ -4,6 +4,7 @@ from json import loads
 from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
+from rpi_hardware_pwm import HardwarePWM
 
 
 class MockI2C:
@@ -96,4 +97,18 @@ class MockDAC43608:
         return
 
     def power_up(*args):
+        pass
+
+
+class MockHardwarePWM(HardwarePWM):
+    def is_overlay_loaded(self):
+        return True
+
+    def is_export_writable(self):
+        return True
+
+    def does_pwmX_exists(self):
+        return True
+
+    def echo(self, m, fil):
         pass

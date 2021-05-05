@@ -170,7 +170,7 @@ class Monitor(BackgroundJob):
         if disk_usage_percent <= 70:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
-            # TODO: add documentation  to clear disk space.
+            # TODO: add documentation to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
 
         if cpu_usage_percent <= 75:

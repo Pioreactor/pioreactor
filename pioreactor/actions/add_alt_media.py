@@ -1,26 +1,16 @@
 # -*- coding: utf-8 -*-
-import time, sys
+import time
 from json import loads, dumps
 
-import signal
 import click
 
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.logging import create_logger
-
-if is_testing_env():
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
-import RPi.GPIO as GPIO
-
-GPIO.setmode(GPIO.BCM)
+from pioreactor.utils.pwm import PWM
 
 
 def add_alt_media(
@@ -83,30 +73,18 @@ def add_alt_media(
     try:
 
         ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "alt_media")]
-        GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
-        GPIO.output(ALT_MEDIA_PIN, 0)
-        pwm = GPIO.PWM(ALT_MEDIA_PIN, hz)
+        pwm = PWM(ALT_MEDIA_PIN, hz)
 
         pwm.start(duty_cycle)
         time.sleep(duration)
 
     except Exception as e:
-        logger.debug("Stopped")
+        logger.debug("Add alt media failed", exc_info=True)
         logger.error(e)
     finally:
-        try:
-            pwm.stop()
-        except Exception:
-            pass
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(ALT_MEDIA_PIN, GPIO.OUT)
-        GPIO.output(ALT_MEDIA_PIN, 0)
-        clean_up_gpio()
+        pwm.stop()
+        pwm.cleanup()
     return
-
-
-def clean_up_gpio():
-    GPIO.cleanup(PWM_TO_PIN[config.getint("PWM", "alt_media")])
 
 
 @click.command(name="add_alt_media")
@@ -125,8 +103,6 @@ def click_add_alt_media(ml, duration, duty_cycle, source_of_event):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-
-    signal.signal(signal.SIGTERM, clean_up_gpio)
 
     return add_alt_media(
         ml, duration, duty_cycle, source_of_event, unit=unit, experiment=experiment

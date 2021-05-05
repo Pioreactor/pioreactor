@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json, sys, time
+import json, time
 
 from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
@@ -7,15 +7,7 @@ from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.hardware_mappings import PWM_TO_PIN
-from pioreactor.whoami import is_testing_env
-
-if is_testing_env():
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
-import RPi.GPIO as GPIO
+from pioreactor.utils.pwm import PWM
 
 
 def clamp(minimum, x, maximum):
@@ -100,12 +92,7 @@ class TemperatureAutomation(BackgroundSubJob):
     def setup_pwm(self):
         hertz = 100
         self.pin = PWM_TO_PIN[config.getint("PWM", "heating")]
-
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.pin, GPIO.OUT)
-        GPIO.output(self.pin, 0)
-
-        pwm = GPIO.PWM(self.pin, hertz)
+        pwm = PWM(self.pin, hertz)
         pwm.start(0)
         return pwm
 
@@ -125,7 +112,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
         self.update_heater(0)
         self._pwm.stop()
-        GPIO.cleanup(self.pin)
+        self._pwm.cleanup()
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)

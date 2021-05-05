@@ -1,25 +1,16 @@
 # -*- coding: utf-8 -*-
 
-import time, sys, signal
+import time, signal
 
 import click
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.pubsub import subscribe
 from pioreactor.utils.timing import RepeatedTimer
-
-if is_testing_env():
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
-import RPi.GPIO as GPIO
-
-GPIO.setmode(GPIO.BCM)
+from pioreactor.utils.pwm import PWM
 
 JOB_NAME = "stirring"
 
@@ -59,9 +50,7 @@ class Stirrer(BackgroundJob):
         self.pin = PWM_TO_PIN[config.getint("PWM", "stirring")]
         self.set_dc_increase_between_adc_readings(dc_increase_between_adc_readings)
 
-        GPIO.setup(self.pin, GPIO.OUT)
-        GPIO.output(self.pin, 0)
-        self.pwm = GPIO.PWM(self.pin, self.hertz)
+        self.pwm = PWM(self.pin, self.hertz)
         self.set_duty_cycle(duty_cycle)
         self.start_stirring()
 
@@ -72,13 +61,12 @@ class Stirrer(BackgroundJob):
 
         self.stop_stirring()
         self.pwm.stop()
-
-        GPIO.cleanup(self.pin)
+        self.pwm.cleanup()
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
         time.sleep(0.5)
-        self.pwm.ChangeDutyCycle(self.duty_cycle)
+        self.pwm.change_duty_cycle(self.duty_cycle)
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
@@ -98,7 +86,7 @@ class Stirrer(BackgroundJob):
 
     def set_duty_cycle(self, value):
         self.duty_cycle = clamp(0, round(float(value)), 100)
-        self.pwm.ChangeDutyCycle(self.duty_cycle)
+        self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_dc_increase_between_adc_readings(self, dc_increase_between_adc_readings):
         self.dc_increase_between_adc_readings = int(dc_increase_between_adc_readings)
