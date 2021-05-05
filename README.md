@@ -14,4 +14,4 @@ Coming soon! Sign up [here](https://pioreactor.com/) for updates.
 
 ### Documentation
 
-All the documentation is [available in our wiki](https://pioreactor.com/pages/documenation).
+All the documentation is [available in our wiki](https://pioreactor.com/pages/documentation).
