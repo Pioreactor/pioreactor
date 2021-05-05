@@ -32,10 +32,14 @@ class HardwarePWM:
     Example
     ----------
     >pwm = HardwarePWM(0)
-    >pwm.set_frequency(FREQ)
-    >pwm.set_duty_cycle(DC)
-    >pwm.start()
+    >pwm.set_frequency(20)
+    >pwm.start(100)
+    >pwm.ChangeDutyCycle(50)
     >pwm.stop()
+
+    Notes
+    --------
+    If you get "write error: Invalid argument" - you have to set duty_cycle to 0 before changing period
 
     """
 
@@ -65,32 +69,33 @@ class HardwarePWM:
         return os.path.isdir(self.pwm_dir)
 
     def echo(self, m, fil):
-        print(m, fil)
         with open(fil, "w") as f:
             f.write(f"{m}\n")
 
     def create_pwmX(self):
-        pwmexport = os.path.join(self.chippath, "export")
-        self.echo(self.pwm_channel, pwmexport)
+        self.echo(self.pwm_channel, os.path.join(self.chippath, "export"))
 
-    def start(self):
+    def start(self, initial_duty_cycle):
+        self.change_duty_cycle(initial_duty_cycle)
         self.echo(1, os.path.join(self.pwm_dir, "enable"))
 
     def stop(self):
+        self.change_duty_cycle(0)
+        self.set_frequency(0)
         self.echo(0, os.path.join(self.pwm_dir, "enable"))
 
-    def set_duty_cycle(self, duty_cycle):
+    def change_duty_cycle(self, duty_cycle):
         # a value between 0 and 100
         assert 0 <= duty_cycle <= 100
-        per = 1 / float(self.hz)
+        per = 1 / float(self._hz)
         per *= 1000  # now in milliseconds
         per *= 1_000_000  # now in.. whatever
         dc = int(per * duty_cycle / 100)
         self.echo(dc, os.path.join(self.pwm_dir, "duty_cycle"))
 
     def set_frequency(self, hz):
-        self.hz = hz
-        per = 1 / float(hz)
+        self._hz = hz
+        per = 1 / float(self._hz)
         per *= 1000  # now in milliseconds
         per *= 1_000_000  # now in.. whatever
         per = int(per)
