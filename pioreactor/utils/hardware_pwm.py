@@ -25,7 +25,7 @@ class HardwarePWMException(Exception):
 # pwm0 is GPIO pin 18 is physical pin 12
 # pwm1 is GPIO pin 19 is physical pin 13
 
-# /sys/ pwm interface described here: http://www.jumpnowtek.com/rpi/Using-the-Raspberry-Pi-Hardware-PWM-timers.html
+# /sys/ pwm interface described here: https://www.jumpnowtek.com/rpi/Using-the-Raspberry-Pi-Hardware-PWM-timers.html
 class HardwarePWM:
     """
 
@@ -33,9 +33,9 @@ class HardwarePWM:
     ----------
     >pwm = HardwarePWM(0)
     >pwm.set_frequency(FREQ)
-    >pwm.set_duty_cycle(S)
-    >pwm.enable()
-    >pwm.disable()
+    >pwm.set_duty_cycle(DC)
+    >pwm.start()
+    >pwm.stop()
 
     """
 
@@ -71,15 +71,15 @@ class HardwarePWM:
         pwmexport = f"{self.chippath}/export"
         self.echo(self.pwm_channel, pwmexport)
 
-    def enable(self, disable=False):
+    def start(self):
         enable = f"{self.pwm_dir}/enable"
         num = 1
-        if disable:
-            num = 0
         self.echo(num, enable)
 
-    def disable(self):
-        return self.enable(disable=True)
+    def stop(self):
+        enable = f"{self.pwm_dir}/enable"
+        num = 0
+        self.echo(num, enable)
 
     def set_duty_cycle(self, milliseconds):
         # /sys/ iface, 2ms is 2000000
