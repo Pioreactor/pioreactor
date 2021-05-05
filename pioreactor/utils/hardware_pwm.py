@@ -27,30 +27,41 @@ class HardwarePWMException(Exception):
 
 # /sys/ pwm interface described here: http://www.jumpnowtek.com/rpi/Using-the-Raspberry-Pi-Hardware-PWM-timers.html
 class HardwarePWM:
+    """
+
+    Example
+    ----------
+    >pwm = HardwarePWM(0)
+    >pwm.set_frequency(FREQ)
+    >pwm.set_duty_cycle(S)
+    >pwm.enable()
+    >pwm.disable()
+
+    """
 
     chippath = "/sys/class/pwm/pwmchip0"
 
-    def __init__(self, pwm):
-        self.pwm = pwm
-        self.pwmdir = f"{self.chippath}/pwm{self.pwm}"
-        if not self.overlay_loaded():
+    def __init__(self, pwm_channel):
+        self.pwm_channel = pwm_channel
+        self.pwm_dir = f"{self.chippath}/pwm{self.pwm_channel}"
+        if not self.is_overlay_loaded():
             raise HardwarePWMException(
                 "Need to add 'dtoverlay=pwm-2chan' to /boot/config.txt and reboot"
             )
-        if not self.export_writable():
+        if not self.is_export_writable():
             raise HardwarePWMException(f"Need write access to files in '{self.chippath}'")
-        if not self.pwmX_exists():
+        if not self.does_pwmX_exists():
             self.create_pwmX()
         return
 
-    def overlay_loaded(self):
+    def is_overlay_loaded(self):
         return os.path.isdir(self.chippath)
 
-    def export_writable(self):
+    def is_export_writable(self):
         return os.access(f"{self.chippath}/export", os.W_OK)
 
-    def pwmX_exists(self):
-        return os.path.isdir(self.pwmdir)
+    def does_pwmX_exists(self):
+        return os.path.isdir(self.pwm_dir)
 
     def echo(self, m, fil):
         with open(fil, "w") as f:
@@ -58,10 +69,10 @@ class HardwarePWM:
 
     def create_pwmX(self):
         pwmexport = f"{self.chippath}/export"
-        self.echo(self.pwm, pwmexport)
+        self.echo(self.pwm_channel, pwmexport)
 
     def enable(self, disable=False):
-        enable = f"{self.pwmdir}/enable"
+        enable = f"{self.pwm_dir}/enable"
         num = 1
         if disable:
             num = 0
@@ -74,7 +85,7 @@ class HardwarePWM:
         # /sys/ iface, 2ms is 2000000
         # gpio cmd,    2ms is 200
         dc = int(milliseconds * 1_000_000)
-        duty_cycle = f"{self.pwmdir}/duty_cycle"
+        duty_cycle = f"{self.pwm_dir}/duty_cycle"
         self.echo(dc, duty_cycle)
 
     def set_frequency(self, hz):
@@ -82,5 +93,5 @@ class HardwarePWM:
         per *= 1000  # now in milliseconds
         per *= 1_000_000  # now in.. whatever
         per = int(per)
-        period = f"{self.pwmdir}/period"
+        period = f"{self.pwm_dir}/period"
         self.echo(per, period)
