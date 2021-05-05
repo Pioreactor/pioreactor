@@ -1,7 +1,8 @@
 -r requirements.txt
+RPi.GPIO
 adafruit-circuitpython-ads1x15
 simple-pid
-RPi.GPIO
 DAC43608
+rpi-hardware-pwm
 
 # numpy as well, but that's installed elsewhere

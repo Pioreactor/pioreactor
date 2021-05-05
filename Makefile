@@ -108,8 +108,11 @@ configure-rpi:
 
 	######################################################################
 
-
 	sudo -upi mkdir -p /home/pi/.ssh
+
+	# add hardware pwm
+	echo "dtoverlay=pwm-2chan,pin=12,func=4,pin2=13,func2=4" | sudo tee -a /boot/config.txt
+
 
 install-ui:
 	# install NPM and Node
