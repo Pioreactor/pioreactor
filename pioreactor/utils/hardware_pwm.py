@@ -41,7 +41,7 @@ class HardwarePWM:
 
     chippath = "/sys/class/pwm/pwmchip0"
 
-    def __init__(self, pwm_channel):
+    def __init__(self, pwm_channel, hz):
         self.pwm_channel = pwm_channel
         self.pwm_dir = f"{self.chippath}/pwm{self.pwm_channel}"
         if not self.is_overlay_loaded():
@@ -52,7 +52,8 @@ class HardwarePWM:
             raise HardwarePWMException(f"Need write access to files in '{self.chippath}'")
         if not self.does_pwmX_exists():
             self.create_pwmX()
-        return
+
+        self.set_frequency(hz)
 
     def is_overlay_loaded(self):
         return os.path.isdir(self.chippath)
@@ -81,14 +82,17 @@ class HardwarePWM:
         num = 0
         self.echo(num, enable)
 
-    def set_duty_cycle(self, milliseconds):
-        # /sys/ iface, 2ms is 2000000
-        # gpio cmd,    2ms is 200
-        dc = int(milliseconds * 1_000_000)
-        duty_cycle = f"{self.pwm_dir}/duty_cycle"
-        self.echo(dc, duty_cycle)
+    def set_duty_cycle(self, duty_cycle):
+        # a value between 0 and 100
+        assert 0 <= duty_cycle <= 100
+        per = 1 / float(self.hz)
+        per *= 1000  # now in milliseconds
+        per *= 1_000_000  # now in.. whatever
+        dc = int(per * duty_cycle)
+        self.echo(dc, f"{self.pwm_dir}/duty_cycle")
 
     def set_frequency(self, hz):
+        self.hz = hz
         per = 1 / float(hz)
         per *= 1000  # now in milliseconds
         per *= 1_000_000  # now in.. whatever
