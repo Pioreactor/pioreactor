@@ -163,7 +163,7 @@ class Monitor(BackgroundJob):
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
         cpu_usage_percent = round(psutil.cpu_percent())
-        available_memory_percent = 100 - round(
+        available_memory_percent = round(
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
 

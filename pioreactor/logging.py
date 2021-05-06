@@ -8,16 +8,17 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
 )
 from pioreactor.config import config
-import json_log_formatter
+from json_log_formatter import JSONFormatter
 
 logging.raiseExceptions = False
-# reduce logging from third party libs
+
+# reduce logging from third party libs. TODO: do I still need this?
 logging.getLogger("sh").setLevel("ERROR")
 logging.getLogger("paramiko").setLevel("ERROR")
 logging.getLogger("sqlite3worker").setLevel("ERROR")
 
 
-class CustomisedJSONFormatter(json_log_formatter.JSONFormatter):
+class CustomisedJSONFormatter(JSONFormatter):
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
         extra["message"] = message
 

@@ -20,10 +20,11 @@ class PWM:
     > from pioreactor.utils.pwm import PWM
     > pwm = PWM(12, 50)
     > pwm.start(20) # 20% duty cycle
-    > pwm.change_duty_cycle(25)
+    >
+    > pwm.change_duty_cycle(25) # 25% duty cycle
+    >
     > pwm.stop()
     > pwm.cleanup()
-
 
     """
 
