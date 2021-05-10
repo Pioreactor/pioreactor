@@ -58,7 +58,6 @@ class Monitor(BackgroundJob):
         self.flicker_led()
 
     def on_disconnect(self):
-        self.performance_statistics_timer.cancel()
         GPIO.cleanup(LED_PIN)
 
     def led_on(self):

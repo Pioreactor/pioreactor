@@ -73,6 +73,7 @@ def add_media(
         MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "media")]
 
         pwm = PWM(MEDIA_PIN, hz)
+
         pwm.start(duty_cycle)
         time.sleep(duration)
 

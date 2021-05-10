@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys
+import sys, threading, signal
 from pioreactor.whoami import is_testing_env
 
 if is_testing_env():
@@ -50,6 +50,11 @@ class PWM:
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             self.pwm = GPIO.PWM(self.pin, hz)
+
+        # signals only work in main thread
+        if threading.current_thread() is threading.main_thread():
+            # terminate command, ex: pkill
+            signal.signal(signal.SIGTERM, self.cleanup)
 
     def start(self, initial_duty_cycle):
         self.pwm.start(initial_duty_cycle)

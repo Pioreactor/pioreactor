@@ -28,7 +28,8 @@ def read_temperature():
     """
     Read the current temperature from our sensor, in Celsius
 
-
+    TODO: this should raise some error if I'm not able to find the I2C address -> likely
+          the heating PCB is not connected.
     Note: this function is here for lack of a better place
     """
     import time, math, random
