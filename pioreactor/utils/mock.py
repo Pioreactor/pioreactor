@@ -5,6 +5,9 @@ from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
 from rpi_hardware_pwm import HardwarePWM
+import random
+
+random.seed(10)
 
 
 class MockI2C:
@@ -28,9 +31,6 @@ class MockAnalogIn(AnalogIn):
 
     def __init__(self, ads, channel, **kwargs):
         from pioreactor.whoami import get_unit_name, get_latest_experiment_name
-        import random
-
-        random.seed(10)
 
         # import pandas as pd
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)

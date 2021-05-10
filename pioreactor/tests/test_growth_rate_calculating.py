@@ -446,7 +446,6 @@ def test_end_to_end():
     calc = GrowthRateCalculator(unit=unit, experiment=exp)
 
     time.sleep(35)
-
     assert calc.ekf.state_[-2] != 1.0
 
 
