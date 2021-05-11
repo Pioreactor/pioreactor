@@ -83,7 +83,7 @@ def add_media(
 
         pwm.start(duty_cycle)
 
-        if config == "continuously":
+        if user_config == "continuously":
             signal.pause()
         else:
             time.sleep(duration)
