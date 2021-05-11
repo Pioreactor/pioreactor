@@ -31,14 +31,6 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
         logger.debug("Starting od_blank.")
         logger.info("Starting reading of blank OD. This will take less than a minute.")
 
-        if (
-            ("stirring" not in pio_jobs_running())
-            # but if test mode, ignore
-            and not is_testing_env()
-        ):
-            logger.error("stirring should be running. Run stirring first.")
-            raise ValueError("stirring should be running. Run stirring first.")
-
         # running this will mess with OD Reading - best to just not let it happen.
         if (
             ("od_reading" in pio_jobs_running())

@@ -26,14 +26,6 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     )
 
     if (
-        ("stirring" not in pio_jobs_running())
-        # but if test mode, ignore
-        and not is_testing_env()
-    ):
-        logger.error("stirring jobs should be running. Run stirring first.")
-        raise ValueError("stirring jobs should be running. Run stirring first. ")
-
-    if (
         ("od_reading" not in pio_jobs_running())
         # but if test mode, ignore
         and not is_testing_env()
