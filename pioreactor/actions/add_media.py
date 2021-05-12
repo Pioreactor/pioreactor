@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import time, signal
+import time
 from json import loads, dumps
 import click
 
@@ -38,25 +38,30 @@ def add_media(
         )
 
     if ml is not None:
-        user_config = "ml"
         assert ml >= 0
         duration = pump_ml_to_duration(
             ml, duty_cycle, **loads(config["pump_calibration"]["media_ml_calibration"])
         )
-        assert duration >= 0
+        logger.info(f"{round(ml, 2)}mL")
     elif duration is not None:
-        user_config = "duration"
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
             **loads(config["pump_calibration"]["media_ml_calibration"]),
         )
-        assert duration >= 0
-
+        logger.info(f"{round(duration, 2)}s")
     elif continuously:
-        user_config = "continuously"
-        ml = 0  # TODO: this is wrong
+        duration = 10_000_000
+        ml = pump_duration_to_ml(
+            duration,
+            duty_cycle,
+            **loads(config["pump_calibration"]["media_ml_calibration"]),
+        )
+        logger.info("Running pump continuously.")
 
+    assert duration >= 0
+
+    # post this first, as downstream jobs need to know about it.
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
         dumps(
@@ -69,24 +74,17 @@ def add_media(
         qos=QOS.EXACTLY_ONCE,
     )
 
-    if user_config == "ml":
-        logger.info(f"{round(ml, 2)}mL")
-    elif user_config == "duration":
-        logger.info(f"{round(duration, 2)}s")
-    elif user_config == "continuously":
-        logger.info("Running pump continuously.")
-
     try:
         MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "media")]
 
         pwm = PWM(MEDIA_PIN, hz)
-
         pwm.start(duty_cycle)
+        time.sleep(duration)
 
-        if user_config == "continuously":
-            signal.pause()
-        else:
-            time.sleep(duration)
+        if continuously:
+            return add_media(
+                ml, duration, continuously, duty_cycle, source_of_event, unit, experiment
+            )
 
     except Exception as e:
         logger.debug("Add media failed", exc_info=True)
