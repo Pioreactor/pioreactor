@@ -140,6 +140,17 @@ class GrowthRateCalculator(BackgroundJob):
         od_normalization_factors = self.get_od_normalization_from_broker()
         od_variances = self.get_od_variances_from_broker()
         od_blank = self.get_od_blank_from_broker()
+
+        # what happens if od_blank is near / less than od_normalization_factors?
+        # this means that the inoculant had near 0 impact on the turbidity => very dilute.
+        # I think we should not use od_blank if so
+        for angle in od_normalization_factors.keys():
+            if od_normalization_factors[angle] * 0.95 < od_blank[angle]:
+                self.logger.debug(
+                    "Resetting od_blank because it is too close to current observations."
+                )
+                od_blank[angle] = od_normalization_factors[angle] * 0.95
+
         return initial_growth_rate, od_normalization_factors, od_variances, od_blank
 
     def get_od_blank_from_broker(self):
@@ -218,11 +229,19 @@ class GrowthRateCalculator(BackgroundJob):
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
     def scale_raw_observations(self, observations):
-        return {
+        v = {
             angle: (observations[angle] - self.od_blank[angle])
             / (self.od_normalization_factors[angle] - self.od_blank[angle])
             for angle in self.od_normalization_factors.keys()
         }
+        if any([v[a] < 0 for a in v]):
+            self.logger.warning(f"Negative normalized value(s) observed: {v}")
+            self.logger.debug(
+                f"od_normalization_factors: {self.od_normalization_factors}"
+            )
+            self.logger.debug(f"od_blank: {self.od_blank}")
+
+        return v
 
     def update_state_from_observation(self, message):
         if self.state != self.READY:
@@ -241,6 +260,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         observations = self.json_to_sorted_dict(message.payload)
         scaled_observations = self.scale_raw_observations(observations)
+
         try:
             self.ekf.update(list(scaled_observations.values()), dt)
         except Exception as e:
@@ -275,12 +295,6 @@ class GrowthRateCalculator(BackgroundJob):
 
     def response_to_dosing_event(self, message):
         # here we can add custom logic to handle dosing events.
-        # for example, in continuous_cycle automation, we dont want to respond to
-        # dosing events (because they are so small and so frequent)
-
-        payload = json.loads(message.payload)
-        if payload["source_of_event"] == "dosing_automation:ContinuousCycle":
-            return
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
         self.update_ekf_variance_after_event(minutes=1, factor=2500)

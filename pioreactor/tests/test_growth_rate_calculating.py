@@ -494,6 +494,62 @@ def test_od_blank_being_non_zero():
     calc.set_state("disconnected")
 
 
+def test_od_blank_being_higher_than_observations():
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_blank/mean",
+        json.dumps({"135/0": 0.25, "90/1": 0.4}),
+        retain=True,
+    )
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        retain=True,
+    )
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        None,
+        retain=True,
+    )
+
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    pause()
+
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        '{"135/0": 0.5, "90/1": 0.8}',
+        retain=True,
+    )
+    pause()
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        '{"135/0": 0.1, "90/1": 0.1}',
+        retain=True,
+    )
+    pause()
+    pause()
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        '{"135/0": 0.1, "90/1": 0.1}',
+        retain=True,
+    )
+    pause()
+    pause()
+    pause()
+    pause()
+    calc.set_state("disconnected")
+
+
 def test_od_blank_being_zero():
 
     publish(f"pioreactor/{unit}/{experiment}/od_blank/mean", None, retain=True)
