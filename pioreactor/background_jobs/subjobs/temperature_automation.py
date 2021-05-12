@@ -65,7 +65,7 @@ class TemperatureAutomation(BackgroundSubJob):
                     run_immediately=(not self.skip_first_run),
                 ).start()
 
-    def run(self, counter=None):
+    def run(self):
         time.sleep(2)  # wait some time for data to arrive
         if self.latest_temperature is None:
             self.logger.debug("Waiting for temperature data to arrive")
@@ -74,13 +74,13 @@ class TemperatureAutomation(BackgroundSubJob):
             pass
         else:
             try:
-                self.execute(counter)
+                self.execute()
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
         return
 
-    def execute(self, counter):
+    def execute(self):
         raise NotImplementedError
 
     def update_heater(self, new_duty_cycle):

@@ -74,7 +74,7 @@ class LEDAutomation(BackgroundSubJob):
                     run_immediately=(not self.skip_first_run),
                 ).start()
 
-    def run(self, counter=None):
+    def run(self):
         # TODO: this should be close to or equal to the function in DosingAutomation
         time.sleep(2)  # wait some time for data to arrive
         if (self.latest_growth_rate is None) or (self.latest_od is None):
@@ -87,11 +87,11 @@ class LEDAutomation(BackgroundSubJob):
                 )
 
             time.sleep(5)
-            return self.run(counter=counter)
+            return self.run()
 
         elif self.state != self.READY:
             time.sleep(1)
-            return self.run(counter=counter)
+            return self.run()
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(
@@ -99,7 +99,7 @@ class LEDAutomation(BackgroundSubJob):
             )
         else:
             try:
-                event = self.execute(counter)
+                event = self.execute()
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
@@ -109,7 +109,7 @@ class LEDAutomation(BackgroundSubJob):
         self.latest_event = event
         return event
 
-    def execute(self, counter) -> events.Event:
+    def execute(self) -> events.Event:
         raise NotImplementedError
 
     @property

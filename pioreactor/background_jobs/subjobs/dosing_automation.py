@@ -57,10 +57,10 @@ class DosingAutomation(BackgroundSubJob):
 
         # the below subjobs should run in the "init()"?
         self.alt_media_calculator = AltMediaCalculator(
-            unit=self.unit, experiment=self.experiment
+            unit=self.unit, experiment=self.experiment, parent=self
         )
         self.throughput_calculator = ThroughputCalculator(
-            unit=self.unit, experiment=self.experiment
+            unit=self.unit, experiment=self.experiment, parent=self
         )
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
         self.set_duration(duration)
@@ -81,7 +81,7 @@ class DosingAutomation(BackgroundSubJob):
                     run_immediately=(not self.skip_first_run),
                 ).start()
 
-    def run(self, counter=None):
+    def run(self):
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
@@ -89,7 +89,7 @@ class DosingAutomation(BackgroundSubJob):
 
         elif self.state != self.READY:
             time.sleep(5)
-            return self.run(counter=counter)
+            return self.run()
 
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             # this should really only happen on the initialization.
@@ -101,7 +101,7 @@ class DosingAutomation(BackgroundSubJob):
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
             time.sleep(20)
-            return self.run(counter=counter)
+            return self.run()
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(
@@ -110,7 +110,7 @@ class DosingAutomation(BackgroundSubJob):
 
         else:
             try:
-                event = self.execute(counter)
+                event = self.execute()
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
@@ -120,7 +120,7 @@ class DosingAutomation(BackgroundSubJob):
         self.latest_event = event
         return event
 
-    def execute(self, counter) -> events.Event:
+    def execute(self) -> events.Event:
         raise NotImplementedError
 
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
