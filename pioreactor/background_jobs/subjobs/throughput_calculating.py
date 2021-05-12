@@ -24,7 +24,7 @@ class ThroughputCalculator(BackgroundSubJob):
 
     def __init__(self, unit=None, experiment=None, **kwargs) -> None:
         super(ThroughputCalculator, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment
+            job_name=JOB_NAME, unit=unit, experiment=experiment, **kwargs
         )
 
         self.media_throughput = self.get_initial_media_throughput()

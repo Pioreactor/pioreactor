@@ -24,7 +24,6 @@ def split_topic_for_setting(topic):
 
 class PostInitCaller(type):
     def __call__(cls, *args, **kwargs):
-        """Called when you call MyNewClass() """
         obj = type.__call__(cls, *args, **kwargs)
         obj.__post__init__()
         return obj

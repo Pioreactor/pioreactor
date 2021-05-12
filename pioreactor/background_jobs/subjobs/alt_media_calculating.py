@@ -24,7 +24,7 @@ class AltMediaCalculator(BackgroundSubJob):
 
     def __init__(self, unit=None, experiment=None, **kwargs) -> None:
         super(AltMediaCalculator, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment
+            job_name=JOB_NAME, unit=unit, experiment=experiment, **kwargs
         )
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 

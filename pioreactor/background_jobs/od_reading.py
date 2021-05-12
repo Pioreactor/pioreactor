@@ -66,8 +66,6 @@ class ADCReader(BackgroundSubJob):
     and in case the config.ini is changed between this job starting and the downstream
     job starting.
 
-
-
     """
 
     ADS_GAIN_THRESHOLDS = {
@@ -98,9 +96,10 @@ class ADCReader(BackgroundSubJob):
         experiment=None,
         dynamic_gain=True,
         initial_gain=1,
+        **kwargs,
     ):
         super(ADCReader, self).__init__(
-            job_name=self.JOB_NAME, unit=unit, experiment=experiment
+            job_name=self.JOB_NAME, unit=unit, experiment=experiment, **kwargs
         )
         self.fake_data = fake_data
         self.interval = interval
@@ -167,15 +166,16 @@ class ADCReader(BackgroundSubJob):
                 raw_signals.append(raw_signal_)
 
             max_signal = max(raw_signals)
+
             self.check_on_max(max_signal)
             self.check_on_gain(max_signal)
 
     def check_on_max(self, value):
         if value > 3.1:
             self.logger.error(
-                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting it down to keep the ADC safe."
+                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting OD reading down to keep the ADC safe."
             )
-            self.set_state("disconnected")
+            self.parent.set_state("disconnected")
 
     def check_on_gain(self, value):
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
@@ -262,11 +262,16 @@ class ODReader(BackgroundJob):
     Parameters
     -----------
 
-    channel_label_map: dict of (ADS channel: label) pairs, ex: {"A0": "135/0", "A1": "90/1"}
-
+    channel_label_map: dict
+        dict of (ADS channel: label) pairs, ex: {"A0": "135/0", "A1": "90/1"}
+    stop_IR_led_between_ADC_readings: bool
+        bool for if the IR LED should turn off between ADC readings. Helps improve
+        lifetime of LED and allows for other optics signals to occur with interference.
+    fake_data: bool
+        Use a simulated dataset
     """
 
-    editable_settings = []
+    editable_settings = ["led_intensity"]
 
     def __init__(
         self,
@@ -287,6 +292,7 @@ class ODReader(BackgroundJob):
         self.fake_data = fake_data
 
         # start IR led before ADC starts, as it needs it.
+        self.led_intensity = config.getint("od_config.od_sampling", "ir_intensity")
         self.start_ir_led()
 
         self.adc_reader = ADCReader(
@@ -294,6 +300,7 @@ class ODReader(BackgroundJob):
             fake_data=fake_data,
             unit=self.unit,
             experiment=self.experiment,
+            parent=self,
         )
         self.sub_jobs = [self.adc_reader]
         self.adc_reader.start_periodic_reading()
@@ -355,7 +362,7 @@ class ODReader(BackgroundJob):
         ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
             ir_channel,
-            intensity=config.getint("od_config.od_sampling", "ir_intensity"),
+            intensity=self.led_intensity,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
