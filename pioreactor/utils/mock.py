@@ -100,6 +100,16 @@ class MockDAC43608:
         pass
 
 
+class MockTMP1075:
+    def __init__(*args):
+        pass
+
+    def get_temperature(self):
+        import time, math, random
+
+        return 3 * math.sin(0.1 * time.time() / 60) + 25 + 0.2 * random.random()
+
+
 class MockHardwarePWM(HardwarePWM):
     def is_overlay_loaded(self):
         return True

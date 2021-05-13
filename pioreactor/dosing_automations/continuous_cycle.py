@@ -9,9 +9,6 @@ class ContinuousCycle(DosingAutomation):
     Useful for using the Pioreactor as an inline sensor.
     """
 
-    def __init__(self, **kwargs):
-        super(ContinuousCycle, self).__init__(**kwargs)
-
     def run(self):
         if self.state == self.DISCONNECTED:
             # NOOP

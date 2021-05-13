@@ -52,11 +52,7 @@ def add_media(
         logger.info(f"{round(duration, 2)}s")
     elif continuously:
         duration = 10_000_000
-        ml = pump_duration_to_ml(
-            duration,
-            duty_cycle,
-            **loads(config["pump_calibration"]["media_ml_calibration"]),
-        )
+        ml = 0
         logger.info("Running pump continuously.")
 
     assert duration >= 0

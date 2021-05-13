@@ -14,6 +14,7 @@ class ExponentialMovingAverage:
             self.value = new_value
         else:
             self.value = (1 - self.alpha) * new_value + self.alpha * self.value
+        return self.value
 
 
 class ExtendedKalmanFilter:

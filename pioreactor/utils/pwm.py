@@ -36,7 +36,6 @@ class PWM:
 
         self.pin = pin
         self.hz = hz
-
         if (not always_use_software) and (pin in self.HARDWARE_PWM_AVAILABLE_PINS):
             if is_testing_env():
                 from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM

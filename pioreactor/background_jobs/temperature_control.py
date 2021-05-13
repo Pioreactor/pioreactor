@@ -24,19 +24,6 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils import pio_jobs_running
 
 
-def read_temperature():
-    """
-    Read the current temperature from our sensor, in Celsius
-
-    TODO: this should raise some error if I'm not able to find the I2C address -> likely
-          the heating PCB is not connected.
-    Note: this function is here for lack of a better place
-    """
-    import time, math, random
-
-    return 3 * math.sin(0.1 * time.time() / 60) + 25 + 0.2 * random.random()
-
-
 class TemperatureController(BackgroundJob):
 
     automations = {"silent": Silent, "pid_stable": PIDStable}
@@ -54,6 +41,15 @@ class TemperatureController(BackgroundJob):
         )
 
         self.ema = ExponentialMovingAverage(0.25)
+
+        try:
+            from TMP1075 import TMP1075
+        except (NotImplementedError, ModuleNotFoundError):
+            self.logger.debug("TMP1075 not available; using MockTMP1075")
+            from pioreactor.utils.mock import MockTMP1075 as TMP1075
+
+        self.tmp_driver = TMP1075()
+
         self.publish_temperature_timer = RepeatedTimer(
             1 / config.getfloat("temperature_config.sampling", "samples_per_second"),
             self.read_and_publish_temperature,
@@ -61,31 +57,37 @@ class TemperatureController(BackgroundJob):
         )
         self.publish_temperature_timer.start()
 
+    def read_temperature(self):
+        """
+        Read the current temperature from our sensor, in Celsius
+
+        TODO: this should raise some error if I'm not able to find the I2C address -> likely
+              the heating PCB is not connected.
+        Note: this function is here for lack of a better place
+        """
+
+        return self.tmp_driver.get_temperature()
+
     def read_and_publish_temperature(self):
-        temp = read_temperature()
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/temperature", temp
-        )
+        raw_temp = self.read_temperature()
+        self.temperature = self.ema.update(raw_temp)
+        self._check_if_exceeds_max_temp()
+        self._check_for_sudden_temperature_decrease()
 
-        self._check_if_exceeds_max_temp(temp)
-        self._check_for_sudden_temperature_decrease(temp)
-
-        self.ema.update(temp)
-
-    def _check_for_sudden_temperature_decrease(self, latest_temp):
+    def _check_for_sudden_temperature_decrease(self):
         # TODO: this needs to be tested in the field
         if (
             (self.ema.value is not None)
-            and (latest_temp < 0.75 * self.ema.value)
+            and (self.temperature < 0.75 * self.ema.value)
             and ("dosing_control" in pio_jobs_running())
         ):
             self.logger.warning(
                 "Noticed a sudden temperature change. This may be caused be a leakage. Suggestion is to check for liquid outside vial."
             )
 
-    def _check_if_exceeds_max_temp(self, latest_temp):
+    def _check_if_exceeds_max_temp(self):
         max_temp = 52.0
-        if latest_temp > max_temp:
+        if self.temperature > max_temp:
             self.logger.warning(
                 f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations. Temperature control will be halted. Take caution when touching the heating surface and wetware."
             )
