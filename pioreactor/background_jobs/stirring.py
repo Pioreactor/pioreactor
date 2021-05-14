@@ -84,9 +84,11 @@ class Stirrer(BackgroundJob):
         try:
             if self.rpm_ema.value is None:
                 return
-            new_dc = self.pid.update(self.rpm_ema.value, dt=self.delta_between_updates)
-            print(self.rpm_ema.value, new_dc)
-            self.set_duty_cycle(new_dc)
+            new_dc_delta = self.pid.update(
+                self.rpm_ema.value, dt=self.delta_between_updates
+            )
+            print(self.rpm_ema.value, new_dc_delta)
+            self.set_duty_cycle(self.duty_cycle + new_dc_delta)
         except Exception:
             import traceback
 
