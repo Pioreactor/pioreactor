@@ -15,83 +15,84 @@ def pause():
 
 
 def test_stirring_runs():
-    stirring(50, duration=0.1)
+    stirring(500, duration=0.1)
 
 
 def test_change_stirring_mid_cycle():
-    original_dc = 50
+    original_rpm = 500
 
-    st = Stirrer(original_dc, unit, exp)
-    assert st.duty_cycle == original_dc
+    st = Stirrer(original_rpm, unit, exp)
+    assert st.rpm == original_rpm
     pause()
 
-    new_dc = 75
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", new_dc)
+    new_rpm = 750
+    publish(f"pioreactor/{unit}/{exp}/stirring/rpm/set", new_rpm)
 
     pause()
 
-    assert st.duty_cycle == new_dc
+    assert st.rpm == new_rpm
     assert st.state == "ready"
 
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", 0)
+    publish(f"pioreactor/{unit}/{exp}/stirring/rpm/set", 0)
     pause()
-    assert st.duty_cycle == 0
+    assert st.rpm == 0
     pause()
 
 
 def test_pause_stirring_mid_cycle():
-    original_dc = 50
+    original_rpm = 500
 
-    st = Stirrer(original_dc, unit, exp)
-    assert st.duty_cycle == original_dc
+    st = Stirrer(original_rpm, unit, exp)
+    assert st.rpm == original_rpm
     pause()
 
     publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
     pause()
 
-    assert st.duty_cycle == 0
+    assert st.rpm == 0
 
     publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "ready")
     pause()
 
-    assert st.duty_cycle == 50
+    assert st.rpm == 500
 
 
-def test_pause_stirring_mid_cycle_with_modified_dc():
-    original_dc = 50
+def test_pause_stirring_mid_cycle_with_modified_rpm():
+    original_rpm = 500
 
-    st = Stirrer(original_dc, unit, exp)
-    assert st.duty_cycle == original_dc
+    st = Stirrer(original_rpm, unit, exp)
+    assert st.rpm == original_rpm
 
-    new_dc = 80
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", new_dc)
+    new_rpm = 800
+    publish(f"pioreactor/{unit}/{exp}/stirring/rpm/set", new_rpm)
 
     pause()
 
     publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
     pause()
 
-    assert st.duty_cycle == 0
+    assert st.rpm == 0
 
     publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "ready")
     pause()
 
-    assert st.duty_cycle == new_dc
+    assert st.rpm == new_rpm
 
 
 def test_publish_duty_cycle():
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle", None, retain=True)
+    publish(f"pioreactor/{unit}/{exp}/stirring/rpm", None, retain=True)
     pause()
-    original_dc = 50
+    original_rpm = 500
 
-    st = Stirrer(original_dc, unit, exp)
-    assert st.duty_cycle == original_dc
+    st = Stirrer(original_rpm, unit, exp)
+    assert st.rpm == original_rpm
 
     pause()
-    message = subscribe(f"pioreactor/{unit}/{exp}/stirring/duty_cycle")
-    assert float(message.payload) == 50
+    message = subscribe(f"pioreactor/{unit}/{exp}/stirring/rpm")
+    assert float(message.payload) == 500
 
 
+"""
 def test_dynamic_stirring():
 
     from pioreactor.background_jobs.od_reading import ADCReader
@@ -122,3 +123,4 @@ def test_dynamic_stirring():
 
     adc_reader.set_state("disconnected")
     assert True
+"""

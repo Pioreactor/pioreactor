@@ -1,17 +1,28 @@
 # -*- coding: utf-8 -*-
 
-import time, signal
+import time, signal, sys
 
 import click
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.hardware_mappings import PWM_TO_PIN
+from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
 from pioreactor.pubsub import subscribe
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.pwm import PWM
+from pioreactor.utils.streaming_calculations import ExponentialMovingAverage, PID
 
+if is_testing_env():
+    import fake_rpi
+
+    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+import RPi.GPIO as GPIO
+
+
+GPIO.setmode(GPIO.BCM)
 JOB_NAME = "stirring"
 
 
@@ -23,45 +34,80 @@ class Stirrer(BackgroundJob):
     """
     Parameters
     ------------
-
-
-    duty_cycle: int
-        Send message to "pioreactor/{unit}/{experiment}/stirring/duty_cycle/set" to change the stirring speed.
-
-    dc_increase_between_adc_readings: bool
-         listen for ADC reading events, and increasing stirring when not reading.
+    TODO
 
     """
 
-    editable_settings = ["duty_cycle", "dc_increase_between_adc_readings"]
+    editable_settings = ["rpm", "rpm_increase_between_adc_readings"]
+    delta_between_updates = 16
+    _time_of_last_detected = None
 
     def __init__(
-        self,
-        duty_cycle,
-        unit,
-        experiment,
-        hertz=50,
-        dc_increase_between_adc_readings=False,
+        self, rpm, unit, experiment, hertz=50, rpm_increase_between_adc_readings=False
     ):
         super(Stirrer, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
 
-        self.logger.debug(f"Starting stirring with initial duty cycle {duty_cycle}.")
-        self.hertz = hertz
-        self.pin = PWM_TO_PIN[config.getint("PWM", "stirring")]
-        self.set_dc_increase_between_adc_readings(dc_increase_between_adc_readings)
+        self.logger.debug(f"Starting stirring with initial RPM {rpm}.")
+        self.set_rpm(rpm)
+        self.set_rpm_increase_between_adc_readings(rpm_increase_between_adc_readings)
 
-        self.pwm = PWM(self.pin, self.hertz)
-        self.set_duty_cycle(duty_cycle)
+        self.pwm = PWM(PWM_TO_PIN[config.getint("PWM", "stirring")], hertz)
+        self.rpm_ema = ExponentialMovingAverage(0.25)
+
+        Kp = config.getfloat("stirring.PID", "Kp")
+        Ki = config.getfloat("stirring.PID", "Ki")
+        Kd = config.getfloat("stirring.PID", "Kd")
+
+        self.pid = PID(
+            Kp,
+            Ki,
+            Kd,
+            setpoint=self.rpm,
+            output_limits=(0, 100),
+            sample_time=None,
+            unit=self.unit,
+            experiment=self.experiment,
+            job_name=self.job_name,
+            target_name="stirring_duty_cycle",
+        )
+
+        self.set_duty_cycle(50)
         self.start_stirring()
+        self.setup_GPIO_for_hall_sensor()
+
+        self.pid_rpm_thread = RepeatedTimer(
+            self.delta_between_updates, self.update_duty_cycle_to_match_desired_rpm
+        )
+        self.pid_rpm_thread.start()
+
+    def update_duty_cycle_to_match_desired_rpm(self):
+        new_dc = self.pid.update(self.rpm_ema.value, dt=self.delta_between_updates)
+        self.set_duty_cycle(new_dc)
+
+    def _magnet_detected_callback(self, *args):
+        if self._time_of_last_detected is None:
+            self._time_of_last_detected = time.time()
+        else:
+            current_time = time.time()
+            delta = current_time - self._time_of_last_detected
+            self.rpm_ema.update(60 / delta)  # convert from seconds to RPM
+            self._time_of_last_detected = current_time
 
     def on_disconnect(self):
-        # not necessary, but will update the UI to show that the speed is 0 (off)
         if hasattr(self, "sneak_in_timer"):
             self.sneak_in_timer.cancel()
 
+        # not necessary, but will update the UI to show that the speed is 0 (off)
         self.stop_stirring()
         self.pwm.stop()
         self.pwm.cleanup()
+        GPIO.cleanup(HALL_SENSOR_PIN)
+
+    def setup_GPIO_for_hall_sensor(self):
+        GPIO.setup(HALL_SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        GPIO.add_event_detect(
+            HALL_SENSOR_PIN, GPIO.FALLING, callback=self._magnet_detected_callback
+        )
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
@@ -70,8 +116,17 @@ class Stirrer(BackgroundJob):
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
+        self._previous_rpm = self.rpm
         self._previous_duty_cycle = self.duty_cycle
         self.set_duty_cycle(0)
+        self.set_rpm(0)
+
+    def set_rpm(self, value):
+        self.rpm = int(value)
+        try:
+            self.pid.set_setpoint(self.rpm)
+        except AttributeError:
+            pass
 
     def set_state(self, new_state):
         if new_state != self.READY:
@@ -80,6 +135,7 @@ class Stirrer(BackgroundJob):
             except AttributeError:
                 pass
         elif (new_state == self.READY) and (self.state == self.SLEEPING):
+            self.rpm = self._previous_rpm
             self.duty_cycle = self._previous_duty_cycle
             self.start_stirring()
         super(Stirrer, self).set_state(new_state)
@@ -88,9 +144,9 @@ class Stirrer(BackgroundJob):
         self.duty_cycle = clamp(0, round(float(value)), 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
-    def set_dc_increase_between_adc_readings(self, dc_increase_between_adc_readings):
-        self.dc_increase_between_adc_readings = int(dc_increase_between_adc_readings)
-        if not self.dc_increase_between_adc_readings:
+    def set_rpm_increase_between_adc_readings(self, rpm_increase_between_adc_readings):
+        self.rpm_increase_between_adc_readings = int(rpm_increase_between_adc_readings)
+        if not self.rpm_increase_between_adc_readings:
             self.sub_client.message_callback_remove(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
             )
@@ -168,12 +224,12 @@ class Stirrer(BackgroundJob):
         self.sneak_in_timer.start()
 
 
-def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None):
+def stirring(rpm=0, rpm_increase_between_adc_readings=False, duration=None):
     experiment = get_latest_experiment_name()
 
     stirrer = Stirrer(
-        duty_cycle,
-        dc_increase_between_adc_readings=dc_increase_between_adc_readings,
+        rpm,
+        rpm_increase_between_adc_readings=rpm_increase_between_adc_readings,
         unit=get_unit_name(),
         experiment=experiment,
     )
@@ -187,18 +243,15 @@ def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None
 
 @click.command(name="stirring")
 @click.option(
-    "--duty-cycle",
-    default=config.getint("stirring", "duty_cycle", fallback=0),
+    "--rpm",
+    default=config.getint("stirring", "rpm", fallback=0),
     help="set the duty cycle",
     show_default=True,
     type=click.IntRange(0, 100, clamp=True),
 )
 @click.option("--dc-increase-between-adc-readings", is_flag=True)
-def click_stirring(duty_cycle, dc_increase_between_adc_readings):
+def click_stirring(rpm, rpm_increase_between_adc_readings):
     """
     Start the stirring of the Pioreactor.
     """
-    stirring(
-        duty_cycle=duty_cycle,
-        dc_increase_between_adc_readings=dc_increase_between_adc_readings,
-    )
+    stirring(rpm=rpm, rpm_increase_between_adc_readings=rpm_increase_between_adc_readings)

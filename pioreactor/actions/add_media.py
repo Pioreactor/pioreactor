@@ -51,23 +51,22 @@ def add_media(
         )
         logger.info(f"{round(duration, 2)}s")
     elif continuously:
-        duration = 10_000_000
-        ml = 0
+        duration = 60
+        ml = pump_duration_to_ml(
+            duration,
+            duty_cycle,
+            **loads(config["pump_calibration"]["media_ml_calibration"]),
+        )
         logger.info("Running pump continuously.")
 
     assert duration >= 0
 
-    # post this first, as downstream jobs need to know about it.
+    # publish this first, as downstream jobs need to know about it.
+    json_output = dumps(
+        {"volume_change": ml, "event": "add_media", "source_of_event": source_of_event}
+    )
     publish(
-        f"pioreactor/{unit}/{experiment}/dosing_events",
-        dumps(
-            {
-                "volume_change": ml,
-                "event": "add_media",
-                "source_of_event": source_of_event,
-            }
-        ),
-        qos=QOS.EXACTLY_ONCE,
+        f"pioreactor/{unit}/{experiment}/dosing_events", json_output, qos=QOS.EXACTLY_ONCE
     )
 
     try:
@@ -75,12 +74,17 @@ def add_media(
 
         pwm = PWM(MEDIA_PIN, hz)
         pwm.start(duty_cycle)
+
         time.sleep(duration)
 
         if continuously:
-            return add_media(
-                ml, duration, continuously, duty_cycle, source_of_event, unit, experiment
-            )
+            while True:
+                publish(
+                    f"pioreactor/{unit}/{experiment}/dosing_events",
+                    json_output,
+                    qos=QOS.EXACTLY_ONCE,
+                )
+                time.sleep(duration)
 
     except Exception as e:
         logger.debug("Add media failed", exc_info=True)

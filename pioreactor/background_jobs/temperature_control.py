@@ -40,7 +40,7 @@ class TemperatureController(BackgroundJob):
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 
-        self.ema = ExponentialMovingAverage(0.25)
+        self.ema = ExponentialMovingAverage(0.1)
 
         try:
             from TMP1075 import TMP1075
@@ -48,7 +48,13 @@ class TemperatureController(BackgroundJob):
             self.logger.debug("TMP1075 not available; using MockTMP1075")
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
 
-        self.tmp_driver = TMP1075()
+        try:
+            self.tmp_driver = TMP1075()
+        except Exception as e:  # TODO: make specific
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(
+                "Is the Heating PCB attached to the RaspberryPi? Unable to find I²C for temperature driver."
+            )
 
         self.publish_temperature_timer = RepeatedTimer(
             1 / config.getfloat("temperature_config.sampling", "samples_per_second"),
@@ -60,10 +66,6 @@ class TemperatureController(BackgroundJob):
     def read_temperature(self):
         """
         Read the current temperature from our sensor, in Celsius
-
-        TODO: this should raise some error if I'm not able to find the I2C address -> likely
-              the heating PCB is not connected.
-        Note: this function is here for lack of a better place
         """
 
         return self.tmp_driver.get_temperature()
@@ -72,14 +74,12 @@ class TemperatureController(BackgroundJob):
         raw_temp = self.read_temperature()
         self.temperature = self.ema.update(raw_temp)
         self._check_if_exceeds_max_temp()
-        self._check_for_sudden_temperature_decrease()
+        self._check_for_sudden_temperature_decrease(raw_temp)
 
-    def _check_for_sudden_temperature_decrease(self):
+    def _check_for_sudden_temperature_decrease(self, raw_temp):
         # TODO: this needs to be tested in the field
-        if (
-            (self.ema.value is not None)
-            and (self.temperature < 0.75 * self.ema.value)
-            and ("dosing_control" in pio_jobs_running())
+        if (raw_temp < 0.75 * self.temperature) and (
+            "dosing_control" in pio_jobs_running()
         ):
             self.logger.warning(
                 "Noticed a sudden temperature change. This may be caused be a leakage. Suggestion is to check for liquid outside vial."
@@ -89,9 +89,9 @@ class TemperatureController(BackgroundJob):
         max_temp = 52.0
         if self.temperature > max_temp:
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations. Temperature control will be halted. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations. Temperature automations will be halted. Take caution when touching the heating surface and wetware."
             )
-            self.set_state("disconnected")
+            self.temperature_automation.set_state("disconnected")
 
     def set_temperature_automation(self, new_temperature_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
