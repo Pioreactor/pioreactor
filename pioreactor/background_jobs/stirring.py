@@ -100,6 +100,7 @@ class Stirrer(BackgroundJob):
                 current_time = time.time()
                 delta = current_time - self._time_of_last_detected
                 self.rpm_ema.update(60 / delta)  # convert from seconds to RPM
+                print(self.rpm_ema.value)
                 self._time_of_last_detected = current_time
         except Exception:
             import traceback
