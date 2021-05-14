@@ -81,17 +81,27 @@ class Stirrer(BackgroundJob):
         self.pid_rpm_thread.start()
 
     def update_duty_cycle_to_match_desired_rpm(self):
-        new_dc = self.pid.update(self.rpm_ema.value, dt=self.delta_between_updates)
-        self.set_duty_cycle(new_dc)
+        try:
+            new_dc = self.pid.update(self.rpm_ema.value, dt=self.delta_between_updates)
+            self.set_duty_cycle(new_dc)
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
 
     def _magnet_detected_callback(self, *args):
-        if self._time_of_last_detected is None:
-            self._time_of_last_detected = time.time()
-        else:
-            current_time = time.time()
-            delta = current_time - self._time_of_last_detected
-            self.rpm_ema.update(60 / delta)  # convert from seconds to RPM
-            self._time_of_last_detected = current_time
+        try:
+            if self._time_of_last_detected is None:
+                self._time_of_last_detected = time.time()
+            else:
+                current_time = time.time()
+                delta = current_time - self._time_of_last_detected
+                self.rpm_ema.update(60 / delta)  # convert from seconds to RPM
+                self._time_of_last_detected = current_time
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
 
     def on_disconnect(self):
         if hasattr(self, "sneak_in_timer"):
@@ -247,7 +257,7 @@ def stirring(rpm=0, rpm_increase_between_adc_readings=False, duration=None):
     default=config.getint("stirring", "rpm", fallback=0),
     help="set the duty cycle",
     show_default=True,
-    type=click.IntRange(0, 100, clamp=True),
+    type=click.IntRange(0, 1000, clamp=True),
 )
 @click.option("--rpm-increase-between-adc-readings", is_flag=True)
 def click_stirring(rpm, rpm_increase_between_adc_readings):
