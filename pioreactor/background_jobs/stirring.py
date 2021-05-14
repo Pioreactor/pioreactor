@@ -52,7 +52,7 @@ class Stirrer(BackgroundJob):
         self.set_rpm_increase_between_adc_readings(rpm_increase_between_adc_readings)
 
         self.pwm = PWM(PWM_TO_PIN[config.getint("PWM", "stirring")], hertz)
-        self.rpm_ema = ExponentialMovingAverage(0.25)
+        self.rpm_ema = ExponentialMovingAverage(0.50)
 
         Kp = config.getfloat("stirring.PID", "Kp")
         Ki = config.getfloat("stirring.PID", "Ki")
@@ -157,6 +157,7 @@ class Stirrer(BackgroundJob):
 
     def set_duty_cycle(self, value):
         self.duty_cycle = clamp(0, round(float(value)), 100)
+        print(self.duty_cycle)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_rpm_increase_between_adc_readings(self, rpm_increase_between_adc_readings):
