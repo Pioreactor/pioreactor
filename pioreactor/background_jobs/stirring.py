@@ -63,7 +63,7 @@ class Stirrer(BackgroundJob):
             Ki,
             Kd,
             setpoint=self.rpm,
-            output_limits=(0, 100),
+            output_limits=(15, 100),
             sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
@@ -85,6 +85,7 @@ class Stirrer(BackgroundJob):
             if self.rpm_ema.value is None:
                 return
             new_dc = self.pid.update(self.rpm_ema.value, dt=self.delta_between_updates)
+            print(self.rpm_ema.value, new_dc)
             self.set_duty_cycle(new_dc)
         except Exception:
             import traceback
