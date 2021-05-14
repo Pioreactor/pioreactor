@@ -80,33 +80,19 @@ class Stirrer(BackgroundJob):
         self.pid_rpm_thread.start()
 
     def update_duty_cycle_to_match_desired_rpm(self):
-        try:
-            if self.rpm_ema.value is None:
-                return
-            new_dc_delta = self.pid.update(
-                self.rpm_ema.value, dt=self.delta_between_updates
-            )
-            print(self.rpm_ema.value, new_dc_delta)
-            self.set_duty_cycle(self.duty_cycle + new_dc_delta)
-        except Exception:
-            import traceback
-
-            traceback.print_exc()
+        if self.rpm_ema.value is None:
+            return
+        new_dc_delta = self.pid.update(self.rpm_ema.value, dt=self.delta_between_updates)
+        self.set_duty_cycle(self.duty_cycle + new_dc_delta)
 
     def _magnet_detected_callback(self, *args):
-        try:
-            if self._time_of_last_detected is None:
-                self._time_of_last_detected = time.time()
-            else:
-                current_time = time.time()
-                delta = current_time - self._time_of_last_detected
-                self.rpm_ema.update(60 / delta)  # convert from seconds to RPM
-                print(self.rpm_ema.value)
-                self._time_of_last_detected = current_time
-        except Exception:
-            import traceback
-
-            traceback.print_exc()
+        if self._time_of_last_detected is None:
+            self._time_of_last_detected = time.time()
+        else:
+            current_time = time.time()
+            delta = current_time - self._time_of_last_detected
+            self.rpm_ema.update(60 / delta)  # convert from seconds to RPM
+            self._time_of_last_detected = current_time
 
     def on_disconnect(self):
         if hasattr(self, "sneak_in_timer"):
@@ -157,7 +143,6 @@ class Stirrer(BackgroundJob):
 
     def set_duty_cycle(self, value):
         self.duty_cycle = clamp(0, round(float(value)), 100)
-        print(self.duty_cycle)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_rpm_increase_between_adc_readings(self, rpm_increase_between_adc_readings):
