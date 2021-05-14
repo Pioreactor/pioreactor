@@ -63,12 +63,12 @@ class Stirrer(BackgroundJob):
             Ki,
             Kd,
             setpoint=self.rpm,
-            output_limits=(15, 100),
+            output_limits=(0, 100),
             sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
-            target_name="stirring_duty_cycle",
+            target_name="rpm",
         )
 
         self.set_duty_cycle(50)
