@@ -249,7 +249,7 @@ def stirring(rpm=0, rpm_increase_between_adc_readings=False, duration=None):
     show_default=True,
     type=click.IntRange(0, 100, clamp=True),
 )
-@click.option("--dc-increase-between-adc-readings", is_flag=True)
+@click.option("--rpm-increase-between-adc-readings", is_flag=True)
 def click_stirring(rpm, rpm_increase_between_adc_readings):
     """
     Start the stirring of the Pioreactor.
