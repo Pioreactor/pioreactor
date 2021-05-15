@@ -45,7 +45,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self._pwm = self.setup_pwm()
 
         self.logger.info(
-            f"starting {self.__class__.__name__} with {duration}s intervals, and {kwargs}."
+            f"Starting {self.__class__.__name__} with {duration}s intervals, and {kwargs}."
         )
         self.set_duration(duration)
         self.start_passive_listeners()
@@ -84,7 +84,7 @@ class TemperatureAutomation(BackgroundSubJob):
         raise NotImplementedError
 
     def update_heater(self, new_duty_cycle):
-        new_duty_cycle = clamp(0, round(float(new_duty_cycle)), 100)
+        new_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
         self._pwm.change_duty_cycle(new_duty_cycle)
 
     ########## Private & internal methods
@@ -202,7 +202,6 @@ class PIDStable(TemperatureAutomation):
             Ki,
             Kd,
             setpoint=self.target_temperature,
-            output_limits=(0, 100),
             sample_time=None,
             unit=self.unit,
             experiment=self.experiment,

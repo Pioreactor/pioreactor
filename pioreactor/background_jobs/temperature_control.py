@@ -46,9 +46,15 @@ class TemperatureController(BackgroundJob):
             from TMP1075 import TMP1075
         except (NotImplementedError, ModuleNotFoundError):
             self.logger.debug("TMP1075 not available; using MockTMP1075")
-            from pioreactor.utils.mock import MockTMP1075 as TMP1075
 
-        self.tmp_driver = TMP1075()
+        try:
+            self.tmp_driver = TMP1075()
+        except ValueError as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(
+                "Is the Heating PCB attached to the RaspberryPi? Unable to find I²C for temperature driver."
+            )
+            raise e
 
         self.publish_temperature_timer = RepeatedTimer(
             1 / config.getfloat("temperature_config.sampling", "samples_per_second"),

@@ -17,15 +17,9 @@ from pioreactor.utils.timing import current_utc_time
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
-
-def produce_metadata(topic):
-    SetAttrSplitTopic = namedtuple(
-        "SetAttrSplitTopic", ["pioreactor_unit", "experiment", "timestamp"]
-    )
-    v = topic.split("/")
-    return SetAttrSplitTopic(v[1], v[2], current_utc_time())
-
-
+SetAttrSplitTopic = namedtuple(
+    "SetAttrSplitTopic", ["pioreactor_unit", "experiment", "timestamp"]
+)
 Metadata = namedtuple("Metadata", ["topic", "table", "parser"])
 
 
@@ -72,40 +66,48 @@ class MqttToDBStreamer(BackgroundJob):
             )
 
 
+def produce_metadata(topic):
+    split_topic = topic.split("/")
+    return (
+        SetAttrSplitTopic(split_topic[1], split_topic[2], current_utc_time()),
+        split_topic,
+    )
+
+
 ###################
 # parsers
 ###################
 
 
 def parse_od(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, split_topic = produce_metadata(topic)
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": metadata.timestamp,
         "od_reading_v": float(payload),
-        "angle": topic.split("/")[-2],
-        "channel": topic.split("/")[-1],
+        "angle": split_topic[-2],
+        "channel": split_topic[-1],
     }
 
 
 def parse_od_filtered(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, split_topic = produce_metadata(topic)
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": metadata.timestamp,
         "normalized_od_reading": float(payload),
-        "angle": topic.split("/")[-2],
-        "channel": topic.split("/")[-1],
+        "angle": split_topic[-2],
+        "channel": split_topic[-1],
     }
 
 
 def parse_dosing_events(topic, payload):
     payload = json.loads(payload)
-    metadata = produce_metadata(topic)
+    metadata, _ = produce_metadata(topic)
 
     return {
         "experiment": metadata.experiment,
@@ -119,7 +121,7 @@ def parse_dosing_events(topic, payload):
 
 def parse_led_events(topic, payload):
     payload = json.loads(payload)
-    metadata = produce_metadata(topic)
+    metadata, _ = produce_metadata(topic)
 
     return {
         "experiment": metadata.experiment,
@@ -133,7 +135,7 @@ def parse_led_events(topic, payload):
 
 
 def parse_growth_rate(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, _ = produce_metadata(topic)
 
     return {
         "experiment": metadata.experiment,
@@ -144,7 +146,7 @@ def parse_growth_rate(topic, payload):
 
 
 def parse_temperature(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, _ = produce_metadata(topic)
 
     return {
         "experiment": metadata.experiment,
@@ -155,7 +157,7 @@ def parse_temperature(topic, payload):
 
 
 def parse_pid_logs(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, _ = produce_metadata(topic)
     payload = json.loads(payload)
     return {
         "experiment": metadata.experiment,
@@ -178,7 +180,7 @@ def parse_pid_logs(topic, payload):
 
 
 def parse_alt_media_fraction(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, _ = produce_metadata(topic)
 
     return {
         "experiment": metadata.experiment,
@@ -189,7 +191,7 @@ def parse_alt_media_fraction(topic, payload):
 
 
 def parse_logs(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, split_topic = produce_metadata(topic)
     payload = json.loads(payload)
     return {
         "experiment": metadata.experiment,
@@ -198,12 +200,12 @@ def parse_logs(topic, payload):
         "message": payload["message"],
         "task": payload["task"],
         "level": payload["level"],
-        "source": topic.split("/")[-1],  # should be app, ui, etc.
+        "source": split_topic[-1],  # should be app, ui, etc.
     }
 
 
 def parse_kalman_filter_outputs(topic, payload):
-    metadata = produce_metadata(topic)
+    metadata, _ = produce_metadata(topic)
     payload = json.loads(payload)
     return {
         "experiment": metadata.experiment,
@@ -215,8 +217,30 @@ def parse_kalman_filter_outputs(topic, payload):
 
 
 def parse_automation_settings(topic, payload):
-    payload = json.loads(payload.decode())
+    payload, _ = json.loads(payload.decode())
     return payload
+
+
+def parse_stirring_rates(topic, payload):
+    metadata = produce_metadata(topic)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "rpm": float(payload),
+    }
+
+
+def parse_od_statistics(topic, payload):
+    metadata, split_topic = produce_metadata(topic)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "source": split_topic[-2],
+        "estimator": split_topic[-1],
+        "estimate": float(payload),
+    }
 
 
 def mqtt_to_db_streaming():
@@ -265,6 +289,13 @@ def mqtt_to_db_streaming():
             "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
             "kalman_filter_outputs",
             parse_kalman_filter_outputs,
+        ),
+        Metadata("pioreactor/+/+/stirring/rpm", "stirring_rates", parse_stirring_rates),
+        Metadata("pioreactor/+/od_blank/+", "od_reading_statistics", parse_od_statistics),
+        Metadata(
+            "pioreactor/+/od_normalization/+",
+            "od_reading_statistics",
+            parse_od_statistics,
         ),
     ]
 

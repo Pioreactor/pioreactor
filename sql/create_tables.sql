@@ -189,3 +189,23 @@ CREATE TABLE IF NOT EXISTS temperature_readings (
 
 CREATE INDEX IF NOT EXISTS temperature_readings_ix
 ON temperature_readings (experiment, pioreactor_unit);
+
+
+-- no index needed since it is a small table
+CREATE TABLE IF NOT EXISTS stirring_rates (
+    timestamp                TEXT NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    rpm                      REAL NOT NULL
+);
+
+
+-- no index needed since it is a small table
+CREATE TABLE IF NOT EXISTS od_reading_statistics (
+    timestamp                TEXT NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    source                   TEXT NOT NULL,
+    estimator                TEXT NOT NULL,
+    estimate                 REAL NOT NULL
+);
