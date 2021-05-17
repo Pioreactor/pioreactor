@@ -17,17 +17,20 @@ def clamp(minimum, x, maximum):
 class TemperatureAutomation(BackgroundSubJob):
     """
     This is the super class that Temperature automations inherit from. The `run` function will
-    execute every `duration` minutes (selected at the start of the program). If `duration` is left
+    execute every `duration` seconds (selected at the start of the program). If `duration` is left
     as None, manually call `run`. This calls the `execute` function, which is what subclasses will define.
 
     To change setting over MQTT:
 
-    `pioreactor/<unit>/<experiment>/led_automation/<setting>/set` value
+    `pioreactor/<unit>/<experiment>/temperature_automation/<setting>/set` value
 
     """
 
     latest_growth_rate = None
+    previous_growth_rate = None
+
     latest_temperature = None
+    previous_temperature = None
 
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
@@ -39,14 +42,14 @@ class TemperatureAutomation(BackgroundSubJob):
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
-
-        self.skip_first_run = skip_first_run
-
-        self._pwm = self.setup_pwm()
-
         self.logger.info(
             f"Starting {self.__class__.__name__} with {duration}s intervals, and {kwargs}."
         )
+
+        self.skip_first_run = skip_first_run
+        self.duty_cycle = 0
+        self.pwm = self.setup_pwm()
+
         self.set_duration(duration)
         self.start_passive_listeners()
 
@@ -83,17 +86,17 @@ class TemperatureAutomation(BackgroundSubJob):
     def execute(self):
         raise NotImplementedError
 
-    def update_heater(self, new_duty_cycle):
-        new_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
-        self._pwm.change_duty_cycle(new_duty_cycle)
+    def update_heater(self, newduty_cycle):
+        self.duty_cycle = clamp(0, round(float(newduty_cycle), 2), 100)
+        self.pwm.changeduty_cycle(self.duty_cycle)
 
     ########## Private & internal methods
 
     def setup_pwm(self):
         hertz = 100
-        self.pin = PWM_TO_PIN[config.getint("PWM", "heating")]
-        pwm = PWM(self.pin, hertz)
-        pwm.start(0)
+        pin = PWM_TO_PIN[config.getint("PWM", "heating")]
+        pwm = PWM(pin, hertz)
+        pwm.start(self.duty_cycle)
         return pwm
 
     def on_disconnect(self):
@@ -111,8 +114,8 @@ class TemperatureAutomation(BackgroundSubJob):
         self._clear_mqtt_cache()
 
         self.update_heater(0)
-        self._pwm.stop()
-        self._pwm.cleanup()
+        self.pwm.stop()
+        self.pwm.cleanup()
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
@@ -202,7 +205,6 @@ class PIDStable(TemperatureAutomation):
             Ki,
             Kd,
             setpoint=self.target_temperature,
-            sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
@@ -211,10 +213,15 @@ class PIDStable(TemperatureAutomation):
 
     def execute(self, *args, **kwargs):
         output = self.pid.update(self.latest_temperature, dt=self.duration)
-        self.update_heater(output)
+        self.update_heater(self.duty_cycle + output)
         return
 
     def set_target_temperature(self, value):
+        if float(value) > 50:
+            self.logger.warning(
+                "Values over 50℃ are not supported. Setting instead to 50℃."
+            )
+
         self.target_temperature = clamp(0, float(value), 50)
         try:
             # may not be defined yet...

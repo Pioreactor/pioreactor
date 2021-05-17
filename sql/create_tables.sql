@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS od_readings_raw (
 );
 
 CREATE INDEX IF NOT EXISTS od_readings_raw_ix
-ON od_readings_raw (experiment, pioreactor_unit, channel);
+ON od_readings_raw (experiment);
 
 
 CREATE TABLE IF NOT EXISTS alt_media_fraction (
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS alt_media_fraction (
 );
 
 CREATE INDEX IF NOT EXISTS alt_media_fraction_ix
-ON alt_media_fraction (experiment, pioreactor_unit);
+ON alt_media_fraction (experiment);
 
 
 
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS od_readings_filtered (
 );
 
 CREATE INDEX IF NOT EXISTS od_readings_filtered_ix
-ON od_readings_filtered (experiment, pioreactor_unit, channel);
+ON od_readings_filtered (experiment);
 
 
 CREATE TABLE IF NOT EXISTS dosing_events (
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS dosing_events (
 );
 
 CREATE INDEX IF NOT EXISTS dosing_events_ix
-ON dosing_events (experiment);
+ON dosing_events (experiment, event);
 
 
 CREATE TABLE IF NOT EXISTS led_events (
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS growth_rates (
 );
 
 CREATE INDEX IF NOT EXISTS growth_rates_ix
-ON growth_rates (experiment, pioreactor_unit);
+ON growth_rates (experiment);
 
 
 
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 
 CREATE INDEX IF NOT EXISTS logs_ix
-ON logs (experiment, source, level);
+ON logs (experiment, level);
 
 
 CREATE TABLE IF NOT EXISTS experiments (
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS pid_logs (
 );
 
 CREATE INDEX IF NOT EXISTS pid_logs_ix
-ON pid_logs (pioreactor_unit, experiment);
+ON pid_logs (experiment);
 
 
 CREATE TABLE IF NOT EXISTS dosing_automation_settings (
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS dosing_automation_settings (
 
 
 CREATE INDEX IF NOT EXISTS dosing_automation_settings_ix
-ON dosing_automation_settings (pioreactor_unit, experiment);
+ON dosing_automation_settings (experiment);
 
 
 CREATE TABLE IF NOT EXISTS led_automation_settings (
@@ -148,7 +148,7 @@ CREATE TABLE IF NOT EXISTS led_automation_settings (
 
 
 CREATE INDEX IF NOT EXISTS led_automation_settings_ix
-ON led_automation_settings (pioreactor_unit, experiment);
+ON led_automation_settings (experiment);
 
 
 
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS temperature_automation_settings (
 
 
 CREATE INDEX IF NOT EXISTS temperature_automation_settings_ix
-ON temperature_automation_settings (pioreactor_unit, experiment);
+ON temperature_automation_settings (experiment);
 
 
 CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
 
 
 CREATE INDEX IF NOT EXISTS kalman_filter_outputs_ix
-ON kalman_filter_outputs (experiment, pioreactor_unit);
+ON kalman_filter_outputs (experiment);
 
 
 CREATE TABLE IF NOT EXISTS temperature_readings (
@@ -188,7 +188,7 @@ CREATE TABLE IF NOT EXISTS temperature_readings (
 
 
 CREATE INDEX IF NOT EXISTS temperature_readings_ix
-ON temperature_readings (experiment, pioreactor_unit);
+ON temperature_readings (experiment);
 
 
 -- no index needed since it is a small table
