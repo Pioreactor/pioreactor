@@ -193,6 +193,8 @@ class DosingAutomation(BackgroundSubJob):
             self.run_thread.cancel()
         except AttributeError:
             self.logger.debug("no run_thread", exc_info=True)
+            self.run_thread.join(0.5)
+            self.logger.debug("Thread is alive? %s" % self.run_thread.isAlive())
 
         for job in self.sub_jobs:
             job.set_state("disconnected")
