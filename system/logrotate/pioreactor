@@ -1,7 +1,7 @@
 /var/log/pioreactor.log {
-    daily
+    weekly
     missingok
-    rotate 14
+    rotate 2
     compress
     notifempty
     create 0640 pi pi

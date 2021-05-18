@@ -96,8 +96,11 @@ CREATE TABLE IF NOT EXISTS experiments (
     description            TEXT
 );
 
-CREATE INDEX IF NOT EXISTS experiments_ix
-ON experiments (experiment);
+-- since we are almost always calling this like "SELECT * FROM experiments ORDER BY timestamp DESC LIMIT 1",
+-- a index on all columns is much faster, BigO(n). This table is critical for the entire webpage performance.
+-- not the order of the values in the index is important to get this performance.
+-- https://medium.com/@JasonWyatt/squeezing-performance-from-sqlite-indexes-indexes-c4e175f3c346
+CREATE INDEX IF NOT EXISTS experiments_ix ON experiments (timestamp, experiment, description);
 
 
 CREATE TABLE IF NOT EXISTS pid_logs (

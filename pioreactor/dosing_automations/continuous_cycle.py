@@ -20,9 +20,12 @@ class ContinuousCycle(DosingAutomation):
             return self.run()
 
         else:
-            return self.execute()
+            event = self.execute()
+            self.latest_event = event
+            return event
 
     def execute(self, *args, **kwargs):
+        # will never exit
         add_media(
             continuously=True,
             duty_cycle=100,
