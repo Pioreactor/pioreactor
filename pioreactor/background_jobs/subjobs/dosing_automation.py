@@ -2,6 +2,7 @@
 
 import time
 import json
+from threading import Thread
 
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
@@ -64,19 +65,22 @@ class DosingAutomation(BackgroundSubJob):
         self.start_passive_listeners()
 
     def set_duration(self, value):
-        self.duration = float(value)
-        try:
-            self.timer_thread.cancel()
-        except AttributeError:
-            pass
-        finally:
-            if self.duration is not None:
-                self.timer_thread = RepeatedTimer(
-                    self.duration * 60,
-                    self.run,
-                    job_name=self.job_name,
-                    run_immediately=(not self.skip_first_run),
-                ).start()
+        if value:
+            self.duration = float(value)
+            try:
+                self.run_thread.cancel()
+            except AttributeError:
+                pass
+            self.run_thread = RepeatedTimer(
+                self.duration * 60,
+                self.run,
+                job_name=self.job_name,
+                run_immediately=(not self.skip_first_run),
+            ).start()
+        else:
+            self.duration = None
+            self.run_thread = Thread(target=self.run, daemon=True)
+            self.run_thread.start()
 
     def run(self):
         if self.state == self.DISCONNECTED:
@@ -186,9 +190,9 @@ class DosingAutomation(BackgroundSubJob):
         self._send_details_to_mqtt()
 
         try:
-            self.timer_thread.cancel()
+            self.run_thread.cancel()
         except AttributeError:
-            self.logger.debug("no timer_thread", exc_info=True)
+            self.logger.debug("no run_thread", exc_info=True)
 
         for job in self.sub_jobs:
             job.set_state("disconnected")

@@ -53,11 +53,12 @@ class PWM:
         # signals only work in main thread
         if threading.current_thread() is threading.main_thread():
             # terminate command, ex: pkill
-            def on_sigterm(*args):
+            def on_kill(*args):
                 self.cleanup()
                 sys.exit()
 
-            signal.signal(signal.SIGTERM, on_sigterm)
+            signal.signal(signal.SIGTERM, on_kill)
+            signal.signal(signal.SIGINT, on_kill)
 
     def start(self, initial_duty_cycle):
         self.pwm.start(initial_duty_cycle)
