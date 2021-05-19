@@ -186,7 +186,7 @@ install-worker: install-python configure-hostname configure-rpi systemd-worker s
 install-worker-from-args: install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-db install-pioreactor-leader systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
+install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-pioreactor-leader install-db systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
 	rm -f /home/pi/.ssh/id_rsa
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt install sshpass
