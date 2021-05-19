@@ -32,6 +32,7 @@ class DosingAutomation(BackgroundSubJob):
     latest_od = None
     latest_od_timestamp = None
     latest_growth_rate_timestamp = None
+    latest_event = None
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
@@ -49,8 +50,6 @@ class DosingAutomation(BackgroundSubJob):
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
         self.logger.info(f"Starting {self.__class__.__name__}")
-
-        self.latest_event = None
         self.sensor = sensor
         self.skip_first_run = skip_first_run
 
@@ -192,7 +191,6 @@ class DosingAutomation(BackgroundSubJob):
         try:
             self.run_thread.cancel()
         except AttributeError:
-            self.logger.debug("no run_thread", exc_info=True)
             self.run_thread.join(0.5)
             self.logger.debug("Thread is alive? %s" % self.run_thread.isAlive())
 

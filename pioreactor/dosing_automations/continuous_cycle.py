@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 import time
 from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
-from pioreactor.actions.add_media import add_media
+from pioreactor.dosing_automations import events
+from pioreactor.hardware_mappings import PWM_TO_PIN
+from pioreactor.utils.pwm import PWM
+from pioreactor.config import config
 
 
 class ContinuousCycle(DosingAutomation):
     """
     Useful for using the Pioreactor as an inline sensor.
     """
+
+    duty_cycle = 100
+    hz = 100
 
     def run(self):
         if self.state == self.DISCONNECTED:
@@ -24,12 +30,22 @@ class ContinuousCycle(DosingAutomation):
             self.latest_event = event
             return event
 
+    def on_sleeping(self):
+        self.pwm.stop()
+
+    def on_ready(self):
+        self.pwm.start()
+
+    def on_disconnected(self):
+        self.pwm.cleanup()
+        super(ContinuousCycle, self).on_disconnected()
+
     def execute(self, *args, **kwargs):
-        # will never exit
-        add_media(
-            continuously=True,
-            duty_cycle=100,
-            source_of_event=f"{self.job_name}:{self.__class__.__name__}",
-            unit=self.unit,
-            experiment=self.experiment,
+
+        PIN = PWM_TO_PIN[config.getint("PWM", "media")]
+
+        self.pwm = PWM(PIN, self.hz)
+        self.pwm.start(self.duty_cycle)
+        return events.RunningContinuously(
+            f"Running pump on channel {config.getint('PWM', 'media')} continuously."
         )

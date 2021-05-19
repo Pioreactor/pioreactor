@@ -19,6 +19,7 @@ def add_media(
     duration=None,
     continuously=False,
     duty_cycle=66,
+    threaded=False,
     source_of_event=None,
     unit=None,
     experiment=None,
@@ -69,8 +70,9 @@ def add_media(
         f"pioreactor/{unit}/{experiment}/dosing_events", json_output, qos=QOS.EXACTLY_ONCE
     )
 
+    MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "media")]
+
     try:
-        MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "media")]
 
         pwm = PWM(MEDIA_PIN, hz)
         pwm.start(duty_cycle)

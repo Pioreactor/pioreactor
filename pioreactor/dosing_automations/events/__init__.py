@@ -41,7 +41,7 @@ class IncreasedLuminosity(Event):
     pass
 
 
-class Cycle(Event):
+class RunningContinuously(Event):
     pass
 
 
