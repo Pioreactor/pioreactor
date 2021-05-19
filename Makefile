@@ -66,6 +66,8 @@ install-pioreactor-leader:
 install-log2ram:
 	sudo echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
 	sudo wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
+	# the below is need to recognize the additions above
+	sudo apt update
 	sudo apt install log2ram
 	sudo crudini --set /etc/log2ram.conf "" SIZE 100M
 
