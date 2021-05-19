@@ -94,7 +94,8 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
 
         return
     except Exception as e:
-        logger.error(f"{str(e)}")
+        logger.debug(e, exc_info=True)
+        logger.error(e)
     finally:
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/od_blank/$state",
