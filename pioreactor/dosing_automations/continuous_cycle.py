@@ -34,7 +34,7 @@ class ContinuousCycle(DosingAutomation):
         self.pwm.stop()
 
     def on_ready(self):
-        self.pwm.start()
+        self.pwm.start(self.duty_cycle)
 
     def on_disconnected(self):
         self.pwm.cleanup()

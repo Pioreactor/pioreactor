@@ -84,3 +84,6 @@ class RepeatedTimer:
         self.start_time = time.time()
         self.thread.start()
         return self
+
+    def join(self):
+        self.cancel()

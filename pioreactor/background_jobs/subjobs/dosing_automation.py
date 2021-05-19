@@ -189,10 +189,9 @@ class DosingAutomation(BackgroundSubJob):
         self._send_details_to_mqtt()
 
         try:
-            self.run_thread.cancel()
+            self.run_thread.join()
         except AttributeError:
-            self.run_thread.join(0.5)
-            self.logger.debug("Thread is alive? %s" % self.run_thread.isAlive())
+            pass
 
         for job in self.sub_jobs:
             job.set_state("disconnected")
