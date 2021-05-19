@@ -10,6 +10,13 @@ from pioreactor.config import config
 class ContinuousCycle(DosingAutomation):
     """
     Useful for using the Pioreactor as an inline sensor.
+
+    I tried really hard to reuse the the function add_media - but
+    it just didn't work out. The problem is add_media is a function that sleeps (and in
+    continous mode, we sleep forever). This doesn't play well with threads, or
+    having the ability to pause/start the pumping. Though there is _some_ duplication
+    here, everything feels more comfortable.
+
     """
 
     duty_cycle = 100
@@ -36,7 +43,7 @@ class ContinuousCycle(DosingAutomation):
     def on_ready(self):
         self.pwm.start(self.duty_cycle)
 
-    def on_disconnected(self):
+    def on_disconnect(self):
         self.pwm.cleanup()
         super(ContinuousCycle, self).on_disconnected()
 
