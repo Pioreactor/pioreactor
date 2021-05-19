@@ -110,7 +110,7 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
 @click.option(
     "--od-angle-channel",
     multiple=True,
-    default=list(config["od_config.photodiode_channel"].values()),
+    default=config.get("od_config.photodiode_channel", "od_angle_channel").split("|"),
     type=click.STRING,
     help="""
 pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
