@@ -76,8 +76,6 @@ def create_logger(
         "app" for the core Pioreactor codebase, else the name of the plugin.
     to_mqtt: bool
         connect and log to MQTT
-
-
     """
 
     logger = logging.getLogger(name)

@@ -9,7 +9,12 @@ cmd line interface for running individual pioreactor units (including leader)
 import sys
 import click
 import pioreactor
-from pioreactor.whoami import am_I_leader, am_I_active_worker, get_unit_name
+from pioreactor.whoami import (
+    am_I_leader,
+    am_I_active_worker,
+    get_unit_name,
+    UNIVERSAL_EXPERIMENT,
+)
 from pioreactor.config import config
 from pioreactor import background_jobs as jobs
 from pioreactor import actions
@@ -114,7 +119,7 @@ def version(verbose):
 def update(ui, app):
     import subprocess
 
-    logger = create_logger("CLI")
+    logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
     if (not app) and (not ui):
         click.echo("Nothing to do. Specify either --app or --ui.")
@@ -264,12 +269,14 @@ if am_I_leader():
             shell=True,
         )
         if res == 0:
-            logger = create_logger("CLI")
+            logger = create_logger(
+                "CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
+            )
             logger.info(f"New pioreactor {new_name} successfully added to cluster.")
 
 
 if not am_I_leader() and not am_I_active_worker():
-    logger = create_logger("CLI")
+    logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
     logger.info(
         f"Running `pio` on a non-active Pioreactor. Do you need to change `{get_unit_name()}` in `network.inventory` section in `config.ini`?"
     )

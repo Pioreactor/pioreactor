@@ -41,17 +41,23 @@ class ContinuousCycle(DosingAutomation):
         self.pwm.stop()
 
     def on_ready(self):
-        self.pwm.start(self.duty_cycle)
+        try:
+            self.pwm.start(self.duty_cycle)
+        except AttributeError:
+            pass
 
     def on_disconnect(self):
-        self.pwm.cleanup()
-        super(ContinuousCycle, self).on_disconnected()
+        try:
+            self.pwm.cleanup()
+        except AttributeError:
+            pass
+        super(ContinuousCycle, self).on_disconnect()
 
     def execute(self, *args, **kwargs):
 
-        PIN = PWM_TO_PIN[config.getint("PWM", "media")]
+        pin = PWM_TO_PIN[config.getint("PWM", "media")]
 
-        self.pwm = PWM(PIN, self.hz)
+        self.pwm = PWM(pin, self.hz)
         self.pwm.start(self.duty_cycle)
         return events.RunningContinuously(
             f"Running pump on channel {config.getint('PWM', 'media')} continuously."

@@ -15,6 +15,7 @@ from pioreactor.hardware_mappings import (
     PCB_LED_PIN as LED_PIN,
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
+from pioreactor.version import __version__
 
 GPIO.setmode(GPIO.BCM)
 
@@ -31,6 +32,8 @@ class Monitor(BackgroundJob):
         super(Monitor, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment
         )
+
+        self.logger.debug(f"PioreactorApp version: {__version__}")
 
         # report on CPU usage, memory, disk space
         self.performance_statistics_timer = RepeatedTimer(
