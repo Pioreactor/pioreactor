@@ -53,6 +53,7 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
         sampling_rate = 0.1
 
         # start od_reading
+        print(od_angle_channel)
         od_reader = ODReader(
             create_channel_label_map_from_string(od_angle_channel),
             sampling_rate=sampling_rate,
