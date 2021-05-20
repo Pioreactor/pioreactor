@@ -9,7 +9,7 @@ topic: `pioreactor/<unit>/<experiment>/dosing_control/temperature_automation/set
 message: a json object with required keyword argument. Specify the new automation with name `"temperature_automation"`.
 
 """
-import json, signal
+import json, signal, time
 
 import click
 
@@ -105,11 +105,16 @@ class TemperatureController(BackgroundJob):
         # self.temperature_automation_job.set_state("ready")
         # [ ] write tests
         # OR should just bail...
+        algo_init = json.loads(new_temperature_automation_json)
+        new_automation = algo_init["temperature_automation"]
         try:
-            algo_init = json.loads(new_temperature_automation_json)
-            new_automation = algo_init["temperature_automation"]
-
             self.temperature_automation_job.set_state("disconnected")
+        except AttributeError:
+            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
+            time.sleep(1)
+            self.set_temperature_automation(new_temperature_automation_json)
+
+        try:
             self.temperature_automation_job = self.automations[new_automation](
                 unit=self.unit, experiment=self.experiment, **algo_init
             )

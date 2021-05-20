@@ -10,10 +10,8 @@ message: a json object with required keyword argument. Specify the new automatio
 
 """
 import signal
-
+import time
 import json
-
-
 import click
 
 from pioreactor.pubsub import QOS
@@ -60,11 +58,16 @@ class DosingController(BackgroundJob):
         # self.dosing_automation_job.set_state("ready")
         # [ ] write tests
         # OR should just bail...
+        algo_init = json.loads(new_dosing_automation_json)
+
         try:
-            algo_init = json.loads(new_dosing_automation_json)
-
             self.dosing_automation_job.set_state("disconnected")
+        except AttributeError:
+            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
+            time.sleep(1)
+            self.set_dosing_automation(new_dosing_automation_json)
 
+        try:
             self.dosing_automation_job = self.automations[algo_init["dosing_automation"]](
                 unit=self.unit, experiment=self.experiment, **algo_init
             )

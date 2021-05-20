@@ -217,7 +217,7 @@ def parse_kalman_filter_outputs(topic, payload):
 
 
 def parse_automation_settings(topic, payload):
-    payload, _ = json.loads(payload.decode())
+    payload = json.loads(payload.decode())
     return payload
 
 

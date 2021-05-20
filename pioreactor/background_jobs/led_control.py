@@ -8,7 +8,7 @@ topic: `pioreactor/<unit>/<experiment>/led_control/led_automation/set`
 message: a json object with required keyword argument. Specify the new automation with name `"led_automation"`.
 """
 import signal
-
+import time
 import json
 
 import click
@@ -37,11 +37,16 @@ class LEDController(BackgroundJob):
         )
 
     def set_led_automation(self, new_led_automation_json):
+        algo_init = json.loads(new_led_automation_json)
+
         try:
-            algo_init = json.loads(new_led_automation_json)
-
             self.led_automation_job.set_state("disconnected")
+        except AttributeError:
+            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
+            time.sleep(1)
+            self.set_led_automation(new_led_automation_json)
 
+        try:
             self.led_automation_job = self.automations[algo_init["led_automation"]](
                 unit=self.unit, experiment=self.experiment, **algo_init
             )
