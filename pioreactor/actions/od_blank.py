@@ -17,10 +17,11 @@ from pioreactor.background_jobs.od_reading import (
 
 
 def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
-    logger = create_logger("od_blank")
+    action_name = "od_blank"
+    logger = create_logger(action_name)
 
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/od_blank/$state",
+        f"pioreactor/{unit}/{experiment}/{action_name}/$state",
         "ready",
         qos=pubsub.QOS.AT_LEAST_ONCE,
         retain=True,
@@ -28,7 +29,7 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
 
     try:
 
-        logger.debug("Starting od_blank.")
+        logger.debug(f"Starting {action_name}.")
         logger.info("Starting reading of blank OD. This will take less than a minute.")
 
         # running this will mess with OD Reading - best to just not let it happen.
@@ -41,7 +42,7 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             raise ValueError("od_reading should not be running. Stop od_reading first.")
 
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/od_blank/$state",
+            f"pioreactor/{unit}/{experiment}/{action_name}/$state",
             "ready",
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,
@@ -84,11 +85,23 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
             means[sensor] = mean(reading_series)
 
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/od_blank/mean",
+            f"pioreactor/{unit}/{experiment}/{action_name}/mean",
             json.dumps(means),
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,
         )
+
+        if config.getboolean(
+            "data_sharing_with_pioreactor",
+            "send_od_statistics_to_Pioreactor",
+            fallback=False,
+        ):
+            # TODO: build this service!
+            pubsub.publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/mean",
+                mean,
+                hostname="mqtt.pioreactor.com",
+            )
 
         logger.info("OD blank reading finished.")
 
@@ -98,7 +111,7 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
         logger.error(e)
     finally:
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/od_blank/$state",
+            f"pioreactor/{unit}/{experiment}/{action_name}/$state",
             "disconnected",
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,

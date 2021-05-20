@@ -56,7 +56,7 @@ class LEDAutomation(BackgroundSubJob):
         self.start_passive_listeners()
 
         self.logger.info(
-            f"starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
+            f"Starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
         )
 
     def set_duration(self, value):

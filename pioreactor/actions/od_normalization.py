@@ -77,7 +77,31 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         logger.debug(f"measured variances: {variances}")
         logger.debug("OD normalization finished.")
 
+        if config.getboolean(
+            "data_sharing_with_pioreactor",
+            "send_od_statistics_to_Pioreactor",
+            fallback=False,
+        ):
+            # TODO: build this service!
+            pubsub.publish_multiple(
+                [
+                    (
+                        f"pioreactor/{unit}/{experiment}/{action_name}/variance",
+                        json.dumps(variances),
+                        pubsub.QOS.AT_MOST_ONCE,
+                        False,
+                    )(
+                        f"pioreactor/{unit}/{experiment}/{action_name}/mean",
+                        json.dumps(means),
+                        pubsub.QOS.AT_MOST_ONCE,
+                        False,
+                    )
+                ],
+                hostname="mqtt.pioreactor.com",
+            )
+
         return
+
     except Exception as e:
         logger.error(f"{str(e)}")
     finally:
