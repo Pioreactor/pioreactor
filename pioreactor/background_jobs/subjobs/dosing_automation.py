@@ -267,3 +267,7 @@ class DosingAutomation(BackgroundSubJob):
             self._set_growth_rate,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
         )
+
+
+class DosingAutomationContrib(DosingAutomation):
+    pass

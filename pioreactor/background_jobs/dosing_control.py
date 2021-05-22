@@ -18,6 +18,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 
+from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomationContrib
 from pioreactor.dosing_automations.morbidostat import Morbidostat
 from pioreactor.dosing_automations.pid_morbidostat import PIDMorbidostat
 from pioreactor.dosing_automations.pid_turbidostat import PIDTurbidostat
@@ -46,11 +47,22 @@ class DosingController(BackgroundJob):
         super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
+        self.add_additional_automations_from_plugins()
+
         self.dosing_automation = dosing_automation
 
         self.dosing_automation_job = self.automations[self.dosing_automation](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
+
+    def add_additional_automations_from_plugins(self):
+        from pioreactor import plugins
+
+        for plugin, module in plugins.items():
+            for object_ in getattr(module, "__all__", []):
+                possible_class = getattr(module, object_)
+                if issubclass(possible_class, DosingAutomationContrib):
+                    self.automations[possible_class.key] = possible_class
 
     def set_dosing_automation(self, new_dosing_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like

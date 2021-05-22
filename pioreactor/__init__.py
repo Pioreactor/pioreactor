@@ -17,3 +17,5 @@ def get_plugins():
 
 
 plugins = get_plugins()
+
+print(plugins["pioreactor_custom_dosing_automation"].__all__)
