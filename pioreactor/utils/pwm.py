@@ -10,6 +10,8 @@ if is_testing_env():
 
 import RPi.GPIO as GPIO
 
+GPIO.setmode(GPIO.BCM)
+
 
 class PWM:
     """
@@ -45,7 +47,6 @@ class PWM:
             self.pwm = HardwarePWM(self.HARDWARE_PWM_CHANNELS[self.pin], self.hz)
             self.using_hardware = True
         else:
-            GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             self.pwm = GPIO.PWM(self.pin, hz)
