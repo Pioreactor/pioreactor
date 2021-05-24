@@ -19,6 +19,7 @@ class ContinuousCycle(DosingAutomation):
 
     """
 
+    key = "continuous_cycle"
     duty_cycle = 100
     hz = 100
 

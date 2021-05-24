@@ -8,6 +8,8 @@ class Chemostat(DosingAutomation):
     Chemostat mode - try to keep [nutrient] constant.
     """
 
+    key = "chemostat"
+
     def __init__(self, volume=None, **kwargs):
         super(Chemostat, self).__init__(**kwargs)
         self.volume = float(volume)

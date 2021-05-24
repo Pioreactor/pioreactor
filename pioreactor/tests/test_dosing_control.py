@@ -767,3 +767,24 @@ def test_disconnect_cleanly():
     )
     time.sleep(10)
     algo.set_state("disconnected")
+
+
+def test_custom_class_will_register_and_run():
+    class NaiveTurbidostat(DosingAutomation):
+
+        key = "naive_turbidostat"
+
+        def __init__(self, target_od, **kwargs):
+            super(NaiveTurbidostat, self).__init__(**kwargs)
+            self.target_od = target_od
+
+        def execute(self):
+            if self.latest_od > self.target_od:
+                self.execute_io_action(media_ml=1.0, waste_ml=1.0)
+
+    DosingController(
+        "naive_turbidostat",
+        target_od=2.0,
+        unit=get_unit_name(),
+        experiment=get_latest_experiment_name(),
+    )
