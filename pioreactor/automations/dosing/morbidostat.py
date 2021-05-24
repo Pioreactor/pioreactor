@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
-from pioreactor.dosing_automations import events
+from pioreactor.automations import events
 
 
 class Morbidostat(DosingAutomation):

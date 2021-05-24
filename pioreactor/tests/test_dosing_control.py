@@ -9,7 +9,7 @@ from pioreactor.dosing_automations.turbidostat import Turbidostat
 
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
-from pioreactor.dosing_automations import events
+from pioreactor.automations import events
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
 

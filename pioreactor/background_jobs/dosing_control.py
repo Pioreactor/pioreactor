@@ -17,7 +17,6 @@ import click
 from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
-
 from pioreactor.logging import create_logger
 
 
@@ -34,6 +33,8 @@ class DosingController(BackgroundJob):
         super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
+
+        import pioreactor.automations.dosing  # noqa: F401
 
         self.dosing_automation = dosing_automation
 

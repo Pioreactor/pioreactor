@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and take action. This is the core of the dosing automation.
+Continuously monitor the bioreactor and take action. This is the core of the temperature automation.
 
 
 To change the automation over MQTT,
 
-topic: `pioreactor/<unit>/<experiment>/dosing_control/temperature_automation/set`
+topic: `pioreactor/<unit>/<experiment>/temperture_control/temperature_automation/set`
 message: a json object with required keyword argument. Specify the new automation with name `"temperature_automation"`.
 
 """
@@ -33,6 +33,9 @@ class TemperatureController(BackgroundJob):
         super(TemperatureController, self).__init__(
             job_name="temperature_control", unit=unit, experiment=experiment
         )
+
+        import pioreactor.automations.temperature  # noqa: F401
+
         self.temperature_automation = temperature_automation
 
         self.temperature_automation_job = self.automations[self.temperature_automation](

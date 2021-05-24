@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
-from pioreactor.dosing_automations import events
+from pioreactor.automations import events
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
 from pioreactor.config import config

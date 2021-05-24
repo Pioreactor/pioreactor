@@ -12,7 +12,7 @@ from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer, brief_pause, current_utc_time
 from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
-from pioreactor.dosing_automations import events
+from pioreactor.automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.dosing_control import DosingController
 

@@ -21,6 +21,7 @@ from pioreactor.logging import create_logger
 
 class LEDController(BackgroundJob):
 
+    # this is automagically populated
     automations = {}
 
     editable_settings = ["led_automation"]
@@ -29,6 +30,8 @@ class LEDController(BackgroundJob):
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
+        import pioreactor.automations.led  # noqa: F401
+
         self.led_automation = led_automation
 
         self.led_automation_job = self.automations[self.led_automation](
