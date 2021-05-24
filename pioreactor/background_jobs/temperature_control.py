@@ -16,7 +16,6 @@ import click
 from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.subjobs.temperature_automation import Silent, PIDStable
 from pioreactor.logging import create_logger
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer
@@ -26,7 +25,7 @@ from pioreactor.utils import pio_jobs_running
 
 class TemperatureController(BackgroundJob):
 
-    automations = {"silent": Silent, "pid_stable": PIDStable}
+    automations = {}
 
     editable_settings = ["temperature_automation", "temperature"]
 

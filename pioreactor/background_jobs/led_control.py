@@ -16,13 +16,12 @@ import click
 from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.subjobs.led_automation import Silent, FlashUV, TrackOD
 from pioreactor.logging import create_logger
 
 
 class LEDController(BackgroundJob):
 
-    automations = {"silent": Silent, "flash_uv": FlashUV, "track_od": TrackOD}
+    automations = {}
 
     editable_settings = ["led_automation"]
 

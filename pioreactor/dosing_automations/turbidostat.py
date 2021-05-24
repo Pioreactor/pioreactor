@@ -11,6 +11,8 @@ class Turbidostat(DosingAutomation):
     This algo is very naive, and probably shouldn't be used.
     """
 
+    key = "turbidostat"
+
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Turbidostat, self).__init__(**kwargs)
         self.target_od = float(target_od)

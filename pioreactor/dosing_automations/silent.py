@@ -9,6 +9,8 @@ class Silent(DosingAutomation):
     Do nothing, ever. Just pass.
     """
 
+    key = "silent"
+
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 

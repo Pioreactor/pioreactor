@@ -8,6 +8,7 @@ from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.dosing_automations import events  # change later
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
+from pioreactor.background_jobs.led_controller import LEDController
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.config import config
 from pioreactor.utils.timing import current_utc_time
@@ -32,6 +33,14 @@ class LEDAutomation(BackgroundSubJob):
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     editable_settings = ["duration"]
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # this registers all subclasses of LEDAutomation back to LEDController, so the subclass
+        # can be invoked in LEDController.
+        if hasattr(cls, "key"):
+            LEDController.automations[cls.key] = cls
 
     def __init__(
         self,
@@ -228,6 +237,9 @@ class LEDAutomationContrib(LEDAutomation):
 
 
 class Silent(LEDAutomation):
+
+    key = "silent"
+
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 
@@ -241,6 +253,8 @@ class TrackOD(LEDAutomation):
         the theoretical maximum (normalized) OD we expect to see.
 
     """
+
+    key = "track_od"
 
     def __init__(self, max_od=None, **kwargs):
         super(TrackOD, self).__init__(**kwargs)
@@ -256,6 +270,9 @@ class TrackOD(LEDAutomation):
 
 
 class FlashUV(LEDAutomation):
+
+    key = "flash_uv"
+
     def __init__(self, **kwargs):
         super(FlashUV, self).__init__(**kwargs)
         self.uv_led = config.get("leds", "uv")

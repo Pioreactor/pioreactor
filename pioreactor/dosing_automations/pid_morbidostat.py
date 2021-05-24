@@ -13,6 +13,8 @@ class PIDMorbidostat(DosingAutomation):
     As defined in Zhong 2020
     """
 
+    key = "pid_morbidostat"
+
     def __init__(self, target_growth_rate=None, target_od=None, volume=None, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"

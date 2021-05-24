@@ -14,6 +14,7 @@ from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCal
 from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.dosing_automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
+from pioreactor.background_jobs.dosing_control import DosingController
 
 
 class DosingAutomation(BackgroundSubJob):
@@ -36,6 +37,14 @@ class DosingAutomation(BackgroundSubJob):
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # this registers all subclasses of DosingAutomation back to DosingController, so the subclass
+        # can be invoked in DosingController.
+        if hasattr(cls, "key"):
+            DosingController.automations[cls.key] = cls
 
     def __init__(
         self,

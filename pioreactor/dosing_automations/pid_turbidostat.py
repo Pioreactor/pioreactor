@@ -13,6 +13,8 @@ class PIDTurbidostat(DosingAutomation):
     returns 0.03, then we should remove ~97% of the volume. Choose volume to be about 1.5ml - 2.0ml.
     """
 
+    key = "pid_turbidostat"
+
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(PIDTurbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"

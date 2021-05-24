@@ -4,6 +4,7 @@ import json, time
 from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
+from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.config import config
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.hardware_mappings import PWM_TO_PIN
@@ -35,6 +36,14 @@ class TemperatureAutomation(BackgroundSubJob):
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     editable_settings = ["duration", "target_temperature"]
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # this registers all subclasses of TemperatureAutomation back to TemperatureController, so the subclass
+        # can be invoked in TemperatureController.
+        if hasattr(cls, "key"):
+            TemperatureController.automations[cls.key] = cls
 
     def __init__(
         self, unit=None, experiment=None, duration=10, skip_first_run=False, **kwargs
@@ -188,6 +197,9 @@ class TemperatureAutomationContrib(TemperatureAutomation):
 
 
 class Silent(TemperatureAutomation):
+
+    key = "silent"
+
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 
@@ -196,6 +208,9 @@ class Silent(TemperatureAutomation):
 
 
 class PIDStable(TemperatureAutomation):
+
+    key = "pid_stable"
+
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)
         self.set_target_temperature(target_temperature)
