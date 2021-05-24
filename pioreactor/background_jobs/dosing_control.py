@@ -34,8 +34,6 @@ class DosingController(BackgroundJob):
             job_name="dosing_control", unit=unit, experiment=experiment
         )
 
-        import pioreactor.automations.dosing  # noqa: F401
-
         self.dosing_automation = dosing_automation
 
         self.dosing_automation_job = self.automations[self.dosing_automation](

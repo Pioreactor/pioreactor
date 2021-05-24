@@ -10,12 +10,12 @@ from pioreactor.actions.leader import backup_database
 
 
 __all__ = (
-    export_experiment_data,
-    backup_database,
-    od_normalization,
-    remove_waste,
-    add_media,
-    add_alt_media,
-    led_intensity,
-    od_blank,
+    "export_experiment_data",
+    "backup_database",
+    "od_normalization",
+    "remove_waste",
+    "add_media",
+    "add_alt_media",
+    "led_intensity",
+    "od_blank",
 )

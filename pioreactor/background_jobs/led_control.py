@@ -30,7 +30,6 @@ class LEDController(BackgroundJob):
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
-        import pioreactor.automations.led  # noqa: F401
 
         self.led_automation = led_automation
 

@@ -4,8 +4,10 @@ try:
 except ImportError:  # TODO: this is available in 3.8+
     from importlib_metadata import entry_points
 
-
 from pioreactor.version import __version__  # noqa: F401
+from pioreactor.background_jobs import *  # noqa: F401,F403
+from pioreactor.actions import *  # noqa: F401,F403
+from pioreactor.automations import *  # noqa: F401,F403
 
 
 def get_plugins():
