@@ -161,7 +161,7 @@ class ADCReader(BackgroundSubJob):
         if self.dynamic_gain:
             raw_signals = []
             # we will instantiate and sweep through to set the gain
-            for ai in self.analog_in:
+            for _, ai in self.analog_in:
 
                 raw_signal_ = ai.voltage
                 raw_signals.append(raw_signal_)

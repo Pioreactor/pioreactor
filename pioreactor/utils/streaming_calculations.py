@@ -316,7 +316,7 @@ class PID:
         Kd,
         K0=0,
         setpoint=None,
-        output_limits=None,
+        output_limits=(None, None),
         sample_time=None,
         unit=None,
         experiment=None,

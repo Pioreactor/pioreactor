@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
-
+import pytest
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.leader.watchdog import WatchDog
 from pioreactor.background_jobs.monitor import Monitor
@@ -120,3 +120,35 @@ def test_error_in_subscribe_and_callback_is_logged():
     pause()
     assert len(error_logs) > 0
     assert "division by zero" in error_logs[0].payload.decode()
+
+
+@pytest.mark.xfail
+def test_what_happens_when_an_error_occurs_in_init():
+    """
+    I would prefer for this job to disconnect without the condition of Python exiting.
+    """
+
+    class TestJob(BackgroundJob):
+        def __init__(
+            self, unit, experiment, hertz=50, dc_increase_between_adc_readings=False
+        ):
+            super(TestJob, self).__init__(
+                job_name="testjob", unit=unit, experiment=experiment
+            )
+            1 / 0
+
+    state = []
+    publish("pioreactor/unit/exp/testjob/$state", None, retain=True)
+
+    def update_state(msg):
+        state.append(msg.payload.decode())
+
+    subscribe_and_callback(update_state, "pioreactor/unit/exp/testjob/$state")
+
+    with pytest.raises(ZeroDivisionError):
+        TestJob(unit="unit", experiment="exp")
+
+    time.sleep(0.25)
+    assert state[-1] == "disconnected"
+
+    time.sleep(3)

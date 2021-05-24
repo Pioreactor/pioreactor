@@ -88,7 +88,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def update_heater(self, newduty_cycle):
         self.duty_cycle = clamp(0, round(float(newduty_cycle), 2), 100)
-        self.pwm.changeduty_cycle(self.duty_cycle)
+        self.pwm.change_duty_cycle(self.duty_cycle)
 
     ########## Private & internal methods
 
@@ -178,6 +178,10 @@ class TemperatureAutomation(BackgroundSubJob):
             self._set_temperature,
             f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
         )
+
+
+class TemperatureAutomationContrib(TemperatureAutomation):
+    pass
 
 
 # not tested, experimental

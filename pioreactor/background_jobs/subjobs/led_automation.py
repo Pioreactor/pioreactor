@@ -220,6 +220,10 @@ class LEDAutomation(BackgroundSubJob):
         )
 
 
+class LEDAutomationContrib(LEDAutomation):
+    pass
+
+
 # not tested, experimental
 
 
