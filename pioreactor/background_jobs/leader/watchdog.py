@@ -89,6 +89,6 @@ def click_watchdog():
     """
     Start the watchdog on the leader
     """
-    heidi = WatchDog(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)  # noqa: F841
+    WatchDog(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
     signal.pause()

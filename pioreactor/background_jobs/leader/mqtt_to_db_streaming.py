@@ -303,8 +303,7 @@ def mqtt_to_db_streaming():
         topics_and_parsers, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name()
     )
 
-    while True:
-        signal.pause()
+    signal.pause()
 
 
 @click.command(name="mqtt_to_db_streaming")

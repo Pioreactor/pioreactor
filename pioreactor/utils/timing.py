@@ -56,8 +56,7 @@ class RepeatedTimer:
             temp_thread.start()
 
         self.event = Event()
-        self.thread = Thread(target=self._target)
-        self.thread.daemon = True
+        self.thread = Thread(target=self._target, daemon=True)
 
     def _target(self):
         while not self.event.wait(self._time):

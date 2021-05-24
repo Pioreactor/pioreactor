@@ -226,6 +226,6 @@ def click_monitor():
     """
     Monitor and report metadata on the unit.
     """
-    heidi = Monitor(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)  # noqa: F841
+    Monitor(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
     signal.pause()

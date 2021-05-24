@@ -127,7 +127,7 @@ install-ui:
 	# mkdir /home/pi/pioreactorui
 	# curl -L https://api.github.com/repos/pioreactor/pioreactorui/tarball | tar -zxv -C /home/pi/pioreactorui --strip-components=1
 
-	mv /home/pi/pioreactorui/backend/.env.example /home/pi/pioreactorui/backend/.env
+	cp /home/pi/pioreactorui/backend/.env.example /home/pi/pioreactorui/backend/.env
 
 	# install required libraries
 	# npm --prefix /home/pi/pioreactorui/client install

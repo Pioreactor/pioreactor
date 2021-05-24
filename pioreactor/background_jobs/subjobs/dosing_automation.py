@@ -10,8 +10,6 @@ from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import RepeatedTimer, brief_pause, current_utc_time
-from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
-from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 from pioreactor.automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.dosing_control import DosingController
@@ -50,7 +48,7 @@ class DosingAutomation(BackgroundSubJob):
         self,
         unit=None,
         experiment=None,
-        duration=60,
+        duration=None,
         sensor="+/+",  # take first observed, and keep using only that.
         skip_first_run=False,
         **kwargs,
@@ -62,13 +60,6 @@ class DosingAutomation(BackgroundSubJob):
         self.sensor = sensor
         self.skip_first_run = skip_first_run
 
-        self.alt_media_calculator = AltMediaCalculator(
-            unit=self.unit, experiment=self.experiment, parent=self
-        )
-        self.throughput_calculator = ThroughputCalculator(
-            unit=self.unit, experiment=self.experiment, parent=self
-        )
-        self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
         self.set_duration(duration)
         self.start_passive_listeners()
 

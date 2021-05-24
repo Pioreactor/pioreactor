@@ -177,7 +177,9 @@ def run(automation=None, duration=None, skip_first_run=False, **kwargs):
         controller = TemperatureController(automation, **kwargs)  # noqa: F841
 
         while True:
+            print("here2")
             signal.pause()
+            break
 
     except Exception as e:
         logger = create_logger("temperature_automation")

@@ -25,3 +25,4 @@ if __name__ == "__main__":
 
     while True:
         signal.pause()
+        break

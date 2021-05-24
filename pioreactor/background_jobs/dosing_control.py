@@ -18,6 +18,8 @@ from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
+from pioreactor.background_jobs.subjobs.alt_media_calculating import AltMediaCalculator
+from pioreactor.background_jobs.subjobs.throughput_calculating import ThroughputCalculator
 
 
 class DosingController(BackgroundJob):
@@ -36,6 +38,18 @@ class DosingController(BackgroundJob):
 
         self.dosing_automation = dosing_automation
 
+        self.alt_media_calculator = AltMediaCalculator(
+            unit=self.unit, experiment=self.experiment, parent=self
+        )
+        self.throughput_calculator = ThroughputCalculator(
+            unit=self.unit, experiment=self.experiment, parent=self
+        )
+        self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
+
+        # this should be a subjob, but it doesn't really fit
+        # because if I append it to the list, it needs to be garbage collected manually
+        # when I switch automations.
+        # some better system of keep tracking of subjobs is needed.
         self.dosing_automation_job = self.automations[self.dosing_automation](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
@@ -116,6 +130,7 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
 
         while True:
             signal.pause()
+            break
 
     except Exception as e:
         logger = create_logger("dosing_automation")

@@ -346,3 +346,4 @@ def click_growth_rate_calculating(ignore_cache):
     )
     while True:
         signal.pause()
+        break
