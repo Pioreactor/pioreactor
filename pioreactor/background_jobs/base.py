@@ -442,6 +442,6 @@ class BackgroundJob(_BackgroundJob):
         super(BackgroundJob, self).__init__(*args, **kwargs, source="app")
 
 
-class PluginBackgroundJob(_BackgroundJob):
+class BackgroundJobContrib(_BackgroundJob):
     def __init__(self, plugin_name, *args, **kwargs):
-        super(PluginBackgroundJob, self).__init__(*args, **kwargs, source=plugin_name)
+        super(BackgroundJobContrib, self).__init__(*args, **kwargs, source=plugin_name)

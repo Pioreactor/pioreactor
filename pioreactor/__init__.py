@@ -17,7 +17,10 @@ def get_plugins():
     pioreactor_plugins = entry_points().get("pioreactor.plugins", [])
     plugins = {}
     for plugin in pioreactor_plugins:
-        plugins[plugin.name] = plugin.load()
+        try:
+            plugins[plugin.name] = plugin.load()
+        except Exception as e:
+            print(e)
     return plugins
 
 

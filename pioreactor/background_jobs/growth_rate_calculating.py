@@ -132,7 +132,7 @@ class GrowthRateCalculator(BackgroundJob):
                 "Computing OD normalization metrics. This may take a few minutes"
             )
             od_normalization(unit=self.unit, experiment=self.experiment)
-            self.logger.info("Computing OD normalization metrics completed.")
+            self.logger.info("Completed OD normalization metrics.")
             initial_growth_rate = 0
         else:
             initial_growth_rate = self.get_growth_rate_from_broker()
