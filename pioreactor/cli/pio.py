@@ -18,10 +18,21 @@ from pioreactor.whoami import (
 from pioreactor.config import config
 from pioreactor import background_jobs as jobs
 from pioreactor import actions
+from pioreactor import plugin_management
 from pioreactor.logging import create_logger
 
 
-@click.group()
+class OrderedGroup(click.Group):
+    def __init__(self, name=None, commands=None, **attrs):
+        super(OrderedGroup, self).__init__(name, commands, **attrs)
+        #: the registered subcommands by their exported names.
+        self.commands = commands or dict()
+
+    def list_commands(self, ctx):
+        return self.commands
+
+
+@click.group(cls=OrderedGroup)
 def pio():
     """
     Execute commands on this Pioreactor.
@@ -85,19 +96,12 @@ def run():
     pass
 
 
-@pio.group(name="run-always", short_help="run a permanent job")
+@pio.group(name="run-always", short_help="run a long-lived job")
 def run_always():
     pass
 
 
-@pio.command(name="list-plugins", short_help="list the installed plugins")
-def list_plugins():
-
-    for plugin in pioreactor.plugins.keys():
-        click.echo(plugin)
-
-
-@pio.command(name="version", short_help="print the version")
+@pio.command(name="version", short_help="print the Pioreactor software version")
 @click.option("--verbose", "-v", is_flag=True, help="show more system information")
 def version(verbose):
 
@@ -113,7 +117,7 @@ def version(verbose):
         click.echo(pioreactor.__version__)
 
 
-@pio.command(name="update", short_help="update the Pioreactor software (app and ui)")
+@pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
 @click.option("--ui", is_flag=True, help="update the PioreactoUI to latest")
 @click.option("--app", is_flag=True, help="update the PioreactoApp to latest")
 def update(ui, app):
@@ -161,8 +165,13 @@ def update(ui, app):
             logger.error(p.stderr)
 
 
+pio.add_command(plugin_management.click_install_plugin)
+pio.add_command(plugin_management.click_uninstall_plugin)
+pio.add_command(plugin_management.click_list_plugins)
+
 # this runs on both leader and workers
 run_always.add_command(jobs.monitor.click_monitor)
+
 
 if am_I_active_worker():
     run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)

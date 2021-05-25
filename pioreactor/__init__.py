@@ -6,7 +6,8 @@ except ImportError:  # TODO: this is available in 3.8+
 
 from pioreactor.version import __version__  # noqa: F401
 from pioreactor.background_jobs import *  # noqa: F401,F403
-from pioreactor.actions import *  # noqa: F401,F403
+
+# from pioreactor.actions import *  # noqa: F401,F403
 
 # needed to import to "load" the automation subclasses,
 # and hence the *-controller will register them.

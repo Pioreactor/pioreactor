@@ -334,17 +334,16 @@ class ODReader(BackgroundJob):
             )
             self.start_ir_led()
 
-        ads_start_time = float(
-            subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
-            ).payload
-        )
+        payload = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time"
+        ).payload
+        ads_start_time = float(payload) if payload else 0
 
-        ads_interval = float(
-            subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
-            ).payload
-        )
+        payload = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval"
+        ).payload
+
+        ads_interval = float(payload) if payload else 0
 
         if ads_interval < 1.5:
             # if this is too small, like 1.5s, we should just skip this whole thing and keep the IR LED always on.
