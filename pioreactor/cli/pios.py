@@ -162,7 +162,9 @@ def sync_configs(units):
     results = list(results)
     print(results)
     if not all(results):
+        print("here")
         click.ClickException("Error connecting.")
+        print("here")
 
 
 @pios.command("kill", short_help="kill a job(s) on workers")
