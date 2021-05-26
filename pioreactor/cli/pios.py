@@ -159,6 +159,8 @@ def sync_configs(units):
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
+    results = list(results)
+    print(results)
     if not all(results):
         click.ClickException("Error connecting.")
 
