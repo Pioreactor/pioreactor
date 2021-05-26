@@ -22,17 +22,7 @@ from pioreactor import plugin_management
 from pioreactor.logging import create_logger
 
 
-class OrderedGroup(click.Group):
-    def __init__(self, name=None, commands=None, **attrs):
-        super(OrderedGroup, self).__init__(name, commands, **attrs)
-        #: the registered subcommands by their exported names.
-        self.commands = commands or dict()
-
-    def list_commands(self, ctx):
-        return self.commands
-
-
-@click.group(cls=OrderedGroup)
+@click.group()
 def pio():
     """
     Execute commands on this Pioreactor.

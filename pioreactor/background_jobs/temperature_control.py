@@ -55,7 +55,9 @@ class TemperatureController(BackgroundJob):
             self.logger.error(
                 "Is the Heating PCB attached to the RaspberryPi? Unable to find I²C for temperature driver."
             )
-            raise e
+            raise IOError(
+                "Is the Heating PCB attached to the RaspberryPi? Unable to find I²C for temperature driver."
+            )
 
         self.publish_temperature_timer = RepeatedTimer(
             1 / config.getfloat("temperature_config.sampling", "samples_per_second"),

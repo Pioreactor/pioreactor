@@ -48,7 +48,7 @@ class MQTTHandler(logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-        self.client.publish(
+        mqtt_msg = self.client.publish(
             self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
         )
 
@@ -57,6 +57,9 @@ class MQTTHandler(logging.Handler):
         ):
             # TODO: build this service!
             publish(self.topic, msg, hostname="mqtt.pioreactor.com")
+
+        # if Python exists too quickly, the last msg might never make it to the broker.
+        mqtt_msg.wait_for_publish()
 
 
 def create_logger(
