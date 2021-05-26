@@ -149,13 +149,18 @@ def sync_configs(units):
             sync_config_files(client, unit)
 
             client.close()
+            return True
         except Exception as e:
             logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)
+            return False
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+        results = executor.map(_thread_function, units)
+
+    if not all(results):
+        click.ClickException("Error connecting.")
 
 
 @pios.command("kill", short_help="kill a job(s) on workers")
