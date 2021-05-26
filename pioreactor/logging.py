@@ -47,18 +47,18 @@ class MQTTHandler(logging.Handler):
         self.client = client
 
     def emit(self, record):
-        msg = self.format(record)
+        payload = self.format(record)
         mqtt_msg = self.client.publish(
-            self.topic, msg, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
+            self.topic, payload, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
         )
 
         if (record.levelno == logging.ERROR) and config.getboolean(
             "data_sharing_with_pioreactor", "send_errors_to_Pioreactor", fallback=False
         ):
             # TODO: build this service!
-            publish(self.topic, msg, hostname="mqtt.pioreactor.com")
+            publish(self.topic, payload, hostname="mqtt.pioreactor.com")
 
-        # if Python exists too quickly, the last msg might never make it to the broker.
+        # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish()
 
 

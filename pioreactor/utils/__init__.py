@@ -1,10 +1,22 @@
 # -*- coding: utf-8 -*-
+from pioreactor.whoami import am_I_leader
 
 
 def pio_jobs_running():
+    """
+    This returns a list of the current pioreactor jobs/actions running. Ex:
+
+    > ["stirring", "air_bubbler", "stirring"]
+
+    Notes
+    -------
+    Duplicate jobs can show up here, as in the case when a job starts while another
+    job runs (hence why this needs to be a list and not a set.)
+
+    """
     import psutil
 
-    jobs = set([])
+    jobs = []
     for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
         try:
             if (
@@ -12,16 +24,17 @@ def pio_jobs_running():
                 and (proc.info["cmdline"][0] == "/usr/bin/python3")
                 and (proc.info["cmdline"][1] == "/usr/local/bin/pio")  # not pios!
             ):
-                # TODO: needs to be more specific, this fails often
                 job = proc.info["cmdline"][3]
-                jobs.add(job)
+                jobs.append(job)
         except Exception:
             pass
     return jobs
 
 
 def execute_query_against_db(query):
-    # must run on leader
+    if not am_I_leader():
+        raise IOError("Need to be leader to run this.")
+
     import sqlite3
     from pioreactor.config import config
 

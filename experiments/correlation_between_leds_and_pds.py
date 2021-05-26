@@ -37,13 +37,21 @@ if __name__ == "__main__":
 
     # set all to 0
     for channel in CHANNELS:
-        led_intensity(channel, intensity=0, unit=unit, experiment=experiment)
+        led_intensity(
+            channel, intensity=0, unit=unit, experiment=experiment, verbose=False
+        )
 
     for channel in CHANNELS:
         varying_intensity_results = defaultdict(list)
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
-            led_intensity(channel, intensity=intensity, unit=unit, experiment=experiment)
+            led_intensity(
+                channel,
+                intensity=intensity,
+                unit=unit,
+                experiment=experiment,
+                verbose=False,
+            )
 
             # record from ADC
             adc_reader.take_reading()
@@ -61,6 +69,8 @@ if __name__ == "__main__":
         )
 
         # set back to 0
-        led_intensity(channel, intensity=0, unit=unit, experiment=experiment)
+        led_intensity(
+            channel, intensity=0, unit=unit, experiment=experiment, verbose=False
+        )
 
     print(results)
