@@ -160,11 +160,8 @@ def sync_configs(units):
         results = executor.map(_thread_function, units)
 
     results = list(results)
-    print(results)
     if not all(results):
-        print("here")
-        click.ClickException("Error connecting.")
-        print("here")
+        sys.exit(1)
 
 
 @pios.command("kill", short_help="kill a job(s) on workers")
