@@ -1,3 +1,11 @@
+### 21.5.1
+
+ - New plugin architecture
+ - New database tables: `od_reading_statistics`, `stirring_rates`
+ - New `pio` commands: `install-plugin`, `uninstall-plugins`
+ - improvements to `continous_cycle` dosing automation.
+ - hardware based PWM available on pins 1 & 3.
+
 ### 21.5.0
 
  - IR LED now turns off between OD readings. This allows other LEDs to trigger and take readings.
