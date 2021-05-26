@@ -117,7 +117,10 @@ def update(units):
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+        results = executor.map(_thread_function, units)
+
+    if not all(results):
+        sys.exit(1)
 
 
 @pios.command(name="sync-configs", short_help="sync config")
@@ -159,7 +162,6 @@ def sync_configs(units):
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
-    results = list(results)
     if not all(results):
         sys.exit(1)
 
@@ -227,7 +229,10 @@ def kill(job, units, all, y):
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+        results = executor.map(_thread_function, units)
+
+    if not all(results):
+        sys.exit(1)
 
 
 @pios.command(
@@ -291,9 +296,10 @@ def run(ctx, job, units, y):
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+        results = executor.map(_thread_function, units)
 
-    return
+    if not all(results):
+        sys.exit(1)
 
 
 @pios.command(
@@ -327,9 +333,10 @@ def update_settings(ctx, job, units):
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        executor.map(_thread_function, units)
+        results = executor.map(_thread_function, units)
 
-    return
+    if not all(results):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
