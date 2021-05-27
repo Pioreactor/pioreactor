@@ -123,6 +123,100 @@ def update(units):
         sys.exit(1)
 
 
+@pios.command("install-plugin", short_help="install a plugin on workers")
+@click.argument("plugin", nargs=-1)
+@click.option(
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="specify a Pioreactor name, default is all active units",
+)
+def install_plugin(plugin, units):
+    """
+    Pulls and installs the latest code from Github to the workers.
+    """
+    import paramiko
+
+    logger = create_logger(
+        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+    )
+
+    command = f"pio install-plugin {plugin}"
+
+    def _thread_function(unit):
+        logger.debug(f"Executing `{command}` on {unit}...")
+        try:
+
+            client = paramiko.SSHClient()
+            client.load_system_host_keys()
+            client.connect(unit, username="pi")
+
+            (stdin, stdout, stderr) = client.exec_command(command)
+            for line in stderr.readlines():
+                pass
+
+            client.close()
+
+        except Exception as e:
+            logger.error(e)
+            logger.debug(e, exc_info=True)
+
+    units = universal_identifier_to_all_units(units)
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        results = executor.map(_thread_function, units)
+
+    if not all(results):
+        sys.exit(1)
+
+
+@pios.command("uninstall-plugin", short_help="uninstall a plugin on workers")
+@click.argument("plugin", nargs=-1)
+@click.option(
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="specify a Pioreactor name, default is all active units",
+)
+def uninstall_plugin(plugin, units):
+    """
+    Pulls and installs the latest code from Github to the workers.
+    """
+    import paramiko
+
+    logger = create_logger(
+        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+    )
+
+    command = f"pio uninstall-plugin {plugin}"
+
+    def _thread_function(unit):
+        logger.debug(f"Executing `{command}` on {unit}...")
+        try:
+
+            client = paramiko.SSHClient()
+            client.load_system_host_keys()
+            client.connect(unit, username="pi")
+
+            (stdin, stdout, stderr) = client.exec_command(command)
+            for line in stderr.readlines():
+                pass
+
+            client.close()
+
+        except Exception as e:
+            logger.error(e)
+            logger.debug(e, exc_info=True)
+
+    units = universal_identifier_to_all_units(units)
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        results = executor.map(_thread_function, units)
+
+    if not all(results):
+        sys.exit(1)
+
+
 @pios.command(name="sync-configs", short_help="sync config")
 @click.option(
     "--units",
