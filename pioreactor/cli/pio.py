@@ -57,8 +57,8 @@ def logs():
 
 @pio.command(name="kill", short_help="kill job(s)")
 @click.argument("job", nargs=-1)
-@click.option("--all", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(job, all):
+@click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
+def kill(job, all_jobs):
     """
     stop a job by sending a SIGTERM to it.
     """
@@ -72,7 +72,7 @@ def kill(job, all):
         except Exception:
             return 1
 
-    if all:
+    if all_jobs:
         safe_pkill("-f", "pio run ")
     else:
         for j in job:

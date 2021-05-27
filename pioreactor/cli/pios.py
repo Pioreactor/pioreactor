@@ -110,10 +110,12 @@ def update(units):
                 pass
 
             client.close()
+            return True
 
         except Exception as e:
             logger.error(e)
             logger.debug(e, exc_info=True)
+            return False
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -157,10 +159,12 @@ def install_plugin(plugin, units):
                 pass
 
             client.close()
+            return True
 
         except Exception as e:
             logger.error(e)
             logger.debug(e, exc_info=True)
+            return False
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -204,10 +208,12 @@ def uninstall_plugin(plugin, units):
                 pass
 
             client.close()
+            return True
 
         except Exception as e:
             logger.error(e)
             logger.debug(e, exc_info=True)
+            return False
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -269,9 +275,9 @@ def sync_configs(units):
     type=click.STRING,
     help="specify a hostname, default is all active units",
 )
-@click.option("--all", is_flag=True, help="kill all worker jobs")
+@click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
-def kill(job, units, all, y):
+def kill(job, units, all_jobs, y):
     """
     Send a SIGTERM signal to JOB. JOB can be any Pioreactor job name, like "stirring".
     Example:
@@ -295,13 +301,13 @@ def kill(job, units, all, y):
 
     if not y:
         confirm = input(
-            f"Confirm killing {str(job) if (not all) else 'all jobs'} on {units}? Y/n: "
+            f"Confirm killing {str(job) if (not all_jobs) else 'all jobs'} on {units}? Y/n: "
         ).strip()
         if confirm != "Y":
             return
 
     command = f"pio kill {' '.join(job)}"
-    command += "--all" if all else ""
+    command += "--all-jobs" if all_jobs else ""
 
     logger = create_logger(
         "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -311,15 +317,17 @@ def kill(job, units, all, y):
         logger.debug(f"Executing `{command}` on {unit}.")
         try:
             ssh(unit, command)
-            if all:  # tech debt
+            if all_jobs:  # tech debt
                 ssh(
                     unit,
                     "pio run led_intensity --intensity 0 --channel A --channel B --channel C --channel D",
                 )
+            return True
 
         except Exception as e:
             logger.debug(e, exc_info=True)
             logger.error(e)
+            return False
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -381,12 +389,14 @@ def run(ctx, job, units, y):
         click.echo(f"Executing `{core_command}` on {unit}.")
         try:
             ssh(unit, command)
+            return True
         except Exception as e:
             logger = create_logger(
                 "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
             )
             logger.debug(e, exc_info=True)
             logger.error(e)
+            return False
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -424,6 +434,7 @@ def update_settings(ctx, job, units):
     def _thread_function(unit):
         for (setting, value) in extra_args.items():
             publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
+        return True
 
     units = universal_identifier_to_all_units(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
