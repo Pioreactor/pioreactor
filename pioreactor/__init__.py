@@ -25,7 +25,7 @@ def get_plugins():
     for plugin in pioreactor_plugins:
         try:
             md = metadata(plugin.name)
-            plugins[plugin.name] = Plugin(
+            plugins[md["Name"]] = Plugin(
                 plugin.load(), md["Summary"], md["Version"], md["Home-page"]
             )
         except Exception as e:

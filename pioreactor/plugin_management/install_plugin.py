@@ -4,7 +4,7 @@ import subprocess
 import click
 
 
-def install_plugin(self, name_of_plugin, url=None):
+def install_plugin(name_of_plugin, url=None):
 
     subprocess.call(
         [
