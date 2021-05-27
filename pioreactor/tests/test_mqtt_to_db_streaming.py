@@ -7,6 +7,18 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 
 
+def parse_kalman_filter_outputs(topic, payload):
+    metadata, _ = m2db.produce_metadata(topic)
+    payload = json.loads(payload)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": metadata.timestamp,
+        "state": json.dumps(payload["state"]),
+        "covariance_matrix": json.dumps(payload["covariance_matrix"]),
+    }
+
+
 def test_kalman_filter_entries():
     config["storage"]["database"] = "test.sqlite"
     config["od_config.od_sampling"]["samples_per_second"] = "0.2"
@@ -36,10 +48,10 @@ def test_kalman_filter_entries():
 
     # turn on our mqtt to db
     parsers = [
-        m2db.Metadata(
+        m2db.TopicToParserToTable(
             "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
+            parse_kalman_filter_outputs,
             "kalman_filter_outputs",
-            m2db.parse_kalman_filter_outputs,
         )
     ]
 

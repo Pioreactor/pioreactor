@@ -22,6 +22,8 @@ SetAttrSplitTopic = namedtuple(
     "SetAttrSplitTopic", ["pioreactor_unit", "experiment", "timestamp"]
 )
 
+TopicToParserToTable = namedtuple("TopicToParserToTable", ["topic", "parser", "table"])
+
 
 @dataclass
 class TopicToParserToTable:
@@ -259,10 +261,6 @@ def mqtt_to_db_streaming():
             "estimate": float(payload),
         }
 
-    TopicToParserToTable = namedtuple(
-        "TopicToParserToTable", ["topic", "parser", "table"]
-    )
-
     topics_to_tables = [
         TopicToParserToTable(
             "pioreactor/+/+/growth_rate_calculating/od_filtered/+/+",
@@ -286,13 +284,13 @@ def mqtt_to_db_streaming():
             parse_temperature,
             "temperature_readings",
         ),
-        TopicToParserToTable("pioreactor/+/+/pid_log", "pid_logs", parse_pid_logs),
+        TopicToParserToTable("pioreactor/+/+/pid_log", parse_pid_logs, "pid_logs"),
         TopicToParserToTable(
             "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
             parse_alt_media_fraction,
             "alt_media_fraction",
         ),
-        TopicToParserToTable("pioreactor/+/+/logs/+", "logs", parse_logs),
+        TopicToParserToTable("pioreactor/+/+/logs/+", parse_logs, "logs"),
         TopicToParserToTable(
             "pioreactor/+/+/dosing_automation/dosing_automation_settings",
             parse_automation_settings,
