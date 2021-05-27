@@ -7,8 +7,6 @@ from pioreactor.pubsub import subscribe_and_callback
 from rpi_hardware_pwm import HardwarePWM
 import random
 
-random.seed(10)
-
 
 class MockI2C:
     def __init__(self, SCL, SDA):
@@ -40,6 +38,9 @@ class MockAnalogIn(AnalogIn):
             self.react_to_dosing,
             f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
         )
+        self.max_gr = 0.25 + 0.1 * random.random()
+        self.scale_factor = 0.00025 + 0.00005 * random.random()
+        self.lag = 8 * 60 * 60 - 120 * random.random()
 
     def react_to_dosing(self, message):
 
@@ -49,11 +50,12 @@ class MockAnalogIn(AnalogIn):
             return
         self.state = self.state * (1 - (payload["volume_change"] / 14))
 
-    @staticmethod
-    def growth_rate(duration_as_seconds):
+    def growth_rate(self, duration_as_seconds):
         import numpy as np
 
-        return 0.25 / (1 + np.exp(-0.00025 * (duration_as_seconds - 8 * 60 * 60)))
+        return self.max_gr / (
+            1 + np.exp(-self.scale_factor * (duration_as_seconds - self.lag))
+        )
 
     @property
     def voltage(self):
