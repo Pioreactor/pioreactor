@@ -22,7 +22,9 @@ def click_list_plugins(json):
                 [
                     {
                         "name": plugin,
-                        "description": metadata.description,
+                        "description": metadata.description
+                        if metadata.description != "UNKNOWN"
+                        else None,
                         "version": metadata.version,
                         "homepage": metadata.homepage
                         if metadata.homepage != "UNKNOWN"

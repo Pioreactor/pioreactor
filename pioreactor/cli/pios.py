@@ -124,7 +124,7 @@ def update(units):
 
 
 @pios.command("install-plugin", short_help="install a plugin on workers")
-@click.argument("plugin", nargs=-1)
+@click.argument("plugin")
 @click.option(
     "--units",
     multiple=True,
@@ -171,7 +171,7 @@ def install_plugin(plugin, units):
 
 
 @pios.command("uninstall-plugin", short_help="uninstall a plugin on workers")
-@click.argument("plugin", nargs=-1)
+@click.argument("plugin")
 @click.option(
     "--units",
     multiple=True,
