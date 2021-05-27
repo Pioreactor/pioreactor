@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import time
 
-from pioreactor.dosing_automations.morbidostat import Morbidostat
-from pioreactor.dosing_automations.pid_morbidostat import PIDMorbidostat
-from pioreactor.dosing_automations.pid_turbidostat import PIDTurbidostat
-from pioreactor.dosing_automations.silent import Silent
-from pioreactor.dosing_automations.turbidostat import Turbidostat
+from pioreactor.automations.dosing.morbidostat import Morbidostat
+from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
+from pioreactor.automations.dosing.pid_turbidostat import PIDTurbidostat
+from pioreactor.automations.dosing.silent import Silent
+from pioreactor.automations.dosing.turbidostat import Turbidostat
 
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation

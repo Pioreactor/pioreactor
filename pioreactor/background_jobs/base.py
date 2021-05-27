@@ -32,21 +32,60 @@ class PostInitCaller(type):
 class _BackgroundJob(metaclass=PostInitCaller):
 
     """
+    State management & hooks
+    ---------------------------
+
+    So this class controls most of the state convention that we follow (states inspired by Homie):
+
+
+                                        ┌──────────┐
+                                        │          │
+                                ┌───────►   lost   ◄────────┐
+                                │       │          │        │
+                                │       └─────▲────┘        │
+                                │             │             │
+    ┌──────────┐          ┌─────┴──────┐      │     ┌───────┴──────┐
+    │          │          │            │      │     │              │
+    │   init   ├──────────►   ready    ├──────┼─────► disconnected │
+    │          │          │            │      │     │              │
+    └──────────┘          └────┬──▲────┘      │     └──────▲───────┘
+                               │  │           │            │
+                               │  │           │            │
+                               │  │           │            │
+                          ┌────▼──┴────┬──────┘            │
+                          │            │                   │
+                          │  sleeping  ├───────────────────┘
+                          │            │
+                          └────────────┘
+
+
+    1. The job starts in `init`,
+        - we publish `editable_settings`: a list of variables that will be sent to the broker on initialization and retained.
+        - we set up how to disconnect
+        - the subclass runs their __init__ method
+    2. The job moves to `ready`, and can be paused by entering `sleeping`.
+    3. We catch key interrupts and kill signals from the underlying machine, and set the state to `disconnected`.
+    4. If the job exits otherwise (kill -9, power loss, bug), the state is `lost`, and a last-will saying so is broadcast.
+
+    When changing state, it's recommend to use `set_state(new_state)`.
+
+    When going from state S to state T, a function `on_{S}_to_{T}` is called, and then a
+    function `on_{T}` is called. These can be overwritten in subclasses for specific usecases (ex: sleeping should turn off a motor,
+    and  going from sleeping to ready should restart the motor.)
+
+
+    Editing properties
+    ---------------------
+
     This class handles the fanning out of class attributes, and the setting of those attributes. Use
-    `pioreactor/<unit>/<experiment>/<job_name>/<attr>/set` to set an attribute.
+    `pioreactor/<unit>/<experiment>/<job_name>/<attr>/set` to set an attribute remotely.
 
-    So this class controls most of the Homie convention that we follow:
+    Hooks can be set up when property `p` changes. The function `set_p(self, new_value)`
+    will be called (if defined) whenever `p` changes over MQTT.
 
-    1. The device lifecycle: init -> ready -> disconnect (or lost).
-        1. The job starts in `init`,
-            - we publish `editable_settings` is a list of variables that will be sent to the broker on initialization and retained.
-            - we set up how to disconnect
-            - the child class runs their __init__ method
-        2. The job moves to `ready`.
-        3. We catch key interrupts and kill signals from the underlying machine, and set the state to
-           `disconnected`.
-        4. If the job exits otherwise (kill -9 or power loss), the state is `lost`, and a last-will saying so is broadcast.
-    2. Attributes are broadcast under $properties, and each has $settable set to True. This isn't used at the moment.
+    On __init__, attributes are broadcast under `pioreactor/<unit>/<experiment>/<job_name>/$properties`,
+    and each has `pioreactor/<unit>/<experiment>/<job_name>/$settable` set to True. This latter field isn't used at the moment.
+
 
     Parameters
     -----------
@@ -55,6 +94,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         the name of the job
     source: str
         the source of where this job lives. "app" if main code base, <plugin name> if from a plugin, etc. This is used in logging.
+    experiment: str
+    unit: str
     """
 
     # Homie lifecycle (normally per device (i.e. an rpi) but we are using it for "nodes", in Homie parlance)
@@ -109,19 +150,64 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.sub_client = self.create_sub_client()
         self.pubsub_clients = [self.sub_client, self.pub_client]
 
+        # let's move to init, next thing that run is the subclasses __init__
         self.set_state(self.INIT)
 
     def __post__init__(self):
+        # this function is called AFTER the subclasses __init__ finishes
         self.set_state(self.READY)
 
+    # subclasses to override these to perform certain actions on a state transfer
     def on_ready(self):
+        # specific things to do when is ready (again)
+        pass
+
+    def on_init(self):
+        # Note: this is called after this classes __init__, but before the subclasses __init__
         pass
 
     def on_sleeping(self):
+        # specific things to do when a job sleeps / pauses
         pass
 
     def on_disconnect(self):
         # specific things to do when a job disconnects / exits
+        pass
+
+    def on_disconnected_to_ready(self):
+        pass
+
+    def on_ready_to_disconnected(self):
+        pass
+
+    def on_disconnected_to_sleeping(self):
+        pass
+
+    def on_sleeping_to_disconnected(self):
+        pass
+
+    def on_disconnected_to_init(self):
+        pass
+
+    def on_init_to_disconnected(self):
+        pass
+
+    def on_ready_to_sleeping(self):
+        pass
+
+    def on_sleeping_to_ready(self):
+        pass
+
+    def on_ready_to_init(self):
+        pass
+
+    def on_init_to_ready(self):
+        pass
+
+    def on_sleeping_to_init(self):
+        pass
+
+    def on_init_to_sleeping(self):
         pass
 
     def start_passive_listeners(self):
@@ -221,7 +307,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def subscribe_and_callback(self, callback, subscriptions, allow_retained=True, qos=0):
         """
-
         Parameters
         -------------
         callback: callable
@@ -232,6 +317,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             that client can fire a msg with retain=True, but because the broker is serving it to a
             subscriber "fresh", it will have retain=False on the client side. More here:
             https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
+        qos: int
+            see pioreactor.pubsub.QOS
         """
 
         def check_for_duplicate_subs(subs):
@@ -308,6 +395,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def init(self):
         self.state = self.INIT
+        try:
+            self.on_init()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
+
         self.logger.debug("Initializing.")
 
         if threading.current_thread() is not threading.main_thread():
@@ -325,21 +418,22 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.start_general_passive_listeners()
 
     def ready(self):
+        self.state = self.READY
         try:
             self.on_ready()
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-        self.state = self.READY
         self.logger.info("Ready.")
 
     def sleeping(self):
+        self.state = self.SLEEPING
         try:
             self.on_sleeping()
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-        self.state = self.SLEEPING
+
         self.logger.debug("Sleeping.")
 
     def disconnected(self):
@@ -383,6 +477,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def set_state(self, new_state):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
+        try:
+            getattr(self, f"on_{self.state}_to_{new_state}")()
+        except AttributeError:
+            pass
         getattr(self, new_state)()
 
     def set_attr_from_message(self, message):
@@ -443,5 +541,9 @@ class BackgroundJob(_BackgroundJob):
 
 
 class BackgroundJobContrib(_BackgroundJob):
+    """
+    Plugins should inherit from this class.
+    """
+
     def __init__(self, plugin_name, *args, **kwargs):
         super(BackgroundJobContrib, self).__init__(*args, **kwargs, source=plugin_name)

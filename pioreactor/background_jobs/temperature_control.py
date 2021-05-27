@@ -128,16 +128,10 @@ class TemperatureController(BackgroundJob):
             self.logger.warning(f"Change failed because of {str(e)}")
 
     def on_sleeping(self):
-        if self.temperature_automation_job.state != self.SLEEPING:
-            self.temperature_automation_job.set_state(self.SLEEPING)
+        self.temperature_automation_job.set_state(self.SLEEPING)
 
-    def on_ready(self):
-        try:
-            if self.temperature_automation_job.state != self.READY:
-                self.temperature_automation_job.set_state(self.READY)
-        except AttributeError:
-            # attribute error occurs on first init of _control
-            pass
+    def on_sleeping_to_ready(self):
+        self.temperature_automation_job.set_state(self.READY)
 
     def on_disconnect(self):
         try:
@@ -178,10 +172,7 @@ def run(automation=None, duration=None, skip_first_run=False, **kwargs):
 
         controller = TemperatureController(automation, **kwargs)  # noqa: F841
 
-        while True:
-            print("here2")
-            signal.pause()
-            break
+        signal.pause()
 
     except Exception as e:
         logger = create_logger("temperature_automation")

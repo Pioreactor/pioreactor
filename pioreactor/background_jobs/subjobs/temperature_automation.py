@@ -43,6 +43,8 @@ class TemperatureAutomation(BackgroundSubJob):
         # can be invoked in TemperatureController.
         if hasattr(cls, "key"):
             TemperatureController.automations[cls.key] = cls
+        else:
+            raise KeyError("Missing required field `key` in automation")
 
     def __init__(
         self, unit=None, experiment=None, duration=10, skip_first_run=False, **kwargs
@@ -189,4 +191,4 @@ class TemperatureAutomation(BackgroundSubJob):
 
 
 class TemperatureAutomationContrib(TemperatureAutomation):
-    pass
+    key: str = None

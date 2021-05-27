@@ -98,8 +98,13 @@ class Monitor(BackgroundJob):
         self.led_off()
 
     def watch_for_power_problems(self):
-        # copied from https://github.com/raspberrypi/linux/pull/2397
-        # and https://github.com/N2Github/Proje
+        """
+
+        Note: `get_throttled` feature isn't avaialable on the Rpi
+
+        Sourced from https://github.com/raspberrypi/linux/pull/2397
+         and https://github.com/N2Github/Proje
+        """
 
         # TODO: eventually these problems should be surfaced to the user, but they
         # are too noisy atm.

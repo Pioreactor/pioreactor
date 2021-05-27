@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
-import pytest
 from pioreactor.background_jobs import temperature_control
-from pioreactor.background_jobs.subjobs.temperature_automation import Silent, PIDStable
+from pioreactor.automations.temperature import Silent, PIDStable
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
 
@@ -54,12 +53,14 @@ def test_changing_temperature_algo_over_mqtt_solo():
 
 
 def test_disconnect_when_max_temp_is_exceeded():
-    temperature_control.read_temperature = lambda: 60
+    temperature_control.TemperatureController.read_temperature = lambda *args: 60
 
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        temperature_control.TemperatureController(
+    try:
+        t = temperature_control.TemperatureController(
             "silent", duration=10, unit=unit, experiment=experiment
         )
-        time.sleep(10)
+        time.sleep(5)
+    except Exception:
+        pass
 
-    assert pytest_wrapped_e.type == SystemExit
+    assert t.state == t.DISCONNECTED

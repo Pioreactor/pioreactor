@@ -34,6 +34,7 @@ class Stirrer(BackgroundJob):
     """
 
     editable_settings = ["duty_cycle", "dc_increase_between_adc_readings"]
+    _previous_duty_cycle = None
 
     def __init__(
         self,
@@ -70,19 +71,15 @@ class Stirrer(BackgroundJob):
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
-        self._previous_duty_cycle = self.duty_cycle
         self.set_duty_cycle(0)
 
-    def set_state(self, new_state):
-        if new_state != self.READY:
-            try:
-                self.stop_stirring()
-            except AttributeError:
-                pass
-        elif (new_state == self.READY) and (self.state == self.SLEEPING):
-            self.duty_cycle = self._previous_duty_cycle
-            self.start_stirring()
-        super(Stirrer, self).set_state(new_state)
+    def on_ready_to_sleeping(self):
+        self._previous_duty_cycle = self.duty_cycle
+        self.stop_stirring()
+
+    def on_sleeping_to_ready(self):
+        self.duty_cycle = self._previous_duty_cycle
+        self.start_stirring()
 
     def set_duty_cycle(self, value):
         self.duty_cycle = clamp(0, round(float(value), 2), 100)

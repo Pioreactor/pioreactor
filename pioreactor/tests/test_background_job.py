@@ -129,9 +129,7 @@ def test_what_happens_when_an_error_occurs_in_init():
     """
 
     class TestJob(BackgroundJob):
-        def __init__(
-            self, unit, experiment, hertz=50, dc_increase_between_adc_readings=False
-        ):
+        def __init__(self, unit, experiment):
             super(TestJob, self).__init__(
                 job_name="testjob", unit=unit, experiment=experiment
             )
@@ -152,3 +150,41 @@ def test_what_happens_when_an_error_occurs_in_init():
     assert state[-1] == "disconnected"
 
     time.sleep(3)
+
+
+def test_state_transition_callbacks():
+    class TestJob(BackgroundJob):
+        def __init__(self, unit, experiment):
+            super(TestJob, self).__init__(
+                job_name="testjob", unit=unit, experiment=experiment
+            )
+
+        def on_init(self):
+            self.on_init = True
+
+        def on_ready(self):
+            self.on_ready = True
+
+        def on_sleeping(self):
+            self.on_sleeping = True
+
+        def on_ready_to_sleeping(self):
+            self.on_ready_to_sleeping = True
+
+        def on_sleeping_to_ready(self):
+            self.on_ready_to_sleeping = True
+
+        def on_init_to_ready(self):
+            self.on_init_to_ready = True
+
+    unit, exp = get_unit_name(), get_latest_experiment_name()
+    tj = TestJob(unit, exp)
+    assert tj.on_init
+    assert tj.on_init_to_ready
+    assert tj.on_ready
+    publish(f"pioreactor/{unit}/{exp}/monitor/$state", "sleeping")
+    assert tj.on_sleeping
+    assert tj.on_ready_to_sleeping
+
+    publish(f"pioreactor/{unit}/{exp}/monitor/$state", "ready")
+    assert tj.on_sleeping_to_ready

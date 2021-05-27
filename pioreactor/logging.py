@@ -12,11 +12,6 @@ from json_log_formatter import JSONFormatter
 
 logging.raiseExceptions = False
 
-# reduce logging from third party libs. TODO: do I still need this?
-logging.getLogger("sh").setLevel("ERROR")
-logging.getLogger("paramiko").setLevel("ERROR")
-logging.getLogger("sqlite3worker").setLevel("ERROR")
-
 
 class CustomisedJSONFormatter(JSONFormatter):
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:

@@ -23,6 +23,4 @@ if __name__ == "__main__":
         target_od=2.0, unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
-    while True:
-        signal.pause()
-        break
+    signal.pause()

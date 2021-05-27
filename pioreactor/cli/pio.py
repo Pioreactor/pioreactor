@@ -44,7 +44,7 @@ def logs():
     def cb(msg):
         payload = loads(msg.payload.decode())
         click.echo(
-            f"{datetime.utcnow().isoformat()} [{payload['task']}] {payload['level']} {payload['message']}"
+            f"{datetime.utcnow().isoformat(sep=' ', isoformat='seconds')} [{payload['task']}] {payload['level']} {payload['message']}"
         )
 
     click.echo(tail("-n", 100, config["logging"]["log_file"]))

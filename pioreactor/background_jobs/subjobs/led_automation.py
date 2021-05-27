@@ -40,6 +40,8 @@ class LEDAutomation(BackgroundSubJob):
         # can be invoked in LEDController.
         if hasattr(cls, "key"):
             LEDController.automations[cls.key] = cls
+        else:
+            raise KeyError("Missing required field `key` in automation")
 
     def __init__(
         self,
@@ -229,4 +231,4 @@ class LEDAutomation(BackgroundSubJob):
 
 
 class LEDAutomationContrib(LEDAutomation):
-    pass
+    key: str = None

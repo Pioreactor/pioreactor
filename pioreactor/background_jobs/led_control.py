@@ -103,9 +103,7 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
 
         controller = LEDController(automation, **kwargs)  # noqa: F841
 
-        while True:
-            signal.pause()
-            break
+        signal.pause()
 
     except Exception as e:
         logger = create_logger("led_automation")

@@ -42,11 +42,8 @@ class ContinuousCycle(DosingAutomation):
     def on_sleeping(self):
         self.pwm.stop()
 
-    def on_ready(self):
-        try:
-            self.pwm.start(self.duty_cycle)
-        except AttributeError:
-            pass
+    def on_sleeping_to_ready(self):
+        self.pwm.start(self.duty_cycle)
 
     def on_disconnect(self):
         try:
