@@ -788,3 +788,21 @@ def test_custom_class_will_register_and_run():
         unit=get_unit_name(),
         experiment=get_latest_experiment_name(),
     )
+
+
+def test_what_happens_when_no_od_data_is_coming_in():
+
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", None
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", None
+    )
+
+    algo = Turbidostat(
+        target_od=0.1, duration=40 / 60, volume=0.25, unit=unit, experiment=experiment
+    )
+    pause()
+    event = algo.run()
+    assert isinstance(event, events.NoEvent)
+    assert "Waited too long on sensor data. Skipping this run" in event.message
