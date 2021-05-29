@@ -28,6 +28,10 @@ def universal_identifier_to_all_units(units):
     return units
 
 
+def add_leader(list_of_units):
+    return list(set(list_of_units.append(get_leader_hostname())))
+
+
 def sync_config_files(ssh_client, unit):
     """
     this function occurs in a thread
@@ -136,7 +140,7 @@ def update(units):
 )
 def install_plugin(plugin, units):
     """
-    Pulls and installs the latest code from Github to the workers.
+    Installs a plugin to worker and leader
     """
     import paramiko
 
@@ -166,7 +170,7 @@ def install_plugin(plugin, units):
             logger.debug(e, exc_info=True)
             return False
 
-    units = universal_identifier_to_all_units(units)
+    units = add_leader(universal_identifier_to_all_units(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -185,7 +189,7 @@ def install_plugin(plugin, units):
 )
 def uninstall_plugin(plugin, units):
     """
-    Pulls and installs the latest code from Github to the workers.
+    Uninstalls a plugin from worker and leader
     """
     import paramiko
 
@@ -215,7 +219,7 @@ def uninstall_plugin(plugin, units):
             logger.debug(e, exc_info=True)
             return False
 
-    units = universal_identifier_to_all_units(units)
+    units = add_leader(universal_identifier_to_all_units(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -421,6 +425,10 @@ def run(ctx, job, units, y):
 )
 @click.pass_context
 def update_settings(ctx, job, units):
+    """
+    pios update settings stirring --duty_cycle 10
+
+    """
 
     exp = get_latest_experiment_name()
     extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
@@ -428,6 +436,8 @@ def update_settings(ctx, job, units):
     if "unit" in extra_args:
         click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
         sys.exit(1)
+
+    assert len(extra_args) > 0
 
     from pioreactor.pubsub import publish
 

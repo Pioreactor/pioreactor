@@ -26,10 +26,10 @@ TopicToParserToTable = namedtuple("TopicToParserToTable", ["topic", "parser", "t
 
 
 @dataclass
-class TopicToParserToTable:
+class TopicToParserToTableContrib:
     """
-    plugins can use this.
-    parser must accept (topic: str, payload: str)
+    plugins subclass this.
+    parser (callable) must accept (topic: str, payload: str)
 
     TODO: untested
     """

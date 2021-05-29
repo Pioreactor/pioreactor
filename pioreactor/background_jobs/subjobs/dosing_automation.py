@@ -90,8 +90,19 @@ class DosingAutomation(BackgroundSubJob):
             return
 
         elif self.state != self.READY:
-            time.sleep(5)
-            return self.run()
+            # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
+            counter = 0
+            while (self.latest_growth_rate is None) or (self.latest_od is None):
+                time.sleep(5)
+                counter += 1
+
+                if counter > (self.duration * 60 / 4) / 5:
+                    event = events.NoEvent(
+                        "Waited too long on sensor data. Skipping this run."
+                    )
+                    break
+            else:
+                return self.run()
 
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             # this should really only happen on the initialization.
@@ -102,8 +113,19 @@ class DosingAutomation(BackgroundSubJob):
                 self.logger.warn(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
-            time.sleep(20)
-            return self.run()
+            # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
+            counter = 0
+            while (self.latest_growth_rate is None) or (self.latest_od is None):
+                time.sleep(5)
+                counter += 1
+
+                if counter > (self.duration * 60 / 4) / 5:
+                    event = events.NoEvent(
+                        "Waited too long on sensor data. Skipping this run."
+                    )
+                    break
+            else:
+                return self.run()
 
         elif (time.time() - self.most_stale_time) > 5 * 60:
             event = events.NoEvent(

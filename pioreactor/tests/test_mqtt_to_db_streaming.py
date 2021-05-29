@@ -7,24 +7,23 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 
 
-def parse_kalman_filter_outputs(topic, payload):
-    metadata, _ = m2db.produce_metadata(topic)
-    payload = json.loads(payload)
-    return {
-        "experiment": metadata.experiment,
-        "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": metadata.timestamp,
-        "state": json.dumps(payload["state"]),
-        "covariance_matrix": json.dumps(payload["covariance_matrix"]),
-    }
-
-
 def test_kalman_filter_entries():
     config["storage"]["database"] = "test.sqlite"
     config["od_config.od_sampling"]["samples_per_second"] = "0.2"
 
     unit = "unit"
     exp = "exp"
+
+    def parse_kalman_filter_outputs(topic, payload):
+        metadata, _ = m2db.produce_metadata(topic)
+        payload = json.loads(payload)
+        return {
+            "experiment": metadata.experiment,
+            "pioreactor_unit": metadata.pioreactor_unit,
+            "timestamp": metadata.timestamp,
+            "state": json.dumps(payload["state"]),
+            "covariance_matrix": json.dumps(payload["covariance_matrix"]),
+        }
 
     # init the database
     connection = sqlite3.connect(config["storage"]["database"])

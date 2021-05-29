@@ -10,9 +10,9 @@ url=$2
 
 if [ ! -z $url ]
 then
-    sudo pip3 install -Iv  $url
+    sudo pip3 install -I  $url
 else
-    sudo pip3 install -Iv $plugin_name
+    sudo pip3 install -I $plugin_name
 fi
 
 plugin_name_with_underscores=${plugin_name//-/_}
