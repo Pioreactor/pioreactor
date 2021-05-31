@@ -51,9 +51,7 @@ class PIDStable(TemperatureAutomation):
 
     def set_target_temperature(self, value):
         if float(value) > 50:
-            self.logger.warning(
-                "Values over 50℃ are not supported. Setting instead to 50℃."
-            )
+            self.logger.warning("Values over 50℃ are not supported. Setting to 50℃.")
 
         self.target_temperature = clamp(0, float(value), 50)
         try:

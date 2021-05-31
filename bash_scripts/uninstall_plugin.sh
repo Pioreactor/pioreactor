@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # arg1 is the name of the plugin to install
-set +e
+set -e
 
 plugin_name=$1
 

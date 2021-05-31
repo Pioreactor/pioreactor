@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys, threading, signal
-from pioreactor.whoami import is_testing_env, get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
 
 if is_testing_env():
@@ -36,9 +36,7 @@ class PWM:
     using_hardware = False
 
     def __init__(self, pin, hz, always_use_software=False):
-        self.logger = create_logger(
-            "PWM", unit=get_unit_name(), experiment=get_latest_experiment_name()
-        )
+        self.logger = create_logger("PWM")
 
         self.pin = pin
         self.hz = hz
