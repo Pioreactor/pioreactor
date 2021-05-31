@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys, threading, signal
-from pioreactor.whoami import is_testing_env
+from pioreactor.whoami import is_testing_env, get_unit_name, get_latest_experiment_name
+from pioreactor.logging import create_logger
 
 if is_testing_env():
     import fake_rpi
@@ -35,6 +36,9 @@ class PWM:
     using_hardware = False
 
     def __init__(self, pin, hz, always_use_software=False):
+        self.logger = create_logger(
+            "PWM", unit=get_unit_name(), experiment=get_latest_experiment_name()
+        )
 
         self.pin = pin
         self.hz = hz
@@ -50,6 +54,10 @@ class PWM:
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             self.pwm = GPIO.PWM(self.pin, hz)
+
+        self.logger.debug(
+            f"Initialized PWM-{self.pin} on {'hardware' if self.using_hardware else 'software'}"
+        )
 
         # signals only work in main thread
         if threading.current_thread() is threading.main_thread():
@@ -82,6 +90,7 @@ class PWM:
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             GPIO.cleanup(self.pin)
+        self.logger.debug(f"Cleaned up PWM-{self.pin}")
 
     def __exit__(self):
         self.cleanup()
