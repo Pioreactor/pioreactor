@@ -16,7 +16,7 @@ def install_plugin(name_of_plugin, url=None):
             name_of_plugin,
             url or "",
         ]
-    ).returncode
+    )
 
     if result == 0:
         logger.info(f"Successfully installed plugin {name_of_plugin}.")
