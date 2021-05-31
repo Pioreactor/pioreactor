@@ -95,13 +95,24 @@ class TemperatureController(BackgroundJob):
             )
 
     def _check_if_exceeds_max_temp(self):
-        max_temp = 52.0
-        if self.temperature > max_temp:
+        MAX_TEMP_TO_DISABLE_HEATING = 52.0
+        MAX_TEMP_TO_SHUTDOWN = 58.0
+
+        if self.temperature > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations. The Heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
 
-            self.temperature_automation.update_heater(0)
+            self.temperature_automation_job.turn_off_heater()
+
+        elif self.temperature > MAX_TEMP_TO_SHUTDOWN:
+            self.logger.warning(
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
+            )
+
+            from subprocess import call
+
+            call("sudo shutdown --poweroff", shell=True)
 
     def set_temperature_automation(self, new_temperature_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like

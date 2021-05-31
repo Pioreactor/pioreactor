@@ -52,15 +52,14 @@ def test_changing_temperature_algo_over_mqtt_solo():
     assert algo.temperature_automation_job.target_temperature == 20
 
 
-def test_disconnect_when_max_temp_is_exceeded():
-    temperature_control.TemperatureController.read_temperature = lambda *args: 60
+def test_heating_stops_when_max_temp_is_exceeded():
+    temperature_control.TemperatureController.read_temperature = lambda *args: 55
 
-    try:
-        t = temperature_control.TemperatureController(
-            "silent", duration=10, unit=unit, experiment=experiment
-        )
-        time.sleep(5)
-    except Exception:
-        pass
+    t = temperature_control.TemperatureController(
+        "silent", duration=10, unit=unit, experiment=experiment
+    )
+    t.temperature_automation_job.update_heater(50)
+    assert t.temperature_automation_job.duty_cycle == 50
+    time.sleep(5)
 
-    assert t.state == t.DISCONNECTED
+    assert t.temperature_automation_job.duty_cycle == 0

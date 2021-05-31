@@ -96,14 +96,20 @@ class TemperatureAutomation(BackgroundSubJob):
     def execute(self):
         raise NotImplementedError
 
-    def update_heater(self, newduty_cycle):
-        self.duty_cycle = clamp(0, round(float(newduty_cycle), 2), 100)
+    def update_heater(self, new_duty_cycle):
+        self.duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
+
+    def turn_off_heater(self):
+        # we re-instantiate it as some other process may have messed with the channel.
+        self.pwm.cleanup()
+        self.pwm = self.setup_pwm()
+        self.update_heater(0)
 
     ########## Private & internal methods
 
     def setup_pwm(self):
-        hertz = 100
+        hertz = 4
         pin = PWM_TO_PIN[config.getint("PWM", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(self.duty_cycle)

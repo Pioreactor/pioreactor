@@ -56,7 +56,7 @@ class PWM:
             self.pwm = GPIO.PWM(self.pin, hz)
 
         self.logger.debug(
-            f"Initialized PWM-{self.pin} on {'hardware' if self.using_hardware else 'software'}"
+            f"Initialized PWM-{self.pin} on {'hardware' if self.using_hardware else 'software'}."
         )
 
         # signals only work in main thread
@@ -90,7 +90,7 @@ class PWM:
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             GPIO.cleanup(self.pin)
-        self.logger.debug(f"Cleaned up PWM-{self.pin}")
+        self.logger.debug(f"Cleaned up PWM-{self.pin}.")
 
     def __exit__(self):
         self.cleanup()
