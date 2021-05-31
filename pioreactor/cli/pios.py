@@ -29,7 +29,10 @@ def universal_identifier_to_all_units(units):
 
 
 def add_leader(list_of_units):
-    return list(set(list_of_units.append(get_leader_hostname())))
+    leader = get_leader_hostname()
+    if leader not in list_of_units:
+        list_of_units.append(leader)
+    return list_of_units
 
 
 def sync_config_files(ssh_client, unit):
