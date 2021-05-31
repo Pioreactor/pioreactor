@@ -15,12 +15,11 @@ class PIDTurbidostat(DosingAutomation):
 
     key = "pid_turbidostat"
 
-    def __init__(self, target_od=None, volume=None, **kwargs):
+    def __init__(self, target_od=None, **kwargs):
         super(PIDTurbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
-        assert volume is not None, "`volume` must be set"
         self.set_target_od(target_od)
-        self.volume = float(volume)
+        self.volume_to_cycle = None
 
         # PID%20controller%20turbidostat.ipynb
         Kp = config.getfloat("dosing_automation.pid_turbidostat", "Kp")
@@ -32,7 +31,6 @@ class PIDTurbidostat(DosingAutomation):
             -Ki,
             -Kd,
             setpoint=self.target_od,
-            output_limits=(0, 1),
             sample_time=None,
             unit=self.unit,
             experiment=self.experiment,
@@ -41,26 +39,41 @@ class PIDTurbidostat(DosingAutomation):
         )
 
     def execute(self, *args, **kwargs) -> events.Event:
+        import numpy as np
+
         if self.latest_od <= self.min_od:
             return events.NoEvent(
                 f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}"
             )
         else:
-            output = self.pid.update(self.latest_od, dt=self.duration)
 
-            volume_to_cycle = output * self.volume
+            if self.volume_to_cycle is None:
+                self.volume_to_cycle = (
+                    14
+                    - (
+                        14
+                        * np.exp(-(self.duration * self.latest_growth_rate) / 60)
+                        * self.target_od
+                    )
+                    / self.latest_od
+                )
 
-            if volume_to_cycle < 0.01:
+            pid_output = self.pid.update(self.latest_od, dt=self.duration)
+            self.volume_to_cycle = max(0, self.volume_to_cycle + pid_output)
+
+            if self.volume_to_cycle < 0.01:
                 return events.NoEvent(
-                    f"PID output={output:.2f}, so practically no volume to cycle"
+                    f"PID output={pid_output:.2f}, so practically no volume to cycle"
                 )
             else:
-                self.execute_io_action(media_ml=volume_to_cycle, waste_ml=volume_to_cycle)
-                e = events.DilutionEvent(
-                    f"PID output={output:.2f}, volume to cycle={volume_to_cycle:.2f}mL"
+                self.execute_io_action(
+                    media_ml=self.volume_to_cycle, waste_ml=self.volume_to_cycle
                 )
-                e.volume_to_cycle = volume_to_cycle
-                e.pid_output = output
+                e = events.DilutionEvent(
+                    f"PID output={pid_output:.2f}, volume to cycle={self.volume_to_cycle:.2f}mL"
+                )
+                e.volume_to_cycle = self.volume_to_cycle
+                e.pid_output = pid_output
                 return e
 
     @property

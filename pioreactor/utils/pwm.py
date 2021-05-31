@@ -82,3 +82,6 @@ class PWM:
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             GPIO.cleanup(self.pin)
+
+    def __exit__(self):
+        self.cleanup()

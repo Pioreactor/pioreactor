@@ -98,9 +98,10 @@ class TemperatureController(BackgroundJob):
         max_temp = 52.0
         if self.temperature > max_temp:
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations. Temperature control will be halted. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {max_temp}℃. This is beyond our recommendations. The Heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
-            self.set_state("disconnected")
+
+            self.temperature_automation.update_heater(0)
 
     def set_temperature_automation(self, new_temperature_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
