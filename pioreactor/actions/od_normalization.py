@@ -48,8 +48,8 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     try:
 
         for count, batched_reading in enumerate(signal):
-            for (sensor, reading) in batched_reading.items():
-                readings[sensor].append(reading)
+            for (sensor, reading) in batched_reading["od_raw"].items():
+                readings[sensor].append(reading["voltage"])
 
             if count == N_samples:
                 break
@@ -90,12 +90,13 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                         json.dumps(variances),
                         pubsub.QOS.AT_MOST_ONCE,
                         False,
-                    )(
+                    ),
+                    (
                         f"pioreactor/{unit}/{experiment}/{action_name}/mean",
                         json.dumps(means),
                         pubsub.QOS.AT_MOST_ONCE,
                         False,
-                    )
+                    ),
                 ],
                 hostname="mqtt.pioreactor.com",
             )
@@ -103,6 +104,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
         return
 
     except Exception as e:
+        logger.debug(e, exc_info=True)
         logger.error(f"{str(e)}")
     finally:
         pubsub.publish(

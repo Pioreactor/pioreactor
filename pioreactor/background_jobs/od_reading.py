@@ -3,17 +3,40 @@
 Continuously take an optical density reading (more accurately: a turbidity reading, which is a proxy for OD).
 Topics published to
 
-    pioreactor/<unit>/<experiment>/od_raw/<angle>/<label>
+    pioreactor/<unit>/<experiment>/od_raw/<channel>
 
 Ex:
 
-    pioreactor/pioreactor1/trial15/od_raw/135/0
+    pioreactor/pioreactor1/trial15/od_raw/0
 
-Also published to
+a json file like:
+
+    {
+        "raw_signal": 0.10030799136835057,
+        "timestamp": "2021-06-06T15:08:12.080594",
+        "angle": "90,135"
+    }
+
+
+All signals published together to
 
     pioreactor/<unit>/<experiment>/od_reading/od_raw_batched
 
-a serialized json like: "{"135/0": 0.086, "135/1": 0.086, "135/2": 0.0877, "135/3": 0.0873}"
+a serialized json like:
+
+    {
+      "od_raw": {
+        "0": {
+          "voltage": 0.1008556663221068,
+          "angle": "135,45"
+        },
+        "1": {
+          "voltage": 0.10030799136835057,
+          "angle": "90,135"
+        }
+      },
+      "timestamp": "2021-06-06T15:08:12.081153"
+    }
 
 
 Internally, the subjob ADCReader reads all channels from the ADC and pushes to MQTT. The ODReader listens to
@@ -42,7 +65,7 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.utils.timing import RepeatedTimer, catchtime
+from pioreactor.utils.timing import RepeatedTimer, catchtime, current_utc_time
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
@@ -159,14 +182,12 @@ class ADCReader(BackgroundSubJob):
         # check if using correct gain
         # this may need to be adjusted for higher rates of data collection
         if self.dynamic_gain:
-            raw_signals = []
+            max_signal = 0
             # we will instantiate and sweep through to set the gain
             for _, ai in self.analog_in:
 
                 raw_signal_ = ai.voltage
-                raw_signals.append(raw_signal_)
-
-            max_signal = max(raw_signals)
+                max_signal = max(raw_signal_, max_signal)
 
             self.check_on_max(max_signal)
             self.check_on_gain(max_signal)
@@ -205,12 +226,17 @@ class ADCReader(BackgroundSubJob):
 
         self.counter += 1
         try:
+            max_signal = 0
             raw_signals = {}
             for channel, ai in self.analog_in:
                 raw_signal_ = ai.voltage
                 raw_signals[f"A{channel}"] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
-                setattr(self, f"A{channel}", raw_signal_)
+                setattr(
+                    self,
+                    f"A{channel}",
+                    {"voltage": raw_signal_, "timestamp": current_utc_time()},
+                )
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
@@ -223,16 +249,20 @@ class ADCReader(BackgroundSubJob):
                     self.logger.warning(
                         f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
-                # check if more than 3V, and shut down something? to prevent damage to ADC.
-                self.check_on_max(raw_signal_)
+
+                # check if more than 3V, and shut down to prevent damage to ADC.
+                # we use max_signal to modify the PGA, too
+                max_signal = max(max_signal, raw_signal_)
+                self.check_on_max(max_signal)
 
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
+            raw_signals["timestamp"] = current_utc_time()
             self.batched_readings = raw_signals
 
             # the max signal should determine the ADS1x15's gain
             if self.dynamic_gain:
-                self.ema.update(max(raw_signals.values()))
+                self.ema.update(max_signal)
 
             # check if using correct gain
             # this should update after first observation
@@ -249,9 +279,11 @@ class ADCReader(BackgroundSubJob):
 
         except OSError as e:
             # just pause, not sure why this happens when add_media or remove_waste are called.
+            self.logger.debug(e, exc_info=True)
             self.logger.error(f"error {str(e)}. Attempting to continue.")
             time.sleep(5.0)
         except Exception as e:
+            self.logger.debug(e, exc_info=True)
             self.logger.error(f"failed with {str(e)}")
             raise e
 
@@ -263,7 +295,7 @@ class ODReader(BackgroundJob):
     Parameters
     -----------
 
-    channel_label_map: dict
+    channel_angle_map: dict
         dict of (ADS channel: label) pairs, ex: {"A0": "135/0", "A1": "90/1"}
     stop_IR_led_between_ADC_readings: bool
         bool for if the IR LED should turn off between ADC readings. Helps improve
@@ -276,7 +308,7 @@ class ODReader(BackgroundJob):
 
     def __init__(
         self,
-        channel_label_map,
+        channel_angle_map,
         sampling_rate=1,
         fake_data=False,
         unit=None,
@@ -287,13 +319,15 @@ class ODReader(BackgroundJob):
             job_name="od_reading", unit=unit, experiment=experiment
         )
         self.logger.debug(
-            f"Starting od_reading with sampling_rate {sampling_rate}s and channels {channel_label_map}."
+            f"Starting od_reading with sampling_rate {sampling_rate}s and channels {channel_angle_map}."
         )
-        self.channel_label_map = channel_label_map
+        self.channel_angle_map = channel_angle_map
         self.fake_data = fake_data
 
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getint("od_config.od_sampling", "ir_intensity")
+        self.ir_channel = self.get_ir_channel_from_configuration()
+
         self.start_ir_led()
 
         self.adc_reader = ADCReader(
@@ -310,6 +344,15 @@ class ODReader(BackgroundJob):
         self.start_passive_listeners()
         if stop_IR_led_between_ADC_readings:
             self.set_IR_led_during_ADC_readings()
+
+    def get_ir_channel_from_configuration(self):
+        try:
+            return config.get("leds_reverse", "ir_led")
+        except KeyError:
+            self.logger.error(
+                "`leds` section must contain `ir_led`. Ex: \n\n[leds]\nA=ir_led"
+            )
+            raise KeyError()
 
     def set_IR_led_during_ADC_readings(self):
         """
@@ -360,9 +403,8 @@ class ODReader(BackgroundJob):
         self.sneak_in_timer.start()
 
     def start_ir_led(self):
-        ir_channel = config.get("leds", "ir_led")
         r = led_intensity(
-            ir_channel,
+            self.ir_channel,
             intensity=self.led_intensity,
             unit=self.unit,
             experiment=self.experiment,
@@ -377,9 +419,8 @@ class ODReader(BackgroundJob):
 
     def stop_ir_led(self):
         if not self.fake_data:
-            ir_channel = config.get("leds", "ir_led")
             led_intensity(
-                ir_channel,
+                self.ir_channel,
                 intensity=0,
                 unit=self.unit,
                 experiment=self.experiment,
@@ -403,16 +444,20 @@ class ODReader(BackgroundJob):
         if self.state != self.READY:
             return
         ads_readings = json.loads(message.payload)
-        od_readings = {}
-        for channel, label in self.channel_label_map.items():
+        od_readings = {"od_raw": {}}
+        for channel, angle in self.channel_angle_map.items():
             try:
-                od_readings[label] = ads_readings[str(channel)]
+                od_readings["od_raw"][channel.lstrip("A")] = {
+                    "voltage": ads_readings[channel],
+                    "angle": angle,
+                }
             except KeyError:
                 self.logger.error(
-                    f"Input wrong channel, provided {label}. Only valid channels are 0, 1, 2, 3."
+                    f"Input wrong channel, provided {channel}. Only valid channels are 0, 1, 2, 3."
                 )
                 self.set_state(self.DISCONNECTED)
 
+        od_readings["timestamp"] = ads_readings["timestamp"]
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
             json.dumps(od_readings),
@@ -424,11 +469,12 @@ class ODReader(BackgroundJob):
             return
 
         channel = message.topic.rsplit("/", maxsplit=1)[1]
-        label = self.channel_label_map[channel]
+        payload = json.loads(message.payload)
+        payload["angle"] = self.channel_angle_map[channel]
 
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{label}",
-            message.payload,
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{channel.lstrip('A')}",
+            json.dumps(payload),
             qos=QOS.EXACTLY_ONCE,
         )
 
@@ -442,7 +488,7 @@ class ODReader(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
             allow_retained=False,
         )
-        for channel in self.channel_label_map:
+        for channel in self.channel_angle_map:
             self.subscribe_and_callback(
                 self.publish_single,
                 f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/{channel}",
@@ -451,20 +497,33 @@ class ODReader(BackgroundJob):
             )
 
 
-def create_channel_label_map_from_string(od_angle_channel):
-    # We split input of the form ["135,0", "135,1", "90,3"] into the form
-    # {"A0": 135/0", "A1": "135/1", "A3":"90/3"}
-    channel_label_map = {}
-    for input_ in od_angle_channel:
-        angle, channel = input_.split(",")
+def create_channel_angle_map(
+    od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
+):
+    # Inputs are either None, or a string like "135", "90,45", ...
+    # Example return dict: {"A0": "90,135/0", "A1": "45,135/1", "A3":"90/3"}
+    channel_angle_map = {}
+    if od_angle_channel0 is not None:
+        # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
+        channel_angle_map["A0"] = od_angle_channel0
 
-        angle_label = f"{angle}/{channel}"
-        channel_label_map[f"A{channel}"] = angle_label
-    return channel_label_map
+    if od_angle_channel1 is not None:
+        channel_angle_map["A1"] = od_angle_channel1
+
+    if od_angle_channel2 is not None:
+        channel_angle_map["A2"] = od_angle_channel2
+
+    if od_angle_channel3 is not None:
+        channel_angle_map["A3"] = od_angle_channel3
+
+    return channel_angle_map
 
 
 def od_reading(
-    od_angle_channel,
+    od_angle_channel0,
+    od_angle_channel1,
+    od_angle_channel2,
+    od_angle_channel3,
     sampling_rate=1 / config.getfloat("od_config.od_sampling", "samples_per_second"),
     fake_data=False,
     unit=None,
@@ -473,10 +532,12 @@ def od_reading(
 
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
-    channel_label_map = create_channel_label_map_from_string(od_angle_channel)
+    channel_angle_map = create_channel_angle_map(
+        od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
+    )
 
     ODReader(
-        channel_label_map,
+        channel_angle_map,
         sampling_rate=sampling_rate,
         unit=unit,
         experiment=experiment,
@@ -488,21 +549,44 @@ def od_reading(
 
 @click.command(name="od_reading")
 @click.option(
-    "--od-angle-channel",
-    multiple=True,
-    default=config.get("od_config.photodiode_channel", "od_angle_channel").split("|"),
+    "--od-angle-channel0",
+    default=config.get("od_config.photodiode_channel", "0", fallback=None),
     type=click.STRING,
     show_default=True,
-    help="""
-pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
-
---od-angle-channel 135,0 --od-angle-channel 90,1 --od-angle-channel 45,3
-
-""",
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 0, separated by commas. Don't specify if channel is empty.",
+)
+@click.option(
+    "--od-angle-channel1",
+    default=config.get("od_config.photodiode_channel", "1", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 1, separated by commas. Don't specify if channel is empty.",
+)
+@click.option(
+    "--od-angle-channel2",
+    default=config.get("od_config.photodiode_channel", "2", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
+)
+@click.option(
+    "--od-angle-channel3",
+    default=config.get("od_config.photodiode_channel", "3", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 3, separated by commas. Don't specify if channel is empty.",
 )
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
-def click_od_reading(od_angle_channel, fake_data):
+def click_od_reading(
+    od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3, fake_data
+):
     """
     Start the optical density reading job
     """
-    od_reading(od_angle_channel, fake_data=fake_data)
+    od_reading(
+        od_angle_channel0,
+        od_angle_channel1,
+        od_angle_channel2,
+        od_angle_channel3,
+        fake_data=fake_data,
+    )

@@ -53,7 +53,7 @@ def test_changing_temperature_algo_over_mqtt_solo():
 
 
 def test_heating_stops_when_max_temp_is_exceeded():
-    temperature_control.TemperatureController.read_temperature = lambda *args: 55
+    temperature_control.TemperatureController.read_temperature = lambda *args: 57
 
     t = temperature_control.TemperatureController(
         "silent", duration=10, unit=unit, experiment=experiment

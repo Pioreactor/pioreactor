@@ -5,8 +5,19 @@ import sys
 import os
 
 
+def reverse_config_section(section):
+    """
+    creates an inverted lookup from a config section. Useful to find LEDs and PWM.
+    """
+    return {v: k for k, v in section.items()}
+
+
 def get_config():
     config = configparser.ConfigParser()
+
+    # https://stackoverflow.com/a/19359720/1895939
+    config.optionxform = str
+
     config.BOOLEAN_STATES = {
         **{k: False for k in ["0", "false", "no", "off"]},
         **{k: True for k in ["1", "yes", "true", "on"]},
@@ -31,6 +42,9 @@ def get_config():
                 "MissingSectionHeaderError raised. Check unit_config.ini on leader?"
             )
             config.read([global_config_path])
+
+    config["leds_reverse"] = reverse_config_section(config["leds"])
+    config["PWM_reverse"] = reverse_config_section(config["PWM"])
 
     return config
 

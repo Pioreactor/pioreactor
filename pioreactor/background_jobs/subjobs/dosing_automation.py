@@ -51,7 +51,7 @@ class DosingAutomation(BackgroundSubJob):
         unit=None,
         experiment=None,
         duration=None,
-        sensor="+/+",  # take first observed, and keep using only that.
+        od_channel="+",  # take first observed, and keep using only that.
         skip_first_run=False,
         **kwargs,
     ):
@@ -59,15 +59,15 @@ class DosingAutomation(BackgroundSubJob):
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
         self.logger.info(f"Starting {self.__class__.__name__}")
-        self.sensor = sensor
+        self.od_channel = od_channel
         self.skip_first_run = skip_first_run
 
         self.set_duration(duration)
         self.start_passive_listeners()
 
-    def set_duration(self, value):
-        if value:
-            self.duration = float(value)
+    def set_duration(self, duration):
+        if duration:
+            self.duration = float(duration)
             try:
                 self.run_thread.cancel()
             except AttributeError:
@@ -92,11 +92,12 @@ class DosingAutomation(BackgroundSubJob):
         elif self.state != self.READY:
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
             counter = 0
-            while (self.latest_growth_rate is None) or (self.latest_od is None):
-                time.sleep(5)
+            while self.state != self.READY:
+                sleep_for = 5
+                time.sleep(sleep_for)
                 counter += 1
 
-                if counter > (self.duration * 60 / 4) / 5:
+                if counter > (self.duration * 60 * 0.25) / sleep_for:
                     event = events.NoEvent(
                         "Waited too long on sensor data. Skipping this run."
                     )
@@ -116,10 +117,11 @@ class DosingAutomation(BackgroundSubJob):
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
             counter = 0
             while (self.latest_growth_rate is None) or (self.latest_od is None):
-                time.sleep(5)
+                sleep_for = 5
+                time.sleep(sleep_for)
                 counter += 1
 
-                if counter > (self.duration * 60 / 4) / 5:
+                if counter > (self.duration * 60 * 0.25) / sleep_for:
                     event = events.NoEvent(
                         "Waited too long on sensor data. Skipping this run."
                     )
@@ -232,19 +234,19 @@ class DosingAutomation(BackgroundSubJob):
 
     def _set_growth_rate(self, message):
         self.previous_growth_rate = self.latest_growth_rate
-        self.latest_growth_rate = float(message.payload)
+        self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
-        if self.sensor == "+/+":
+        if self.od_channel == "+":
             split_topic = message.topic.split("/")
-            self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
+            self.od_channel = split_topic[-1]
 
-        if not message.topic.endswith(self.sensor):
+        if not message.topic.endswith(self.od_channel):
             return
 
         self.previous_od = self.latest_od
-        self.latest_od = float(message.payload)
+        self.latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_timestamp = time.time()
 
     def _clear_mqtt_cache(self):
@@ -285,7 +287,7 @@ class DosingAutomation(BackgroundSubJob):
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self._set_OD,
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered/{self.sensor}",
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered/{self.od_channel}",
         )
         self.subscribe_and_callback(
             self._set_growth_rate,

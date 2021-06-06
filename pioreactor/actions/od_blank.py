@@ -10,13 +10,10 @@ from pioreactor.utils import pio_jobs_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
-from pioreactor.background_jobs.od_reading import (
-    ODReader,
-    create_channel_label_map_from_string,
-)
+from pioreactor.background_jobs.od_reading import ODReader, create_channel_angle_map
 
 
-def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
+def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
     action_name = "od_blank"
     logger = create_logger(action_name)
 
@@ -55,7 +52,7 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
 
         # start od_reading
         od_reader = ODReader(
-            create_channel_label_map_from_string(od_angle_channel),
+            create_channel_angle_map(*od_angle_channels),
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=f"{experiment}-blank",
@@ -120,21 +117,43 @@ def od_blank(od_angle_channel, unit=None, experiment=None, N_samples=30):
 
 @click.command(name="od_blank")
 @click.option(
-    "--od-angle-channel",
-    multiple=True,
-    default=config.get("od_config.photodiode_channel", "od_angle_channel").split("|"),
+    "--od-angle-channel0",
+    default=config.get("od_config.photodiode_channel", "0", fallback=None),
     type=click.STRING,
-    help="""
-pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
-
---od-angle-channel 135,0 --od-angle-channel 90,1 --od-angle-channel 45,2
-
-""",
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 0, separated by commas. Don't specify if channel is empty.",
 )
-def click_od_blank(od_angle_channel):
+@click.option(
+    "--od-angle-channel1",
+    default=config.get("od_config.photodiode_channel", "1", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 1, separated by commas. Don't specify if channel is empty.",
+)
+@click.option(
+    "--od-angle-channel2",
+    default=config.get("od_config.photodiode_channel", "2", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
+)
+@click.option(
+    "--od-angle-channel3",
+    default=config.get("od_config.photodiode_channel", "3", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 3, separated by commas. Don't specify if channel is empty.",
+)
+def click_od_blank(
+    od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
+):
     """
     Compute statistics about the blank OD timeseries
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    od_blank(od_angle_channel, unit, experiment)
+    od_blank(
+        [od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3],
+        unit,
+        experiment,
+    )

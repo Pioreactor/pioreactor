@@ -48,13 +48,14 @@ class PWM:
 
             self.pwm = HardwarePWM(self.HARDWARE_PWM_CHANNELS[self.pin], self.hz)
             self.using_hardware = True
+
         else:
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             self.pwm = GPIO.PWM(self.pin, hz)
 
         self.logger.debug(
-            f"Initialized PWM-{self.pin} on {'hardware' if self.using_hardware else 'software'}."
+            f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}."
         )
 
         # signals only work in main thread

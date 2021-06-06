@@ -20,15 +20,30 @@ def pause():
     time.sleep(0.5)
 
 
+def create_od_raw_batched_json(channels=None, voltages=None, angles=None, timestamp=None):
+    """
+    channel is a list, elements from {0, 1, 2, 3}
+    raw_signal is a list
+    angle is a list, elements from {0, 45, 90, 135, 180}
+
+    """
+    d = {"od_raw": {}, "timestamp": timestamp}
+    for channel, voltage, angle in zip(channels, voltages, angles):
+        d["od_raw"][channel] = {"voltage": voltage, "angle": angle}
+
+    return json.dumps(d)
+
+
 def test_subscribing(monkeypatch):
+
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        '{"135/0": 1, "90/0": 1}',
+        '{"0": 1, "1": 1}',
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        '{"135/0": 1, "90/0": 1}',
+        '{"0": 1, "1": 1}',
         retain=True,
     )
     publish(
@@ -38,13 +53,15 @@ def test_subscribing(monkeypatch):
     )
 
     publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "90/0": 0.20944389172032837}',
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        create_od_raw_batched_json(
+            ["0", "1"], [1.1, 0.9], ["90", "135"], timestamp="2010-01-01 12:00:00"
+        ),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        1.0,
+        json.dumps({"growth_rate": 1.0, "timestamp": "2010-01-01 12:00:00"}),
         retain=True,
     )
     calc = GrowthRateCalculator(unit=unit, experiment=experiment)
@@ -53,7 +70,9 @@ def test_subscribing(monkeypatch):
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "90/0": 0.20944389172032837}',
+        create_od_raw_batched_json(
+            ["0", "1"], [1.12, 0.91], ["90", "135"], timestamp="2010-01-01 12:00:05"
+        ),
     )
     pause()
 
@@ -61,124 +80,55 @@ def test_subscribing(monkeypatch):
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "90/0": 0.20944389172032837}',
+        create_od_raw_batched_json(
+            ["0", "1"], [1.14, 0.92], ["90", "135"], timestamp="2010-01-01 12:00:10"
+        ),
     )
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
         '{"volume_change": "1.5", "event": "add_media", "source_of_event": "test"}',
     )
-    publish(f"pioreactor/{unit}/{experiment}/stirring/duty_cycle", 45)
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 1.778586260567034, "90/0": 1.20944389172032837}',
+        create_od_raw_batched_json(
+            ["0", "1"], [1.15, 0.93], ["90", "135"], timestamp="2010-01-01 12:00:15"
+        ),
     )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 1.778586260567034, "90/0": 1.20944389172032837}',
-    )
+
     pause()
 
     assert calc.state_ is not None
 
 
-def test_same_angles(monkeypatch):
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        '{"135/0": 1, "135/1": 1, "90/0": 1}',
-        retain=True,
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        '{"135/0": 1, "135/1":1, "90/0": 1}',
-        retain=True,
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        None,
-        retain=True,
-    )
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "135/1": 0.20944389172032837, "90/0": 0.1}',
-        retain=True,
-    )
-
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "135/1": 0.20944389172032837, "90/0": 0.1}',
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.808586260567034, "135/1": 0.21944389172032837, "90/0": 0.2}',
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.808586260567034, "135/1": 0.21944389172032837, "90/0": 0.2}',
-    )
-    calc.set_state("disconnected")
-
-
-def test_mis_shapen_data(monkeypatch):
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        '{"135/0": 1,  "90/0": 1}',
-        retain=True,
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        '{"135/0": 1, "90/0": 1}',
-        retain=True,
-    )
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "90/0": 0.1}',
-        retain=True,
-    )
-
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "90/0": 0.1}',
-    )
-    pause()
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.808586260567034}',
-    )
-    pause()
-    calc.set_state("disconnected")
-
-
 def test_restart():
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        '{"135/0": 1, "135/1": 1, "90/0": 1}',
+        '{"0": 1, "1": 1, "2": 1}',
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        '{"135/0": 1, "135/1": 1, "90/0": 1}',
+        '{"0": 1, "1": 1, "2": 1}',
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.778586260567034, "135/1": 0.20944389172032837, "90/0": 0.1}',
+        create_od_raw_batched_json(
+            ["0", "1", "2"],
+            [1.15, 0.93, 1.0],
+            ["90", "135", "90"],
+            timestamp="2010-01-01 12:00:15",
+        ),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        '{"135/0": 0.778586260567034, "135/1": 0.20944389172032837, "90/0": 0.1}',
+        '{"0": 1.15, "1": 0.93, "2": 1.0}',
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        '{"135/0": 1, "135/1": 1, "90/0": 1}',
+        '{"0": 1, "1": 1, "2": 1}',
         retain=True,
     )
     publish(
@@ -191,75 +141,56 @@ def test_restart():
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 1.808586260567034, "135/1": 1.21944389172032837, "90/0": 1.2}',
+        create_od_raw_batched_json(
+            ["0", "1", "2"],
+            [1.151, 0.931, 1.1],
+            ["90", "135", "90"],
+            timestamp="2010-01-01 12:00:20",
+        ),
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 2.808586260567034, "135/1": 2.21944389172032837, "90/0": 2.2}',
+        create_od_raw_batched_json(
+            ["0", "1", "2"],
+            [1.152, 0.932, 1.2],
+            ["90", "135", "90"],
+            timestamp="2010-01-01 12:00:25",
+        ),
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 3.808586260567034, "135/1": 3.21944389172032837, "90/0": 3.2}',
+        create_od_raw_batched_json(
+            ["0", "1", "2"],
+            [1.153, 0.933, 1.3],
+            ["90", "135", "90"],
+            timestamp="2010-01-01 12:00:30",
+        ),
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 4.808586260567034, "135/1": 4.21944389172032837, "90/0": 4.2}',
+        create_od_raw_batched_json(
+            ["0", "1", "2"],
+            [1.154, 0.934, 1.4],
+            ["90", "135", "90"],
+            timestamp="2010-01-01 12:00:35",
+        ),
     )
     pause()
 
     assert calc1.state_[-1] != 0
-    calc1.set_state("disconnected")
 
     calc2 = GrowthRateCalculator(unit=unit, experiment=experiment)
     pause()
     assert calc2.initial_growth_rate != 0
-    calc2.set_state("disconnected")
-
-
-def test_skip_180():
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        '{"135/0": 1, "180/2": 1, "90/1": 1}',
-        retain=True,
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        '{"135/0": 1, "180/2": 1, "90/1": 1}',
-        retain=True,
-    )
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        None,
-        retain=True,
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"180/2": 0.778586260567034, "135/0": 0.20944389172032837, "90/1": 0.1}',
-        retain=True,
-    )
-
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"180/2": 0.778586260567034, "135/0": 0.20944389172032837, "90/1": 0.1}',
-    )
-    pause()
-
-    assert "180/2" not in calc.angles
-    calc.set_state("disconnected")
 
 
 def test_single_observation():
     publish(
-        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        '{"135/0": 1}',
-        retain=True,
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean", '{"0": 1}', retain=True
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        '{"135/0": 1}',
+        '{"0": 1}',
         retain=True,
     )
 
@@ -270,88 +201,104 @@ def test_single_observation():
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.20944389172032837}',
+        create_od_raw_batched_json(
+            ["0"], [1.153], ["90"], timestamp="2010-01-01 12:00:30"
+        ),
         retain=True,
     )
 
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    GrowthRateCalculator(unit=unit, experiment=experiment)
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.20944389172032837}',
+        create_od_raw_batched_json(
+            ["0"], [1.155], ["90"], timestamp="2010-01-01 12:00:35"
+        ),
     )
     pause()
 
     assert True
-    calc.set_state("disconnected")
 
 
 def test_scaling_works():
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        json.dumps({"0": 0.5, "1": 0.8}),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        json.dumps({"0": 1e-6, "1": 1e-4}),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.5, "90/1": 0.8}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:00:35"
+        ),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        "",
+        None,
         retain=True,
     )
 
     calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.51, "90/1": 0.82}',
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.51, "90/1": 0.83}',
-    )
-    publish(
-        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.51, "90/1": 0.84}',
-    )
     pause()
-    assert calc.od_normalization_factors == {"90/1": 0.8, "135/0": 0.5}
-    assert (
-        (
-            calc.ekf.observation_noise_covariance
-            - 30 * np.array([[1e-4 / 0.8 ** 2, 0], [0, 1e-6 / 0.5 ** 2]])
-        )
-        < 1e-7
-    ).all()
-    calc.set_state("disconnected")
+    assert calc.od_normalization_factors == {"1": 0.8, "0": 0.5}
+
+
+def test_mapping_between_channel_and_angles():
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+        json.dumps({"0": 0.5, "1": 0.8}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        json.dumps({"0": 1e-6, "1": 1e-4}),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        create_od_raw_batched_json(
+            ["0", "1"], [0.5, 0.8], ["90,90", "135,45"], timestamp="2010-01-01 12:00:35"
+        ),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        None,
+        retain=True,
+    )
+
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+
+    pause()
+    assert calc.channels_and_angles == {"0": "90,90", "1": "135,45"}
 
 
 def test_shock_from_dosing_works():
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        json.dumps({"0": 0.5, "1": 0.8}),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        json.dumps(
-            {"135/0": 8.206_119_663_726_318e-07, "90/1": 8.206_119_663_726_318e-07}
-        ),
+        json.dumps({"0": 8.2e-07, "1": 8.2e-07}),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.5, "90/1": 0.8}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.5, 0.8], ["90,90", "135,45"], timestamp="2010-01-01 12:00:35"
+        ),
         retain=True,
     )
     publish(
@@ -363,13 +310,17 @@ def test_shock_from_dosing_works():
     calc = GrowthRateCalculator(unit=unit, experiment=experiment)
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.51, "90/1": 0.82}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.51, 0.82], ["90,90", "135,45"], timestamp="2010-01-01 12:00:40"
+        ),
     )
     pause()
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.52, "90/1": 0.81}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.51, 0.82], ["90,90", "135,45"], timestamp="2010-01-01 12:00:45"
+        ),
     )
     pause()
 
@@ -386,12 +337,16 @@ def test_shock_from_dosing_works():
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.50, "90/1": 0.78}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.49, 0.80], ["90,90", "135,45"], timestamp="2010-01-01 12:00:50"
+        ),
     )
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.45, "90/1": 0.75}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.48, 0.80], ["90,90", "135,45"], timestamp="2010-01-01 12:00:55"
+        ),
     )
     pause()
 
@@ -406,18 +361,20 @@ def test_shock_from_dosing_works():
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.40, "90/1": 0.70}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.40, 0.70], ["90,90", "135,45"], timestamp="2010-01-01 12:01:00"
+        ),
     )
     pause()
 
     time.sleep(55)
-    assert calc.ekf._currently_scaling_od
+    assert calc.ekf._currently_scaling_covariance
     assert not np.array_equal(previous_covariance_matrix, calc.ekf.covariance_)
 
     time.sleep(5)
     pause()
     # should revert back
-    assert not calc.ekf._currently_scaling_od
+    assert not calc.ekf._currently_scaling_covariance
     assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
 
 
@@ -435,7 +392,7 @@ def test_end_to_end():
     publish(f"pioreactor/{unit}/{exp}/od_normalization/variance", None, retain=True)
 
     ODReader(
-        channel_label_map={"A0": "135/0", "A1": "90/1"},
+        channel_angle_map={"A0": "135", "A1": "90"},
         sampling_rate=interval,
         unit=unit,
         experiment=exp,
@@ -453,18 +410,18 @@ def test_od_blank_being_non_zero():
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_blank/mean",
-        json.dumps({"135/0": 0.25, "90/1": 0.4}),
+        json.dumps({"0": 0.25, "1": 0.4}),
         retain=True,
     )
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        json.dumps({"0": 0.5, "1": 0.8}),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        json.dumps({"0": 1e-6, "1": 1e-4}),
         retain=True,
     )
 
@@ -480,36 +437,36 @@ def test_od_blank_being_non_zero():
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.5, "90/1": 0.8}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01 12:01:00"
+        ),
         retain=True,
     )
     pause()
     pause()
-    assert calc.od_normalization_factors == {"90/1": 0.8, "135/0": 0.5}
-    assert calc.od_blank == {"90/1": 0.4, "135/0": 0.25}
-    results = calc.scale_raw_observations({"90/1": 1.0, "135/0": 0.6})
-    assert abs(results["90/1"] - 1.5) < 0.00001
-    assert abs(results["135/0"] - 1.4) < 0.00001
-
-    calc.set_state("disconnected")
+    assert calc.od_normalization_factors == {"1": 0.8, "0": 0.5}
+    assert calc.od_blank == {"1": 0.4, "0": 0.25}
+    results = calc.scale_raw_observations({"1": 1.0, "0": 0.6})
+    assert abs(results["1"] - 1.5) < 0.00001
+    assert abs(results["0"] - 1.4) < 0.00001
 
 
 def test_od_blank_being_higher_than_observations():
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_blank/mean",
-        json.dumps({"135/0": 0.25, "90/1": 0.4}),
+        json.dumps({"0": 0.25, "1": 0.4}),
         retain=True,
     )
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        json.dumps({"0": 0.5, "1": 0.8}),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        json.dumps({"0": 1e-6, "1": 1e-4}),
         retain=True,
     )
 
@@ -519,20 +476,24 @@ def test_od_blank_being_higher_than_observations():
         retain=True,
     )
 
-    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+    GrowthRateCalculator(unit=unit, experiment=experiment)
     pause()
 
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.5, "90/1": 0.8}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01 12:01:00"
+        ),
         retain=True,
     )
     pause()
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.1, "90/1": 0.1}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01 12:01:05"
+        ),
         retain=True,
     )
     pause()
@@ -540,14 +501,13 @@ def test_od_blank_being_higher_than_observations():
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.1, "90/1": 0.1}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01 12:01:10"
+        ),
         retain=True,
     )
     pause()
     pause()
-    pause()
-    pause()
-    calc.set_state("disconnected")
 
 
 def test_od_blank_being_zero():
@@ -556,12 +516,12 @@ def test_od_blank_being_zero():
 
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/mean",
-        json.dumps({"135/0": 0.5, "90/1": 0.8}),
+        json.dumps({"0": 0.5, "1": 0.8}),
         retain=True,
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_normalization/variance",
-        json.dumps({"135/0": 1e-6, "90/1": 1e-4}),
+        json.dumps({"0": 1e-6, "1": 1e-4}),
         retain=True,
     )
 
@@ -572,7 +532,9 @@ def test_od_blank_being_zero():
     )
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.5, "90/1": 0.8}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:01:10"
+        ),
         retain=True,
     )
 
@@ -582,15 +544,15 @@ def test_od_blank_being_zero():
     pause()
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-        '{"135/0": 0.5, "90/1": 0.8}',
+        create_od_raw_batched_json(
+            ["0", "1"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:01:15"
+        ),
         retain=True,
     )
     pause()
     pause()
-    assert calc.od_normalization_factors == {"90/1": 0.8, "135/0": 0.5}
-    assert calc.od_blank == {"90/1": 0.0, "135/0": 0.0}
-    results = calc.scale_raw_observations({"90/1": 1.0, "135/0": 0.6})
-    assert abs(results["90/1"] - 1.25) < 0.00001
-    assert abs(results["135/0"] - 1.2) < 0.00001
-
-    calc.set_state("disconnected")
+    assert calc.od_normalization_factors == {"1": 0.8, "0": 0.5}
+    assert calc.od_blank == {"1": 0.0, "0": 0.0}
+    results = calc.scale_raw_observations({"1": 1.0, "0": 0.6})
+    assert abs(results["1"] - 1.25) < 0.00001
+    assert abs(results["0"] - 1.2) < 0.00001

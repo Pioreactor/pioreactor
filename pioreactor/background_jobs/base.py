@@ -157,6 +157,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this function is called AFTER the subclasses __init__ finishes
         self.set_state(self.READY)
 
+    def start_passive_listeners(self):
+        # overwrite this to in subclasses to subscribe to topics in MQTT
+        # using this handles reconnects correctly.
+        pass
+
     # subclasses to override these to perform certain actions on a state transfer
     def on_ready(self):
         # specific things to do when is ready (again)
@@ -210,12 +215,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def on_init_to_sleeping(self):
         pass
 
-    def start_passive_listeners(self):
-        # overwrite this to in subclasses to subscribe to topics in MQTT
-        # using this handles reconnects correctly.
-        pass
-
-    ########## private
+    ########### private #############
 
     def create_pub_client(self):
         # see note above as to why we split pub and sub.
@@ -279,28 +279,32 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Disconnected from MQTT with rc {rc}.")
             return
 
-    def publish(self, *args, **kwargs):
-        self.pub_client.publish(*args, **kwargs)
+    def publish(self, topic, payload, **kwargs):
+        """
+        Publish payload to topic.
 
-    def publish_with_timestamp(self, *args, **kwargs):
-        # TODO: publish as a json with timestamp field
-        pass
+        This will convert the payload to a json blob if MQTT does not allow its original type.
+        """
 
-    def publish_attr(self, attr: str) -> None:
-        if attr == "state":
-            attr_name = "$state"
-        else:
-            attr_name = attr
-
-        payload = getattr(self, attr)
         if not isinstance(payload, (str, bytearray, int, float)) and (
             payload is not None
         ):
             payload = dumps(payload)
 
+        self.pub_client.publish(topic, payload=payload, **kwargs)
+
+    def publish_attr(self, attr: str) -> None:
+        """
+        Publish the current value of the class attribute `attr` to MQTT.
+        """
+        if attr == "state":
+            attr_name = "$state"
+        else:
+            attr_name = attr
+
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr_name}",
-            payload,
+            getattr(self, attr),
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )

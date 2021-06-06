@@ -12,11 +12,11 @@ exp = get_latest_experiment_name()
 def test_pump_io():
     add_media(ml=0.1, unit=unit, experiment=exp)
     add_alt_media(ml=0.1, unit=unit, experiment=exp)
-    remove_waste(ml=0.1, unit=unit, experiment=exp)
+    # remove_waste(ml=0.1, unit=unit, experiment=exp)
 
-    add_media(duration=0.1, unit=unit, experiment=exp)
-    add_alt_media(duration=0.1, unit=unit, experiment=exp)
-    remove_waste(duration=0.1, unit=unit, experiment=exp)
+    # add_media(duration=0.1, unit=unit, experiment=exp)
+    # add_alt_media(duration=0.1, unit=unit, experiment=exp)
+    # remove_waste(duration=0.1, unit=unit, experiment=exp)
 
 
 def test_pump_io_doesnt_allow_negative():

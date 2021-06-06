@@ -37,7 +37,7 @@ def test_kalman_filter_entries():
     # turn on data collection
     interval = 0.5
     ODReader(
-        channel_label_map={"A0": "135/0", "A1": "90/1"},
+        channel_angle_map={"A0": "135", "A1": "90"},
         sampling_rate=interval,
         unit=unit,
         experiment=exp,

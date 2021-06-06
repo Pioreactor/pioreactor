@@ -59,6 +59,9 @@ if __name__ == "__main__":
             # Add to accumulating list
             varying_intensity_results["A0"].append(adc_reader.A0)
             varying_intensity_results["A1"].append(adc_reader.A1)
+            print(
+                f"Channel {channel} at {intensity}%. AO: {adc_reader.A0}, A1: {adc_reader.A1}"
+            )
 
         # compute the linear correlation between the intensities and observed PD measurements
         results[("A0", channel)] = correlation(

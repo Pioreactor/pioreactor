@@ -48,7 +48,7 @@ class LEDAutomation(BackgroundSubJob):
         unit=None,
         experiment=None,
         duration=60,
-        sensor="+/+",
+        od_channel="+",
         skip_first_run=False,
         **kwargs,
     ):
@@ -59,7 +59,7 @@ class LEDAutomation(BackgroundSubJob):
         self.edited_channels = set([])
         self.latest_event = None
 
-        self.sensor = sensor
+        self.od_channel = od_channel
         self.skip_first_run = skip_first_run
 
         self.set_duration(duration)
@@ -192,19 +192,19 @@ class LEDAutomation(BackgroundSubJob):
 
     def _set_growth_rate(self, message):
         self.previous_growth_rate = self.latest_growth_rate
-        self.latest_growth_rate = float(message.payload)
+        self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
-        if self.sensor == "+/+":
+        if self.od_channel == "+":
             split_topic = message.topic.split("/")
-            self.sensor = f"{split_topic[-2]}/{split_topic[-1]}"
+            self.od_channel = split_topic[-1]
 
-        if not message.topic.endswith(self.sensor):
+        if not message.topic.endswith(self.od_channel):
             return
 
         self.previous_od = self.latest_od
-        self.latest_od = float(message.payload)
+        self.latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_timestamp = time.time()
 
     def _clear_mqtt_cache(self):
@@ -245,7 +245,7 @@ class LEDAutomation(BackgroundSubJob):
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self._set_OD,
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered/{self.sensor}",
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered/{self.od_channel}",
         )
         self.subscribe_and_callback(
             self._set_growth_rate,

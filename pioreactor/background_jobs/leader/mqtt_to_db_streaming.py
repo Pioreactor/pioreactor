@@ -112,25 +112,26 @@ def mqtt_to_db_streaming():
 
     def parse_od(topic, payload):
         metadata, split_topic = produce_metadata(topic)
-
+        payload = json.loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "od_reading_v": float(payload),
-            "angle": split_topic[-2],
+            "timestamp": payload["timestamp"],
+            "od_reading_v": payload["voltage"],
+            "angle": payload["angle"],
             "channel": split_topic[-1],
         }
 
     def parse_od_filtered(topic, payload):
         metadata, split_topic = produce_metadata(topic)
+        payload = json.loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "normalized_od_reading": float(payload),
-            "angle": split_topic[-2],
+            "timestamp": payload["timestamp"],
+            "normalized_od_reading": payload["od_filtered"],
+            "angle": payload["angle"],
             "channel": split_topic[-1],
         }
 
@@ -163,12 +164,13 @@ def mqtt_to_db_streaming():
 
     def parse_growth_rate(topic, payload):
         metadata, _ = produce_metadata(topic)
+        payload = json.loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "rate": float(payload),
+            "timestamp": payload["timestamp"],
+            "rate": float(payload["growth_rate"]),
         }
 
     def parse_temperature(topic, payload):
@@ -324,7 +326,7 @@ def mqtt_to_db_streaming():
         ),
     ]
 
-    streamer = MqttToDBStreamer(  # noqa: F841
+    MqttToDBStreamer(  # noqa: F841
         topics_to_tables, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name()
     )
 

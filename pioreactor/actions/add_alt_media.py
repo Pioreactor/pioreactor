@@ -27,7 +27,6 @@ def add_alt_media(
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
-
     try:
         config["pump_calibration"]["alt_media_ml_calibration"]
     except KeyError:
@@ -52,7 +51,6 @@ def add_alt_media(
             **loads(config["pump_calibration"]["alt_media_ml_calibration"]),
         )
     assert duration >= 0
-
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
         dumps(
@@ -71,11 +69,12 @@ def add_alt_media(
         logger.info(f"add alt media: {round(duration,2)}s")
 
     try:
+        ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "alt_media")]
 
-        ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "alt_media")]
         pwm = PWM(ALT_MEDIA_PIN, hz)
 
         pwm.start(duty_cycle)
+
         time.sleep(duration)
 
     except Exception as e:

@@ -95,7 +95,7 @@ class TemperatureController(BackgroundJob):
             )
 
     def _check_if_exceeds_max_temp(self):
-        MAX_TEMP_TO_DISABLE_HEATING = 52.0
+        MAX_TEMP_TO_DISABLE_HEATING = 55.0
         MAX_TEMP_TO_SHUTDOWN = 58.0
 
         if self.temperature > MAX_TEMP_TO_DISABLE_HEATING:

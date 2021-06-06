@@ -30,7 +30,9 @@ class TrackOD(LEDAutomation):
         super(TrackOD, self).__init__(**kwargs)
         assert max_od is not None, "max_od should be set"
         self.max_od = max_od
-        self.white_light = config.get("leds", "white_light")
+        self.white_light = config.get(
+            "leds", "white_light"
+        )  # TODO: update to new led config.ini syntax
         self.set_led_intensity(self.white_light, 0)
 
     def execute(self, *args, **kwargs) -> events.Event:
@@ -45,8 +47,9 @@ class FlashUV(LEDAutomation):
 
     def __init__(self, **kwargs):
         super(FlashUV, self).__init__(**kwargs)
-        self.uv_led = config.get("leds", "uv")
-
+        self.uv_led = config.get(
+            "leds", "uv"
+        )  # TODO: update to new led config.ini syntax
         self.set_led_intensity(self.uv_led, 0)
 
     def execute(self, *args, **kwargs) -> events.Event:

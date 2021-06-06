@@ -113,6 +113,11 @@ class MockTMP1075:
 
 
 class MockHardwarePWM(HardwarePWM):
+    def __init__(self, pwm_channel, hz):
+        self.pwm_channel = pwm_channel
+        self._hz = hz
+        self.pwm_dir = ""
+
     def is_overlay_loaded(self):
         return True
 

@@ -36,7 +36,7 @@ def led_intensity(
 
     and
 
-    pioreactor/<unit>/<experiment>/leds/intensity {'A': intensityA, 'B': 0, ...}
+    pioreactor/<unit>/<experiment>/leds/intensity {'A': intensityA, 'B': intensityB, ...}
 
     1. The way state is handled in the second topic is tech debt.
 
@@ -53,7 +53,7 @@ def led_intensity(
 
     try:
         assert 0 <= intensity <= 100
-        assert channel in CHANNELS
+        assert channel in CHANNELS, f"saw incorrect channel {channel}"
         dac = DAC43608()
         dac.power_up(getattr(dac, channel))
         dac.set_intensity_to(getattr(dac, channel), intensity / 100)
@@ -69,7 +69,9 @@ def led_intensity(
         state[channel] = intensity
 
         if verbose:
-            logger.info(f"Updated LED {channel} from {old_intensity} to {intensity}.")
+            logger.info(
+                f"Updated LED {channel} from {old_intensity:g}% to {intensity:g}%."
+            )
 
         event = {
             "channel": channel,
@@ -78,9 +80,6 @@ def led_intensity(
             "source_of_event": source_of_event,
         }
 
-        # we publish some state to UNIVERSAL_EXPERIMENT because
-        # LED intensity can stay on over multiple experiments,
-        # and is more of a "state" than a measurement.
         publish_multiple(
             [
                 (

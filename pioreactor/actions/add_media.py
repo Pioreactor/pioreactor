@@ -28,6 +28,7 @@ def add_media(
 
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None) or (continuously)
+    assert not ((ml is not None) and (duration is not None))
 
     hz = 100
 
@@ -70,7 +71,7 @@ def add_media(
         f"pioreactor/{unit}/{experiment}/dosing_events", json_output, qos=QOS.EXACTLY_ONCE
     )
 
-    MEDIA_PIN = PWM_TO_PIN[config.getint("PWM", "media")]
+    MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
 
     try:
 

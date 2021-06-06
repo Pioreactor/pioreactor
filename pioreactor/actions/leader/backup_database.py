@@ -49,7 +49,8 @@ def backup_database(output, force):
     from sh import rsync, ErrorReturnCode
 
     def progress(status, remaining, total):
-        logger.debug(f"Copied {total-remaining} of {total} pages.")
+        logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
+        logger.debug(f"Writing to local backup {output}.")
 
     logger.debug(f"Starting backup of database to {output}")
     time.sleep(1)  # pause a second so the log entry above gets recorded into the DB.

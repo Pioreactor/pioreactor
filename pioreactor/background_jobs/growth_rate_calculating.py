@@ -20,6 +20,7 @@ class GrowthRateCalculator(BackgroundJob):
     editable_settings = []
 
     def __init__(self, ignore_cache=False, unit=None, experiment=None):
+
         super(GrowthRateCalculator, self).__init__(
             job_name=JOB_NAME, unit=unit, experiment=experiment
         )
@@ -33,7 +34,7 @@ class GrowthRateCalculator(BackgroundJob):
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
         )
-        self.ekf, self.angles = self.initialize_extended_kalman_filter()
+        self.ekf, self.channels_and_angles = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
 
     @property
@@ -53,17 +54,24 @@ class GrowthRateCalculator(BackgroundJob):
     def initialize_extended_kalman_filter(self):
         import numpy as np
 
-        latest_od = subscribe(
+        latest_od_message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched"
         )
 
-        angles_and_initial_points = self.scale_raw_observations(
-            self.json_to_sorted_dict(latest_od.payload)
+        latest_ods = json.loads(latest_od_message.payload)["od_raw"]
+
+        channels_and_initial_points = self.scale_raw_observations(
+            self.batched_raw_od_readings_to_dict(latest_ods)
         )
+
+        channels_and_angles = {
+            channel: latest_ods[channel]["angle"]
+            for channel in sorted(latest_ods, reverse=True)
+        }
 
         initial_state = np.array(
             [
-                *angles_and_initial_points.values(),
+                *channels_and_initial_points.values(),
                 self.initial_growth_rate,
                 self.initial_acc,
             ]
@@ -82,7 +90,7 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[-1, -1] = acc_process_variance
 
         observation_noise_covariance = self.create_obs_noise_covariance(
-            angles_and_initial_points
+            channels_and_initial_points
         )
         self.logger.debug(
             f"Observation noise covariance matrix: {str(observation_noise_covariance)}"
@@ -95,10 +103,10 @@ class GrowthRateCalculator(BackgroundJob):
                 process_noise_covariance,
                 observation_noise_covariance,
             ),
-            angles_and_initial_points.keys(),
+            channels_and_angles,
         )
 
-    def create_obs_noise_covariance(self, angles_and_initial_points):
+    def create_obs_noise_covariance(self, channels_and_initial_points):
         import numpy as np
 
         # our obs_variance is tuned well for std = state * 0.01,
@@ -110,10 +118,10 @@ class GrowthRateCalculator(BackgroundJob):
 
         scaling_obs_variances = np.array(
             [
-                math.sqrt(self.od_variances[angle])
-                / angles_and_initial_points[angle]
+                math.sqrt(self.od_variances[channel])
+                / channels_and_initial_points[channel]
                 / 0.01
-                for angle in angles_and_initial_points
+                for channel in channels_and_initial_points
             ]
         )
 
@@ -136,7 +144,6 @@ class GrowthRateCalculator(BackgroundJob):
             initial_growth_rate = 0
         else:
             initial_growth_rate = self.get_growth_rate_from_broker()
-
         od_normalization_factors = self.get_od_normalization_from_broker()
         od_variances = self.get_od_variances_from_broker()
         od_blank = self.get_od_blank_from_broker()
@@ -171,7 +178,7 @@ class GrowthRateCalculator(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
         )
         if message:
-            return float(message.payload)
+            return float(json.loads(message.payload)["growth_rate"])
         else:
             return 0
 
@@ -183,7 +190,7 @@ class GrowthRateCalculator(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
         )
         if message:
-            return self.json_to_sorted_dict(message.payload)
+            return json.loads(message.payload)
         else:
             self.logger.debug("od_normalization/mean not found in broker.")
             self.logger.info(
@@ -201,7 +208,7 @@ class GrowthRateCalculator(BackgroundJob):
             qos=QOS.EXACTLY_ONCE,
         )
         if message:
-            return self.json_to_sorted_dict(message.payload)
+            return json.loads(message.payload)
         else:
             self.logger.debug("od_normalization/variance not found in broker.")
             self.logger.info(
@@ -229,10 +236,16 @@ class GrowthRateCalculator(BackgroundJob):
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
     def scale_raw_observations(self, observations):
+        def scale_and_shift(obs, shift, scale):
+            return (obs - shift) / (scale - shift)
+
         v = {
-            angle: (observations[angle] - self.od_blank[angle])
-            / (self.od_normalization_factors[angle] - self.od_blank[angle])
-            for angle in self.od_normalization_factors.keys()
+            channel: scale_and_shift(
+                observations[channel],
+                self.od_blank[channel],
+                self.od_normalization_factors[channel],
+            )
+            for channel in self.od_normalization_factors.keys()
         }
         if any([v[a] < 0 for a in v]):
             self.logger.warning(f"Negative normalized value(s) observed: {v}")
@@ -254,40 +267,47 @@ class GrowthRateCalculator(BackgroundJob):
             # production.
             dt = self.expected_dt
         else:
+            # TODO this should use the internal timestamp reference
             dt = (
                 (current_time - self.time_of_previous_observation) / 60 / 60
             )  # delta time in hours
 
-        observations = self.json_to_sorted_dict(message.payload)
+        payload = json.loads(message.payload)
+        timestamp = payload["timestamp"]
+        observations = self.batched_raw_od_readings_to_dict(payload["od_raw"])
         scaled_observations = self.scale_raw_observations(observations)
 
         try:
             self.ekf.update(list(scaled_observations.values()), dt)
         except Exception as e:
+            self.logger.debug(e, exc_info=True)
             self.logger.error(f"failed with {str(e)}")
             raise e
         else:
             # TODO: EKF values can be nans...
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
-                self.state_[-2],
+                {"growth_rate": self.state_[-2], "timestamp": timestamp},
                 retain=True,
             )
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
-                json.dumps(
-                    {
-                        "state": self.ekf.state_.tolist(),
-                        "covariance_matrix": self.ekf.covariance_.tolist(),
-                    }
-                ),
+                {
+                    "state": self.ekf.state_.tolist(),
+                    "covariance_matrix": self.ekf.covariance_.tolist(),
+                    "timestamp": timestamp,
+                },
             )
 
-            for i, angle_label in enumerate(self.angles):
+            for i, (channel, angle) in enumerate(self.channels_and_angles.items()):
                 self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_filtered/{angle_label}",
-                    self.state_[i],
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_filtered/{channel}",
+                    {
+                        "od_filtered": self.state_[i],
+                        "timestamp": timestamp,
+                        "angle": angle,
+                    },
                 )
 
             self.time_of_previous_observation = current_time
@@ -325,10 +345,18 @@ class GrowthRateCalculator(BackgroundJob):
         # removed for now, because it was messing with the new dynamic stirring
 
     @staticmethod
-    def json_to_sorted_dict(json_dict):
-        d = json.loads(json_dict)
+    def batched_raw_od_readings_to_dict(raw_od_readings):
+        """
+        Inputs looks like
+        {
+            "0": {"voltage": 0.13, "angle": "135,45"},
+            "1": {"voltage": 0.03, "angle": "90,135"}
+        }
+
+        """
         return {
-            k: float(d[k]) for k in sorted(d, reverse=True) if not k.startswith("180")
+            channel: float(raw_od_readings[channel]["voltage"])
+            for channel in sorted(raw_od_readings, reverse=True)
         }
 
 

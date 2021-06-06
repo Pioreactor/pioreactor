@@ -101,16 +101,18 @@ class TemperatureAutomation(BackgroundSubJob):
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def turn_off_heater(self):
-        # we re-instantiate it as some other process may have messed with the channel.
+        self.pwm.stop()
         self.pwm.cleanup()
+        # we re-instantiate it as some other process may have messed with the channel.
         self.pwm = self.setup_pwm()
         self.update_heater(0)
+        self.pwm.stop()
 
     ########## Private & internal methods
 
     def setup_pwm(self):
         hertz = 4
-        pin = PWM_TO_PIN[config.getint("PWM", "heating")]
+        pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(self.duty_cycle)
         return pwm
@@ -143,7 +145,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def _set_growth_rate(self, message):
         self.previous_growth_rate = self.latest_growth_rate
-        self.latest_growth_rate = float(message.payload)
+        self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
 
     def _set_temperature(self, message):
         self.previous_temperature = self.latest_temperature
