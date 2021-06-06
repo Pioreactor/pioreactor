@@ -1,4 +1,36 @@
 # -*- coding: utf-8 -*-
+"""
+This job will combine the multiple PD sensors from od_reading and transforms them into
+    i) a single growth rate,
+    ii) "normalized" OD densities (relative to their starting value),
+    iii) other Kalman Filter outputs.
+
+
+Topics published are:
+
+    pioreactor/<unit>/<experiment>/growth_rate_calculating/growth_rate
+
+
+with example payload
+
+    {"growth_rate": 1.0, "timestamp": "2012-01-10T12:23:34.012313"},
+
+
+And topic:
+
+    pioreactor/<unit>/<experiment>/growth_rate_calculating/od_filtered/<channel>
+
+with payload
+
+    {
+        "od_filtered": 1.434,
+        "timestamp": "2012-01-10T12:23:34.012313",
+        "angle": "90",
+    }
+
+
+
+"""
 import signal, time, json, math
 from collections import defaultdict
 import click

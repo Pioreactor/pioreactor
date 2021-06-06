@@ -12,7 +12,7 @@ Ex:
 a json file like:
 
     {
-        "raw_signal": 0.10030799136835057,
+        "voltage": 0.10030799136835057,
         "timestamp": "2021-06-06T15:08:12.080594",
         "angle": "90,135"
     }
@@ -348,7 +348,7 @@ class ODReader(BackgroundJob):
     def get_ir_channel_from_configuration(self):
         try:
             return config.get("leds_reverse", "ir_led")
-        except KeyError:
+        except Exception:
             self.logger.error(
                 "`leds` section must contain `ir_led`. Ex: \n\n[leds]\nA=ir_led"
             )
