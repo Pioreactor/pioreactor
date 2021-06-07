@@ -55,7 +55,7 @@ def test_subscribing(monkeypatch):
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
         create_od_raw_batched_json(
-            ["0", "1"], [1.1, 0.9], ["90", "135"], timestamp="2010-01-01 12:00:00"
+            ["1", "0"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01 12:00:00"
         ),
         retain=True,
     )
@@ -71,7 +71,21 @@ def test_subscribing(monkeypatch):
     publish(
         f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
         create_od_raw_batched_json(
-            ["0", "1"], [1.12, 0.91], ["90", "135"], timestamp="2010-01-01 12:00:05"
+            ["0", "1"], [1.12, 0.88], ["90", "135"], timestamp="2010-01-01 12:00:05"
+        ),
+    )
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        create_od_raw_batched_json(
+            ["1", "0"], [0.87, 1.14], ["135", "90"], timestamp="2010-01-01 12:00:05"
+        ),
+    )
+    pause()
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        create_od_raw_batched_json(
+            ["1", "0"], [0.85, 1.16], ["135", "90"], timestamp="2010-01-01 12:00:05"
         ),
     )
     pause()
@@ -556,3 +570,38 @@ def test_od_blank_being_zero():
     results = calc.scale_raw_observations({"1": 1.0, "0": 0.6})
     assert abs(results["1"] - 1.25) < 0.00001
     assert abs(results["0"] - 1.2) < 0.00001
+
+
+def test_observation_order_is_preserved_in_job(monkeypatch):
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/mean",
+        '{"0": 2, "1": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_normalization/variance",
+        '{"0": 1, "1": 1}',
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        None,
+        retain=True,
+    )
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+        create_od_raw_batched_json(
+            ["1", "0"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01 12:00:00"
+        ),
+        retain=True,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        json.dumps({"growth_rate": 1.0, "timestamp": "2010-01-01 12:00:00"}),
+        retain=True,
+    )
+    calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+
+    assert calc.scale_raw_observations({"1": 2, "0": 0.5}) == {"1": 2.0, "0": 0.25}

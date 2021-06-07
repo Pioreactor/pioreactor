@@ -176,6 +176,7 @@ class GrowthRateCalculator(BackgroundJob):
             initial_growth_rate = 0
         else:
             initial_growth_rate = self.get_growth_rate_from_broker()
+
         od_normalization_factors = self.get_od_normalization_from_broker()
         od_variances = self.get_od_variances_from_broker()
         od_blank = self.get_od_blank_from_broker()
@@ -273,13 +274,11 @@ class GrowthRateCalculator(BackgroundJob):
 
         v = {
             channel: scale_and_shift(
-                observations[channel],
-                self.od_blank[channel],
-                self.od_normalization_factors[channel],
+                raw_signal, self.od_blank[channel], self.od_normalization_factors[channel]
             )
-            for channel in self.od_normalization_factors.keys()
+            for channel, raw_signal in observations.items()
         }
-        if any([v[a] < 0 for a in v]):
+        if any(v[a] < 0 for a in v):
             self.logger.warning(f"Negative normalized value(s) observed: {v}")
             self.logger.debug(
                 f"od_normalization_factors: {self.od_normalization_factors}"

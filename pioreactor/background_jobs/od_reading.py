@@ -429,6 +429,13 @@ class ODReader(BackgroundJob):
                 mock=self.fake_data,
             )
 
+    def on_sleeping(self):
+        self.sneak_in_timer.pause()
+        self.stop_ir_led()
+
+    def on_sleeping_to_ready(self):
+        self.sneak_in_timer.unpause()
+
     def on_disconnect(self):
         for job in self.sub_jobs:
             job.set_state("disconnected")
@@ -443,6 +450,7 @@ class ODReader(BackgroundJob):
     def publish_batch(self, message):
         if self.state != self.READY:
             return
+
         ads_readings = json.loads(message.payload)
         od_readings = {"od_raw": {}}
         for channel, angle in self.channel_angle_map.items():
@@ -471,10 +479,11 @@ class ODReader(BackgroundJob):
         channel = message.topic.rsplit("/", maxsplit=1)[1]
         payload = json.loads(message.payload)
         payload["angle"] = self.channel_angle_map[channel]
+        topic_suffix = channel.lstrip("A")
 
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{channel.lstrip('A')}",
-            json.dumps(payload),
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{topic_suffix}",
+            payload,
             qos=QOS.EXACTLY_ONCE,
         )
 

@@ -48,6 +48,7 @@ class RepeatedTimer:
         self.args = args
         self.kwargs = kwargs
         self.logger = logging.getLogger(job_name or "RepeatedTimer")
+        self.is_paused = False
 
         # TODO: should these lines actually go in .start() method? That makes more sense.
         if run_immediately:
@@ -60,6 +61,8 @@ class RepeatedTimer:
 
     def _target(self):
         while not self.event.wait(self._time):
+            if self.is_paused:
+                continue
             try:
                 self.function(*self.args, **self.kwargs)
             except Exception as e:
@@ -69,6 +72,19 @@ class RepeatedTimer:
     @property
     def _time(self):
         return self.interval - ((time.time() - self.start_time) % self.interval)
+
+    def pause(self):
+        """
+        Stop the target function from running. This does not pause the timing however,
+        so when you unpause, it will pick up where it is suppose to be.
+        """
+        self.is_paused = True
+
+    def unpause(self):
+        """
+        See `pause`
+        """
+        self.is_paused = False
 
     def cancel(self):
         self.event.set()

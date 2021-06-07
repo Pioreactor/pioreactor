@@ -57,8 +57,8 @@ if __name__ == "__main__":
             adc_reader.take_reading()
 
             # Add to accumulating list
-            varying_intensity_results["A0"].append(adc_reader.A0)
-            varying_intensity_results["A1"].append(adc_reader.A1)
+            varying_intensity_results["A0"].append(adc_reader.A0["voltage"])
+            varying_intensity_results["A1"].append(adc_reader.A1["voltage"])
             print(
                 f"Channel {channel} at {intensity}%. AO: {adc_reader.A0}, A1: {adc_reader.A1}"
             )
