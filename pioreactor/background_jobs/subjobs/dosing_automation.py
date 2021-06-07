@@ -97,7 +97,7 @@ class DosingAutomation(BackgroundSubJob):
                 time.sleep(sleep_for)
                 counter += 1
 
-                if counter > (self.duration * 60 * 0.25) / sleep_for:
+                if self.duration and counter > (self.duration * 60 * 0.25) / sleep_for:
                     event = events.NoEvent(
                         "Waited too long on sensor data. Skipping this run."
                     )
@@ -121,7 +121,7 @@ class DosingAutomation(BackgroundSubJob):
                 time.sleep(sleep_for)
                 counter += 1
 
-                if counter > (self.duration * 60 * 0.25) / sleep_for:
+                if self.duration and counter > (self.duration * 60 * 0.25) / sleep_for:
                     event = events.NoEvent(
                         "Waited too long on sensor data. Skipping this run."
                     )
@@ -150,11 +150,18 @@ class DosingAutomation(BackgroundSubJob):
         raise NotImplementedError
 
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
+        """
+        This function recursively reduces the amount to add so that
+        we don't end up adding 5ml, and then removing 5ml (this could cause
+        overflow). We also want sufficient time to mix, and this procedure will
+        slow dosing down.
+
+        """
         assert (
             abs(alt_media_ml + media_ml - waste_ml) < 1e-5
         ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
 
-        max_ = 0.3
+        max_ = 0.3  # arbitrary
         if alt_media_ml > max_:
             self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2,

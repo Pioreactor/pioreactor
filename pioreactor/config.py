@@ -43,6 +43,7 @@ def get_config():
             )
             config.read([global_config_path])
 
+    # some helpful additions
     config["leds_reverse"] = reverse_config_section(config["leds"])
     config["PWM_reverse"] = reverse_config_section(config["PWM"])
 

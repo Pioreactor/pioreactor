@@ -207,12 +207,13 @@ def mqtt_to_db_streaming():
 
     def parse_alt_media_fraction(topic, payload):
         metadata, _ = produce_metadata(topic)
+        payload = json.loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "alt_media_fraction": float(payload),
+            "timestamp": payload["timestamp"],
+            "alt_media_fraction": float(payload["alt_media_fraction"]),
         }
 
     def parse_logs(topic, payload):

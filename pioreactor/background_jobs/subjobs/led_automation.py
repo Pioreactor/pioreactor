@@ -2,6 +2,8 @@
 
 import time
 import json
+from threading import Thread
+
 
 from pioreactor.pubsub import QOS
 from pioreactor.utils import pio_jobs_running
@@ -47,7 +49,7 @@ class LEDAutomation(BackgroundSubJob):
         self,
         unit=None,
         experiment=None,
-        duration=60,
+        duration=None,
         od_channel="+",
         skip_first_run=False,
         **kwargs,
@@ -69,25 +71,34 @@ class LEDAutomation(BackgroundSubJob):
             f"Starting {self.__class__.__name__} with {duration}min intervals, metadata: {kwargs}"
         )
 
-    def set_duration(self, value):
-        self.duration = float(value)
-        try:
-            self.timer_thread.cancel()
-        except AttributeError:
-            pass
-        finally:
-            if self.duration is not None:
-                self.timer_thread = RepeatedTimer(
-                    self.duration * 60,
-                    self.run,
-                    job_name=self.job_name,
-                    run_immediately=(not self.skip_first_run),
-                ).start()
+    def set_duration(self, duration):
+        if duration:
+            self.duration = float(duration)
+
+            try:
+                self.run_thread.cancel()
+            except AttributeError:
+                pass
+
+            self.run_thread = RepeatedTimer(
+                self.duration * 60,
+                self.run,
+                job_name=self.job_name,
+                run_immediately=(not self.skip_first_run),
+            ).start()
+        else:
+            self.duration = None
+            self.run_thread = Thread(target=self.run, daemon=True)
+            self.run_thread.start()
 
     def run(self):
         # TODO: this should be close to or equal to the function in DosingAutomation
-        time.sleep(2)  # wait some time for data to arrive
-        if (self.latest_growth_rate is None) or (self.latest_od is None):
+        if self.state == self.DISCONNECTED:
+            # NOOP
+            # we ended early.
+            return
+
+        elif (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not ("od_reading" in pio_jobs_running()) and (
                 "growth_rate_calculating" in pio_jobs_running()
@@ -102,7 +113,7 @@ class LEDAutomation(BackgroundSubJob):
                 time.sleep(5)
                 counter += 1
 
-                if counter > (self.duration * 60 / 4) / 5:
+                if self.duration and counter > (self.duration * 60 / 4) / 5:
                     event = events.NoEvent(
                         "Waited too long on sensor data. Skipping this run."
                     )
@@ -118,7 +129,7 @@ class LEDAutomation(BackgroundSubJob):
                 time.sleep(5)
                 counter += 1
 
-                if counter > (self.duration * 60 / 4) / 5:
+                if self.duration and counter > (self.duration * 60 / 4) / 5:
                     event = events.NoEvent(
                         "Waited too long not being in state ready. Am I stuck? Unpause me?  Skipping this run."
                     )

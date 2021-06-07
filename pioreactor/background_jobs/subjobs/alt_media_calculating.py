@@ -7,7 +7,7 @@ import json
 import os
 
 from pioreactor.pubsub import subscribe, QOS
-from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
 
@@ -54,7 +54,10 @@ class AltMediaCalculator(BackgroundSubJob):
     def publish_latest_alt_media_fraction(self):
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
-            self.latest_alt_media_fraction,
+            {
+                "alt_media_fraction": self.latest_alt_media_fraction,
+                "timestamp": current_utc_time(),
+            },
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
