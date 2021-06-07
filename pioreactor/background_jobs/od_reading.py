@@ -341,9 +341,10 @@ class ODReader(BackgroundJob):
         self.adc_reader.start_periodic_reading()
 
         # somewhere here we should test the relationship between light and ADC readings
-        self.start_passive_listeners()
         if stop_IR_led_between_ADC_readings:
             self.set_IR_led_during_ADC_readings()
+
+        self.start_passive_listeners()
 
     def get_ir_channel_from_configuration(self):
         try:
@@ -379,12 +380,12 @@ class ODReader(BackgroundJob):
 
         msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
-            timeout=3,
+            timeout=20,
         )
         ads_start_time = float(msg.payload) if msg and msg.payload else 0
 
         msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval", timeout=3
+            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval", timeout=20
         )
 
         ads_interval = float(msg.payload) if msg and msg.payload else 0
