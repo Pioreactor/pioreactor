@@ -149,7 +149,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def _set_temperature(self, message):
         self.previous_temperature = self.latest_temperature
-        self.latest_temperature = float(message.payload)
+        self.latest_temperature = float(json.loads(message.payload)["temperature"])
 
     def _clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
