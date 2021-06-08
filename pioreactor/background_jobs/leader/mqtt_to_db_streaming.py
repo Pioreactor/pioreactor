@@ -175,12 +175,13 @@ def mqtt_to_db_streaming():
 
     def parse_temperature(topic, payload):
         metadata, _ = produce_metadata(topic)
+        payload = json.loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "temperature_c": float(payload),
+            "timestamp": payload["timestamp"],
+            "temperature_c": float(payload["temperature"]),
         }
 
     def parse_pid_logs(topic, payload):
