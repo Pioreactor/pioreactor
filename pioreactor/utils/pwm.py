@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, threading, signal
+import sys, threading, signal, os
 from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
 
@@ -18,6 +18,14 @@ class PWM:
     """
     This class abstracts out the Rpi's PWM library details
 
+
+    Notes
+    -------
+    There is a soft locking feature, `lock` and `is_locked`, that a program can use to
+    present other programs from using the PWM channel.
+
+
+
     Example
     -----------
     > from pioreactor.utils.pwm import PWM
@@ -28,18 +36,19 @@ class PWM:
     >
     > pwm.stop()
     > pwm.cleanup()
-
     """
 
     HARDWARE_PWM_AVAILABLE_PINS = {12, 13}
     HARDWARE_PWM_CHANNELS = {12: 0, 13: 1}
+    LOCK_FOLDER = "/tmp/" if not is_testing_env() else "./"
     using_hardware = False
 
     def __init__(self, pin, hz, always_use_software=False):
         self.logger = create_logger("PWM")
-
         self.pin = pin
         self.hz = hz
+        self.lock_file_location = os.path.join(self.LOCK_FOLDER, f".PWM-{self.pin}-lock")
+
         if (not always_use_software) and (pin in self.HARDWARE_PWM_AVAILABLE_PINS):
             if is_testing_env():
                 from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
@@ -82,7 +91,9 @@ class PWM:
 
     def cleanup(self):
         self.stop()
+        self.unlock()
         if self.using_hardware:
+            # `stop` handles cleanup.
             pass
         else:
             GPIO.setmode(GPIO.BCM)
@@ -90,6 +101,21 @@ class PWM:
             GPIO.output(self.pin, 0)
             GPIO.cleanup(self.pin)
         self.logger.debug(f"Cleaned up PWM-{self.pin}.")
+
+    def is_locked(self):
+        return os.path.isfile(self.lock_file_location)
+
+    def lock(self):
+        try:
+            open(self.lock_file_location, "x")
+        except FileExistsError:
+            self.logger("lock file already exists.")
+
+    def unlock(self):
+        try:
+            os.remove(self.lock_file_location)
+        except OSError:
+            pass
 
     def __exit__(self):
         self.cleanup()
