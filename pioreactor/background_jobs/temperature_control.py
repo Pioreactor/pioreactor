@@ -248,13 +248,12 @@ class TemperatureController(BackgroundJob):
         return pcb_temp
 
 
-def run(automation=None, duration=None, skip_first_run=False, **kwargs):
+def run(automation=None, skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
     try:
 
-        kwargs["duration"] = duration
         kwargs["unit"] = unit
         kwargs["experiment"] = experiment
         kwargs["skip_first_run"] = skip_first_run
@@ -281,18 +280,8 @@ def run(automation=None, duration=None, skip_first_run=False, **kwargs):
 @click.option(
     "--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only"
 )
-@click.option(
-    "--duration",
-    default=1 / config.getfloat("temperature_config.sampling", "samples_per_second"),
-    help="in seconds",
-)
-@click.option(
-    "--skip-first-run",
-    is_flag=True,
-    help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
-)
 def click_temperature_control(
-    automation, target_temperature, duration, target_growth_rate, skip_first_run
+    automation, target_temperature, target_growth_rate, skip_first_run
 ):
     """
     Start a temperature automation
@@ -302,5 +291,4 @@ def click_temperature_control(
         target_temperature=target_temperature,
         target_growth_rate=target_growth_rate,
         skip_first_run=skip_first_run,
-        duration=duration,
     )

@@ -74,3 +74,6 @@ class ConstantDutyCycle(TemperatureAutomation):
     def set_duty_cycle(self, dc):
         self.duty_cycle = float(dc)
         self.update_heater(dc)
+
+    def execute(self):
+        pass

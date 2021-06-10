@@ -43,7 +43,7 @@ class LEDController(BackgroundJob):
         try:
             self.led_automation_job.set_state("disconnected")
         except AttributeError:
-            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
+            # sometimes the user will change the job too fast before the job is created, let's protect against that.
             time.sleep(1)
             self.set_led_automation(new_led_automation_json)
 
