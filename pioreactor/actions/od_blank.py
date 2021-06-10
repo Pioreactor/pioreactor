@@ -56,6 +56,7 @@ def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=f"{experiment}-blank",
+            fake_data=True,
         )
         od_reader.adc_reader.data_rate = 32
 
@@ -71,7 +72,7 @@ def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
 
         for count, batched_reading in enumerate(signal):
             for (sensor, reading) in batched_reading["od_raw"].items():
-                readings[sensor].append(reading)
+                readings[sensor].append(reading["voltage"])
 
             if count == N_samples:
                 break

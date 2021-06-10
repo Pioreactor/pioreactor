@@ -55,6 +55,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 break
         variances = {}
         means = {}
+
         for sensor, reading_series in readings.items():
             # measure the variance and publish. The variance will be used in downstream jobs.
             variances[sensor] = variance(reading_series)
