@@ -70,7 +70,7 @@ def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
         readings = defaultdict(list)
 
         for count, batched_reading in enumerate(signal):
-            for (sensor, reading) in batched_reading.items():
+            for (sensor, reading) in batched_reading["od_raw"].items():
                 readings[sensor].append(reading)
 
             if count == N_samples:

@@ -100,7 +100,7 @@ class Monitor(BackgroundJob):
     def watch_for_power_problems(self):
         """
 
-        Note: `get_throttled` feature isn't avaialable on the Rpi
+        Note: `get_throttled` feature isn't avaialable on the Rpi Zero
 
         Sourced from https://github.com/raspberrypi/linux/pull/2397
          and https://github.com/N2Github/Proje
