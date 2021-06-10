@@ -88,3 +88,17 @@ def test_heating_stops_when_max_temp_is_exceeded():
     time.sleep(12)
 
     assert t.heater_duty_cycle == 0
+
+
+def test_child_cant_update_heater_when_locked():
+
+    t = temperature_control.TemperatureController(
+        "silent", duration=10, unit=unit, experiment=experiment
+    )
+    assert t.temperature_automation_job.update_heater(50)
+
+    with t.pwm.lock_temporarily():
+        assert not t.temperature_automation_job.update_heater(50)
+        assert not t.update_heater(50)
+
+    assert t.temperature_automation_job.update_heater(50)

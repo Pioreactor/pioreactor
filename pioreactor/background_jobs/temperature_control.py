@@ -20,7 +20,6 @@ from pioreactor.logging import create_logger
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
-from pioreactor.utils import pio_jobs_running
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
 
@@ -77,6 +76,113 @@ class TemperatureController(BackgroundJob):
 
         self.pwm = self.setup_pwm()
         self._update_heater(0)
+
+    def set_temperature_automation(self, new_temperature_automation_json):
+        # TODO: this needs a better rollback. Ex: in except, something like
+        # self.temperature_automation_job.set_state("init")
+        # self.temperature_automation_job.set_state("ready")
+        # [ ] write tests
+        # OR should just bail...
+        algo_init = json.loads(new_temperature_automation_json)
+        new_automation = algo_init["temperature_automation"]
+        try:
+            self.temperature_automation_job.set_state("disconnected")
+        except AttributeError:
+            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
+            time.sleep(1)
+            self.set_temperature_automation(new_temperature_automation_json)
+
+        try:
+            self.temperature_automation_job = self.automations[new_automation](
+                unit=self.unit, experiment=self.experiment, parent=self, **algo_init
+            )
+            self.temperature_automation = algo_init["temperature_automation"]
+
+        except Exception as e:
+            self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
+            self.logger.warning(f"Change failed because of {str(e)}")
+
+    def turn_off_heater(self):
+        self._update_heater(0)
+        self.pwm.stop()
+        self.pwm.cleanup()
+        # we re-instantiate it as some other process may have messed with the channel.
+        self.pwm = self.setup_pwm()
+        self._update_heater(0)
+        self.pwm.stop()
+
+    def update_heater(self, new_duty_cycle):
+        """
+        Update heater's duty cycle. This function checks for the PWM lock, and will not
+        update if the PWM is locked.
+
+        Returns true if the update was made (eg: no lock), else returns false
+        """
+        if not self.pwm.is_locked():
+            self._update_heater(new_duty_cycle)
+            return True
+        else:
+            return False
+
+    ##### internal and private methods ########
+
+    def clear_mqtt_cache(self):
+        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
+        # TODO: this could move to the base class
+        for attr in self.editable_settings:
+            if attr in ["state", "temperature"]:
+                continue
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
+                None,
+                retain=True,
+                qos=QOS.EXACTLY_ONCE,
+            )
+
+    def _update_heater(self, new_duty_cycle):
+        self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
+        self.pwm.change_duty_cycle(self.heater_duty_cycle)
+
+    def _check_if_exceeds_max_temp(self, temp):
+        MAX_TEMP_TO_DISABLE_HEATING = 55.0
+        MAX_TEMP_TO_SHUTDOWN = 58.0
+
+        if temp > MAX_TEMP_TO_DISABLE_HEATING:
+            self.logger.warning(
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
+            )
+
+            self.turn_off_heater()
+
+        elif temp > MAX_TEMP_TO_SHUTDOWN:
+            self.logger.warning(
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
+            )
+
+            from subprocess import call
+
+            call("sudo shutdown --poweroff", shell=True)
+
+    def on_sleeping(self):
+        self.temperature_automation_job.set_state(self.SLEEPING)
+
+    def on_sleeping_to_ready(self):
+        self.temperature_automation_job.set_state(self.READY)
+
+    def on_disconnect(self):
+        try:
+            self.temperature_automation_job.set_state(self.DISCONNECTED)
+        except AttributeError:
+            # if disconnect is called right after starting, temperature_automation_job isn't instantiated
+            # time.sleep(1)
+            # self.on_disconnect()
+            # return
+            pass
+
+        self.clear_mqtt_cache()
+        self._update_heater(0)
+        self.pwm.stop()
+        self.pwm.cleanup()
 
     def setup_pwm(self):
         hertz = 4
@@ -139,124 +245,7 @@ class TemperatureController(BackgroundJob):
         pcb_temp = self.tmp_driver.get_temperature()
         self.logger.debug(f"PCB Temp {pcb_temp}")
         self._check_if_exceeds_max_temp(pcb_temp)
-        # self._check_for_sudden_temperature_decrease()
         return pcb_temp
-
-    def _check_for_sudden_temperature_decrease(self):
-        # TODO: this needs to be tested in the field
-        if (
-            (self.ema.value is not None)
-            and (self.temperature < 0.75 * self.ema.value)
-            and ("dosing_control" in pio_jobs_running())
-        ):
-            self.logger.warning(
-                "Noticed a sudden temperature change. This may be caused be a leakage. Suggestion is to check for liquid outside vial."
-            )
-
-    def _check_if_exceeds_max_temp(self, temp):
-        MAX_TEMP_TO_DISABLE_HEATING = 55.0
-        MAX_TEMP_TO_SHUTDOWN = 58.0
-
-        if temp > MAX_TEMP_TO_DISABLE_HEATING:
-            self.logger.warning(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
-            )
-
-            self.turn_off_heater()
-
-        elif temp > MAX_TEMP_TO_SHUTDOWN:
-            self.logger.warning(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
-            )
-
-            from subprocess import call
-
-            call("sudo shutdown --poweroff", shell=True)
-
-    def set_temperature_automation(self, new_temperature_automation_json):
-        # TODO: this needs a better rollback. Ex: in except, something like
-        # self.temperature_automation_job.set_state("init")
-        # self.temperature_automation_job.set_state("ready")
-        # [ ] write tests
-        # OR should just bail...
-        algo_init = json.loads(new_temperature_automation_json)
-        new_automation = algo_init["temperature_automation"]
-        try:
-            self.temperature_automation_job.set_state("disconnected")
-        except AttributeError:
-            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
-            time.sleep(1)
-            self.set_temperature_automation(new_temperature_automation_json)
-
-        try:
-            self.temperature_automation_job = self.automations[new_automation](
-                unit=self.unit, experiment=self.experiment, parent=self, **algo_init
-            )
-            self.temperature_automation = algo_init["temperature_automation"]
-
-        except Exception as e:
-            self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
-            self.logger.warning(f"Change failed because of {str(e)}")
-
-    def on_sleeping(self):
-        self.temperature_automation_job.set_state(self.SLEEPING)
-
-    def on_sleeping_to_ready(self):
-        self.temperature_automation_job.set_state(self.READY)
-
-    def on_disconnect(self):
-        try:
-            self.temperature_automation_job.set_state(self.DISCONNECTED)
-        except AttributeError:
-            # if disconnect is called right after starting, temperature_automation_job isn't instantiated
-            # time.sleep(1)
-            # self.on_disconnect()
-            # return
-            pass
-
-        self.clear_mqtt_cache()
-        self._update_heater(0)
-        self.pwm.stop()
-        self.pwm.cleanup()
-
-    def turn_off_heater(self):
-        self._update_heater(0)
-        self.pwm.stop()
-        self.pwm.cleanup()
-        # we re-instantiate it as some other process may have messed with the channel.
-        self.pwm = self.setup_pwm()
-        self._update_heater(0)
-        self.pwm.stop()
-
-    def _update_heater(self, new_duty_cycle):
-        self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
-        self.pwm.change_duty_cycle(self.heater_duty_cycle)
-
-    def update_heater(self, new_duty_cycle):
-        """
-        Update heater's duty cycle. This function checks for the PWM lock, and will not
-        update if the PWM is locked.
-
-        Returns true if the update was made (eg: no lock), else returns false
-        """
-        if not self.pwm.is_locked():
-            self._update_heater(new_duty_cycle)
-            return True
-        else:
-            return False
-
-    def clear_mqtt_cache(self):
-        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        # TODO: this could move to the base class
-        for attr in self.editable_settings:
-            if attr in ["state", "temperature"]:
-                continue
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                retain=True,
-                qos=QOS.EXACTLY_ONCE,
-            )
 
 
 def run(automation=None, duration=None, skip_first_run=False, **kwargs):

@@ -10,7 +10,7 @@ from pioreactor.background_jobs.temperature_control import TemperatureController
 class TemperatureAutomation(BackgroundSubJob):
     """
     This is the super class that Temperature automations inherit from.
-    The `execute` function, which is what subclasses will define, is updated every time a new culture temperature is recorded to MQTT.
+    The `execute` function, which is what subclasses will define, is updated every time a new temperature is recorded to MQTT.
     Temperatures are updated every 10 minutes.
 
     To change setting over MQTT:
@@ -79,8 +79,10 @@ class TemperatureAutomation(BackgroundSubJob):
         if name in self.editable_settings and name != "state":
             self.latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
-            self.latest_settings_started_at = current_utc_time()
-            self.latest_settings_ended_at = None
+            self.latest_settings_started_at, self.latest_settings_ended_at = (
+                current_utc_time(),
+                None,
+            )
 
     def _set_growth_rate(self, message):
         self.previous_growth_rate = self.latest_growth_rate
