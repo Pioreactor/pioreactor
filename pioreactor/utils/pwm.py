@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import sys, threading, signal, os
+from contextlib import contextmanager
 from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
+
 
 if is_testing_env():
     import fake_rpi
@@ -36,12 +38,17 @@ class PWM:
     >
     > pwm.stop()
     > pwm.cleanup()
-    >
+
+
     > # locking
     > pwm.lock()
     > pwm.is_locked() # true, and will be true for any other PWM on this channel.
     > pwm.unlock()
     > pwm.is_locked() # false, .cleanup() will also unlock.
+    >
+    > with pwm.lock_temporarily():
+    >    # do stuff, will unlock on exit.
+    >
     """
 
     HARDWARE_PWM_AVAILABLE_PINS = {12, 13}
@@ -122,6 +129,14 @@ class PWM:
             os.remove(self.lock_file_location)
         except OSError:
             pass
+
+    @contextmanager
+    def lock_temporarily(self):
+        try:
+            self.lock()
+            yield
+        finally:
+            self.unlock()
 
     def __exit__(self):
         self.cleanup()

@@ -5,13 +5,6 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
-from pioreactor.config import config
-from pioreactor.hardware_mappings import PWM_TO_PIN
-from pioreactor.utils.pwm import PWM
-
-
-def clamp(minimum, x, maximum):
-    return max(minimum, min(x, maximum))
 
 
 class TemperatureAutomation(BackgroundSubJob):
@@ -57,8 +50,6 @@ class TemperatureAutomation(BackgroundSubJob):
         )
 
         self.skip_first_run = skip_first_run
-        self.duty_cycle = 0
-        self.pwm = self.setup_pwm()
 
         self.set_duration(duration)
         self.start_passive_listeners()
@@ -96,26 +87,7 @@ class TemperatureAutomation(BackgroundSubJob):
     def execute(self):
         raise NotImplementedError
 
-    def update_heater(self, new_duty_cycle):
-        self.duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
-        self.pwm.change_duty_cycle(self.duty_cycle)
-
-    def turn_off_heater(self):
-        self.pwm.stop()
-        self.pwm.cleanup()
-        # we re-instantiate it as some other process may have messed with the channel.
-        self.pwm = self.setup_pwm()
-        self.update_heater(0)
-        self.pwm.stop()
-
     ########## Private & internal methods
-
-    def setup_pwm(self):
-        hertz = 4
-        pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
-        pwm = PWM(pin, hertz)
-        pwm.start(self.duty_cycle)
-        return pwm
 
     def on_disconnect(self):
         self.latest_settings_ended_at = current_utc_time()
@@ -130,10 +102,6 @@ class TemperatureAutomation(BackgroundSubJob):
             job.set_state("disconnected")
 
         self._clear_mqtt_cache()
-
-        self.update_heater(0)
-        self.pwm.stop()
-        self.pwm.cleanup()
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)

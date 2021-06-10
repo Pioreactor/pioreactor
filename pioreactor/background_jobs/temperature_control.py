@@ -21,6 +21,12 @@ from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils import pio_jobs_running
+from pioreactor.hardware_mappings import PWM_TO_PIN
+from pioreactor.utils.pwm import PWM
+
+
+def clamp(minimum, x, maximum):
+    return max(minimum, min(x, maximum))
 
 
 class TemperatureController(BackgroundJob):
@@ -59,14 +65,69 @@ class TemperatureController(BackgroundJob):
                 "Is the Heating PCB attached to the RaspberryPi? Unable to find I²C for temperature driver."
             )
 
+        self.record_pcb_temperature_timer = RepeatedTimer(
+            10, self.read_pcb_temperature, run_immediately=True
+        )
+        self.record_pcb_temperature_timer.start()
+
         self.publish_temperature_timer = RepeatedTimer(
-            1 / config.getfloat("temperature_config.sampling", "samples_per_second"),
-            self.read_and_publish_temperature,
-            run_immediately=True,
+            10 * 60, self.evaluate_and_publish_temperature, run_immediately=True
         )
         self.publish_temperature_timer.start()
 
-    def read_temperature(self):
+        self.heater_duty_cycle = 0
+        self.pwm = self.setup_pwm(self.heater_duty_cycle)
+
+    def setup_pwm(self, initial_duty_cycle):
+        hertz = 4
+        pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
+        pwm = PWM(pin, hertz)
+        pwm.start(initial_duty_cycle)
+        return pwm
+
+    def evaluate_and_publish_temperature(self):
+        """
+        1. turn off heater and lock it
+        2. start recording temperatures from the sensor
+        3. After collected M samples, pass to a model to approx temp
+        4. assign temp to publish to .../temperature
+        5. return heater to previous DC value and unlock heater
+        """
+
+        assert not self.pwm.is_locked()
+
+        with self.pwm.lock_temporarily():
+
+            previous_heater_dc = self.heater_duty_cycle
+            self.update_heater(0)
+
+            N_sample_points = 25
+            time_between_samples = 10
+            temp_readings_after_shutoff = []
+            timestamp = current_utc_time()  # TODO: what should timestamp represent???
+
+            while len(temp_readings_after_shutoff) < N_sample_points:
+                temp_readings_after_shutoff.append(self.read_pcb_temperature())
+                time.sleep(time_between_samples)
+
+            approximated_temperature = self.approximate_temperature(
+                temp_readings_after_shutoff
+            )
+
+            # maybe check for sane values first
+            self.temperature = {
+                "temperature": approximated_temperature,
+                "timestamp": timestamp,
+            }
+
+            self.update_heater(previous_heater_dc)
+
+    def approximate_temperature(self, list_of_temps):
+        # check if we are using silent, if so, we can short this and return single value?s
+
+        return sum(list_of_temps) / len(list_of_temps)
+
+    def read_pcb_temperature(self):
         """
         Read the current temperature from our sensor, in Celsius
 
@@ -74,17 +135,10 @@ class TemperatureController(BackgroundJob):
               the heating PCB is not connected.
         Note: this function is here for lack of a better place
         """
-
-        return self.tmp_driver.get_temperature()
-
-    def read_and_publish_temperature(self):
-        raw_temp = self.read_temperature()
-        self.temperature = {
-            "temperature": self.ema.update(raw_temp),
-            "timestamp": current_utc_time(),
-        }
-        self._check_if_exceeds_max_temp()
-        self._check_for_sudden_temperature_decrease()
+        pcb_temp = self.tmp_driver.get_temperature()
+        self._check_if_exceeds_max_temp(pcb_temp)
+        # self._check_for_sudden_temperature_decrease()
+        return pcb_temp
 
     def _check_for_sudden_temperature_decrease(self):
         # TODO: this needs to be tested in the field
@@ -97,18 +151,18 @@ class TemperatureController(BackgroundJob):
                 "Noticed a sudden temperature change. This may be caused be a leakage. Suggestion is to check for liquid outside vial."
             )
 
-    def _check_if_exceeds_max_temp(self):
+    def _check_if_exceeds_max_temp(self, temp):
         MAX_TEMP_TO_DISABLE_HEATING = 55.0
         MAX_TEMP_TO_SHUTDOWN = 58.0
 
-        if self.temperature > MAX_TEMP_TO_DISABLE_HEATING:
+        if temp > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
                 f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
 
-            self.temperature_automation_job.turn_off_heater()
+            self.turn_off_heater()
 
-        elif self.temperature > MAX_TEMP_TO_SHUTDOWN:
+        elif temp > MAX_TEMP_TO_SHUTDOWN:
             self.logger.warning(
                 f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
             )
@@ -157,8 +211,23 @@ class TemperatureController(BackgroundJob):
             # self.on_disconnect()
             # return
             pass
-        finally:
-            self.clear_mqtt_cache()
+
+        self.clear_mqtt_cache()
+        self.update_heater(0)
+        self.pwm.stop()
+        self.pwm.cleanup()
+
+    def turn_off_heater(self):
+        self.pwm.stop()
+        self.pwm.cleanup()
+        # we re-instantiate it as some other process may have messed with the channel.
+        self.pwm = self.setup_pwm()
+        self.update_heater(0)
+        self.pwm.stop()
+
+    def update_heater(self, new_duty_cycle):
+        self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
+        self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
