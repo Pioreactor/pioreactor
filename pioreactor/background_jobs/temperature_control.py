@@ -280,9 +280,7 @@ def run(automation=None, skip_first_run=False, **kwargs):
 @click.option(
     "--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only"
 )
-def click_temperature_control(
-    automation, target_temperature, target_growth_rate, skip_first_run
-):
+def click_temperature_control(automation, target_temperature, target_growth_rate):
     """
     Start a temperature automation
     """
@@ -290,5 +288,4 @@ def click_temperature_control(
         automation=automation,
         target_temperature=target_temperature,
         target_growth_rate=target_growth_rate,
-        skip_first_run=skip_first_run,
     )
