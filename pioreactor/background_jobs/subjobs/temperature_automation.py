@@ -40,7 +40,13 @@ class TemperatureAutomation(BackgroundSubJob):
             raise KeyError("Missing required field `key` in automation")
 
     def __init__(
-        self, unit=None, experiment=None, duration=10, skip_first_run=False, **kwargs
+        self,
+        unit=None,
+        experiment=None,
+        duration=10,
+        skip_first_run=False,
+        parent=None,
+        **kwargs,
     ):
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
@@ -49,6 +55,7 @@ class TemperatureAutomation(BackgroundSubJob):
             f"Starting {self.__class__.__name__} with {duration}s intervals, and {kwargs}."
         )
 
+        self.temperature_control_parent = parent
         self.skip_first_run = skip_first_run
 
         self.set_duration(duration)
@@ -84,6 +91,15 @@ class TemperatureAutomation(BackgroundSubJob):
                 self.logger.error(e)
         return
 
+    def update_heater(self, new_duty_cycle):
+        """
+        Update heater's duty cycle. This function checks for the PWM lock, and will not
+        update if the PWM is locked.
+
+        Returns true if the update was made (eg: no lock), else returns false
+        """
+        return self.temperature_control_parent.update_heater(new_duty_cycle)
+
     def execute(self):
         raise NotImplementedError
 
@@ -116,6 +132,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
 
     def _set_temperature(self, message):
+        print(message.payload)
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = float(json.loads(message.payload)["temperature"])
 

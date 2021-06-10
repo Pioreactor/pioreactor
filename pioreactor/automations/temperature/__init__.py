@@ -59,3 +59,17 @@ class PIDStable(TemperatureAutomation):
             self.pid.set_setpoint(self.target_temperature)
         except AttributeError:
             pass
+
+
+class ConstantDutyCycle(TemperatureAutomation):
+
+    key = "constant_duty_cycle"
+    editable_settings = ["duty_cycle"]
+
+    def __init__(self, duty_cycle, **kwargs):
+        super(ConstantDutyCycle, self).__init__(**kwargs)
+        self.set_duty_cycle(duty_cycle)
+
+    def set_duty_cycle(self, dc):
+        self.duty_cycle = float(dc)
+        self.update_heater(dc)

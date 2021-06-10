@@ -43,7 +43,7 @@ class TemperatureController(BackgroundJob):
         self.temperature_automation = temperature_automation
 
         self.temperature_automation_job = self.automations[self.temperature_automation](
-            unit=self.unit, experiment=self.experiment, **kwargs
+            unit=self.unit, experiment=self.experiment, parent=self, **kwargs
         )
 
         self.ema = ExponentialMovingAverage(0.0)
@@ -71,18 +71,18 @@ class TemperatureController(BackgroundJob):
         self.record_pcb_temperature_timer.start()
 
         self.publish_temperature_timer = RepeatedTimer(
-            10 * 60, self.evaluate_and_publish_temperature, run_immediately=True
+            10 * 60, self.evaluate_and_publish_temperature
         )
         self.publish_temperature_timer.start()
 
-        self.heater_duty_cycle = 0
-        self.pwm = self.setup_pwm(self.heater_duty_cycle)
+        self.pwm = self.setup_pwm()
+        self._update_heater(0)
 
-    def setup_pwm(self, initial_duty_cycle):
+    def setup_pwm(self):
         hertz = 4
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
-        pwm.start(initial_duty_cycle)
+        pwm.start(0)
         return pwm
 
     def evaluate_and_publish_temperature(self):
@@ -99,7 +99,7 @@ class TemperatureController(BackgroundJob):
         with self.pwm.lock_temporarily():
 
             previous_heater_dc = self.heater_duty_cycle
-            self.update_heater(0)
+            self._update_heater(0)
 
             N_sample_points = 25
             time_between_samples = 10
@@ -110,9 +110,11 @@ class TemperatureController(BackgroundJob):
                 temp_readings_after_shutoff.append(self.read_pcb_temperature())
                 time.sleep(time_between_samples)
 
+            self.logger.debug(temp_readings_after_shutoff)
             approximated_temperature = self.approximate_temperature(
                 temp_readings_after_shutoff
             )
+            self.logger.debug(approximated_temperature)
 
             # maybe check for sane values first
             self.temperature = {
@@ -120,7 +122,7 @@ class TemperatureController(BackgroundJob):
                 "timestamp": timestamp,
             }
 
-            self.update_heater(previous_heater_dc)
+            self._update_heater(previous_heater_dc)
 
     def approximate_temperature(self, list_of_temps):
         # check if we are using silent, if so, we can short this and return single value?s
@@ -133,9 +135,9 @@ class TemperatureController(BackgroundJob):
 
         TODO: this should raise some error if I'm not able to find the I2C address -> likely
               the heating PCB is not connected.
-        Note: this function is here for lack of a better place
         """
         pcb_temp = self.tmp_driver.get_temperature()
+        self.logger.debug(f"PCB Temp {pcb_temp}")
         self._check_if_exceeds_max_temp(pcb_temp)
         # self._check_for_sudden_temperature_decrease()
         return pcb_temp
@@ -188,7 +190,7 @@ class TemperatureController(BackgroundJob):
 
         try:
             self.temperature_automation_job = self.automations[new_automation](
-                unit=self.unit, experiment=self.experiment, **algo_init
+                unit=self.unit, experiment=self.experiment, parent=self, **algo_init
             )
             self.temperature_automation = algo_init["temperature_automation"]
 
@@ -213,21 +215,35 @@ class TemperatureController(BackgroundJob):
             pass
 
         self.clear_mqtt_cache()
-        self.update_heater(0)
+        self._update_heater(0)
         self.pwm.stop()
         self.pwm.cleanup()
 
     def turn_off_heater(self):
+        self._update_heater(0)
         self.pwm.stop()
         self.pwm.cleanup()
         # we re-instantiate it as some other process may have messed with the channel.
         self.pwm = self.setup_pwm()
-        self.update_heater(0)
+        self._update_heater(0)
         self.pwm.stop()
 
-    def update_heater(self, new_duty_cycle):
+    def _update_heater(self, new_duty_cycle):
         self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
+
+    def update_heater(self, new_duty_cycle):
+        """
+        Update heater's duty cycle. This function checks for the PWM lock, and will not
+        update if the PWM is locked.
+
+        Returns true if the update was made (eg: no lock), else returns false
+        """
+        if not self.pwm.is_locked():
+            self._update_heater(new_duty_cycle)
+            return True
+        else:
+            return False
 
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
