@@ -56,7 +56,6 @@ def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=f"{experiment}-blank",
-            fake_data=True,
         )
         od_reader.adc_reader.data_rate = 32
 

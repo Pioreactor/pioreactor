@@ -132,11 +132,13 @@ class TemperatureAutomation(BackgroundSubJob):
         self.subscribe_and_callback(
             self._set_growth_rate,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
+            allow_retained=False,
         )
 
         self.subscribe_and_callback(
             self._set_temperature,
             f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
+            allow_retained=False,
         )
 
 
