@@ -40,7 +40,7 @@ class TemperatureController(BackgroundJob):
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 
-        self.ema = ExponentialMovingAverage(0.25)
+        self.ema = ExponentialMovingAverage(0.0)
 
         try:
             from TMP1075 import TMP1075

@@ -22,7 +22,7 @@ class PWM:
     Notes
     -------
     There is a soft locking feature, `lock` and `is_locked`, that a program can use to
-    present other programs from using the PWM channel.
+    present other programs from using the PWM channel. This may move to a hard lock in the future.
 
 
 
@@ -36,6 +36,12 @@ class PWM:
     >
     > pwm.stop()
     > pwm.cleanup()
+    >
+    > # locking
+    > pwm.lock()
+    > pwm.is_locked() # true, and will be true for any other PWM on this channel.
+    > pwm.unlock()
+    > pwm.is_locked() # false, .cleanup() will also unlock.
     """
 
     HARDWARE_PWM_AVAILABLE_PINS = {12, 13}
@@ -109,7 +115,7 @@ class PWM:
         try:
             open(self.lock_file_location, "x")
         except FileExistsError:
-            self.logger("lock file already exists.")
+            pass
 
     def unlock(self):
         try:
