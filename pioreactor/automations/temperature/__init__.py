@@ -24,6 +24,7 @@ class Silent(TemperatureAutomation):
 class PIDStable(TemperatureAutomation):
 
     key = "pid_stable"
+    editable_settings = ["target_temperature"]
 
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)

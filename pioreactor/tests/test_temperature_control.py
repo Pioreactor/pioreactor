@@ -30,9 +30,14 @@ def test_pid_stable_automation():
 
 
 def test_changing_temperature_algo_over_mqtt():
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+        None,
+        retain=True,
+    )
 
     algo = temperature_control.TemperatureController(
-        "silent", duration=10, unit=unit, experiment=experiment
+        "silent", unit=unit, experiment=experiment
     )
     assert algo.temperature_automation == "silent"
     assert isinstance(algo.temperature_automation_job, Silent)
@@ -55,7 +60,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params():
     )
 
     algo = temperature_control.TemperatureController(
-        "silent", duration=10, unit=unit, experiment=experiment
+        "silent", unit=unit, experiment=experiment
     )
     assert algo.temperature_automation == "silent"
     assert isinstance(algo.temperature_automation_job, Silent)
@@ -79,7 +84,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params():
 def test_heating_stops_when_max_temp_is_exceeded():
 
     t = temperature_control.TemperatureController(
-        "silent", duration=10, unit=unit, experiment=experiment
+        "silent", unit=unit, experiment=experiment
     )
     t.tmp_driver.get_temperature = lambda *args: 57
 
@@ -93,7 +98,7 @@ def test_heating_stops_when_max_temp_is_exceeded():
 def test_child_cant_update_heater_when_locked():
 
     t = temperature_control.TemperatureController(
-        "silent", duration=10, unit=unit, experiment=experiment
+        "silent", unit=unit, experiment=experiment
     )
     assert t.temperature_automation_job.update_heater(50)
 

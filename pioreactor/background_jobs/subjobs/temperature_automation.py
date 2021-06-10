@@ -44,7 +44,11 @@ class TemperatureAutomation(BackgroundSubJob):
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
-        self.logger.info(f"Starting {self.__class__.__name__}, and {kwargs}.")
+        self.logger.info(
+            f"Starting {self.__class__.__name__}"
+            + (f", and {kwargs}" if kwargs else "")
+            + "."
+        )
 
         self.temperature_control_parent = parent
         self.skip_first_run = skip_first_run
@@ -85,10 +89,16 @@ class TemperatureAutomation(BackgroundSubJob):
             )
 
     def _set_growth_rate(self, message):
+        if not message.payload:
+            return
+
         self.previous_growth_rate = self.latest_growth_rate
         self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
 
     def _set_temperature(self, message):
+        if not message.payload:
+            return
+
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = float(json.loads(message.payload)["temperature"])
 
@@ -127,7 +137,6 @@ class TemperatureAutomation(BackgroundSubJob):
                 }
             ),
             qos=QOS.EXACTLY_ONCE,
-            retain=True,
         )
 
     def start_passive_listeners(self):

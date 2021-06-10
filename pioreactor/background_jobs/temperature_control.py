@@ -84,7 +84,7 @@ class TemperatureController(BackgroundJob):
         # [ ] write tests
         # OR should just bail...
         algo_init = json.loads(new_temperature_automation_json)
-        new_automation = algo_init["temperature_automation"]
+        new_automation = algo_init.pop("temperature_automation")
         try:
             self.temperature_automation_job.set_state("disconnected")
         except AttributeError:
@@ -96,7 +96,7 @@ class TemperatureController(BackgroundJob):
             self.temperature_automation_job = self.automations[new_automation](
                 unit=self.unit, experiment=self.experiment, parent=self, **algo_init
             )
-            self.temperature_automation = algo_init["temperature_automation"]
+            self.temperature_automation = new_automation
 
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
