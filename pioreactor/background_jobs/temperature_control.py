@@ -103,7 +103,7 @@ class TemperatureController(BackgroundJob):
 
             N_sample_points = 25
             time_between_samples = 10
-            temp_readings_after_shutoff = []
+            temp_readings_after_shutoff = []  # TODO: make this a dict
             timestamp = current_utc_time()  # TODO: what should timestamp represent???
 
             while len(temp_readings_after_shutoff) < N_sample_points:

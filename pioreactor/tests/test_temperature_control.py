@@ -15,15 +15,17 @@ def pause(n=1):
 
 
 def test_pid_stable_automation():
-    algo = PIDStable(target_temperature=50, unit=unit, experiment=experiment)
+    algo = temperature_control.TemperatureController(
+        "pid_stable", target_temperature=50, unit=unit, experiment=experiment
+    )
     pause(2)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
         '{"temperature": 55, "timestamp": "2020-01-01"}',
     )
     pause(2)
-    algo.run()
-    pause()
+
+    algo.temperature_automation_job.target_temperature == 55
     algo.set_state("disconnected")
 
 

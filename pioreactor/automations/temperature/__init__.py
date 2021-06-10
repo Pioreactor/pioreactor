@@ -17,9 +17,6 @@ class Silent(TemperatureAutomation):
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 
-    def execute(self, *args, **kwargs):
-        return
-
 
 class PIDStable(TemperatureAutomation):
 
@@ -28,7 +25,7 @@ class PIDStable(TemperatureAutomation):
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)
         self.set_target_temperature(target_temperature)
-
+        self.duty_cycle = 0
         Kp = config.getfloat("temperature_automation.pid_stable", "Kp")
         Ki = config.getfloat("temperature_automation.pid_stable", "Ki")
         Kd = config.getfloat("temperature_automation.pid_stable", "Kd")
@@ -44,9 +41,10 @@ class PIDStable(TemperatureAutomation):
             target_name="temperature",
         )
 
-    def execute(self, *args, **kwargs):
-        output = self.pid.update(self.latest_temperature, dt=self.duration)
-        self.update_heater(self.duty_cycle + output)
+    def execute(self):
+        output = self.pid.update(self.latest_temperature, dt=10)
+        self.duty_cycle += output
+        self.update_heater(self.duty_cycle)
         return
 
     def set_target_temperature(self, value):
