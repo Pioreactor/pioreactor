@@ -17,7 +17,7 @@ class Silent(TemperatureAutomation):
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 
-    def execute():
+    def execute(self):
         pass
 
 
