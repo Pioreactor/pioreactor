@@ -223,9 +223,9 @@ class TemperatureController(BackgroundJob):
                 # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
 
                 for i in range(N_sample_points):
-                    feature_vector[f"{time_between_samples * i}s"].append(
-                        self.read_pcb_temperature()
-                    )
+                    feature_vector[
+                        f"{time_between_samples * i}s"
+                    ] = self.read_pcb_temperature()
                     time.sleep(time_between_samples)
 
                 self.logger.debug(feature_vector)
