@@ -63,7 +63,7 @@ class TemperatureController(BackgroundJob):
             )
 
         self.record_pcb_temperature_timer = RepeatedTimer(
-            10, self.read_pcb_temperature, run_immediately=True
+            60, self.read_pcb_temperature, run_immediately=True
         )
         self.record_pcb_temperature_timer.start()
 
@@ -208,6 +208,8 @@ class TemperatureController(BackgroundJob):
         4. assign temp to publish to .../temperature
         5. return heater to previous DC value and unlock heater
         """
+        self.logger.debug("evaluate_and_publish_temperature")
+
         with self.pwm.lock_temporarily():
 
             previous_heater_dc = self.heater_duty_cycle
@@ -226,6 +228,7 @@ class TemperatureController(BackgroundJob):
                 )
                 time.sleep(time_between_samples)
 
+            self.logger.debug(feature_vector)
             approximated_temperature = self.approximate_temperature(feature_vector)
 
             # maybe check for sane values first
@@ -238,6 +241,7 @@ class TemperatureController(BackgroundJob):
 
     def approximate_temperature(self, feature_vector):
         # check if we are using silent, if so, we can short this and return single value?s
+
         # some heuristic for now:
         prev_temp = 1_000_000
         for i, temp in enumerate(feature_vector.values()):
