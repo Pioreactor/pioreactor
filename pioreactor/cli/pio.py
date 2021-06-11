@@ -140,7 +140,9 @@ def update(ui, app):
         gitp = "git pull origin master"
         setup = "pm2 restart ui"
         npm_install = "npm install"
-        unedit_edited_files = "git checkout ."
+        unedit_edited_files = (
+            "git checkout ."
+        )  # TODO: why do I do this. Can I be more specific than `.`? This blocks edits to the contrib folder from sticking around.
         command = " && ".join([cd, gitp, setup, npm_install, unedit_edited_files])
         p = subprocess.run(
             command,

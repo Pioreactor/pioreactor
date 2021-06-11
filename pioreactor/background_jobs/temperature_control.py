@@ -19,7 +19,6 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
-from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
 
@@ -31,6 +30,7 @@ def clamp(minimum, x, maximum):
 class TemperatureController(BackgroundJob):
 
     automations = {}
+    temperature = None
 
     editable_settings = ["temperature_automation", "temperature"]
 
@@ -44,8 +44,6 @@ class TemperatureController(BackgroundJob):
         self.temperature_automation_job = self.automations[self.temperature_automation](
             unit=self.unit, experiment=self.experiment, parent=self, **kwargs
         )
-
-        self.ema = ExponentialMovingAverage(0.0)
 
         try:
             from TMP1075 import TMP1075
@@ -81,10 +79,10 @@ class TemperatureController(BackgroundJob):
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.temperature_automation_job.set_state("init")
         # self.temperature_automation_job.set_state("ready")
-        # [ ] write tests
         # OR should just bail...
         algo_init = json.loads(new_temperature_automation_json)
         new_automation = algo_init.pop("temperature_automation")
+
         try:
             self.temperature_automation_job.set_state("disconnected")
         except AttributeError:
@@ -123,6 +121,19 @@ class TemperatureController(BackgroundJob):
             return True
         else:
             return False
+
+    def read_pcb_temperature(self):
+        """
+        Read the current temperature from our sensor, in Celsius
+
+        TODO: this should raise some error if I'm not able to find the I2C address -> likely
+              the heating PCB is not connected.
+        """
+        pcb_temp = self.tmp_driver.get_temperature()
+        self.logger.debug(f"PCB Temp {pcb_temp}")
+        self.temperature = {"temperature": pcb_temp, "timestamp": current_utc_time()}
+        self._check_if_exceeds_max_temp(pcb_temp)
+        return pcb_temp
 
     ##### internal and private methods ########
 
@@ -193,14 +204,13 @@ class TemperatureController(BackgroundJob):
 
     def evaluate_and_publish_temperature(self):
         """
-        1. turn off heater and lock it
+        1. lock PWM and turn off heater
         2. start recording temperatures from the sensor
         3. After collected M samples, pass to a model to approx temp
         4. assign temp to publish to .../temperature
         5. return heater to previous DC value and unlock heater
         """
-
-        assert not self.pwm.is_locked()
+        return
 
         with self.pwm.lock_temporarily():
 
@@ -209,18 +219,18 @@ class TemperatureController(BackgroundJob):
 
             N_sample_points = 25
             time_between_samples = 10
-            temp_readings_after_shutoff = []  # TODO: make this a dict
-            timestamp = current_utc_time()  # TODO: what should timestamp represent???
+            timestamp = current_utc_time()
 
-            while len(temp_readings_after_shutoff) < N_sample_points:
-                temp_readings_after_shutoff.append(self.read_pcb_temperature())
+            feature_vector = {}
+            # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
+
+            for i in range(N_sample_points):
+                feature_vector[f"{time_between_samples * i}s"].append(
+                    self.read_pcb_temperature()
+                )
                 time.sleep(time_between_samples)
 
-            self.logger.debug(temp_readings_after_shutoff)
-            approximated_temperature = self.approximate_temperature(
-                temp_readings_after_shutoff
-            )
-            self.logger.debug(approximated_temperature)
+            approximated_temperature = self.approximate_temperature(feature_vector)
 
             # maybe check for sane values first
             self.temperature = {
@@ -230,22 +240,10 @@ class TemperatureController(BackgroundJob):
 
             self._update_heater(previous_heater_dc)
 
-    def approximate_temperature(self, list_of_temps):
+    def approximate_temperature(self, feature_vector):
         # check if we are using silent, if so, we can short this and return single value?s
 
-        return sum(list_of_temps) / len(list_of_temps)
-
-    def read_pcb_temperature(self):
-        """
-        Read the current temperature from our sensor, in Celsius
-
-        TODO: this should raise some error if I'm not able to find the I2C address -> likely
-              the heating PCB is not connected.
-        """
-        pcb_temp = self.tmp_driver.get_temperature()
-        self.logger.debug(f"PCB Temp {pcb_temp}")
-        self._check_if_exceeds_max_temp(pcb_temp)
-        return pcb_temp
+        return sum(feature_vector.values()) / len(feature_vector)
 
 
 def run(automation=None, skip_first_run=False, **kwargs):

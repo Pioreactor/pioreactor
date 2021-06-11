@@ -376,10 +376,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug("Calling sys.exit(0)")
 
             # don't exit in test mode
-            if is_testing_env():
+            # don't kill yourself if in a shell like `python3` or `ipython`
+            if is_testing_env() or not sys.stdout.isatty():
                 return
-
-            sys.exit(0)
+            else:
+                sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.

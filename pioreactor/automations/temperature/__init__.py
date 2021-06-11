@@ -29,7 +29,9 @@ class PIDStable(TemperatureAutomation):
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)
         self.set_target_temperature(target_temperature)
-        self.duty_cycle = 0
+
+        self.duty_cycle = 10  # TODO: decent starting point...can be smarter in the future
+
         Kp = config.getfloat("temperature_automation.pid_stable", "Kp")
         Ki = config.getfloat("temperature_automation.pid_stable", "Ki")
         Kd = config.getfloat("temperature_automation.pid_stable", "Kd")

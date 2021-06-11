@@ -250,7 +250,6 @@ class LEDAutomation(BackgroundSubJob):
                 }
             ),
             qos=QOS.EXACTLY_ONCE,
-            retain=True,
         )
 
     def start_passive_listeners(self):

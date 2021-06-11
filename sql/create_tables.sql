@@ -1,14 +1,15 @@
 CREATE TABLE IF NOT EXISTS od_readings_raw (
-    timestamp              TEXT  NOT NULL,
-    pioreactor_unit        TEXT  NOT NULL,
-    od_reading_v           REAL  NOT NULL,
-    experiment             TEXT  NOT NULL,
-    angle                  TEXT  NOT NULL,
-    channel                TEXT  NOT NULL
+    timestamp              TEXT     NOT NULL,
+    pioreactor_unit        TEXT     NOT NULL,
+    od_reading_v           REAL     NOT NULL,
+    experiment             TEXT     NOT NULL,
+    angle                  TEXT     NOT NULL,
+    channel                INTEGER  NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS od_readings_raw_ix
 ON od_readings_raw (experiment);
+
 
 
 CREATE TABLE IF NOT EXISTS alt_media_fraction (
@@ -24,16 +25,17 @@ ON alt_media_fraction (experiment);
 
 
 CREATE TABLE IF NOT EXISTS od_readings_filtered (
-    timestamp              TEXT  NOT NULL,
-    pioreactor_unit        TEXT  NOT NULL,
-    normalized_od_reading  REAL  NOT NULL,
-    experiment             TEXT  NOT NULL,
-    angle                  TEXT  NOT NULL,
-    channel                TEXT  NOT NULL
+    timestamp              TEXT     NOT NULL,
+    pioreactor_unit        TEXT     NOT NULL,
+    normalized_od_reading  REAL     NOT NULL,
+    experiment             TEXT     NOT NULL,
+    angle                  TEXT     NOT NULL,
+    channel                INTEGER  NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS od_readings_filtered_ix
 ON od_readings_filtered (experiment);
+
 
 
 CREATE TABLE IF NOT EXISTS dosing_events (
@@ -45,8 +47,6 @@ CREATE TABLE IF NOT EXISTS dosing_events (
     source_of_event        TEXT
 );
 
-CREATE INDEX IF NOT EXISTS dosing_events_ix
-ON dosing_events (experiment, event);
 
 
 CREATE TABLE IF NOT EXISTS led_events (
@@ -58,9 +58,6 @@ CREATE TABLE IF NOT EXISTS led_events (
     pioreactor_unit        TEXT  NOT NULL,
     source_of_event        TEXT
 );
-
-CREATE INDEX IF NOT EXISTS led_events_ix
-ON led_events (experiment);
 
 
 
@@ -90,6 +87,7 @@ CREATE INDEX IF NOT EXISTS logs_ix
 ON logs (experiment, level);
 
 
+
 CREATE TABLE IF NOT EXISTS experiments (
     experiment             TEXT  NOT NULL UNIQUE,
     timestamp              TEXT  NOT NULL,
@@ -101,6 +99,7 @@ CREATE TABLE IF NOT EXISTS experiments (
 -- not the order of the values in the index is important to get this performance.
 -- https://medium.com/@JasonWyatt/squeezing-performance-from-sqlite-indexes-indexes-c4e175f3c346
 CREATE INDEX IF NOT EXISTS experiments_ix ON experiments (timestamp, experiment, description);
+
 
 
 CREATE TABLE IF NOT EXISTS pid_logs (
@@ -122,8 +121,6 @@ CREATE TABLE IF NOT EXISTS pid_logs (
     latest_output          REAL  NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS pid_logs_ix
-ON pid_logs (experiment);
 
 
 CREATE TABLE IF NOT EXISTS dosing_automation_settings (
@@ -136,9 +133,6 @@ CREATE TABLE IF NOT EXISTS dosing_automation_settings (
 );
 
 
-CREATE INDEX IF NOT EXISTS dosing_automation_settings_ix
-ON dosing_automation_settings (experiment);
-
 
 CREATE TABLE IF NOT EXISTS led_automation_settings (
     pioreactor_unit          TEXT NOT NULL,
@@ -148,10 +142,6 @@ CREATE TABLE IF NOT EXISTS led_automation_settings (
     automation               TEXT NOT NULL,
     settings                 TEXT NOT NULL
 );
-
-
-CREATE INDEX IF NOT EXISTS led_automation_settings_ix
-ON led_automation_settings (experiment);
 
 
 
@@ -165,9 +155,6 @@ CREATE TABLE IF NOT EXISTS temperature_automation_settings (
 );
 
 
-CREATE INDEX IF NOT EXISTS temperature_automation_settings_ix
-ON temperature_automation_settings (experiment);
-
 
 CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     timestamp                TEXT NOT NULL,
@@ -177,9 +164,6 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     covariance_matrix        TEXT NOT NULL
 );
 
-
-CREATE INDEX IF NOT EXISTS kalman_filter_outputs_ix
-ON kalman_filter_outputs (experiment);
 
 
 CREATE TABLE IF NOT EXISTS temperature_readings (
@@ -194,7 +178,7 @@ CREATE INDEX IF NOT EXISTS temperature_readings_ix
 ON temperature_readings (experiment);
 
 
--- no index needed since it is a small table
+
 CREATE TABLE IF NOT EXISTS stirring_rates (
     timestamp                TEXT NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
@@ -203,7 +187,7 @@ CREATE TABLE IF NOT EXISTS stirring_rates (
 );
 
 
--- no index needed since it is a small table
+
 CREATE TABLE IF NOT EXISTS od_reading_statistics (
     timestamp                TEXT NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
