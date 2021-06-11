@@ -130,8 +130,6 @@ class TemperatureController(BackgroundJob):
               the heating PCB is not connected.
         """
         pcb_temp = self.tmp_driver.get_temperature()
-        self.logger.debug(f"PCB Temp {pcb_temp}")
-        self.temperature = {"temperature": pcb_temp, "timestamp": current_utc_time()}
         self._check_if_exceeds_max_temp(pcb_temp)
         return pcb_temp
 
@@ -210,8 +208,6 @@ class TemperatureController(BackgroundJob):
         4. assign temp to publish to .../temperature
         5. return heater to previous DC value and unlock heater
         """
-        return
-
         with self.pwm.lock_temporarily():
 
             previous_heater_dc = self.heater_duty_cycle
@@ -242,8 +238,16 @@ class TemperatureController(BackgroundJob):
 
     def approximate_temperature(self, feature_vector):
         # check if we are using silent, if so, we can short this and return single value?s
+        # some heuristic for now:
+        prev_temp = 1_000_000
+        for i, temp in enumerate(feature_vector.values()):
+            if i > 0:
+                if abs(prev_temp - temp) < 0.35:
+                    return temp
 
-        return sum(feature_vector.values()) / len(feature_vector)
+            prev_temp = temp
+
+        return None
 
 
 def run(automation=None, skip_first_run=False, **kwargs):
