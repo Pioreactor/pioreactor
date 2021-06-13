@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging, uuid
+import logging
 from pioreactor.pubsub import create_client, publish
 from pioreactor.whoami import (
     get_unit_name,
@@ -88,6 +88,8 @@ def create_logger(
         experiment = get_latest_experiment_name()
 
     if (pub_client is None) and to_mqtt:
+        import uuid
+
         pub_client = create_client(client_id=f"{unit}-logging-{uuid.uuid1()}")
 
     # file handler

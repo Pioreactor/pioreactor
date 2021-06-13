@@ -6,10 +6,6 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio run od_reading --od-angle-channel 135,0
 > pio log
 """
-import demandimport
-
-demandimport.enable()
-
 import sys
 import click
 import pioreactor
