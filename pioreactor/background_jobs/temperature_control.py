@@ -116,6 +116,10 @@ class TemperatureController(BackgroundJob):
 
         Returns true if the update was made (eg: no lock), else returns false
         """
+
+        # TODO: new_duty_cycle should be capped at some value (since 100 will certainly push us over the temp maximum).
+        # Q: how will this effect PID controllers?
+
         if not self.pwm.is_locked():
             self._update_heater(new_duty_cycle)
             return True
@@ -221,6 +225,7 @@ class TemperatureController(BackgroundJob):
 
                 feature_vector = {}
                 # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
+                # feature_vector['current_dc'] = self.heater_duty_cycle   # in the future, this may be non-zero
 
                 for i in range(N_sample_points):
                     feature_vector[
@@ -249,15 +254,15 @@ class TemperatureController(BackgroundJob):
         prev_temp = 1_000_000
         for i, temp in enumerate(feature_vector.values()):
             if i > 0:
-                if abs(prev_temp - temp) < 0.35:
-                    return temp
+                if abs(prev_temp - temp) < 0.1:
+                    return (temp + prev_temp) / 2
 
             prev_temp = temp
 
         return None
 
 
-def run(automation=None, skip_first_run=False, **kwargs):
+def run(automation=None, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -265,7 +270,6 @@ def run(automation=None, skip_first_run=False, **kwargs):
 
         kwargs["unit"] = unit
         kwargs["experiment"] = experiment
-        kwargs["skip_first_run"] = skip_first_run
 
         controller = TemperatureController(automation, **kwargs)  # noqa: F841
 

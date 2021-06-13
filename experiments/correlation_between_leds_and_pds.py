@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict
-from statistics import stdev, mean
 
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.actions.led_intensity import led_intensity, CHANNELS
@@ -8,6 +7,8 @@ from pioreactor.whoami import get_latest_experiment_name, get_unit_name
 
 
 def correlation(x, y):
+    from statistics import stdev, mean
+
     mean_x, std_x = mean(x), stdev(x)
     mean_y, std_y = mean(y), stdev(y)
 

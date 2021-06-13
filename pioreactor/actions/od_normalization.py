@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
 from collections import defaultdict
-from statistics import mean, variance
 
 import click
 
@@ -13,6 +12,7 @@ from pioreactor.logging import create_logger
 
 
 def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
+    from statistics import mean, variance
 
     action_name = "od_normalization"
     logger = create_logger(action_name)

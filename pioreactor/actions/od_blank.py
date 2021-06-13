@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-from collections import defaultdict
-from statistics import mean
 
 import click
 
@@ -14,6 +12,9 @@ from pioreactor.background_jobs.od_reading import ODReader, create_channel_angle
 
 
 def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
+    from statistics import mean
+    from collections import defaultdict
+
     action_name = "od_blank"
     logger = create_logger(action_name)
 

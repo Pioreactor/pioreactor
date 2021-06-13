@@ -62,7 +62,7 @@ class LEDAutomation(BackgroundSubJob):
         self.latest_event = None
 
         self.od_channel = od_channel
-        self.skip_first_run = skip_first_run
+        self.skip_first_run = skip_first_run  # TODO: needed?
 
         self.set_duration(duration)
         self.start_passive_listeners()

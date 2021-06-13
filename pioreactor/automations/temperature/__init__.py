@@ -28,18 +28,14 @@ class PIDStable(TemperatureAutomation):
 
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)
-        self.set_target_temperature(target_temperature)
+        self.target_temperature = target_temperature
 
-        self.duty_cycle = 10  # TODO: decent starting point...can be smarter in the future
-
-        Kp = config.getfloat("temperature_automation.pid_stable", "Kp")
-        Ki = config.getfloat("temperature_automation.pid_stable", "Ki")
-        Kd = config.getfloat("temperature_automation.pid_stable", "Kd")
+        self.duty_cycle = 5  # TODO: decent starting point...can be smarter in the future
 
         self.pid = PID(
-            Kp,
-            Ki,
-            Kd,
+            Kp=config.getfloat("temperature_automation.pid_stable", "Kp"),
+            Ki=config.getfloat("temperature_automation.pid_stable", "Ki"),
+            Kd=config.getfloat("temperature_automation.pid_stable", "Kd"),
             setpoint=self.target_temperature,
             unit=self.unit,
             experiment=self.experiment,
@@ -48,8 +44,11 @@ class PIDStable(TemperatureAutomation):
         )
 
     def execute(self):
-        output = self.pid.update(self.latest_temperature, dt=10)
+        output = self.pid.update(
+            self.latest_temperature, dt=1
+        )  # 1 represents an arbitrary unit of time. The PID values will scale s.t. 1 makes sense.
         self.duty_cycle += output
+        self.logger.debug(f"Updating duty cycle to {self.duty_cycle}")
         self.update_heater(self.duty_cycle)
         return
 
@@ -57,12 +56,9 @@ class PIDStable(TemperatureAutomation):
         if float(value) > 50:
             self.logger.warning("Values over 50℃ are not supported. Setting to 50℃.")
 
-        self.target_temperature = clamp(0, float(value), 50)
-        try:
-            # may not be defined yet...
-            self.pid.set_setpoint(self.target_temperature)
-        except AttributeError:
-            pass
+        target_temperature = clamp(0, float(value), 50)
+        self.target_temperature = target_temperature
+        self.pid.set_setpoint(self.target_temperature)
 
 
 class ConstantDutyCycle(TemperatureAutomation):
