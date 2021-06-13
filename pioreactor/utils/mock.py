@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
 from json import loads
-from adafruit_ads1x15.analog_in import AnalogIn
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
 from rpi_hardware_pwm import HardwarePWM
@@ -22,7 +21,7 @@ class MockI2C:
         pass
 
 
-class MockAnalogIn(AnalogIn):
+class MockAnalogIn:
     INIT_STATE = 0.1
     state = INIT_STATE
     _counter = 0

@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
-import signal, json
-
-import click
-import time
+import signal, json, time, sys
 from threading import Thread
 
-import RPi.GPIO as GPIO
+import click
 
-from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT, is_testing_env
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import QOS
@@ -16,8 +13,6 @@ from pioreactor.hardware_mappings import (
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
 from pioreactor.version import __version__
-
-GPIO.setmode(GPIO.BCM)
 
 
 class Monitor(BackgroundJob):
@@ -50,10 +45,23 @@ class Monitor(BackgroundJob):
         )
         self.power_watchdog_thread.start()
 
-        GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.setup(LED_PIN, GPIO.OUT)
+        if is_testing_env():
+            import fake_rpi
 
-        GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=self.button_down_and_up)
+            sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+            sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+        import RPi.GPIO as GPIO
+
+        self.GPIO = GPIO
+
+        self.GPIO.setmode(GPIO.BCM)
+        self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
+        self.GPIO.setup(LED_PIN, GPIO.OUT)
+
+        self.GPIO.add_event_detect(
+            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up
+        )
 
         self.start_passive_listeners()
 
@@ -61,13 +69,13 @@ class Monitor(BackgroundJob):
         self.flicker_led()
 
     def on_disconnect(self):
-        GPIO.cleanup(LED_PIN)
+        self.GPIO.cleanup(LED_PIN)
 
     def led_on(self):
-        GPIO.output(LED_PIN, GPIO.HIGH)
+        self.GPIO.output(LED_PIN, self.GPIO.HIGH)
 
     def led_off(self):
-        GPIO.output(LED_PIN, GPIO.LOW)
+        self.GPIO.output(LED_PIN, self.GPIO.LOW)
 
     def button_down_and_up(self, *args):
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
@@ -82,7 +90,7 @@ class Monitor(BackgroundJob):
 
         self.logger.debug("Pushed tactile button")
 
-        while GPIO.input(BUTTON_PIN) == GPIO.HIGH:
+        while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
 
             # we keep sending it because the user may change the webpage.
             self.publish(

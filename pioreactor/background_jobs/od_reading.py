@@ -57,12 +57,8 @@ import json
 import signal
 
 import click
-from adafruit_ads1x15.analog_in import AnalogIn
-import adafruit_ads1x15.ads1115 as ADS
-import busio
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
-
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, catchtime, current_utc_time
@@ -159,11 +155,16 @@ class ADCReader(BackgroundSubJob):
         if self.fake_data:
             i2c = MockI2C(SCL, SDA)
         else:
+            import busio
+
             i2c = busio.I2C(SCL, SDA)
 
         try:
+            import adafruit_ads1x15.ads1115 as ADS
+
             # we will change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
+            # TODO: update this to ADS1015
             self.ads = ADS.ADS1115(i2c, gain=self.initial_gain, data_rate=self.data_rate)
         except ValueError as e:
             self.logger.error(
@@ -174,6 +175,8 @@ class ADCReader(BackgroundSubJob):
 
         for channel in [0, 1, 2, 3]:
             if self.fake_data:
+                from adafruit_ads1x15.analog_in import AnalogIn
+
                 ai = MockAnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             else:
                 ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))

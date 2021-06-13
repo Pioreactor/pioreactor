@@ -56,13 +56,11 @@ class Stirrer(BackgroundJob):
         self.start_stirring()
 
     def on_disconnect(self):
-        # not necessary, but will update the UI to show that the speed is 0 (off)
+
+        self.stop_stirring()  # not strictly necessary, but will update the UI/MQTT to show that the speed is 0 (off)
+
         if hasattr(self, "sneak_in_timer"):
             self.sneak_in_timer.cancel()
-
-        self.stop_stirring()
-        self.pwm.stop()
-        self.pwm.cleanup()
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start

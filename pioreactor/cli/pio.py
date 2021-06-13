@@ -20,6 +20,7 @@ from pioreactor import background_jobs as jobs
 from pioreactor import actions
 from pioreactor import plugin_management
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import subscribe_and_callback
 
 
 @click.group()
@@ -38,7 +39,6 @@ def logs():
     """
     from sh import tail
     from json import loads
-    from pioreactor.pubsub import subscribe_and_callback
     from datetime import datetime
 
     def cb(msg):

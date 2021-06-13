@@ -38,9 +38,7 @@ class TemperatureAutomation(BackgroundSubJob):
         else:
             raise KeyError("Missing required field `key` in automation")
 
-    def __init__(
-        self, unit=None, experiment=None, skip_first_run=False, parent=None, **kwargs
-    ):
+    def __init__(self, unit=None, experiment=None, parent=None, **kwargs):
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
@@ -51,7 +49,6 @@ class TemperatureAutomation(BackgroundSubJob):
         )
 
         self.temperature_control_parent = parent
-        self.skip_first_run = skip_first_run
 
         self.start_passive_listeners()
 

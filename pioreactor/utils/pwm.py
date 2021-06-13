@@ -5,17 +5,6 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
 
 
-if is_testing_env():
-    import fake_rpi
-
-    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
-import RPi.GPIO as GPIO
-
-GPIO.setmode(GPIO.BCM)
-
-
 class PWM:
     """
     This class abstracts out the Rpi's PWM library details
@@ -72,6 +61,16 @@ class PWM:
             self.using_hardware = True
 
         else:
+
+            if is_testing_env():
+                import fake_rpi
+
+                sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+                sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+            import RPi.GPIO as GPIO
+
+            GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
             self.pwm = GPIO.PWM(self.pin, hz)
@@ -109,6 +108,14 @@ class PWM:
             # `stop` handles cleanup.
             pass
         else:
+            if is_testing_env():
+                import fake_rpi
+
+                sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+                sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+
+            import RPi.GPIO as GPIO
+
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
