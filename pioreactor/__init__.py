@@ -9,6 +9,13 @@ from collections import namedtuple
 from pioreactor.version import __version__  # noqa: F401
 
 
+def __getattr__(attr):
+    if attr == "plugins":
+        return get_plugins()
+    else:
+        raise AttributeError
+
+
 def get_plugins():
     """
     This function is really time consuming.
@@ -26,6 +33,3 @@ def get_plugins():
         except Exception as e:
             print(f"{plugin.name} plugin load error: {e}")
     return plugins
-
-
-plugins = get_plugins()

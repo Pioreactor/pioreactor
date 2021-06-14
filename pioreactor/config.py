@@ -3,6 +3,16 @@
 import configparser
 import sys
 import os
+from functools import lru_cache
+
+
+def __getattr__(attr):
+    if attr == "config":
+        return get_config()
+    elif attr == "leader_hostname":
+        return get_leader_hostname()
+    else:
+        raise AttributeError
 
 
 def reverse_config_section(section):
@@ -12,6 +22,7 @@ def reverse_config_section(section):
     return {v: k for k, v in section.items()}
 
 
+@lru_cache(1)
 def get_config():
     config = configparser.ConfigParser()
 
@@ -50,21 +61,16 @@ def get_config():
     return config
 
 
-config = get_config()
-
-
 def get_leader_hostname():
-    return config.get("network.topology", "leader_hostname")
+    return get_config().get("network.topology", "leader_hostname")
 
 
 def get_active_workers_in_inventory():
     # because we are not using config.getbool here, values like "0" are seen as true,
     # hence we use the built in config.BOOLEAN_STATES to determine truthiness
+    config = get_config()
     return [
         unit
         for (unit, available) in config["network.inventory"].items()
         if config.BOOLEAN_STATES[available]
     ]
-
-
-leader_hostname = get_leader_hostname()
