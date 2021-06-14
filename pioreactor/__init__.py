@@ -18,11 +18,12 @@ def __getattr__(attr):
 
 def get_plugins():
     """
-    This function is really time consuming.
+    This function is really time consuming...
     """
     Plugin = namedtuple("Plugin", ["module", "description", "version", "homepage"])
 
-    pioreactor_plugins = entry_points().get("pioreactor.plugins", [])
+    eps = entry_points()
+    pioreactor_plugins = eps.select(group="pioreactor.plugins")
     plugins = {}
     for plugin in pioreactor_plugins:
         try:

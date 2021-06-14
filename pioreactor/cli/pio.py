@@ -180,10 +180,10 @@ if am_I_active_worker():
     run.add_command(actions.od_normalization.click_od_normalization)
     run.add_command(actions.od_blank.click_od_blank)
 
-    # for plugin in pioreactor.plugins.values():
-    #    for possible_entry_point in dir(plugin.module):
-    #        if possible_entry_point.startswith("click_"):
-    #            run.add_command(getattr(plugin.module, possible_entry_point))
+    for plugin in pioreactor.plugins.values():
+        for possible_entry_point in dir(plugin.module):
+            if possible_entry_point.startswith("click_"):
+                run.add_command(getattr(plugin.module, possible_entry_point))
 
 
 if am_I_leader():

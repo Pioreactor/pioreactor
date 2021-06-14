@@ -56,10 +56,10 @@ class TemperatureController(BackgroundJob):
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(
-                "Is the Heating PCB attached to the RaspberryPi? Unable to find I²C for temperature driver."
+                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
             raise IOError(
-                "Is the Heating PCB attached to the RaspberryPi? Unable to find I²C for temperature driver."
+                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
 
         self.record_pcb_temperature_timer = RepeatedTimer(
@@ -74,31 +74,6 @@ class TemperatureController(BackgroundJob):
 
         self.pwm = self.setup_pwm()
         self._update_heater(0)
-
-    def set_temperature_automation(self, new_temperature_automation_json):
-        # TODO: this needs a better rollback. Ex: in except, something like
-        # self.temperature_automation_job.set_state("init")
-        # self.temperature_automation_job.set_state("ready")
-        # OR should just bail...
-        algo_init = json.loads(new_temperature_automation_json)
-        new_automation = algo_init.pop("temperature_automation")
-
-        try:
-            self.temperature_automation_job.set_state("disconnected")
-        except AttributeError:
-            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
-            time.sleep(1)
-            self.set_temperature_automation(new_temperature_automation_json)
-
-        try:
-            self.temperature_automation_job = self.automations[new_automation](
-                unit=self.unit, experiment=self.experiment, parent=self, **algo_init
-            )
-            self.temperature_automation = new_automation
-
-        except Exception as e:
-            self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
-            self.logger.warning(f"Change failed because of {str(e)}")
 
     def turn_off_heater(self):
         self._update_heater(0)
@@ -129,15 +104,47 @@ class TemperatureController(BackgroundJob):
     def read_pcb_temperature(self):
         """
         Read the current temperature from our sensor, in Celsius
-
-        TODO: this should raise some error if I'm not able to find the I2C address -> likely
-              the heating PCB is not connected.
         """
-        pcb_temp = self.tmp_driver.get_temperature()
+        try:
+            pcb_temp = self.tmp_driver.get_temperature()
+        except OSError:
+            # could not find temp driver on i2c
+            self.logger.error(
+                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
+            )
+            raise IOError(
+                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
+            )
+
         self._check_if_exceeds_max_temp(pcb_temp)
         return pcb_temp
 
     ##### internal and private methods ########
+
+    def set_temperature_automation(self, new_temperature_automation_json):
+        # TODO: this needs a better rollback. Ex: in except, something like
+        # self.temperature_automation_job.set_state("init")
+        # self.temperature_automation_job.set_state("ready")
+        # OR should just bail...
+        algo_init = json.loads(new_temperature_automation_json)
+        new_automation = algo_init.pop("temperature_automation")
+
+        try:
+            self.temperature_automation_job.set_state("disconnected")
+        except AttributeError:
+            # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
+            time.sleep(1)
+            self.set_temperature_automation(new_temperature_automation_json)
+
+        try:
+            self.temperature_automation_job = self.automations[new_automation](
+                unit=self.unit, experiment=self.experiment, parent=self, **algo_init
+            )
+            self.temperature_automation = new_automation
+
+        except Exception as e:
+            self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
+            self.logger.warning(f"Change failed because of {str(e)}")
 
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
@@ -157,10 +164,18 @@ class TemperatureController(BackgroundJob):
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp):
-        MAX_TEMP_TO_DISABLE_HEATING = 55.0
+        MAX_TEMP_TO_REDUCE_HEATING = 54.0
+        MAX_TEMP_TO_DISABLE_HEATING = 56.0
         MAX_TEMP_TO_SHUTDOWN = 58.0
 
-        if temp > MAX_TEMP_TO_DISABLE_HEATING:
+        if temp > MAX_TEMP_TO_REDUCE_HEATING:
+            self.logger.debug(
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 80%. Take caution when touching the heating surface and wetware."
+            )
+
+            self.update_heater(self.heater_duty_cycle * 0.80)
+
+        elif temp > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
                 f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )

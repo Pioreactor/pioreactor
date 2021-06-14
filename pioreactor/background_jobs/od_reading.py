@@ -168,7 +168,7 @@ class ADCReader(BackgroundSubJob):
             self.ads = ADS.ADS1115(i2c, gain=self.initial_gain, data_rate=self.data_rate)
         except ValueError as e:
             self.logger.error(
-                "Is the Pioreactor hardware installed on the RaspberryPi? Unable to find I²C for ADC measurements."
+                "Is the Pioreactor hardware installed on the Raspberry Pi? Unable to find I²C for ADC measurements."
             )
             self.logger.debug(e, exc_info=True)
             raise e
