@@ -263,10 +263,13 @@ class TemperatureController(BackgroundJob):
         # check if we are using silent, if so, we can short this and return single value?s
 
         # some heuristic for now:
+        import numpy as np
+
         prev_temp = 1_000_000
         for i, temp in enumerate(feature_vector.values()):
             if i > 0:
-                if abs(prev_temp - temp) < 0.1:
+                delta_threshold = 0.1 + 0.2 / (1 + np.exp(-0.15 * (temp - 35)))
+                if abs(prev_temp - temp) < delta_threshold:
                     return (temp + prev_temp) / 2
 
             prev_temp = temp

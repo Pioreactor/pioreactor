@@ -210,12 +210,12 @@ class ADCReader(BackgroundSubJob):
                 break
 
     def on_disconnect(self):
-        for attr in ["first_ads_obs_time", "interval"]:
+        for attr in self.editable_settings:
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
                 None,
                 retain=True,
-                qos=QOS.EXACTLY_ONCE,
+                qos=QOS.AT_LEAST_ONCE,
             )
 
         try:

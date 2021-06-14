@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-import signal, json, time, sys
-from threading import Thread
+from time import sleep
+from json import dumps
+from sys import modules
+from signal import pause
+import select
 
 import click
 
@@ -40,16 +43,19 @@ class Monitor(BackgroundJob):
         self.performance_statistics_timer.start()
 
         # watch for undervoltage problems
-        self.power_watchdog_thread = Thread(
-            target=self.watch_for_power_problems, daemon=True
+        self.power_watchdog_thread = RepeatedTimer(
+            12 * 60 * 60,
+            self.check_for_power_problems,
+            daemon=True,
+            job_name=self.job_name,
         )
         self.power_watchdog_thread.start()
 
         if is_testing_env():
             import fake_rpi
 
-            sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-            sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+            modules["RPi"] = fake_rpi.RPi  # Fake RPi
+            modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
 
         import RPi.GPIO as GPIO
 
@@ -98,7 +104,7 @@ class Monitor(BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down", 1
             )
-            time.sleep(0.05)
+            sleep(0.05)
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
@@ -107,7 +113,7 @@ class Monitor(BackgroundJob):
         )
         self.led_off()
 
-    def watch_for_power_problems(self):
+    def check_for_power_problems(self):
         """
 
         Note: `get_throttled` feature isn't avaialable on the Rpi Zero
@@ -119,61 +125,42 @@ class Monitor(BackgroundJob):
         # TODO: eventually these problems should be surfaced to the user, but they
         # are too noisy atm.
 
-        try:
-            import select
+        def status_to_human_readable(status):
+            hr_status = []
 
-            def status_to_human_readable(status):
-                hr_status = []
+            # if status & 0x40000:
+            #     hr_status.append("Throttling has occurred.")
+            # if status & 0x20000:
+            #     hr_status.append("ARM frequency capping has occurred.")
+            # if status & 0x10000:
+            #     hr_status.append("Undervoltage has occurred.")
+            if status & 0x4:
+                hr_status.append("Active throttling")
+            if status & 0x2:
+                hr_status.append("Active ARM frequency capped")
+            if status & 0x1:
+                hr_status.append("Active undervoltage")
 
-                # if status & 0x40000:
-                #     hr_status.append("Throttling has occurred.")
-                # if status & 0x20000:
-                #     hr_status.append("ARM frequency capping has occurred.")
-                # if status & 0x10000:
-                #     hr_status.append("Undervoltage has occurred.")
-                if status & 0x4:
-                    hr_status.append("Active throttling")
-                if status & 0x2:
-                    hr_status.append("Active ARM frequency capped")
-                if status & 0x1:
-                    hr_status.append("Active undervoltage")
+            hr_status.append(
+                "Suggestion: use a larger external power supply. See docs at: https://pioreactor.com/pages/using-an-external-power-supply"
+            )
+            return ". ".join(hr_status)
 
-                hr_status.append(
-                    "Suggestion: use a larger external power supply. See docs at: https://pioreactor.com/pages/using-an-external-power-supply"
-                )
-                return ". ".join(hr_status)
+        def currently_throttling(status):
+            return (status & 0x2) or (status & 0x1) or (status & 0x4)
 
-            def currently_throttling(status):
-                return (status & 0x2) or (status & 0x1) or (status & 0x4)
+        def non_ignorable_status(status):
+            return (status & 0x1) or (status & 0x4)
 
-            def non_ignorable_status(status):
-                return (status & 0x1) or (status & 0x4)
+        epoll = select.epoll()
+        file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
+        epoll.register(file.fileno(), select.EPOLLPRI | select.EPOLLERR)
+        status = int(file.read(), 16)
 
-            epoll = select.epoll()
-            file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
-            epoll.register(file.fileno(), select.EPOLLPRI | select.EPOLLERR)
-            status = int(file.read(), 16)
-
-            if not currently_throttling(status):
-                self.logger.debug("Power status okay.")
-            else:
-                self.logger.debug(f"Power status: {status_to_human_readable(status)}")
-
-            while True:
-                epoll.poll()
-                file.seek(0)
-                status = int(file.read(), 16)
-                if not currently_throttling(status):
-                    self.logger.debug("Power status okay.")
-                else:
-                    self.logger.debug(f"Power status: {status_to_human_readable(status)}")
-
-            epoll.unregister(file.fileno())
-            file.close()
-
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug(e, exc_info=True)
+        if not currently_throttling(status):
+            self.logger.debug("Power status okay.")
+        else:
+            self.logger.debug(f"Power status: {status_to_human_readable(status)}")
 
     def publish_self_statistics(self):
         import psutil
@@ -204,7 +191,7 @@ class Monitor(BackgroundJob):
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/computer_statistics",
-            json.dumps(
+            dumps(
                 {
                     "disk_usage_percent": disk_usage_percent,
                     "cpu_usage_percent": cpu_usage_percent,
@@ -220,13 +207,13 @@ class Monitor(BackgroundJob):
         for _ in range(4):
 
             self.led_on()
-            time.sleep(0.15)
+            sleep(0.15)
             self.led_off()
-            time.sleep(0.15)
+            sleep(0.15)
             self.led_on()
-            time.sleep(0.15)
+            sleep(0.15)
             self.led_off()
-            time.sleep(0.45)
+            sleep(0.45)
 
     def start_passive_listeners(self):
         self.subscribe_and_callback(
@@ -243,4 +230,4 @@ def click_monitor():
     """
     Monitor(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-    signal.pause()
+    pause()

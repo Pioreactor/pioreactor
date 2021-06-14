@@ -39,7 +39,7 @@ class PIDStable(TemperatureAutomation):
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
-            output_limits=(None, 5),  # only ever increase by 5 DC each turn.
+            output_limits=(None, 10),  # only ever increase DC by a max limit each cycle.
             target_name="temperature",
         )
 
