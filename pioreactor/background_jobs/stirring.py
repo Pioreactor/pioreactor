@@ -11,13 +11,9 @@ from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.pubsub import subscribe
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.pwm import PWM
-
+from pioreactor.utils import clamp
 
 JOB_NAME = "stirring"
-
-
-def clamp(minimum, x, maximum):
-    return max(minimum, min(x, maximum))
 
 
 class Stirrer(BackgroundJob):

@@ -23,7 +23,7 @@ def get_plugins():
     Plugin = namedtuple("Plugin", ["module", "description", "version", "homepage"])
 
     eps = entry_points()
-    pioreactor_plugins = eps.select(group="pioreactor.plugins")
+    pioreactor_plugins = eps.get("pioreactor.plugins", [])
     plugins = {}
     for plugin in pioreactor_plugins:
         try:

@@ -2,6 +2,10 @@
 from pioreactor.whoami import am_I_leader
 
 
+def clamp(minimum, x, maximum):
+    return max(minimum, min(x, maximum))
+
+
 def pio_jobs_running():
     """
     This returns a list of the current pioreactor jobs/actions running. Ex:

@@ -21,10 +21,7 @@ from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
-
-
-def clamp(minimum, x, maximum):
-    return max(minimum, min(x, maximum))
+from pioreactor.utils import clamp
 
 
 class TemperatureController(BackgroundJob):
@@ -63,7 +60,7 @@ class TemperatureController(BackgroundJob):
             )
 
         self.record_pcb_temperature_timer = RepeatedTimer(
-            60, self.read_pcb_temperature, run_immediately=True
+            12, self.read_pcb_temperature, run_immediately=True
         )
         self.record_pcb_temperature_timer.start()
 
@@ -170,7 +167,7 @@ class TemperatureController(BackgroundJob):
 
         if temp > MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 80%. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 80% its current value. Take caution when touching the heating surface and wetware."
             )
 
             self.update_heater(self.heater_duty_cycle * 0.80)
@@ -234,7 +231,7 @@ class TemperatureController(BackgroundJob):
                 previous_heater_dc = self.heater_duty_cycle
                 self._update_heater(0)
 
-                N_sample_points = 25
+                N_sample_points = 20
                 time_between_samples = 10
                 timestamp = current_utc_time()
 

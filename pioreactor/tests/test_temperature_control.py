@@ -81,6 +81,20 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params():
     assert algo.temperature_automation_job.duty_cycle == 30
 
 
+def test_heating_is_reduced_when_set_temp_is_exceeded():
+
+    t = temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    )
+    t.tmp_driver.get_temperature = lambda *args: 55
+
+    t.temperature_automation_job.update_heater(50)
+    assert t.heater_duty_cycle == 50
+    time.sleep(13)
+
+    assert t.heater_duty_cycle == 50 * 0.8
+
+
 def test_heating_stops_when_max_temp_is_exceeded():
 
     t = temperature_control.TemperatureController(

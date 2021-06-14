@@ -4,10 +4,7 @@ from pioreactor.background_jobs.subjobs.temperature_automation import (
 )
 from pioreactor.config import config
 from pioreactor.utils.streaming_calculations import PID
-
-
-def clamp(minimum, x, maximum):
-    return max(minimum, min(x, maximum))
+from pioreactor.utils import clamp
 
 
 class Silent(TemperatureAutomation):
@@ -32,6 +29,7 @@ class PIDStable(TemperatureAutomation):
         self.target_temperature = float(target_temperature)
 
         self.duty_cycle = 5  # TODO: decent starting point...can be smarter in the future
+        self.update_heater(self.duty_cycle)
 
         self.pid = PID(
             Kp=config.getfloat("temperature_automation.pid_stable", "Kp"),
@@ -41,6 +39,7 @@ class PIDStable(TemperatureAutomation):
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
+            output_limits=(None, 5),  # only ever increase by 5 DC each turn.
             target_name="temperature",
         )
 
@@ -48,7 +47,7 @@ class PIDStable(TemperatureAutomation):
         output = self.pid.update(
             self.latest_temperature, dt=1
         )  # 1 represents an arbitrary unit of time. The PID values will scale s.t. 1 makes sense.
-        self.duty_cycle += output
+        self.duty_cycle = clamp(0, self.duty_cycle + output, 100)
         self.logger.debug(f"Updating duty cycle to {self.duty_cycle}")
         self.update_heater(self.duty_cycle)
         return
