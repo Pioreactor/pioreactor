@@ -7,17 +7,12 @@ except ImportError:  # TODO: this is available in 3.8+
 from collections import namedtuple
 
 from pioreactor.version import __version__  # noqa: F401
-from pioreactor.background_jobs import *  # noqa: F401,F403
-
-from pioreactor.actions import *  # noqa: F401,F403
-
-# needed to import to "load" the automation subclasses,
-# and hence the *-controller will register them.
-from pioreactor.automations import *  # noqa: F401,F403
 
 
 def get_plugins():
-
+    """
+    This function is really time consuming.
+    """
     Plugin = namedtuple("Plugin", ["module", "description", "version", "homepage"])
 
     pioreactor_plugins = entry_points().get("pioreactor.plugins", [])
@@ -29,7 +24,7 @@ def get_plugins():
                 plugin.load(), md["Summary"], md["Version"], md["Home-page"]
             )
         except Exception as e:
-            print(e)
+            print(f"{plugin.name} plugin load error: {e}")
     return plugins
 
 

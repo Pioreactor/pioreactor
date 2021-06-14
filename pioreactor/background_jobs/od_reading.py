@@ -175,10 +175,10 @@ class ADCReader(BackgroundSubJob):
 
         for channel in [0, 1, 2, 3]:
             if self.fake_data:
-                from adafruit_ads1x15.analog_in import AnalogIn
-
                 ai = MockAnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             else:
+                from adafruit_ads1x15.analog_in import AnalogIn
+
                 ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
             self.analog_in.append((channel, ai))
 

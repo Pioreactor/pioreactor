@@ -53,6 +53,8 @@ class Monitor(BackgroundJob):
 
         import RPi.GPIO as GPIO
 
+        # what's up with this? I am hiding all the slow imports, but in this case, I need GPIO module
+        # in many functions.
         self.GPIO = GPIO
 
         self.GPIO.setmode(GPIO.BCM)
