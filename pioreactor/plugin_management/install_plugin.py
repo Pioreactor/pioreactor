@@ -21,7 +21,7 @@ def install_plugin(name_of_plugin, url=None):
     if result == 0:
         logger.info(f"Successfully installed plugin {name_of_plugin}.")
     else:
-        logger.error(f"Failed to install plugin {name_of_plugin}.")
+        logger.error(f"Failed to install plugin {name_of_plugin}. See logs.")
 
 
 @click.command(name="install-plugin", short_help="install a plugin")

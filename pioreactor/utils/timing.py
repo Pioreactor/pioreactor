@@ -29,12 +29,28 @@ class RepeatedTimer:
     """
     A class for repeating a function in the background exactly every N seconds.
 
-    Use like:
+    Parameter
+    ----------
 
-    >>thread = RepeatedTimer(seconds_to_wait, callback)
-    >>thread.start()
-    >>...
-    >>thread.cancel()
+    interval: float
+        the number of seconds between calls
+    function: callable
+        the function to call
+    job_name: str
+        the job name that is called RepeatedTimer - will be included in logs
+    run_immediately: bool
+        run function immediately, in a thread
+    args, kwargs:
+        additional arg and kwargs to be passed into function.
+
+
+    Examples
+    ---------
+
+    >> thread = RepeatedTimer(seconds_to_wait, callback)
+    >> thread.start()
+    >> ...
+    >> thread.cancel()
 
     To run a job right away (i.e. don't wait interval seconds), use run_immediately
 
@@ -52,7 +68,9 @@ class RepeatedTimer:
 
         # TODO: should these lines actually go in .start() method? That makes more sense.
         if run_immediately:
-            temp_thread = Timer(0, self.function, self.args, self.kwargs)
+            temp_thread = Timer(
+                0, self.function, self.args, self.kwargs
+            )  # addition args and kwargs are passed to the function
             temp_thread.daemon = True
             temp_thread.start()
 

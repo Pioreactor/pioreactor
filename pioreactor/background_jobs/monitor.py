@@ -46,8 +46,8 @@ class Monitor(BackgroundJob):
         self.power_watchdog_thread = RepeatedTimer(
             12 * 60 * 60,
             self.check_for_power_problems,
-            daemon=True,
             job_name=self.job_name,
+            run_immediately=True,
         )
         self.power_watchdog_thread.start()
 

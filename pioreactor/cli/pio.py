@@ -78,6 +78,7 @@ def kill(job, all_jobs):
         for j in job:
             result = safe_pkill("-f", f"pio run {j}")
             if not result:
+                # TODO: I don't think this works.
                 safe_pkill("-f", f"pio run-always {j}")
 
 

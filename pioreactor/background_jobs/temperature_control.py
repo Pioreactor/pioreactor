@@ -25,6 +25,25 @@ from pioreactor.utils import clamp
 
 
 class TemperatureController(BackgroundJob):
+    """
+
+
+
+    This job publishes to
+
+       pioreactor/<unit>/<experiment>/temperature_control/temperature
+
+    the following:
+
+        {
+            "temperature": <float>,
+            "timestamp": <ISO 8601 timestamp>
+        }
+
+    If you have your own thermocouple, you can publish to this topic, with the same schema
+    and all should just work™️. You'll need to provide your own feedback loops however.
+
+    """
 
     automations = {}
     temperature = None
@@ -59,10 +78,10 @@ class TemperatureController(BackgroundJob):
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
 
-        self.record_pcb_temperature_timer = RepeatedTimer(
-            12, self.read_pcb_temperature, run_immediately=True
+        self.read_external_temperature_timer = RepeatedTimer(
+            12, self.read_external_temperature, run_immediately=True
         )
-        self.record_pcb_temperature_timer.start()
+        self.read_external_temperature_timer.start()
 
         self.publish_temperature_timer = RepeatedTimer(
             10 * 60, self.evaluate_and_publish_temperature
@@ -98,7 +117,7 @@ class TemperatureController(BackgroundJob):
         else:
             return False
 
-    def read_pcb_temperature(self):
+    def read_external_temperature(self):
         """
         Read the current temperature from our sensor, in Celsius
         """
@@ -167,10 +186,10 @@ class TemperatureController(BackgroundJob):
 
         if temp > MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 80% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 95% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self.update_heater(self.heater_duty_cycle * 0.80)
+            self.update_heater(self.heater_duty_cycle * 0.95)
 
         elif temp > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
@@ -225,39 +244,40 @@ class TemperatureController(BackgroundJob):
         5. return heater to previous DC value and unlock heater
         """
         self.logger.debug("evaluate_and_publish_temperature")
-        try:
-            with self.pwm.lock_temporarily():
+        with self.pwm.lock_temporarily():
 
-                previous_heater_dc = self.heater_duty_cycle
-                self._update_heater(0)
+            previous_heater_dc = self.heater_duty_cycle
+            self._update_heater(0)
 
-                N_sample_points = 20
-                time_between_samples = 10
-                timestamp = current_utc_time()
+            N_sample_points = 20
+            time_between_samples = 10
+            timestamp = current_utc_time()
 
-                feature_vector = {}
-                # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
-                # feature_vector['current_dc'] = self.heater_duty_cycle   # in the future, this may be non-zero
+            feature_vector = {}
+            # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
+            # feature_vector['current_dc'] = self.heater_duty_cycle   # in the future, this may be non-zero
 
-                for i in range(N_sample_points):
-                    feature_vector[
-                        f"{time_between_samples * i}s"
-                    ] = self.read_pcb_temperature()
-                    time.sleep(time_between_samples)
+            for i in range(N_sample_points):
+                feature_vector[
+                    f"{time_between_samples * i}s"
+                ] = self.read_external_temperature()
+                time.sleep(time_between_samples)
 
-                self.logger.debug(feature_vector)
+            self.logger.debug(feature_vector)
+
+            try:
                 approximated_temperature = self.approximate_temperature(feature_vector)
+            except Exception as e:
+                self.logger.debug(e, exc_info=True)
+                self.logger.error(e)
 
-                # maybe check for sane values first
-                self.temperature = {
-                    "temperature": approximated_temperature,
-                    "timestamp": timestamp,
-                }
+            # maybe check for sane values first
+            self.temperature = {
+                "temperature": approximated_temperature,
+                "timestamp": timestamp,
+            }
 
-                self._update_heater(previous_heater_dc)
-        except Exception as e:
-            self.logger.debug(e, exc_info=True)
-            self.logger.error(e)
+            self._update_heater(previous_heater_dc)
 
     def approximate_temperature(self, feature_vector):
         # check if we are using silent, if so, we can short this and return single value?s

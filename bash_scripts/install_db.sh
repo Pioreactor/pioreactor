@@ -12,4 +12,4 @@ sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < sql/create_tables.sql
 
 # attempt backup database every N days
 # the below overwrites any existing crons
-echo "0 0 */5 * * /usr/local/bin/pio run backup_database") | crontab -
+echo "0 0 */5 * * /usr/local/bin/pio run backup_database" | crontab -
