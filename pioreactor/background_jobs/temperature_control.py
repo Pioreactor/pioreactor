@@ -84,7 +84,7 @@ class TemperatureController(BackgroundJob):
         self.read_external_temperature_timer.start()
 
         self.publish_temperature_timer = RepeatedTimer(
-            10 * 60, self.evaluate_and_publish_temperature
+            10 * 60, self.evaluate_and_publish_temperature, run_immediately=True
         )
         self.publish_temperature_timer.start()
 
@@ -177,6 +177,7 @@ class TemperatureController(BackgroundJob):
 
     def _update_heater(self, new_duty_cycle):
         self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
+        self.logger.debug(self.heater_duty_cycle)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp):
@@ -243,7 +244,6 @@ class TemperatureController(BackgroundJob):
         4. assign temp to publish to .../temperature
         5. return heater to previous DC value and unlock heater
         """
-        self.logger.debug("evaluate_and_publish_temperature")
         with self.pwm.lock_temporarily():
 
             previous_heater_dc = self.heater_duty_cycle
@@ -294,7 +294,7 @@ class TemperatureController(BackgroundJob):
 
             prev_temp = temp
 
-        return None
+        return temp
 
 
 def run(automation=None, **kwargs):

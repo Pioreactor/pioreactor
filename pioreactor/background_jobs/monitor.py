@@ -44,7 +44,7 @@ class Monitor(BackgroundJob):
 
         # watch for undervoltage problems
         self.power_watchdog_thread = RepeatedTimer(
-            12 * 60 * 60,
+            6 * 60 * 60,
             self.check_for_power_problems,
             job_name=self.job_name,
             run_immediately=True,

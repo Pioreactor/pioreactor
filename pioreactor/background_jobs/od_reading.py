@@ -167,9 +167,7 @@ class ADCReader(BackgroundSubJob):
             # TODO: update this to ADS1015
             self.ads = ADS.ADS1115(i2c, gain=self.initial_gain, data_rate=self.data_rate)
         except ValueError as e:
-            self.logger.error(
-                "Is the Pioreactor hardware installed on the Raspberry Pi? Unable to find I²C for ADC measurements."
-            )
+            self.logger.error(e)
             self.logger.debug(e, exc_info=True)
             raise e
 
@@ -227,6 +225,9 @@ class ADCReader(BackgroundSubJob):
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
 
+        self.current_time = time.time()
+        self.logger.debug(self.current_time - self.prev_time)
+        self.prev_time = self.current_time()
         self.counter += 1
         try:
             max_signal = 0
