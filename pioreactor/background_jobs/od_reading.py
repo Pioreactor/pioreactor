@@ -229,7 +229,7 @@ class ADCReader(BackgroundSubJob):
         self.current_time = time.time()
         if self.prev_time is not None:
             self.logger.debug(self.current_time - self.prev_time)
-        self.prev_time = self.current_time()
+        self.prev_time = self.current_time
         self.counter += 1
         try:
             max_signal = 0
