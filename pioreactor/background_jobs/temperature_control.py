@@ -55,12 +55,6 @@ class TemperatureController(BackgroundJob):
             job_name="temperature_control", unit=unit, experiment=experiment
         )
 
-        self.temperature_automation = temperature_automation
-
-        self.temperature_automation_job = self.automations[self.temperature_automation](
-            unit=self.unit, experiment=self.experiment, parent=self, **kwargs
-        )
-
         try:
             from TMP1075 import TMP1075
         except (NotImplementedError, ModuleNotFoundError):
@@ -78,6 +72,9 @@ class TemperatureController(BackgroundJob):
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
 
+        self.pwm = self.setup_pwm()
+        self.update_heater(0)
+
         self.read_external_temperature_timer = RepeatedTimer(
             12, self.read_external_temperature, run_immediately=True
         )
@@ -88,8 +85,11 @@ class TemperatureController(BackgroundJob):
         )
         self.publish_temperature_timer.start()
 
-        self.pwm = self.setup_pwm()
-        self._update_heater(0)
+        self.temperature_automation = temperature_automation
+
+        self.temperature_automation_job = self.automations[self.temperature_automation](
+            unit=self.unit, experiment=self.experiment, parent=self, **kwargs
+        )
 
     def turn_off_heater(self):
         self._update_heater(0)
@@ -177,7 +177,7 @@ class TemperatureController(BackgroundJob):
 
     def _update_heater(self, new_duty_cycle):
         self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
-        self.logger.debug(self.heater_duty_cycle)
+        self.logger.debug(self.heater_duty_cycle)  # TODO: delete me
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp):
@@ -317,23 +317,22 @@ def run(automation=None, **kwargs):
         raise e
 
 
-@click.command(name="temperature_control")
+@click.command(
+    name="temperature_control",
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+)
 @click.option(
     "--automation",
     default="silent",
     help="set the automation of the system",
     show_default=True,
 )
-@click.option("--target-temperature", default=None, type=float)
-@click.option(
-    "--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only"
-)
-def click_temperature_control(automation, target_temperature, target_growth_rate):
+@click.pass_context
+def click_temperature_control(ctx, automation):
     """
     Start a temperature automation
     """
     controller = run(  # noqa: F841
         automation=automation,
-        target_temperature=target_temperature,
-        target_growth_rate=target_growth_rate,
+        **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )

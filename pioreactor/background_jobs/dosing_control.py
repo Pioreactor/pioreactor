@@ -125,7 +125,6 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
         kwargs["experiment"] = experiment
         kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
-
         controller = DosingController(automation, **kwargs)  # noqa: F841
 
         signal.pause()
@@ -137,16 +136,15 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
         raise e
 
 
-@click.command(name="dosing_control")
+@click.command(
+    name="dosing_control",
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+)
 @click.option(
     "--automation",
     default="silent",
     help="set the automation of the system: turbidostat, morbidostat, silent, etc.",
     show_default=True,
-)
-@click.option("--target-od", default=None, type=float)
-@click.option(
-    "--target-growth-rate", default=None, type=float, help="used in PIDMorbidostat only"
 )
 @click.option(
     "--duration",
@@ -154,25 +152,21 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
     type=float,
     help="Time, in minutes, between every monitor check",
 )
-@click.option("--volume", default=None, help="the volume to exchange, mL", type=float)
 @click.option("--sensor", default="+/+", show_default=True)
 @click.option(
     "--skip-first-run",
     is_flag=True,
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
-def click_dosing_control(
-    automation, target_od, target_growth_rate, duration, volume, sensor, skip_first_run
-):
+@click.pass_context
+def click_dosing_control(ctx, automation, duration, sensor, skip_first_run):
     """
     Start a dosing automation
     """
     controller = run(  # noqa: F841
         automation=automation,
-        target_od=target_od,
-        target_growth_rate=target_growth_rate,
         duration=duration,
-        volume=volume,
         skip_first_run=skip_first_run,
         sensor=sensor,
+        **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
