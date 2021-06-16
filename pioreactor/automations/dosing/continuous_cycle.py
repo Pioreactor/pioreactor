@@ -5,6 +5,7 @@ from pioreactor.automations import events
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
 from pioreactor.config import config
+from pioreactor.utils import clamp
 
 
 class ContinuousCycle(DosingAutomation):
@@ -20,8 +21,16 @@ class ContinuousCycle(DosingAutomation):
     """
 
     key = "continuous_cycle"
-    duty_cycle = 100
     hz = 100
+    editable_settings = ["duty_cycle"]
+
+    def __init__(self, duty_cycle=100, **kwargs):
+        super(ContinuousCycle, self).__init__(**kwargs)
+        self.duty_cycle = duty_cycle
+
+    def set_duty_cycle(self, new_dc):
+        self.duty_cycle = clamp(0, float(new_dc), 100)
+        self.pwm.change_duty_cycle(new_dc)
 
     def run(self):
         if self.state == self.DISCONNECTED:
@@ -54,10 +63,10 @@ class ContinuousCycle(DosingAutomation):
 
     def execute(self, *args, **kwargs):
 
-        pin = PWM_TO_PIN[config.getint("PWM", "media")]
+        pin = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
 
         self.pwm = PWM(pin, self.hz)
         self.pwm.start(self.duty_cycle)
         return events.RunningContinuously(
-            f"Running pump on channel {config.getint('PWM', 'media')} continuously."
+            f"Running pump on channel {config.getint('PWM_reverse', 'media')} continuously"
         )

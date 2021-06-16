@@ -63,7 +63,9 @@ class RepeatedTimer:
         self.function = function
         self.args = args
         self.kwargs = kwargs
-        self.logger = logging.getLogger(job_name or "RepeatedTimer")
+        self.logger = logging.getLogger(
+            job_name or "RepeatedTimer"
+        )  # TODO: I don't think this works as expected.
         self.is_paused = False
 
         # TODO: should these lines actually go in .start() method? That makes more sense.
