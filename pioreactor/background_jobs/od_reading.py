@@ -373,6 +373,7 @@ class ODReader(BackgroundJob):
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
+            self.logger.debug("sneak_in")
             with catchtime() as delta_to_stop:
                 self.stop_ir_led()
 
@@ -408,8 +409,7 @@ class ODReader(BackgroundJob):
             sneak_in,
             run_immediately=False,
             run_after=time_to_next_ads_reading,
-        )
-        self.sneak_in_timer.start()
+        ).start()
 
     def start_ir_led(self):
         r = led_intensity(
