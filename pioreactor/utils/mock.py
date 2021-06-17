@@ -3,7 +3,7 @@
 from json import loads
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
-from rpi_hardware_pwm import HardwarePWM
+from pioreactor.whoami import am_I_active_worker
 import random
 
 
@@ -111,20 +111,24 @@ class MockTMP1075:
         return 3 * math.sin(0.1 * time.time() / 60) + 25 + 0.2 * random.random()
 
 
-class MockHardwarePWM(HardwarePWM):
-    def __init__(self, pwm_channel, hz):
-        self.pwm_channel = pwm_channel
-        self._hz = hz
-        self.pwm_dir = ""
+if am_I_active_worker():
 
-    def is_overlay_loaded(self):
-        return True
+    from rpi_hardware_pwm import HardwarePWM
 
-    def is_export_writable(self):
-        return True
+    class MockHardwarePWM(HardwarePWM):
+        def __init__(self, pwm_channel, hz):
+            self.pwm_channel = pwm_channel
+            self._hz = hz
+            self.pwm_dir = ""
 
-    def does_pwmX_exists(self):
-        return True
+        def is_overlay_loaded(self):
+            return True
 
-    def echo(self, m, fil):
-        pass
+        def is_export_writable(self):
+            return True
+
+        def does_pwmX_exists(self):
+            return True
+
+        def echo(self, m, fil):
+            pass

@@ -171,8 +171,6 @@ install-leader-as-worker: install-leader install-worker
 	printf "duty_cycle=80\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
 	printf "[pump_calibration]" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
 	cp /home/pi/.pioreactor/config_$$(hostname).ini /home/pi/.pioreactor/unit_config.ini ;\
-	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys ;\
-	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts ;\
 	}
 
 	crudini --set ~/.pioreactor/config.ini network.inventory $$(hostname) 1
@@ -192,3 +190,5 @@ install-leader: install-python configure-hostname install-mqtt configure-mqtt co
 	rm -f /home/pi/.ssh/id_rsa
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt install sshpass
+	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys
+	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts
