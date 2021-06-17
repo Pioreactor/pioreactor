@@ -89,10 +89,9 @@ class RepeatedTimer:
         """
         self.event.wait(self.run_after)
 
+        self.start_time = time.time()
         if self.run_immediately:
             self.function(*self.args, **self.kwargs)
-
-        self.start_time = time.time()
 
         while not self.event.wait(self._time):
             if self.is_paused:
