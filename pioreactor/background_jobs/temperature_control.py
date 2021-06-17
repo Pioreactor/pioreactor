@@ -265,19 +265,24 @@ class TemperatureController(BackgroundJob):
 
             self.logger.debug(feature_vector)
 
-            try:
-                approximated_temperature = self.approximate_temperature(feature_vector)
-            except Exception as e:
-                self.logger.debug(e, exc_info=True)
-                self.logger.error(e)
-
-            # maybe check for sane values first
-            self.temperature = {
-                "temperature": approximated_temperature,
-                "timestamp": timestamp,
-            }
-
+            # update heater first, before setting the temperature. Why? A downstream process
+            # might listen for the updating temperature, and update the heater (pid_stable),
+            # and if we update here too late, we may overwrite their changes.
+            # We also want to remove the lock first, so close this context early.
             self._update_heater(previous_heater_dc)
+
+        try:
+            approximated_temperature = self.approximate_temperature(feature_vector)
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(e)
+
+        # TODO: maybe check for sane values first
+
+        self.temperature = {
+            "temperature": approximated_temperature,
+            "timestamp": timestamp,
+        }
 
     def approximate_temperature(self, feature_vector):
         # check if we are using silent, if so, we can short this and return single value?s
