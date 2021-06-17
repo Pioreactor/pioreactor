@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time, logging
 from datetime import datetime
-from threading import Event, Thread, Timer
+from threading import Event, Thread
 from time import perf_counter
 from contextlib import contextmanager
 from pioreactor.whoami import is_testing_env
@@ -39,7 +39,9 @@ class RepeatedTimer:
     job_name: str
         the job name that is called RepeatedTimer - will be included in logs
     run_immediately: bool
-        run function immediately, in a thread
+        The default behaviour is to wait `interval` seconds, and then run. Change this to True to run `func` immediately.
+    run_after: int
+        After calling `start`, wait for `run_after` seconds, then continue as normal. This happens before `run_immediately`.
     args, kwargs:
         additional arg and kwargs to be passed into function.
 
@@ -57,7 +59,14 @@ class RepeatedTimer:
     """
 
     def __init__(
-        self, interval, function, job_name=None, run_immediately=False, *args, **kwargs
+        self,
+        interval,
+        function,
+        job_name=None,
+        run_immediately=False,
+        run_after=None,
+        *args,
+        **kwargs
     ):
         self.interval = interval
         self.function = function
@@ -67,19 +76,24 @@ class RepeatedTimer:
             job_name or "RepeatedTimer"
         )  # TODO: I don't think this works as expected.
         self.is_paused = False
-
-        # TODO: should these lines actually go in .start() method? That makes more sense.
-        if run_immediately:
-            temp_thread = Timer(
-                0, self.function, self.args, self.kwargs
-            )  # addition args and kwargs are passed to the function
-            temp_thread.daemon = True
-            temp_thread.start()
-
+        self.run_after = run_after or 0
+        self.run_immediately = run_immediately
         self.event = Event()
         self.thread = Thread(target=self._target, daemon=True)
 
     def _target(self):
+        """
+        First we wait for run_after seconds (default is 0), then we run the func immediately if requested,
+        and then every N seconds after that, we run func.
+
+        """
+        self.event.wait(self.run_after)
+
+        if self.run_immediately:
+            self.function(*self.args, **self.kwargs)
+
+        self.start_time = time.time()
+
         while not self.event.wait(self._time):
             if self.is_paused:
                 continue
@@ -116,7 +130,6 @@ class RepeatedTimer:
             pass
 
     def start(self):
-        self.start_time = time.time()
         self.thread.start()
         return self
 

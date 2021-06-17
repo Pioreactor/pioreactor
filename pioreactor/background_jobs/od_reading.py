@@ -141,10 +141,12 @@ class ADCReader(BackgroundSubJob):
         self.A3 = None
         self.batched_readings = dict()
 
-        if self.interval:
-            self.timer = RepeatedTimer(self.interval, self.take_reading)
-
         self.setup_adc()
+
+        if self.interval:
+            self.timer = RepeatedTimer(
+                self.interval, self.take_reading, run_immediately=True
+            )
 
     def start_periodic_reading(self):
         # start publishing after `interval` seconds.
@@ -395,13 +397,16 @@ class ODReader(BackgroundJob):
             # if this is too small, like 1.5s, we should just skip this whole thing and keep the IR LED always on.
             return
 
-        self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
-
         time_to_next_ads_reading = ads_interval - (
             (time.time() - ads_start_time) % ads_interval
         )
 
-        time.sleep(time_to_next_ads_reading + post_duration)
+        self.sneak_in_timer = RepeatedTimer(
+            ads_interval,
+            sneak_in,
+            run_immediately=False,
+            run_after=time_to_next_ads_reading,
+        )
         self.sneak_in_timer.start()
 
     def start_ir_led(self):
