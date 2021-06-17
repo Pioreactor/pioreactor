@@ -145,7 +145,7 @@ class ADCReader(BackgroundSubJob):
 
         if self.interval:
             self.timer = RepeatedTimer(
-                self.interval, self.take_reading, run_immediately=False
+                self.interval, self.take_reading, run_immediately=True
             )
 
     def start_periodic_reading(self):
@@ -373,7 +373,7 @@ class ODReader(BackgroundJob):
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
-            self.logger.debug("sneak_in")
+            self.logger.debug("IR OFF")
             with catchtime() as delta_to_stop:
                 self.stop_ir_led()
 
@@ -381,6 +381,7 @@ class ODReader(BackgroundJob):
                 max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
             )
             self.start_ir_led()
+            self.logger.debug("IR ON")
 
         msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
@@ -408,7 +409,7 @@ class ODReader(BackgroundJob):
             ads_interval,
             sneak_in,
             run_immediately=False,
-            run_after=time_to_next_ads_reading,
+            run_after=(time_to_next_ads_reading + post_duration),
         ).start()
 
     def start_ir_led(self):
