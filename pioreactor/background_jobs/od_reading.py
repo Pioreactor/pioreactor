@@ -145,7 +145,7 @@ class ADCReader(BackgroundSubJob):
 
         if self.interval:
             self.timer = RepeatedTimer(
-                self.interval, self.take_reading, run_immediately=True
+                self.interval, self.take_reading, run_immediately=False
             )
 
     def start_periodic_reading(self):
