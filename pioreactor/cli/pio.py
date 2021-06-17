@@ -39,12 +39,14 @@ def logs():
     """
     from sh import tail
     from json import loads
-    from datetime import datetime
+    import time
 
     def cb(msg):
         payload = loads(msg.payload.decode())
+
+        # time module is used below because it is the same that the logging module uses: https://docs.python.org/3/library/logging.html#logging.Formatter.formatTime
         click.echo(
-            f"{datetime.utcnow().isoformat(sep=' ', timespec='seconds')} [{payload['task']}] {payload['level']} {payload['message']}"
+            f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} [{payload['task']}] {payload['level']} {payload['message']}"
         )
 
     click.echo(tail("-n", 100, config["logging"]["log_file"]))
