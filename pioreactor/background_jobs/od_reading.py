@@ -149,7 +149,7 @@ class ADCReader(BackgroundSubJob):
             )
 
     def start_periodic_reading(self):
-        # start publishing after `interval` seconds.
+        # start publishing every `interval` seconds.
         if self.timer:
             self.timer.start()
 
@@ -224,6 +224,7 @@ class ADCReader(BackgroundSubJob):
             pass
 
     def take_reading(self):
+        self.logger.debug(f"take_reading={time.time()}")
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
 
@@ -343,7 +344,6 @@ class ODReader(BackgroundJob):
         self.sub_jobs = [self.adc_reader]
         self.adc_reader.start_periodic_reading()
 
-        # somewhere here we should test the relationship between light and ADC readings
         if stop_IR_led_between_ADC_readings:
             self.set_IR_led_during_ADC_readings()
 
@@ -386,12 +386,13 @@ class ODReader(BackgroundJob):
             timeout=20,
         )
         ads_start_time = float(msg.payload) if msg and msg.payload else 0
-
+        self.logger.debug(f"ads_start_time={ads_start_time}")
         msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval", timeout=20
         )
 
         ads_interval = float(msg.payload) if msg and msg.payload else 0
+        self.logger.debug(f"ads_interval={ads_interval}")
 
         if ads_interval < 1.5:
             # if this is too small, like 1.5s, we should just skip this whole thing and keep the IR LED always on.
@@ -400,6 +401,7 @@ class ODReader(BackgroundJob):
         time_to_next_ads_reading = ads_interval - (
             (time.time() - ads_start_time) % ads_interval
         )
+        self.logger.debug(f"time_to_next_ads_reading={time_to_next_ads_reading}")
 
         self.sneak_in_timer = RepeatedTimer(
             ads_interval,
@@ -425,16 +427,15 @@ class ODReader(BackgroundJob):
         return
 
     def stop_ir_led(self):
-        if not self.fake_data:
-            led_intensity(
-                self.ir_channel,
-                intensity=0,
-                unit=self.unit,
-                experiment=self.experiment,
-                source_of_event=self.job_name,
-                verbose=False,
-                mock=self.fake_data,
-            )
+        led_intensity(
+            self.ir_channel,
+            intensity=0,
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            verbose=False,
+            mock=self.fake_data,
+        )
 
     def on_sleeping(self):
         self.sneak_in_timer.pause()
