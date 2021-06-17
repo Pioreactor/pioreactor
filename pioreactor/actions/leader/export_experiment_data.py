@@ -26,6 +26,7 @@ def filter_to_timestamp_columns(column_names):
 
 
 def generate_timestamp_to_localtimestamp_clause(cursor, table_name):
+    # TODO: this assumes a timestamp column exists?
     columns = get_column_names(cursor, table_name)
     timestamp_columns = filter_to_timestamp_columns(columns)
     clause = ",".join(
@@ -56,7 +57,7 @@ def export_experiment_data(experiment, output, tables):
     for table in tables:
         cursor = con.cursor()
 
-        # so apparently, you can't parameterise the table name in python's sqlite3, so I
+        # so apparently, you can't parameterize the table name in python's sqlite3, so I
         # have to use string formatting (SQL-injection vector), but first check that the table exists (else fail)
         if not exists_table(cursor, table):
             raise ValueError(f"Table {table} does not exist.")
@@ -64,15 +65,16 @@ def export_experiment_data(experiment, output, tables):
         timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
             cursor, table
         )
+        order_by = next(filter_to_timestamp_columns(get_column_names(cursor, table)))
 
         if experiment is None:
-            query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table}"
-            cursor.execute(query)
+            query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
+            cursor.execute(query, {"order_by": order_by})
             _filename = f"{table}-{time}.dump.csv".replace(" ", "_")
 
         else:
-            query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment"
-            cursor.execute(query, {"experiment": experiment})
+            query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
+            cursor.execute(query, {"experiment": experiment, "order_by": order_by})
             _filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
 
         path_to_file = os.path.join(os.path.dirname(output), _filename)
