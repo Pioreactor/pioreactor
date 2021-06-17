@@ -226,7 +226,6 @@ class ADCReader(BackgroundSubJob):
             pass
 
     def take_reading(self):
-        self.logger.debug(f"take_reading={time.time()}")
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
 
@@ -375,7 +374,6 @@ class ODReader(BackgroundJob):
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
-            self.logger.debug("IR OFF")
             with catchtime() as delta_to_stop:
                 self.stop_ir_led()
 
@@ -383,20 +381,17 @@ class ODReader(BackgroundJob):
                 max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
             )
             self.start_ir_led()
-            self.logger.debug("IR ON")
 
         msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
             timeout=20,
         )
         ads_start_time = float(msg.payload) if msg and msg.payload else 0
-        self.logger.debug(f"ads_start_time={ads_start_time}")
         msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval", timeout=20
         )
 
         ads_interval = float(msg.payload) if msg and msg.payload else 0
-        self.logger.debug(f"ads_interval={ads_interval}")
 
         if ads_interval < 1.5:
             # if this is too small, like 1.5s, we should just skip this whole thing and keep the IR LED always on.
@@ -405,7 +400,6 @@ class ODReader(BackgroundJob):
         time_to_next_ads_reading = ads_interval - (
             (time.time() - ads_start_time) % ads_interval
         )
-        self.logger.debug(f"time_to_next_ads_reading={time_to_next_ads_reading}")
 
         self.sneak_in_timer = RepeatedTimer(
             ads_interval,
