@@ -28,8 +28,10 @@ class PIDStable(TemperatureAutomation):
         assert target_temperature is not None
         self.target_temperature = float(target_temperature)
 
-        self.duty_cycle = 5  # TODO: decent starting point...can be smarter in the future
-        self.update_heater(self.duty_cycle)
+        initial_duty_cycle = (
+            10
+        )  # TODO: decent starting point...can be smarter in the future
+        self.update_heater(initial_duty_cycle)
 
         self.pid = PID(
             Kp=config.getfloat("temperature_automation.pid_stable", "Kp"),
@@ -46,10 +48,8 @@ class PIDStable(TemperatureAutomation):
     def execute(self):
         output = self.pid.update(
             self.latest_temperature, dt=1
-        )  # 1 represents an arbitrary unit of time. The PID values will scale s.t. 1 makes sense.
-        self.duty_cycle = clamp(0, self.duty_cycle + output, 100)
-        self.logger.debug(f"Updating duty cycle to {self.duty_cycle}")
-        self.update_heater(self.duty_cycle)
+        )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
+        self.update_heater_with_delta(output)
         return
 
     def set_target_temperature(self, value):

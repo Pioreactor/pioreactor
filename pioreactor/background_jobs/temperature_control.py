@@ -109,13 +109,21 @@ class TemperatureController(BackgroundJob):
         """
 
         # TODO: new_duty_cycle should be capped at some value (since 100 will certainly push us over the temp maximum).
-        # Q: how will this effect PID controllers?
 
         if not self.pwm.is_locked():
             self._update_heater(new_duty_cycle)
             return True
         else:
             return False
+
+    def update_heater_with_delta(self, delta_duty_cycle):
+        """
+        Update heater's duty cycle by `delta_duty_cycle` amount. This function checks for the PWM lock, and will not
+        update if the PWM is locked.
+
+        Returns true if the update was made (eg: no lock), else returns false
+        """
+        return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
 
     def read_external_temperature(self):
         """
@@ -187,10 +195,10 @@ class TemperatureController(BackgroundJob):
 
         if temp > MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 95% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self.update_heater(self.heater_duty_cycle * 0.95)
+            self.update_heater(self.heater_duty_cycle * 0.90)
 
         elif temp > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
