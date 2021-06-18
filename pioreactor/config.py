@@ -7,6 +7,10 @@ from functools import lru_cache
 
 
 def __getattr__(attr):
+    """
+    This dynamically creates the module level variables, so if
+    we don't call them, they are never created, saving time - mostly in the CLI.
+    """
     if attr == "config":
         return get_config()
     elif attr == "leader_hostname":
@@ -24,6 +28,34 @@ def reverse_config_section(section):
 
 @lru_cache(1)
 def get_config():
+    """
+    This function intializes the configuration logic for the Pioreactor cluster.
+
+    Locally, `config.ini` configurations can be overwritten by `unit_config.ini` (hence the very
+    specific order we use in `config.read`)
+
+    We also insert some **dynamic** config sections: PWM_reverse and leds_reverse. Ex: `PWM` is
+    designed for users to edit:
+
+        [PWM]
+        0=stirring
+        1=heating
+        2=alt_media
+        3=waste
+        4=media
+
+
+    and `PWM_reverse` is easier for computers to access (Note this is not in the config.ini file, but only in memory)
+
+        [PWM_reverse]
+        stirring=0
+        heating=1
+        alt_media=2
+        waste=3
+        media=4
+
+
+    """
     config = configparser.ConfigParser()
 
     # https://stackoverflow.com/a/19359720/1895939
@@ -54,13 +86,14 @@ def get_config():
             )
             config.read([global_config_path])
 
-    # some helpful additions
+    # some helpful additions - see docs above
     config["leds_reverse"] = reverse_config_section(config["leds"])
     config["PWM_reverse"] = reverse_config_section(config["PWM"])
 
     return config
 
 
+@lru_cache(1)
 def get_leader_hostname():
     return get_config().get("network.topology", "leader_hostname")
 

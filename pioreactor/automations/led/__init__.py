@@ -47,9 +47,7 @@ class FlashUV(LEDAutomation):
 
     def __init__(self, **kwargs):
         super(FlashUV, self).__init__(**kwargs)
-        self.uv_led = config.get(
-            "leds", "uv"
-        )  # TODO: update to new led config.ini syntax
+        self.uv_led = config.get("leds_reverse", "uv")
         self.set_led_intensity(self.uv_led, 0)
 
     def execute(self, *args, **kwargs) -> events.Event:

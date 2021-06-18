@@ -145,9 +145,7 @@ class ADCReader(BackgroundSubJob):
 
         if self.interval:
             self.timer = RepeatedTimer(
-                self.interval,
-                self.take_reading,
-                run_immediately=True,  # run_immediately should be false, less it messes up downstream process who are sensitive to timing
+                self.interval, self.take_reading, run_immediately=True
             )
 
     def start_periodic_reading(self):
@@ -369,8 +367,8 @@ class ODReader(BackgroundJob):
         """
 
         post_duration = (
-            0.6
-        )  # can be lowered to < 0.3 safely I believe since each reading takes 1/8=0.125 seconds
+            0.7
+        )  # TODO: can be lowered to < 0.3 safely, I believe, since each reading takes 1/8=0.125 seconds
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
