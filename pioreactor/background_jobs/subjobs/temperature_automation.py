@@ -61,6 +61,15 @@ class TemperatureAutomation(BackgroundSubJob):
         """
         return self.temperature_control_parent.update_heater(new_duty_cycle)
 
+    def update_heater_with_delta(self, delta_duty_cycle):
+        """
+        Update heater's duty cycle. This function checks for a lock on the PWM, and will not
+        update if the PWM is locked.
+
+        Returns true if the update was made (eg: no lock), else returns false
+        """
+        return self.temperature_control_parent.update_heater_with_delta(delta_duty_cycle)
+
     def execute(self):
         raise NotImplementedError
 
