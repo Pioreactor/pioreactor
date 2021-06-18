@@ -238,7 +238,7 @@ class TemperatureController(BackgroundJob):
         self.pwm.cleanup()
 
     def setup_pwm(self):
-        hertz = 4
+        hertz = 1000
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(0)
