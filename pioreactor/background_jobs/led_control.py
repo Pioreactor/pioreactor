@@ -89,19 +89,18 @@ class LEDController(BackgroundJob):
             )
 
 
-def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **kwargs):
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
-
+def run(automation=None, duration=None, skip_first_run=False, **kwargs):
     try:
 
         kwargs["duration"] = duration
-        kwargs["unit"] = unit
-        kwargs["experiment"] = experiment
-        kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
 
-        controller = LEDController(automation, **kwargs)  # noqa: F841
+        LEDController(
+            automation,
+            unit=get_unit_name(),
+            experiment=get_latest_experiment_name(),
+            **kwargs,
+        )
 
         signal.pause()
 
@@ -125,21 +124,19 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
 @click.option(
     "--duration", default=60, help="Time, in minutes, between every monitor check"
 )
-@click.option("--sensor", default="+/+", show_default=True)
 @click.option(
     "--skip-first-run",
     is_flag=True,
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_led_control(ctx, automation, duration, sensor, skip_first_run):
+def click_led_control(ctx, automation, duration, skip_first_run):
     """
     Start an LED automation
     """
-    controller = run(  # noqa: F841
+    run(  # noqa: F841
         automation=automation,
         duration=duration,
         skip_first_run=skip_first_run,
-        sensor=sensor,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )

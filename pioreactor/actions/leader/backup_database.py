@@ -5,7 +5,6 @@ import click
 from pioreactor.config import config, get_active_workers_in_inventory
 from pioreactor.whoami import get_unit_name
 from pioreactor.logging import create_logger
-from pioreactor.utils import pio_jobs_running
 from pioreactor.utils.timing import current_utc_time
 
 
@@ -23,30 +22,21 @@ def backup_database(output, force):
     Elsewhere, a cronjob is set up as well to run this action every N days.
 
     """
-    logger = create_logger("backup_database")
-
-    # Skip if in an experiment. See issue #81
-    if ("od_reading" in pio_jobs_running()) and (not force):
-
-        # however, let's check to see how old the last backup is and alert the user if too old.
-        if os.path.isfile(LAST_BACKUP_TIMESTAMP_PATH):
-            with open(LAST_BACKUP_TIMESTAMP_PATH, "r") as f:
-                latest_backup_at = datetime.datetime.strptime(
-                    f.read(), "%Y-%m-%dT%H:%M:%S.%f"
-                )
-
-            if (datetime.utcnow() - latest_backup_at).days > 30:
-                logger.warning(
-                    "Database hasn't been backed up in over 30 days. It is being blocked by the `od_reading` job constantly on."
-                )
-
-        logger.debug(
-            "Skipping backing up database because od_reading is running. See issue #81 in Github."
-        )
-        return
 
     import sqlite3
     from sh import rsync, ErrorReturnCode
+
+    logger = create_logger("backup_database")
+
+    # let's check to see how old the last backup is and alert the user if too old.
+    if os.path.isfile(LAST_BACKUP_TIMESTAMP_PATH):
+        with open(LAST_BACKUP_TIMESTAMP_PATH, "r") as f:
+            latest_backup_at = datetime.datetime.strptime(
+                f.read(), "%Y-%m-%dT%H:%M:%S.%f"
+            )
+
+        if (datetime.utcnow() - latest_backup_at).days > 30:
+            logger.warning("Database hasn't been backed up in over 30 days. Running now.")
 
     def progress(status, remaining, total):
         logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
@@ -95,7 +85,6 @@ def backup_database(output, force):
 
 @click.command(name="backup_database")
 @click.option("--output", default="/home/pi/.pioreactor/pioreactor.sqlite.backup")
-@click.option("-f", "--force", is_flag=True, help="force a database backup")
 def click_backup_database(output, force):
     """
     (leader only) Backup db to workers.

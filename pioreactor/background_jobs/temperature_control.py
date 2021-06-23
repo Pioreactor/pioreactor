@@ -27,8 +27,6 @@ from pioreactor.utils import clamp
 class TemperatureController(BackgroundJob):
     """
 
-
-
     This job publishes to
 
        pioreactor/<unit>/<experiment>/temperature_control/temperature
@@ -40,7 +38,7 @@ class TemperatureController(BackgroundJob):
             "timestamp": <ISO 8601 timestamp>
         }
 
-    If you have your own thermocouple, you can publish to this topic, with the same schema
+    If you have your own thermo-couple, you can publish to this topic, with the same schema
     and all should just work™️. You'll need to provide your own feedback loops however.
 
     """
@@ -58,7 +56,7 @@ class TemperatureController(BackgroundJob):
         try:
             from TMP1075 import TMP1075
         except (NotImplementedError, ModuleNotFoundError):
-            self.logger.debug("TMP1075 not available; using MockTMP1075")
+            self.logger.info("TMP1075 not available; using MockTMP1075")
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
 
         try:
@@ -174,7 +172,7 @@ class TemperatureController(BackgroundJob):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         # TODO: this could move to the base class
         for attr in self.editable_settings:
-            if attr in ["state", "temperature"]:
+            if attr in ["state"]:
                 continue
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
@@ -227,18 +225,19 @@ class TemperatureController(BackgroundJob):
             self.temperature_automation_job.set_state(self.DISCONNECTED)
         except AttributeError:
             # if disconnect is called right after starting, temperature_automation_job isn't instantiated
-            # time.sleep(1)
-            # self.on_disconnect()
-            # return
+            pass
+
+        try:
+            self._update_heater(0)
+            self.pwm.stop()
+            self.pwm.cleanup()
+        except AttributeError:
             pass
 
         self.clear_mqtt_cache()
-        self._update_heater(0)
-        self.pwm.stop()
-        self.pwm.cleanup()
 
     def setup_pwm(self):
-        hertz = 1000
+        hertz = 5
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(0)
@@ -263,7 +262,6 @@ class TemperatureController(BackgroundJob):
 
             feature_vector = {}
             # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
-            # feature_vector['current_dc'] = self.heater_duty_cycle   # in the future, this may be non-zero
 
             for i in range(N_sample_points):
                 feature_vector[
@@ -284,8 +282,6 @@ class TemperatureController(BackgroundJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
-
-        # TODO: maybe check for sane values first
 
         self.temperature = {
             "temperature": approximated_temperature,
@@ -310,19 +306,16 @@ class TemperatureController(BackgroundJob):
         return temp
 
 
-def run(automation=None, **kwargs):
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
-
+def run(automation, **kwargs):
     try:
-
-        kwargs["unit"] = unit
-        kwargs["experiment"] = experiment
-
-        controller = TemperatureController(automation, **kwargs)  # noqa: F841
+        TemperatureController(
+            automation,
+            unit=get_unit_name(),
+            experiment=get_latest_experiment_name(),
+            **kwargs,
+        )
 
         signal.pause()
-
     except Exception as e:
         logger = create_logger("temperature_automation")
         logger.error(e)
@@ -343,9 +336,9 @@ def run(automation=None, **kwargs):
 @click.pass_context
 def click_temperature_control(ctx, automation):
     """
-    Start a temperature automation
+    Start a temperature automation.
     """
-    controller = run(  # noqa: F841
+    run(  # noqa: F841
         automation=automation,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )

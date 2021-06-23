@@ -539,6 +539,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if (name in self.editable_settings) and hasattr(self, name):
             self.publish_attr(name)
 
+    def __exit__(self):
+        self.disconnected()
+
 
 class BackgroundJob(_BackgroundJob):
     def __init__(self, *args, **kwargs):

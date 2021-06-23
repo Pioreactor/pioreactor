@@ -47,11 +47,11 @@ class LEDAutomation(BackgroundSubJob):
 
     def __init__(
         self,
-        unit=None,
-        experiment=None,
         duration=None,
         od_channel="+",
         skip_first_run=False,
+        unit=None,
+        experiment=None,
         **kwargs,
     ):
         super(LEDAutomation, self).__init__(

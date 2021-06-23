@@ -48,6 +48,7 @@ class Stirrer(BackgroundJob):
         self.set_dc_increase_between_adc_readings(dc_increase_between_adc_readings)
 
         self.pwm = PWM(self.pin, hertz)
+        self.pwm.lock()
         self.set_duty_cycle(duty_cycle)
         self.start_stirring()
 

@@ -122,7 +122,7 @@ class DosingController(BackgroundJob):
             )
 
 
-def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **kwargs):
+def run(automation=None, duration=None, skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -131,7 +131,6 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
         kwargs["duration"] = duration
         kwargs["unit"] = unit
         kwargs["experiment"] = experiment
-        kwargs["sensor"] = sensor
         kwargs["skip_first_run"] = skip_first_run
         controller = DosingController(automation, **kwargs)  # noqa: F841
 
@@ -160,14 +159,13 @@ def run(automation=None, duration=None, sensor="135/0", skip_first_run=False, **
     type=float,
     help="Time, in minutes, between every monitor check",
 )
-@click.option("--sensor", default="+/+", show_default=True)
 @click.option(
     "--skip-first-run",
     is_flag=True,
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_dosing_control(ctx, automation, duration, sensor, skip_first_run):
+def click_dosing_control(ctx, automation, duration, skip_first_run):
     """
     Start a dosing automation
     """
@@ -175,6 +173,5 @@ def click_dosing_control(ctx, automation, duration, sensor, skip_first_run):
         automation=automation,
         duration=duration,
         skip_first_run=skip_first_run,
-        sensor=sensor,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )

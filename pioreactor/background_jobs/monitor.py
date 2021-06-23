@@ -74,6 +74,7 @@ class Monitor(BackgroundJob):
         self.start_passive_listeners()
 
     def on_ready(self):
+        self.logger.info(f"{self.unit} online and ready.")
         self.flicker_led()
 
     def on_disconnect(self):
@@ -116,7 +117,7 @@ class Monitor(BackgroundJob):
     def check_for_power_problems(self):
         """
 
-        Note: `get_throttled` feature isn't avaialable on the Rpi Zero
+        Note: `get_throttled` feature isn't available on the Rpi Zero
 
         Sourced from https://github.com/raspberrypi/linux/pull/2397
          and https://github.com/N2Github/Proje

@@ -33,10 +33,10 @@ class PWM:
     > pwm.lock()
     > pwm.is_locked() # true, and will be true for any other PWM on this channel.
     > pwm.unlock()
-    > pwm.is_locked() # false, .cleanup() will also unlock.
+    > pwm.is_locked() # false, .cleanup() and Python's deconstruction will also unlock.
     >
     > with pwm.lock_temporarily():
-    >    # do stuff, will unlock on exit.
+    >    # do stuff, will unlock on exit of context statement.
     >
     """
 
@@ -73,6 +73,12 @@ class PWM:
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT)
             GPIO.output(self.pin, 0)
+
+            if hz > 5000:
+                self.logger.warning(
+                    "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
+                )
+
             self.pwm = GPIO.PWM(self.pin, hz)
 
         self.logger.debug(

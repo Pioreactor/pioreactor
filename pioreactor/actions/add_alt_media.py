@@ -72,6 +72,7 @@ def add_alt_media(
         ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "alt_media")]
 
         pwm = PWM(ALT_MEDIA_PIN, hz)
+        pwm.lock()
 
         pwm.start(duty_cycle)
 

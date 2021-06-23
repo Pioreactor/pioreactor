@@ -65,7 +65,9 @@ def export_experiment_data(experiment, output, tables):
         timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
             cursor, table
         )
-        order_by = next(filter_to_timestamp_columns(get_column_names(cursor, table)))
+        order_by = filter_to_timestamp_columns(
+            get_column_names(cursor, table)
+        ).pop()  # just take first...
 
         if experiment is None:
             query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"

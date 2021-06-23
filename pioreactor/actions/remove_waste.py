@@ -72,6 +72,7 @@ def remove_waste(
 
         WASTE_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "waste")]
         pwm = PWM(WASTE_PIN, hz)
+        pwm.lock()
 
         pwm.start(duty_cycle)
         time.sleep(duration)
