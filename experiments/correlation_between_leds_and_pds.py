@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     INTENSITIES = list(range(0, 105, 5))
     unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    experiment = f"{get_latest_experiment_name()}-test"
     results = {}
 
     adc_reader = ADCReader(
@@ -60,8 +60,10 @@ if __name__ == "__main__":
             # Add to accumulating list
             varying_intensity_results["A0"].append(adc_reader.A0["voltage"])
             varying_intensity_results["A1"].append(adc_reader.A1["voltage"])
+            varying_intensity_results["A2"].append(adc_reader.A2["voltage"])
+            varying_intensity_results["A3"].append(adc_reader.A3["voltage"])
             print(
-                f"Channel {channel} at {intensity}%. AO: {adc_reader.A0}, A1: {adc_reader.A1}"
+                f"Channel {channel} at {intensity}%. AO: {adc_reader.A0}, A1: {adc_reader.A1}, A2: {adc_reader.A2}, A3: {adc_reader.A3}"
             )
 
         # compute the linear correlation between the intensities and observed PD measurements
@@ -70,6 +72,14 @@ if __name__ == "__main__":
         )
         results[("A1", channel)] = correlation(
             INTENSITIES, varying_intensity_results["A1"]
+        )
+
+        results[("A2", channel)] = correlation(
+            INTENSITIES, varying_intensity_results["A2"]
+        )
+
+        results[("A3", channel)] = correlation(
+            INTENSITIES, varying_intensity_results["A3"]
         )
 
         # set back to 0
