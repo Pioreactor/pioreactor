@@ -515,17 +515,17 @@ def create_channel_angle_map(
     # Inputs are either None, or a string like "135", "90,45", ...
     # Example return dict: {"A0": "90,135/0", "A1": "45,135/1", "A3":"90/3"}
     channel_angle_map = {}
-    if od_angle_channel0 is not None:
+    if od_angle_channel0:
         # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
         channel_angle_map["A0"] = od_angle_channel0
 
-    if od_angle_channel1 is not None:
+    if od_angle_channel1:
         channel_angle_map["A1"] = od_angle_channel1
 
-    if od_angle_channel2 is not None:
+    if od_angle_channel2:
         channel_angle_map["A2"] = od_angle_channel2
 
-    if od_angle_channel3 is not None:
+    if od_angle_channel3:
         channel_angle_map["A3"] = od_angle_channel3
 
     return channel_angle_map

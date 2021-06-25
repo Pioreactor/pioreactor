@@ -57,6 +57,12 @@ def led_intensity(
         dac = DAC43608()
         dac.power_up(getattr(dac, channel))
         dac.set_intensity_to(getattr(dac, channel), intensity / 100)
+
+        if intensity == 0:
+            # setting to 0 doesn't fully remove the current, there is some residual current. We turn off
+            # the channel to guarantee no output.
+            dac.power_down(getattr(dac, channel))
+
     except ValueError as e:
         logger.debug(e, exc_info=True)
         logger.error(
