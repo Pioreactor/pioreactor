@@ -63,7 +63,7 @@ if __name__ == "__main__":
             varying_intensity_results["A2"].append(adc_reader.A2["voltage"])
             varying_intensity_results["A3"].append(adc_reader.A3["voltage"])
             print(
-                f"Channel {channel} at {intensity}%. AO: {adc_reader.A0}, A1: {adc_reader.A1}, A2: {adc_reader.A2}, A3: {adc_reader.A3}"
+                f"Channel {channel} at {intensity}%. AO: {adc_reader.A0['voltage']}, A1: {adc_reader.A1['voltage']}, A2: {adc_reader.A2['voltage']}, A3: {adc_reader.A3['voltage']}"
             )
 
         # compute the linear correlation between the intensities and observed PD measurements
@@ -86,5 +86,8 @@ if __name__ == "__main__":
         led_intensity(
             channel, intensity=0, unit=unit, experiment=experiment, verbose=False
         )
+        import time
+
+        time.sleep(5)
 
     print(results)
