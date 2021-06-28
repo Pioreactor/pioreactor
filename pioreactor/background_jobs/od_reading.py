@@ -59,7 +59,7 @@ import signal
 import click
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, catchtime, current_utc_time
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
@@ -601,5 +601,5 @@ def click_od_reading(
         od_angle_channel1,
         od_angle_channel2,
         od_angle_channel3,
-        fake_data=fake_data,
+        fake_data=fake_data or is_testing_env(),
     )

@@ -6,6 +6,24 @@ def clamp(minimum, x, maximum):
     return max(minimum, min(x, maximum))
 
 
+def correlation(x, y):
+    from statistics import stdev, mean
+
+    mean_x, std_x = mean(x), stdev(x)
+    mean_y, std_y = mean(y), stdev(y)
+
+    if (std_y == 0) or (std_x == 0):
+        return 0
+
+    running_sum = 0
+    running_count = 0
+    for (x_, y_) in zip(x, y):
+        running_sum += (x_ - mean_x) * (y_ - mean_y)
+        running_count += 1
+
+    return (running_sum / running_count) / std_y / std_x
+
+
 def pio_jobs_running():
     """
     This returns a list of the current pioreactor jobs/actions running. Ex:

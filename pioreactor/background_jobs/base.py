@@ -373,13 +373,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.set_state(self.DISCONNECTED)
 
         def exit_python(*args):
-            self.logger.debug("Calling sys.exit(0)")
 
             # don't exit in test mode
             # don't kill yourself if in a shell like `python3` or `ipython`
             if is_testing_env() or not sys.stdout.isatty():
                 return
             else:
+                self.logger.debug("Calling sys.exit(0)")
                 sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,
@@ -400,7 +400,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def init(self):
         self.state = self.INIT
-        import time
 
         self.logger.debug("Initializing")
 
@@ -417,8 +416,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.set_up_exit_protocol()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
-
-        time.sleep(10)
 
         try:
             # we delay the specific on_init until after we have done our important protocols.

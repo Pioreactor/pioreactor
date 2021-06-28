@@ -8,6 +8,11 @@ UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
 
 
+def get_latest_testing_experiment_name():
+    exp = get_latest_experiment_name()
+    return f"testing_{exp}"
+
+
 @lru_cache(maxsize=1)
 def get_latest_experiment_name():
 
