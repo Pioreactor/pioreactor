@@ -62,12 +62,12 @@ def check_temperature_and_heating(unit, experiment):
     dcs = list(range(0, 50, 5))
 
     for dc in dcs:
-        tc.update_heater(dc)
+        tc._update_heater(dc)
         time.sleep(1)
         measured_pcb_temps.append(tc.read_external_temperature())
         print(dc, measured_pcb_temps)
 
-    tc.update_heater(0)
+    tc._update_heater(0)
 
     publish(
         f"pioreactor/{unit}/{experiment}/system_check/positive_correlation_between_temp_and_heating",
