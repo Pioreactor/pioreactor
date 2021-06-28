@@ -21,18 +21,20 @@ install-i2c:
 	echo "i2c-dev"               | sudo tee /etc/modules -a
 
 systemd-all:
-	sudo systemctl enable pioreactor_startup@monitor.service
+	sudo systemctl enable pioreactor_startup_run_always@monitor.service
 
 systemd-worker:
-	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup@.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup_run_always@.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup_run@.service /lib/systemd/system/
 	sudo systemctl daemon-reload
 
 systemd-leader:
-	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup@.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup_run_always@.service /lib/systemd/system/
+	sudo cp /home/pi/pioreactor/system/systemd/pioreactor_startup_run@.service /lib/systemd/system/
 
 	sudo systemctl daemon-reload
-	sudo systemctl enable pioreactor_startup@mqtt_to_db_streaming.service
-	sudo systemctl enable pioreactor_startup@watchdog.service
+	sudo systemctl enable pioreactor_startup_run_always@mqtt_to_db_streaming.service
+	sudo systemctl enable pioreactor_startup_run_always@watchdog.service
 
 	sudo cp /home/pi/pioreactor/system/systemd/start_pioreactorui.service /lib/systemd/system/
 	sudo chmod 644 /lib/systemd/system/start_pioreactorui.service

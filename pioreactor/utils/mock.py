@@ -100,6 +100,9 @@ class MockDAC43608:
     def power_up(*args):
         pass
 
+    def power_down(*args):
+        pass
+
 
 class MockTMP1075:
     def __init__(*args):

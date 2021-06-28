@@ -400,13 +400,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def init(self):
         self.state = self.INIT
-        try:
-            self.on_init()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug(e, exc_info=True)
+        import time
 
-        self.logger.debug("Initializing.")
+        self.logger.debug("Initializing")
 
         if threading.current_thread() is not threading.main_thread():
             # if we re-init (via MQTT, close previous threads), but don't do this in main thread
@@ -421,6 +417,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.set_up_exit_protocol()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
+
+        time.sleep(10)
+
+        try:
+            # we delay the specific on_init until after we have done our important protocols.
+            self.on_init()
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
 
     def ready(self):
         self.state = self.READY
@@ -453,7 +458,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         try:
             self.on_disconnect()  # TODO: shouldn't this be is_disconnected
         except Exception as e:
-            self.logger.error(e)
+            # since on_disconnected errors are common (see point below), we don't bother
+            # making the visible to the user.
+            # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
 
         self.logger.info("Disconnected.")
@@ -525,6 +532,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
                 f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
             ],
+            allow_retained=False,
         )
 
     def check_for_duplicate_process(self):

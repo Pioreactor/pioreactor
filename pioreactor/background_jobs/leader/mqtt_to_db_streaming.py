@@ -76,7 +76,14 @@ class MqttToDBStreamer(BackgroundJob):
 
     def create_on_message_callback(self, parser, table):
         def _callback(message):
-            cols_to_values = parser(message.topic, message.payload)
+
+            try:
+                cols_to_values = parser(message.topic, message.payload)
+            except Exception as e:
+                self.logger.debug(
+                    f"message.payload that caused error: `{message.payload}`"
+                )
+                raise e
 
             cols_placeholder = ", ".join(cols_to_values.keys())
             values_placeholder = ", ".join([":" + c for c in cols_to_values.keys()])
