@@ -183,7 +183,6 @@ class TemperatureController(BackgroundJob):
 
     def _update_heater(self, new_duty_cycle):
         self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
-        self.logger.debug(self.heater_duty_cycle)  # TODO: delete me
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp):
