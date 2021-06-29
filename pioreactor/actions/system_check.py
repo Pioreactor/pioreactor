@@ -65,7 +65,6 @@ def check_temperature_and_heating(unit, experiment):
         tc._update_heater(dc)
         time.sleep(1)
         measured_pcb_temps.append(tc.read_external_temperature())
-        print(dc, measured_pcb_temps)
 
     tc._update_heater(0)
 

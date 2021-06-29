@@ -44,7 +44,6 @@ class TemperatureController(BackgroundJob):
     """
 
     automations = {}
-    temperature = None
 
     editable_settings = ["temperature_automation", "temperature"]
 
