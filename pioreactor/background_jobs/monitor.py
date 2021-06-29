@@ -3,11 +3,15 @@ from time import sleep
 from json import dumps
 from sys import modules
 from signal import pause
-import select
 
 import click
 
-from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT, is_testing_env
+from pioreactor.whoami import (
+    get_unit_name,
+    UNIVERSAL_EXPERIMENT,
+    is_testing_env,
+    get_latest_experiment_name,
+)
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import QOS
@@ -15,13 +19,19 @@ from pioreactor.hardware_mappings import (
     PCB_LED_PIN as LED_PIN,
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
+from pioreactor.utils import pio_jobs_running
+
 from pioreactor.version import __version__
 
 
 class Monitor(BackgroundJob):
     """
-     - Reports metadata about the Rpi / Pioreactor to the leader
-     - controls the LED / Button interaction
+    This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
+
+     1. Reports metadata (voltage, CPU usage, etc.) about the Rpi / Pioreactor to the leader
+     2. Controls the LED / Button interaction
+     3. Correction after a restart
+
     """
 
     JOB_NAME = "monitor"
@@ -59,7 +69,7 @@ class Monitor(BackgroundJob):
 
         import RPi.GPIO as GPIO
 
-        # what's up with this? I am hiding all the slow imports, but in this case, I need GPIO module
+        # I am hiding all the slow imports, but in this case, I need GPIO module
         # in many functions.
         self.GPIO = GPIO
 
@@ -73,9 +83,50 @@ class Monitor(BackgroundJob):
 
         self.start_passive_listeners()
 
+    def check_state_of_jobs_on_machine(self):
+        """
+        This compares jobs that are current running on the machine, vs
+        what MQTT says. In the case of a restart on leader, MQTT can get out
+        of sync. We only need to run this check on startup.
+
+        Need an answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
+        """
+        latest_exp = get_latest_experiment_name()
+        whats_running = pio_jobs_running()
+        probable_restart = False
+
+        def check_against_processes_runnning(msg):
+            job = msg.topic.split("/")[3]
+            if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
+                job not in whats_running
+            ):
+                self.publish(
+                    f"pioreactor/{self.unit}/{latest_exp}/{job}/$state",
+                    self.LOST,
+                    retain=True,
+                )
+                self.logger.debug(f"Manually changing {job} state in MQTT.")
+                probable_restart = True  # noqa: F841
+
+        self.subscribe_and_callback(
+            check_against_processes_runnning,
+            f"pioreactor/{self.unit}/{latest_exp}/+/$state",
+        )
+
+        # let the above code run...
+        sleep(5)
+
+        if probable_restart:
+            self.logger.log("Possible unexpected restart occurred?")
+
+        return
+
     def on_ready(self):
         self.logger.info(f"{self.unit} online and ready.")
         self.flicker_led()
+
+        # we can delay this check until ready.
+        self.check_state_of_jobs_on_machine()
 
     def on_disconnect(self):
         self.GPIO.cleanup(LED_PIN)
@@ -116,15 +167,11 @@ class Monitor(BackgroundJob):
 
     def check_for_power_problems(self):
         """
-
         Note: `get_throttled` feature isn't available on the Rpi Zero
 
         Sourced from https://github.com/raspberrypi/linux/pull/2397
          and https://github.com/N2Github/Proje
         """
-
-        # TODO: eventually these problems should be surfaced to the user, but they
-        # are too noisy atm.
 
         def status_to_human_readable(status):
             hr_status = []
@@ -153,10 +200,8 @@ class Monitor(BackgroundJob):
         def non_ignorable_status(status):
             return (status & 0x1) or (status & 0x4)
 
-        epoll = select.epoll()
-        file = open("/sys/devices/platform/soc/soc:firmware/get_throttled")
-        epoll.register(file.fileno(), select.EPOLLPRI | select.EPOLLERR)
-        status = int(file.read(), 16)
+        with open("/sys/devices/platform/soc/soc:firmware/get_throttled") as file:
+            status = int(file.read(), 16)
 
         if not currently_throttling(status):
             self.logger.debug("Power status okay.")
