@@ -110,7 +110,7 @@ def update(units):
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
-            client.connect(unit, username="pi")
+            client.connect(unit, username="pi", compress=True)
 
             (stdin, stdout, stderr) = client.exec_command(command)
             for line in stderr.readlines():
@@ -159,7 +159,7 @@ def install_plugin(plugin, units):
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
-            client.connect(unit, username="pi")
+            client.connect(unit, username="pi", compress=True)
 
             (stdin, stdout, stderr) = client.exec_command(command)
             for line in stderr.readlines():
@@ -208,7 +208,7 @@ def uninstall_plugin(plugin, units):
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
-            client.connect(unit, username="pi")
+            client.connect(unit, username="pi", compress=True)
 
             (stdin, stdout, stderr) = client.exec_command(command)
             for line in stderr.readlines():
@@ -254,7 +254,7 @@ def sync_configs(units):
 
             client = paramiko.SSHClient()
             client.load_system_host_keys()
-            client.connect(unit, username="pi")
+            client.connect(unit, username="pi", compress=True)
 
             sync_config_files(client, unit)
 

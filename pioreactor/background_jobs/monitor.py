@@ -114,7 +114,13 @@ class Monitor(BackgroundJob):
         )
 
         # let the above code run...
-        sleep(5)
+        sleep(2.5)
+
+        # unsubscribe
+        self.sub_client.message_callback_remove(
+            f"pioreactor/{self.unit}/{latest_exp}/+/$state"
+        )
+        self.sub_client.unsubscribe(f"pioreactor/{self.unit}/{latest_exp}/+/$state")
 
         if probable_restart:
             self.logger.log("Possible unexpected restart occurred?")
