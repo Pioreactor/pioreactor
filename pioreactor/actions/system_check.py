@@ -21,6 +21,7 @@ Outputs from each check go into MQTT, and return to the command line.
 """
 
 import time
+import json
 import click
 from collections import defaultdict
 from pioreactor.whoami import (
@@ -109,7 +110,7 @@ def check_leds_and_pds(unit, experiment):
             retain=False,
         )
         publish(
-            f"pioreactor/{unit}/{experiment}/system_check/atleast_one_correlation_between_pd_and_leds",
+            f"pioreactor/{unit}/{experiment}/system_check/atleast_one_correlation_between_pds_and_leds",
             0,
             retain=False,
         )
@@ -146,18 +147,18 @@ def check_leds_and_pds(unit, experiment):
             varying_intensity_results["A3"].append(adc_reader.A3["voltage"])
 
         # compute the linear correlation between the intensities and observed PD measurements
-        results[("A0", channel)] = correlation(
+        results[(channel, "A0")] = correlation(
             INTENSITIES, varying_intensity_results["A0"]
         )
-        results[("A1", channel)] = correlation(
+        results[(channel, "A1")] = correlation(
             INTENSITIES, varying_intensity_results["A1"]
         )
 
-        results[("A2", channel)] = correlation(
+        results[(channel, "A2")] = correlation(
             INTENSITIES, varying_intensity_results["A2"]
         )
 
-        results[("A3", channel)] = correlation(
+        results[(channel, "A3")] = correlation(
             INTENSITIES, varying_intensity_results["A3"]
         )
 
@@ -172,8 +173,13 @@ def check_leds_and_pds(unit, experiment):
             detected_relationships.append(pair)
 
     publish(
-        f"pioreactor/{unit}/{experiment}/system_check/atleast_one_correlation_between_pd_and_leds",
+        f"pioreactor/{unit}/{experiment}/system_check/atleast_one_correlation_between_pds_and_leds",
         int(len(detected_relationships) > 0),
+        retain=False,
+    )
+    publish(
+        f"pioreactor/{unit}/{experiment}/system_check/correlations_between_pds_and_leds",
+        json.dumps(detected_relationships),
         retain=False,
     )
     return detected_relationships
