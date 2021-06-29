@@ -89,7 +89,7 @@ class Monitor(BackgroundJob):
         what MQTT says. In the case of a restart on leader, MQTT can get out
         of sync. We only need to run this check on startup.
 
-        Need an answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
+        See answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
         """
         latest_exp = get_latest_experiment_name()
         whats_running = pio_jobs_running()

@@ -85,6 +85,10 @@ class MqttToDBStreamer(BackgroundJob):
                 )
                 raise e
 
+            if cols_to_values is None:
+                # parsers can return None to exit out.
+                return
+
             cols_placeholder = ", ".join(cols_to_values.keys())
             values_placeholder = ", ".join([":" + c for c in cols_to_values.keys()])
             SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
@@ -116,6 +120,10 @@ def mqtt_to_db_streaming():
     ###################
     # parsers
     ###################
+    # - must return a dictionary with the column names (order isn't important)
+    # - `produce_metadata` is a helper function, see defintion.
+    # - parsers can return None as well, to skip adding the message to the database.
+    #
 
     def parse_od(topic, payload):
         metadata, split_topic = produce_metadata(topic)
@@ -182,6 +190,10 @@ def mqtt_to_db_streaming():
 
     def parse_temperature(topic, payload):
         metadata, _ = produce_metadata(topic)
+
+        if not payload:
+            return None
+
         payload = json.loads(payload)
 
         return {

@@ -325,20 +325,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             see pioreactor.pubsub.QOS
         """
 
-        def check_for_duplicate_subs(subs):
-
-            from itertools import combinations
-            from paho.mqtt.client import topic_matches_sub
-
-            for pair in combinations(subs, 2):
-                if topic_matches_sub(*subs):
-                    self.logger.debug(
-                        f"found equivalent pair of subs with same callback - this could cause duplication of callbacks: {pair}"
-                    )
-                    raise ValueError(
-                        f"found equivalent pair of subs with same callback - this could cause duplication of callbacks: {pair}"
-                    )
-
         def wrap_callback(actual_callback):
             def _callback(client, userdata, message):
                 if not allow_retained and message.retain:
