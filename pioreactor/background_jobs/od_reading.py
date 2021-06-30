@@ -281,10 +281,10 @@ class ADCReader(BackgroundSubJob):
             return raw_signals
 
         except OSError as e:
-            # just pause, not sure why this happens when add_media or remove_waste are called.
+            # just skip, not sure why this happens when add_media or remove_waste are called.
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"error {str(e)}. Attempting to continue.")
-            time.sleep(5.0)
+
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"failed with {str(e)}")

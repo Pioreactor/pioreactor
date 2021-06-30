@@ -359,12 +359,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 return
             self.set_state(self.DISCONNECTED)
 
+        def is_interactive():
+            import __main__ as main
+
+            return not hasattr(main, "__file__")
+
         def exit_python(*args):
-            def is_interactive():
-                import __main__ as main
-
-                return not hasattr(main, "__file__")
-
             # don't exit in test mode
             # don't kill yourself if in a shell like `python3` or `ipython`
             if is_testing_env() or is_interactive():
