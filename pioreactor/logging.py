@@ -84,11 +84,12 @@ def create_logger(
     if unit is None:
         unit = get_unit_name()
 
-    if (experiment is None) and to_mqtt:
+    if experiment is None:
         # this fails if we aren't able to connect to leader, hence the to_mqtt check
-        experiment = get_latest_experiment_name()
-    else:
-        experiment = UNIVERSAL_EXPERIMENT
+        if to_mqtt:
+            experiment = get_latest_experiment_name()
+        else:
+            experiment = UNIVERSAL_EXPERIMENT
 
     if (pub_client is None) and to_mqtt:
         import uuid

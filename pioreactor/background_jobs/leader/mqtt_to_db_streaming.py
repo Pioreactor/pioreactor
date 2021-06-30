@@ -157,7 +157,7 @@ def mqtt_to_db_streaming():
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "timestamp": payload["timestamp"],
             "volume_change_ml": payload["volume_change"],
             "event": payload["event"],
             "source_of_event": payload["source_of_event"],
@@ -170,7 +170,7 @@ def mqtt_to_db_streaming():
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "timestamp": payload["timestamp"],
             "channel": payload["channel"],
             "intensity": payload["intensity"],
             "event": payload["event"],

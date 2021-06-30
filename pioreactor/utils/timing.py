@@ -2,8 +2,6 @@
 import time, logging
 from datetime import datetime
 from threading import Event, Thread
-from time import perf_counter
-from contextlib import contextmanager
 from pioreactor.whoami import is_testing_env
 
 
@@ -17,12 +15,6 @@ def brief_pause():
     else:
         time.sleep(3)
         return
-
-
-@contextmanager
-def catchtime() -> float:
-    start = perf_counter()
-    yield lambda: perf_counter() - start
 
 
 class RepeatedTimer:

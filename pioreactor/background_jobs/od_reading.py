@@ -61,7 +61,7 @@ import click
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
-from pioreactor.utils.timing import RepeatedTimer, catchtime, current_utc_time
+from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
@@ -88,12 +88,12 @@ class ADCReader(BackgroundSubJob):
     """
 
     ADS_GAIN_THRESHOLDS = {
-        2 / 3: (4.096, 6.144),
-        1: (2.048, 4.096),
-        2: (1.024, 2.048),
-        4: (0.512, 1.024),
-        8: (0.256, 0.512),
-        16: (-1, 0.256),
+        2 / 3: (4.096, 6.144),  # 1 bit = 3mV (default)
+        1: (2.048, 4.096),  # 1 bit = 2mV
+        2: (1.024, 2.048),  # 1 bit = 1mV
+        4: (0.512, 1.024),  # 1 bit = 0.5mV
+        8: (0.256, 0.512),  # 1 bit = 0.25mV
+        16: (-1, 0.256),  # 1 bit = 0.125mV
     }
 
     JOB_NAME = "adc_reader"
@@ -372,12 +372,9 @@ class ODReader(BackgroundJob):
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
-            with catchtime() as delta_to_stop:
-                self.stop_ir_led()
+            self.stop_ir_led()
 
-            time.sleep(
-                max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
-            )
+            time.sleep(max(0, ads_interval - (post_duration + pre_duration)))
             self.start_ir_led()
 
         msg = subscribe(

@@ -11,6 +11,7 @@ from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
+from pioreactor.utils.timing import current_utc_time
 
 
 def add_alt_media(
@@ -58,6 +59,7 @@ def add_alt_media(
                 "volume_change": ml,
                 "event": "add_alt_media",
                 "source_of_event": source_of_event,
+                "timestamp": current_utc_time(),
             }
         ),
         qos=QOS.EXACTLY_ONCE,

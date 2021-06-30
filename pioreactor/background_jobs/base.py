@@ -116,6 +116,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def __init__(
         self, job_name: str, source: str, experiment: str = None, unit: str = None
     ):
+
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit

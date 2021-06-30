@@ -4,7 +4,7 @@ import click
 from pioreactor.pubsub import publish_multiple, subscribe, QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.logging import create_logger
-
+from pioreactor.utils.timing import current_utc_time
 
 CHANNELS = ["A", "B", "C", "D"]
 
@@ -41,7 +41,7 @@ def led_intensity(
     1. The way state is handled in the second topic is tech debt.
 
     """
-    logger = create_logger("led_intensity")
+    logger = create_logger("led_intensity", experiment=experiment)
     try:
         from DAC43608 import DAC43608
     except NotImplementedError:
@@ -84,6 +84,7 @@ def led_intensity(
             "intensity": intensity,
             "event": "change_intensity",
             "source_of_event": source_of_event,
+            "timestamp": current_utc_time(),
         }
 
         publish_multiple(
