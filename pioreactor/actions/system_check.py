@@ -81,7 +81,7 @@ def check_temperature_and_heating(unit, experiment):
 
 def check_leds_and_pds(unit, experiment):
 
-    INTENSITIES = list(range(0, 70, 10))
+    INTENSITIES = list(range(0, 50, 10))
     results = {}
     adc_reader = ADCReader(
         unit=unit,

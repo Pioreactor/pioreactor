@@ -360,13 +360,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.set_state(self.DISCONNECTED)
 
         def exit_python(*args):
+            def is_interactive():
+                import __main__ as main
+
+                return not hasattr(main, "__file__")
 
             # don't exit in test mode
             # don't kill yourself if in a shell like `python3` or `ipython`
-            if is_testing_env() or not sys.stdout.isatty():
+            if is_testing_env() or is_interactive():
                 return
             else:
-                self.logger.debug("Calling sys.exit(0)")
                 sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,
@@ -384,11 +387,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # user defined signal, we use to exit
             signal.signal(signal.SIGUSR1, exit_python)
+            self.logger.debug("Exit protocol set up.")
 
     def init(self):
         self.state = self.INIT
 
-        self.logger.debug("Initializing")
+        self.logger.debug(f"Initializing. Unit: {self.unit} Exp: {self.experiment}")
 
         if threading.current_thread() is not threading.main_thread():
             # if we re-init (via MQTT, close previous threads), but don't do this in main thread

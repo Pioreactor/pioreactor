@@ -35,7 +35,7 @@ def pio():
 @pio.command(name="logs", short_help="show recent logs")
 def logs():
     """
-    Tail and stream the logs the terminal. CTRL-C to exit.
+    Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
     from sh import tail
     from json import loads
@@ -51,7 +51,7 @@ def logs():
 
     click.echo(tail("-n", 100, config["logging"]["log_file"]))
 
-    subscribe_and_callback(cb, "pioreactor/+/+/logs/+")
+    subscribe_and_callback(cb, f"pioreactor/{get_unit_name()}/+/logs/+")
 
     while True:
         pass
