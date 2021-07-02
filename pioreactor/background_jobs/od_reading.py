@@ -232,7 +232,24 @@ class ADCReader(BackgroundSubJob):
             max_signal = 0
             raw_signals = {}
             for channel, ai in self.analog_in:
-                raw_signal_ = ai.voltage
+                # raw_signal_ = ai.voltage
+
+                _ADS1X15_PGA_RANGE = {
+                    2 / 3: 6.144,
+                    1: 4.096,
+                    2: 2.048,
+                    4: 1.024,
+                    8: 0.512,
+                    16: 0.256,
+                }
+
+                value1115 = ai.value  # int between 0 and 32767
+                value1015 = (
+                    value1115 >> 4
+                ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
+                raw_signal_ = value1015 * _ADS1X15_PGA_RANGE[self.ads.gain] / 32767
+                self.logger.debug(f"ADS1015: {raw_signal_}, ADS1115: {ai.voltage}")
+
                 raw_signals[f"A{channel}"] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
                 setattr(
