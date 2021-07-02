@@ -161,6 +161,7 @@ def check_leds_and_pds(unit, experiment):
         results[(channel, "A3")] = correlation(
             INTENSITIES, varying_intensity_results["A3"]
         )
+        print(results)
 
         # set back to 0
         led_intensity(
