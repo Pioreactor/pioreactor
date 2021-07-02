@@ -79,7 +79,7 @@ def check_temperature_and_heating(unit, experiment):
     return
 
 
-def check_leds_and_pds(unit, experiment):
+def check_leds_and_pds(unit, experiment, logger):
 
     INTENSITIES = list(range(0, 50, 10))
     results = {}
@@ -161,13 +161,13 @@ def check_leds_and_pds(unit, experiment):
         results[(channel, "A3")] = correlation(
             INTENSITIES, varying_intensity_results["A3"]
         )
-        print(results)
 
         # set back to 0
         led_intensity(
             channel, intensity=0, unit=unit, experiment=experiment, verbose=False
         )
 
+    logger.debug(results)
     detected_relationships = []
     for pair, measured_correlation in results.items():
         if measured_correlation > 0.85:
@@ -208,7 +208,7 @@ def check_system():
 
     # LEDs and PDs
     logger.debug("Check LEDs and PDs...")
-    check_leds_and_pds(unit, experiment)
+    check_leds_and_pds(unit, experiment, logger=logger)
 
     # temp and heating
     logger.debug("Check temperature and heating...")
