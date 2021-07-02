@@ -387,7 +387,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # user defined signal, we use to exit
             signal.signal(signal.SIGUSR1, exit_python)
-            self.logger.debug("Exit protocol set up.")
 
     def init(self):
         self.state = self.INIT

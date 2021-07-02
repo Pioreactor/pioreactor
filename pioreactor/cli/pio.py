@@ -78,10 +78,8 @@ def kill(job, all_jobs):
         safe_pkill("-f", "pio run ")
     else:
         for j in job:
-            result = safe_pkill("-f", f"pio run {j}")
-            if not result:
-                # TODO: I don't think this works.
-                safe_pkill("-f", f"pio run-always {j}")
+            safe_pkill("-f", f"pio run {j}")
+            safe_pkill("-f", f"pio run-always {j}")
 
 
 @pio.group(short_help="run a job")
@@ -141,8 +139,8 @@ def update(ui, app):
     if ui and am_I_leader():
         cd = "cd ~/pioreactorui/backend"
         gitp = "git pull origin master"
-        setup = "pm2 restart ui"
         npm_install = "npm install"
+        setup = "pm2 restart ui"
         unedit_edited_files = (
             "git checkout ."
         )  # TODO: why do I do this. Can I be more specific than `.`? This blocks edits to the contrib folder from sticking around.

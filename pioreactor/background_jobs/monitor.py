@@ -43,23 +43,10 @@ class Monitor(BackgroundJob):
 
         self.logger.debug(f"PioreactorApp version: {__version__}")
 
-        # report on CPU usage, memory, disk space
-        self.performance_statistics_timer = RepeatedTimer(
-            12 * 60 * 60,
-            self.publish_self_statistics,
-            job_name=self.job_name,
-            run_immediately=True,
+        self.self_check_thread = RepeatedTimer(
+            6 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True
         )
-        self.performance_statistics_timer.start()
-
-        # watch for undervoltage problems
-        self.power_watchdog_thread = RepeatedTimer(
-            6 * 60 * 60,
-            self.check_for_power_problems,
-            job_name=self.job_name,
-            run_immediately=True,
-        )
-        self.power_watchdog_thread.start()
+        self.self_check_thread.start()
 
         if is_testing_env():
             import fake_rpi
@@ -82,6 +69,13 @@ class Monitor(BackgroundJob):
         )
 
         self.start_passive_listeners()
+
+    def self_checks(self):
+        # watch for undervoltage problems
+        self.check_for_power_problems()
+
+        # report on CPU usage, memory, disk space
+        self.publish_self_statistics()
 
     def check_state_of_jobs_on_machine(self):
         """
