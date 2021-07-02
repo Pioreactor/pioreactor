@@ -43,11 +43,20 @@ class Monitor(BackgroundJob):
 
         self.logger.debug(f"PioreactorApp version: {__version__}")
 
+        # set up a self check function to periodically check vitals and log them
         self.self_check_thread = RepeatedTimer(
             6 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True
-        )
-        self.self_check_thread.start()
+        ).start()
 
+        # set up GPIO for accessing the button
+        self.setup_GPIO()
+        self.GPIO.add_event_detect(
+            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up
+        )
+
+        self.start_passive_listeners()
+
+    def setup_GPIO(self):
         if is_testing_env():
             import fake_rpi
 
@@ -63,12 +72,6 @@ class Monitor(BackgroundJob):
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
-
-        self.GPIO.add_event_detect(
-            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up
-        )
-
-        self.start_passive_listeners()
 
     def self_checks(self):
         # watch for undervoltage problems

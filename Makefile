@@ -37,7 +37,7 @@ systemd-leader:
 	sudo systemctl enable pioreactor_startup_run_always@watchdog.service
 
 	sudo cp /home/pi/pioreactor/system/systemd/start_pioreactorui.service /lib/systemd/system/
-	sudo chmod 644 /lib/systemd/system/start_pioreactorui.service
+	sudo chmod 644 /lib/systemd/system/start_pioreactorui.service #TODO: why chmod?
 	sudo systemctl enable start_pioreactorui.service
 
 	sudo cp /home/pi/pioreactor/system/systemd/avahi-alias.service /lib/systemd/system/
