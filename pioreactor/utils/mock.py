@@ -73,6 +73,10 @@ class MockAnalogIn:
         self._counter += 1
         return self.state + random.normalvariate(0, sigma=self.state * 0.01)
 
+    @property
+    def value(self):
+        return round(self.voltage * 1000)
+
 
 class MockDAC43608:
 

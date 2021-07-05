@@ -103,7 +103,7 @@ class LEDAutomation(BackgroundSubJob):
             if not ("od_reading" in pio_jobs_running()) and (
                 "growth_rate_calculating" in pio_jobs_running()
             ):
-                self.logger.warn(
+                self.logger.warning(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 

@@ -131,7 +131,8 @@ def led_intensity(
     type=str,
     help="whom is calling this function (for logging)",
 )
-def click_led_intensity(channel, intensity, source_of_event):
+@click.option("--no-log", is_flag=True, help="Add to log")
+def click_led_intensity(channel, intensity, source_of_event, no_log):
     """
     Modify the intensity of LED channel(s)
     """
@@ -140,5 +141,7 @@ def click_led_intensity(channel, intensity, source_of_event):
 
     status = True
     for channel_ in channel:
-        status &= led_intensity(channel_, intensity, source_of_event, unit, experiment)
+        status &= led_intensity(
+            channel_, intensity, source_of_event, unit, experiment, verbose=not no_log
+        )
     return status

@@ -81,7 +81,7 @@ def check_temperature_and_heating(unit, experiment):
 
 def check_leds_and_pds(unit, experiment, logger):
 
-    INTENSITIES = list(range(0, 50, 10))
+    INTENSITIES = list(range(0, 60, 12))
     results = {}
     adc_reader = ADCReader(
         unit=unit,
@@ -167,7 +167,7 @@ def check_leds_and_pds(unit, experiment, logger):
             channel, intensity=0, unit=unit, experiment=experiment, verbose=False
         )
 
-    logger.debug(results)
+    logger.debug(f"Correlations: {results}")
     detected_relationships = []
     for pair, measured_correlation in results.items():
         if measured_correlation > 0.85:
@@ -186,9 +186,9 @@ def check_leds_and_pds(unit, experiment, logger):
     return detected_relationships
 
 
-def check_system():
+def system_check():
 
-    logger = create_logger("check_system")
+    logger = create_logger("system_check")
 
     jobs_running = pio_jobs_running()
     if (
@@ -230,4 +230,4 @@ def click_system_check():
     """
     Check the IO in the Pioreactor
     """
-    check_system()
+    system_check()

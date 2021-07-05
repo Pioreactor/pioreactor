@@ -248,7 +248,6 @@ class ADCReader(BackgroundSubJob):
                     value1115 >> 4
                 ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
                 raw_signal_ = value1015 * _ADS1X15_PGA_RANGE[self.ads.gain] / 32767
-                self.logger.debug(f"ADS1015: {raw_signal_}, ADS1115: {ai.voltage}")
 
                 raw_signals[f"A{channel}"] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
@@ -279,6 +278,9 @@ class ADCReader(BackgroundSubJob):
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
             raw_signals["timestamp"] = current_utc_time()
             self.batched_readings = raw_signals
+            print(
+                f"{raw_signals['timestamp']}: {raw_signals['A0']:.5f}   {raw_signals['A1']:.5f}   {raw_signals['A2']:.5f}   {raw_signals['A3']:.5f}"
+            )
 
             # the max signal should determine the ADS1x15's gain
             if self.dynamic_gain:
