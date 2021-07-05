@@ -131,10 +131,9 @@ install-ui:
 
 	cp /home/pi/pioreactorui/backend/.env.example /home/pi/pioreactorui/backend/.env
 
-	# install required libraries
-	# npm --prefix /home/pi/pioreactorui/client install
+	# install required libraries for backend
 	npm --prefix /home/pi/pioreactorui/backend install
-	sudo npm install pm2@latest -g
+	sudo npm install pm2@5.1.0 -g
 
 	# we add another entry to mDNS: pioreactor.local (can be modified in config.ini), and we need the following:
 	# see avahi-alias.service for how this works
@@ -180,14 +179,17 @@ seed-experiment:
 	sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < /home/pi/pioreactor/sql/seed_initial_experiment.sql
 	mosquitto_pub -t "pioreactor/latest_experiment" -m "Demo experiment" -r
 
-install-worker: install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
+install-worker: install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files install-log2ram
+	sudo apt-get clean
 
 install-worker-from-args: install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
 	sudo reboot
 
-install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-pioreactor-leader install-db systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
+install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-pioreactor-leader install-db systemd-leader systemd-all logging-files install-ui seed-experiment
 	rm -f /home/pi/.ssh/id_rsa
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt install sshpass
 	cat /home/pi/.ssh/id_rsa.pub > /home/pi/.ssh/authorized_keys
 	ssh-keyscan -H $$(hostname) >> /home/pi/.ssh/known_hosts
+
+	sudo apt-get clean
