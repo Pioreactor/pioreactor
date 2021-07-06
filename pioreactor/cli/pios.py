@@ -385,6 +385,8 @@ def run(ctx, job, units, y):
         sys.exit(1)
 
     core_command = " ".join(["pio", "run", job, *extra_args])
+
+    # pipe all output to  null
     command = " ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"])
 
     if not y:

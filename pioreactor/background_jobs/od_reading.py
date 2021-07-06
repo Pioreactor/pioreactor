@@ -65,7 +65,7 @@ from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
-from pioreactor.actions.led_intensity import led_intensity
+from pioreactor.actions.led_intensity import led_intensity, CHANNELS as LED_CHANNELS
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS, subscribe
 
@@ -144,6 +144,7 @@ class ADCReader(BackgroundSubJob):
         self.setup_adc()
 
         if self.interval:
+            print("                                 A0        A1        A2        A3")
             self.timer = RepeatedTimer(
                 self.interval, self.take_reading, run_immediately=True
             )
@@ -198,9 +199,22 @@ class ADCReader(BackgroundSubJob):
     def check_on_max(self, value):
         if value > 3.1:
             self.logger.error(
-                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting OD reading down to keep the ADC safe."
+                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
-            self.parent.set_state("disconnected")
+            for channel in LED_CHANNELS:
+                led_intensity(
+                    channel,
+                    intensity=0,
+                    unit=self.unit,
+                    experiment=self.experiment,
+                    source_of_event=self.job_name,
+                    verbose=True,
+                )
+            try:
+                # parent object, ODReading, isn't always present - sometimes we use ADCReader outside of ODReading
+                self.parent.set_state("disconnected")
+            except Exception:
+                pass
 
     def check_on_gain(self, value):
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
