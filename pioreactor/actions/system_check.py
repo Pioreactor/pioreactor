@@ -27,6 +27,7 @@ from collections import defaultdict
 from pioreactor.whoami import (
     get_unit_name,
     get_latest_testing_experiment_name,
+    get_latest_experiment_name,
     is_testing_env,
 )
 from pioreactor.background_jobs.temperature_control import TemperatureController
@@ -81,7 +82,8 @@ def check_temperature_and_heating(unit, experiment):
 
 def check_leds_and_pds(unit, experiment, logger):
 
-    INTENSITIES = list(range(0, 72, 12))
+    INTENSITIES = list(range(0, 60, 12))
+    current_experiment_name = get_latest_experiment_name()
     results = {}
     adc_reader = ADCReader(
         unit=unit,
@@ -92,7 +94,7 @@ def check_leds_and_pds(unit, experiment, logger):
     )
     adc_reader.setup_adc()
 
-    # set all to 0
+    # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     try:
         for channel in CHANNELS:
             assert led_intensity(
@@ -100,7 +102,7 @@ def check_leds_and_pds(unit, experiment, logger):
                 intensity=0,
                 unit=unit,
                 source_of_event="system_check",
-                experiment=experiment,
+                experiment=current_experiment_name,
                 verbose=False,
             )
     except AssertionError:
@@ -131,7 +133,7 @@ def check_leds_and_pds(unit, experiment, logger):
                 channel,
                 intensity=intensity,
                 unit=unit,
-                experiment=experiment,
+                experiment=current_experiment_name,
                 verbose=False,
             )
 
@@ -165,7 +167,11 @@ def check_leds_and_pds(unit, experiment, logger):
 
         # set back to 0
         led_intensity(
-            channel, intensity=0, unit=unit, experiment=experiment, verbose=False
+            channel,
+            intensity=0,
+            unit=unit,
+            experiment=current_experiment_name,
+            verbose=False,
         )
 
     logger.debug(f"Correlations: {results}")

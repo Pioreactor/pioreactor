@@ -21,7 +21,7 @@ def correlation(x, y):
         running_sum += (x_ - mean_x) * (y_ - mean_y)
         running_count += 1
 
-    return (running_sum / running_count) / std_y / std_x
+    return (running_sum / (running_count - 1)) / std_y / std_x
 
 
 def pio_jobs_running():
