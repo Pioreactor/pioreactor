@@ -245,7 +245,7 @@ class Monitor(BackgroundJob):
             self.logger.debug(f"CPU temperature at {cpu_temperature_celcius}%.")
         else:
             # TODO: add documentation
-            self.logger.warning(f"CPU temperature at {cpu_temperature_celcius}%.")
+            self.logger.warning(f"CPU temperature at {cpu_temperature_celcius} ℃.")
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/computer_statistics",

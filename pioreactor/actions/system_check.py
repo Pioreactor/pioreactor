@@ -89,7 +89,7 @@ def check_leds_and_pds(unit, experiment, logger):
         unit=unit,
         experiment=experiment,
         dynamic_gain=False,
-        initial_gain=1,
+        initial_gain=8,
         fake_data=is_testing_env(),
     )
     adc_reader.setup_adc()

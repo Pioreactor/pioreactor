@@ -21,6 +21,9 @@ def correlation(x, y):
         running_sum += (x_ - mean_x) * (y_ - mean_y)
         running_count += 1
 
+    if running_count < 1:
+        return 0
+
     return (running_sum / (running_count - 1)) / std_y / std_x
 
 
