@@ -81,7 +81,7 @@ def check_temperature_and_heating(unit, experiment):
 
 def check_leds_and_pds(unit, experiment, logger):
 
-    INTENSITIES = list(range(0, 60, 12))
+    INTENSITIES = list(range(0, 72, 12))
     results = {}
     adc_reader = ADCReader(
         unit=unit,
@@ -123,6 +123,7 @@ def check_leds_and_pds(unit, experiment, logger):
         )
 
     for channel in CHANNELS:
+        logger.debug(f"Varying intensity of channel {channel}:")
         varying_intensity_results = defaultdict(list)
         for intensity in INTENSITIES:
             # turn on the LED to set intensity

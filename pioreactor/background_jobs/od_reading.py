@@ -293,7 +293,7 @@ class ADCReader(BackgroundSubJob):
             raw_signals["timestamp"] = current_utc_time()
             self.batched_readings = raw_signals
             print(
-                f"{raw_signals['timestamp']}: {raw_signals['A0']:.5f}   {raw_signals['A1']:.5f}   {raw_signals['A2']:.5f}   {raw_signals['A3']:.5f}"
+                f"{raw_signals['timestamp']} {raw_signals['A0']:.5f}   {raw_signals['A1']:.5f}   {raw_signals['A2']:.5f}   {raw_signals['A3']:.5f}"
             )
 
             # the max signal should determine the ADS1x15's gain

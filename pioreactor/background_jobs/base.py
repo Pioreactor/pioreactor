@@ -391,7 +391,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def init(self):
         self.state = self.INIT
 
-        self.logger.debug(f"Initializing. Unit: {self.unit} Exp: {self.experiment}")
+        self.logger.debug(
+            f"Initializing, unit: `{self.unit}`, experiment: `{self.experiment}`."
+        )
 
         if threading.current_thread() is not threading.main_thread():
             # if we re-init (via MQTT, close previous threads), but don't do this in main thread
