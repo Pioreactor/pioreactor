@@ -71,7 +71,6 @@ install-log2ram:
 	# the below is need to recognize the additions above
 	sudo apt update
 	sudo apt install log2ram
-	sudo crudini --set /etc/log2ram.conf "" SIZE 100M
 
 install-pioreactor-worker:
 	# the following is needed for numpy on Rpi
@@ -186,6 +185,8 @@ install-worker-from-args: install-python configure-hostname-from-args configure-
 	sudo reboot
 
 install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-pioreactor-leader install-db systemd-leader systemd-all logging-files install-ui seed-experiment
+	sudo crudini --set /etc/log2ram.conf "" SIZE 100M
+
 	rm -f /home/pi/.ssh/id_rsa
 	ssh-keygen -q -t rsa -N '' -f /home/pi/.ssh/id_rsa
 	sudo apt install sshpass
