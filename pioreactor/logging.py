@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
+from logging import handlers
 from pioreactor.pubsub import create_client, publish
 from pioreactor.whoami import (
     get_unit_name,
@@ -97,7 +98,7 @@ def create_logger(
         pub_client = create_client(client_id=f"{unit}-logging-{uuid.uuid1()}")
 
     # file handler
-    file_handler = logging.WatchedFileHandler(config["logging"]["log_file"])
+    file_handler = handlers.WatchedFileHandler(config["logging"]["log_file"])
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
         logging.Formatter(
