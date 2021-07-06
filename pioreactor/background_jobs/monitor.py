@@ -220,6 +220,9 @@ class Monitor(BackgroundJob):
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
 
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            cpu_temperature_celcius = int(f.read().strip()) / 1000
+
         if disk_usage_percent <= 70:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
@@ -238,6 +241,12 @@ class Monitor(BackgroundJob):
             # TODO: add documentation
             self.logger.warning(f"Available memory at {available_memory_percent}%.")
 
+        if cpu_temperature_celcius <= 70:
+            self.logger.debug(f"CPU temperature at {cpu_temperature_celcius}%.")
+        else:
+            # TODO: add documentation
+            self.logger.warning(f"CPU temperature at {cpu_temperature_celcius}%.")
+
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/computer_statistics",
             dumps(
@@ -245,6 +254,7 @@ class Monitor(BackgroundJob):
                     "disk_usage_percent": disk_usage_percent,
                     "cpu_usage_percent": cpu_usage_percent,
                     "available_memory_percent": available_memory_percent,
+                    "cpu_temperature_celcius": cpu_temperature_celcius,
                 }
             ),
         )

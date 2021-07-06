@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, signal, logging, json, time
+import signal
 
 import click
 
@@ -7,22 +7,19 @@ from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.pubsub import subscribe
 
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
-logger = logging.getLogger(JOB_NAME)
-
-unit = get_unit_name()
-
 
 class WatchDog(BackgroundJob):
     def __init__(self, unit, experiment):
         super(WatchDog, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment
+            job_name="watchdog", unit=unit, experiment=experiment
         )
 
         self.start_passive_listeners()
 
     def watch_for_lost_state(self, msg):
         if msg.payload.decode() == self.LOST:
+            import time
+
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
 
             # let's try pinging the unit a few times first:
@@ -51,17 +48,6 @@ class WatchDog(BackgroundJob):
             else:
                 self.logger.info(f"Update: {unit} is connected. All is well.")
 
-    def watch_for_computer_statistics(self, msg):
-        stats = json.loads(msg.payload.decode())
-        unit = msg.topic.split("/")[1]
-
-        if stats["disk_usage_percent"] >= 90:
-            self.logger.warning(
-                f"{unit} is running low on disk space, at {float(msg.payload)}% full."
-            )
-
-        # TODO: add other stats here
-
     def watch_for_new_experiment(self, msg):
         new_experiment_name = msg.payload.decode()
         self.logger.debug(f"New latest experiment in MQTT: {new_experiment_name}")
@@ -70,11 +56,6 @@ class WatchDog(BackgroundJob):
         self.subscribe_and_callback(
             self.watch_for_lost_state,
             "pioreactor/+/+/monitor/$state",
-            allow_retained=False,
-        )
-        self.subscribe_and_callback(
-            self.watch_for_computer_statistics,
-            "pioreactor/+/+/monitor/computer_statistics",
             allow_retained=False,
         )
         self.subscribe_and_callback(
