@@ -82,14 +82,14 @@ def check_temperature_and_heating(unit, experiment):
 
 def check_leds_and_pds(unit, experiment, logger):
 
-    INTENSITIES = list(range(0, 60, 12))
+    INTENSITIES = list(range(0, 60, 8))
     current_experiment_name = get_latest_experiment_name()
     results = {}
     adc_reader = ADCReader(
         unit=unit,
         experiment=experiment,
         dynamic_gain=False,
-        initial_gain=8,
+        initial_gain=16,
         fake_data=is_testing_env(),
     )
     adc_reader.setup_adc()
