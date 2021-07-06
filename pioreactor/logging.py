@@ -97,7 +97,7 @@ def create_logger(
         pub_client = create_client(client_id=f"{unit}-logging-{uuid.uuid1()}")
 
     # file handler
-    file_handler = logging.FileHandler(config["logging"]["log_file"])
+    file_handler = logging.WatchedFileHandler(config["logging"]["log_file"])
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
         logging.Formatter(
