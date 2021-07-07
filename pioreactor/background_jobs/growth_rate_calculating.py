@@ -112,13 +112,18 @@ class GrowthRateCalculator(BackgroundJob):
         d = initial_state.shape[0]
 
         # empirically selected - TODO: this should probably scale with `expected_dt`
-        initial_covariance = 1e-8 * np.diag([1.0] * (d - 2) + [1.0, 5.0])
+        initial_covariance = 1e-7 * np.diag([1.0] * (d - 2) + [1.0, 5.0])
         self.logger.debug(f"Initial covariance matrix: {str(initial_covariance)}")
 
-        acc_variance = config.getfloat("growth_rate_kalman", "acc_variance")
-        acc_process_variance = (acc_variance * self.expected_dt) ** 2
+        acc_std = config.getfloat("growth_rate_kalman", "acc_std")
+        acc_process_variance = (acc_std * self.expected_dt) ** 2
+        od_std = config.getfloat("growth_rate_kalman", "od_std")
+        od_process_variance = (od_std * self.expected_dt) ** 2
 
         process_noise_covariance = np.zeros((d, d))
+        process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = (
+            od_process_variance
+        ) ** 2
         process_noise_covariance[-1, -1] = acc_process_variance
 
         observation_noise_covariance = self.create_obs_noise_covariance(
@@ -157,9 +162,9 @@ class GrowthRateCalculator(BackgroundJob):
             ]
         )
 
-        obs_variances = config.getfloat(
-            "growth_rate_kalman", "obs_variance"
-        ) ** 2 * np.diag(scaling_obs_variances)
+        obs_variances = config.getfloat("growth_rate_kalman", "obs_std") ** 2 * np.diag(
+            scaling_obs_variances
+        )
         return obs_variances
 
     def get_precomputed_values(self):
