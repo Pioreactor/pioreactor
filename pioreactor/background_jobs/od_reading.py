@@ -61,7 +61,7 @@ import click
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
-from pioreactor.utils.timing import RepeatedTimer, current_utc_time
+from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
@@ -246,22 +246,21 @@ class ADCReader(BackgroundSubJob):
             max_signal = 0
             raw_signals = {}
             for channel, ai in self.analog_in:
-                # raw_signal_ = ai.voltage
+                raw_signal_ = ai.voltage
 
-                _ADS1X15_PGA_RANGE = {
-                    2 / 3: 6.144,
-                    1: 4.096,
-                    2: 2.048,
-                    4: 1.024,
-                    8: 0.512,
-                    16: 0.256,
-                }
-
-                value1115 = ai.value  # int between 0 and 32767
-                value1015 = (
-                    value1115 >> 4
-                ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
-                raw_signal_ = value1015 * _ADS1X15_PGA_RANGE[self.ads.gain] / 32767
+                # _ADS1X15_PGA_RANGE = {
+                #     2 / 3: 6.144,
+                #     1: 4.096,
+                #     2: 2.048,
+                #     4: 1.024,
+                #     8: 0.512,
+                #     16: 0.256,
+                # }
+                # value1115 = ai.value  # int between 0 and 32767
+                # value1015 = (
+                #     value1115 >> 4
+                # ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
+                # raw_signal_ = value1015 * _ADS1X15_PGA_RANGE[self.ads.gain] / 32767
 
                 raw_signals[f"A{channel}"] = raw_signal_
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
@@ -405,9 +404,12 @@ class ODReader(BackgroundJob):
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
-            self.stop_ir_led()
+            with catchtime() as delta_to_stop:
+                self.stop_ir_led()
 
-            time.sleep(max(0, ads_interval - (post_duration + pre_duration)))
+            time.sleep(
+                max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
+            )
             self.start_ir_led()
 
         msg = subscribe(

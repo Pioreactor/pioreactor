@@ -2,7 +2,17 @@
 import time, logging
 from datetime import datetime
 from threading import Event, Thread
+from time import perf_counter
+
 from pioreactor.whoami import is_testing_env
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def catchtime() -> float:
+    start = perf_counter()
+    yield lambda: perf_counter() - start
 
 
 def current_utc_time():
