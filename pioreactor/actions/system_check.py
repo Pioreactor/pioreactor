@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-check system action
+system check action
 
 This action checks the following on the Pioreactor:
 
 1. Heating and temperature sensor by gradually increase heating's DC, and record temperature
-    [ ] do we detect the heating PCB over i2c?
-    [ ] is there a positive correlation between heating DC and temperature?
+    [x] do we detect the heating PCB over i2c?
+    [x] is there a positive correlation between heating DC and temperature?
 
 2. LEDs and PDs, ramp up each LED's output and record outputs from PDs (from ADC)
-    [ s] do we measure a positive correlation between any LED output and PD?
-      - output should be a list of pairs (LED_X, PD_Y) where a positive correlation is detected
+    [x] do we measure a positive correlation between any LED output and PD?
+    [x] output should be a list of pairs (LED_X, PD_Y) where a positive correlation is detected
+    [x] Detect the Pioreactor HAT
 
 3. Stirring: ramp up output voltage for stirring and record RPM
     [ ] do we measure a positive correlation between stirring voltage and RPM?
@@ -82,14 +83,14 @@ def check_temperature_and_heating(unit, experiment):
 
 def check_leds_and_pds(unit, experiment, logger):
 
-    INTENSITIES = list(range(0, 60, 8))
+    INTENSITIES = list(range(0, 48, 8))
     current_experiment_name = get_latest_experiment_name()
     results = {}
     adc_reader = ADCReader(
         unit=unit,
         experiment=experiment,
         dynamic_gain=False,
-        initial_gain=16,
+        initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
         fake_data=is_testing_env(),
     )
     adc_reader.setup_adc()
@@ -125,7 +126,7 @@ def check_leds_and_pds(unit, experiment, logger):
         )
 
     for channel in CHANNELS:
-        logger.debug(f"Varying intensity of channel {channel}:")
+        logger.debug(f"Varying intensity of channel {channel}.")
         varying_intensity_results = defaultdict(list)
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
