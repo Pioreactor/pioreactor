@@ -31,8 +31,9 @@ with payload
 
 
 """
-import signal, time, json, math
+import signal, json
 from collections import defaultdict
+from datetime import datetime
 import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
@@ -62,7 +63,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.get_precomputed_values()
         )
         self.initial_acc = 0
-        self.time_of_previous_observation = time.time()
+        self.time_of_previous_observation = datetime.utcnow()
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
         )
@@ -155,7 +156,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         scaling_obs_variances = np.array(
             [
-                math.sqrt(self.od_variances[channel])
+                np.sqrt(self.od_variances[channel])
                 / channels_and_initial_points[channel]
                 / 0.01
                 for channel in channels_and_initial_points
@@ -298,7 +299,9 @@ class GrowthRateCalculator(BackgroundJob):
         if self.state != self.READY:
             return
 
-        current_time = time.time()
+        payload = json.loads(message.payload)
+        observations = self.batched_raw_od_readings_to_dict(payload["od_raw"])
+        scaled_observations = self.scale_raw_observations(observations)
 
         if is_testing_env():
             # when running a mock script, we run at an accelerated rate, but want to mimic
@@ -306,14 +309,18 @@ class GrowthRateCalculator(BackgroundJob):
             dt = self.expected_dt
         else:
             # TODO this should use the internal timestamp reference
-            dt = (
-                (current_time - self.time_of_previous_observation) / 60 / 60
-            )  # delta time in hours
 
-        payload = json.loads(message.payload)
-        timestamp = payload["timestamp"]
-        observations = self.batched_raw_od_readings_to_dict(payload["od_raw"])
-        scaled_observations = self.scale_raw_observations(observations)
+            time_of_current_observation = datetime.strptime(
+                payload["timestamp"], "%Y-%m-%dT%H:%M:%S.%f"
+            )
+            dt = (
+                (
+                    time_of_current_observation - self.time_of_previous_observation
+                ).total_seconds()
+                / 60
+                / 60
+            )  # delta time in hours
+            self.time_of_previous_observation = time_of_current_observation
 
         try:
             self.ekf.update(list(scaled_observations.values()), dt)
@@ -325,7 +332,7 @@ class GrowthRateCalculator(BackgroundJob):
             # TODO: EKF values can be nans...
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
-                {"growth_rate": self.state_[-2], "timestamp": timestamp},
+                {"growth_rate": self.state_[-2], "timestamp": payload["timestamp"]},
                 retain=True,
             )
 
@@ -334,7 +341,7 @@ class GrowthRateCalculator(BackgroundJob):
                 {
                     "state": self.ekf.state_.tolist(),
                     "covariance_matrix": self.ekf.covariance_.tolist(),
-                    "timestamp": timestamp,
+                    "timestamp": payload["timestamp"],
                 },
             )
 
@@ -343,12 +350,11 @@ class GrowthRateCalculator(BackgroundJob):
                     f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_filtered/{channel}",
                     {
                         "od_filtered": self.state_[i],
-                        "timestamp": timestamp,
+                        "timestamp": payload["timestamp"],
                         "angle": angle,
                     },
                 )
 
-            self.time_of_previous_observation = current_time
             return
 
     def response_to_dosing_event(self, message):

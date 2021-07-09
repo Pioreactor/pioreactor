@@ -19,7 +19,7 @@ def get_latest_experiment_name():
     if os.environ.get("EXPERIMENT"):
         return os.environ.get("EXPERIMENT")
     elif is_testing_env():
-        return "testing_experiment"
+        return "_testing_experiment"
 
     from pioreactor.pubsub import subscribe
 
