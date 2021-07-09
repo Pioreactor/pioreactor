@@ -405,6 +405,8 @@ class ODReader(BackgroundJob):
 
         def sneak_in():
             with catchtime() as delta_to_stop:
+                # the time delta produced by the stop_ir_led can be significant, hence we
+                # must account for it.
                 self.stop_ir_led()
 
             time.sleep(

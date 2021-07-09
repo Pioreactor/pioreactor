@@ -1,4 +1,23 @@
 # -*- coding: utf-8 -*-
+"""
+
+Publishes a message like:
+
+    {'0': 1.3e-5, '1': 3.2e-6}
+
+to the topic
+
+  pioreactor/{unit}/{experiment}/od_normalization/mean
+
+and
+
+  pioreactor/{unit}/{experiment}/od_normalization/variance
+
+
+
+
+
+"""
 import json
 from collections import defaultdict
 
@@ -102,7 +121,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 hostname="mqtt.pioreactor.com",
             )
 
-        return
+        return means, variances
 
     except Exception as e:
         logger.debug(e, exc_info=True)

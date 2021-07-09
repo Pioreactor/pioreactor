@@ -221,7 +221,7 @@ class Monitor(BackgroundJob):
         )
 
         with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
-            cpu_temperature_celcius = int(f.read().strip()) / 1000
+            cpu_temperature_celcius = round(int(f.read().strip()) / 1000)
 
         if disk_usage_percent <= 70:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")

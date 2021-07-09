@@ -74,7 +74,7 @@ def check_temperature_and_heating(unit, experiment):
 
     publish(
         f"pioreactor/{unit}/{experiment}/system_check/positive_correlation_between_temp_and_heating",
-        int(correlation(dcs, measured_pcb_temps) > 0.8),
+        int(correlation(dcs, measured_pcb_temps) > 0.9),
         retain=False,
     )
 

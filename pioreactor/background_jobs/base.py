@@ -395,16 +395,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             f"Initializing, unit: `{self.unit}`, experiment: `{self.experiment}`."
         )
 
-        if threading.current_thread() is not threading.main_thread():
-            # if we re-init (via MQTT, close previous threads), but don't do this in main thread
-            for client in self.pubsub_clients:
-                client.disconnect()
-                client.loop_stop()  # pretty sure this doesn't close the thread if called in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-
-            self.pub_client = self.create_pub_client()
-            self.sub_client = self.create_sub_client()
-            self.pubsub_clients = [self.sub_client, self.pub_client]
-
         self.set_up_exit_protocol()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()

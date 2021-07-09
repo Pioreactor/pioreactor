@@ -89,7 +89,6 @@ class GrowthRateCalculator(BackgroundJob):
         latest_od_message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched"
         )
-
         latest_ods = json.loads(latest_od_message.payload)["od_raw"]
 
         channels_and_initial_points = self.scale_raw_observations(
@@ -119,11 +118,12 @@ class GrowthRateCalculator(BackgroundJob):
         acc_process_variance = (acc_std * self.expected_dt) ** 2
         od_std = config.getfloat("growth_rate_kalman", "od_std")
         od_process_variance = (od_std * self.expected_dt) ** 2
+        rate_std = config.getfloat("growth_rate_kalman", "rate_std")
+        rate_process_variance = (rate_std * self.expected_dt) ** 2
 
         process_noise_covariance = np.zeros((d, d))
-        process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = (
-            od_process_variance
-        ) ** 2
+        process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = od_process_variance
+        process_noise_covariance[-2, -2] = rate_process_variance
         process_noise_covariance[-1, -1] = acc_process_variance
 
         observation_noise_covariance = self.create_obs_noise_covariance(
@@ -176,14 +176,16 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.info(
                 "Computing OD normalization metrics. This may take a few minutes"
             )
-            od_normalization(unit=self.unit, experiment=self.experiment)
+            od_normalization_factors, od_variances = od_normalization(
+                unit=self.unit, experiment=self.experiment
+            )
             self.logger.info("Completed OD normalization metrics.")
             initial_growth_rate = 0
         else:
+            od_normalization_factors = self.get_od_normalization_from_broker()
+            od_variances = self.get_od_variances_from_broker()
             initial_growth_rate = self.get_growth_rate_from_broker()
 
-        od_normalization_factors = self.get_od_normalization_from_broker()
-        od_variances = self.get_od_variances_from_broker()
         od_blank = self.get_od_blank_from_broker()
 
         # what happens if od_blank is near / less than od_normalization_factors?
@@ -232,11 +234,11 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.logger.debug("od_normalization/mean not found in broker.")
             self.logger.info(
-                "Computing OD normalization metrics. This may take a few minutes"
+                "Calculating OD normalization metrics. This may take a few minutes"
             )
-            od_normalization(unit=self.unit, experiment=self.experiment)
-            self.logger.info("Computing OD normalization metrics completed.")
-            return self.get_od_normalization_from_broker()
+            means, _ = od_normalization(unit=self.unit, experiment=self.experiment)
+            self.logger.info("Finished calculating OD normalization metrics.")
+            return means
 
     def get_od_variances_from_broker(self):
         # we check if the broker has variance/mean stats
@@ -250,12 +252,12 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.logger.debug("od_normalization/variance not found in broker.")
             self.logger.info(
-                "Computing OD normalization metrics. This may take a few minutes"
+                "Calculating OD normalization metrics. This may take a few minutes"
             )
-            od_normalization(unit=self.unit, experiment=self.experiment)
-            self.logger.info("Computing OD normalization metrics completed.")
+            _, variances = od_normalization(unit=self.unit, experiment=self.experiment)
+            self.logger.info("Finished calculating OD normalization metrics.")
 
-            return self.get_od_variances_from_broker()
+            return variances
 
     def update_ekf_variance_after_event(self, minutes, factor):
         if is_testing_env():
