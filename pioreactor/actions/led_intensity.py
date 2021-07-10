@@ -15,7 +15,7 @@ def update_current_state(channel, intensity):
     this ignores the status of "power on"
 
     This use to use MQTT, but network latency could really cause trouble.
-    Eventually I should try to modify the UI to not even need this variable, state.
+    Eventually I should try to modify the UI to not even need this `state` variable,
     """
 
     path = os.path.join("/tmp/" if not is_testing_env() else "./", "led_state.json")

@@ -3,7 +3,6 @@ import sys, threading, signal, os
 from contextlib import contextmanager
 from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import create_client
 
 
 class PWM:
@@ -51,7 +50,6 @@ class PWM:
         self.pin = pin
         self.hz = hz
         self.lock_file_location = os.path.join(self.LOCK_FOLDER, f".PWM-{self.pin}-lock")
-        self.pubsub_client = create_client()  # TODO: include last will here
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_AVAILABLE_PINS):
             if is_testing_env():
@@ -96,7 +94,6 @@ class PWM:
         self.logger.debug(
             f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}."
         )
-        # self.pubsub_client.publish(f"pioreactor/{ff}")
 
     def start(self, initial_duty_cycle):
         self.pwm.start(initial_duty_cycle)
