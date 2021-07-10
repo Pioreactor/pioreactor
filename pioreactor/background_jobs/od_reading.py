@@ -398,9 +398,7 @@ class ODReader(BackgroundJob):
         pre_duration: duration between stopping the action and the next ADS reading
         """
 
-        post_duration = (
-            0.7
-        )  # TODO: can be lowered to < 0.3 safely, I believe, since each reading takes 1/8=0.125 seconds
+        post_duration = 0.7  # TODO: can be lowered to < 0.3 safely, I believe, since each reading takes 1/8=0.125 seconds
         pre_duration = 1.0  # just to be safe
 
         def sneak_in():
@@ -449,6 +447,7 @@ class ODReader(BackgroundJob):
             source_of_event=self.job_name,
             verbose=False,
             mock=self.fake_data,
+            pubsub_client=self.pub_client,
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
@@ -464,6 +463,7 @@ class ODReader(BackgroundJob):
             source_of_event=self.job_name,
             verbose=False,
             mock=self.fake_data,
+            pubsub_client=self.pub_client,
         )
 
     def on_sleeping(self):

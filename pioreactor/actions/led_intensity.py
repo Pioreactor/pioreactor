@@ -1,23 +1,38 @@
 # -*- coding: utf-8 -*-
 import json
 import click
-from pioreactor.pubsub import publish_multiple, subscribe, QOS
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+import os
+from pioreactor.pubsub import create_client, QOS
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 
 CHANNELS = ["A", "B", "C", "D"]
 
 
-def get_current_state_from_broker(unit, experiment):
-    # this ignores the status of "power on"
-    # TODO: this is kinda bad, overall. To keep state in MQTT, and if
-    #       we timeout, we basically reset state completely.
-    msg = subscribe(f"pioreactor/{unit}/{experiment}/leds/intensity", timeout=2)
-    if msg:
-        return json.loads(msg.payload)
+def update_current_state(channel, intensity):
+    """
+    this ignores the status of "power on"
+
+    This use to use MQTT, but network latency could really cause trouble.
+    Eventually I should try to modify the UI to not even need this variable, state.
+    """
+
+    path = os.path.join("/tmp/" if not is_testing_env() else "./", "led_state.json")
+    if os.path.isfile(path):
+        with open(path) as f:
+            state = json.load(f)
     else:
-        return {c: 0 for c in CHANNELS}
+        state = {channel: 0 for channel in CHANNELS}
+
+    old_state = state.copy()
+    new_state = state
+    new_state[channel] = intensity
+
+    with open(path, "w") as f:
+        json.dump(new_state, f)
+
+    return new_state, old_state
 
 
 def led_intensity(
@@ -28,6 +43,7 @@ def led_intensity(
     experiment=None,
     verbose=True,
     mock=False,
+    pubsub_client=None,
 ):
     """
     State is also updated in
@@ -51,6 +67,9 @@ def led_intensity(
     if mock:
         from pioreactor.utils.mock import MockDAC43608 as DAC43608  # noqa: F811
 
+    if pubsub_client is None:
+        pubsub_client = create_client()
+
     try:
         assert 0 <= intensity <= 100
         assert channel in CHANNELS, f"saw incorrect channel {channel}"
@@ -70,13 +89,11 @@ def led_intensity(
         )
         return False
     else:
-        state = get_current_state_from_broker(unit, experiment)
-        old_intensity = state[channel]
-        state[channel] = intensity
+        new_state, old_state = update_current_state(channel, intensity)
 
         if verbose:
             logger.info(
-                f"Updated LED {channel} from {old_intensity:g}% to {intensity:g}%."
+                f"Updated LED {channel} from {old_state['channel']:g}% to {new_state['channel']:g}%."
             )
 
         event = {
@@ -87,28 +104,25 @@ def led_intensity(
             "timestamp": current_utc_time(),
         }
 
-        publish_multiple(
-            [
-                (
-                    f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
-                    intensity,
-                    QOS.AT_MOST_ONCE,
-                    True,
-                ),
-                (
-                    f"pioreactor/{unit}/{experiment}/leds/intensity",
-                    json.dumps(state),
-                    QOS.AT_MOST_ONCE,
-                    True,
-                ),
-                (
-                    f"pioreactor/{unit}/{experiment}/led_events",
-                    json.dumps(event),
-                    QOS.EXACTLY_ONCE,
-                    False,
-                ),
-            ]
+        pubsub_client.publish(
+            f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
+            intensity,
+            qos=QOS.AT_MOST_ONCE,
+            retain=True,
         )
+        pubsub_client.publish(
+            f"pioreactor/{unit}/{experiment}/leds/intensity",
+            json.dumps(new_state),
+            qos=QOS.AT_MOST_ONCE,
+            retain=True,
+        )
+        pubsub_client.publish(
+            f"pioreactor/{unit}/{experiment}/led_events",
+            json.dumps(event),
+            qos=QOS.AT_MOST_ONCE,
+            retain=False,
+        )
+
         return True
 
 
