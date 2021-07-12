@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
-import sys, threading, signal, os
+import sys, threading, signal
 from contextlib import contextmanager
 from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import gpio_helpers
+
+
+PWM_LOCKED = b"1"
+PWM_UNLOCKED = b"0"
 
 
 class PWM:
@@ -42,14 +48,20 @@ class PWM:
 
     HARDWARE_PWM_AVAILABLE_PINS = {12, 13}
     HARDWARE_PWM_CHANNELS = {12: 0, 13: 1}
-    LOCK_FOLDER = "/tmp/" if not is_testing_env() else "./"
     using_hardware = False
 
     def __init__(self, pin, hz, always_use_software=False):
         self.logger = create_logger("PWM")
         self.pin = pin
         self.hz = hz
-        self.lock_file_location = os.path.join(self.LOCK_FOLDER, f".PWM-{self.pin}-lock")
+
+        if gpio_helpers.is_gpio_available(self.pin):
+            self.logger.warning(f"GPIO-{self.pin} is currently in use.")
+
+        if self.is_locked():
+            self.logger.warning(f"PWM-{self.pin} is currently locked.")
+
+        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_UNAVAILABLE)
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_AVAILABLE_PINS):
             if is_testing_env():
@@ -110,6 +122,8 @@ class PWM:
     def cleanup(self):
         self.stop()
         self.unlock()
+        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_AVAILABLE)
+
         if self.using_hardware:
             # `stop` handles cleanup.
             pass
@@ -129,19 +143,16 @@ class PWM:
         self.logger.debug(f"Cleaned up PWM-{self.pin}.")
 
     def is_locked(self):
-        return os.path.isfile(self.lock_file_location)
+        with local_intermittent_storage("pwm_locks") as pwm_locks:
+            return pwm_locks.get(str(self.pin)) == PWM_LOCKED
 
     def lock(self):
-        try:
-            open(self.lock_file_location, "x")
-        except FileExistsError:
-            pass
+        with local_intermittent_storage("pwm_locks") as pwm_locks:
+            pwm_locks[str(self.pin)] = PWM_LOCKED
 
     def unlock(self):
-        try:
-            os.remove(self.lock_file_location)
-        except OSError:
-            pass
+        with local_intermittent_storage("pwm_locks") as pwm_locks:
+            pwm_locks[str(self.pin)] = PWM_UNLOCKED
 
     @contextmanager
     def lock_temporarily(self):

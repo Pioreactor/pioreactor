@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import json
 import click
-import os
+
 from pioreactor.pubsub import create_client, QOS
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils import local_intermittent_storage
 
 CHANNELS = ["A", "B", "C", "D"]
 
@@ -18,21 +19,15 @@ def update_current_state(channel, intensity):
     Eventually I should try to modify the UI to not even need this `state` variable,
     """
 
-    path = os.path.join("/tmp/" if not is_testing_env() else "./", "led_state.json")
-    if os.path.isfile(path):
-        with open(path) as f:
-            state = json.load(f)
-    else:
-        state = {channel: 0 for channel in CHANNELS}
+    with local_intermittent_storage("leds") as led_cache:
+        old_state = {channel: float(led_cache.get(channel, 0)) for channel in CHANNELS}
 
-    old_state = state.copy()
-    new_state = state
-    new_state[channel] = intensity
+        # update cache
+        led_cache[channel] = str(intensity)
 
-    with open(path, "w") as f:
-        json.dump(new_state, f)
+        new_state = {channel: float(led_cache.get(channel, 0)) for channel in CHANNELS}
 
-    return new_state, old_state
+        return new_state, old_state
 
 
 def led_intensity(

@@ -20,6 +20,7 @@ from pioreactor.hardware_mappings import (
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
 from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import gpio_helpers
 
 from pioreactor.version import __version__
 
@@ -72,6 +73,8 @@ class Monitor(BackgroundJob):
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
+        gpio_helpers.set_gpio_availability(BUTTON_PIN, gpio_helpers.GPIO_UNAVAILABLE)
+        gpio_helpers.set_gpio_availability(LED_PIN, gpio_helpers.GPIO_UNAVAILABLE)
 
     def self_checks(self):
         # watch for undervoltage problems
@@ -93,6 +96,7 @@ class Monitor(BackgroundJob):
         probable_restart = False
 
         def check_against_processes_runnning(msg):
+            global probable_restart
             job = msg.topic.split("/")[3]
             if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
                 job not in whats_running
@@ -103,7 +107,7 @@ class Monitor(BackgroundJob):
                     retain=True,
                 )
                 self.logger.debug(f"Manually changing {job} state in MQTT.")
-                probable_restart = True  # noqa: F841
+                probable_restart = probable_restart or True  # noqa: F841
 
         self.subscribe_and_callback(
             check_against_processes_runnning,
@@ -133,6 +137,9 @@ class Monitor(BackgroundJob):
 
     def on_disconnect(self):
         self.GPIO.cleanup(LED_PIN)
+        self.GPIO.cleanup(BUTTON_PIN)
+        gpio_helpers.set_gpio_availability(BUTTON_PIN, gpio_helpers.GPIO_AVAILABLE)
+        gpio_helpers.set_gpio_availability(LED_PIN, gpio_helpers.GPIO_AVAILABLE)
 
     def led_on(self):
         self.GPIO.output(LED_PIN, self.GPIO.HIGH)

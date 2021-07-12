@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
+from dbm import ndbm
+from contextlib import contextmanager
 from pioreactor.whoami import am_I_leader
+
+
+@contextmanager
+def local_intermittent_storage(cache_name):
+    try:
+        cache = ndbm.open(f"/tmp/{cache_name}", "c")
+        yield cache
+    finally:
+        cache.close()
 
 
 def clamp(minimum, x, maximum):

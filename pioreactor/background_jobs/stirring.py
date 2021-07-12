@@ -12,6 +12,7 @@ from pioreactor.pubsub import subscribe
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp
+from pioreactor.utils import gpio_helpers
 
 JOB_NAME = "stirring"
 
@@ -49,15 +50,19 @@ class Stirrer(BackgroundJob):
 
         self.pwm = PWM(self.pin, hertz)
         self.pwm.lock()
+        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_UNAVAILABLE)
+
         self.set_duty_cycle(duty_cycle)
         self.start_stirring()
 
     def on_disconnect(self):
 
-        self.stop_stirring()  # not strictly necessary, but will update the UI/MQTT to show that the speed is 0 (off)
+        self.stop_stirring()
 
         if hasattr(self, "sneak_in_timer"):
             self.sneak_in_timer.cancel()
+
+        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_AVAILABLE)
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
@@ -121,9 +126,7 @@ class Stirrer(BackgroundJob):
             if self.state != self.READY:
                 return
 
-            factor = (
-                1.4
-            )  # this could be a config param? Once RPM is established, maybe a max is needed.
+            factor = 1.4  # this could be a config param? Once RPM is established, maybe a max is needed.
             original_dc = self.duty_cycle
             self.set_duty_cycle(factor * self.duty_cycle)
             time.sleep(ads_interval - (post_duration + pre_duration))
