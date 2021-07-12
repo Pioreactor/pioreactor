@@ -355,6 +355,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def set_up_exit_protocol(self):
         # here, we set up how jobs should disconnect and exit.
         def disconnect_gracefully(*args):
+            # ignore future keyboard interrupts
+            signal.signal(signal.SIGINT, lambda *args: None)
             if self.state == self.DISCONNECTED:
                 return
             self.set_state(self.DISCONNECTED)

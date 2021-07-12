@@ -28,8 +28,6 @@ with payload
         "angle": "90",
     }
 
-
-
 """
 import signal, json
 from collections import defaultdict
