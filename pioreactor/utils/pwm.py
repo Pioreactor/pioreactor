@@ -55,11 +55,10 @@ class PWM:
         self.pin = pin
         self.hz = hz
 
-        if gpio_helpers.is_gpio_available(self.pin):
-            self.logger.warning(f"GPIO-{self.pin} is currently in use.")
-
         if self.is_locked():
-            self.logger.warning(f"PWM-{self.pin} is currently locked.")
+            self.logger.warning(
+                f"PWM-{self.pin} is currently locked but another task is trying to use it."
+            )
 
         gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_UNAVAILABLE)
 

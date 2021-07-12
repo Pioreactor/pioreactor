@@ -58,6 +58,7 @@ class Stirrer(BackgroundJob):
     def on_disconnect(self):
 
         self.stop_stirring()
+        self.pwm.cleanup()
 
         if hasattr(self, "sneak_in_timer"):
             self.sneak_in_timer.cancel()

@@ -88,7 +88,7 @@ def led_intensity(
 
         if verbose:
             logger.info(
-                f"Updated LED {channel} from {old_state['channel']:g}% to {new_state['channel']:g}%."
+                f"Updated LED {channel} from {old_state[channel]:g}% to {new_state[channel]:g}%."
             )
 
         event = {
