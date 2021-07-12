@@ -38,6 +38,11 @@ def correlation(x, y):
     return (running_sum / (running_count - 1)) / std_y / std_x
 
 
+def is_pio_job_running(target_job):
+    with local_intermittent_storage("pio_jobs_running") as cache:
+        return cache.get(target_job, b"0") == b"1"
+
+
 def pio_jobs_running():
     """
     This returns a list of the current pioreactor jobs/actions running. Ex:
@@ -48,6 +53,9 @@ def pio_jobs_running():
     -------
     Duplicate jobs can show up here, as in the case when a job starts while another
     job runs (hence why this needs to be a list and not a set.)
+
+    This function is slow, takes about 0.1s on a RaspberryPi, so it's preferred to use
+    `is_pio_job_runnning` first, and use this as a backup to double check.
 
     """
     import psutil

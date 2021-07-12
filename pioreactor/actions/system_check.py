@@ -37,7 +37,7 @@ from pioreactor.utils import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
 from pioreactor.actions.led_intensity import led_intensity, CHANNELS
-from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import is_pio_job_running
 
 
 def check_temperature_and_heating(unit, experiment):
@@ -198,11 +198,10 @@ def system_check():
 
     logger = create_logger("system_check")
 
-    jobs_running = pio_jobs_running()
     if (
-        ("od_reading" in jobs_running)
-        or ("temperature_control" in jobs_running)
-        or ("stirring" in jobs_running)
+        is_pio_job_running("od_reading")
+        or is_pio_job_running("temperature_control")
+        or is_pio_job_running("stirring")
     ):
         logger.warning(
             "Make sure OD Reading, Temperature Control, and Stirring are off before running a system check. Exiting."

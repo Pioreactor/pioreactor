@@ -37,7 +37,7 @@ from datetime import datetime
 import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
-from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import is_pio_job_running
 from pioreactor.pubsub import subscribe, QOS
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
@@ -59,9 +59,12 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         self.ignore_cache = ignore_cache
-        self.initial_growth_rate, self.od_normalization_factors, self.od_variances, self.od_blank = (
-            self.get_precomputed_values()
-        )
+        (
+            self.initial_growth_rate,
+            self.od_normalization_factors,
+            self.od_variances,
+            self.od_blank,
+        ) = self.get_precomputed_values()
         self.initial_acc = 0
         self.time_of_previous_observation = datetime.utcnow()
         self.expected_dt = 1 / (
@@ -170,8 +173,8 @@ class GrowthRateCalculator(BackgroundJob):
 
     def get_precomputed_values(self):
         if self.ignore_cache:
-            assert (
-                "od_reading" in pio_jobs_running()
+            assert is_pio_job_running(
+                "od_reading"
             ), "OD reading should be running. Stopping."
             # the below will populate od_norm and od_variance too
             self.logger.info(

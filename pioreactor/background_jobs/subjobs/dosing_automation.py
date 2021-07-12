@@ -8,7 +8,7 @@ from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import QOS
-from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import RepeatedTimer, brief_pause, current_utc_time
 from pioreactor.automations import events
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
@@ -108,8 +108,8 @@ class DosingAutomation(BackgroundSubJob):
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if ("od_reading" not in pio_jobs_running()) or (
-                "growth_rate_calculating" not in pio_jobs_running()
+            if (not is_pio_job_running("od_reading")) or (
+                not is_pio_job_running("growth_rate_calculating")
             ):
                 self.logger.warning(
                     "`od_reading` and `growth_rate_calculating` should be running."

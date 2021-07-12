@@ -24,7 +24,7 @@ from collections import defaultdict
 import click
 
 from pioreactor.config import config
-from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import is_pio_job_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
@@ -45,7 +45,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     )
 
     if (
-        ("od_reading" not in pio_jobs_running())
+        (is_pio_job_running("od_reading"))
         # but if test mode, ignore
         and not is_testing_env()
     ):

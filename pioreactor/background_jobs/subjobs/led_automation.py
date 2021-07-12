@@ -6,7 +6,7 @@ from threading import Thread
 
 
 from pioreactor.pubsub import QOS
-from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.led_control import LEDController
@@ -100,8 +100,8 @@ class LEDAutomation(BackgroundSubJob):
 
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not ("od_reading" in pio_jobs_running()) and (
-                "growth_rate_calculating" in pio_jobs_running()
+            if (not is_pio_job_running("od_reading")) or (
+                not is_pio_job_running("growth_rate_calculating")
             ):
                 self.logger.warning(
                     "`od_reading` and `growth_rate_calculating` should be running."

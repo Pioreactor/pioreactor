@@ -4,7 +4,7 @@ import json
 import click
 
 from pioreactor.config import config
-from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import is_pio_job_running
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
@@ -32,7 +32,7 @@ def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
 
         # running this will mess with OD Reading - best to just not let it happen.
         if (
-            ("od_reading" in pio_jobs_running())
+            is_pio_job_running("od_reading")
             # but if test mode, ignore
             and not is_testing_env()
         ):
