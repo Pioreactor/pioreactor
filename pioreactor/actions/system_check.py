@@ -40,7 +40,7 @@ from pioreactor.actions.led_intensity import led_intensity, CHANNELS
 from pioreactor.utils import is_pio_job_running
 
 
-def check_temperature_and_heating(unit, experiment):
+def check_temperature_and_heating(unit, experiment, logger):
     try:
         tc = TemperatureController("silent", unit=unit, experiment=experiment)
         publish(
@@ -64,7 +64,7 @@ def check_temperature_and_heating(unit, experiment):
 
     measured_pcb_temps = []
     dcs = list(range(0, 50, 5))
-
+    logger.debug("Varying heating.")
     for dc in dcs:
         tc._update_heater(dc)
         time.sleep(0.75)
@@ -197,6 +197,10 @@ def check_leds_and_pds(unit, experiment, logger):
 def system_check():
 
     logger = create_logger("system_check")
+    unit = get_unit_name()
+    experiment = get_latest_testing_experiment_name()
+
+    publish(f"pioreactor/{unit}/{experiment}/system_check/$state", "ready", retain=True)
 
     if (
         is_pio_job_running("od_reading")
@@ -206,24 +210,20 @@ def system_check():
         logger.warning(
             "Make sure OD Reading, Temperature Control, and Stirring are off before running a system check. Exiting."
         )
-        return
 
-    unit = get_unit_name()
-    experiment = get_latest_testing_experiment_name()
+    else:
 
-    publish(f"pioreactor/{unit}/{experiment}/system_check/$state", "ready", retain=True)
+        # LEDs and PDs
+        logger.debug("Check LEDs and PDs...")
+        check_leds_and_pds(unit, experiment, logger=logger)
 
-    # LEDs and PDs
-    logger.debug("Check LEDs and PDs...")
-    check_leds_and_pds(unit, experiment, logger=logger)
+        # temp and heating
+        logger.debug("Check temperature and heating...")
+        check_temperature_and_heating(unit, experiment, logger=logger)
 
-    # temp and heating
-    logger.debug("Check temperature and heating...")
-    check_temperature_and_heating(unit, experiment)
-
-    # TODO: stirring
-    #
-    #
+        # TODO: stirring
+        #
+        #
 
     publish(
         f"pioreactor/{unit}/{experiment}/system_check/$state", "disconnected", retain=True
