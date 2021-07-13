@@ -485,6 +485,10 @@ class ODReader(BackgroundJob):
             pass
         self.stop_ir_led()
 
+    def temperature_compensator(self, reading):
+        # TODO
+        return reading
+
     def publish_batch(self, message):
         if self.state != self.READY:
             return
@@ -494,7 +498,7 @@ class ODReader(BackgroundJob):
         for channel, angle in self.channel_angle_map.items():
             try:
                 od_readings["od_raw"][channel.lstrip("A")] = {
-                    "voltage": ads_readings[channel],
+                    "voltage": self.temperature_compensator(ads_readings[channel]),
                     "angle": angle,
                 }
             except KeyError:
@@ -517,6 +521,7 @@ class ODReader(BackgroundJob):
         channel = message.topic.rsplit("/", maxsplit=1)[1]
         payload = json.loads(message.payload)
         payload["angle"] = self.channel_angle_map[channel]
+        payload["voltage"] = self.temperature_compensator(payload["voltage"])
         topic_suffix = channel.lstrip("A")
 
         self.publish(
