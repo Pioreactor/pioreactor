@@ -5,18 +5,26 @@ import click
 
 from pioreactor.config import config
 from pioreactor.utils import is_pio_job_running
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.whoami import (
+    get_unit_name,
+    get_latest_testing_experiment_name,
+    get_latest_experiment_name,
+    is_testing_env,
+)
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.od_reading import ODReader, create_channel_angle_map
 
 
-def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
+def od_blank(od_angle_channels, N_samples=30):
     from statistics import mean
     from collections import defaultdict
 
     action_name = "od_blank"
     logger = create_logger(action_name)
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+    testing_experiment = get_latest_testing_experiment_name()
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/{action_name}/$state",
@@ -56,14 +64,14 @@ def od_blank(od_angle_channels, unit=None, experiment=None, N_samples=30):
             create_channel_angle_map(*od_angle_channels),
             sampling_rate=sampling_rate,
             unit=unit,
-            experiment=f"{experiment}-blank",
+            experiment=testing_experiment,
         )
         od_reader.adc_reader.data_rate = 32
 
         def yield_from_mqtt():
             while True:
                 msg = pubsub.subscribe(
-                    f"pioreactor/{unit}/{experiment}-blank/od_reading/od_raw_batched"
+                    f"pioreactor/{unit}/{testing_experiment}/od_reading/od_raw_batched"
                 )
                 yield json.loads(msg.payload)
 
@@ -151,10 +159,6 @@ def click_od_blank(
     """
     Compute statistics about the blank OD timeseries
     """
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
     od_blank(
         [od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3],
-        unit,
-        experiment,
     )
