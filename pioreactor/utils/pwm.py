@@ -102,17 +102,32 @@ class PWM:
             signal.signal(signal.SIGTERM, on_kill)
             signal.signal(signal.SIGINT, on_kill)
 
+        with local_intermittent_storage("pwm_hz") as cache:
+            cache[str(self.pin)] = str(self.hz)
+
         self.logger.debug(
             f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}."
         )
 
     def start(self, initial_duty_cycle):
+        assert (
+            0 <= initial_duty_cycle <= 100
+        ), "dc should be between 0 and 100, inclusive."
+
+        with local_intermittent_storage("pwm_dc") as cache:
+            cache[str(self.pin)] = str(initial_duty_cycle)
+
         self.pwm.start(initial_duty_cycle)
 
     def stop(self):
         self.pwm.stop()
 
     def change_duty_cycle(self, dc):
+        assert 0 <= dc <= 100, "dc should be between 0 and 100, inclusive."
+
+        with local_intermittent_storage("pwm_dc") as cache:
+            cache[str(self.pin)] = str(dc)
+
         if self.using_hardware:
             self.pwm.change_duty_cycle(dc)
         else:
