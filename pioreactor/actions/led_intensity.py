@@ -43,13 +43,11 @@ def led_intensity(
     """
     State is also updated in
 
-    pioreactor/<unit>/<experiment>/leds/<channel>/intensity intensity
+    pioreactor/<unit>/<experiment>/led/<channel>/intensity   <intensity>
 
     and
 
-    pioreactor/<unit>/<experiment>/leds/intensity {'A': intensityA, 'B': intensityB, ...}
-
-    1. The way state is handled in the second topic is tech debt.
+    pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
     """
     logger = create_logger("led_intensity", experiment=experiment)
