@@ -100,7 +100,7 @@ def led_intensity(
         }
 
         pubsub_client.publish(
-            f"pioreactor/{unit}/{experiment}/leds/{channel}/intensity",
+            f"pioreactor/{unit}/{experiment}/led/{channel}/intensity",
             intensity,
             qos=QOS.AT_MOST_ONCE,
             retain=True,
