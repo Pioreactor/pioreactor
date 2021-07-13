@@ -45,7 +45,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
     )
 
     if (
-        (is_pio_job_running("od_reading"))
+        not (is_pio_job_running("od_reading"))
         # but if test mode, ignore
         and not is_testing_env()
     ):
@@ -102,7 +102,6 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            # TODO: build this service!
             pubsub.publish_multiple(
                 [
                     (

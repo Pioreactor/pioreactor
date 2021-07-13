@@ -105,7 +105,7 @@ def od_blank(od_angle_channels, N_samples=30):
             # TODO: build this service!
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/mean",
-                mean,
+                json.dumps(means),
                 hostname="mqtt.pioreactor.com",
             )
 
