@@ -191,10 +191,10 @@ class TemperatureController(BackgroundJob):
 
         if temp > MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 95% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self.update_heater(self.heater_duty_cycle * 0.90)
+            self.update_heater(self.heater_duty_cycle * 0.95)
 
         elif temp > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
@@ -254,7 +254,7 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
-            N_sample_points = 20
+            N_sample_points = 18
             time_between_samples = 10
             timestamp = current_utc_time()
 
