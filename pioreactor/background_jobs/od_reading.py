@@ -258,11 +258,11 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 10
+            oversampling_count = 16
             for _ in range(oversampling_count):
 
                 with catchtime() as delta:
-                    for channel, ai in self.analog_in:
+                    for channel, ai in self.analog_in[:2]:
                         # raw_signal_ = ai.voltage
 
                         value1115 = ai.value  # int between 0 and 32767
