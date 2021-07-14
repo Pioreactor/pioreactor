@@ -258,10 +258,10 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 1
+            oversampling_count = 16
             for _ in range(oversampling_count):
 
-                with catchtime():
+                with catchtime() as delta:
                     for channel, ai in self.analog_in:
                         # raw_signal_ = ai.voltage
 
@@ -272,12 +272,11 @@ class ADCReader(BackgroundSubJob):
                         aggregated_signals[f"A{channel}"] += (
                             value1015 / oversampling_count
                         )
-                        print(time.time())
 
                 # 0.6 comes from the time the IR LED is on (0.7 - 0.1 = 0.6, 0.1 for a buffer)
                 # 0.6 is divided into 4 time points to sample on: 0, 0.2, 0.4, 0.6.
                 # the delta() reduces the variance by accounting for the duration of each sampling.
-                # time.sleep(0.6 / (oversampling_count - 1) - delta())
+                time.sleep(0.6 / (oversampling_count - 1) - delta())
 
             for channel, _ in self.analog_in:
 
