@@ -238,36 +238,60 @@ class ADCReader(BackgroundSubJob):
             pass
 
     def take_reading(self):
+
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
 
         self.counter += 1
+
+        _ADS1X15_PGA_RANGE = {  # TODO: delete when ads1015 is in.
+            2 / 3: 6.144,
+            1: 4.096,
+            2: 2.048,
+            4: 1.024,
+            8: 0.512,
+            16: 0.256,
+        }
+        max_signal = 0
+        aggregated_signals = {"A0": 0, "A1": 0, "A2": 0, "A3": 0}
+
         try:
-            max_signal = 0
-            raw_signals = {}
-            for channel, ai in self.analog_in:
-                raw_signal_ = ai.voltage
 
-                # _ADS1X15_PGA_RANGE = {
-                #     2 / 3: 6.144,
-                #     1: 4.096,
-                #     2: 2.048,
-                #     4: 1.024,
-                #     8: 0.512,
-                #     16: 0.256,
-                # }
-                # value1115 = ai.value  # int between 0 and 32767
-                # value1015 = (
-                #     value1115 >> 4
-                # ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
-                # raw_signal_ = value1015 * _ADS1X15_PGA_RANGE[self.ads.gain] / 32767
+            # oversample over each channel, and we aggregate the results into a single signal.
+            oversampling_count = 4
+            for _ in range(oversampling_count):
 
-                raw_signals[f"A{channel}"] = raw_signal_
+                with catchtime() as delta:
+                    for channel, ai in self.analog_in:
+                        # raw_signal_ = ai.voltage
+
+                        value1115 = ai.value  # int between 0 and 32767
+                        value1015 = (
+                            value1115 >> 4
+                        ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
+                        aggregated_signals[f"A{channel}"] += (
+                            value1015 / oversampling_count
+                        )
+
+                # 0.6 comes from the time the IR LED is on (0.7 - 0.1 = 0.6, 0.1 for a buffer)
+                # 0.6 is divided into 4 time points to sample on: 0, 0.2, 0.4, 0.6.
+                # the delta() reduces the variance by accounting for the duration of each sampling.
+                time.sleep(0.6 / (oversampling_count - 1) - delta())
+
+            for channel, _ in self.analog_in:
+
+                aggregated_signals[f"A{channel}"] = (
+                    aggregated_signals[f"A{channel}"]
+                    * _ADS1X15_PGA_RANGE[self.ads.gain]
+                    / 32767
+                )
+                aggregated_signal_ = aggregated_signals[f"A{channel}"]
+
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
                 setattr(
                     self,
                     f"A{channel}",
-                    {"voltage": raw_signal_, "timestamp": current_utc_time()},
+                    {"voltage": aggregated_signal_, "timestamp": current_utc_time()},
                 )
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
@@ -275,24 +299,24 @@ class ADCReader(BackgroundSubJob):
                 # This is not for culture density saturation (different, harder problem)
                 if (
                     (self.counter % 60 == 0)
-                    and (raw_signal_ >= 2.75)
+                    and (aggregated_signal_ >= 2.75)
                     and not self.fake_data
                 ):
                     self.logger.warning(
-                        f"ADC channel {channel} is recording a very high voltage, {round(raw_signal_, 2)}V. It's recommended to keep it less than 3.3V."
+                        f"ADC channel {channel} is recording a very high voltage, {round(aggregated_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
 
                 # check if more than 3V, and shut down to prevent damage to ADC.
                 # we use max_signal to modify the PGA, too
-                max_signal = max(max_signal, raw_signal_)
+                max_signal = max(max_signal, aggregated_signal_)
                 self.check_on_max(max_signal)
 
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
-            raw_signals["timestamp"] = current_utc_time()
-            self.batched_readings = raw_signals
+            aggregated_signals["timestamp"] = current_utc_time()
+            self.batched_readings = aggregated_signals
             print(
-                f"{raw_signals['timestamp']} {raw_signals['A0']:.5f}   {raw_signals['A1']:.5f}   {raw_signals['A2']:.5f}   {raw_signals['A3']:.5f}"
+                f"{aggregated_signals['timestamp']} {aggregated_signals['A0']:.5f}   {aggregated_signals['A1']:.5f}   {aggregated_signals['A2']:.5f}   {aggregated_signals['A3']:.5f}"
             )
 
             # the max signal should determine the ADS1x15's gain
@@ -310,7 +334,7 @@ class ADCReader(BackgroundSubJob):
             ):
                 self.check_on_gain(self.ema.value)
 
-            return raw_signals
+            return aggregated_signals
 
         except OSError as e:
             # just skip, not sure why this happens when add_media or remove_waste are called.

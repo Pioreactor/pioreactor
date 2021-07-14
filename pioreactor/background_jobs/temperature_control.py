@@ -269,7 +269,7 @@ class TemperatureController(BackgroundJob):
 
             self.logger.debug(feature_vector)
 
-            # update heater first, before setting the temperature. Why? A downstream process
+            # update heater first, before publishing the temperature. Why? A downstream process
             # might listen for the updating temperature, and update the heater (pid_stable),
             # and if we update here too late, we may overwrite their changes.
             # We also want to remove the lock first, so close this context early.

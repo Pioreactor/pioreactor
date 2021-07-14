@@ -75,7 +75,7 @@ class MockAnalogIn:
 
     @property
     def value(self):
-        return round(self.voltage * 1000)
+        return round(self.voltage * 2 ** 17)
 
 
 class MockDAC43608:
