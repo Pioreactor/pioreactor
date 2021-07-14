@@ -77,7 +77,6 @@ class ADCReader(BackgroundSubJob):
     `start_periodic_reading()` is called, otherwise, call `take_reading` manually.
     The read values are stored in A0, A1, A2, and A3.
 
-
     We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
     make decisions. For example, if a bubbler is active, it should time itself
     s.t. it is _not_ running when an turbidity measurement is about to occur.
@@ -253,12 +252,12 @@ class ADCReader(BackgroundSubJob):
             16: 0.256,
         }
         max_signal = 0
-        aggregated_signals = {"A0": 0, "A1": 0, "A2": 0, "A3": 0}
+        aggregated_signals = {"A0": 0.0, "A1": 0.0, "A2": 0.0, "A3": 0.0}
 
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 20
+            oversampling_count = 16
             for _ in range(oversampling_count):
 
                 with catchtime() as delta:
@@ -268,18 +267,18 @@ class ADCReader(BackgroundSubJob):
                         value1115 = ai.value  # int between 0 and 32767
                         value1015 = (
                             value1115 >> 4
-                        ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
+                        ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
                         aggregated_signals[f"A{channel}"] += (
                             value1015 / oversampling_count
                         )
+                        print(time.time())
                         # aggregated_signals[f"A{channel}"] += (
                         #    raw_signal_ / oversampling_count
                         # )
 
-                # 0.6 comes from the time the IR LED is on (0.7 - 0.1 = 0.6, 0.1 for a buffer)
-                # 0.6 is divided into 4 time points to sample on: 0, 0.2, 0.4, 0.6.
+                # 0.70 is divided into N time points to sample on.
                 # the delta() reduces the variance by accounting for the duration of each sampling.
-                time.sleep(0.65 / (oversampling_count - 1) - delta())
+                time.sleep(max(0, 0.70 / (oversampling_count - 1) - delta()))
 
             for channel, _ in self.analog_in:
 
@@ -421,12 +420,12 @@ class ODReader(BackgroundJob):
         This supposes IR LED is always on, and the "sneak in" turns it off. We also turn off all other LEDs
         when we turn the IR LED on.
 
-        post_duration: how long to wait (seconds) after the ADS reading before running sneak_in
-        pre_duration: duration between stopping the action and the next ADS reading
+        post_duration: how long to wait (seconds) after the start of ADCReader.take_reading before running sneak_in
+        pre_duration: duration between stopping the action and the next ADCReader reading
         """
 
-        post_duration = 0.7  # TODO: can be lowered to < 0.3 safely, I believe, since each reading takes 1/8=0.125 seconds
-        pre_duration = 1.0  # just to be safe
+        post_duration = 0.8
+        pre_duration = 0.5
 
         def sneak_in():
             with catchtime() as delta_to_stop:
