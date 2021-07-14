@@ -253,6 +253,7 @@ class ADCReader(BackgroundSubJob):
         }
         max_signal = 0
         aggregated_signals = {"A0": 0.0, "A1": 0.0, "A2": 0.0, "A3": 0.0}
+        import random
 
         try:
 
@@ -278,7 +279,14 @@ class ADCReader(BackgroundSubJob):
 
                 # 0.70 is divided into N time points to sample on.
                 # the delta() reduces the variance by accounting for the duration of each sampling.
-                time.sleep(max(0, 0.70 / (oversampling_count - 1) - delta()))
+                time.sleep(
+                    max(
+                        0,
+                        0.70 / (oversampling_count - 1)
+                        - delta()
+                        + 0.01 * random.random(),
+                    )
+                )
 
             for channel, _ in self.analog_in:
 
