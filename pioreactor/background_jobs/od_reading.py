@@ -244,14 +244,14 @@ class ADCReader(BackgroundSubJob):
 
         self.counter += 1
 
-        _ADS1X15_PGA_RANGE = {  # TODO: delete when ads1015 is in.
-            2 / 3: 6.144,
-            1: 4.096,
-            2: 2.048,
-            4: 1.024,
-            8: 0.512,
-            16: 0.256,
-        }
+        # _ADS1X15_PGA_RANGE = {  # TODO: delete when ads1015 is in.
+        #     2 / 3: 6.144,
+        #     1: 4.096,
+        #     2: 2.048,
+        #     4: 1.024,
+        #     8: 0.512,
+        #     16: 0.256,
+        # }
         max_signal = 0
         aggregated_signals = {"A0": 0, "A1": 0, "A2": 0, "A3": 0}
 
@@ -263,14 +263,17 @@ class ADCReader(BackgroundSubJob):
 
                 with catchtime() as delta:
                     for channel, ai in self.analog_in[:2]:
-                        # raw_signal_ = ai.voltage
+                        raw_signal_ = ai.voltage
 
-                        value1115 = ai.value  # int between 0 and 32767
-                        value1015 = (
-                            value1115 >> 4
-                        ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
+                        # value1115 = ai.value  # int between 0 and 32767
+                        # value1015 = (
+                        #     value1115 >> 4
+                        # ) << 4  # jnt between 0 and 2047, and then blow it back up to int between 0 and 32767
+                        # aggregated_signals[f"A{channel}"] += (
+                        #     value1015 / oversampling_count
+                        # )
                         aggregated_signals[f"A{channel}"] += (
-                            value1015 / oversampling_count
+                            raw_signal_ / oversampling_count
                         )
 
                 # 0.6 comes from the time the IR LED is on (0.7 - 0.1 = 0.6, 0.1 for a buffer)
@@ -280,11 +283,11 @@ class ADCReader(BackgroundSubJob):
 
             for channel, _ in self.analog_in:
 
-                aggregated_signals[f"A{channel}"] = (
-                    aggregated_signals[f"A{channel}"]
-                    * _ADS1X15_PGA_RANGE[self.ads.gain]
-                    / 32767
-                )
+                # aggregated_signals[f"A{channel}"] = (
+                #    aggregated_signals[f"A{channel}"]
+                #    * _ADS1X15_PGA_RANGE[self.ads.gain]
+                #    / 32767
+                # )
                 aggregated_signal_ = aggregated_signals[f"A{channel}"]
 
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
@@ -343,7 +346,7 @@ class ADCReader(BackgroundSubJob):
 
         except Exception as e:
             self.logger.debug(e, exc_info=True)
-            self.logger.error(f"failed with {str(e)}")
+            self.logger.error(e)
             raise e
 
 
