@@ -258,7 +258,7 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 16
+            oversampling_count = 20
             for _ in range(oversampling_count):
 
                 with catchtime() as delta:
@@ -272,7 +272,6 @@ class ADCReader(BackgroundSubJob):
                         aggregated_signals[f"A{channel}"] += (
                             value1015 / oversampling_count
                         )
-                        print(time.time())
                         # aggregated_signals[f"A{channel}"] += (
                         #    raw_signal_ / oversampling_count
                         # )
@@ -284,7 +283,7 @@ class ADCReader(BackgroundSubJob):
                         0,
                         0.70 / (oversampling_count - 1)
                         - delta()
-                        + 0.01 * random.random(),
+                        + 0.005 * random.random(),
                     )
                 )
 
