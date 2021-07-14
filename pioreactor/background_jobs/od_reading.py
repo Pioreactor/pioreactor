@@ -272,6 +272,7 @@ class ADCReader(BackgroundSubJob):
                         aggregated_signals[f"A{channel}"] += (
                             value1015 / oversampling_count
                         )
+                        print(time.time())
 
                 # 0.6 comes from the time the IR LED is on (0.7 - 0.1 = 0.6, 0.1 for a buffer)
                 # 0.6 is divided into 4 time points to sample on: 0, 0.2, 0.4, 0.6.
