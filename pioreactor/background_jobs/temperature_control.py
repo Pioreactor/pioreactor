@@ -73,7 +73,7 @@ class TemperatureController(BackgroundJob):
         self.update_heater(0)
 
         self.read_external_temperature_timer = RepeatedTimer(
-            60, self.read_external_temperature, run_immediately=True
+            30, self.read_external_temperature, run_immediately=True
         )
         self.read_external_temperature_timer.start()
 
