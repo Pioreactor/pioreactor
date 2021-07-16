@@ -153,4 +153,4 @@ def click_od_normalization(od_angle_channel):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    od_normalization(od_angle_channel, unit, experiment)
+    print(od_normalization(od_angle_channel, unit, experiment))

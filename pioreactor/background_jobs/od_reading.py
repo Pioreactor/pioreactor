@@ -264,7 +264,7 @@ class ADCReader(BackgroundSubJob):
                 with catchtime() as delta:
                     for channel, ai in self.analog_in[:2]:
                         # raw_signal_ = ai.voltage
-
+                        print(time.time())
                         value1115 = ai.value  # int between 0 and 32767
                         value1015 = (
                             value1115 >> 4
