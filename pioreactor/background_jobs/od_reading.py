@@ -281,7 +281,7 @@ class ADCReader(BackgroundSubJob):
                         0,
                         0.80 / (oversampling_count - 1)
                         - delta()
-                        + 0.075 * random.random(),
+                        + 0.0075 * random.random(),
                     )
                 )
 
