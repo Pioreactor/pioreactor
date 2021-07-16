@@ -242,7 +242,7 @@ def mqtt_to_db_streaming():
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "timestamp": payload["timestamp"],
             "message": payload["message"],
             "task": payload["task"],
             "level": payload["level"],

@@ -97,7 +97,7 @@ def add_media(
                 time.sleep(duration)
 
     except Exception as e:
-        logger.debug("Add media failed", exc_info=True)
+        logger.debug(e, exc_info=True)
         logger.error(e)
     finally:
         pwm.stop()

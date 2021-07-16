@@ -143,7 +143,6 @@ class ADCReader(BackgroundSubJob):
         self.setup_adc()
 
         if self.interval:
-            print("                                 A0        A1        A2        A3")
             self.timer = RepeatedTimer(
                 self.interval, self.take_reading, run_immediately=True
             )
@@ -253,6 +252,7 @@ class ADCReader(BackgroundSubJob):
         }
         max_signal = 0
         aggregated_signals = {"A0": 0.0, "A1": 0.0, "A2": 0.0, "A3": 0.0}
+
         import random
 
         try:
@@ -275,14 +275,13 @@ class ADCReader(BackgroundSubJob):
                         #    raw_signal_ / oversampling_count
                         # )
 
-                # 0.70 is divided into N time points to sample on.
                 # the delta() reduces the variance by accounting for the duration of each sampling.
                 time.sleep(
                     max(
                         0,
-                        0.70 / (oversampling_count - 1)
+                        0.80 / (oversampling_count - 1)
                         - delta()
-                        + 0.005 * random.random(),
+                        + 0.075 * random.random(),
                     )
                 )
 
@@ -323,9 +322,6 @@ class ADCReader(BackgroundSubJob):
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
             aggregated_signals["timestamp"] = current_utc_time()
             self.batched_readings = aggregated_signals
-            print(
-                f"{aggregated_signals['timestamp']} {aggregated_signals['A0']:.5f}   {aggregated_signals['A1']:.5f}   {aggregated_signals['A2']:.5f}   {aggregated_signals['A3']:.5f}"
-            )
 
             # the max signal should determine the ADS1x15's gain
             if self.dynamic_gain:

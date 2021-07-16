@@ -9,6 +9,7 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
 )
 from pioreactor.config import config
+from pioreactor.utils.timing import current_utc_time
 from json_log_formatter import JSONFormatter
 
 logging.raiseExceptions = False
@@ -21,6 +22,7 @@ class CustomisedJSONFormatter(JSONFormatter):
         # Include builtins
         extra["level"] = record.levelname
         extra["task"] = record.name
+        extra["timestamp"] = current_utc_time()
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)

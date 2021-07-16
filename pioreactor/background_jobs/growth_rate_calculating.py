@@ -417,6 +417,4 @@ def click_growth_rate_calculating(ignore_cache):
     calculator = GrowthRateCalculator(  # noqa: F841
         ignore_cache=ignore_cache, unit=unit, experiment=experiment
     )
-    print("here1")
     signal.pause()
-    print("here2")

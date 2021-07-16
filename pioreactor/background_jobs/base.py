@@ -238,6 +238,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.start_passive_listeners()
 
         def on_disconnect(client, userdata, rc):
+
             self.on_mqtt_disconnect(rc)
 
         # we give the last_will to this sub client because when it reconnects, it
@@ -431,6 +432,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # set state to disconnect
         # call this first to make sure that it gets published to the broker.
         self.state = self.DISCONNECTED
+
+        # if a job exits ungracefully, we log the error here (possibly a duplication...)
+        # this is a partial resolution to issue #145
+        if hasattr(sys, "last_traceback"):
+            import traceback
+
+            self.logger.debug("".join(traceback.format_tb(sys.last_traceback)))
+            self.logger.error(sys.last_value)
 
         # call job specific on_disconnect to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean
