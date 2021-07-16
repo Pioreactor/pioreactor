@@ -430,7 +430,7 @@ class ODReader(BackgroundJob):
         pre_duration: duration between stopping the action and the next ADCReader reading
         """
 
-        post_duration = 0.8
+        post_duration = 1.0
         pre_duration = 0.5
 
         def sneak_in():
