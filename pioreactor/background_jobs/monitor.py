@@ -249,7 +249,7 @@ class Monitor(BackgroundJob):
             self.logger.warning(f"Available memory at {available_memory_percent}%.")
 
         if cpu_temperature_celcius <= 70:
-            self.logger.debug(f"CPU temperature at {cpu_temperature_celcius}%.")
+            self.logger.debug(f"CPU temperature at {cpu_temperature_celcius} ℃.")
         else:
             # TODO: add documentation
             self.logger.warning(f"CPU temperature at {cpu_temperature_celcius} ℃.")

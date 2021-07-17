@@ -90,7 +90,7 @@ class AltMediaCalculator(BackgroundSubJob):
         )
 
         if message:
-            return float(message.payload)
+            return json.loads(message.payload)["alt_media_fraction"]
         else:
             return 0
 
