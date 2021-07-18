@@ -3,7 +3,7 @@
 import time
 from json import loads, dumps
 import click
-
+from configparser import NoOptionError
 
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -39,6 +39,13 @@ def add_media(
         logger.error(
             f"Calibration not defined. Add `media_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
         )
+        return 0.0
+
+    try:
+        config.getint("PWM_reverse", "media")
+    except NoOptionError:
+        logger.error(f"Add `media` to `PWM` section to config_{unit}.ini.")
+        return 0.0
 
     if ml is not None:
         assert ml >= 0
@@ -54,7 +61,7 @@ def add_media(
         )
         logger.info(f"{round(duration, 2)}s")
     elif continuously:
-        duration = 60
+        duration = 600
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,

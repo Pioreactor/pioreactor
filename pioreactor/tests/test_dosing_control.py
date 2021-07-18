@@ -608,6 +608,57 @@ def test_execute_io_action2():
     ca.set_state("disconnected")
 
 
+def test_execute_io_action_outputs():
+    # regression test
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        None,
+        retain=True,
+    )
+
+    ca = DosingAutomation(unit=unit, experiment=experiment)
+    result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+    assert result[0] == 1.25
+    assert result[1] == 0.01
+    assert result[2] == 1.26
+
+
+def test_execute_io_action_outputs_will_shortcut_if_paused():
+    # regression test
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        None,
+        retain=True,
+    )
+
+    ca = DosingAutomation(unit=unit, experiment=experiment)
+    ca.set_state(ca.SLEEPING)
+    result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+    assert result[0] == 0.0
+    assert result[1] == 0.0
+    assert result[2] == 0.0
+
+
 def test_duration_and_timer():
     algo = PIDMorbidostat(
         target_od=1.0,

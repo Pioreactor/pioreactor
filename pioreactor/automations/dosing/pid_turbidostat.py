@@ -62,15 +62,13 @@ class PIDTurbidostat(DosingAutomation):
             self.volume_to_cycle = max(0, self.volume_to_cycle + pid_output)
 
             if self.volume_to_cycle < 0.01:
-                return events.NoEvent(
-                    f"PID output={pid_output:.2f}, so practically no volume to cycle"
-                )
+                return events.NoEvent("Practically no volume to cycle")
             else:
-                self.execute_io_action(
+                volumes_actually_moved = self.execute_io_action(
                     media_ml=self.volume_to_cycle, waste_ml=self.volume_to_cycle
                 )
                 e = events.DilutionEvent(
-                    f"PID output={pid_output:.2f}, volume to cycle={self.volume_to_cycle:.2f}mL"
+                    f"Volume cycled={volumes_actually_moved[0]:.2f}mL"
                 )
                 e.volume_to_cycle = self.volume_to_cycle
                 e.pid_output = pid_output

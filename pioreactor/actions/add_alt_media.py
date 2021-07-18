@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 from json import loads, dumps
-
+from configparser import NoOptionError
 import click
 
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
@@ -28,12 +28,20 @@ def add_alt_media(
     assert 0 <= duty_cycle <= 100
     assert (ml is not None) or (duration is not None)
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
+
     try:
         config["pump_calibration"]["alt_media_ml_calibration"]
     except KeyError:
         logger.error(
             f"Calibration not defined. Add `alt_media_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
         )
+        return
+
+    try:
+        config.getint("PWM_reverse", "alt_media")
+    except NoOptionError:
+        logger.error(f"Add `alt_media` to `PWM` section to config_{unit}.ini.")
+        return
 
     hz = 100
     if ml is not None:

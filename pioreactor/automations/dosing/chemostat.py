@@ -15,5 +15,7 @@ class Chemostat(DosingAutomation):
         self.volume = float(volume)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
-        return events.DilutionEvent(f"exchanged {self.volume}mL")
+        volume_actually_cycled = self.execute_io_action(
+            media_ml=self.volume, waste_ml=self.volume
+        )
+        return events.DilutionEvent(f"exchanged {volume_actually_cycled[0]}mL")

@@ -2,6 +2,7 @@
 
 import time
 from json import loads, dumps
+from configparser import NoOptionError
 
 import click
 
@@ -35,6 +36,14 @@ def remove_waste(
         logger.error(
             f"Calibration not defined. Add `waste_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
         )
+        return
+
+    # TODO: move these into general functions that all pumps can use.
+    try:
+        config.getint("PWM_reverse", "waste")
+    except NoOptionError:
+        logger.error(f"Add `waste` to `PWM` section to config_{unit}.ini.")
+        return
 
     hz = 100
     if ml is not None:

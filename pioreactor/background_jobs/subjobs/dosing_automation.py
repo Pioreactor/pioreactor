@@ -15,6 +15,14 @@ from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.dosing_control import DosingController
 
 
+class SummableList(list):
+    def __add__(self, other):
+        return SummableList([s + o for (s, o) in zip(self, other)])
+
+    def __iadd__(self, other):
+        return self.__add__(other)
+
+
 class DosingAutomation(BackgroundSubJob):
     """
     This is the super class that automations inherit from. The `run` function will
@@ -155,27 +163,31 @@ class DosingAutomation(BackgroundSubJob):
         we don't end up adding 5ml, and then removing 5ml (this could cause
         overflow). We also want sufficient time to mix, and this procedure will
         slow dosing down.
-
         """
         assert (
             abs(alt_media_ml + media_ml - waste_ml) < 1e-5
         ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
 
-        max_ = 0.3  # arbitrary
+        volumes_moved = SummableList([0.0, 0.0, 0.0])
+
+        if self.state != self.READY:
+            return volumes_moved
+
+        max_ = 0.36  # arbitrary
         if alt_media_ml > max_:
-            self.execute_io_action(
+            volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2,
                 media_ml=media_ml,
                 waste_ml=media_ml + alt_media_ml / 2,
             )
-            self.execute_io_action(
+            volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2
             )
         elif media_ml > max_:
-            self.execute_io_action(
+            volumes_moved += self.execute_io_action(
                 alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2
             )
-            self.execute_io_action(
+            volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml,
                 media_ml=media_ml / 2,
                 waste_ml=alt_media_ml + media_ml / 2,
@@ -188,6 +200,7 @@ class DosingAutomation(BackgroundSubJob):
                     unit=self.unit,
                     experiment=self.experiment,
                 )
+                volumes_moved[1] += alt_media_ml
                 brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
             if media_ml > 0:
                 add_media(
@@ -196,6 +209,7 @@ class DosingAutomation(BackgroundSubJob):
                     unit=self.unit,
                     experiment=self.experiment,
                 )
+                volumes_moved[0] += media_ml
                 brief_pause()
             if waste_ml > 0:
                 remove_waste(
@@ -204,6 +218,7 @@ class DosingAutomation(BackgroundSubJob):
                     unit=self.unit,
                     experiment=self.experiment,
                 )
+                volumes_moved[2] += waste_ml
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 remove_waste(
                     duration=2,
@@ -212,6 +227,8 @@ class DosingAutomation(BackgroundSubJob):
                     experiment=self.experiment,
                 )
                 brief_pause()
+
+        return volumes_moved
 
     @property
     def most_stale_time(self):
