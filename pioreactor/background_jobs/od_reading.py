@@ -435,7 +435,8 @@ class ODReader(BackgroundJob):
             with catchtime() as delta_to_stop:
                 # the time delta produced by the stop_ir_led can be significant, hence we
                 # must account for it.
-                self.stop_ir_led()
+                # self.stop_ir_led()
+                pass
 
             time.sleep(
                 max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
