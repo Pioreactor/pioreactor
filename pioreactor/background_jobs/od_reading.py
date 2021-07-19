@@ -278,7 +278,7 @@ class ADCReader(BackgroundSubJob):
                         0,
                         0.80 / (oversampling_count - 1)
                         - delta()  # the delta() reduces the variance by accounting for the duration of each sampling.
-                        + 0
+                        + 0.005
                         * (
                             (counter * 0.618034) % 1
                         ),  # this is to artificially spread out the samples, so that we observe less aliasing.
@@ -421,22 +421,21 @@ class ODReader(BackgroundJob):
 
     def set_IR_led_during_ADC_readings(self):
         """
-        This supposes IR LED is always on, and the "sneak in" turns it off. We also turn off all other LEDs
+        This supposes IR LED is always on, and the "sneak in" turns it off. We also should turn off all other LEDs
         when we turn the IR LED on.
 
         post_duration: how long to wait (seconds) after the start of ADCReader.take_reading before running sneak_in
         pre_duration: duration between stopping the action and the next ADCReader reading
         """
 
-        post_duration = 1.0
-        pre_duration = 0.5
+        post_duration = 0.95
+        pre_duration = 0.1
 
         def sneak_in():
             with catchtime() as delta_to_stop:
                 # the time delta produced by the stop_ir_led can be significant, hence we
                 # must account for it.
-                # self.stop_ir_led()
-                pass
+                self.stop_ir_led()
 
             time.sleep(
                 max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
