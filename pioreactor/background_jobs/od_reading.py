@@ -276,7 +276,7 @@ class ADCReader(BackgroundSubJob):
                 time.sleep(
                     max(
                         0,
-                        0.80 / (oversampling_count - 1)
+                        0.70 / (oversampling_count - 1)
                         - delta()  # the delta() reduces the variance by accounting for the duration of each sampling.
                         + 0.005
                         * (
@@ -428,7 +428,7 @@ class ODReader(BackgroundJob):
         pre_duration: duration between stopping the action and the next ADCReader reading
         """
 
-        post_duration = 0.95
+        post_duration = 0.85
         pre_duration = 0.1
 
         def sneak_in():
