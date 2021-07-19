@@ -278,10 +278,10 @@ class ADCReader(BackgroundSubJob):
                         0,
                         0.80 / (oversampling_count - 1)
                         - delta()  # the delta() reduces the variance by accounting for the duration of each sampling.
-                        # + 0.0075
-                        # * (
-                        #    (counter * 0.618034) % 1
-                        # ),  # this is to artifically spread out the samples, so that we observe less aliasing.
+                        + 0.0075
+                        * (
+                            (counter * 0.618034) % 1
+                        ),  # this is to artifically spread out the samples, so that we observe less aliasing.
                     )
                 )
 
