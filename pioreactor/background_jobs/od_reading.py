@@ -281,9 +281,11 @@ class ADCReader(BackgroundSubJob):
                         + 0.005
                         * (
                             (counter * 0.618034) % 1
-                        ),  # this is to artifically spread out the samples, so that we observe less aliasing.
+                        ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                     )
                 )
+                print(delta())
+            print("########")
 
             for channel, _ in self.analog_in:
 
