@@ -20,7 +20,7 @@ class SummableList(list):
         return SummableList([s + o for (s, o) in zip(self, other)])
 
     def __iadd__(self, other):
-        return self.__add__(other)
+        return self + other
 
 
 class DosingAutomation(BackgroundSubJob):
@@ -157,6 +157,11 @@ class DosingAutomation(BackgroundSubJob):
     def execute(self) -> events.Event:
         raise NotImplementedError
 
+    def wait_until_not_sleeping(self):
+        while self.state == self.SLEEPING:
+            time.sleep(5)
+        return True
+
     def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
         """
         This function recursively reduces the amount to add so that
@@ -169,9 +174,6 @@ class DosingAutomation(BackgroundSubJob):
         ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
 
         volumes_moved = SummableList([0.0, 0.0, 0.0])
-
-        if self.state != self.READY:
-            return volumes_moved
 
         max_ = 0.36  # arbitrary
         if alt_media_ml > max_:
@@ -193,28 +195,45 @@ class DosingAutomation(BackgroundSubJob):
                 waste_ml=alt_media_ml + media_ml / 2,
             )
         else:
-            if alt_media_ml > 0:
-                add_alt_media(
-                    ml=alt_media_ml,
-                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
-                    unit=self.unit,
-                    experiment=self.experiment,
-                )
-                volumes_moved[1] += alt_media_ml
-                brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
-            if media_ml > 0:
+            source_of_event = f"{self.job_name}:{self.__class__.__name__}"
+
+            if (
+                media_ml > 0
+                and (self.state in [self.READY, self.SLEEPING])
+                and self.wait_until_not_sleeping()
+            ):
                 add_media(
                     ml=media_ml,
-                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
+                    source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
                 volumes_moved[0] += media_ml
                 brief_pause()
-            if waste_ml > 0:
+
+            if (
+                alt_media_ml > 0
+                and (self.state in [self.READY, self.SLEEPING])
+                and self.wait_until_not_sleeping()
+            ):  # always check that we are still in a valid state, as state can change between pump runs.
+                add_alt_media(
+                    ml=alt_media_ml,
+                    source_of_event=source_of_event,
+                    unit=self.unit,
+                    experiment=self.experiment,
+                )
+                volumes_moved[1] += alt_media_ml
+                brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
+
+            # remove waste last.
+            if (
+                waste_ml > 0
+                and (self.state in [self.READY, self.SLEEPING])
+                and self.wait_until_not_sleeping()
+            ):
                 remove_waste(
                     ml=waste_ml,
-                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
+                    source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
@@ -222,7 +241,7 @@ class DosingAutomation(BackgroundSubJob):
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 remove_waste(
                     duration=2,
-                    source_of_event=f"{self.job_name}:{self.__class__.__name__}",
+                    source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
                 )

@@ -428,6 +428,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self.logger.debug("Sleeping.")
 
+    def lost(self):
+        self.state = self.LOST
+
     def disconnected(self):
         # set state to disconnect
         # call this first to make sure that it gets published to the broker.
