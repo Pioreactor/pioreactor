@@ -284,8 +284,8 @@ class ADCReader(BackgroundSubJob):
                         ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                     )
                 )
-                print(delta())
-            print("########")
+                print(f"{delta()},")
+            print("], [")
 
             for channel, _ in self.analog_in:
 
