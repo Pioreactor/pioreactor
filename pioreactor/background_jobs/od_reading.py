@@ -272,7 +272,7 @@ class ADCReader(BackgroundSubJob):
                         aggregated_signals[f"A{channel}"] += (
                             value1015 / oversampling_count
                         )
-                        print(f"{value1115},")
+                        print(f"[{delta()}, {value1115}],")
 
                 time.sleep(
                     max(
@@ -285,7 +285,7 @@ class ADCReader(BackgroundSubJob):
                         ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                     )
                 )
-            print()
+                print()
             for channel, _ in self.analog_in:
 
                 aggregated_signals[f"A{channel}"] = (
