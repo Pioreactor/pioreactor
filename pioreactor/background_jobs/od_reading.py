@@ -285,7 +285,8 @@ class ADCReader(BackgroundSubJob):
                         ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                     )
                 )
-                print()
+            print()
+
             for channel, _ in self.analog_in:
 
                 aggregated_signals[f"A{channel}"] = (
