@@ -256,7 +256,7 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 20
+            oversampling_count = 25
 
             for counter in range(oversampling_count):
                 with catchtime() as delta:
