@@ -232,7 +232,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
         def reconnect_protocol(client, userdata, flags, rc, properties=None):
-            self.logger.debug("Reconnecting to MQTT")
+            self.logger.debug("Reconnected to MQTT broker.")
             self.publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()

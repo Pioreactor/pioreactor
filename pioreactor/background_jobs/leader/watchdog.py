@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import signal
+import signal, time
 
 import click
 
@@ -18,7 +18,6 @@ class WatchDog(BackgroundJob):
 
     def watch_for_lost_state(self, msg):
         if msg.payload.decode() == self.LOST:
-            import time
 
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
 
@@ -39,14 +38,27 @@ class WatchDog(BackgroundJob):
             time.sleep(5)
 
             current_state = subscribe(
-                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=2
+                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
             ).payload.decode()
 
             if current_state == self.LOST:
                 # failed, let's confirm to user
-                self.logger.error(f"{unit} was lost.")
+                self.logger.error(
+                    f"{unit} was lost. We will continue checking for re-connection however."
+                )
             else:
                 self.logger.info(f"Update: {unit} is connected. All is well.")
+
+            # continue to pull the latest state to see if anything has changed.
+            while True:
+                time.sleep(60)
+                current_state = subscribe(
+                    f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
+                ).payload.decode()
+
+                if current_state != self.LOST:
+                    self.logger.info(f"Update: {unit} is connected. All is well.")
+                    return
 
     def watch_for_new_experiment(self, msg):
         new_experiment_name = msg.payload.decode()
