@@ -256,7 +256,7 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 8
+            oversampling_count = 25
 
             for counter in range(oversampling_count):
                 with catchtime() as delta:
@@ -272,6 +272,7 @@ class ADCReader(BackgroundSubJob):
                         aggregated_signals[f"A{channel}"] += (
                             value1015 / oversampling_count
                         )
+                        print(f"{value1115},")
 
                 time.sleep(
                     max(
@@ -284,6 +285,7 @@ class ADCReader(BackgroundSubJob):
                         ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                     )
                 )
+            print()
             for channel, _ in self.analog_in:
 
                 aggregated_signals[f"A{channel}"] = (
