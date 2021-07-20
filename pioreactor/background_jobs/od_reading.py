@@ -269,7 +269,9 @@ class ADCReader(BackgroundSubJob):
                         value1015 = (
                             value1115 >> 4
                         ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
-                        aggregated_signals[f"A{channel}"] += value1015
+                        aggregated_signals[f"A{channel}"] += (
+                            value1015 / oversampling_count
+                        )
 
                 time.sleep(
                     max(
@@ -284,7 +286,6 @@ class ADCReader(BackgroundSubJob):
                     aggregated_signals[f"A{channel}"]
                     * _ADS1X15_PGA_RANGE[self.ads.gain]
                     / 32767
-                    / oversampling_count
                 )
                 aggregated_signal_ = aggregated_signals[f"A{channel}"]
 
