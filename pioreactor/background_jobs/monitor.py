@@ -46,7 +46,7 @@ class Monitor(BackgroundJob):
 
         # set up a self check function to periodically check vitals and log them
         self.self_check_thread = RepeatedTimer(
-            6 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True
+            12 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True
         ).start()
 
         # set up GPIO for accessing the button
@@ -273,11 +273,11 @@ class Monitor(BackgroundJob):
         for _ in range(4):
 
             self.led_on()
-            sleep(0.15)
+            sleep(0.14)
             self.led_off()
-            sleep(0.15)
+            sleep(0.14)
             self.led_on()
-            sleep(0.15)
+            sleep(0.14)
             self.led_off()
             sleep(0.45)
 
