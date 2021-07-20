@@ -256,7 +256,7 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 50
+            oversampling_count = 25
 
             for counter in range(oversampling_count):
                 with catchtime() as delta:
@@ -278,7 +278,7 @@ class ADCReader(BackgroundSubJob):
                         0,
                         0.80 / (oversampling_count - 1)
                         - delta()  # the delta() reduces the variance by accounting for the duration of each sampling.
-                        + 0.001
+                        + 0.005
                         * (
                             (counter * 0.618034) % 1
                         ),  # this is to artificially spread out the samples, so that we observe less aliasing.
