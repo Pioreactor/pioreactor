@@ -256,43 +256,35 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 20
+            oversampling_count = 25
 
-            for counter in range(oversampling_count):
+            for _ in range(oversampling_count):
                 with catchtime() as delta:
                     for channel, ai in self.analog_in[:2]:
                         # raw_signal_ = ai.voltage
+                        # aggregated_signals[f"A{channel}"] += (
+                        #    raw_signal_ / oversampling_count
+                        # )
                         value1115 = ai.value  # int between 0 and 32767
                         value1015 = (
                             value1115 >> 4
                         ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
-                        aggregated_signals[f"A{channel}"] += (
-                            value1015 / oversampling_count
-                        )
-                        # aggregated_signals[f"A{channel}"] += (
-                        #    raw_signal_ / oversampling_count
-                        # )
+                        aggregated_signals[f"A{channel}"] += value1015
 
                 time.sleep(
                     max(
                         0,
                         0.80 / (oversampling_count - 1)
-                        - delta()  # the delta() reduces the variance by accounting for the duration of each sampling.
-                        + 0.005
-                        * (
-                            (counter * 0.618034) % 1
-                        ),  # this is to artificially spread out the samples, so that we observe less aliasing.
+                        - delta(),  # the delta() reduces the variance by accounting for the duration of each sampling.
                     )
                 )
-                print(f"{delta()},")
-            print("], [")
-
             for channel, _ in self.analog_in:
 
                 aggregated_signals[f"A{channel}"] = (
                     aggregated_signals[f"A{channel}"]
                     * _ADS1X15_PGA_RANGE[self.ads.gain]
                     / 32767
+                    / oversampling_count
                 )
                 aggregated_signal_ = aggregated_signals[f"A{channel}"]
 
