@@ -256,9 +256,9 @@ class ADCReader(BackgroundSubJob):
         try:
 
             # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 25
+            oversampling_count = 20
 
-            for _ in range(oversampling_count):
+            for counter in range(oversampling_count):
                 with catchtime() as delta:
                     for channel, ai in self.analog_in[:2]:
                         # raw_signal_ = ai.voltage
@@ -277,7 +277,11 @@ class ADCReader(BackgroundSubJob):
                     max(
                         0,
                         0.80 / (oversampling_count - 1)
-                        - delta(),  # the delta() reduces the variance by accounting for the duration of each sampling.
+                        - delta()  # the delta() reduces the variance by accounting for the duration of each sampling.
+                        + 0.005
+                        * (
+                            (counter * 0.618034) % 1
+                        ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                     )
                 )
             for channel, _ in self.analog_in:
