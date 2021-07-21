@@ -247,6 +247,7 @@ class ADCReader(BackgroundSubJob):
         """
         import numpy as np
 
+        assert len(x) == len(y)
         x = np.asarray(x)
         y = np.asarray(y)
         n = x.shape[0]
@@ -254,15 +255,15 @@ class ADCReader(BackgroundSubJob):
         sin_x = np.sin(freq * x)
         cos_x = np.cos(freq * x)
 
-        sum_sin = np.sum(sin_x)
-        sum_cos = np.sum(cos_x)
-        sum_sin2 = np.sum(sin_x ** 2)
-        sum_cos2 = np.sum(cos_x ** 2)
-        sum_cossin = np.sum(cos_x * sin_x)
+        sum_sin = sin_x.sum()
+        sum_cos = cos_x.sum()
+        sum_sin2 = (sin_x ** 2).sum()
+        sum_cos2 = (cos_x ** 2).sum()
+        sum_cossin = (cos_x * sin_x).sum()
 
-        sum_y = np.sum(y)
-        sum_ysin = np.sum(y * sin_x)
-        sum_ycos = np.sum(y * cos_x)
+        sum_y = y.sum()
+        sum_ysin = (y * sin_x).sum()
+        sum_ycos = (y * cos_x).sum()
 
         M = np.array(
             [
@@ -280,7 +281,7 @@ class ADCReader(BackgroundSubJob):
             self.logger.debug(M)
             self.logger.debug(x)
             self.logger.debug(y)
-            return None
+            return y.mean()
 
         # return a, np.sqrt(b**2 + c**2), np.arcsin(c/np.sqrt(b**2 + c**2))
         return a
@@ -310,7 +311,7 @@ class ADCReader(BackgroundSubJob):
         try:
             with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
-                    with catchtime() as time_to_run:
+                    with catchtime() as time_code_took_to_run:
                         for channel, ai in self.analog_in[0:2]:
                             timestamps[f"A{channel}"].append(time_since_start())
                             # raw_signal_ = ai.voltage
@@ -328,7 +329,7 @@ class ADCReader(BackgroundSubJob):
                         max(
                             0,
                             0.80 / (oversampling_count - 1)
-                            - time_to_run()  # the time_to_run() reduces the variance by accounting for the duration of each sampling.
+                            - time_code_took_to_run()  # the time_code_took_to_run() reduces the variance by accounting for the duration of each sampling.
                             + 0.005
                             * (
                                 (counter * 0.618034) % 1
@@ -344,17 +345,13 @@ class ADCReader(BackgroundSubJob):
                     aggregated_signals[f"A{channel}"],
                     2 * 3.14159 * 60,
                 )
-                if best_estimate_of_signal_ is None:
-                    best_estimate_of_signal_ = getattr(
-                        self,
-                        f"A{channel}",
-                    )
-                else:
-                    best_estimate_of_signal_ = (
-                        best_estimate_of_signal_  # TODO: delete with ADS1015 is in.
-                        * _ADS1X15_PGA_RANGE[self.ads.gain]
-                        / 32767
-                    )
+
+                # convert to voltage
+                best_estimate_of_signal_ = (
+                    best_estimate_of_signal_  # TODO: delete with ADS1015 is in.
+                    * _ADS1X15_PGA_RANGE[self.ads.gain]
+                    / 32767
+                )
 
                 batched_estimates_[f"A{channel}"] = best_estimate_of_signal_
 

@@ -2,6 +2,41 @@
 from dbm import ndbm
 from contextlib import contextmanager
 from pioreactor.whoami import am_I_leader
+from pioreactor.pubsub import publish, QOS
+
+
+@contextmanager
+def publish_ready_to_disconnected_state(unit, experiment, name):
+    """
+    Wrap a block of code to have "state" in MQTT. See od_normalization, system_check.
+
+    Example
+    ----------
+
+    > with publish_ready_to_disconnected_state(unit, experiment, "system_check"): # publishes "ready" to mqtt
+    >    do_work()
+    >
+    > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
+
+
+
+
+    """
+    try:
+        publish(
+            f"pioreactor/{unit}/{experiment}/{name}/$state",
+            "ready",
+            qos=QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
+        yield
+    finally:
+        publish(
+            f"pioreactor/{unit}/{experiment}/{name}/$state",
+            "disconnected",
+            qos=QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
 
 
 @contextmanager

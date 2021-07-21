@@ -4,7 +4,7 @@ import json
 import click
 
 from pioreactor.config import config
-from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
 from pioreactor.whoami import (
     get_unit_name,
     get_latest_testing_experiment_name,
@@ -16,7 +16,7 @@ from pioreactor.logging import create_logger
 from pioreactor.background_jobs.od_reading import ODReader, create_channel_angle_map
 
 
-def od_blank(od_angle_channels, N_samples=30):
+def od_blank(od_angle_channels, N_samples=15):
     from statistics import mean
     from collections import defaultdict
 
@@ -26,17 +26,9 @@ def od_blank(od_angle_channels, N_samples=30):
     experiment = get_latest_experiment_name()
     testing_experiment = get_latest_testing_experiment_name()
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{action_name}/$state",
-        "ready",
-        qos=pubsub.QOS.AT_LEAST_ONCE,
-        retain=True,
-    )
+    with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
-    try:
-
-        logger.debug(f"Starting {action_name}.")
-        logger.info("Starting reading of blank OD. This will take less than a minute.")
+        logger.info("Starting reading of blank OD. This will take about a minute.")
 
         # running this will mess with OD Reading - best to just not let it happen.
         if (
@@ -44,29 +36,20 @@ def od_blank(od_angle_channels, N_samples=30):
             # but if test mode, ignore
             and not is_testing_env()
         ):
-            logger.error("od_reading should not be running. Stop od_reading first.")
-            raise ValueError("od_reading should not be running. Stop od_reading first.")
+            logger.error(
+                "od_reading should not be running. Stop od_reading first. Exiting."
+            )
+            return
 
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/{action_name}/$state",
-            "ready",
-            qos=pubsub.QOS.AT_LEAST_ONCE,
-            retain=True,
-        )
-
-        # we sample faster, because we can, but we need to increase the data rate.
-        # note we can't do this for od_normalization, because we need an accurate
-        # estimate of variance.
-        sampling_rate = 0.1
+        sampling_rate = 1 / config.getfloat("od_config.od_sampling", "samples_per_second")
 
         # start od_reading
-        od_reader = ODReader(
+        ODReader(
             create_channel_angle_map(*od_angle_channels),
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=testing_experiment,
         )
-        od_reader.adc_reader.data_rate = 32
 
         def yield_from_mqtt():
             while True:
@@ -112,16 +95,6 @@ def od_blank(od_angle_channels, N_samples=30):
         logger.info("OD blank reading finished.")
 
         return
-    except Exception as e:
-        logger.debug(e, exc_info=True)
-        logger.error(e)
-    finally:
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/{action_name}/$state",
-            "disconnected",
-            qos=pubsub.QOS.AT_LEAST_ONCE,
-            retain=True,
-        )
 
 
 @click.command(name="od_blank")

@@ -121,3 +121,24 @@ def test_child_cant_update_heater_when_locked():
         assert not t.update_heater(50)
 
     assert t.temperature_automation_job.update_heater(50)
+
+
+def test_constant_duty_cycle_init():
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+        None,
+        retain=True,
+    )
+
+    dc = 50
+    algo = temperature_control.TemperatureController(
+        "constant_duty_cycle", unit=unit, experiment=experiment, duty_cycle=dc
+    )
+
+    assert algo.heater_duty_cycle == 0
+
+    pubsub.subscribe(
+        f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+    )
+    pause()
+    assert algo.heater_duty_cycle == dc

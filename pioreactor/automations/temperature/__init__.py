@@ -29,8 +29,8 @@ class PIDStable(TemperatureAutomation):
         self.target_temperature = float(target_temperature)
 
         initial_duty_cycle = (
-            10
-        )  # TODO: decent starting point...can be smarter in the future
+            10  # TODO: decent starting point...can be smarter in the future
+        )
         self.update_heater(initial_duty_cycle)
 
         self.pid = PID(
@@ -75,4 +75,4 @@ class ConstantDutyCycle(TemperatureAutomation):
         self.update_heater(dc)
 
     def execute(self):
-        pass
+        self.update_heater(self.duty_cycle)

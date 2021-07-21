@@ -99,7 +99,7 @@ def get_leader_hostname():
 
 
 def get_active_workers_in_inventory():
-    # because we are not using config.getbool here, values like "0" are seen as true,
+    # because we are not using config.getboolean here, values like "0" are seen as true,
     # hence we use the built in config.BOOLEAN_STATES to determine truthiness
     config = get_config()
     return [

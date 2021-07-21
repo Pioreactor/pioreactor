@@ -141,9 +141,7 @@ def update(ui, app):
         gitp = "git pull origin master"
         npm_install = "npm install"
         setup = "pm2 restart ui"
-        unedit_edited_files = (
-            "git checkout ."
-        )  # TODO: why do I do this. Can I be more specific than `.`? This blocks edits to the contrib folder from sticking around.
+        unedit_edited_files = "git checkout ."  # TODO: why do I do this. Can I be more specific than `.`? This blocks edits to the contrib folder from sticking around.
         command = " && ".join([cd, gitp, setup, npm_install, unedit_edited_files])
         p = subprocess.run(
             command,
@@ -181,6 +179,7 @@ if am_I_active_worker():
     run.add_command(actions.od_normalization.click_od_normalization)
     run.add_command(actions.od_blank.click_od_blank)
     run.add_command(actions.system_check.click_system_check)
+    run.add_command(actions.od_temperature_calibration.click_od_temperature_calibration)
 
     for plugin in pioreactor.plugins.values():
         for possible_entry_point in dir(plugin.module):

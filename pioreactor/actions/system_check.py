@@ -37,7 +37,7 @@ from pioreactor.utils import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
 from pioreactor.actions.led_intensity import led_intensity, CHANNELS
-from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
 
 
 def check_temperature_and_heating(unit, experiment, logger):
@@ -200,18 +200,19 @@ def system_check():
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
-    publish(f"pioreactor/{unit}/{experiment}/system_check/$state", "ready", retain=True)
-
-    if (
-        is_pio_job_running("od_reading")
-        or is_pio_job_running("temperature_control")
-        or is_pio_job_running("stirring")
+    with publish_ready_to_disconnected_state(
+        unit, get_latest_experiment_name(), "system_check"
     ):
-        logger.warning(
-            "Make sure OD Reading, Temperature Control, and Stirring are off before running a system check. Exiting."
-        )
 
-    else:
+        if (
+            is_pio_job_running("od_reading")
+            or is_pio_job_running("temperature_control")
+            or is_pio_job_running("stirring")
+        ):
+            logger.warning(
+                "Make sure OD Reading, Temperature Control, and Stirring are off before running a system check. Exiting."
+            )
+            return
 
         # LEDs and PDs
         logger.debug("Check LEDs and PDs...")
@@ -224,12 +225,6 @@ def system_check():
         # TODO: stirring
         #
         #
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/system_check/$state", "disconnected", retain=True
-    )
-
-    return
 
 
 @click.command(name="system_check")
