@@ -235,6 +235,56 @@ class ADCReader(BackgroundSubJob):
         except AttributeError:
             pass
 
+    def sin_regression_with_known_freq(self, x, y, freq):
+        """
+        Assumes a known frequency...
+
+        Reference
+        ------------
+        https://scikit-guess.readthedocs.io/en/latest/appendices/reei/translation.html#further-optimizations-based-on-estimates-of-a-and-rho
+
+
+        """
+        import numpy as np
+
+        x = np.asarray(x)
+        y = np.asarray(y)
+        n = x.shape[0]
+
+        sin_x = np.sin(freq * x)
+        cos_x = np.cos(freq * x)
+
+        sum_sin = np.sum(sin_x)
+        sum_cos = np.sum(cos_x)
+        sum_sin2 = np.sum(sin_x ** 2)
+        sum_cos2 = np.sum(cos_x ** 2)
+        sum_cossin = np.sum(cos_x * sin_x)
+
+        sum_y = np.sum(y)
+        sum_ysin = np.sum(y * sin_x)
+        sum_ycos = np.sum(y * cos_x)
+
+        M = np.array(
+            [
+                [n, sum_sin, sum_cos],
+                [sum_sin, sum_sin2, sum_cossin],
+                [sum_cos, sum_cossin, sum_cos2],
+            ]
+        )
+        Y = np.array([sum_y, sum_ysin, sum_ycos])
+
+        try:
+            a, b, c = np.linalg.solve(M, Y)
+        except np.linalg.LinAlgError:
+            self.logger.error("error in regression")
+            self.logger.debug(M)
+            self.logger.debug(x)
+            self.logger.debug(y)
+            return None
+
+        # return a, np.sqrt(b**2 + c**2), np.arcsin(c/np.sqrt(b**2 + c**2))
+        return a
+
     def take_reading(self):
 
         if self.first_ads_obs_time is None:
@@ -251,57 +301,71 @@ class ADCReader(BackgroundSubJob):
             16: 0.256,
         }
         max_signal = 0
-        aggregated_signals = {"A0": 0.0, "A1": 0.0, "A2": 0.0, "A3": 0.0}
+
+        aggregated_signals = {"A0": [], "A1": [], "A2": [], "A3": []}
+        timestamps = {"A0": [], "A1": [], "A2": [], "A3": []}
+        # oversample over each channel, and we aggregate the results into a single signal.
+        oversampling_count = 25
 
         try:
-
-            # oversample over each channel, and we aggregate the results into a single signal.
-            oversampling_count = 25
-
-            with catchtime() as delta1:
+            with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
-                    with catchtime() as delta:
-                        for channel, ai in self.analog_in[1:2]:
+                    with catchtime() as time_to_run:
+                        for channel, ai in self.analog_in[0:4]:
+                            timestamps[f"A{channel}"].append(time_since_start())
                             # raw_signal_ = ai.voltage
                             # aggregated_signals[f"A{channel}"] += (
                             #    raw_signal_ / oversampling_count
                             # )
+                            # TODO: delete when ADS1015 is in
                             value1115 = ai.value  # int between 0 and 32767
                             value1015 = (
                                 value1115 >> 4
                             ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
-                            aggregated_signals[f"A{channel}"] += (
-                                value1015 / oversampling_count
-                            )
-                            print(f"[{delta1()}, {value1115}],")
+                            aggregated_signals[f"A{channel}"].append(value1015)
 
                     time.sleep(
                         max(
                             0,
                             0.80 / (oversampling_count - 1)
-                            - delta()  # the delta() reduces the variance by accounting for the duration of each sampling.
+                            - time_to_run()  # the time_to_run() reduces the variance by accounting for the duration of each sampling.
                             + 0.005
                             * (
                                 (counter * 0.618034) % 1
                             ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                         )
                     )
-            print()
 
+            batched_estimates_ = {}
             for channel, _ in self.analog_in:
 
-                aggregated_signals[f"A{channel}"] = (
-                    aggregated_signals[f"A{channel}"]
-                    * _ADS1X15_PGA_RANGE[self.ads.gain]
-                    / 32767
+                best_estimate_of_signal_ = self.sin_regression_with_known_freq(
+                    timestamps[f"A{channel}"],
+                    aggregated_signals[f"A{channel}"],
+                    2 * 3.14159 * 60,
                 )
-                aggregated_signal_ = aggregated_signals[f"A{channel}"]
+                if best_estimate_of_signal_ is None:
+                    best_estimate_of_signal_ = getattr(
+                        self,
+                        f"A{channel}",
+                    )
+                else:
+                    best_estimate_of_signal_ = (
+                        best_estimate_of_signal_  # TODO: delete with ADS1015 is in.
+                        * _ADS1X15_PGA_RANGE[self.ads.gain]
+                        / 32767
+                    )
+
+                batched_estimates_[f"A{channel}"] = best_estimate_of_signal_
 
                 # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
                 setattr(
                     self,
                     f"A{channel}",
-                    {"voltage": aggregated_signal_, "timestamp": current_utc_time()},
+                    {
+                        "voltage": best_estimate_of_signal_,
+                        "timestamp": current_utc_time(),
+                    },
                 )
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
@@ -309,22 +373,22 @@ class ADCReader(BackgroundSubJob):
                 # This is not for culture density saturation (different, harder problem)
                 if (
                     (self.counter % 60 == 0)
-                    and (aggregated_signal_ >= 2.75)
+                    and (best_estimate_of_signal_ >= 2.75)
                     and not self.fake_data
                 ):
                     self.logger.warning(
-                        f"ADC channel {channel} is recording a very high voltage, {round(aggregated_signal_, 2)}V. It's recommended to keep it less than 3.3V."
+                        f"ADC channel {channel} is recording a very high voltage, {round(best_estimate_of_signal_, 2)}V. It's recommended to keep it less than 3.3V."
                     )
 
                 # check if more than 3V, and shut down to prevent damage to ADC.
                 # we use max_signal to modify the PGA, too
-                max_signal = max(max_signal, aggregated_signal_)
+                max_signal = max(max_signal, best_estimate_of_signal_)
                 self.check_on_max(max_signal)
 
             # publish the batch of data, too, for reading,
             # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
-            aggregated_signals["timestamp"] = current_utc_time()
-            self.batched_readings = aggregated_signals
+            batched_estimates_["timestamp"] = current_utc_time()
+            self.batched_readings = batched_estimates_
 
             # the max signal should determine the ADS1x15's gain
             if self.dynamic_gain:
