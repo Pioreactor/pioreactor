@@ -337,7 +337,7 @@ class ADCReader(BackgroundSubJob):
                     )
 
             batched_estimates_ = {}
-            for channel, _ in self.analog_in:
+            for channel, _ in self.analog_in[0:2]:
 
                 best_estimate_of_signal_ = self.sin_regression_with_known_freq(
                     timestamps[f"A{channel}"],
