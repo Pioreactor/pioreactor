@@ -261,7 +261,7 @@ class ADCReader(BackgroundSubJob):
             with catchtime() as delta1:
                 for counter in range(oversampling_count):
                     with catchtime() as delta:
-                        for channel, ai in self.analog_in[:1]:
+                        for channel, ai in self.analog_in[1:2]:
                             # raw_signal_ = ai.voltage
                             # aggregated_signals[f"A{channel}"] += (
                             #    raw_signal_ / oversampling_count
