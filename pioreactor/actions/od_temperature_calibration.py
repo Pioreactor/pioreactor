@@ -113,13 +113,13 @@ def od_temperature_calibration():
             time.sleep(60 * 13)
 
             # update heater, to get new temps
-            duty_cycle += 4
+            duty_cycle += 6
             tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
         # save lookup - where?
         logger.debug(temp_od_lookup)
         with open("/home/pi/.pioreactor/od_temperature_calibration.json", "w") as f:
-            json.dump(temp_od_lookup, f, indent=2)
+            json.dump(temp_od_lookup, f, indent="")
 
         if config.getboolean(
             "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
