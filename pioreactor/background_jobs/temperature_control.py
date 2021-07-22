@@ -3,6 +3,25 @@
 Continuously monitor the bioreactor and take action. This is the core of the temperature automation.
 
 
+The temperature is determined using a temperature sensor outside the vial, on the base PCB. This means there is some
+difference between the recorded PCB temperature, and the liquid temperature.
+
+The same PCB is used for heating the vial - so how do we remove the effect of PCB heating from temperature. The general
+algorithm is below, housed in TemperatureController
+
+    1. Turn on heating, the amount controlled by the TemperatureController.heater_duty_cycle.
+    2. Every 10 minutes, we trigger a sequence:
+        1. Turn off heating completely (a lock is introduced so other jobs can't change this)
+        2. Every 10 seconds, record the temperature on the PCB.
+
+
+
+
+
+
+
+
+
 To change the automation over MQTT,
 
 topic: `pioreactor/<unit>/<experiment>/temperture_control/temperature_automation/set`
@@ -191,21 +210,21 @@ class TemperatureController(BackgroundJob):
 
         if temp > MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
             self.update_heater(self.heater_duty_cycle * 0.90)
 
         elif temp > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
 
             self.turn_off_heater()
 
         elif temp > MAX_TEMP_TO_SHUTDOWN:
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
             )
 
             from subprocess import call

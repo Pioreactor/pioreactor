@@ -10,17 +10,16 @@ only need to change the duty cycle, and not worry about a closed-feedback loop t
 Questions include:
 
 1. What should the angles be?
+    - possibility is to use 180, and water as media.
 2. What should the media be?
 3. Should stirring be on?
     - probably, as this mimics production more, and will distribute heating more.
 4. How many data points should we keep?
 5. Where do we store the lookup table?
-    - DBM, but _not_ in /tmp..., I guess in ~/.pioreactor/
-
-6. How we do share with Pioreactor, the company?
+    - DBM or JSON, but _not_ in /tmp..., I guess in ~/.pioreactor/
 7. Where is it in the UI?
-  - calibration popup
-8. Does a calibration need to be rerun if I replace the LED? If I move/reposition it?
+  - compensation popup
+8. Does a compensation need to be rerun if I replace the LED? If I move/reposition it? Over time?
 
 """
 import json, time
@@ -41,9 +40,9 @@ from pioreactor.whoami import (
 from pioreactor.pubsub import publish, subscribe_and_callback
 
 
-def od_temperature_calibration():
+def od_temperature_compensation():
 
-    action_name = "od_temperature_calibration"
+    action_name = "od_temperature_compensation"
     logger = create_logger(action_name)
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -51,7 +50,7 @@ def od_temperature_calibration():
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
-        logger.info("Starting OD temperature calibration. This will take two hours.")
+        logger.info("Starting OD temperature compensation. This will take two hours.")
 
         if (
             is_pio_job_running("od_reading")
@@ -59,7 +58,7 @@ def od_temperature_calibration():
             or is_pio_job_running("stirring")
         ):
             logger.error(
-                "Make sure OD Reading, Temperature Control, and Stirring are off before running OD temperature calibration. Exiting."
+                "Make sure OD Reading, Temperature Control, and Stirring are off before running OD temperature compensation. Exiting."
             )
             return
 
@@ -118,24 +117,24 @@ def od_temperature_calibration():
 
         # save lookup - where?
         logger.debug(temp_od_lookup)
-        with open("/home/pi/.pioreactor/od_temperature_calibration.json", "w") as f:
+        with open("/home/pi/.pioreactor/od_temperature_compensation.json", "w") as f:
             json.dump(temp_od_lookup, f, indent="")
 
         if config.getboolean(
             "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
         ):
             publish(
-                "pioreactor/od_temperature_calibration",
+                "pioreactor/od_temperature_compensation",
                 json.dumps(temp_od_lookup),
                 hostname="mqtt.pioreactor.com",
             )
 
-        logger.info("Finished OD temperature calibration.")
+        logger.info("Finished OD temperature compensation.")
 
 
-@click.command(name="od_temperature_calibration")
-def click_od_temperature_calibration():
+@click.command(name="od_temperature_compensation")
+def click_od_temperature_compensation():
     """
     Check the IO in the Pioreactor
     """
-    od_temperature_calibration()
+    od_temperature_compensation()

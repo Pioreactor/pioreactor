@@ -6,7 +6,7 @@ from pioreactor.actions import od_normalization
 from pioreactor.actions import led_intensity
 from pioreactor.actions import od_blank
 from pioreactor.actions import system_check
-from pioreactor.actions import od_temperature_calibration
+from pioreactor.actions import od_temperature_compensation
 from pioreactor.actions.leader import export_experiment_data
 from pioreactor.actions.leader import backup_database
 
@@ -21,5 +21,5 @@ __all__ = (
     "led_intensity",
     "od_blank",
     "system_check",
-    "od_temperature_calibration",
+    "od_temperature_compensation",
 )
