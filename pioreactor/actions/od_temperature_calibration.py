@@ -107,7 +107,7 @@ def od_temperature_calibration():
         time.sleep(60 * 31)
 
         # update heater, to get new temps
-        duty_cycle = 40
+        duty_cycle = 45
         tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
         # sleep for a while?
