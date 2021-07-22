@@ -72,7 +72,7 @@ def od_temperature_calibration():
         st.start_stirring()
 
         # initialize temperature controller.
-        duty_cycle = 20
+        duty_cycle = 10
         tc = TemperatureController(
             "constant_duty_cycle", unit=unit, experiment=testing_experiment, duty_cycle=20
         )
@@ -103,15 +103,13 @@ def od_temperature_calibration():
             f"pioreactor/{unit}/{testing_experiment}/temperature_control/temperature",
         )
 
-        # sleep for a while?
-        time.sleep(60 * 31)
+        for _ in range(10):
+            # sleep for a while?
+            time.sleep(60 * 12)
 
-        # update heater, to get new temps
-        duty_cycle = 45
-        tc.temperature_automation_job.set_duty_cycle(duty_cycle)
-
-        # sleep for a while?
-        time.sleep(60 * 31)
+            # update heater, to get new temps
+            duty_cycle += 5
+            tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
         # save lookup - where?
         logger.debug(temp_od_lookup)
