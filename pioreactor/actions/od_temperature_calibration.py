@@ -51,6 +51,8 @@ def od_temperature_calibration():
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
+        logger.info("Starting OD temperature calibration. This will take two hours.")
+
         if (
             is_pio_job_running("od_reading")
             or is_pio_job_running("temperature_control")
@@ -74,7 +76,10 @@ def od_temperature_calibration():
         # initialize temperature controller.
         duty_cycle = 10
         tc = TemperatureController(
-            "constant_duty_cycle", unit=unit, experiment=testing_experiment, duty_cycle=20
+            "constant_duty_cycle",
+            unit=unit,
+            experiment=testing_experiment,
+            duty_cycle=duty_cycle,
         )
 
         # start od_reading
@@ -105,10 +110,10 @@ def od_temperature_calibration():
 
         for _ in range(10):
             # sleep for a while?
-            time.sleep(60 * 12)
+            time.sleep(60 * 13)
 
             # update heater, to get new temps
-            duty_cycle += 5
+            duty_cycle += 4
             tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
         # save lookup - where?
@@ -124,6 +129,8 @@ def od_temperature_calibration():
                 json.dumps(temp_od_lookup),
                 hostname="mqtt.pioreactor.com",
             )
+
+        logger.info("Finished OD temperature calibration.")
 
 
 @click.command(name="od_temperature_calibration")
