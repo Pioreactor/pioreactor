@@ -104,18 +104,18 @@ def od_temperature_calibration():
         )
 
         # sleep for a while?
-        time.sleep(60 * 25)
+        time.sleep(60 * 31)
 
         # update heater, to get new temps
         duty_cycle = 40
         tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
         # sleep for a while?
-        time.sleep(60 * 25)
+        time.sleep(60 * 31)
 
         # save lookup - where?
         logger.debug(temp_od_lookup)
-        with open("~/.pioreactor/od_temperature_calibration.json", "w") as f:
+        with open("/home/pi/.pioreactor/od_temperature_calibration.json", "w") as f:
             json.dump(temp_od_lookup, f, indent=2)
 
         if config.getboolean(
