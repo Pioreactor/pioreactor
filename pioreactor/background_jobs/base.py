@@ -394,10 +394,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def init(self):
         self.state = self.INIT
 
-        self.logger.debug(
-            f"Initializing, unit: `{self.unit}`, experiment: `{self.experiment}`."
-        )
-
         self.set_up_exit_protocol()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
@@ -417,11 +413,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
 
-        if type(self) == _BackgroundJob:
-            self.logger.info("Ready.")
-        else:
-            self.logger.debug("Ready.")
-
     def sleeping(self):
         self.state = self.SLEEPING
         try:
@@ -429,8 +420,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-
-        self.logger.debug("Sleeping.")
 
     def lost(self):
         self.state = self.LOST
