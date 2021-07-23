@@ -16,10 +16,17 @@ def test_TemperatureCompensator():
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    # mock
-    TemperatureCompensator.get_initial_temperature = lambda self: 25.0
-
     tc = TemperatureCompensator(unit=unit, experiment=experiment)
+
+    assert tc.compensate_od_for_temperature(1.0) == 1.0
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+        json.dumps({"temperature": 25, "timestamp": "2020-10-01"}),
+    )
+    pause()
+    assert tc.initial_temperature == 25
+    assert tc.latest_temperature == 25
 
     assert tc.compensate_od_for_temperature(1.0) == 1.0
 

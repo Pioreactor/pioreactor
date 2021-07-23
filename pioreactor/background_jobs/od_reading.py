@@ -425,29 +425,32 @@ class TemperatureCompensator(BackgroundSubJob):
         super(TemperatureCompensator, self).__init__(
             job_name="temperature_compensator", unit=unit, experiment=experiment
         )
-        self.initial_temperature = self.get_initial_temperature()
-        self.latest_temperature = self.initial_temperature
+        self.initial_temperature = None
+        self.latest_temperature = None
         self.start_passive_listeners()
-
-    def get_initial_temperature(self):
-        try:
-            from TMP1075 import TMP1075
-        except (NotImplementedError, ModuleNotFoundError):
-            self.logger.info("TMP1075 not available; using MockTMP1075")
-            from pioreactor.utils.mock import MockTMP1075 as TMP1075
-
-        # TODO: try block
-        return TMP1075().get_temperature()
 
     def compensate_od_for_temperature(self, OD):
         # see https://github.com/Pioreactor/pioreactor/issues/143
-        from math import exp
 
-        return OD / exp(-0.006380 * (self.latest_temperature - self.initial_temperature))
+        if self.initial_temperature is None:
+            return OD
+        else:
+            from math import exp
+
+            return OD / exp(
+                -0.006380 * (self.latest_temperature - self.initial_temperature)
+            )
 
     def update_temperature(self, msg):
-        if msg.payload:
-            self.latest_temperature = json.loads(msg.payload)["temperature"]
+        if not msg.payload:
+            return
+
+        tmp = json.loads(msg.payload)["temperature"]
+
+        if self.initial_temperature is None:
+            self.initial_temperature = tmp
+
+        self.latest_temperature = tmp
 
     def start_passive_listeners(self):
         self.subscribe_and_callback(
