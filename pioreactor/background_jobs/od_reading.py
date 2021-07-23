@@ -337,7 +337,7 @@ class ADCReader(BackgroundSubJob):
                             ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                         )
                     )
-                    print()
+                print()
 
             batched_estimates_ = {}
             for channel, _ in self.analog_in[0:1]:
@@ -647,7 +647,7 @@ class ODReader(BackgroundJob):
                 }
             except KeyError:
                 self.logger.error(
-                    f"Input wrong channel, provided {channel}. Only valid channels are 0, 1, 2, 3."
+                    f"Wrong channel found/not found, provided {channel}. Only valid channels are 0, 1, 2, 3."
                 )
                 self.set_state(self.DISCONNECTED)
 
