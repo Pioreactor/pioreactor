@@ -176,6 +176,9 @@ class TemperatureController(BackgroundJob):
             time.sleep(1)
             self.set_temperature_automation(new_temperature_automation_json)
 
+        # reset heater back to 0.
+        self._update_heater(0)
+
         try:
             self.temperature_automation_job = self.automations[new_automation](
                 unit=self.unit, experiment=self.experiment, parent=self, **algo_init

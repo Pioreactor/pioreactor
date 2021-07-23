@@ -312,7 +312,7 @@ class ADCReader(BackgroundSubJob):
             with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
                     with catchtime() as time_code_took_to_run:
-                        for channel, ai in self.analog_in[0:2]:
+                        for channel, ai in self.analog_in[0:1]:
                             timestamps[f"A{channel}"].append(time_since_start())
                             # raw_signal_ = ai.voltage
                             # aggregated_signals[f"A{channel}"] += (
@@ -324,6 +324,7 @@ class ADCReader(BackgroundSubJob):
                                 value1115 >> 4
                             ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
                             aggregated_signals[f"A{channel}"].append(value1015)
+                            print(f"{value1015},")
 
                     time.sleep(
                         max(
@@ -336,6 +337,7 @@ class ADCReader(BackgroundSubJob):
                             ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                         )
                     )
+                    print()
 
             batched_estimates_ = {}
             for channel, _ in self.analog_in[0:2]:

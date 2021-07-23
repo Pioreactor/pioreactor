@@ -94,6 +94,10 @@ def od_temperature_compensation():
             experiment=testing_experiment,
             fake_data=is_testing_env(),
         )
+        # turn off the built in temperature compensator
+        od_reader.temperature_compensator.compensate_od_for_temperature = (
+            lambda self, od, *args, **kwargs: od
+        )
 
         def record_od(message):
             if message.payload:
