@@ -204,16 +204,18 @@ class TemperatureController(BackgroundJob):
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp):
-        MAX_TEMP_TO_REDUCE_HEATING = 54.0
+        MAX_TEMP_TO_REDUCE_HEATING = 53.0
         MAX_TEMP_TO_DISABLE_HEATING = 56.0
         MAX_TEMP_TO_SHUTDOWN = 58.0
 
-        if temp > MAX_TEMP_TO_REDUCE_HEATING:
-            self.logger.debug(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+        if temp > MAX_TEMP_TO_SHUTDOWN:
+            self.logger.warning(
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
             )
 
-            self.update_heater(self.heater_duty_cycle * 0.90)
+            from subprocess import call
+
+            call("sudo shutdown --poweroff", shell=True)
 
         elif temp > MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
@@ -222,14 +224,12 @@ class TemperatureController(BackgroundJob):
 
             self.turn_off_heater()
 
-        elif temp > MAX_TEMP_TO_SHUTDOWN:
-            self.logger.warning(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
+        elif temp > MAX_TEMP_TO_REDUCE_HEATING:
+            self.logger.debug(
+                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            from subprocess import call
-
-            call("sudo shutdown --poweroff", shell=True)
+            self.update_heater(self.heater_duty_cycle * 0.90)
 
     def on_sleeping(self):
         self.temperature_automation_job.set_state(self.SLEEPING)

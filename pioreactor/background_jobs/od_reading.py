@@ -415,6 +415,49 @@ class ADCReader(BackgroundSubJob):
             raise e
 
 
+class TemperatureCompensator(BackgroundSubJob):
+    """
+    This class listens for changes in temperature, and will allow OD to compensate
+    for the temp changes.
+    """
+
+    def __init__(self, unit, experiment):
+        super(TemperatureCompensator, self).__init__(
+            job_name="temperature_compensator", unit=unit, experiment=experiment
+        )
+        self.initial_temperature = self.get_initial_temperature()
+        self.latest_temperature = self.initial_temperature
+        self.start_passive_listeners()
+
+    def get_initial_temperature(self):
+        try:
+            from TMP1075 import TMP1075
+        except (NotImplementedError, ModuleNotFoundError):
+            self.logger.info("TMP1075 not available; using MockTMP1075")
+            from pioreactor.utils.mock import MockTMP1075 as TMP1075
+
+        # TODO: try block
+        return TMP1075().get_temperature()
+
+    def compensate_od_for_temperature(self, OD):
+        # see https://github.com/Pioreactor/pioreactor/issues/143
+        from math import exp
+
+        return OD / exp(-0.006380 * (self.latest_temperature - self.initial_temperature))
+
+    def update_temperature(self, msg):
+        if msg.payload:
+            self.latest_temperature = json.loads(msg.payload)["temperature"]
+
+    def start_passive_listeners(self):
+        self.subscribe_and_callback(
+            self.update_temperature,
+            f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
+            qos=QOS.EXACTLY_ONCE,
+            allow_retained=False,
+        )
+
+
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -464,7 +507,12 @@ class ODReader(BackgroundJob):
             experiment=self.experiment,
             parent=self,
         )
-        self.sub_jobs = [self.adc_reader]
+        self.temperature_compensator = TemperatureCompensator(
+            unit=self.unit, experiment=self.experiment
+        )
+        self.sub_jobs = [self.adc_reader, self.temperature_compensator]
+
+        # start reading from the ADC
         self.adc_reader.start_periodic_reading()
 
         if stop_IR_led_between_ADC_readings:
@@ -577,9 +625,8 @@ class ODReader(BackgroundJob):
             pass
         self.stop_ir_led()
 
-    def temperature_compensator(self, reading):
-        # TODO
-        return reading
+    def compensate_od_for_temperature(self, reading):
+        return self.temperature_compensator.compensate_od_for_temperature(reading)
 
     def publish_batch(self, message):
         if self.state != self.READY:
@@ -590,7 +637,7 @@ class ODReader(BackgroundJob):
         for channel, angle in self.channel_angle_map.items():
             try:
                 od_readings["od_raw"][channel.lstrip("A")] = {
-                    "voltage": self.temperature_compensator(ads_readings[channel]),
+                    "voltage": self.compensate_od_for_temperature(ads_readings[channel]),
                     "angle": angle,
                 }
             except KeyError:
@@ -613,7 +660,7 @@ class ODReader(BackgroundJob):
         channel = message.topic.rsplit("/", maxsplit=1)[1]
         payload = json.loads(message.payload)
         payload["angle"] = self.channel_angle_map[channel]
-        payload["voltage"] = self.temperature_compensator(payload["voltage"])
+        payload["voltage"] = self.compensate_od_for_temperature(payload["voltage"])
         topic_suffix = channel.lstrip("A")
 
         self.publish(

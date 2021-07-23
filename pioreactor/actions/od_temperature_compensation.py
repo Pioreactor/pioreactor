@@ -11,6 +11,7 @@ Questions include:
 
 1. What should the angles be?
     - possibility is to use 180, and water as media.
+    - 45 has been working well, since there is some stray light => can use water as media.
 2. What should the media be?
 3. Should stirring be on?
     - probably, as this mimics production more, and will distribute heating more.
@@ -18,8 +19,11 @@ Questions include:
 5. Where do we store the lookup table?
     - DBM or JSON, but _not_ in /tmp..., I guess in ~/.pioreactor/
 7. Where is it in the UI?
-  - compensation popup
+  - calibration modal
 8. Does a compensation need to be rerun if I replace the LED? If I move/reposition it? Over time?
+ - replacing LED: certainly, especially if it's a different model
+ - moving it? I don't think so
+ - over time: probably pretty okay - only active ~20% of the time in an experiment, and only being driven at about 50% of max.
 
 """
 import json, time
@@ -107,12 +111,12 @@ def od_temperature_compensation():
             f"pioreactor/{unit}/{testing_experiment}/temperature_control/temperature",
         )
 
-        for _ in range(10):
+        for i in range(10):
             # sleep for a while?
             time.sleep(60 * 13)
 
             # update heater, to get new temps
-            duty_cycle += 6
+            duty_cycle += 4
             tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
         # save lookup - where?
