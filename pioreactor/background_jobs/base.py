@@ -460,11 +460,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
 
-        if type(self) == _BackgroundJob:
-            self.logger.info("Disconnected.")
-        else:
-            self.logger.debug("Disconnected.")
-
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache[self.job_name] = b"0"
 
@@ -497,6 +492,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         except AttributeError:
             pass
         getattr(self, new_state)()
+        self.message_about_new_state()
+
+    def message_about_new_state(self):
+        if self.state == self.READY or self.state == self.DISCONNECTED:
+            self.logger.info(self.state.capitalize() + ".")
+        else:
+            self.logger.debug(self.state.capitalize() + ".")
 
     def set_attr_from_message(self, message):
 

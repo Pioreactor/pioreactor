@@ -16,3 +16,6 @@ class BackgroundSubJob(BackgroundJob):
     def on_mqtt_disconnect(self):
         self.logger.debug("Disconnected from MQTT")
         return
+
+    def message_about_new_state(self):
+        self.logger.debug(self.state.capitalize() + ".")
