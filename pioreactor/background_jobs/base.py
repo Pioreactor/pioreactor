@@ -416,7 +416,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-        self.logger.info("Ready.")
+
+        if type(self) == _BackgroundJob:
+            self.logger.info("Ready.")
+        else:
+            self.logger.debug("Ready.")
 
     def sleeping(self):
         self.state = self.SLEEPING
@@ -456,7 +460,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
 
-        self.logger.info("Disconnected.")
+        if type(self) == _BackgroundJob:
+            self.logger.info("Disconnected.")
+        else:
+            self.logger.debug("Disconnected.")
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache[self.job_name] = b"0"

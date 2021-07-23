@@ -9,15 +9,6 @@ class BackgroundSubJob(BackgroundJob):
         super(BackgroundSubJob, self).__init__(*args, **kwargs)
         self.parent = parent
 
-    def ready(self):
-        self.state = self.READY
-        try:
-            self.on_ready()
-        except Exception as e:
-            self.logger.error(e)
-            self.logger.debug(e, exc_info=True)
-        self.logger.debug("Ready.")  # don't post to info...
-
     def set_up_exit_protocol(self):
         # NOOP: subjobs don't exit from python, parents do.
         return

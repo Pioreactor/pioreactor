@@ -429,19 +429,31 @@ class TemperatureCompensator(BackgroundSubJob):
         )
         self.initial_temperature = None
         self.latest_temperature = None
+        self.previous_temperature = None
+        self.time_of_last_temperature = None
         self.start_passive_listeners()
 
     def compensate_od_for_temperature(self, OD):
-        # see https://github.com/Pioreactor/pioreactor/issues/143
+        """
+        To avoid large jumps when a new temperature reading arrives,
+        we interpolate between the new temp reading and the old temp reading. This should
+        smooth things out. I choose 5 min, arbitrarly.
+
+        see https://github.com/Pioreactor/pioreactor/issues/143
+        """
 
         if self.initial_temperature is None:
             return OD
         else:
             from math import exp
 
-            return OD / exp(
-                -0.006380 * (self.latest_temperature - self.initial_temperature)
+            time_since_last = time.time() - self.time_of_last_temperature
+            f = min(time_since_last / (5 * 60), 1)  # iterpolate to current temp in 5 min.
+            iterpolated_temp = (
+                f * self.latest_temperature + (1 - f) * self.previous_temperature
             )
+
+            return OD / exp(-0.006380 * (iterpolated_temp - self.initial_temperature))
 
     def update_temperature(self, msg):
         if not msg.payload:
@@ -452,7 +464,13 @@ class TemperatureCompensator(BackgroundSubJob):
         if self.initial_temperature is None:
             self.initial_temperature = tmp
 
+        if self.previous_temperature is None:
+            self.previous_temperature = tmp
+        else:
+            self.previous_temperature = self.latest_temperature
+
         self.latest_temperature = tmp
+        self.time_of_last_temperature = time.time()
 
     def start_passive_listeners(self):
         self.subscribe_and_callback(
