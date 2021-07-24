@@ -437,7 +437,7 @@ class TemperatureCompensator(BackgroundSubJob):
         """
         To avoid large jumps when a new temperature reading arrives,
         we interpolate between the new temp reading and the old temp reading. This should
-        smooth things out. I choose 5 min, arbitrarly.
+        smooth things out.
 
         see https://github.com/Pioreactor/pioreactor/issues/143
         """
@@ -448,7 +448,7 @@ class TemperatureCompensator(BackgroundSubJob):
             from math import exp
 
             time_since_last = time.time() - self.time_of_last_temperature
-            f = min(time_since_last / (5 * 60), 1)  # iterpolate to current temp in 5 min.
+            f = min(time_since_last / (10 * 60), 1)  # interpolate to current temp
             iterpolated_temp = (
                 f * self.latest_temperature + (1 - f) * self.previous_temperature
             )
