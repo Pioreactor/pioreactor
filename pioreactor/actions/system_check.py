@@ -200,9 +200,7 @@ def system_check():
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
-    with publish_ready_to_disconnected_state(
-        unit, get_latest_experiment_name(), "system_check"
-    ):
+    with publish_ready_to_disconnected_state(unit, experiment, "system_check"):
 
         if (
             is_pio_job_running("od_reading")
