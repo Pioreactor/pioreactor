@@ -74,7 +74,7 @@ def correlation(x, y):
 
 def is_pio_job_running(target_job):
     with local_intermittent_storage("pio_jobs_running") as cache:
-        if not cache.get(target_job, b"0") == b"0":
+        if cache.get(target_job, b"0") == b"0":
             return False
         else:
             # double check with psutil
