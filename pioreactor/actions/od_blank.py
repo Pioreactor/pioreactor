@@ -13,7 +13,7 @@ from pioreactor.whoami import (
 )
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
-from pioreactor.background_jobs.od_reading import ODReader, create_channel_angle_map
+from pioreactor.background_jobs.od_reading import start_od_reading
 
 
 def od_blank(od_angle_channels, N_samples=15):
@@ -44,11 +44,12 @@ def od_blank(od_angle_channels, N_samples=15):
         sampling_rate = 1 / config.getfloat("od_config.od_sampling", "samples_per_second")
 
         # start od_reading
-        ODReader(
-            create_channel_angle_map(*od_angle_channels),
+        start_od_reading(
+            *od_angle_channels,
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=testing_experiment,
+            fake_data=is_testing_env(),
         )
 
         def yield_from_mqtt():

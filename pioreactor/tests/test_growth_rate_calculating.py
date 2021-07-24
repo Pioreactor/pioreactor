@@ -5,8 +5,8 @@ import numpy as np
 from numpy.testing import assert_array_equal
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
-from pioreactor.background_jobs.stirring import Stirrer
-from pioreactor.background_jobs.od_reading import ODReader
+from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import publish
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -405,14 +405,15 @@ def test_end_to_end():
     publish(f"pioreactor/{unit}/{exp}/od_normalization/mean", None, retain=True)
     publish(f"pioreactor/{unit}/{exp}/od_normalization/variance", None, retain=True)
 
-    ODReader(
-        channel_angle_map={"A0": "135", "A1": "90"},
+    start_od_reading(
+        *["135", "90", None, None],
         sampling_rate=interval,
         unit=unit,
         experiment=exp,
         fake_data=True,
     )
-    Stirrer(duty_cycle=50, unit=unit, experiment=exp)
+
+    start_stirring(duty_cycle=50, unit=unit, experiment=exp)
 
     calc = GrowthRateCalculator(unit=unit, experiment=exp)
 

@@ -164,21 +164,20 @@ class Stirrer(BackgroundJob):
         self.sneak_in_timer.start()
 
 
-def stirring(duty_cycle=0, dc_increase_between_adc_readings=False, duration=None):
-    experiment = get_latest_experiment_name()
+def start_stirring(
+    duty_cycle=0, dc_increase_between_adc_readings=False, unit=None, experiment=None
+):
+    unit = unit or get_unit_name()
+    experiment = experiment or get_latest_experiment_name()
 
     stirrer = Stirrer(
         duty_cycle,
         dc_increase_between_adc_readings=dc_increase_between_adc_readings,
-        unit=get_unit_name(),
+        unit=unit,
         experiment=experiment,
     )
     stirrer.start_stirring()
-
-    if duration is None:
-        signal.pause()
-    else:
-        time.sleep(duration)
+    return stirrer
 
 
 @click.command(name="stirring")
@@ -194,7 +193,8 @@ def click_stirring(duty_cycle, dc_increase_between_adc_readings):
     """
     Start the stirring of the Pioreactor.
     """
-    stirring(
+    start_stirring(
         duty_cycle=duty_cycle,
         dc_increase_between_adc_readings=dc_increase_between_adc_readings,
     )
+    signal.pause()

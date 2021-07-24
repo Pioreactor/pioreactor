@@ -37,7 +37,6 @@ def led_intensity(
     unit=None,
     experiment=None,
     verbose=True,
-    mock=False,
     pubsub_client=None,
 ):
     """
@@ -56,9 +55,6 @@ def led_intensity(
     except NotImplementedError:
         logger.debug("DAC43608 not available; using MockDAC43608")
         from pioreactor.utils.mock import MockDAC43608 as DAC43608
-
-    if mock:
-        from pioreactor.utils.mock import MockDAC43608 as DAC43608  # noqa: F811
 
     if pubsub_client is None:
         pubsub_client = create_client()

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from dbm import ndbm
 from contextlib import contextmanager
-from pioreactor.whoami import am_I_leader
 from pioreactor.pubsub import publish, QOS
 
 
@@ -75,7 +74,11 @@ def correlation(x, y):
 
 def is_pio_job_running(target_job):
     with local_intermittent_storage("pio_jobs_running") as cache:
-        return cache.get(target_job, b"0") == b"1"
+        if not cache.get(target_job, b"0") == b"0":
+            return False
+        else:
+            # double check with psutil
+            return target_job in pio_jobs_running()
 
 
 def pio_jobs_running():
@@ -108,21 +111,6 @@ def pio_jobs_running():
         except Exception:
             pass
     return jobs
-
-
-def execute_query_against_db(query):
-    if not am_I_leader():
-        raise IOError("Need to be leader to run this.")
-
-    import sqlite3
-    from pioreactor.config import config
-
-    conn = sqlite3.connect(config["storage"]["database"])
-    cur = conn.cursor()
-    cur.execute(query)
-    rows = cur.fetchall()
-    conn.close()
-    return rows
 
 
 def pump_ml_to_duration(ml, duty_cycle, duration_=0):

@@ -140,8 +140,6 @@ class ADCReader(BackgroundSubJob):
         self.A3 = None
         self.batched_readings = dict()
 
-        self.setup_adc()
-
         if self.interval:
             self.timer = RepeatedTimer(
                 self.interval, self.take_reading, run_immediately=True
@@ -312,7 +310,7 @@ class ADCReader(BackgroundSubJob):
             with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
                     with catchtime() as time_code_took_to_run:
-                        for channel, ai in self.analog_in[0:1]:
+                        for channel, ai in self.analog_in:
                             timestamps[f"A{channel}"].append(time_since_start())
                             # raw_signal_ = ai.voltage
                             # aggregated_signals[f"A{channel}"] += (
@@ -324,7 +322,6 @@ class ADCReader(BackgroundSubJob):
                                 value1115 >> 4
                             ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
                             aggregated_signals[f"A{channel}"].append(value1015)
-                            print(f"{value1015},")
 
                     time.sleep(
                         max(
@@ -337,10 +334,9 @@ class ADCReader(BackgroundSubJob):
                             ),  # this is to artificially spread out the samples, so that we observe less aliasing.
                         )
                     )
-                print()
 
             batched_estimates_ = {}
-            for channel, _ in self.analog_in[0:1]:
+            for channel, _ in self.analog_in:
 
                 best_estimate_of_signal_ = self.sin_regression_with_known_freq(
                     timestamps[f"A{channel}"],
@@ -423,9 +419,9 @@ class TemperatureCompensator(BackgroundSubJob):
     for the temp changes.
     """
 
-    def __init__(self, unit, experiment):
+    def __init__(self, unit, experiment, **kwargs):
         super(TemperatureCompensator, self).__init__(
-            job_name="temperature_compensator", unit=unit, experiment=experiment
+            job_name="temperature_compensator", unit=unit, experiment=experiment, **kwargs
         )
         self.initial_temperature = None
         self.latest_temperature = None
@@ -502,39 +498,28 @@ class ODReader(BackgroundJob):
     def __init__(
         self,
         channel_angle_map,
-        sampling_rate=1,
-        fake_data=False,
         unit=None,
         experiment=None,
         stop_IR_led_between_ADC_readings=True,
+        adc_reader=None,
+        temperature_compensator=None,
     ):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
         )
-        self.logger.debug(
-            f"Starting od_reading with sampling_rate {sampling_rate}s and channels {channel_angle_map}."
-        )
+        self.logger.debug(f"Starting od_reading and channels {channel_angle_map}.")
         self.channel_angle_map = channel_angle_map
-        self.fake_data = fake_data
+
+        self.adc_reader = adc_reader
+        self.temperature_compensator = temperature_compensator
+        self.sub_jobs = [self.adc_reader, self.temperature_compensator]
 
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getint("od_config.od_sampling", "ir_intensity")
         self.ir_channel = self.get_ir_channel_from_configuration()
-
         self.start_ir_led()
 
-        self.adc_reader = ADCReader(
-            interval=sampling_rate,
-            fake_data=fake_data,
-            unit=self.unit,
-            experiment=self.experiment,
-            parent=self,
-        )
-        self.temperature_compensator = TemperatureCompensator(
-            unit=self.unit, experiment=self.experiment
-        )
-        self.sub_jobs = [self.adc_reader, self.temperature_compensator]
-
+        self.adc_reader.setup_adc()
         # start reading from the ADC
         self.adc_reader.start_periodic_reading()
 
@@ -609,7 +594,6 @@ class ODReader(BackgroundJob):
             experiment=self.experiment,
             source_of_event=self.job_name,
             verbose=False,
-            mock=self.fake_data,
             pubsub_client=self.pub_client,
         )
         if not r:
@@ -625,7 +609,6 @@ class ODReader(BackgroundJob):
             experiment=self.experiment,
             source_of_event=self.job_name,
             verbose=False,
-            mock=self.fake_data,
             pubsub_client=self.pub_client,
         )
 
@@ -733,7 +716,7 @@ def create_channel_angle_map(
     return channel_angle_map
 
 
-def od_reading(
+def start_od_reading(
     od_angle_channel0,
     od_angle_channel1,
     od_angle_channel2,
@@ -750,15 +733,18 @@ def od_reading(
         od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
     )
 
-    ODReader(
+    return ODReader(
         channel_angle_map,
-        sampling_rate=sampling_rate,
         unit=unit,
         experiment=experiment,
-        fake_data=fake_data,
+        adc_reader=ADCReader(
+            interval=sampling_rate,
+            fake_data=fake_data,
+            unit=unit,
+            experiment=experiment,
+        ),
+        temperature_compensator=TemperatureCompensator(unit=unit, experiment=experiment),
     )
-
-    signal.pause()
 
 
 @click.command(name="od_reading")
@@ -797,10 +783,11 @@ def click_od_reading(
     """
     Start the optical density reading job
     """
-    od_reading(
+    start_od_reading(
         od_angle_channel0,
         od_angle_channel1,
         od_angle_channel2,
         od_angle_channel3,
         fake_data=fake_data or is_testing_env(),
     )
+    signal.pause()

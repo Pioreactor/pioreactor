@@ -30,7 +30,7 @@ import json, time
 import click
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.temperature_control import TemperatureController
-from pioreactor.background_jobs.od_reading import ODReader, create_channel_angle_map
+from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
 from pioreactor.config import config
@@ -86,8 +86,8 @@ def od_temperature_compensation():
         )
 
         # start od_reading
-        od_reader = ODReader(
-            create_channel_angle_map("90", None, None, None),  # TODO: formalize this.
+        od_reader = start_od_reading(
+            *["90", None, None, None],
             sampling_rate=1
             / config.getfloat("od_config.od_sampling", "samples_per_second"),
             unit=unit,
@@ -96,8 +96,9 @@ def od_temperature_compensation():
         )
         # turn off the built in temperature compensator
         od_reader.temperature_compensator.compensate_od_for_temperature = (
-            lambda self, od, *args, **kwargs: od
+            lambda od, *args, **kwargs: od
         )
+        time.sleep(1)
 
         def record_od(message):
             if message.payload:
