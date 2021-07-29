@@ -97,13 +97,25 @@ from pioreactor.pubsub import QOS
 
 class ADCReader(BackgroundSubJob):
     """
-    This job publishes the voltage reading from _all_ channels, and downstream
+    This job publishes the voltage reading from specified channels, and downstream
     jobs can selectively choose a channel to listen to. Call `take_reading` manually.
     The read values are stored in A0, A1, A2, and A3.
 
     We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
     make decisions. For example, if a bubbler is active, it should time itself
     s.t. it is _not_ running when an turbidity measurement is about to occur.
+
+
+    Parameters
+    ------------
+    channels: list
+        a list of channels, a subset of [0, 1, 2, 3]
+    fake_data: bool
+        generate fake ADC readings internally.
+    dynamic_gain: bool
+        dynamically change the gain based on the max reading from channels
+    initial_gain: number
+        set the initial gain - see data sheet for values.
 
     """
 
@@ -121,6 +133,7 @@ class ADCReader(BackgroundSubJob):
 
     def __init__(
         self,
+        channels,
         fake_data=False,
         unit=None,
         experiment=None,
@@ -137,6 +150,7 @@ class ADCReader(BackgroundSubJob):
         self.counter = 0
         self.ema = ExponentialMovingAverage(alpha=0.10)
         self.ads = None
+        self.channels = channels
         self.analog_in = []
 
         self.data_rate = config.getint("od_config.od_sampling", "data_rate")
@@ -170,13 +184,13 @@ class ADCReader(BackgroundSubJob):
             self.logger.debug(e, exc_info=True)
             raise e
 
-        for channel in [0, 1, 2, 3]:
+        for channel in self.channels:
             if self.fake_data:
-                ai = MockAnalogIn(self.ads, getattr(ADS, f"P{channel}"))
+                ai = MockAnalogIn(self.ads, channel)
             else:
                 from adafruit_ads1x15.analog_in import AnalogIn
 
-                ai = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
+                ai = AnalogIn(self.ads, channel)
             self.analog_in.append((channel, ai))
 
         # check if using correct gain
@@ -314,8 +328,8 @@ class ADCReader(BackgroundSubJob):
         }
         max_signal = 0
 
-        aggregated_signals = {"A0": [], "A1": [], "A2": [], "A3": []}
-        timestamps = {"A0": [], "A1": [], "A2": [], "A3": []}
+        aggregated_signals = {channel: [] for channel in self.channels}
+        timestamps = {channel: [] for channel in self.channels}
         # oversample over each channel, and we aggregate the results into a single signal.
         oversampling_count = 25
 
@@ -324,7 +338,7 @@ class ADCReader(BackgroundSubJob):
                 for counter in range(oversampling_count):
                     with catchtime() as time_code_took_to_run:
                         for channel, ai in self.analog_in:
-                            timestamps[f"A{channel}"].append(time_since_start())
+                            timestamps[channel].append(time_since_start())
                             # raw_signal_ = ai.voltage
                             # aggregated_signals[f"A{channel}"] += (
                             #    raw_signal_ / oversampling_count
@@ -334,7 +348,7 @@ class ADCReader(BackgroundSubJob):
                             value1015 = (
                                 value1115 >> 4
                             ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
-                            aggregated_signals[f"A{channel}"].append(value1015)
+                            aggregated_signals[channel].append(value1015)
 
                     time.sleep(
                         max(
@@ -349,11 +363,11 @@ class ADCReader(BackgroundSubJob):
                     )
 
             batched_estimates_ = {}
-            for channel, _ in self.analog_in:
+            for channel in self.channels:
 
                 (best_estimate_of_signal_, *_), _ = self.sin_regression_with_known_freq(
-                    timestamps[f"A{channel}"],
-                    aggregated_signals[f"A{channel}"],
+                    timestamps[channel],
+                    aggregated_signals[channel],
                     60,
                 )
 
@@ -364,9 +378,8 @@ class ADCReader(BackgroundSubJob):
                     / 32767
                 )
 
-                batched_estimates_[f"A{channel}"] = best_estimate_of_signal_
+                batched_estimates_[channel] = best_estimate_of_signal_
 
-                # the below will publish to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/A{channel}
                 setattr(
                     self,
                     f"A{channel}",
@@ -633,7 +646,7 @@ class ODReader(BackgroundJob):
         od_readings = {"od_raw": {}}
         for channel, angle in self.channel_angle_map.items():
             try:
-                od_readings["od_raw"][channel.lstrip("A")] = {
+                od_readings["od_raw"][channel] = {
                     "voltage": self.compensate_od_for_temperature(
                         batched_ads_readings[channel]
                     ),
@@ -657,7 +670,6 @@ class ODReader(BackgroundJob):
             return
 
         for channel, angle in self.channel_angle_map.items():
-            topic_suffix = channel.lstrip("A")
 
             payload = {
                 "voltage": self.compensate_od_for_temperature(
@@ -668,7 +680,7 @@ class ODReader(BackgroundJob):
             }
 
             self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{topic_suffix}",
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{channel}",
                 payload,
                 qos=QOS.EXACTLY_ONCE,
             )
@@ -678,20 +690,20 @@ def create_channel_angle_map(
     od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
 ):
     # Inputs are either None, or a string like "135", "90,45", ...
-    # Example return dict: {"A0": "90,135/0", "A1": "45,135/1", "A3":"90/3"}
+    # Example return dict: {0: "90,135", 1: "45,135", 3:"90"}
     channel_angle_map = {}
     if od_angle_channel0:
         # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
-        channel_angle_map["A0"] = od_angle_channel0
+        channel_angle_map[0] = od_angle_channel0
 
     if od_angle_channel1:
-        channel_angle_map["A1"] = od_angle_channel1
+        channel_angle_map[1] = od_angle_channel1
 
     if od_angle_channel2:
-        channel_angle_map["A2"] = od_angle_channel2
+        channel_angle_map[2] = od_angle_channel2
 
     if od_angle_channel3:
-        channel_angle_map["A3"] = od_angle_channel3
+        channel_angle_map[3] = od_angle_channel3
 
     return channel_angle_map
 
@@ -719,6 +731,7 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
+            channels=channel_angle_map.keys(),
             fake_data=fake_data,
             unit=unit,
             experiment=experiment,

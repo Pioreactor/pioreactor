@@ -129,11 +129,12 @@ class Monitor(BackgroundJob):
         return
 
     def on_ready(self):
-        self.logger.info(f"{self.unit} online and ready.")
         self.flicker_led()
 
         # we can delay this check until ready.
         self.check_state_of_jobs_on_machine()
+
+        self.logger.info(f"{self.unit} online and ready.")
 
     def on_disconnect(self):
         self.GPIO.cleanup(LED_PIN)

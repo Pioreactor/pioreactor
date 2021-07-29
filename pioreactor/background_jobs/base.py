@@ -481,18 +481,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def set_state(self, new_state):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
-        try:
-            getattr(self, f"on_{self.state}_to_{new_state}")()
-        except AttributeError:
-            pass
-        getattr(self, new_state)()
-        self.message_about_new_state()
 
-    def message_about_new_state(self):
-        if self.state == self.READY or self.state == self.DISCONNECTED:
-            self.logger.info(self.state.capitalize() + ".")
+        if hasattr(self, f"on_{self.state}_to_{new_state}"):
+            getattr(self, f"on_{self.state}_to_{new_state}")()
+
+        self.message_about_state(new_state)
+        getattr(self, new_state)()
+
+    def message_about_state(self, state):
+        if state == self.READY or state == self.DISCONNECTED:
+            self.logger.info(state.capitalize() + ".")
         else:
-            self.logger.debug(self.state.capitalize() + ".")
+            self.logger.debug(state.capitalize() + ".")
 
     def set_attr_from_message(self, message):
 
@@ -528,11 +528,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def start_general_passive_listeners(self) -> None:
         # listen to changes in editable properties
-        # everyone listens to $BROADCAST
         self.subscribe_and_callback(
             self.set_attr_from_message,
             [
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
+                # everyone listens to $BROADCAST
                 f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.job_name}/+/set",
             ],
             allow_retained=False,

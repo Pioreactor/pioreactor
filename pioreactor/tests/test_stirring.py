@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import time
-from pioreactor.background_jobs.stirring import stirring, Stirrer
+from pioreactor.background_jobs.stirring import start_stirring, Stirrer
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.pubsub import publish, subscribe
 
@@ -15,7 +15,7 @@ def pause():
 
 
 def test_stirring_runs():
-    stirring(50, duration=0.1)
+    start_stirring(50, duration=0.1)
 
 
 def test_change_stirring_mid_cycle():

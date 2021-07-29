@@ -2,7 +2,7 @@
 # test_od_reading.py
 
 import time, json
-from pioreactor.background_jobs.od_reading import TemperatureCompensator, ADCReader
+from pioreactor.background_jobs.od_reading import LinearTemperatureCompensator, ADCReader
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name
 from pioreactor.pubsub import publish
 
@@ -16,7 +16,7 @@ def test_TemperatureCompensator():
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    tc = TemperatureCompensator(unit=unit, experiment=experiment)
+    tc = LinearTemperatureCompensator(unit=unit, experiment=experiment)
 
     assert tc.compensate_od_for_temperature(1.0) == 1.0
 
