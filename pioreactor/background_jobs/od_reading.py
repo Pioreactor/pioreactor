@@ -368,11 +368,15 @@ class ADCReader(BackgroundSubJob):
             batched_estimates_ = {}
             for channel in self.channels:
 
-                (best_estimate_of_signal_, *_), _ = self.sin_regression_with_known_freq(
+                (
+                    best_estimate_of_signal_,
+                    *params,
+                ), _ = self.sin_regression_with_known_freq(
                     timestamps[channel],
                     aggregated_signals[channel],
                     60,
                 )
+                print(params)
 
                 # convert to voltage
                 best_estimate_of_signal_ = (
