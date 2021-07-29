@@ -46,10 +46,23 @@ def test_sin_regression_all_zeros_should_return_zeros():
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    adc_reader = ADCReader(unit=unit, experiment=experiment)
+    adc_reader = ADCReader(unit=unit, experiment=experiment, channels=[])
 
     (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
         [i / 25 for i in range(25)], [0] * 25, 60
     )
     assert C == 0
     assert A == 0
+
+
+def test_sin_regression_with_strong_penalizer():
+
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    adc_reader = ADCReader(unit=unit, experiment=experiment, channels=[])
+
+    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+        [i / 25 for i in range(25)], [100] * 25, 60, prior_C=125, penalizer_C=1_000_000
+    )
+    assert abs(C - 125) < 0.01

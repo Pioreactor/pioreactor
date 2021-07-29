@@ -237,12 +237,26 @@ class ADCReader(BackgroundSubJob):
                 qos=QOS.AT_LEAST_ONCE,
             )
 
-    def sin_regression_with_known_freq(self, x, y, freq):
-        """
+    def sin_regression_with_known_freq(self, x, y, freq, prior_C=None, penalizer_C=None):
+        r"""
         Assumes a known frequency.
         Formula is
 
         f(t) = C + A*sin(2*pi*freq*t + phi)
+
+        However, estimation occurs as:
+
+        \sum_k (f(t_i) - y_i)^2 + penalizer_C * (C - prior_C)^2
+
+        Parameters
+        -----------
+        x: iterable
+        y: iterable
+        freq: the frequency
+        prior_C: scalar (optional)
+            specify value that will be compared against using ridge regression.
+        penalizer_C: scalar (optional)
+            penalizer values for the ridge regression
 
         Returns
         ---------
@@ -279,14 +293,21 @@ class ADCReader(BackgroundSubJob):
         sum_ysin = (y * sin_x).sum()
         sum_ycos = (y * cos_x).sum()
 
+        rhs_penalty_term = 0
+        lhs_penalty_term = 0
+
+        if prior_C and penalizer_C:
+            rhs_penalty_term = penalizer_C * prior_C
+            lhs_penalty_term = penalizer_C
+
         M = np.array(
             [
-                [n, sum_sin, sum_cos],
+                [n + lhs_penalty_term, sum_sin, sum_cos],
                 [sum_sin, sum_sin2, sum_cossin],
                 [sum_cos, sum_cossin, sum_cos2],
             ]
         )
-        Y = np.array([sum_y, sum_ysin, sum_ycos])
+        Y = np.array([sum_y + rhs_penalty_term, sum_ysin, sum_ycos])
 
         try:
             C, b, c = np.linalg.solve(M, Y)
@@ -375,12 +396,29 @@ class ADCReader(BackgroundSubJob):
                     timestamps[channel],
                     aggregated_signals[channel],
                     60,
+                    prior_C=(
+                        self.batched_readings[channel]
+                        * 32767
+                        / _ADS1X15_PGA_RANGE[self.ads.gain]
+                    )
+                    if (channel in self.batched_readings)
+                    else None,
+                    penalizer_C=10,
                 )
-                print(params)
+                print(params, best_estimate_of_signal_)
+                (
+                    best_estimate_of_signal_,
+                    *params,
+                ), _ = self.sin_regression_with_known_freq(
+                    timestamps[channel],
+                    aggregated_signals[channel],
+                    60,
+                )
+                print(params, best_estimate_of_signal_)
 
                 # convert to voltage
                 best_estimate_of_signal_ = (
-                    best_estimate_of_signal_  # TODO: delete with ADS1015 is in.
+                    best_estimate_of_signal_  # TODO: delete when ADS1015 is in.
                     * _ADS1X15_PGA_RANGE[self.ads.gain]
                     / 32767
                 )
