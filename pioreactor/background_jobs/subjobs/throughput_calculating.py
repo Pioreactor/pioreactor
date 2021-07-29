@@ -20,7 +20,10 @@ class ThroughputCalculator(BackgroundSubJob):
 
     """
 
-    editable_settings = ["media_throughput", "alt_media_throughput"]
+    published_settings = {
+        "media_throughput": {"datatype": "float", "settable": False},
+        "alt_media_throughput": {"datatype": "float", "settable": False},
+    }
 
     def __init__(self, unit=None, experiment=None, **kwargs) -> None:
         super(ThroughputCalculator, self).__init__(

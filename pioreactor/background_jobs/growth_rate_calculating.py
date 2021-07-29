@@ -48,7 +48,7 @@ JOB_NAME = "growth_rate_calculating"
 
 class GrowthRateCalculator(BackgroundJob):
 
-    editable_settings = []
+    published_settings = dict()
 
     def __init__(self, ignore_cache=False, unit=None, experiment=None):
 

@@ -60,7 +60,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
 
     1. The job starts in `init`,
-        - we publish `editable_settings`: a list of variables that will be sent to the broker on initialization and retained.
+        - we publish `published_settings`: a list of variables that will be sent to the broker on initialization and retained.
         - we set up how to disconnect
         - the subclass runs their __init__ method
     2. The job moves to `ready`, and can be paused by entering `sleeping`.
@@ -109,9 +109,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # initial state is disconnected
     state = DISCONNECTED
 
-    # editable settings is typically overwritten in the subclasses. Attributes here will
-    # be published to MQTT and available to be edited (but not all _should_ be edited)
-    editable_settings = []
+    # published_settings is typically overwritten in the subclasses. Attributes here will
+    # be published to MQTT and available settable attributes will be editable
+    published_settings = dict()
 
     def __init__(
         self, job_name: str, source: str, experiment: str = None, unit: str = None
@@ -121,7 +121,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.experiment = experiment
         self.unit = unit
         self.sub_jobs = []
-        self.editable_settings = self.editable_settings + ["state"]
+        self.published_settings["state"] = {"datatype": "string", "settable": True}
 
         self.logger = create_logger(
             self.job_name,
@@ -463,14 +463,19 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            ",".join(self.editable_settings),
+            ",".join(self.published_settings),
             qos=QOS.AT_LEAST_ONCE,
         )
 
-        for setting in self.editable_settings:
+        for setting, props in self.published_settings.items():
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
-                True,
+                props["settable"],
+                qos=QOS.AT_LEAST_ONCE,
+            )
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$datatype",
+                props["datatype"],
                 qos=QOS.AT_LEAST_ONCE,
             )
 
@@ -495,7 +500,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         info_from_topic = split_topic_for_setting(message.topic)
         attr = info_from_topic.attr.lstrip("$")
 
-        if attr not in self.editable_settings:
+        if not (
+            (attr in self.published_settings)
+            and (self.published_settings[attr]["settable"])
+        ):
+            self.logger.debug(f"Unable to set {attr} in {self.job_name}.")
             return
 
         assert hasattr(self, attr), f"{self.job_name} has no attr {attr}."
@@ -544,7 +553,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def __setattr__(self, name: str, value) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
-        if (name in self.editable_settings) and hasattr(self, name):
+        if (name in self.published_settings) and hasattr(self, name):
             self.publish_attr(name)
 
     def __exit__(self):

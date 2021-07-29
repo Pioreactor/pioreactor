@@ -37,7 +37,7 @@ class DosingController(BackgroundJob):
     # this includes plugins
     automations = {}
 
-    editable_settings = ["dosing_automation"]
+    published_settings = {"dosing_automation": {"datatype": "string", "settable": True}}
 
     def __init__(self, dosing_automation, unit=None, experiment=None, **kwargs):
         super(DosingController, self).__init__(
@@ -111,7 +111,7 @@ class DosingController(BackgroundJob):
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         # TODO: this could move to the base class
-        for attr in self.editable_settings:
+        for attr in self.published_settings:
             if attr == "state":
                 continue
             self.publish(

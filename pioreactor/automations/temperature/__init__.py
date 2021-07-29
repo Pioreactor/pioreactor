@@ -22,7 +22,7 @@ class Silent(TemperatureAutomation):
 class PIDStable(TemperatureAutomation):
 
     key = "pid_stable"
-    editable_settings = ["target_temperature"]
+    published_settings = ["target_temperature"]
 
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)
@@ -65,7 +65,7 @@ class PIDStable(TemperatureAutomation):
 class ConstantDutyCycle(TemperatureAutomation):
 
     key = "constant_duty_cycle"
-    editable_settings = ["duty_cycle"]
+    published_settings = ["duty_cycle"]
 
     def __init__(self, duty_cycle, **kwargs):
         super(ConstantDutyCycle, self).__init__(**kwargs)

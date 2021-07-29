@@ -24,7 +24,7 @@ class LEDController(BackgroundJob):
     # this is automagically populated
     automations = {}
 
-    editable_settings = ["led_automation"]
+    published_settings = {"led_automation": {"datatype": "string", "settable": True}}
 
     def __init__(self, led_automation, unit=None, experiment=None, **kwargs):
         super(LEDController, self).__init__(
@@ -78,7 +78,7 @@ class LEDController(BackgroundJob):
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         # TODO: this could move to the base class
-        for attr in self.editable_settings:
+        for attr in self.published_settings:
             if attr == "state":
                 continue
             self.publish(

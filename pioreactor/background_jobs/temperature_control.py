@@ -64,7 +64,10 @@ class TemperatureController(BackgroundJob):
 
     automations = {}
 
-    editable_settings = ["temperature_automation", "temperature"]
+    published_settings = {
+        "temperature_automation": {"datatype": "string", "settable": True},
+        "temperature": {"datatype": "float", "settable": False},
+    }
 
     def __init__(self, temperature_automation, unit=None, experiment=None, **kwargs):
         super(TemperatureController, self).__init__(
@@ -192,7 +195,7 @@ class TemperatureController(BackgroundJob):
     def clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         # TODO: this could move to the base class
-        for attr in self.editable_settings:
+        for attr in self.published_settings:
             if attr in ["state"]:
                 continue
             self.publish(

@@ -31,7 +31,10 @@ class Stirrer(BackgroundJob):
 
     """
 
-    editable_settings = ["duty_cycle", "dc_increase_between_adc_readings"]
+    published_settings = {
+        "duty_cycle": {"datatype": "float", "settable": True},
+        "dc_increase_between_adc_readings": {"datatype": "boolean", "settable": True},
+    }
     _previous_duty_cycle = None
 
     def __init__(

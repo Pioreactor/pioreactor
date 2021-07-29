@@ -42,7 +42,12 @@ class DosingAutomation(BackgroundSubJob):
     latest_event = None
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
-    editable_settings = ["volume", "target_od", "target_growth_rate", "duration"]
+    published_settings = {
+        "volume": {"datatype": "float", "settable": True},
+        "target_od": {"datatype": "float", "settable": True},
+        "target_growth_rate": {"datatype": "float", "settable": True},
+        "duration": {"datatype": "float", "settable": True},
+    }
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -269,7 +274,7 @@ class DosingAutomation(BackgroundSubJob):
 
     def __setattr__(self, name, value) -> None:
         super(DosingAutomation, self).__setattr__(name, value)
-        if name in self.editable_settings and name != "state":
+        if name in self.published_settings and name != "state":
             self.latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
             self.latest_settings_started_at = current_utc_time()
@@ -294,7 +299,7 @@ class DosingAutomation(BackgroundSubJob):
 
     def _clear_mqtt_cache(self):
         # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        for attr in self.editable_settings:
+        for attr in self.published_settings:
             if attr == "state":
                 continue
             self.publish(
@@ -317,7 +322,7 @@ class DosingAutomation(BackgroundSubJob):
                     "settings": json.dumps(
                         {
                             attr: getattr(self, attr, None)
-                            for attr in self.editable_settings
+                            for attr in self.published_settings
                             if attr != "state"
                         }
                     ),

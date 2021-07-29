@@ -22,7 +22,7 @@ class ContinuousCycle(DosingAutomation):
 
     key = "continuous_cycle"
     hz = 100
-    editable_settings = ["duty_cycle"]
+    published_settings = ["duty_cycle"]
 
     def __init__(self, duty_cycle=100, **kwargs):
         super(ContinuousCycle, self).__init__(**kwargs)

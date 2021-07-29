@@ -117,7 +117,7 @@ class ADCReader(BackgroundSubJob):
     }
 
     JOB_NAME = "adc_reader"
-    published_settings = ["first_ads_obs_time"]
+    published_settings = {"first_ads_obs_time": {"datatype": "float", "settable": False}}
 
     def __init__(
         self,
@@ -516,8 +516,10 @@ class ODReader(BackgroundJob):
         Probably a TemperatureCompensator
     """
 
-    # TODO: interval should be read-only, to do once we have `published_settings` more pinned down.
-    published_settings = ["led_intensity", "interval"]
+    published_settings = {
+        "led_intensity": {"datatype": "float", "settable": True},
+        "interval": {"datatype": "float", "settable": False},
+    }
 
     def __init__(
         self,
