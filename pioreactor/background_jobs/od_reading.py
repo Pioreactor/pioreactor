@@ -345,9 +345,7 @@ class ADCReader(BackgroundSubJob):
                         for channel, ai in self.analog_in:
                             timestamps[channel].append(time_since_start())
                             # raw_signal_ = ai.voltage
-                            # aggregated_signals[f"A{channel}"] += (
-                            #    raw_signal_ / oversampling_count
-                            # )
+
                             # TODO: delete when ADS1015 is in
                             value1115 = ai.value  # int between 0 and 32767
                             value1015 = (

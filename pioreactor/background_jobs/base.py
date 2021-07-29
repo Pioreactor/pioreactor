@@ -393,6 +393,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def init(self):
         self.state = self.INIT
+        self.log_state(self.state)
 
         self.set_up_exit_protocol()
         self.declare_settable_properties_to_broker()
@@ -407,6 +408,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def ready(self):
         self.state = self.READY
+        self.log_state(self.state)
+
         try:
             self.on_ready()
         except Exception as e:
@@ -415,6 +418,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def sleeping(self):
         self.state = self.SLEEPING
+        self.log_state(self.state)
+
         try:
             self.on_sleeping()
         except Exception as e:
@@ -423,12 +428,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def lost(self):
         self.state = self.LOST
+        self.log_state(self.state)
 
     def disconnected(self):
         # set state to disconnect
         # call this first to make sure that it gets published to the broker.
         self.state = self.DISCONNECTED
-
+        self.log_state(self.state)
         # if a job exits ungracefully, we log the error here (possibly a duplication...)
         # this is a partial resolution to issue #145
         if hasattr(sys, "last_traceback"):
@@ -485,10 +491,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if hasattr(self, f"on_{self.state}_to_{new_state}"):
             getattr(self, f"on_{self.state}_to_{new_state}")()
 
-        self.message_about_state(new_state)
         getattr(self, new_state)()
 
-    def message_about_state(self, state):
+    def log_state(self, state):
         if state == self.READY or state == self.DISCONNECTED:
             self.logger.info(state.capitalize() + ".")
         else:
