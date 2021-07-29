@@ -99,7 +99,6 @@ class ADCReader(BackgroundSubJob):
     """
     This job publishes the voltage reading from specified channels, and downstream
     jobs can selectively choose a channel to listen to. Call `take_reading` manually.
-    The read values are stored in A0, A1, A2, and A3.
 
     We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
     make decisions. For example, if a bubbler is active, it should time itself
@@ -158,10 +157,6 @@ class ADCReader(BackgroundSubJob):
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
         self.first_ads_obs_time = None
-        self.A0 = None
-        self.A1 = None
-        self.A2 = None
-        self.A3 = None
         self.batched_readings = dict()
 
     def setup_adc(self):
@@ -312,7 +307,17 @@ class ADCReader(BackgroundSubJob):
         return (C, A, phi), AIC
 
     def take_reading(self):
+        """
+        Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
 
+        Returns
+        ---------
+        readings: dict
+            a dict with `timestamp` of when the reading occurred, and specified channels (as ints) and their reading
+            Ex: {0: 0.10240, 1: 0.1023459, 'timestamp': '2021-07-29T18:44:43.556804'}
+
+
+        """
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
 
@@ -379,15 +384,6 @@ class ADCReader(BackgroundSubJob):
                 )
 
                 batched_estimates_[channel] = best_estimate_of_signal_
-
-                setattr(
-                    self,
-                    f"A{channel}",
-                    {
-                        "voltage": best_estimate_of_signal_,
-                        "timestamp": current_utc_time(),
-                    },
-                )
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.

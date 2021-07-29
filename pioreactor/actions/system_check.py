@@ -87,6 +87,7 @@ def check_leds_and_pds(unit, experiment, logger):
     current_experiment_name = get_latest_experiment_name()
     results = {}
     adc_reader = ADCReader(
+        channels=[0, 1, 2, 3],
         unit=unit,
         experiment=experiment,
         dynamic_gain=False,
@@ -139,16 +140,16 @@ def check_leds_and_pds(unit, experiment, logger):
             )
 
             # record from ADC
-            adc_reader.take_reading()
+            readings = adc_reader.take_reading()
 
             if is_testing_env():
                 time.sleep(0.5)
 
             # Add to accumulating list
-            varying_intensity_results["A0"].append(adc_reader.A0["voltage"])
-            varying_intensity_results["A1"].append(adc_reader.A1["voltage"])
-            varying_intensity_results["A2"].append(adc_reader.A2["voltage"])
-            varying_intensity_results["A3"].append(adc_reader.A3["voltage"])
+            varying_intensity_results["A0"].append(readings[0])
+            varying_intensity_results["A1"].append(readings[1])
+            varying_intensity_results["A2"].append(readings[2])
+            varying_intensity_results["A3"].append(readings[3])
 
         # compute the linear correlation between the intensities and observed PD measurements
         results[(channel, "A0")] = correlation(
