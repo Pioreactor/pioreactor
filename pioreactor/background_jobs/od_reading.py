@@ -95,7 +95,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import led_intensity, CHANNELS as LED_CHANNELS
 from pioreactor.hardware_mappings import SCL, SDA
-from pioreactor.pubsub import QOS, subscribe
+from pioreactor.pubsub import QOS
 
 
 class ADCReader(BackgroundSubJob):
@@ -124,19 +124,10 @@ class ADCReader(BackgroundSubJob):
     }
 
     JOB_NAME = "adc_reader"
-    editable_settings = [
-        "interval",
-        "first_ads_obs_time",
-        "A0",
-        "A1",
-        "A2",
-        "A3",
-        "batched_readings",
-    ]
+    published_settings = ["first_ads_obs_time"]
 
     def __init__(
         self,
-        interval=None,
         fake_data=False,
         unit=None,
         experiment=None,
@@ -148,7 +139,6 @@ class ADCReader(BackgroundSubJob):
             job_name=self.JOB_NAME, unit=unit, experiment=experiment, **kwargs
         )
         self.fake_data = fake_data
-        self.interval = interval
         self.dynamic_gain = dynamic_gain
         self.initial_gain = initial_gain
         self.counter = 0
@@ -161,22 +151,11 @@ class ADCReader(BackgroundSubJob):
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
         self.first_ads_obs_time = None
-        self.timer = None
         self.A0 = None
         self.A1 = None
         self.A2 = None
         self.A3 = None
         self.batched_readings = dict()
-
-        if self.interval:
-            self.timer = RepeatedTimer(
-                self.interval, self.take_reading, run_immediately=True
-            )
-
-    def start_periodic_reading(self):
-        # start publishing every `interval` seconds.
-        if self.timer:
-            self.timer.start()
 
     def setup_adc(self):
         if self.fake_data:
@@ -248,18 +227,13 @@ class ADCReader(BackgroundSubJob):
                 break
 
     def on_disconnect(self):
-        for attr in self.editable_settings:
+        for attr in self.published_settings:
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
                 None,
                 retain=True,
                 qos=QOS.AT_LEAST_ONCE,
             )
-
-        try:
-            self.timer.cancel()
-        except AttributeError:
-            pass
 
     def sin_regression_with_known_freq(self, x, y, freq):
         """
@@ -356,7 +330,7 @@ class ADCReader(BackgroundSubJob):
             with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
                     with catchtime() as time_code_took_to_run:
-                        for channel, ai in self.analog_in[:2]:
+                        for channel, ai in self.analog_in:
                             timestamps[f"A{channel}"].append(time_since_start())
                             # raw_signal_ = ai.voltage
                             # aggregated_signals[f"A{channel}"] += (
@@ -382,7 +356,7 @@ class ADCReader(BackgroundSubJob):
                     )
 
             batched_estimates_ = {}
-            for channel, _ in self.analog_in[:2]:
+            for channel, _ in self.analog_in:
 
                 (best_estimate_of_signal_, *_), _ = self.sin_regression_with_known_freq(
                     timestamps[f"A{channel}"],
@@ -446,7 +420,7 @@ class ADCReader(BackgroundSubJob):
             ):
                 self.check_on_gain(self.ema.value)
 
-            return aggregated_signals
+            return batched_estimates_
 
         except OSError as e:
             # just skip, not sure why this happens when add_media or remove_waste are called.
@@ -549,11 +523,13 @@ class ODReader(BackgroundJob):
         Probably a TemperatureCompensator
     """
 
-    editable_settings = ["led_intensity"]
+    # TODO: interval should be read-only, to do once we have `published_settings` more pinned down.
+    published_settings = ["led_intensity", "interval"]
 
     def __init__(
         self,
         channel_angle_map,
+        interval,
         unit=None,
         experiment=None,
         stop_IR_led_between_ADC_readings=True,
@@ -564,25 +540,27 @@ class ODReader(BackgroundJob):
             job_name="od_reading", unit=unit, experiment=experiment
         )
         self.logger.debug(f"Starting od_reading and channels {channel_angle_map}.")
-        self.channel_angle_map = channel_angle_map
 
         self.adc_reader = adc_reader
         self.temperature_compensator = temperature_compensator
         self.sub_jobs = [self.adc_reader, self.temperature_compensator]
 
+        self.channel_angle_map = channel_angle_map
+        self.interval = interval
+
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getint("od_config.od_sampling", "ir_intensity")
         self.ir_channel = self.get_ir_channel_from_configuration()
+
         self.start_ir_led()
-
         self.adc_reader.setup_adc()
-        # start reading from the ADC
-        self.adc_reader.start_periodic_reading()
+        self.stop_ir_led()
 
-        if stop_IR_led_between_ADC_readings:
-            self.set_IR_led_during_ADC_readings()
-
-        self.start_passive_listeners()
+        self.record_from_adc_timer = RepeatedTimer(
+            self.interval,
+            self.record_and_publish_from_adc,
+            run_immediately=True,
+        ).start()
 
     def get_ir_channel_from_configuration(self):
         try:
@@ -593,54 +571,17 @@ class ODReader(BackgroundJob):
             )
             raise KeyError()
 
-    def set_IR_led_during_ADC_readings(self):
-        """
-        This supposes IR LED is always on, and the "sneak in" turns it off. We also should turn off all other LEDs
-        when we turn the IR LED on.
+    def record_and_publish_from_adc(self):
 
-        post_duration: how long to wait (seconds) after the start of ADCReader.take_reading before running sneak_in
-        pre_duration: duration between stopping the action and the next ADCReader reading
-        """
-
-        post_duration = 0.95
         pre_duration = 0.1
 
-        def sneak_in():
-            with catchtime() as delta_to_stop:
-                # the time delta produced by the stop_ir_led can be significant, hence we
-                # must account for it.
-                self.stop_ir_led()
+        self.start_ir_led()
+        time.sleep(pre_duration)
+        batched_readings = self.adc_reader.take_reading()
+        self.stop_ir_led()
 
-            time.sleep(
-                max(0, ads_interval - (post_duration + pre_duration + delta_to_stop()))
-            )
-            self.start_ir_led()
-
-        msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/first_ads_obs_time",
-            timeout=20,
-        )
-        ads_start_time = float(msg.payload) if msg and msg.payload else 0
-        msg = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval", timeout=20
-        )
-
-        ads_interval = float(msg.payload) if msg and msg.payload else 0
-
-        if ads_interval < 1.5:
-            # if this is too small, like 1.5s, we should just skip this whole thing and keep the IR LED always on.
-            return
-
-        time_to_next_ads_reading = ads_interval - (
-            (time.time() - ads_start_time) % ads_interval
-        )
-
-        self.sneak_in_timer = RepeatedTimer(
-            ads_interval,
-            sneak_in,
-            run_immediately=False,
-            run_after=(time_to_next_ads_reading + post_duration),
-        ).start()
+        self.publish_single(batched_readings)
+        self.publish_batch(batched_readings)
 
     def start_ir_led(self):
         r = led_intensity(
@@ -669,12 +610,12 @@ class ODReader(BackgroundJob):
         )
 
     def on_sleeping(self):
-        self.sneak_in_timer.pause()
+        self.record_from_adc_timer.pause()
         self.stop_ir_led()
 
     def on_sleeping_to_ready(self):
         self.start_ir_led()
-        self.sneak_in_timer.unpause()
+        self.record_from_adc_timer.unpause()
 
     def on_disconnect(self):
         for job in self.sub_jobs:
@@ -682,7 +623,7 @@ class ODReader(BackgroundJob):
 
         # turn off the LED after we have take our last ADC reading..
         try:
-            self.sneak_in_timer.cancel()
+            self.record_from_adc_timer.cancel()
         except Exception:
             pass
         self.stop_ir_led()
@@ -690,16 +631,17 @@ class ODReader(BackgroundJob):
     def compensate_od_for_temperature(self, reading):
         return self.temperature_compensator.compensate_od_for_temperature(reading)
 
-    def publish_batch(self, message):
+    def publish_batch(self, batched_ads_readings):
         if self.state != self.READY:
             return
 
-        ads_readings = json.loads(message.payload)
         od_readings = {"od_raw": {}}
         for channel, angle in self.channel_angle_map.items():
             try:
                 od_readings["od_raw"][channel.lstrip("A")] = {
-                    "voltage": self.compensate_od_for_temperature(ads_readings[channel]),
+                    "voltage": self.compensate_od_for_temperature(
+                        batched_ads_readings[channel]
+                    ),
                     "angle": angle,
                 }
             except KeyError:
@@ -708,45 +650,32 @@ class ODReader(BackgroundJob):
                 )
                 self.set_state(self.DISCONNECTED)
 
-        od_readings["timestamp"] = ads_readings["timestamp"]
+        od_readings["timestamp"] = batched_ads_readings["timestamp"]
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
             json.dumps(od_readings),
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def publish_single(self, message):
+    def publish_single(self, batched_ads_readings):
         if self.state != self.READY:
             return
 
-        channel = message.topic.rsplit("/", maxsplit=1)[1]
-        payload = json.loads(message.payload)
-        payload["angle"] = self.channel_angle_map[channel]
-        payload["voltage"] = self.compensate_od_for_temperature(payload["voltage"])
-        topic_suffix = channel.lstrip("A")
+        for channel, angle in self.channel_angle_map.items():
+            topic_suffix = channel.lstrip("A")
 
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{topic_suffix}",
-            payload,
-            qos=QOS.EXACTLY_ONCE,
-        )
+            payload = {
+                "voltage": self.compensate_od_for_temperature(
+                    batched_ads_readings[channel]
+                ),
+                "angle": angle,
+                "timestamp": batched_ads_readings["timestamp"],
+            }
 
-    def start_passive_listeners(self):
-
-        # process incoming data
-        # allow_retained is False because we don't want to process (stale) retained ADS values
-        self.subscribe_and_callback(
-            self.publish_batch,
-            f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/batched_readings",
-            qos=QOS.EXACTLY_ONCE,
-            allow_retained=False,
-        )
-        for channel in self.channel_angle_map:
-            self.subscribe_and_callback(
-                self.publish_single,
-                f"pioreactor/{self.unit}/{self.experiment}/{ADCReader.JOB_NAME}/{channel}",
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{topic_suffix}",
+                payload,
                 qos=QOS.EXACTLY_ONCE,
-                allow_retained=False,
             )
 
 
@@ -791,10 +720,10 @@ def start_od_reading(
 
     return ODReader(
         channel_angle_map,
+        interval=sampling_rate,
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            interval=sampling_rate,
             fake_data=fake_data,
             unit=unit,
             experiment=experiment,

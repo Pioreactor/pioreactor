@@ -2,7 +2,7 @@
 # test_od_reading.py
 
 import time, json
-from pioreactor.background_jobs.od_reading import TemperatureCompensator
+from pioreactor.background_jobs.od_reading import TemperatureCompensator, ADCReader
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name
 from pioreactor.pubsub import publish
 
@@ -39,3 +39,17 @@ def test_TemperatureCompensator():
 
     # suppose temp increased, but OD stayed the same
     assert tc.compensate_od_for_temperature(1.0) > 1.0
+
+
+def test_sin_regression_all_zeros_should_return_zeros():
+
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    adc_reader = ADCReader(unit=unit, experiment=experiment)
+
+    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+        [i / 25 for i in range(25)], [0] * 25, 60
+    )
+    assert C == 0
+    assert A == 0
