@@ -84,7 +84,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
     will be called (if defined) whenever `p` changes over MQTT.
 
     On __init__, attributes are broadcast under `pioreactor/<unit>/<experiment>/<job_name>/$properties`,
-    and each has `pioreactor/<unit>/<experiment>/<job_name>/$settable` set to True. This latter field isn't used at the moment.
+    and each has
+     - `pioreactor/<unit>/<experiment>/<job_name>/$settable` set to True or False
+     - `pioreactor/<unit>/<experiment>/<job_name>/$datatype` set to its datatype
+     - `pioreactor/<unit>/<experiment>/<job_name>/$unit` set to its unit (optional)
 
 
     Parameters
@@ -110,7 +113,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
     state = DISCONNECTED
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
-    # be published to MQTT and available settable attributes will be editable
+    # be published to MQTT and available settable attributes will be editable. Currently supported
+    # attributes are
+    # {'datatype', 'units', 'settable'}
     published_settings = dict()
 
     def __init__(
@@ -484,6 +489,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 props["datatype"],
                 qos=QOS.AT_LEAST_ONCE,
             )
+            if props.get("unit"):
+                self.publish(
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$unit",
+                    props["datatype"],
+                    qos=QOS.AT_LEAST_ONCE,
+                )
 
     def set_state(self, new_state):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
@@ -512,7 +523,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Unable to set {attr} in {self.job_name}.")
             return
 
-        assert hasattr(self, attr), f"{self.job_name} has no attr {attr}."
         previous_value = getattr(self, attr)
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
@@ -527,8 +537,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             except TypeError:
                 setattr(self, attr, new_value)
 
+        units = self.published_settings[attr].get("unit", "")
         self.logger.info(
-            f"Updated {attr} from {previous_value} to {getattr(self, attr)}."
+            f"Updated {attr} from {previous_value} {units} to {getattr(self, attr)} {units}."
         )
 
     def start_general_passive_listeners(self) -> None:

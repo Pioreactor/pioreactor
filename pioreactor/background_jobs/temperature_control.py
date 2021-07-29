@@ -66,7 +66,7 @@ class TemperatureController(BackgroundJob):
 
     published_settings = {
         "temperature_automation": {"datatype": "string", "settable": True},
-        "temperature": {"datatype": "float", "settable": False},
+        "temperature": {"datatype": "float", "settable": False, "unit": "℃"},
     }
 
     def __init__(self, temperature_automation, unit=None, experiment=None, **kwargs):

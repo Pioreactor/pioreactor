@@ -43,10 +43,10 @@ class DosingAutomation(BackgroundSubJob):
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     published_settings = {
-        "volume": {"datatype": "float", "settable": True},
-        "target_od": {"datatype": "float", "settable": True},
-        "target_growth_rate": {"datatype": "float", "settable": True},
-        "duration": {"datatype": "float", "settable": True},
+        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+        "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
+        "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
     def __init_subclass__(cls, **kwargs):
