@@ -39,18 +39,13 @@ a serialized json like:
     }
 
 
-Internally, the subjob ADCReader reads all channels from the ADC and pushes to MQTT. The ODReader listens to
-these MQTT topics, and re-publishes only the data that represents optical densities. Why do it this way? In
-the future, there could be other photodiodes / analog signals that plug into the ADS, and they listen (and republish)
-in the same manner.
+Internally, the ODReader runs a function every `interval` seconds. The function
+ 1. turns on the IR LED
+ 2. calls the subjob ADCReader reads all channels from the ADC.
+ 3. Turns off LED
+ 4. Publishes data to MQTT
 
-In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other jobs can read it and
-make decisions. For example, if a bubbler/visible light LED is active, it should time itself
-s.t. it is _not_ running when an turbidity measurement is about to occur. `interval` is there so
-that it's clear the duration between readings, and in case the config.ini is changed between this job
-starting and the downstream job starting. It takes about ~1 seconds to read (and publish) *all
-the channels.
-
+Transforms are also inside the above, ex: sin regression, and temperature compensation. See diagram below.
 
 Dataflow of raw signal to final output:
 
@@ -65,20 +60,22 @@ Dataflow of raw signal to final output:
 │   │ ┌──────────────┐       ┌───────────────┐ │    │  ┌─────────────────┐   │   │
 │   │ │              ├───────►               │ │    │  │                 │   │   │
 │   │ │              │       │               │ │    │  │                 │   │   │    MQTT
-│   │ │ Samples from ├───────►      sin      ├─┼────┼──►  temperature    ├───┼───┼───────►
+│   │ │ samples from ├───────►      sin      ├─┼────┼──►  temperature    ├───┼───┼───────►
 │   │ │     ADC      │       │   regression  │ │    │  │  compensation   │   │   │
 │   │ │              ├───────►               │ │    │  │                 │   │   │
-│   │ └──────────────┘       └────────┬──────┘ │    │  └─────────────────┘   │   │
-│   │                                 │        │    │                        │   │
-│   │                                 │        │    │                        │   │
-│   └─────────────────────────────────┼────────┘    └────────────────────────┘   │
-│                                     │                                          │
-│                                     │                                          │
-└─────────────────────────────────────┼──────────────────────────────────────────┘
-                                      │             MQTT
-                                      └─────────────────►
+│   │ └──────────────┘       └───────────────┘ │    │  └─────────────────┘   │   │
+│   │                                          │    │                        │   │
+│   │                                          │    │                        │   │
+│   └──────────────────────────────────────────┘    └────────────────────────┘   │
+│                                                                                │
+│                                                                                │
+└────────────────────────────────────────────────────────────────────────────────┘
 
 
+
+In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other jobs can read it and
+make decisions. For example, if a bubbler/visible light LED is active, it should time itself
+s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
 import time
 import json
@@ -101,16 +98,12 @@ from pioreactor.pubsub import QOS
 class ADCReader(BackgroundSubJob):
     """
     This job publishes the voltage reading from _all_ channels, and downstream
-    jobs can selectively choose a channel to listen to. We don't publish until
-    `start_periodic_reading()` is called, otherwise, call `take_reading` manually.
+    jobs can selectively choose a channel to listen to. Call `take_reading` manually.
     The read values are stored in A0, A1, A2, and A3.
 
     We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
     make decisions. For example, if a bubbler is active, it should time itself
     s.t. it is _not_ running when an turbidity measurement is about to occur.
-    `interval` is there so that it's clear the duration between readings,
-    and in case the config.ini is changed between this job starting and the downstream
-    job starting.
 
     """
 
@@ -653,7 +646,7 @@ class ODReader(BackgroundJob):
         od_readings["timestamp"] = batched_ads_readings["timestamp"]
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
-            json.dumps(od_readings),
+            od_readings,
             qos=QOS.EXACTLY_ONCE,
         )
 
