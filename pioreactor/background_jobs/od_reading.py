@@ -48,8 +48,36 @@ In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other job
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur. `interval` is there so
 that it's clear the duration between readings, and in case the config.ini is changed between this job
-starting and the downstream job starting. It takes about 0.5-0.6 seconds to read (and publish) *all
-the channels. This can be shortened by changing the data_rate in the config to a higher value.
+starting and the downstream job starting. It takes about ~1 seconds to read (and publish) *all
+the channels.
+
+
+Dataflow of raw signal to final output:
+
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ODReader                                                                        │
+│                                                                                │
+│                                                                                │
+│   ┌──────────────────────────────────────────┐    ┌────────────────────────┐   │
+│   │ADCReader                                 │    │TemperatureCompensator  │   │
+│   │                                          │    │                        │   │
+│   │                                          │    │                        │   │
+│   │ ┌──────────────┐       ┌───────────────┐ │    │  ┌─────────────────┐   │   │
+│   │ │              ├───────►               │ │    │  │                 │   │   │
+│   │ │              │       │               │ │    │  │                 │   │   │    MQTT
+│   │ │ Samples from ├───────►      sin      ├─┼────┼──►  temperature    ├───┼───┼───────►
+│   │ │     ADC      │       │   regression  │ │    │  │  compensation   │   │   │
+│   │ │              ├───────►               │ │    │  │                 │   │   │
+│   │ └──────────────┘       └────────┬──────┘ │    │  └─────────────────┘   │   │
+│   │                                 │        │    │                        │   │
+│   │                                 │        │    │                        │   │
+│   └─────────────────────────────────┼────────┘    └────────────────────────┘   │
+│                                     │                                          │
+│                                     │                                          │
+└─────────────────────────────────────┼──────────────────────────────────────────┘
+                                      │             MQTT
+                                      └─────────────────►
+
 
 """
 import time
@@ -87,7 +115,7 @@ class ADCReader(BackgroundSubJob):
     """
 
     ADS_GAIN_THRESHOLDS = {
-        2 / 3: (4.096, 6.144),  # 1 bit = 3mV (default)
+        2 / 3: (4.096, 6.144),  # 1 bit = 3mV, for 16bit ADC
         1: (2.048, 4.096),  # 1 bit = 2mV
         2: (1.024, 2.048),  # 1 bit = 1mV
         4: (0.512, 1.024),  # 1 bit = 0.5mV
@@ -235,7 +263,18 @@ class ADCReader(BackgroundSubJob):
 
     def sin_regression_with_known_freq(self, x, y, freq):
         """
-        Assumes a known frequency...
+        Assumes a known frequency.
+        Formula is
+
+        f(t) = C + A*sin(2*pi*freq*t + phi)
+
+        Returns
+        ---------
+        (C, A, phi):
+            tuple of scalars
+        AIC: float
+            the AIC of the fit, used for model comparison
+
 
         Reference
         ------------
@@ -250,8 +289,9 @@ class ADCReader(BackgroundSubJob):
         y = np.asarray(y)
         n = x.shape[0]
 
-        sin_x = np.sin(freq * x)
-        cos_x = np.cos(freq * x)
+        tau = 2 * np.pi
+        sin_x = np.sin(freq * tau * x)
+        cos_x = np.cos(freq * tau * x)
 
         sum_sin = sin_x.sum()
         sum_cos = cos_x.sum()
@@ -273,7 +313,7 @@ class ADCReader(BackgroundSubJob):
         Y = np.array([sum_y, sum_ysin, sum_ycos])
 
         try:
-            a, b, c = np.linalg.solve(M, Y)
+            C, b, c = np.linalg.solve(M, Y)
         except np.linalg.LinAlgError:
             self.logger.error("error in regression")
             self.logger.debug(M)
@@ -281,8 +321,14 @@ class ADCReader(BackgroundSubJob):
             self.logger.debug(y)
             return y.mean()
 
-        # return a, np.sqrt(b**2 + c**2), np.arcsin(c/np.sqrt(b**2 + c**2))
-        return a
+        y_model = C + b * np.sin(freq * tau * x) + c * np.cos(freq * tau * x)
+        SSE = np.sum((y - y_model) ** 2)
+        AIC = n * np.log(SSE / n) + 2 * 3
+
+        A = np.sqrt(b ** 2 + c ** 2)
+        phi = np.arcsin(c / np.sqrt(b ** 2 + c ** 2))
+
+        return (C, A, phi), AIC
 
     def take_reading(self):
 
@@ -338,10 +384,10 @@ class ADCReader(BackgroundSubJob):
             batched_estimates_ = {}
             for channel, _ in self.analog_in[:2]:
 
-                best_estimate_of_signal_ = self.sin_regression_with_known_freq(
+                (best_estimate_of_signal_, *_), _ = self.sin_regression_with_known_freq(
                     timestamps[f"A{channel}"],
                     aggregated_signals[f"A{channel}"],
-                    2 * 3.14159 * 60,
+                    60,
                 )
 
                 # convert to voltage
@@ -417,6 +463,8 @@ class TemperatureCompensator(BackgroundSubJob):
     """
     This class listens for changes in temperature, and will allow OD to compensate
     for the temp changes.
+
+    Override `compensate_od_for_temperature(self, OD)` to perform the compensation.
     """
 
     def __init__(self, unit, experiment, **kwargs):
@@ -428,28 +476,6 @@ class TemperatureCompensator(BackgroundSubJob):
         self.previous_temperature = None
         self.time_of_last_temperature = None
         self.start_passive_listeners()
-
-    def compensate_od_for_temperature(self, OD):
-        """
-        To avoid large jumps when a new temperature reading arrives,
-        we interpolate between the new temp reading and the old temp reading. This should
-        smooth things out.
-
-        see https://github.com/Pioreactor/pioreactor/issues/143
-        """
-
-        if self.initial_temperature is None:
-            return OD
-        else:
-            from math import exp
-
-            time_since_last = time.time() - self.time_of_last_temperature
-            f = min(time_since_last / (10 * 60), 1)  # interpolate to current temp
-            iterpolated_temp = (
-                f * self.latest_temperature + (1 - f) * self.previous_temperature
-            )
-
-            return OD / exp(-0.006380 * (iterpolated_temp - self.initial_temperature))
 
     def update_temperature(self, msg):
         if not msg.payload:
@@ -476,6 +502,34 @@ class TemperatureCompensator(BackgroundSubJob):
             allow_retained=False,
         )
 
+    def compensate_od_for_temperature(self, OD):
+        raise NotImplementedError
+
+
+class LinearTemperatureCompensator(TemperatureCompensator):
+    def compensate_od_for_temperature(self, OD):
+        """
+        See https://github.com/Pioreactor/pioreactor/issues/143 for our analysis
+
+        To avoid large jumps when a new temperature reading arrives,
+        we interpolate between the new temp reading and the old temp reading. This should
+        smooth things out.
+
+        """
+
+        if self.initial_temperature is None:
+            return OD
+        else:
+            from math import exp
+
+            time_since_last = time.time() - self.time_of_last_temperature
+            f = min(time_since_last / (10 * 60), 1)  # interpolate to current temp
+            iterpolated_temp = (
+                f * self.latest_temperature + (1 - f) * self.previous_temperature
+            )
+
+            return OD / exp(-0.006380 * (iterpolated_temp - self.initial_temperature))
+
 
 class ODReader(BackgroundJob):
     """
@@ -489,8 +543,10 @@ class ODReader(BackgroundJob):
     stop_IR_led_between_ADC_readings: bool
         bool for if the IR LED should turn off between ADC readings. Helps improve
         lifetime of LED and allows for other optics signals to occur with interference.
-    fake_data: bool
-        Use a simulated dataset
+    adc_reader:
+        Probably an ADCReader
+    temperature_compensator:
+        Probably a TemperatureCompensator
     """
 
     editable_settings = ["led_intensity"]
@@ -743,7 +799,9 @@ def start_od_reading(
             unit=unit,
             experiment=experiment,
         ),
-        temperature_compensator=TemperatureCompensator(unit=unit, experiment=experiment),
+        temperature_compensator=LinearTemperatureCompensator(
+            unit=unit, experiment=experiment
+        ),
     )
 
 
