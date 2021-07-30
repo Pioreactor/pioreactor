@@ -22,6 +22,18 @@ def split_topic_for_setting(topic):
     return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
+def format_with_optional_units(value, units):
+    """
+    Ex:
+    > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
+    > format_with_optional_units(25.0, None) # returns "25.0"
+    """
+    if units is not None:
+        return f"{value} {units}"
+    else:
+        return f"{value}"
+
+
 class PostInitCaller(type):
     def __call__(cls, *args, **kwargs):
         obj = type.__call__(cls, *args, **kwargs)
@@ -537,9 +549,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             except TypeError:
                 setattr(self, attr, new_value)
 
-        units = self.published_settings[attr].get("unit", "")
+        units = self.published_settings[attr].get("unit")
         self.logger.info(
-            f"Updated {attr} from {previous_value} {units} to {getattr(self, attr)} {units}."
+            f"Updated {attr} from {format_with_optional_units(previous_value, units)} to {format_with_optional_units(getattr(self, attr), units)}."
         )
 
     def start_general_passive_listeners(self) -> None:
