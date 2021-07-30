@@ -405,6 +405,7 @@ class ADCReader(BackgroundSubJob):
                     else None,
                     penalizer_C=2,  # TODO: this penalizer should scale with reading...
                 )
+                print(params)
 
                 # convert to voltage
                 best_estimate_of_signal_ = (
