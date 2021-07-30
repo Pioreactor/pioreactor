@@ -405,16 +405,6 @@ class ADCReader(BackgroundSubJob):
                     else None,
                     penalizer_C=10,
                 )
-                print(params, best_estimate_of_signal_)
-                (
-                    best_estimate_of_signal_,
-                    *params,
-                ), _ = self.sin_regression_with_known_freq(
-                    timestamps[channel],
-                    aggregated_signals[channel],
-                    60,
-                )
-                print(params, best_estimate_of_signal_)
 
                 # convert to voltage
                 best_estimate_of_signal_ = (
