@@ -262,3 +262,16 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
         publish(topic, None, retain=True, hostname=hostname)
 
     client.disconnect()
+
+
+def publish_to_pioreactor_com(topic, msg):
+    try:
+        publish(
+            topic,
+            msg,
+            hostname="mqtt.pioreactor.com",
+            qos=QOS.AT_MOST_ONCE,
+            retain=False,
+        )
+    except Exception:
+        pass

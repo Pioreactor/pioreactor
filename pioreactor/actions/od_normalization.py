@@ -97,22 +97,13 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 "send_od_statistics_to_Pioreactor",
                 fallback=False,
             ):
-                pubsub.publish_multiple(
-                    [
-                        (
-                            f"pioreactor/{unit}/{experiment}/{action_name}/variance",
-                            json.dumps(variances),
-                            pubsub.QOS.AT_MOST_ONCE,
-                            False,
-                        ),
-                        (
-                            f"pioreactor/{unit}/{experiment}/{action_name}/mean",
-                            json.dumps(means),
-                            pubsub.QOS.AT_MOST_ONCE,
-                            False,
-                        ),
-                    ],
-                    hostname="mqtt.pioreactor.com",
+                pubsub.publish_to_pioreactor_com(
+                    f"pioreactor/{unit}/{experiment}/{action_name}/variance",
+                    json.dumps(variances),
+                )
+                pubsub.publish_to_pioreactor_com(
+                    f"pioreactor/{unit}/{experiment}/{action_name}/mean",
+                    json.dumps(means),
                 )
 
             return means, variances

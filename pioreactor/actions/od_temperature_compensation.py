@@ -41,7 +41,7 @@ from pioreactor.whoami import (
     is_testing_env,
 )
 
-from pioreactor.pubsub import publish, subscribe_and_callback
+from pioreactor.pubsub import subscribe_and_callback, publish_to_pioreactor_com
 
 
 def od_temperature_compensation():
@@ -132,10 +132,9 @@ def od_temperature_compensation():
         if config.getboolean(
             "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
         ):
-            publish(
+            publish_to_pioreactor_com(
                 "pioreactor/od_temperature_compensation",
                 json.dumps(temp_od_lookup),
-                hostname="mqtt.pioreactor.com",
             )
 
         logger.info("Finished OD temperature compensation.")

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
 from logging import handlers
-from pioreactor.pubsub import create_client, publish
+from pioreactor.pubsub import create_client, publish_to_pioreactor_com
 from pioreactor.whoami import (
     get_unit_name,
     am_I_active_worker,
@@ -53,7 +53,7 @@ class MQTTHandler(logging.Handler):
         if (record.levelno == logging.ERROR) and config.getboolean(
             "data_sharing_with_pioreactor", "send_errors_to_Pioreactor", fallback=False
         ):
-            publish(self.topic, payload, hostname="mqtt.pioreactor.com")
+            publish_to_pioreactor_com(self.topic, payload)
 
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish()

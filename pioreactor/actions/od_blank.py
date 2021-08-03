@@ -86,11 +86,9 @@ def od_blank(od_angle_channels, N_samples=15):
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            # TODO: build this service!
-            pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/mean",
-                json.dumps(means),
-                hostname="mqtt.pioreactor.com",
+            # TODO: build this service!tpub
+            pubsub.publish_to_pioreactor_com(
+                f"pioreactor/{unit}/{experiment}/{action_name}/mean", json.dumps(means)
             )
 
         logger.info("OD blank reading finished.")
