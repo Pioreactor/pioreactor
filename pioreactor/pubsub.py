@@ -272,6 +272,7 @@ def publish_to_pioreactor_com(topic, msg):
             hostname="mqtt.pioreactor.com",
             qos=QOS.AT_MOST_ONCE,
             retain=False,
+            retries=1,
         )
     except Exception:
         pass
