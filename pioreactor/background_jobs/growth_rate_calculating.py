@@ -312,7 +312,7 @@ class GrowthRateCalculator(BackgroundJob):
             # TODO this should use the internal timestamp reference
 
             time_of_current_observation = datetime.strptime(
-                payload["timestamp"], "%Y-%m-%dT%H:%M:%S.%f"
+                payload["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ"
             )
             dt = (
                 (
