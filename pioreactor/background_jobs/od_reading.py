@@ -97,13 +97,18 @@ from pioreactor.pubsub import QOS
 
 class ADCReader(BackgroundSubJob):
     """
-    This job publishes the voltage reading from specified channels, and downstream
-    jobs can selectively choose a channel to listen to. Call `take_reading` manually.
+    This job publishes the voltage reading from specified channels. Call `take_reading`
+    to extract a reading.
 
     We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
     make decisions. For example, if a bubbler is active, it should time itself
     s.t. it is _not_ running when an turbidity measurement is about to occur.
 
+    Notes
+    ------
+    It's currently highly specific to the ADS1x15 family - a future code
+    release may turn ADCReader into an abstract class, and classes like ADS1015Reader
+    as subclasses.
 
     Parameters
     ------------
@@ -134,10 +139,10 @@ class ADCReader(BackgroundSubJob):
         self,
         channels,
         fake_data=False,
-        unit=None,
-        experiment=None,
         dynamic_gain=True,
         initial_gain=1,
+        unit=None,
+        experiment=None,
         **kwargs,
     ):
         super(ADCReader, self).__init__(
@@ -145,8 +150,8 @@ class ADCReader(BackgroundSubJob):
         )
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
-        self.initial_gain = initial_gain
-        self.counter = 0
+        self.gain = initial_gain
+        self._counter = 0
         self.ema = ExponentialMovingAverage(alpha=0.10)
         self.ads = None
         self.channels = channels
@@ -160,20 +165,21 @@ class ADCReader(BackgroundSubJob):
         self.batched_readings = dict()
 
     def setup_adc(self):
-        if self.fake_data:
-            i2c = MockI2C(SCL, SDA)
-        else:
-            import busio
-
-            i2c = busio.I2C(SCL, SDA)
-
         try:
             import adafruit_ads1x15.ads1115 as ADS
 
-            # we will change the gain dynamically later.
+            if self.fake_data:
+                i2c = MockI2C(SCL, SDA)
+            else:
+                import busio
+
+                i2c = busio.I2C(SCL, SDA)
+
+            # we may change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
             # TODO: update this to ADS1015
-            self.ads = ADS.ADS1115(i2c, gain=self.initial_gain, data_rate=self.data_rate)
+            self.ads = ADS.ADS1115(i2c, data_rate=self.data_rate)
+            self.set_ads_gain(self.gain)
         except ValueError as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
@@ -224,9 +230,14 @@ class ADCReader(BackgroundSubJob):
     def check_on_gain(self, value):
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
             if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
-                self.ads.gain = gain
-                self.logger.debug(f"ADC gain updated to {self.ads.gain}.")
+                self.gain = gain
+                self.set_ads_gain(self.gain)
+                self.logger.debug(f"ADC gain updated to {self.gain}.")
                 break
+
+    def set_ads_gain(self, gain):
+        assert gain in self.ADS_GAIN_THRESHOLDS
+        self.ads.gain = gain
 
     def on_disconnect(self):
         for attr in self.published_settings:
@@ -312,11 +323,10 @@ class ADCReader(BackgroundSubJob):
         try:
             C, b, c = np.linalg.solve(M, Y)
         except np.linalg.LinAlgError:
-            self.logger.error("error in regression")
-            self.logger.debug(M)
-            self.logger.debug(x)
-            self.logger.debug(y)
-            return y.mean()
+            self.logger.error("Error in regression:")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            return (y.mean(), None, None), 0
 
         y_model = C + b * np.sin(freq * tau * x) + c * np.cos(freq * tau * x)
         SSE = np.sum((y - y_model) ** 2)
@@ -342,7 +352,11 @@ class ADCReader(BackgroundSubJob):
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
 
-        self.counter += 1
+        # in case some other process is also using the ADC chip and changes the gain, we want
+        # to always confirm our settings before take a snapshot.
+        self.set_ads_gain(self.gain)
+
+        self._counter += 1
 
         _ADS1X15_PGA_RANGE = {  # TODO: delete when ads1015 is in.
             2 / 3: 6.144,
@@ -391,7 +405,7 @@ class ADCReader(BackgroundSubJob):
 
                 (
                     best_estimate_of_signal_,
-                    *params,
+                    *_other_params,
                 ), _ = self.sin_regression_with_known_freq(
                     timestamps[channel],
                     aggregated_signals[channel],
@@ -403,9 +417,8 @@ class ADCReader(BackgroundSubJob):
                     )
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=2,  # TODO: this penalizer should scale with reading...
+                    penalizer_C=1,  # TODO: this penalizer should scale with reading...
                 )
-                print(params)
 
                 # convert to voltage
                 best_estimate_of_signal_ = (
@@ -420,7 +433,7 @@ class ADCReader(BackgroundSubJob):
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
                 if (
-                    (self.counter % 60 == 0)
+                    (self._counter % 60 == 0)
                     and (best_estimate_of_signal_ >= 2.75)
                     and not self.fake_data
                 ):
@@ -448,7 +461,7 @@ class ADCReader(BackgroundSubJob):
             check_gain_every_n = 5
             if (
                 self.dynamic_gain
-                and self.counter % check_gain_every_n == 1
+                and self._counter % check_gain_every_n == 1
                 and self.ema.value is not None
             ):
                 self.check_on_gain(self.ema.value)
@@ -514,6 +527,10 @@ class TemperatureCompensator(BackgroundSubJob):
 
 
 class LinearTemperatureCompensator(TemperatureCompensator):
+    def __init__(self, linear_coefficient, *args, **kwargs):
+        super(LinearTemperatureCompensator, self).__init__(self, *args, **kwargs)
+        self.linear_coefficient = linear_coefficient
+
     def compensate_od_for_temperature(self, OD):
         """
         See https://github.com/Pioreactor/pioreactor/issues/143 for our analysis
@@ -535,7 +552,9 @@ class LinearTemperatureCompensator(TemperatureCompensator):
                 f * self.latest_temperature + (1 - f) * self.previous_temperature
             )
 
-            return OD / exp(-0.006380 * (iterpolated_temp - self.initial_temperature))
+            return OD / exp(
+                self.linear_coefficient * (iterpolated_temp - self.initial_temperature)
+            )
 
 
 class ODReader(BackgroundJob):
@@ -764,7 +783,7 @@ def start_od_reading(
             experiment=experiment,
         ),
         temperature_compensator=LinearTemperatureCompensator(
-            unit=unit, experiment=experiment
+            -0.006380, unit=unit, experiment=experiment  # TODO: put value into config.
         ),
     )
 

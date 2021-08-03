@@ -19,3 +19,7 @@ class BackgroundSubJob(BackgroundJob):
 
     def log_state(self, state):
         self.logger.debug(state.capitalize() + ".")
+
+    def check_for_duplicate_process(self):
+        # multiple subjobs can run, sometimes - the parents should control this.
+        return

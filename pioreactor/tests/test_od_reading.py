@@ -2,6 +2,7 @@
 # test_od_reading.py
 
 import time, json
+import numpy as np
 from pioreactor.background_jobs.od_reading import LinearTemperatureCompensator, ADCReader
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name
 from pioreactor.pubsub import publish
@@ -53,6 +54,35 @@ def test_sin_regression_all_zeros_should_return_zeros():
     )
     assert C == 0
     assert A == 0
+
+
+def test_sin_regression_constant_should_return_constant():
+
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    adc_reader = ADCReader(unit=unit, experiment=experiment, channels=[])
+
+    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+        [i / 25 for i in range(25)], [1.0] * 25, 60
+    )
+    assert C == 1.0
+    assert A == 0.0
+
+
+def test_sin_regression_with_linear_change_should_return_close_to_mean():
+
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    adc_reader = ADCReader(unit=unit, experiment=experiment, channels=[])
+
+    y = [i for i in range(25)]
+
+    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+        [i / 25 for i in range(25)], y, 60
+    )
+    assert np.abs(C - np.mean(y)) < 0.001
 
 
 def test_sin_regression_with_strong_penalizer():
