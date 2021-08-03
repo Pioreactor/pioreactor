@@ -142,30 +142,19 @@ def check_leds_and_pds(unit, experiment, logger):
             # record from ADC
             readings = adc_reader.take_reading()
 
-            if is_testing_env():
-                time.sleep(0.5)
-
             # Add to accumulating list
-            varying_intensity_results["A0"].append(readings[0])
-            varying_intensity_results["A1"].append(readings[1])
-            varying_intensity_results["A2"].append(readings[2])
-            varying_intensity_results["A3"].append(readings[3])
+            varying_intensity_results[0].append(readings[0])
+            varying_intensity_results[1].append(readings[1])
+            varying_intensity_results[2].append(readings[2])
+            varying_intensity_results[3].append(readings[3])
 
         # compute the linear correlation between the intensities and observed PD measurements
-        results[(channel, "A0")] = correlation(
-            INTENSITIES, varying_intensity_results["A0"]
-        )
-        results[(channel, "A1")] = correlation(
-            INTENSITIES, varying_intensity_results["A1"]
-        )
+        results[(channel, 0)] = correlation(INTENSITIES, varying_intensity_results[0])
+        results[(channel, 1)] = correlation(INTENSITIES, varying_intensity_results[1])
 
-        results[(channel, "A2")] = correlation(
-            INTENSITIES, varying_intensity_results["A2"]
-        )
+        results[(channel, 2)] = correlation(INTENSITIES, varying_intensity_results[2])
 
-        results[(channel, "A3")] = correlation(
-            INTENSITIES, varying_intensity_results["A3"]
-        )
+        results[(channel, 3)] = correlation(INTENSITIES, varying_intensity_results[3])
 
         # set back to 0
         led_intensity(
