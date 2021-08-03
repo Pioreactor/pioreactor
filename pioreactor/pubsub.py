@@ -40,7 +40,8 @@ def create_client(hostname=leader_hostname, last_will=None, client_id=None, keep
 def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs):
     from paho.mqtt import publish as mqtt_publish
 
-    retry_count = 1
+    retry_count = 0
+
     while True:
         try:
             mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
@@ -74,7 +75,8 @@ def publish_multiple(
     """
     from paho.mqtt import publish as mqtt_publish
 
-    retry_count = 1
+    retry_count = 0
+
     while True:
         try:
             mqtt_publish.multiple(
