@@ -279,7 +279,7 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
-            N_sample_points = 18
+            N_sample_points = 16
             time_between_samples = 10
             timestamp = current_utc_time()
 
@@ -315,17 +315,18 @@ class TemperatureController(BackgroundJob):
         # check if we are using silent, if so, we can short this and return single value?s
 
         # some heuristic for now:
-        import numpy as np
+        from math import exp
 
         prev_temp = 1_000_000
         for i, temp in enumerate(feature_vector.values()):
             if i > 0:
-                delta_threshold = 0.1 + 0.2 / (1 + np.exp(-0.15 * (temp - 35)))
+                delta_threshold = 0.1 + 0.2 / (1 + exp(-0.15 * (temp - 35)))
                 if abs(prev_temp - temp) < delta_threshold:
                     return (temp + prev_temp) / 2
 
             prev_temp = temp
 
+        self.logger.warning("Ran out of samples!")
         return temp
 
 
