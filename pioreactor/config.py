@@ -67,24 +67,28 @@ def get_config():
     }
 
     if "pytest" in sys.modules or os.environ.get("TESTING"):
-        config.read("./config.dev.ini")
+        global_config_path = "./config.dev.ini"
+        local_config_path = ""
     else:
         global_config_path = "/home/pi/.pioreactor/config.ini"
         local_config_path = "/home/pi/.pioreactor/unit_config.ini"
-        try:
-            config.read([global_config_path, local_config_path])
-        except configparser.MissingSectionHeaderError:
-            # this can happen in the following situation:
-            # on the leader (as worker) Rpi, the unit_config.ini is malformed. When leader_config.ini is fixed in the UI
-            # pios sync tries to run, it uses a malformed unit_config.ini and hence the leader_config.ini can't be deployed
-            # to replace the malformed unit_config.ini.
-            from pioreactor.logging import create_logger
 
-            logger = create_logger("config")
-            logger.debug(
-                "MissingSectionHeaderError raised. Check unit_config.ini on leader?"
-            )
-            config.read([global_config_path])
+    config_files = [global_config_path, local_config_path]
+
+    try:
+        config.read(config_files)
+    except configparser.MissingSectionHeaderError as e:
+        # this can happen in the following situation:
+        # on the leader (as worker) Rpi, the unit_config.ini is malformed. When leader_config.ini is fixed in the UI
+        # pios sync tries to run, it uses a malformed unit_config.ini and hence the leader_config.ini can't be deployed
+        # to replace the malformed unit_config.ini.
+        print(
+            "Bad config state. Check /home/pi/.pioreactor/unit_config.ini on leader for malformed configuration?"
+        )
+        raise e
+    except configparser.DuplicateSectionError as e:
+        print(e)
+        raise e
 
     # some helpful additions - see docs above
     config["leds_reverse"] = reverse_config_section(config["leds"])

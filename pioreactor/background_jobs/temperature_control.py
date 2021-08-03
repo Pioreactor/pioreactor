@@ -15,13 +15,6 @@ algorithm is below, housed in TemperatureController
         2. Every 10 seconds, record the temperature on the PCB.
 
 
-
-
-
-
-
-
-
 To change the automation over MQTT,
 
 topic: `pioreactor/<unit>/<experiment>/temperture_control/temperature_automation/set`

@@ -123,6 +123,7 @@ class ADCReader(BackgroundSubJob):
 
     """
 
+    DATA_RATE = 128
     ADS_GAIN_THRESHOLDS = {
         2 / 3: (4.096, 6.144),  # 1 bit = 3mV, for 16bit ADC
         1: (2.048, 4.096),  # 1 bit = 2mV
@@ -157,8 +158,6 @@ class ADCReader(BackgroundSubJob):
         self.channels = channels
         self.analog_in = []
 
-        self.data_rate = config.getint("od_config.od_sampling", "data_rate")
-
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
         self.first_ads_obs_time = None
@@ -178,7 +177,7 @@ class ADCReader(BackgroundSubJob):
             # we may change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
             # TODO: update this to ADS1015
-            self.ads = ADS.ADS1115(i2c, data_rate=self.data_rate)
+            self.ads = ADS.ADS1115(i2c, data_rate=self.DATA_RATE)
             self.set_ads_gain(self.gain)
         except ValueError as e:
             self.logger.error(e)
@@ -236,8 +235,7 @@ class ADCReader(BackgroundSubJob):
                 break
 
     def set_ads_gain(self, gain):
-        assert gain in self.ADS_GAIN_THRESHOLDS
-        self.ads.gain = gain
+        self.ads.gain = gain  # this assignment checks to see if the the gain is allowed.
 
     def on_disconnect(self):
         for attr in self.published_settings:
@@ -487,7 +485,7 @@ class TemperatureCompensator(BackgroundSubJob):
     Override `compensate_od_for_temperature(self, OD)` to perform the compensation.
     """
 
-    def __init__(self, unit, experiment, **kwargs):
+    def __init__(self, unit=None, experiment=None, **kwargs):
         super(TemperatureCompensator, self).__init__(
             job_name="temperature_compensator", unit=unit, experiment=experiment, **kwargs
         )
