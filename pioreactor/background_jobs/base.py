@@ -452,13 +452,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # call this first to make sure that it gets published to the broker.
         self.state = self.DISCONNECTED
         self.log_state(self.state)
-        # if a job exits ungracefully, we log the error here (possibly a duplication...)
-        # this is a partial resolution to issue #145
-        if hasattr(sys, "last_traceback"):
-            import traceback
-
-            self.logger.debug("".join(traceback.format_tb(sys.last_traceback)))
-            self.logger.error(sys.last_value)
 
         # call job specific on_disconnect to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean

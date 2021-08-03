@@ -527,6 +527,7 @@ class TemperatureCompensator(BackgroundSubJob):
 class LinearTemperatureCompensator(TemperatureCompensator):
     def __init__(self, linear_coefficient, *args, **kwargs):
         super(LinearTemperatureCompensator, self).__init__(*args, **kwargs)
+        assert linear_coefficient < 0, "should be negative..."
         self.linear_coefficient = linear_coefficient
 
     def compensate_od_for_temperature(self, OD):
@@ -549,7 +550,6 @@ class LinearTemperatureCompensator(TemperatureCompensator):
             iterpolated_temp = (
                 f * self.latest_temperature + (1 - f) * self.previous_temperature
             )
-
             return OD / exp(
                 self.linear_coefficient * (iterpolated_temp - self.initial_temperature)
             )

@@ -5,13 +5,13 @@ import time
 
 # from itertools import product
 import numpy as np
-import logging
+
+# import logging
 from matplotlib import pyplot as plt
 
 # import os.path
 
 np.set_printoptions(suppress=True)
-logging.disable(logging.WARNING)
 
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator

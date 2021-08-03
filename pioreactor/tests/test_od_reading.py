@@ -12,12 +12,12 @@ def pause():
     time.sleep(0.25)
 
 
-def test_TemperatureCompensator():
+def test_LinearTemperatureCompensator():
 
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    tc = LinearTemperatureCompensator(unit=unit, experiment=experiment)
+    tc = LinearTemperatureCompensator(-0.6, unit=unit, experiment=experiment)
 
     assert tc.compensate_od_for_temperature(1.0) == 1.0
 
@@ -29,7 +29,7 @@ def test_TemperatureCompensator():
     assert tc.initial_temperature == 25
     assert tc.latest_temperature == 25
 
-    assert tc.compensate_od_for_temperature(1.0) == 1.0
+    assert abs(tc.compensate_od_for_temperature(1.0) - 1.0) < 0.0001
 
     publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
@@ -37,8 +37,15 @@ def test_TemperatureCompensator():
     )
 
     pause()
+    pause()
+    pause()
+    pause()
 
-    # suppose temp increased, but OD stayed the same
+    assert tc.initial_temperature == 25
+    assert tc.previous_temperature == 25
+    assert tc.latest_temperature == 30
+
+    # temp increased, but OD stayed the same, so comped OD should go down.
     assert tc.compensate_od_for_temperature(1.0) > 1.0
 
 

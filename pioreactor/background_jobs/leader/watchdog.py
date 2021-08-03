@@ -29,13 +29,9 @@ class WatchDog(BackgroundJob):
             )
             time.sleep(5)
             self.pub_client.publish(
-                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.INIT
-            )
-            time.sleep(5)
-            self.pub_client.publish(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.READY
             )
-            time.sleep(5)
+            time.sleep(25)
 
             current_state = subscribe(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15

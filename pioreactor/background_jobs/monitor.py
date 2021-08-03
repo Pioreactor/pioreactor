@@ -93,10 +93,8 @@ class Monitor(BackgroundJob):
         """
         latest_exp = get_latest_experiment_name()
         whats_running = pio_jobs_running()
-        probable_restart = False
 
-        def check_against_processes_runnning(msg):
-            global probable_restart
+        def check_against_processes_running(msg):
             job = msg.topic.split("/")[3]
             if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
                 job not in whats_running
@@ -107,10 +105,9 @@ class Monitor(BackgroundJob):
                     retain=True,
                 )
                 self.logger.debug(f"Manually changing {job} state in MQTT.")
-                probable_restart = probable_restart or True  # noqa: F841
 
         self.subscribe_and_callback(
-            check_against_processes_runnning,
+            check_against_processes_running,
             f"pioreactor/{self.unit}/{latest_exp}/+/$state",
         )
 
@@ -122,9 +119,6 @@ class Monitor(BackgroundJob):
             f"pioreactor/{self.unit}/{latest_exp}/+/$state"
         )
         self.sub_client.unsubscribe(f"pioreactor/{self.unit}/{latest_exp}/+/$state")
-
-        if probable_restart:
-            self.logger.log("Possible unexpected restart occurred?")
 
         return
 
@@ -211,6 +205,9 @@ class Monitor(BackgroundJob):
         def non_ignorable_status(status):
             return (status & 0x1) or (status & 0x4)
 
+        if is_testing_env():
+            return
+
         with open("/sys/devices/platform/soc/soc:firmware/get_throttled") as file:
             status = int(file.read(), 16)
 
@@ -221,6 +218,9 @@ class Monitor(BackgroundJob):
 
     def publish_self_statistics(self):
         import psutil
+
+        if is_testing_env():
+            return
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
         cpu_usage_percent = round(psutil.cpu_percent())
