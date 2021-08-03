@@ -526,7 +526,7 @@ class TemperatureCompensator(BackgroundSubJob):
 
 class LinearTemperatureCompensator(TemperatureCompensator):
     def __init__(self, linear_coefficient, *args, **kwargs):
-        super(LinearTemperatureCompensator, self).__init__(self, *args, **kwargs)
+        super(LinearTemperatureCompensator, self).__init__(*args, **kwargs)
         self.linear_coefficient = linear_coefficient
 
     def compensate_od_for_temperature(self, OD):
