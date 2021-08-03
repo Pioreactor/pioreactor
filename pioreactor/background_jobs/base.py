@@ -168,6 +168,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.sub_client = self.create_sub_client()
         self.pubsub_clients = [self.sub_client, self.pub_client]
 
+        self.set_up_exit_protocol()
+        self.declare_settable_properties_to_broker()
+        self.start_general_passive_listeners()
+
         # let's move to init, next thing that run is the subclasses __init__
         self.set_state(self.INIT)
 
@@ -412,10 +416,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.state = self.INIT
         self.log_state(self.state)
 
-        self.set_up_exit_protocol()
-        self.declare_settable_properties_to_broker()
-        self.start_general_passive_listeners()
-
         try:
             # we delay the specific on_init until after we have done our important protocols.
             self.on_init()
@@ -504,7 +504,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if props.get("unit"):
                 self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$unit",
-                    props["datatype"],
+                    props["unit"],
                     qos=QOS.AT_LEAST_ONCE,
                 )
 
