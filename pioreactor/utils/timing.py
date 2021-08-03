@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, logging
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Event, Thread
 from time import perf_counter
 
@@ -16,7 +16,8 @@ def catchtime() -> float:
 
 
 def current_utc_time():
-    return datetime.utcnow().isoformat()
+    # this is timezone aware.
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def brief_pause():

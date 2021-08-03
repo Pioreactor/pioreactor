@@ -276,5 +276,5 @@ def publish_to_pioreactor_com(topic, msg):
             retain=False,
             retries=1,
         )
-    except Exception:
+    except ConnectionRefusedError:
         pass
