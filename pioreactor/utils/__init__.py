@@ -40,6 +40,24 @@ def publish_ready_to_disconnected_state(unit, experiment, name):
 
 @contextmanager
 def local_intermittent_storage(cache_name):
+    """
+    Examples
+    ---------
+    > with local_intermittent_storage('pwm') as cache:
+    >     assert '1' in cache
+    >     cache['1'] = 0.5
+
+
+    Notes
+    -------
+    What happens in the following case?
+
+    > with local_intermittent_storage('test') as cache1:
+    >     with local_intermittent_storage('test') as cache2:
+    >       cache1['A'] = 1
+    >       cache2['A'] = 0
+
+    """
     try:
         cache = ndbm.open(f"/tmp/{cache_name}", "c")
         yield cache
