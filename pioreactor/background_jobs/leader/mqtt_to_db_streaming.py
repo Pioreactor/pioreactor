@@ -84,6 +84,7 @@ class MqttToDBStreamer(BackgroundJob):
                 self.logger.debug(
                     f"message.payload that caused error: `{message.payload}`"
                 )
+                return
 
             if new_row is None:
                 # parsers can return None to exit out.
