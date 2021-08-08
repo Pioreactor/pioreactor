@@ -415,7 +415,7 @@ class ADCReader(BackgroundSubJob):
                     )
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=1,  # TODO: this penalizer should scale with reading...
+                    penalizer_C=0.5,  # TODO: this penalizer should scale with reading...
                 )
 
                 # convert to voltage

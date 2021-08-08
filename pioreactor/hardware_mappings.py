@@ -18,3 +18,9 @@ PCB_BUTTON_PIN = 24
 # I2C GPIO pins
 SDA = 2
 SCL = 3
+
+
+# I2C channels used
+ADC = hex(72)
+DAC = hex(73)
+TMP = hex(79)

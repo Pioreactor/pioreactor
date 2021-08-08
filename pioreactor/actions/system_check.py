@@ -63,7 +63,7 @@ def check_temperature_and_heating(unit, experiment, logger):
         return
 
     measured_pcb_temps = []
-    dcs = list(range(0, 50, 5))
+    dcs = list(range(0, 50, 6))
     logger.debug("Varying heating.")
     for dc in dcs:
         tc._update_heater(dc)
@@ -71,7 +71,7 @@ def check_temperature_and_heating(unit, experiment, logger):
         measured_pcb_temps.append(tc.read_external_temperature())
 
     tc._update_heater(0)
-
+    logger.debug(dcs, measured_pcb_temps)
     publish(
         f"pioreactor/{unit}/{experiment}/system_check/positive_correlation_between_temp_and_heating",
         int(correlation(dcs, measured_pcb_temps) > 0.9),
@@ -83,7 +83,7 @@ def check_temperature_and_heating(unit, experiment, logger):
 
 def check_leds_and_pds(unit, experiment, logger):
 
-    INTENSITIES = list(range(0, 48, 8))
+    INTENSITIES = list(range(0, 48, 9))
     current_experiment_name = get_latest_experiment_name()
     results = {}
     adc_reader = ADCReader(
@@ -151,9 +151,7 @@ def check_leds_and_pds(unit, experiment, logger):
         # compute the linear correlation between the intensities and observed PD measurements
         results[(channel, 0)] = correlation(INTENSITIES, varying_intensity_results[0])
         results[(channel, 1)] = correlation(INTENSITIES, varying_intensity_results[1])
-
         results[(channel, 2)] = correlation(INTENSITIES, varying_intensity_results[2])
-
         results[(channel, 3)] = correlation(INTENSITIES, varying_intensity_results[3])
 
         # set back to 0

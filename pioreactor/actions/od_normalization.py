@@ -35,7 +35,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
 
     action_name = "od_normalization"
     logger = create_logger(action_name)
-    logger.debug("Starting OD normalization")
+    logger.debug("Starting OD normalization.")
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 

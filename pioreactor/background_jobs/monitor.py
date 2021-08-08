@@ -21,7 +21,6 @@ from pioreactor.hardware_mappings import (
 )
 from pioreactor.utils import pio_jobs_running
 from pioreactor.utils import gpio_helpers
-
 from pioreactor.version import __version__
 
 
@@ -161,7 +160,7 @@ class Monitor(BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down", 1
             )
-            sleep(0.05)
+            sleep(0.25)
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",

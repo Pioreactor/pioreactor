@@ -15,7 +15,7 @@ configure-mqtt:
 	grep -qxF 'protocol websockets'   /etc/mosquitto/mosquitto.conf || echo "protocol websockets"   | sudo tee /etc/mosquitto/mosquitto.conf -a
 
 install-i2c:
-	sudo apt install -y python-smbus
+	sudo apt install -y python-smbus # this is python2...
 	sudo apt install -y i2c-tools
 	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
 	echo "i2c-dev"               | sudo tee /etc/modules -a

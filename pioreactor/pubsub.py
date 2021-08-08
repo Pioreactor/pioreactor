@@ -62,7 +62,7 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
             from pioreactor.logging import create_logger
 
             logger = create_logger("pubsub.publish", to_mqtt=False)
-            logger.error(f"Unable to connect to host: {hostname}. Exiting.")
+            logger.error(f"Unable to connect to host: {hostname}.")
             raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
