@@ -638,6 +638,7 @@ class ODReader(BackgroundJob):
         batched_readings = self.adc_reader.take_reading()
         self.stop_ir_led()
 
+        self.latest_reading = batched_readings
         self.publish_single(batched_readings)
         self.publish_batch(batched_readings)
 
