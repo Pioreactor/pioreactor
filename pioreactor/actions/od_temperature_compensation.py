@@ -92,7 +92,7 @@ def od_temperature_compensation():
             unit=unit,
             experiment=testing_experiment,
             fake_data=is_testing_env(),
-        )
+        ).setup_adc()
 
         time.sleep(1)
 

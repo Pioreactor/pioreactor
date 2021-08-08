@@ -18,8 +18,6 @@ def publish_ready_to_disconnected_state(unit, experiment, name):
     > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
 
 
-
-
     """
     try:
         publish(

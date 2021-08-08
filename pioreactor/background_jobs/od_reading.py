@@ -206,6 +206,9 @@ class ADCReader(BackgroundSubJob):
             self.check_on_max(max_signal)
             self.check_on_gain(max_signal)
 
+        self._setup_complete = True
+        return self
+
     def check_on_max(self, value):
         if value > 3.1:
             self.logger.error(
@@ -347,6 +350,9 @@ class ADCReader(BackgroundSubJob):
 
 
         """
+        if not self._setup_complete:
+            raise ValueError("Must call setup_adc() first.")
+
         if self.first_ads_obs_time is None:
             self.first_ads_obs_time = time.time()
 
