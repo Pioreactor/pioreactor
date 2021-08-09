@@ -71,7 +71,6 @@ def check_temperature_and_heating(unit, experiment, logger):
         measured_pcb_temps.append(tc.read_external_temperature())
 
     tc._update_heater(0)
-    logger.debug(dcs, measured_pcb_temps)
     publish(
         f"pioreactor/{unit}/{experiment}/system_check/positive_correlation_between_temp_and_heating",
         int(correlation(dcs, measured_pcb_temps) > 0.9),

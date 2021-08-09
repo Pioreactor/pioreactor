@@ -47,7 +47,6 @@ def test_silent_automation():
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
-    # algo.set_state("disconnected")
 
 
 def test_turbidostat_automation():
@@ -99,7 +98,6 @@ def test_turbidostat_automation():
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
-    algo.set_state("disconnected")
 
 
 def test_pid_turbidostat_automation():
@@ -134,7 +132,6 @@ def test_pid_turbidostat_automation():
     e = algo.run()
     assert isinstance(e, events.DilutionEvent)
     assert e.volume_to_cycle > 1.0
-    algo.set_state("disconnected")
 
 
 def test_morbidostat_automation():
@@ -208,7 +205,6 @@ def test_morbidostat_automation():
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
-    algo.set_state("disconnected")
 
 
 def test_pid_morbidostat_automation():
@@ -261,7 +257,6 @@ def test_pid_morbidostat_automation():
     )
     pause()
     assert isinstance(algo.run(), events.AltMediaEvent)
-    algo.set_state("disconnected")
 
 
 def test_changing_morbidostat_parameters_over_mqtt():
@@ -284,7 +279,6 @@ def test_changing_morbidostat_parameters_over_mqtt():
     pause()
     assert algo.target_growth_rate == new_target
     assert algo.pid.pid.setpoint == new_target
-    algo.set_state("disconnected")
 
 
 def test_changing_turbidostat_params_over_mqtt():
@@ -334,12 +328,11 @@ def test_changing_turbidostat_params_over_mqtt():
     assert algo.target_od == new_od
     assert algo.pid.pid.setpoint == new_od
     assert algo.min_od == 0.75 * new_od
-    algo.set_state("disconnected")
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
 
-    algo = DosingAutomation(
+    DosingAutomation(
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
@@ -347,8 +340,8 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter():
         experiment=experiment,
     )
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07)
+    # there should be a log published with "Unable to set garbage in dosing_automation"
     pause()
-    algo.set_state("disconnected")
 
 
 def test_pause_in_dosing_automation():
@@ -372,7 +365,6 @@ def test_pause_in_dosing_automation():
     )
     pause()
     assert algo.state == "ready"
-    algo.set_state("disconnected")
 
 
 def test_pause_in_dosing_control_also_pauses_automation():
@@ -397,7 +389,6 @@ def test_pause_in_dosing_control_also_pauses_automation():
     pause()
     assert algo.state == "ready"
     assert algo.dosing_automation_job.state == "ready"
-    algo.set_state("disconnected")
 
 
 def test_old_readings_will_not_execute_io():
@@ -417,7 +408,6 @@ def test_old_readings_will_not_execute_io():
     assert algo.most_stale_time == algo.latest_od_timestamp
 
     assert isinstance(algo.run(), events.NoEvent)
-    algo.set_state("disconnected")
 
 
 def test_throughput_calculator():
@@ -487,7 +477,6 @@ def test_throughput_calculator():
     algo.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
-    algo.set_state("disconnected")
 
 
 def test_throughput_calculator_restart():
@@ -512,7 +501,6 @@ def test_throughput_calculator_restart():
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
-    algo.set_state("disconnected")
 
 
 def test_throughput_calculator_manual_set():
@@ -545,7 +533,6 @@ def test_throughput_calculator_manual_set():
     pause()
     assert algo.throughput_calculator.media_throughput == 0
     assert algo.throughput_calculator.alt_media_throughput == 0
-    algo.set_state("disconnected")
 
 
 def test_execute_io_action():
@@ -691,7 +678,6 @@ def test_duration_and_timer():
     time.sleep(10)
     pause()
     assert isinstance(algo.latest_event, events.AltMediaEvent)
-    algo.set_state("disconnected")
 
 
 def test_changing_duration_over_mqtt():
@@ -720,7 +706,6 @@ def test_changing_duration_over_mqtt():
     )
     time.sleep(10)
     assert algo.timer_thread.interval == 60
-    algo.set_state("disconnected")
 
 
 def test_changing_algo_over_mqtt_solo():
@@ -744,7 +729,6 @@ def test_changing_algo_over_mqtt_solo():
     assert algo.dosing_automation == "pid_morbidostat"
     assert isinstance(algo.dosing_automation_job, PIDMorbidostat)
     assert algo.dosing_automation_job.target_growth_rate == 0.07
-    algo.set_state("disconnected")
 
 
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
@@ -768,7 +752,6 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
     assert algo.dosing_automation == "turbidostat"
     assert isinstance(algo.dosing_automation_job, Turbidostat)
     assert algo.dosing_automation_job.target_od == 1.0
-    algo.set_state("disconnected")
 
 
 def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
@@ -826,7 +809,6 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
     pause()
     pause()
     assert algo.dosing_automation_job.target_od == 1.5
-    algo.set_state("disconnected")
 
 
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
@@ -855,7 +837,6 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
     )  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.dosing_automation_job, PIDTurbidostat)
     assert algo.dosing_automation_job.target_od == 1.0
-    algo.set_state("disconnected")
 
 
 def test_disconnect_cleanly():
@@ -874,13 +855,17 @@ def test_disconnect_cleanly():
         f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
     )
     time.sleep(10)
-    algo.set_state("disconnected")
 
 
 def test_custom_class_will_register_and_run():
     class NaiveTurbidostat(DosingAutomation):
 
         key = "naive_turbidostat"
+
+        published_settings = {
+            "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
+            "duration": {"datatype": "float", "settable": True, "unit": "min"},
+        }
 
         def __init__(self, target_od, **kwargs):
             super(NaiveTurbidostat, self).__init__(**kwargs)
@@ -924,4 +909,3 @@ def test_changing_duty_cycle_over_mqtt():
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/duty_cycle/set", 50)
     pause()
     assert algo.duty_cycle == 50
-    algo.set_state("disconnected")

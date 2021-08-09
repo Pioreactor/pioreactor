@@ -42,12 +42,6 @@ class DosingAutomation(BackgroundSubJob):
     latest_event = None
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
-    published_settings = {
-        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
-        "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
-        "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
-        "duration": {"datatype": "float", "settable": True, "unit": "min"},
-    }
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -104,17 +98,21 @@ class DosingAutomation(BackgroundSubJob):
 
         elif self.state != self.READY:
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
-            counter = 0
+            time_waited = 0
             while self.state != self.READY:
-                sleep_for = 5
-                time.sleep(sleep_for)
-                counter += 1
 
-                if self.duration and counter > (self.duration * 60 * 0.25) / sleep_for:
+                if self.duration and time_waited > (self.duration * 60 * 0.25):
                     event = events.NoEvent(
                         "Waited too long on sensor data. Skipping this run."
                     )
                     break
+                elif self.state == self.DISCONNECTED:
+                    return
+
+                sleep_for = 5
+                time.sleep(sleep_for)
+                time_waited += sleep_for
+
             else:
                 return self.run()
 
@@ -128,13 +126,17 @@ class DosingAutomation(BackgroundSubJob):
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
-            counter = 0
-            while (self.latest_growth_rate is None) or (self.latest_od is None):
+            time_waited = 0
+            while (
+                (self.latest_growth_rate is None)
+                or (self.latest_od is None)
+                and self.state == self.READY
+            ):
                 sleep_for = 5
                 time.sleep(sleep_for)
-                counter += 1
+                time_waited += sleep_for
 
-                if self.duration and counter > (self.duration * 60 * 0.25) / sleep_for:
+                if self.duration and time_waited > (self.duration * 60 * 0.25):
                     event = events.NoEvent(
                         "Waited too long on sensor data. Skipping this run."
                     )

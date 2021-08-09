@@ -139,11 +139,11 @@ class ADCReader(BackgroundSubJob):
     def __init__(
         self,
         channels,
-        fake_data=False,
-        dynamic_gain=True,
+        fake_data: bool = False,
+        dynamic_gain: bool = True,
         initial_gain=1,
-        unit=None,
-        experiment=None,
+        unit: str = None,
+        experiment: str = None,
         **kwargs,
     ):
         super(ADCReader, self).__init__(
@@ -153,7 +153,7 @@ class ADCReader(BackgroundSubJob):
         self.dynamic_gain = dynamic_gain
         self.gain = initial_gain
         self._counter = 0
-        self.ema = ExponentialMovingAverage(alpha=0.10)
+        self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.10)
         self.ads = None
         self.channels = channels
         self.analog_in = []
@@ -164,6 +164,12 @@ class ADCReader(BackgroundSubJob):
         self.batched_readings = dict()
 
     def setup_adc(self):
+        """
+        This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
+
+        It doesn't occur in the classes __init__ because it often requires an LED to be on (and this class doesn't control LEDs.).
+        See ODReader for an example.
+        """
         try:
             import adafruit_ads1x15.ads1115 as ADS
 
@@ -457,7 +463,7 @@ class ADCReader(BackgroundSubJob):
 
             # the max signal should determine the ADS1x15's gain
             if self.dynamic_gain:
-                self.ema.update(max_signal)
+                self.max_signal_moving_average.update(max_signal)
 
             # check if using correct gain
             # this should update after first observation
@@ -466,9 +472,9 @@ class ADCReader(BackgroundSubJob):
             if (
                 self.dynamic_gain
                 and self._counter % check_gain_every_n == 1
-                and self.ema.value is not None
+                and self.max_signal_moving_average.value is not None
             ):
-                self.check_on_gain(self.ema.value)
+                self.check_on_gain(self.max_signal_moving_average.value)
 
             return batched_estimates_
 
@@ -577,6 +583,16 @@ class ODReader(BackgroundJob):
         Probably an ADCReader
     temperature_compensator:
         Probably a TemperatureCompensator
+
+
+    Attributes
+    ------------
+
+    adc_reader: ADCReader
+    temperature_compensator: TemperatureCompensator
+    latest_reading: dict
+        represents the most recent dict from the adc_reader
+
     """
 
     published_settings = {
@@ -591,8 +607,8 @@ class ODReader(BackgroundJob):
         unit=None,
         experiment=None,
         stop_IR_led_between_ADC_readings=True,
-        adc_reader=None,
-        temperature_compensator=None,
+        adc_reader: ADCReader = None,
+        temperature_compensator: TemperatureCompensator = None,
     ):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
@@ -605,6 +621,7 @@ class ODReader(BackgroundJob):
 
         self.channel_angle_map = channel_angle_map
         self.interval = interval
+        self.latest_reading = None
 
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getint("od_config.od_sampling", "ir_intensity")
@@ -788,7 +805,7 @@ def start_od_reading(
             experiment=experiment,
         ),
         temperature_compensator=LinearTemperatureCompensator(
-            -0.006380, unit=unit, experiment=experiment  # TODO: put value into config.
+            -0.006271, unit=unit, experiment=experiment  # TODO: put value into config.
         ),
     )
 
