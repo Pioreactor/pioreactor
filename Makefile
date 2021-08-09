@@ -95,21 +95,26 @@ configure-rpi:
 	######################################################################
 	# Optimize power consumption of Rpi - mostly turn off peripherals
 	######################################################################
-	# assign minimial memory to GPU
+
+	# assign minimal memory to GPU
 	echo "gpu_mem=16"            | sudo tee /boot/config.txt -a
 
 	# disable bluetooth
 	sudo systemctl disable hciuart
 	echo "dtoverlay=disable-bt" | sudo tee -a /boot/config.txt
 
-	# disable USB - this fails for the RPi Zero
-	# echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind
+	# disable USB. This fails for the RPi Zero and A models, hence the starting "-"" to ignore error
+	-echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind
 
 	# disable HDMI
 	# add to second line of script...
 	sudo sed -i '2s/^/\/usr\/bin\/tvservice -o\n/' /etc/rc.local
 
-	######################################################################
+	# remove activelow led - I think it's the red led
+	echo "dtparam=act_led_activelow=on" | sudo tee -a /boot/config.txt
+
+	#####################################################################
+	#####################################################################
 
 	sudo -upi mkdir -p /home/pi/.ssh
 
