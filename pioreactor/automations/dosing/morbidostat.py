@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
+from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.automations import events
 
 

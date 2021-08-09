@@ -805,7 +805,7 @@ def start_od_reading(
             experiment=experiment,
         ),
         temperature_compensator=LinearTemperatureCompensator(
-            -0.006271, unit=unit, experiment=experiment  # TODO: put value into config.
+            -0.006370, unit=unit, experiment=experiment  # TODO: put value into config.
         ),
     )
 

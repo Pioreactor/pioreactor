@@ -7,6 +7,7 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 class NaiveTurbidostat(DosingAutomation):
 
     key = "naive_turbidostat"
+
     published_settings = {
         "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "duration": {"datatype": "float", "settable": True, "unit": "min"},

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import time
-from pioreactor.background_jobs.subjobs.led_automation import LEDAutomation
+from pioreactor.automations.led.base import LEDAutomation
 from pioreactor.automations import events
 from pioreactor.config import config
 
