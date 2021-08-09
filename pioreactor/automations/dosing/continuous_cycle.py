@@ -23,7 +23,8 @@ class ContinuousCycle(DosingAutomation):
     key = "continuous_cycle"
     hz = 100
     published_settings = {
-        "duty_cycle": {"datatype": "float", "unit": "%", "settable": True}
+        "duty_cycle": {"datatype": "float", "unit": "%", "settable": True},
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
     def __init__(self, duty_cycle=100, **kwargs):

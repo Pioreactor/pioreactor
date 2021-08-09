@@ -9,6 +9,10 @@ class Chemostat(DosingAutomation):
     """
 
     key = "chemostat"
+    published_settings = {
+        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
+    }
 
     def __init__(self, volume=None, **kwargs):
         super(Chemostat, self).__init__(**kwargs)

@@ -11,6 +11,10 @@ class Silent(DosingAutomation):
 
     key = "silent"
 
+    published_settings = {
+        "duration": {"datatype": "float", "settable": True, "unit": "min"}
+    }
+
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 

@@ -14,6 +14,12 @@ class PIDMorbidostat(DosingAutomation):
     """
 
     key = "pid_morbidostat"
+    published_settings = {
+        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+        "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
+        "target_growth_rate": {"datatype": "float", "settable": True, "unit": "h⁻¹"},
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
+    }
 
     def __init__(self, target_growth_rate=None, target_od=None, volume=None, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)

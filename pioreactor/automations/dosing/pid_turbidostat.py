@@ -9,11 +9,14 @@ class PIDTurbidostat(DosingAutomation):
     """
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 
-    The PID tells use what fraction of volume we should limit. For example, of PID
-    returns 0.03, then we should remove ~97% of the volume. Choose volume to be about 1.5ml - 2.0ml.
     """
 
     key = "pid_turbidostat"
+
+    published_settings = {
+        "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
+    }
 
     def __init__(self, target_od=None, **kwargs):
         super(PIDTurbidostat, self).__init__(**kwargs)

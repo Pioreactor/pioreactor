@@ -57,7 +57,7 @@ class PWM:
 
         if self.is_locked():
             self.logger.warning(
-                f"PWM-{self.pin} is currently locked but another task is trying to use it."
+                f"PWM-{self.pin} is currently locked but a task is trying to use it."
             )
 
         gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_UNAVAILABLE)

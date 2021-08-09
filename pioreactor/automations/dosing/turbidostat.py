@@ -13,6 +13,12 @@ class Turbidostat(DosingAutomation):
 
     key = "turbidostat"
 
+    published_settings = {
+        "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+        "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
+        "duration": {"datatype": "float", "settable": True, "unit": "min"},
+    }
+
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Turbidostat, self).__init__(**kwargs)
         self.target_od = float(target_od)
