@@ -259,7 +259,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.start_passive_listeners()
 
         def on_disconnect(client, userdata, rc):
-
             self.on_mqtt_disconnect(rc)
 
         # we give the last_will to this sub client because when it reconnects, it
@@ -451,7 +450,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # set state to disconnect
         # call this first to make sure that it gets published to the broker.
         self.state = self.DISCONNECTED
-        self.log_state(self.state)
 
         # call job specific on_disconnect to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean
@@ -464,6 +462,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # making the visible to the user.
             # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
+
+        self.log_state(self.state)
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache[self.job_name] = b"0"
