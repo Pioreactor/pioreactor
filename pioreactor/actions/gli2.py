@@ -12,26 +12,26 @@ from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 
 def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
     """
-    Advisable that stirring is turned on. OD reading should be turned off.
+       Advisable that stirring is turned on. OD reading should be turned off.
 
-    The pd_Z and led_Z are the channels on the Pioreactor HAT.
-    They map to the pairs of pockets at 180° angles in the Pioreactor, see below
+       The pd_Z and led_Z are the channels on the Pioreactor HAT.
+       They map to the pairs of pockets at 180° angles in the Pioreactor, see below
 
 
 
-               pd_Y
-           , - ~ ~ ~ - ,
-      x, '               ' ,x
-     ,                       ,
-    ,                         ,
-   ,                           ,
- led_X                        pd_X
-   ,                           ,
-    ,                         ,
-     ,                       ,
-      x,                  , 'x
-         ' - , _ _ _ ,  '
-               led_Y
+                  pd_Y
+              , - ~ ~ ~ - ,
+         x, '               ' ,x
+        ,                       ,
+       ,                         ,
+      ,                           ,
+    led_X                        pd_X
+      ,                           ,
+       ,                         ,
+        ,                       ,
+         x,                  , 'x
+            ' - , _ _ _ ,  '
+                  led_Y
 
     """
 
@@ -48,7 +48,7 @@ def gli2(pd_X, pd_Y, led_X, led_Y, unit=None, experiment=None):
     def adc_reading(adc, channel):
         return getattr(adc, f"A{channel}")
 
-    assert "od_reading" not in pio_jobs_running(), "Turn off od_reading job first."
+    assert "od_reading" not in pio_jobs_running(), "Turn off OD Reading job first."
 
     adc = ADCReader(unit=unit, experiment=experiment, initial_gain=2, dynamic_gain=False)
     adc.setup_adc()
