@@ -267,6 +267,7 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
 
 
 def publish_to_pioreactor_com(topic, msg):
+    return
     try:
         publish(
             topic,
