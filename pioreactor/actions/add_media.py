@@ -20,7 +20,6 @@ def add_media(
     duration=None,
     continuously=False,
     duty_cycle=66,
-    threaded=False,
     source_of_event=None,
     unit=None,
     experiment=None,
@@ -133,5 +132,11 @@ def click_add_media(ml, duration, continuously, duty_cycle, source_of_event):
     experiment = get_latest_experiment_name()
 
     return add_media(
-        ml, duration, continuously, duty_cycle, source_of_event, unit, experiment
+        ml=ml,
+        duration=duration,
+        continuously=continuously,
+        duty_cycle=duty_cycle,
+        source_of_event=source_of_event,
+        unit=unit,
+        experiment=experiment,
     )

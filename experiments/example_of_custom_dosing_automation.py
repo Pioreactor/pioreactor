@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import signal
-from pioreactor.background_jobs.subjobs.dosing_automation import DosingAutomation
+from pioreactor.automations import DosingAutomation
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
 

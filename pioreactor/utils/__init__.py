@@ -63,6 +63,26 @@ def local_intermittent_storage(cache_name):
         cache.close()
 
 
+@contextmanager
+def local_persistant_storage(cache_name):
+    """
+    Values stored in this storage will stay around between RPi restarts, and until overwritten
+    or deleted.
+
+    Examples
+    ---------
+    > with local_persistant_storage('pwm') as cache:
+    >     assert '1' in cache
+    >     cache['1'] = 0.5
+
+    """
+    try:
+        cache = ndbm.open(f"/.pioreactor/local_storage/{cache_name}", "c")
+        yield cache
+    finally:
+        cache.close()
+
+
 def clamp(minimum, x, maximum):
     return max(minimum, min(x, maximum))
 

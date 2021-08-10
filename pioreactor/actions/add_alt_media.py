@@ -60,6 +60,7 @@ def add_alt_media(
             **loads(config["pump_calibration"]["alt_media_ml_calibration"]),
         )
     assert duration >= 0
+
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
         dumps(

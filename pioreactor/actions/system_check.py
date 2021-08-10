@@ -194,7 +194,7 @@ def system_check():
             or is_pio_job_running("temperature_control")
             or is_pio_job_running("stirring")
         ):
-            logger.warning(
+            logger.error(
                 "Make sure OD Reading, Temperature Control, and Stirring are off before running a system check. Exiting."
             )
             return

@@ -567,7 +567,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 if (
                     sum([p == self.job_name for p in pio_jobs_running()]) > 1
                 ):  # this process counts as one - see if there is another.
-                    self.logger.warning(f"{self.job_name} is already running. Aborting.")
+                    self.logger.error(f"{self.job_name} is already running. Aborting.")
                     raise ValueError(f"{self.job_name} is already running. Aborting.")
 
             cache[self.job_name] = b"1"

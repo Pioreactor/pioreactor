@@ -170,6 +170,7 @@ class ADCReader(BackgroundSubJob):
         It doesn't occur in the classes __init__ because it often requires an LED to be on (and this class doesn't control LEDs.).
         See ODReader for an example.
         """
+
         try:
             import adafruit_ads1x15.ads1115 as ADS
 

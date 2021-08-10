@@ -54,6 +54,7 @@ install-pioreactor-leader:
 
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
 	mkdir -p /home/pi/.pioreactor
+	mkdir -p /home/pi/.pioreactor/local_storage
 	cp /home/pi/pioreactor/config.example.ini /home/pi/.pioreactor/config.ini
 	sudo python3 setup.py install
 
