@@ -69,7 +69,6 @@ def simple_linear_regression(x, y):
 def od_temperature_compensation():
     import numpy as np
 
-    raise ValueError()
     action_name = "od_temperature_compensation"
     logger = create_logger(action_name)
     unit = get_unit_name()
