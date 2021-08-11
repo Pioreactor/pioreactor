@@ -32,7 +32,11 @@ from pioreactor.logging import create_logger
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import Stirrer
-from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
+from pioreactor.utils import (
+    is_pio_job_running,
+    publish_ready_to_disconnected_state,
+    local_persistant_storage,
+)
 from pioreactor.config import config
 from pioreactor.whoami import (
     get_unit_name,
@@ -44,7 +48,33 @@ from pioreactor.whoami import (
 from pioreactor.pubsub import subscribe_and_callback, publish_to_pioreactor_com
 
 
+def simple_linear_regression(x, y):
+    import numpy as np
+
+    x = np.array(x)
+    y = np.array(y)
+
+    n = x.shape[0]
+    assert n > 2
+
+    sum_x = np.sum(x)
+    sum_xx = np.sum(x * x)
+
+    slope = (n * np.sum(x * y) - sum_x * np.sum(y)) / (n * sum_xx - sum_x ** 2)
+    bias = y.mean() - slope * x.mean()
+
+    residuals_sq = ((y - (slope * x + bias)) ** 2).sum()
+    std_error_slope = np.sqrt(residuals_sq / (n - 2) / (np.sum((x - x.mean()) ** 2)))
+
+    std_error_bias = np.sqrt(
+        residuals_sq / (n - 2) / n * sum_xx / (np.sum((x - x.mean()) ** 2))
+    )
+
+    return (slope, std_error_slope), (bias, std_error_bias)
+
+
 def od_temperature_compensation():
+    import numpy as np
 
     action_name = "od_temperature_compensation"
     logger = create_logger(action_name)
@@ -108,7 +138,6 @@ def od_temperature_compensation():
                 temp = json.loads(message.payload)["temperature"]
 
                 temp_od_lookup[temp] = od_reader.latest_reading[0]
-                logger.debug(temp_od_lookup)
 
         # I want to listen for new temperatures coming in, and when I observe one, take od reading
         subscribe_and_callback(
@@ -128,6 +157,15 @@ def od_temperature_compensation():
         logger.debug(temp_od_lookup)
         with open("/home/pi/.pioreactor/od_temperature_compensation.json", "w") as f:
             json.dump(temp_od_lookup, f, indent="")
+
+        temps = np.array(temp_od_lookup.keys())
+        log_ods = np.log(np.array(temp_od_lookup.values()))
+        (temp_coef, std_error_temp_coef), _ = simple_linear_regression(x=temps, y=log_ods)
+
+        with local_persistant_storage("od_temperature_compensation") as cache:
+            cache["log_linear"] = json.dumps(
+                {"estimate": temp_coef, "std_error": std_error_temp_coef}
+            )
 
         if config.getboolean(
             "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
