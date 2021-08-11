@@ -178,7 +178,7 @@ if am_I_active_worker():
     run.add_command(actions.remove_waste.click_remove_waste)
     run.add_command(actions.od_normalization.click_od_normalization)
     run.add_command(actions.od_blank.click_od_blank)
-    run.add_command(actions.system_check.click_system_check)
+    run.add_command(actions.self_test.click_self_test)
     run.add_command(actions.od_temperature_compensation.click_od_temperature_compensation)
 
     for plugin in pioreactor.plugins.values():

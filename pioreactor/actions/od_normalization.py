@@ -44,8 +44,10 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
             # but if test mode, ignore
             and not is_testing_env()
         ):
-            logger.error(" OD Reading jobs should be running. Run OD Reading first.")
-            raise ValueError("OD Reading jobs should be running. Run OD Reading first. ")
+            logger.error(" OD Reading should be running. Run OD Reading first. Exiting.")
+            raise ValueError(
+                "OD Reading should be running. Run OD Reading first. Exiting."
+            )
 
         # TODO: write tests for this
         def yield_from_mqtt():

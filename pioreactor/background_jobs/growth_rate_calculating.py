@@ -57,17 +57,19 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         self.ignore_cache = ignore_cache
+        self.time_of_previous_observation = datetime.utcnow()
+        self.expected_dt = 1 / (
+            60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
+        )
+        self.initial_acc = 0
+
         (
             self.initial_growth_rate,
             self.od_normalization_factors,
             self.od_variances,
             self.od_blank,
         ) = self.get_precomputed_values()
-        self.initial_acc = 0
-        self.time_of_previous_observation = datetime.utcnow()
-        self.expected_dt = 1 / (
-            60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
-        )
+
         self.ekf, self.channels_and_angles = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
 

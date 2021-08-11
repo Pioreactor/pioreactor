@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-system check action
-
 This action checks the following on the Pioreactor:
 
 1. Heating and temperature sensor by gradually increase heating's DC, and record temperature
@@ -44,19 +42,19 @@ def check_temperature_and_heating(unit, experiment, logger):
     try:
         tc = TemperatureController("silent", unit=unit, experiment=experiment)
         publish(
-            f"pioreactor/{unit}/{experiment}/system_check/detect_heating_pcb",
+            f"pioreactor/{unit}/{experiment}/self_test/detect_heating_pcb",
             1,
             retain=False,
         )
     except IOError:
         # no point continuing
         publish(
-            f"pioreactor/{unit}/{experiment}/system_check/detect_heating_pcb",
+            f"pioreactor/{unit}/{experiment}/self_test/detect_heating_pcb",
             0,
             retain=False,
         )
         publish(
-            f"pioreactor/{unit}/{experiment}/system_check/positive_correlation_between_temp_and_heating",
+            f"pioreactor/{unit}/{experiment}/self_test/positive_correlation_between_temp_and_heating",
             0,
             retain=False,
         )
@@ -72,7 +70,7 @@ def check_temperature_and_heating(unit, experiment, logger):
 
     tc._update_heater(0)
     publish(
-        f"pioreactor/{unit}/{experiment}/system_check/positive_correlation_between_temp_and_heating",
+        f"pioreactor/{unit}/{experiment}/self_test/positive_correlation_between_temp_and_heating",
         int(correlation(dcs, measured_pcb_temps) > 0.9),
         retain=False,
     )
@@ -102,25 +100,25 @@ def check_leds_and_pds(unit, experiment, logger):
                 channel,
                 intensity=0,
                 unit=unit,
-                source_of_event="system_check",
+                source_of_event="self_test",
                 experiment=current_experiment_name,
                 verbose=False,
             )
     except AssertionError:
         publish(
-            f"pioreactor/{unit}/{experiment}/system_check/pioreactor_hat_present",
+            f"pioreactor/{unit}/{experiment}/self_test/pioreactor_hat_present",
             0,
             retain=False,
         )
         publish(
-            f"pioreactor/{unit}/{experiment}/system_check/atleast_one_correlation_between_pds_and_leds",
+            f"pioreactor/{unit}/{experiment}/self_test/atleast_one_correlation_between_pds_and_leds",
             0,
             retain=False,
         )
         return
     finally:
         publish(
-            f"pioreactor/{unit}/{experiment}/system_check/pioreactor_hat_present",
+            f"pioreactor/{unit}/{experiment}/self_test/pioreactor_hat_present",
             1,
             retain=False,
         )
@@ -169,25 +167,25 @@ def check_leds_and_pds(unit, experiment, logger):
             detected_relationships.append(pair)
 
     publish(
-        f"pioreactor/{unit}/{experiment}/system_check/atleast_one_correlation_between_pds_and_leds",
+        f"pioreactor/{unit}/{experiment}/self_test/atleast_one_correlation_between_pds_and_leds",
         int(len(detected_relationships) > 0),
         retain=False,
     )
     publish(
-        f"pioreactor/{unit}/{experiment}/system_check/correlations_between_pds_and_leds",
+        f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
         json.dumps(detected_relationships),
         retain=False,
     )
     return detected_relationships
 
 
-def system_check():
+def self_test():
 
-    logger = create_logger("system_check")
+    logger = create_logger("self_test")
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
-    with publish_ready_to_disconnected_state(unit, experiment, "system_check"):
+    with publish_ready_to_disconnected_state(unit, experiment, "self_test"):
 
         if (
             is_pio_job_running("od_reading")
@@ -195,7 +193,7 @@ def system_check():
             or is_pio_job_running("stirring")
         ):
             logger.error(
-                "Make sure OD Reading, Temperature Control, and Stirring are off before running a system check. Exiting."
+                "Make sure OD Reading, Temperature Control, and Stirring are off before running a self test. Exiting."
             )
             return
 
@@ -212,9 +210,9 @@ def system_check():
         #
 
 
-@click.command(name="system_check")
-def click_system_check():
+@click.command(name="self_test")
+def click_self_test():
     """
     Check the IO in the Pioreactor
     """
-    system_check()
+    self_test()
