@@ -27,7 +27,9 @@ from pioreactor.pubsub import subscribe_and_callback
 def pio():
     """
     Execute commands on this Pioreactor.
+
     See full documentation here: pioreactor.com/pages/Command-line-interface
+
     Report errors or feedback here: github.com/Pioreactor/pioreactor/issues
     """
 

@@ -68,7 +68,9 @@ def sync_config_files(ssh_client, unit):
 def pios():
     """
     Command each of the worker Pioreactors with the `pios` command.
+
     See full documentation here: https://github.com/Pioreactor/pioreactor/wiki/Command-line-interface#leader-commands
+
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
     import sys

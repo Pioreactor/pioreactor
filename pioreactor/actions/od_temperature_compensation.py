@@ -13,13 +13,6 @@ Questions include:
     - possibility is to use 180, and water as media.
     - 45 has been working well, since there is some stray light => can use water as media.
 2. What should the media be?
-3. Should stirring be on?
-    - probably, as this mimics production more, and will distribute heating more.
-4. How many data points should we keep?
-5. Where do we store the lookup table?
-    - DBM or JSON, but _not_ in /tmp..., I guess in ~/.pioreactor/
-7. Where is it in the UI?
-  - calibration modal
 8. Does a compensation need to be rerun if I replace the LED? If I move/reposition it? Over time?
  - replacing LED: certainly, especially if it's a different model
  - moving it? I don't think so
@@ -76,6 +69,7 @@ def simple_linear_regression(x, y):
 def od_temperature_compensation():
     import numpy as np
 
+    raise ValueError()
     action_name = "od_temperature_compensation"
     logger = create_logger(action_name)
     unit = get_unit_name()
