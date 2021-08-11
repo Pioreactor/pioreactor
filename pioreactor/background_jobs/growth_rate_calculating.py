@@ -35,7 +35,7 @@ from datetime import datetime
 import click
 
 from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
-from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.pubsub import subscribe, QOS
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
@@ -186,8 +186,8 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.info("Completed OD normalization metrics.")
             initial_growth_rate = 0
         else:
-            od_normalization_factors = self.get_od_normalization_from_broker()
-            od_variances = self.get_od_variances_from_broker()
+            od_normalization_factors = self.get_od_normalization_from_cache()
+            od_variances = self.get_od_variances_from_cache()
             initial_growth_rate = self.get_growth_rate_from_broker()
 
         od_blank = self.get_od_blank_from_broker()
@@ -205,13 +205,11 @@ class GrowthRateCalculator(BackgroundJob):
         return initial_growth_rate, od_normalization_factors, od_variances, od_blank
 
     def get_od_blank_from_broker(self):
-        message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_blank/mean",
-            timeout=2,
-            qos=QOS.EXACTLY_ONCE,
-        )
-        if message:
-            return json.loads(message.payload)
+        with local_persistant_storage("od_blank") as cache:
+            result = cache.get(self.experiment, None)
+
+        if result:
+            return json.loads(result)
         else:
             return defaultdict(lambda: 0)
 
@@ -226,17 +224,15 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             return 0
 
-    def get_od_normalization_from_broker(self):
+    def get_od_normalization_from_cache(self):
         # we check if the broker has variance/mean stats
-        message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_normalization/mean",
-            timeout=2,
-            qos=QOS.EXACTLY_ONCE,
-        )
-        if message:
-            return json.loads(message.payload)
+        with local_persistant_storage("od_normalization_mean") as cache:
+            result = cache.get(self.experiment, None)
+
+        if result:
+            return json.loads(result)
         else:
-            self.logger.debug("od_normalization/mean not found in broker.")
+            self.logger.debug("od_normalization/mean not found in cache.")
             self.logger.info(
                 "Calculating OD normalization metrics. This may take a few minutes"
             )
@@ -244,17 +240,15 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.info("Finished calculating OD normalization metrics.")
             return means
 
-    def get_od_variances_from_broker(self):
+    def get_od_variances_from_cache(self):
         # we check if the broker has variance/mean stats
-        message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_normalization/variance",
-            timeout=2,
-            qos=QOS.EXACTLY_ONCE,
-        )
-        if message:
-            return json.loads(message.payload)
+        with local_persistant_storage("od_normalization_variance") as cache:
+            result = cache.get(self.experiment, None)
+
+        if result:
+            return json.loads(result)
         else:
-            self.logger.debug("od_normalization/variance not found in broker.")
+            self.logger.debug("od_normalization/variance not found in cache.")
             self.logger.info(
                 "Calculating OD normalization metrics. This may take a few minutes"
             )

@@ -24,7 +24,11 @@ from collections import defaultdict
 import click
 
 from pioreactor.config import config
-from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
+from pioreactor.utils import (
+    is_pio_job_running,
+    publish_ready_to_disconnected_state,
+    local_persistant_storage,
+)
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
@@ -78,18 +82,12 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
                 means[sensor] = mean(reading_series)
 
-            pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/variance",
-                json.dumps(variances),
-                qos=pubsub.QOS.AT_LEAST_ONCE,
-                retain=True,
-            )
-            pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/mean",
-                json.dumps(means),
-                qos=pubsub.QOS.AT_LEAST_ONCE,
-                retain=True,
-            )
+            with local_persistant_storage("od_normalization_mean") as cache:
+                cache[experiment] = json.dumps(means)
+
+            with local_persistant_storage("od_normalization_variance") as cache:
+                cache[experiment] = json.dumps(variances)
+
             logger.debug(f"measured mean: {means}")
             logger.debug(f"measured variances: {variances}")
             logger.debug("OD normalization finished.")

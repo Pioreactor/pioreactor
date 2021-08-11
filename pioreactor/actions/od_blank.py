@@ -4,7 +4,11 @@ import json
 import click
 
 from pioreactor.config import config
-from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
+from pioreactor.utils import (
+    is_pio_job_running,
+    publish_ready_to_disconnected_state,
+    local_persistant_storage,
+)
 from pioreactor.whoami import (
     get_unit_name,
     get_latest_testing_experiment_name,
@@ -74,12 +78,8 @@ def od_blank(od_angle_channels, N_samples=15):
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
             means[sensor] = mean(reading_series)
 
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/{action_name}/mean",
-            json.dumps(means),
-            qos=pubsub.QOS.AT_LEAST_ONCE,
-            retain=True,
-        )
+        with local_persistant_storage("od_blank") as cache:
+            cache[experiment] = json.dumps(means)
 
         if config.getboolean(
             "data_sharing_with_pioreactor",

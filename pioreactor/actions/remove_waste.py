@@ -14,6 +14,7 @@ from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils import local_persistant_storage
 
 
 def remove_waste(
@@ -31,34 +32,31 @@ def remove_waste(
     assert not ((ml is not None) and (duration is not None)), "Only input ml or duration"
 
     try:
-        config["pump_calibration"]["waste_ml_calibration"]
+        with local_persistant_storage("pump_calibration") as cache:
+            calibration = loads(cache["waste_ml_calibration"])
     except KeyError:
-        logger.error(
-            f"Calibration not defined. Add `waste_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
-        )
-        return
+        logger.error("Calibration not defined. Run pump calibration first.")
+        return 0.0
 
     # TODO: move these into general functions that all pumps can use.
     try:
-        config.getint("PWM_reverse", "waste")
+        WASTE_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "waste")]
     except NoOptionError:
         logger.error(f"Add `waste` to `PWM` section to config_{unit}.ini.")
-        return
+        return 0.0
 
     hz = 100
     if ml is not None:
         user_submitted_ml = True
         assert ml >= 0
-        duration = pump_ml_to_duration(
-            ml, duty_cycle, **loads(config["pump_calibration"]["waste_ml_calibration"])
-        )
+        duration = pump_ml_to_duration(ml, duty_cycle, **calibration)
     elif duration is not None:
         user_submitted_ml = False
         assert duration >= 0
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
-            **loads(config["pump_calibration"]["waste_ml_calibration"]),
+            **calibration,
         )
 
     publish(
@@ -81,7 +79,6 @@ def remove_waste(
 
     try:
 
-        WASTE_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "waste")]
         pwm = PWM(WASTE_PIN, hz)
         pwm.lock()
 
@@ -94,7 +91,7 @@ def remove_waste(
     finally:
         pwm.stop()
         pwm.cleanup()
-    return
+    return ml
 
 
 @click.command(name="remove_waste")

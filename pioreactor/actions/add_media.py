@@ -13,6 +13,7 @@ from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils import local_persistant_storage
 
 
 def add_media(
@@ -33,38 +34,31 @@ def add_media(
     hz = 100
 
     try:
-        config["pump_calibration"]["media_ml_calibration"]
+        with local_persistant_storage("pump_calibration") as cache:
+            calibration = loads(cache["media_ml_calibration"])
     except KeyError:
-        logger.error(
-            f"Calibration not defined. Add `media_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
-        )
+        logger.error("Calibration not defined. Run pump calibration first.")
         return 0.0
 
     try:
-        config.getint("PWM_reverse", "media")
+        MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
     except NoOptionError:
         logger.error(f"Add `media` to `PWM` section to config_{unit}.ini.")
         return 0.0
 
     if ml is not None:
         assert ml >= 0
-        duration = pump_ml_to_duration(
-            ml, duty_cycle, **loads(config["pump_calibration"]["media_ml_calibration"])
-        )
+        duration = pump_ml_to_duration(ml, duty_cycle, **calibration)
         logger.info(f"{round(ml, 2)}mL")
     elif duration is not None:
-        ml = pump_duration_to_ml(
-            duration,
-            duty_cycle,
-            **loads(config["pump_calibration"]["media_ml_calibration"]),
-        )
+        ml = pump_duration_to_ml(duration, duty_cycle, **calibration)
         logger.info(f"{round(duration, 2)}s")
     elif continuously:
         duration = 600
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
-            **loads(config["pump_calibration"]["media_ml_calibration"]),
+            **calibration,
         )
         logger.info("Running pump continuously.")
 
@@ -82,8 +76,6 @@ def add_media(
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events", json_output, qos=QOS.EXACTLY_ONCE
     )
-
-    MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
 
     try:
 
@@ -110,7 +102,7 @@ def add_media(
         pwm.cleanup()
         if continuously:
             logger.info("Stopping pump.")
-    return
+    return ml
 
 
 @click.command(name="add_media")
