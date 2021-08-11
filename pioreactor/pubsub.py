@@ -6,6 +6,7 @@ from pioreactor.config import leader_hostname
 
 
 class QOS:
+    # this could be Enum in the future
     AT_MOST_ONCE = 0
     AT_LEAST_ONCE = 1
     EXACTLY_ONCE = 2
