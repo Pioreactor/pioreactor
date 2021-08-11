@@ -7,12 +7,12 @@ from pioreactor.pubsub import publish, QOS
 @contextmanager
 def publish_ready_to_disconnected_state(unit, experiment, name):
     """
-    Wrap a block of code to have "state" in MQTT. See od_normalization, system_check.
+    Wrap a block of code to have "state" in MQTT. See od_normalization, self_test.
 
     Example
     ----------
 
-    > with publish_ready_to_disconnected_state(unit, experiment, "system_check"): # publishes "ready" to mqtt
+    > with publish_ready_to_disconnected_state(unit, experiment, "self_test"): # publishes "ready" to mqtt
     >    do_work()
     >
     > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
@@ -71,13 +71,18 @@ def local_persistant_storage(cache_name):
 
     Examples
     ---------
-    > with local_persistant_storage('pwm') as cache:
+    > with local_persistant_storage('od_blank') as cache:
     >     assert '1' in cache
     >     cache['1'] = 0.5
 
     """
+    from pioreactor.whoami import is_testing_env
+
     try:
-        cache = ndbm.open(f"/.pioreactor/local_storage/{cache_name}", "c")
+        if is_testing_env():
+            cache = ndbm.open(f".pioreactor/local_storage/{cache_name}", "c")
+        else:
+            cache = ndbm.open(f"/home/pi/.pioreactor/local_storage/{cache_name}", "c")
         yield cache
     finally:
         cache.close()

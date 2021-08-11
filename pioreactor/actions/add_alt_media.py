@@ -12,6 +12,7 @@ from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils import local_persistant_storage
 
 
 def add_alt_media(
@@ -30,15 +31,14 @@ def add_alt_media(
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     try:
-        config["pump_calibration"]["alt_media_ml_calibration"]
+        with local_persistant_storage("pump_calibration") as cache:
+            calibration = loads(cache["alt_media_ml_calibration"])
     except KeyError:
-        logger.error(
-            f"Calibration not defined. Add `alt_media_ml_calibration` to `pump_calibration` section to config_{unit}.ini."
-        )
-        return
+        logger.error("Calibration not defined. Run pump calibration first.")
+        return 0.0
 
     try:
-        config.getint("PWM_reverse", "alt_media")
+        ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "alt_media")]
     except NoOptionError:
         logger.error(f"Add `alt_media` to `PWM` section to config_{unit}.ini.")
         return
@@ -50,14 +50,14 @@ def add_alt_media(
         duration = pump_ml_to_duration(
             ml,
             duty_cycle,
-            **loads(config["pump_calibration"]["alt_media_ml_calibration"]),
+            **calibration,
         )
     elif duration is not None:
         user_submitted_ml = False
         ml = pump_duration_to_ml(
             duration,
             duty_cycle,
-            **loads(config["pump_calibration"]["alt_media_ml_calibration"]),
+            **calibration,
         )
     assert duration >= 0
 
@@ -80,8 +80,6 @@ def add_alt_media(
         logger.info(f"add alt media: {round(duration,2)}s")
 
     try:
-        ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "alt_media")]
-
         pwm = PWM(ALT_MEDIA_PIN, hz)
         pwm.lock()
 
@@ -95,7 +93,7 @@ def add_alt_media(
     finally:
         pwm.stop()
         pwm.cleanup()
-    return
+    return ml
 
 
 @click.command(name="add_alt_media")
