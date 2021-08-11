@@ -78,15 +78,23 @@ def od_blank(od_angle_channels, N_samples=15):
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
             means[sensor] = mean(reading_series)
 
-        with local_persistant_storage("od_blank") as cache:
+        # store locally as the source of truth.
+        with local_persistant_storage(action_name) as cache:
             cache[experiment] = json.dumps(means)
+
+        # publish to UI - this may disappear in the future
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/{action_name}/mean",
+            json.dumps(means),
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
 
         if config.getboolean(
             "data_sharing_with_pioreactor",
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            # TODO: build this service!tpub
             pubsub.publish_to_pioreactor_com(
                 f"pioreactor/{unit}/{experiment}/{action_name}/mean", json.dumps(means)
             )
