@@ -153,14 +153,12 @@ def od_temperature_compensation():
             duty_cycle += 4
             tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
-        # save lookup - where?
         logger.debug(temp_od_lookup)
-        with open("/home/pi/.pioreactor/od_temperature_compensation.json", "w") as f:
-            json.dump(temp_od_lookup, f, indent="")
 
         temps = np.array(temp_od_lookup.keys())
         log_ods = np.log(np.array(temp_od_lookup.values()))
         (temp_coef, std_error_temp_coef), _ = simple_linear_regression(x=temps, y=log_ods)
+        logger.debug(f"temp_coef={temp_coef}, std_error_temp_coef={std_error_temp_coef}")
 
         with local_persistant_storage("od_temperature_compensation") as cache:
             cache["log_linear"] = json.dumps(
