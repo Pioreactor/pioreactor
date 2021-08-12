@@ -149,7 +149,7 @@ def od_temperature_compensation():
         logger.debug(temp_od_lookup)
 
         temps = np.array(temp_od_lookup.keys())
-        log_ods = np.log(np.array(temp_od_lookup.values()))
+        log_ods = np.log(list(temp_od_lookup.values()))
         (temp_coef, std_error_temp_coef), _ = simple_linear_regression(x=temps, y=log_ods)
         logger.debug(f"temp_coef={temp_coef}, std_error_temp_coef={std_error_temp_coef}")
 
