@@ -34,7 +34,7 @@ from collections import defaultdict
 from datetime import datetime
 import click
 
-from pioreactor.utils.streaming_calculations import ExtendedKalmanFilter
+from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.pubsub import subscribe, QOS
 
@@ -62,6 +62,7 @@ class GrowthRateCalculator(BackgroundJob):
             60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self.initial_acc = 0
+        self.initial_od = 1.0
 
         (
             self.initial_growth_rate,
@@ -106,16 +107,14 @@ class GrowthRateCalculator(BackgroundJob):
 
         initial_state = np.array(
             [
-                *channels_and_initial_points.values(),
+                self.initial_od,
                 self.initial_growth_rate,
                 self.initial_acc,
             ]
         )
 
-        d = initial_state.shape[0]
-
         # empirically selected - TODO: this should probably scale with `expected_dt`
-        initial_covariance = 1e-7 * np.diag([1.0] * (d - 2) + [1.0, 5.0])
+        initial_covariance = 1e-7 * np.diag([1.0, 1.0, 5.0])
         self.logger.debug(f"Initial covariance matrix: {str(initial_covariance)}")
 
         acc_std = config.getfloat("growth_rate_kalman", "acc_std")
@@ -125,10 +124,10 @@ class GrowthRateCalculator(BackgroundJob):
         rate_std = config.getfloat("growth_rate_kalman", "rate_std")
         rate_process_variance = (rate_std * self.expected_dt) ** 2
 
-        process_noise_covariance = np.zeros((d, d))
-        process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = od_process_variance
-        process_noise_covariance[-2, -2] = rate_process_variance
-        process_noise_covariance[-1, -1] = acc_process_variance
+        process_noise_covariance = np.zeros((3, 3))
+        process_noise_covariance[0, 0] = od_process_variance
+        process_noise_covariance[1, 1] = rate_process_variance
+        process_noise_covariance[2, 2] = acc_process_variance
 
         observation_noise_covariance = self.create_obs_noise_covariance(
             channels_and_initial_points
@@ -138,7 +137,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         return (
-            ExtendedKalmanFilter(
+            CultureGrowthEKF(
                 initial_state,
                 initial_covariance,
                 process_noise_covariance,
@@ -173,9 +172,10 @@ class GrowthRateCalculator(BackgroundJob):
 
     def get_precomputed_values(self):
         if self.ignore_cache:
-            assert is_pio_job_running(
-                "od_reading"
-            ), "OD reading should be running. Stopping."
+            if not is_pio_job_running("od_reading"):
+                self.logger.error("OD reading should be running. Stopping.")
+                raise ValueError("OD reading should be running. Stopping.")
+
             # the below will populate od_norm and od_variance too
             self.logger.info(
                 "Computing OD normalization metrics. This may take a few minutes"
@@ -323,13 +323,13 @@ class GrowthRateCalculator(BackgroundJob):
             self.ekf.update(list(scaled_observations.values()), dt)
         except Exception as e:
             self.logger.debug(e, exc_info=True)
-            self.logger.error(f"failed with {str(e)}")
+            self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
             raise e
         else:
             # TODO: EKF values can be nans...
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
-                {"growth_rate": self.state_[-2], "timestamp": payload["timestamp"]},
+                {"growth_rate": self.state_[1], "timestamp": payload["timestamp"]},
                 retain=True,
             )
 
@@ -342,17 +342,13 @@ class GrowthRateCalculator(BackgroundJob):
                 },
             )
 
-            for i, (channel, angle) in enumerate(self.channels_and_angles.items()):
-                self.publish(
-                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_filtered/{channel}",
-                    {
-                        "od_filtered": self.state_[i],
-                        "timestamp": payload["timestamp"],
-                        "angle": angle,
-                    },
-                )
-
-            return
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_filtered",
+                {
+                    "od_filtered": self.state_[0],
+                    "timestamp": payload["timestamp"],
+                },
+            )
 
     def response_to_dosing_event(self, message):
         # here we can add custom logic to handle dosing events.

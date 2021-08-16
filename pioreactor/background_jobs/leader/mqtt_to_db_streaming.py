@@ -147,8 +147,6 @@ def mqtt_to_db_streaming():
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": payload["timestamp"],
             "normalized_od_reading": payload["od_filtered"],
-            "angle": payload["angle"],
-            "channel": split_topic[-1],
         }
 
     def parse_dosing_events(topic, payload):

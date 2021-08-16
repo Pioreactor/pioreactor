@@ -48,7 +48,6 @@ class LEDAutomation(BackgroundSubJob):
     def __init__(
         self,
         duration=None,
-        od_channel="+",
         skip_first_run=False,
         unit=None,
         experiment=None,
@@ -61,7 +60,6 @@ class LEDAutomation(BackgroundSubJob):
         self.edited_channels = set([])
         self.latest_event = None
 
-        self.od_channel = od_channel
         self.skip_first_run = skip_first_run  # TODO: needed?
 
         self.set_duration(duration)
@@ -207,12 +205,6 @@ class LEDAutomation(BackgroundSubJob):
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
-        if self.od_channel == "+":
-            split_topic = message.topic.split("/")
-            self.od_channel = split_topic[-1]
-
-        if not message.topic.endswith(self.od_channel):
-            return
 
         self.previous_od = self.latest_od
         self.latest_od = float(json.loads(message.payload)["od_filtered"])
@@ -255,7 +247,7 @@ class LEDAutomation(BackgroundSubJob):
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self._set_OD,
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered/{self.od_channel}",
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
         )
         self.subscribe_and_callback(
             self._set_growth_rate,

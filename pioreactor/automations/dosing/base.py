@@ -58,7 +58,6 @@ class DosingAutomation(BackgroundSubJob):
         unit=None,
         experiment=None,
         duration=None,
-        od_channel="+",  # take first observed, and keep using only that.
         skip_first_run=False,
         **kwargs,
     ):
@@ -66,7 +65,6 @@ class DosingAutomation(BackgroundSubJob):
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
         self.logger.info(f"Starting {self.__class__.__name__}")
-        self.od_channel = od_channel
         self.skip_first_run = skip_first_run
 
         self.set_duration(duration)
@@ -288,13 +286,6 @@ class DosingAutomation(BackgroundSubJob):
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
-        if self.od_channel == "+":
-            split_topic = message.topic.split("/")
-            self.od_channel = split_topic[-1]
-
-        if not message.topic.endswith(self.od_channel):
-            return
-
         self.previous_od = self.latest_od
         self.latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_timestamp = time.time()
@@ -336,7 +327,7 @@ class DosingAutomation(BackgroundSubJob):
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self._set_OD,
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered/{self.od_channel}",
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
         )
         self.subscribe_and_callback(
             self._set_growth_rate,
