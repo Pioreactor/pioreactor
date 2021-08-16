@@ -74,6 +74,7 @@ def od_temperature_compensation():
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
     testing_experiment = get_latest_testing_experiment_name()
+    temps, ods = [], []
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
@@ -88,8 +89,6 @@ def od_temperature_compensation():
                 "Make sure OD Reading, Temperature Control, and Stirring are off before running OD temperature compensation. Exiting."
             )
             return
-
-        temp_od_lookup = {}
 
         # start stirring
         st = Stirrer(
@@ -130,14 +129,14 @@ def od_temperature_compensation():
 
                 temp = json.loads(message.payload)["temperature"]
 
-                temp_od_lookup[temp] = od_reader.latest_reading[0]
+                temps.append(temp)
+                ods.append(od_reader.latest_reading[0])
 
         # I want to listen for new temperatures coming in, and when I observe one, take od reading
         subscribe_and_callback(
             record_od,
             f"pioreactor/{unit}/{testing_experiment}/temperature_control/temperature",
         )
-
         for i in range(10):
             # sleep for a while?
             time.sleep(60 * 13)
@@ -146,10 +145,7 @@ def od_temperature_compensation():
             duty_cycle += 4
             tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
-        logger.debug(temp_od_lookup)
-
-        temps = np.array(temp_od_lookup.keys())
-        log_ods = np.log(list(temp_od_lookup.values()))
+        log_ods = np.log(ods)
         (temp_coef, std_error_temp_coef), _ = simple_linear_regression(x=temps, y=log_ods)
         logger.debug(f"temp_coef={temp_coef}, std_error_temp_coef={std_error_temp_coef}")
 
@@ -163,7 +159,7 @@ def od_temperature_compensation():
         ):
             publish_to_pioreactor_com(
                 "pioreactor/od_temperature_compensation",
-                json.dumps(temp_od_lookup),
+                json.dumps(dict(zip(temps, ods))),
             )
 
         logger.info("Finished OD temperature compensation.")
@@ -172,6 +168,6 @@ def od_temperature_compensation():
 @click.command(name="od_temperature_compensation")
 def click_od_temperature_compensation():
     """
-    Check the IO in the Pioreactor
+    Generate a OD vs. Temperature compensation value.
     """
     od_temperature_compensation()

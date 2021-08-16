@@ -28,11 +28,13 @@ def create_client(hostname=leader_hostname, last_will=None, client_id=None, keep
     if last_will is not None:
         client.will_set(**last_will)
 
-    while True:
+    retries = 0
+    while retries < 3:
         try:
             client.connect(hostname, keepalive=keepalive)
-        except socket.gaierror:
-            time.sleep(5)
+        except (socket.gaierror, OSError):
+            retries += 1
+            time.sleep(retries * 5)
         else:
             client.loop_start()
             return client

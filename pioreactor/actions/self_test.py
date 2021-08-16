@@ -83,18 +83,18 @@ def check_leds_and_pds(unit, experiment, logger):
     INTENSITIES = list(range(0, 48, 9))
     current_experiment_name = get_latest_experiment_name()
     results = {}
-    adc_reader = ADCReader(
-        channels=[0, 1, 2, 3],
-        unit=unit,
-        experiment=experiment,
-        dynamic_gain=False,
-        initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
-        fake_data=is_testing_env(),
-    )
-    adc_reader.setup_adc()
-
-    # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     try:
+        adc_reader = ADCReader(
+            channels=[0, 1, 2, 3],
+            unit=unit,
+            experiment=experiment,
+            dynamic_gain=False,
+            initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
+            fake_data=is_testing_env(),
+        )
+        adc_reader.setup_adc()
+
+        # set all to 0, but use original experiment name, since we indeed are setting them to 0.
         for channel in CHANNELS:
             assert led_intensity(
                 channel,
@@ -104,7 +104,7 @@ def check_leds_and_pds(unit, experiment, logger):
                 experiment=current_experiment_name,
                 verbose=False,
             )
-    except AssertionError:
+    except (AssertionError, OSError):
         publish(
             f"pioreactor/{unit}/{experiment}/self_test/pioreactor_hat_present",
             0,

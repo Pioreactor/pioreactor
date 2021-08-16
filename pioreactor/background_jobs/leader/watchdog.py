@@ -40,14 +40,14 @@ class WatchDog(BackgroundJob):
             if current_state == self.LOST:
                 # failed, let's confirm to user
                 self.logger.error(
-                    f"{unit} was lost. We will continue checking for re-connection however."
+                    f"{unit} was lost. We will continue checking for re-connection."
                 )
             else:
                 self.logger.info(f"Update: {unit} is connected. All is well.")
 
             # continue to pull the latest state to see if anything has changed.
             while True:
-                time.sleep(60)
+                time.sleep(5 * 60)
                 current_state = subscribe(
                     f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
                 ).payload.decode()
