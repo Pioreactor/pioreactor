@@ -126,6 +126,7 @@ class CultureGrowthEKF:
 
         initial_state = np.asarray(initial_state)
 
+        assert initial_state.shape[0] == 3
         assert (
             initial_state.shape[0]
             == initial_covariance.shape[0]
@@ -141,16 +142,12 @@ class CultureGrowthEKF:
         self.state_ = initial_state
         self.covariance_ = initial_covariance
         self.n_sensors = observation_noise_covariance.shape[0]
-        self.dim = initial_state.shape[0]
+        self.n_states = initial_state.shape[0]
 
         self._currently_scaling_covariance = False
         self._currently_scaling_process_covariance = False
         self._scale_covariance_timer = None
         self._covariance_pre_scale = None
-
-        self._original_process_noise_variance = np.diag(self.process_noise_covariance)[
-            : (self.dim - 2)
-        ].copy()
 
     def predict(self, dt):
         return (
@@ -162,14 +159,11 @@ class CultureGrowthEKF:
         import numpy as np
 
         observation = np.asarray(observation)
-        assert observation.shape[0] == self.n_sensors
+        assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
 
         state_prediction, covariance_prediction = self.predict(dt)
         residual_state = observation - state_prediction[:-2]
         H = self._jacobian_observation()
-        print(
-            H.shape, covariance_prediction.shape, self.observation_noise_covariance.shape
-        )
         residual_covariance = (
             # see Scaling note above for why we multiple by state_[0]
             H @ covariance_prediction @ H.T
@@ -180,7 +174,9 @@ class CultureGrowthEKF:
             residual_covariance.T, (H @ covariance_prediction.T)
         ).T
         self.state_ = state_prediction + kalman_gain_ @ residual_state
-        self.covariance_ = (np.eye(self.dim) - kalman_gain_ @ H) @ covariance_prediction
+        self.covariance_ = (
+            np.eye(self.n_states) - kalman_gain_ @ H
+        ) @ covariance_prediction
         return
 
     def scale_OD_variance_for_next_n_seconds(self, factor, seconds):
@@ -190,10 +186,10 @@ class CultureGrowthEKF:
         if we invoke this function again (i.e. a new dosing event). The if the Timer successfully
         executes its function, then we restore state (add back the covariance matrix.)
 
+        TODO: this should be decoupled from the EKF class.
+
         """
         import numpy as np
-
-        d = self.dim
 
         def reverse_scale_covariance():
             self._currently_scaling_covariance = False
@@ -206,22 +202,20 @@ class CultureGrowthEKF:
 
             self._currently_scaling_covariance = True
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
-            self.covariance_[np.arange(d - 2), np.arange(d - 2)] *= factor
+            self.covariance_[0] *= factor
 
         def forward_scale_process_covariance():
             if not self._currently_scaling_process_covariance:
-                self._dummy = self.process_noise_covariance[-1, -1]
+                self._dummy = self.process_noise_covariance[2, 2]
 
             self._currently_scaling_process_covariance = True
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = (
-                1e-7 * self.state_[:-2]
-            )
-            self.process_noise_covariance[-1, -1] = 0
+            self.process_noise_covariance[0, 0] = 1e-7 * self.state_[0]
+            self.process_noise_covariance[2, 2] = 0
 
         def reverse_scale_process_covariance():
             self._currently_scaling_process_covariance = False
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
-            self.process_noise_covariance[-1, -1] = self._dummy
+            self.process_noise_covariance[0, 0] = 0
+            self.process_noise_covariance[2, 2] = self._dummy
 
         if self._currently_scaling_covariance:
             self._scale_covariance_timer.cancel()
