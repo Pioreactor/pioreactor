@@ -253,7 +253,7 @@ class TemperatureController(BackgroundJob):
         self.clear_mqtt_cache()
 
     def setup_pwm(self):
-        hertz = 25000
+        hertz = 1  # previously: 25000k is above human hearing (20 - 20k hz), however, this requires a hardware PWM. Can I instead do 5 hz?
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(0)
