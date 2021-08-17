@@ -64,10 +64,10 @@ class GrowthRateCalculator(BackgroundJob):
             60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
         )
         self.initial_acc = 0
-        self.initial_od = 1.0
 
         (
             self.initial_growth_rate,
+            self.initial_od,
             self.od_normalization_factors,
             self.od_variances,
             self.od_blank,
@@ -182,6 +182,7 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization_factors = self.get_od_normalization_from_cache()
             od_variances = self.get_od_variances_from_cache()
             initial_growth_rate = self.get_growth_rate_from_broker()
+            initial_od = self.get_od_from_broker()
 
         od_blank = self.get_od_blank_from_broker()
 
@@ -195,7 +196,13 @@ class GrowthRateCalculator(BackgroundJob):
                 )
                 od_blank[channel] = od_normalization_factors[channel] * 0.95
 
-        return initial_growth_rate, od_normalization_factors, od_variances, od_blank
+        return (
+            initial_growth_rate,
+            initial_od,
+            od_normalization_factors,
+            od_variances,
+            od_blank,
+        )
 
     def get_od_blank_from_broker(self):
         with local_persistant_storage("od_blank") as cache:
@@ -216,6 +223,17 @@ class GrowthRateCalculator(BackgroundJob):
             return float(json.loads(message.payload)["growth_rate"])
         else:
             return 0
+
+    def get_od_from_broker(self):
+        message = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
+            timeout=2,
+            qos=QOS.EXACTLY_ONCE,
+        )
+        if message:
+            return float(json.loads(message.payload)["od_filtered"])
+        else:
+            return 1.0
 
     def get_od_normalization_from_cache(self):
         # we check if the broker has variance/mean stats
@@ -341,6 +359,7 @@ class GrowthRateCalculator(BackgroundJob):
                     "od_filtered": self.state_[0],
                     "timestamp": payload["timestamp"],
                 },
+                retain=True,
             )
 
     def response_to_dosing_event(self, message):
