@@ -29,6 +29,7 @@ class CultureGrowthEKF:
 
     m_{1,t} = g1(OD_{t-1}) + noise   # noise here includes temperature changes, EM noise,
     m_{2,t} = g2(OD_{t-1}) + noise
+
     OD_t = OD_{t-1} * exp(r_{t-1} * Δt) + noise
     r_t = r_{t-1} + a_{t-1} * Δt + noise
     a_t = a_{t-1} + noise
@@ -40,8 +41,8 @@ class CultureGrowthEKF:
 
     Let X = [OD, r, a]
 
-    f([OD, r, a]) = [OD * exp(r Δt), r + a Δt, a]
-    h([OD, r, a]) = [OD, OD]  # recall this is a function of the number of sensors
+    f([OD, r, a], Δt) = [OD * exp(r Δt), r + a Δt, a]
+    h([OD, r, a], Δt) = [OD, OD]   # recall: this is a function of the number of sensors
 
     jac(f) = [
         [exp(r Δt),  OD * exp(r Δt) * Δt,  0],

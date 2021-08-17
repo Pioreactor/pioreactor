@@ -366,11 +366,11 @@ class TestGrowthRateCalculating:
         )
         pause()
 
-        time.sleep(55)
+        time.sleep(8)
         assert calc.ekf._currently_scaling_covariance
         assert not np.array_equal(previous_covariance_matrix, calc.ekf.covariance_)
 
-        time.sleep(5)
+        time.sleep(10)
         pause()
         # should revert back
         assert not calc.ekf._currently_scaling_covariance
