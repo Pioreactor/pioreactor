@@ -285,7 +285,7 @@ def mqtt_to_db_streaming():
 
     topics_to_tables = [
         TopicToParserToTable(
-            "pioreactor/+/+/growth_rate_calculating/od_filtered/+",
+            "pioreactor/+/+/growth_rate_calculating/od_filtered",
             parse_od_filtered,
             "od_readings_filtered",
         ),

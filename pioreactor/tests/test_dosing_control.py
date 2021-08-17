@@ -31,7 +31,7 @@ def test_silent_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.0}',
     )
     pause()
@@ -42,7 +42,7 @@ def test_silent_automation():
         '{"growth_rate": 0.02}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.1}',
     )
     pause()
@@ -60,7 +60,7 @@ def test_turbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.98}',
     )
     pause()
@@ -71,7 +71,7 @@ def test_turbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.0}',
     )
     pause()
@@ -82,7 +82,7 @@ def test_turbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.01}',
     )
     pause()
@@ -93,7 +93,7 @@ def test_turbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.99}',
     )
     pause()
@@ -112,7 +112,7 @@ def test_pid_turbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 2.6}',
     )
     pause()
@@ -125,7 +125,7 @@ def test_pid_turbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 2.8}',
     )
     pause()
@@ -145,7 +145,7 @@ def test_morbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     pause()
@@ -156,7 +156,7 @@ def test_morbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.99}',
     )
     pause()
@@ -167,7 +167,7 @@ def test_morbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.05}',
     )
     pause()
@@ -178,7 +178,7 @@ def test_morbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.03}',
     )
     pause()
@@ -189,7 +189,7 @@ def test_morbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.04}',
     )
     pause()
@@ -200,7 +200,7 @@ def test_morbidostat_automation():
         '{"growth_rate": 0.01}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.99}',
     )
     pause()
@@ -222,7 +222,7 @@ def test_pid_morbidostat_automation():
         '{"growth_rate": 0.08}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.5}',
     )
     pause()
@@ -232,7 +232,7 @@ def test_pid_morbidostat_automation():
         '{"growth_rate": 0.08}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     pause()
@@ -242,7 +242,7 @@ def test_pid_morbidostat_automation():
         '{"growth_rate": 0.07}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     pause()
@@ -252,7 +252,7 @@ def test_pid_morbidostat_automation():
         '{"growth_rate": 0.065}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     pause()
@@ -299,7 +299,7 @@ def test_changing_turbidostat_params_over_mqtt():
         '{"growth_rate": 0.05}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.0}',
     )
     pause()
@@ -313,7 +313,7 @@ def test_changing_turbidostat_params_over_mqtt():
         '{"growth_rate": 0.05}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.0}',
     )
     algo.run()
@@ -433,7 +433,7 @@ def test_throughput_calculator():
         '{"growth_rate": 0.08}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.0}',
     )
     pause()
@@ -444,7 +444,7 @@ def test_throughput_calculator():
         '{"growth_rate": 0.08}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     pause()
@@ -457,7 +457,7 @@ def test_throughput_calculator():
         '{"growth_rate": 0.07}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     pause()
@@ -470,7 +470,7 @@ def test_throughput_calculator():
         '{"growth_rate": 0.065}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     pause()
@@ -660,7 +660,7 @@ def test_duration_and_timer():
         '{"growth_rate": 0.08}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.5}',
     )
     time.sleep(10)
@@ -672,7 +672,7 @@ def test_duration_and_timer():
         '{"growth_rate": 0.08}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.95}',
     )
     time.sleep(10)
@@ -694,7 +694,7 @@ def test_changing_duration_over_mqtt():
         '{"growth_rate": 0.08}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 0.5}',
     )
     time.sleep(10)
@@ -795,7 +795,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
         '{"growth_rate": 1.0}',
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/0",
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.0}',
     )
     pause()
@@ -890,7 +890,7 @@ def test_what_happens_when_no_od_data_is_coming_in():
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", None
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", None
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered", None
     )
 
     algo = Turbidostat(

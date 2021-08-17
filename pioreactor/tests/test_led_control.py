@@ -25,7 +25,7 @@ def test_silent():
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", "0.01"
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", "1.0"
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered", "1.0"
     )
     pause()
     r = pubsub.subscribe(
@@ -43,7 +43,7 @@ def test_track_od():
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", "0.01"
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", "1.0"
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered", "1.0"
     )
     pause()
     pause()
@@ -54,7 +54,7 @@ def test_track_od():
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", "0.01"
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered/135/0", "2.0"
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered", "2.0"
     )
     pause()
     con.led_automation_job.run()
