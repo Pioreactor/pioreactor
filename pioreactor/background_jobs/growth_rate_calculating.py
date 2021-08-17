@@ -2,7 +2,7 @@
 """
 This job will combine the multiple PD sensors from od_reading and transforms them into
     i) a single growth rate,
-    ii) "normalized" OD densities (relative to their starting value),
+    ii) "normalized" OD density,
     iii) other Kalman Filter outputs.
 
 
@@ -13,19 +13,21 @@ Topics published are:
 
 with example payload
 
-    {"growth_rate": 1.0, "timestamp": "2012-01-10T12:23:34.012313"},
+    {
+        "growth_rate": 1.0,
+        "timestamp": "2012-01-10T12:23:34.012313"
+    },
 
 
 And topic:
 
-    pioreactor/<unit>/<experiment>/growth_rate_calculating/od_filtered/<channel>
+    pioreactor/<unit>/<experiment>/growth_rate_calculating/od_filtered
 
 with payload
 
     {
         "od_filtered": 1.434,
         "timestamp": "2012-01-10T12:23:34.012313",
-        "angle": "90",
     }
 
 """
@@ -71,21 +73,20 @@ class GrowthRateCalculator(BackgroundJob):
             self.od_blank,
         ) = self.get_precomputed_values()
 
-        self.ekf, self.channels_and_angles = self.initialize_extended_kalman_filter()
+        self.ekf = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
 
     @property
     def state_(self):
         return self.ekf.state_
 
-    def on_sleeping(self):
+    def on_sleeping_to_ready(self):
         # when the job sleeps, we expect a "big" jump in OD due to a few things:
         # 1. The delay between sleeping and resuming can causing a change in OD (as OD will keep changing)
         # 2. The user picks up the vial for inspection, places it back, but this causes an OD shift
         #    due to variation in the glass
         #
         # so to "fix" this, we will treat it like a dilution event, and modify the variances
-        # TODO: this should occur _after_ sleeping ends....
         self.update_ekf_variance_after_event(minutes=0.5, factor=5e2)
 
     def initialize_extended_kalman_filter(self):
@@ -99,11 +100,6 @@ class GrowthRateCalculator(BackgroundJob):
         channels_and_initial_points = self.scale_raw_observations(
             self.batched_raw_od_readings_to_dict(latest_ods)
         )
-
-        channels_and_angles = {
-            channel: latest_ods[channel]["angle"]
-            for channel in sorted(latest_ods, reverse=True)
-        }
 
         initial_state = np.array(
             [
@@ -136,14 +132,11 @@ class GrowthRateCalculator(BackgroundJob):
             f"Observation noise covariance matrix: {str(observation_noise_covariance)}"
         )
 
-        return (
-            CultureGrowthEKF(
-                initial_state,
-                initial_covariance,
-                process_noise_covariance,
-                observation_noise_covariance,
-            ),
-            channels_and_angles,
+        return CultureGrowthEKF(
+            initial_state,
+            initial_covariance,
+            process_noise_covariance,
+            observation_noise_covariance,
         )
 
     def create_obs_noise_covariance(self, channels_and_initial_points):
@@ -195,12 +188,12 @@ class GrowthRateCalculator(BackgroundJob):
         # what happens if od_blank is near / less than od_normalization_factors?
         # this means that the inoculant had near 0 impact on the turbidity => very dilute.
         # I think we should not use od_blank if so
-        for angle in od_normalization_factors.keys():
-            if od_normalization_factors[angle] * 0.95 < od_blank[angle]:
+        for channel in od_normalization_factors.keys():
+            if od_normalization_factors[channel] * 0.95 < od_blank[channel]:
                 self.logger.debug(
                     "Resetting od_blank because it is too close to current observations."
                 )
-                od_blank[angle] = od_normalization_factors[angle] * 0.95
+                od_blank[channel] = od_normalization_factors[channel] * 0.95
 
         return initial_growth_rate, od_normalization_factors, od_variances, od_blank
 
@@ -336,7 +329,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
                 {
-                    "state": self.ekf.state_.tolist(),
+                    "state": self.state_.tolist(),
                     "covariance_matrix": self.ekf.covariance_.tolist(),
                     "timestamp": payload["timestamp"],
                 },
