@@ -188,3 +188,35 @@ def test_state_transition_callbacks():
 
     publish(f"pioreactor/{unit}/{exp}/monitor/$state", "ready")
     assert tj.on_sleeping_to_ready
+
+
+def test_bad_key_in_published_settings():
+    class TestJob(BackgroundJob):
+
+        published_settings = {
+            "some_key": {
+                "datatype": "float",
+                "units": "%",
+                "settable": True,
+            },  # units is wrong, should be units.
+        }
+
+        def __init__(self, *args, **kwargs):
+            super(TestJob, self).__init__(*args, **kwargs)
+
+    warning_logs = []
+
+    def collect_warning_logs(msg):
+        if "WARNING" in msg.payload.decode():
+            warning_logs.append(msg)
+
+    subscribe_and_callback(
+        collect_warning_logs,
+        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/logs/app",
+    )
+
+    TestJob(job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name())
+    pause()
+    pause()
+    assert len(warning_logs) > 0
+    assert "Found extra property" in warning_logs[0].payload.decode()

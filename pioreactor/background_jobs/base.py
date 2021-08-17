@@ -241,10 +241,19 @@ class _BackgroundJob(metaclass=PostInitCaller):
     ########### private #############
 
     def check_published_settings(self):
-        valid_properies = set(["datatype", "unit", "settable"])
-        for setting, properties in self.check_published_settings.items():
-            if not valid_properies.issuperset(properties.keys()):
-                self.logger.warning(f"Found incorrect property in setting {setting}.")
+        necessary_properies = set(["datatype", "settable"])
+        optional_properties = set(["unit"])
+        all_properties = optional_properties.union(necessary_properies)
+        for setting, properties in self.published_settings.items():
+            # look for extra properties
+            if not all_properties.issuperset(properties.keys()):
+                self.logger.warning(f"Found extra property in setting {setting}.")
+
+            # look for missing properties
+            if not set(properties.keys()).issuperset(necessary_properies):
+                self.logger.error(
+                    f"Found missing necessary property in setting {setting}."
+                )
 
     def create_pub_client(self):
         # see note above as to why we split pub and sub.
