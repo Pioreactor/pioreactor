@@ -26,6 +26,8 @@ class CultureGrowthEKF:
 
     ```
     m_{1,t}, m_{2,t} are our sensor measurements (could be more, example here is for two sensors)
+    Note that we normalized the raw sensor measurements by their initial values, so initially they
+    "hover" around 1.0.
 
     m_{1,t} = g1(OD_{t-1}) + noise   # noise here includes temperature changes, EM noise,
     m_{2,t} = g2(OD_{t-1}) + noise

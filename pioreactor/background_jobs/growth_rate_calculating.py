@@ -216,7 +216,7 @@ class GrowthRateCalculator(BackgroundJob):
     def get_growth_rate_from_broker(self):
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
-            timeout=2,
+            timeout=1.5,
             qos=QOS.EXACTLY_ONCE,
         )
         if message:
@@ -227,7 +227,7 @@ class GrowthRateCalculator(BackgroundJob):
     def get_od_from_broker(self):
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
-            timeout=2,
+            timeout=1.5,
             qos=QOS.EXACTLY_ONCE,
         )
         if message:
