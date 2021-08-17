@@ -28,9 +28,7 @@ CREATE TABLE IF NOT EXISTS od_readings_filtered (
     timestamp              TEXT     NOT NULL,
     pioreactor_unit        TEXT     NOT NULL,
     normalized_od_reading  REAL     NOT NULL,
-    experiment             TEXT     NOT NULL,
-    angle                  TEXT     NOT NULL,
-    channel                INTEGER  NOT NULL
+    experiment             TEXT     NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS od_readings_filtered_ix

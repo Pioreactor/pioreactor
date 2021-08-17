@@ -17,19 +17,45 @@ class ExponentialMovingAverage:
         return self.value
 
 
-class ExtendedKalmanFilter:
+class CultureGrowthEKF:
     """
     Modified from the algorithm in
     https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0181923#pone.0181923.s007
 
-    The idea is that each sensor will evolve like:
+    The idea is that each sensor will evolve like, using notation from the wikipedia page
 
-    OD_{i, t+1} = OD_{i, t} * r_t
-    r_{t+1} = r_t
+    ```
+    m_{1,t}, m_{2,t} are our sensor measurements (could be more, example here is for two sensors)
 
-    for all i, t.
+    m_{1,t} = g1(OD_{t-1}) + noise   # noise here includes temperature changes, EM noise,
+    m_{2,t} = g2(OD_{t-1}) + noise
 
-    This model is pretty naive (different sensors will behave / saturate differently).
+    OD_t = OD_{t-1} * exp(r_{t-1} * Δt) + noise
+    r_t = r_{t-1} + a_{t-1} * Δt + noise
+    a_t = a_{t-1} + noise
+
+    # g1 and g2 are generic functions. Often they are the identity function, but if using a 180deg sensor
+    # then it would be the inverse function.
+    # they could also be functions that model saturation...
+
+
+    Let X = [OD, r, a]
+
+    f([OD, r, a], Δt) = [OD * exp(r Δt), r + a Δt, a]
+    h([OD, r, a], Δt) = [OD, OD]   # recall: this is a function of the number of sensors
+
+    jac(f) = [
+        [exp(r Δt),  OD * exp(r Δt) * Δt,  0],
+        [0,          1,                    Δt],
+        [0,          0,                    1],
+    ]
+
+    jac(h) = [
+        [1, 0, 0],
+        [1, 0, 0]
+    ]
+
+    ```
 
     Example
     ---------
@@ -47,7 +73,7 @@ class ExtendedKalmanFilter:
     Scaling
     ---------
     1. Because our OD measurements are non-stationary (we expect them to increase), the process covariance matrix needs
-    to be scaled by an appropriate amount.
+       to be scaled by an appropriate amount.
 
     2. Part of https://github.com/Pioreactor/pioreactor/issues/74
 
@@ -78,9 +104,6 @@ class ExtendedKalmanFilter:
     OD is. However, this means that changes in observed OD are due to changes in rate. What happens when there is a large jump due to noise? We can apply the same
     idea above to the observation variance, R. A 0.1 jump is not unexpected, but in the tails, => 2std = 0.1 => 1std = 0.05 => ....
 
-    Uncertainty
-    ------------
-    Because of the model, the lower bound on the rate estimate's variance is Q[-1, -1].
 
     Useful Resources
     -------------------
@@ -100,32 +123,32 @@ class ExtendedKalmanFilter:
         process_noise_covariance,
         observation_noise_covariance,
     ):
+        import numpy as np
+
+        initial_state = np.asarray(initial_state)
+
+        assert initial_state.shape[0] == 3
         assert (
             initial_state.shape[0]
             == initial_covariance.shape[0]
             == initial_covariance.shape[1]
         ), f"Shapes are not correct,{initial_state.shape[0]}, {initial_covariance.shape[0]}, {initial_covariance.shape[1]}"
         assert process_noise_covariance.shape == initial_covariance.shape
-        assert observation_noise_covariance.shape[0] == (initial_covariance.shape[0] - 2)
         assert self._is_positive_definite(process_noise_covariance)
         assert self._is_positive_definite(initial_covariance)
         assert self._is_positive_definite(observation_noise_covariance)
-        import numpy as np
 
         self.process_noise_covariance = process_noise_covariance
         self.observation_noise_covariance = observation_noise_covariance
         self.state_ = initial_state
         self.covariance_ = initial_covariance
-        self.dim = self.state_.shape[0]
+        self.n_sensors = observation_noise_covariance.shape[0]
+        self.n_states = initial_state.shape[0]
 
         self._currently_scaling_covariance = False
         self._currently_scaling_process_covariance = False
         self._scale_covariance_timer = None
         self._covariance_pre_scale = None
-
-        self._original_process_noise_variance = np.diag(self.process_noise_covariance)[
-            : (self.dim - 2)
-        ].copy()
 
     def predict(self, dt):
         return (
@@ -137,24 +160,24 @@ class ExtendedKalmanFilter:
         import numpy as np
 
         observation = np.asarray(observation)
-        assert (observation.shape[0] + 2) == self.state_.shape[0], (
-            (observation.shape[0] + 2),
-            self.state_.shape[0],
-        )
+        assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
+
         state_prediction, covariance_prediction = self.predict(dt)
         residual_state = observation - state_prediction[:-2]
         H = self._jacobian_observation()
         residual_covariance = (
-            # see Scaling note above for why we multiple by state_
+            # see Scaling note above for why we multiple by state_[0]
             H @ covariance_prediction @ H.T
-            + self.state_[:-2] ** 2 * self.observation_noise_covariance
+            + self.state_[0] * self.observation_noise_covariance
         )
 
         kalman_gain_ = np.linalg.solve(
             residual_covariance.T, (H @ covariance_prediction.T)
         ).T
         self.state_ = state_prediction + kalman_gain_ @ residual_state
-        self.covariance_ = (np.eye(self.dim) - kalman_gain_ @ H) @ covariance_prediction
+        self.covariance_ = (
+            np.eye(self.n_states) - kalman_gain_ @ H
+        ) @ covariance_prediction
         return
 
     def scale_OD_variance_for_next_n_seconds(self, factor, seconds):
@@ -164,14 +187,13 @@ class ExtendedKalmanFilter:
         if we invoke this function again (i.e. a new dosing event). The if the Timer successfully
         executes its function, then we restore state (add back the covariance matrix.)
 
+        TODO: this should be decoupled from the EKF class.
+
         """
         import numpy as np
 
-        d = self.dim
-
         def reverse_scale_covariance():
             self._currently_scaling_covariance = False
-            # we take the geometric mean
             self.covariance_ = self._covariance_pre_scale
             self._covariance_pre_scale = None
 
@@ -181,22 +203,20 @@ class ExtendedKalmanFilter:
 
             self._currently_scaling_covariance = True
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
-            self.covariance_[np.arange(d - 2), np.arange(d - 2)] *= factor
+            self.covariance_[0] *= factor
 
         def forward_scale_process_covariance():
             if not self._currently_scaling_process_covariance:
-                self._dummy = self.process_noise_covariance[-1, -1]
+                self._dummy = self.process_noise_covariance[2, 2]
 
             self._currently_scaling_process_covariance = True
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = (
-                1e-7 * self.state_[:-2]
-            )
-            self.process_noise_covariance[-1, -1] = 0
+            self.process_noise_covariance[0, 0] = 1e-7 * self.state_[0]
+            self.process_noise_covariance[2, 2] = 0
 
         def reverse_scale_process_covariance():
             self._currently_scaling_process_covariance = False
-            self.process_noise_covariance[np.arange(d - 2), np.arange(d - 2)] = 0
-            self.process_noise_covariance[-1, -1] = self._dummy
+            self.process_noise_covariance[0, 0] = 0
+            self.process_noise_covariance[2, 2] = self._dummy
 
         if self._currently_scaling_covariance:
             self._scale_covariance_timer.cancel()
@@ -219,78 +239,80 @@ class ExtendedKalmanFilter:
 
     def _predict_state(self, state, covariance, dt):
         """
-        The prediction process is
+        state = [OD, r, a]
 
-            OD_{1, t+1} = OD_{1, t} * exp(r_t ∆t)
-            OD_{2, t+1} = OD_{2, t} * exp(r_t ∆t)
-            ...
-            r_{t+1} = r_t + a_t ∆t
-            a_{t+1} = a_t
+        OD_t = OD_{t-1} * exp(r_{t-1} * Δt)
+        r_t = r_{t-1} + a_{t-1}Δt
+        a_t = a_{t-1}
 
         """
         import numpy as np
 
-        ODs = state[:-2]
-        rate = state[-2]
-        acc = state[-1]
-        return np.array([od * np.exp(rate * dt) for od in ODs] + [rate + acc * dt, acc])
+        od, rate, acc = state
+        return np.array([od * np.exp(rate * dt), rate + acc * dt, acc])
 
     def _predict_covariance(self, state, covariance, dt):
         jacobian = self._jacobian_process(state, dt)
         return jacobian @ covariance @ jacobian.T + self.process_noise_covariance
 
     def _jacobian_process(self, state, dt):
-        import numpy as np
-
         """
         The prediction process is
 
-            OD_{1, t+1} = OD_{1, t} * exp(r_t ∆t)
-            OD_{2, t+1} = OD_{2, t} * exp(r_t ∆t)
-            ...
-            r_{t+1} = r_t + a_t ∆t
-            a_{t+1} = a_t
+            state = [OD, r, a]
+
+            OD_t = OD_{t-1} * exp(r_{t-1} * Δt)
+            r_t = r_{t-1} + a_{t-1}Δt
+            a_t = a_{t-1}
 
         So jacobian should look like:
 
-             d(OD_1 * exp(r ∆t))/dOD_1   d(OD_1 * exp(r ∆t))/dOD_2 ... d(OD_1 * exp(r ∆t))/dr   d(OD_1 * exp(r ∆t))/da
-             d(OD_2 * exp(r ∆t))/dOD_1   d(OD_2 * exp(r ∆t))/dOD_2 ... d(OD_2 * exp(r ∆t))/dr   d(OD_2 * exp(r ∆t))/da
-             ...
-             d(r)/dOD_1                  d(r)/dOD_2 ...                d(r)/dr                  d(r)/da
-             d(a)/dOD_1                  d(a)/dOD_2                    d(a)/dr                  d(a)/da
+        [
+            [exp(r Δt),  OD * exp(r Δt) * Δt,  0],
+            [0,          1,                    Δt],
+            [0,          0,                    1],
+        ]
 
-
-        Which equals
-
-            exp(r ∆t)   0            ...  OD_1 ∆t exp(r ∆t)     0
-            0           exp(r ∆t)    ...  OD_2 ∆t exp(r ∆t)     0
-            ...
-            0            0                1                     ∆t
-            0            0                0                     1
 
         """
-        d = self.dim
-        J = np.zeros((d, d))
+        import numpy as np
 
-        rate = state[-2]
-        ODs = state[:-2]
-        J[np.arange(d - 2), np.arange(d - 2)] = np.exp(rate * dt)
-        J[np.arange(d - 2), -2] = ODs * np.exp(rate * dt) * dt
+        J = np.zeros((3, 3))
 
-        J[-2, -2] = 1.0
-        J[-2, -1] = dt
-        J[-1, -1] = 1.0
+        od, rate, acc = state
+        J[0, 0] = np.exp(rate * dt)
+        J[1, 1] = 1
+        J[2, 2] = 1
+
+        J[0, 1] = od * np.exp(rate * dt) * dt
+        J[1, 2] = dt
 
         return J
 
     def _jacobian_observation(self):
-        import numpy as np
+        """
+        measurement model is:
+
+        m_{1,t} = g1(OD_{t-1})
+        m_{2,t} = g2(OD_{t-1})
+        ...
+
+        gi are generic functions. Often they are the identity function, but if using a 180deg sensor
+        then it would be the inverse function. One day it could model saturation, too.
+
+        jac(h) = [
+            [1, 0, 0],
+            [1, 0, 0],
+            ...
+        ]
 
         """
-        We only observe the ODs
-        """
-        d = self.dim
-        return np.eye(d)[: (d - 2)]
+        import numpy as np
+
+        n = self.n_sensors
+        J = np.zeros((n, 3))
+        J[:, 0] = 1
+        return J
 
     @staticmethod
     def _is_positive_definite(A):
