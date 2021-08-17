@@ -90,7 +90,10 @@ from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
 from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
-from pioreactor.actions.led_intensity import led_intensity, CHANNELS as LED_CHANNELS
+from pioreactor.actions.led_intensity import (
+    led_intensity as change_led_intensity,
+    CHANNELS as LED_CHANNELS,
+)
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
@@ -222,7 +225,7 @@ class ADCReader(BackgroundSubJob):
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
             for channel in LED_CHANNELS:
-                led_intensity(
+                change_led_intensity(
                     channel,
                     intensity=0,
                     unit=self.unit,
@@ -597,7 +600,7 @@ class ODReader(BackgroundJob):
     """
 
     published_settings = {
-        "led_intensity": {"datatype": "float", "settable": True},
+        "led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "interval": {"datatype": "float", "settable": False},
     }
 
@@ -661,7 +664,7 @@ class ODReader(BackgroundJob):
         self.publish_batch(batched_readings)
 
     def start_ir_led(self):
-        r = led_intensity(
+        r = change_led_intensity(
             self.ir_channel,
             intensity=self.led_intensity,
             unit=self.unit,
@@ -676,7 +679,7 @@ class ODReader(BackgroundJob):
         return
 
     def stop_ir_led(self):
-        led_intensity(
+        change_led_intensity(
             self.ir_channel,
             intensity=0,
             unit=self.unit,

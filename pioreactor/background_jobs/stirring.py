@@ -32,7 +32,7 @@ class Stirrer(BackgroundJob):
     """
 
     published_settings = {
-        "duty_cycle": {"datatype": "float", "settable": True},
+        "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
         "dc_increase_between_adc_readings": {"datatype": "boolean", "settable": True},
     }
     _previous_duty_cycle = None

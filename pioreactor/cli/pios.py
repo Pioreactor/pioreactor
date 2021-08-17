@@ -433,7 +433,7 @@ def run(ctx, job, units, y):
 @click.pass_context
 def update_settings(ctx, job, units):
     """
-    pios update settings stirring --duty_cycle 10
+    pios update-settings stirring --duty_cycle 10
 
     """
 

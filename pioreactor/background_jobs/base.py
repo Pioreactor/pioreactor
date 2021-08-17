@@ -127,7 +127,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
     # attributes are
-    # {'datatype', 'units', 'settable'}
+    # {'datatype', 'unit', 'settable'}
     published_settings = dict()
 
     def __init__(
@@ -169,6 +169,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pubsub_clients = [self.sub_client, self.pub_client]
 
         self.set_up_exit_protocol()
+        self.check_published_settings()
         self.declare_settable_properties_to_broker()
         self.start_general_passive_listeners()
 
@@ -238,6 +239,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         pass
 
     ########### private #############
+
+    def check_published_settings(self):
+        valid_properies = set(["datatype", "unit", "settable"])
+        for setting, properties in self.check_published_settings.items():
+            if not valid_properies.issuperset(properties.keys()):
+                self.logger.warning(f"Found incorrect property in setting {setting}.")
 
     def create_pub_client(self):
         # see note above as to why we split pub and sub.
