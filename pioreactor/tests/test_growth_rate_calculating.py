@@ -248,30 +248,6 @@ class TestGrowthRateCalculating:
         pause()
         assert calc.od_normalization_factors == {"1": 0.8, "0": 0.5}
 
-    def test_mapping_between_channel_and_angles(self):
-
-        with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({"0": 0.5, "1": 0.8})
-
-        with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"0": 1e-6, "1": 1e-4})
-
-        publish(
-            f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-            create_od_raw_batched_json(
-                ["0", "1"],
-                [0.5, 0.8],
-                ["90,90", "135,45"],
-                timestamp="2010-01-01 12:00:35",
-            ),
-            retain=True,
-        )
-
-        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-
-        pause()
-        assert calc.channels_and_angles == {"0": "90,90", "1": "135,45"}
-
     def test_shock_from_dosing_works(self):
 
         with local_persistant_storage("od_normalization_mean") as cache:

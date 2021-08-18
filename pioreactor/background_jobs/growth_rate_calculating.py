@@ -92,15 +92,6 @@ class GrowthRateCalculator(BackgroundJob):
     def initialize_extended_kalman_filter(self):
         import numpy as np
 
-        latest_od_message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched"
-        )
-        latest_ods = json.loads(latest_od_message.payload)["od_raw"]
-
-        channels_and_initial_points = self.scale_raw_observations(
-            self.batched_raw_od_readings_to_dict(latest_ods)
-        )
-
         initial_state = np.array(
             [
                 self.initial_od,
@@ -111,7 +102,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         # empirically selected - TODO: this should probably scale with `expected_dt`
         initial_covariance = 1e-7 * np.diag([1.0, 1.0, 5.0])
-        self.logger.debug(f"Initial covariance matrix: {str(initial_covariance)}")
+        self.logger.debug(f"Initial covariance matrix:\n{str(initial_covariance)}")
 
         acc_std = config.getfloat("growth_rate_kalman", "acc_std")
         acc_process_variance = (acc_std * self.expected_dt) ** 2
@@ -125,11 +116,9 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[1, 1] = rate_process_variance
         process_noise_covariance[2, 2] = acc_process_variance
 
-        observation_noise_covariance = self.create_obs_noise_covariance(
-            channels_and_initial_points
-        )
+        observation_noise_covariance = self.create_obs_noise_covariance()
         self.logger.debug(
-            f"Observation noise covariance matrix: {str(observation_noise_covariance)}"
+            f"Observation noise covariance matrix:\n{str(observation_noise_covariance)}"
         )
 
         return CultureGrowthEKF(
@@ -139,22 +128,21 @@ class GrowthRateCalculator(BackgroundJob):
             observation_noise_covariance,
         )
 
-    def create_obs_noise_covariance(self, channels_and_initial_points):
-        import numpy as np
+    def create_obs_noise_covariance(self):
+        """
+        Our sensor measurements have initial variance V, but in our KF, we scale them their
+        initial mean, M. Hence the observed variance of the _normalized_ measurements is
+        var(measurement / M) = V / M^2
 
-        # our obs_variance is tuned well for std = state * 0.01,
-        # so if we _actually_ observe something like std = state * 0.03, we should scale
-        # that sensor's obs variance by 3
-        #
-        # eg: I observed 1.3e-07 in sensor A, with initial state  0.00958
-        # sqrt(1.3e-07) / 0.00958 / 0.01 = 3.76362 is our scaling factor
+        However, we offer the variable ods_std to tweak this a bit.
+
+        """
+        import numpy as np
 
         scaling_obs_variances = np.array(
             [
-                np.sqrt(self.od_variances[channel])
-                / channels_and_initial_points[channel]
-                / 0.01
-                for channel in channels_and_initial_points
+                self.od_variances[channel] / self.od_normalization_factors[channel] ** 2
+                for channel in self.od_normalization_factors
             ]
         )
 
@@ -294,6 +282,7 @@ class GrowthRateCalculator(BackgroundJob):
             )
             for channel, raw_signal in observations.items()
         }
+
         if any(v[a] < 0 for a in v):
             self.logger.warning(f"Negative normalized value(s) observed: {v}")
             self.logger.debug(
