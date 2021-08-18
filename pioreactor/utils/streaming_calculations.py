@@ -22,7 +22,7 @@ class CultureGrowthEKF:
     Modified from the algorithm in
     https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0181923#pone.0181923.s007
 
-    The idea is that each sensor will evolve like, using notation from the wikipedia page
+    The idea is that each sensor will evolve as follows, using notation from the wikipedia page
 
     ```
     m_{1,t}, m_{2,t} are our sensor measurements (could be more, example here is for two sensors)

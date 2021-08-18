@@ -62,6 +62,8 @@ def led_intensity(
     try:
         assert 0 <= intensity <= 100
         assert channel in CHANNELS, f"saw incorrect channel {channel}"
+        intensity = float(intensity)
+
         dac = DAC43608()
         dac.power_up(getattr(dac, channel))
         dac.set_intensity_to(getattr(dac, channel), intensity / 100)

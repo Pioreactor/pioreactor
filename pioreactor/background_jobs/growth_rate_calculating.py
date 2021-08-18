@@ -100,8 +100,9 @@ class GrowthRateCalculator(BackgroundJob):
             ]
         )
 
-        # empirically selected - TODO: this should probably scale with `expected_dt`
-        initial_covariance = 1e-6 * np.diag([1.0, 1.0, 1.0])
+        initial_covariance = 1e-6 * np.eye(
+            3
+        )  # empirically selected - TODO: this should probably scale with `expected_dt`
         self.logger.debug(f"Initial covariance matrix:\n{str(initial_covariance)}")
 
         acc_std = config.getfloat("growth_rate_kalman", "acc_std")
@@ -115,7 +116,6 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[0, 0] = od_process_variance
         process_noise_covariance[1, 1] = rate_process_variance
         process_noise_covariance[2, 2] = acc_process_variance
-
         self.logger.debug(
             f"Process noise covariance matrix:\n{str(process_noise_covariance)}"
         )
@@ -166,7 +166,6 @@ class GrowthRateCalculator(BackgroundJob):
                 self.logger.error("OD reading should be running. Stopping.")
                 raise ValueError("OD reading should be running. Stopping.")
 
-            # the below will populate od_norm and od_variance too
             self.logger.info(
                 "Computing OD normalization metrics. This may take a few minutes"
             )
@@ -181,7 +180,7 @@ class GrowthRateCalculator(BackgroundJob):
             initial_growth_rate = self.get_growth_rate_from_broker()
             initial_od = self.get_od_from_broker()
 
-        od_blank = self.get_od_blank_from_broker()
+        od_blank = self.get_od_blank_from_cache()
 
         # what happens if od_blank is near / less than od_normalization_factors?
         # this means that the inoculant had near 0 impact on the turbidity => very dilute.
@@ -201,7 +200,7 @@ class GrowthRateCalculator(BackgroundJob):
             od_blank,
         )
 
-    def get_od_blank_from_broker(self):
+    def get_od_blank_from_cache(self):
         with local_persistant_storage("od_blank") as cache:
             result = cache.get(self.experiment, None)
 
