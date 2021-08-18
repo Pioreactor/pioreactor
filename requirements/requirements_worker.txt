@@ -4,6 +4,6 @@ adafruit-circuitpython-ads1x15
 simple-pid
 DAC43608
 TMP1075
-rpi-hardware-pwm
+rpi-hardware-pwm==0.1.1
 
 # numpy as well, but that's installed elsewhere

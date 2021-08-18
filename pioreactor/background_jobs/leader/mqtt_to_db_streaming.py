@@ -76,7 +76,7 @@ class MqttToDBStreamer(BackgroundJob):
 
     def create_on_message_callback(self, parser, table):
         def _callback(message):
-            # TODO: filter testing experiments here
+            # TODO: filter testing experiments here?
             try:
                 new_row = parser(message.topic, message.payload)
             except Exception as e:
@@ -93,7 +93,12 @@ class MqttToDBStreamer(BackgroundJob):
             cols_placeholder = ", ".join(new_row.keys())
             values_placeholder = ", ".join([":" + c for c in new_row.keys()])
             SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
-            self.sqliteworker.execute(SQL, new_row)
+            try:
+                self.sqliteworker.execute(SQL, new_row)
+            except Exception as e:
+                self.logger.error(e)
+                self.logger.debug(f"SQL that caused error: `{SQL}`")
+                return
 
         return _callback
 
