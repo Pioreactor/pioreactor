@@ -101,7 +101,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
         # empirically selected - TODO: this should probably scale with `expected_dt`
-        initial_covariance = 1e-7 * np.diag([1.0, 1.0, 5.0])
+        initial_covariance = 1e-6 * np.diag([1.0, 1.0, 1.0])
         self.logger.debug(f"Initial covariance matrix:\n{str(initial_covariance)}")
 
         acc_std = config.getfloat("growth_rate_kalman", "acc_std")
@@ -115,6 +115,10 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[0, 0] = od_process_variance
         process_noise_covariance[1, 1] = rate_process_variance
         process_noise_covariance[2, 2] = acc_process_variance
+
+        self.logger.debug(
+            f"Process noise covariance matrix:\n{str(process_noise_covariance)}"
+        )
 
         observation_noise_covariance = self.create_obs_noise_covariance()
         self.logger.debug(
@@ -132,7 +136,11 @@ class GrowthRateCalculator(BackgroundJob):
         """
         Our sensor measurements have initial variance V, but in our KF, we scale them their
         initial mean, M. Hence the observed variance of the _normalized_ measurements is
+
         var(measurement / M) = V / M^2
+
+        (there's also a blank to consider)
+
 
         However, we offer the variable ods_std to tweak this a bit.
 
@@ -141,7 +149,8 @@ class GrowthRateCalculator(BackgroundJob):
 
         scaling_obs_variances = np.array(
             [
-                self.od_variances[channel] / self.od_normalization_factors[channel] ** 2
+                self.od_variances[channel]
+                / (self.od_normalization_factors[channel] - self.od_blank[channel]) ** 2
                 for channel in self.od_normalization_factors
             ]
         )
