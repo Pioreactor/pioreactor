@@ -32,8 +32,6 @@ def od_blank(od_angle_channels, N_samples=15):
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
-        logger.info("Starting reading of blank OD. This will take about a minute.")
-
         # running this will mess with OD Reading - best to just not let it happen.
         if (
             is_pio_job_running("od_reading")
@@ -44,6 +42,8 @@ def od_blank(od_angle_channels, N_samples=15):
                 "od_reading should not be running. Stop od_reading first. Exiting."
             )
             return
+
+        logger.info("Starting reading of blank OD. This will take about a minute.")
 
         sampling_rate = 1 / config.getfloat("od_config.od_sampling", "samples_per_second")
 

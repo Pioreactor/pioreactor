@@ -211,7 +211,12 @@ if am_I_leader():
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("new_name")
-    def add_pioreactor(new_name):
+    @click.option(
+        "--ip",
+        help="instead of looking for raspberrypi.local on the network, look for the IP address.",
+        default="",
+    )
+    def add_pioreactor(new_name, ip):
         """
         Add a new pioreactor to the cluster. new_name should be lowercase
         characters with only [a-z] and [0-9]
@@ -252,13 +257,18 @@ if am_I_leader():
         while not raspberrypi_on_network:
             checks += 1
             try:
-                socket.gethostbyname("raspberrypi")
+                if ip:
+                    socket.gethostbyaddr(ip)
+                else:
+                    socket.gethostbyname("raspberrypi")
+
             except socket.gaierror:
+                machine_name = ip if ip else "raspberrypi"
                 time.sleep(3)
-                click.echo("`raspberrypi` not found on network- checking again.")
+                click.echo(f"`{machine_name}` not found on network - checking again.")
                 if checks >= max_checks:
                     click.echo(
-                        f"`raspberrypi` not found on network after {max_checks} seconds. Check that you provided the right Wifi credentials to the network.",
+                        f"`{machine_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on.",
                         err=True,
                     )
                     sys.exit(1)
@@ -267,8 +277,8 @@ if am_I_leader():
 
         res = subprocess.call(
             [
-                "bash /home/pi/pioreactor/bash_scripts/add_new_worker_from_leader.sh %s"
-                % new_name
+                "bash /home/pi/pioreactor/bash_scripts/add_new_worker_from_leader.sh %s %s"
+                % (new_name, ip)
             ],
             shell=True,
         )

@@ -29,7 +29,10 @@ def format_with_optional_units(value, units):
     > format_with_optional_units(25.0, None) # returns "25.0"
     """
     if units is not None:
-        return f"{value} {units}"
+        if units == "%":
+            return f"{value}{units}"
+        else:
+            return f"{value} {units}"
     else:
         return f"{value}"
 

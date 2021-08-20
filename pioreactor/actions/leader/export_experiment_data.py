@@ -38,7 +38,7 @@ def generate_timestamp_to_localtimestamp_clause(cursor, table_name):
     return clause
 
 
-def export_experiment_data(experiment, output, tables):
+def export_experiment_data(experiment: str, output: str, tables: list):
     """
     Set an experiment, else it defaults to the entire table.
 
@@ -48,7 +48,9 @@ def export_experiment_data(experiment, output, tables):
     import csv
 
     logger = create_logger("export_experiment_data")
-    logger.info(f"Starting export of table(s): {', '.join(tables)}.")
+    logger.info(
+        f"Starting export of table{'s' if len(tables) > 1 else ''}: {', '.join(tables)}."
+    )
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED)
@@ -90,7 +92,7 @@ def export_experiment_data(experiment, output, tables):
     con.close()
     zf.close()
 
-    logger.info("Completed export.")
+    logger.info("Finished export.")
     return
 
 

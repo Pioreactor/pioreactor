@@ -332,7 +332,7 @@ class GrowthRateCalculator(BackgroundJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
-            raise e
+            # raise e
         else:
             # TODO: EKF values can be nans...
             self.publish(

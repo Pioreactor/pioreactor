@@ -1,22 +1,25 @@
 #!/bin/bash
-# first argument is the new hostname of the pioreactor, to replace raspberrypi
+# first argument is the new hostname of the pioreactor, to replace raspberry pi
+# (optional) second argument is the new ip of the raspberry pi machine to replace.
+
+MACHINE=${2:-"raspberrypi.local"}
 
 # remove from known_hosts if already present
 ssh-keygen -R $1.local                                                             >/dev/null 2>&1
 ssh-keygen -R $1                                                                   >/dev/null 2>&1
-ssh-keygen -R raspberrypi.local                                                    >/dev/null 2>&1
-ssh-keygen -R $(host raspberrypi.local | awk '/has address/ { print $4 ; exit }')  >/dev/null 2>&1
+ssh-keygen -R $MACHINE                                                             >/dev/null 2>&1
+ssh-keygen -R $(host $MACHINE | awk '/has address/ { print $4 ; exit }')           >/dev/null 2>&1
 ssh-keygen -R $(host $1 | awk '/has address/ { print $4 ; exit }')                 >/dev/null 2>&1
 
 
 # allow us to SSH in, but make sure we can first before continuing.
-while ! sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local "true"
-    do echo "SSH to raspberrypi.local missed - `date`"
+while ! sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no $MACHINE "true"
+    do echo "SSH to $MACHINE missed - `date`"
     sleep 3
 done
 
-sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local 'mkdir -p .ssh'
-cat ~/.ssh/id_rsa.pub | sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no raspberrypi.local 'cat >> .ssh/authorized_keys'
+sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no $MACHINE 'mkdir -p .ssh'
+cat ~/.ssh/id_rsa.pub | sshpass -p 'raspberry' ssh -o StrictHostKeyChecking=no $MACHINE 'cat >> .ssh/authorized_keys'
 
 # remove any existing config (for idempotent)
 # we do this first so the user can see it on the Pioreactors/ page
@@ -30,7 +33,7 @@ echo -e "[pump_calibration]" >> /home/pi/.pioreactor/config_$1.ini
 crudini --set ~/.pioreactor/config.ini network.inventory $1 1
 
 # install worker onto Rpi
-ssh -o StrictHostKeyChecking=no raspberrypi.local "wget -O install_pioreactor_as_worker.sh https://gist.githubusercontent.com/CamDavidsonPilon/08aa165a283fb7af7262e4cb598bf6a9/raw/install_pioreactor_as_worker.sh && bash ./install_pioreactor_as_worker.sh $1"
+ssh -o StrictHostKeyChecking=no $MACHINE "wget -O install_pioreactor_as_worker.sh https://gist.githubusercontent.com/CamDavidsonPilon/08aa165a283fb7af7262e4cb598bf6a9/raw/install_pioreactor_as_worker.sh && bash ./install_pioreactor_as_worker.sh $1"
 
 
 

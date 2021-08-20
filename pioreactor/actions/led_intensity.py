@@ -134,7 +134,7 @@ def led_intensity(
     "--source-of-event",
     default="CLI",
     type=str,
-    help="whom is calling this function (for logging)",
+    help="whom is calling this function (for logging purposes)",
 )
 @click.option("--no-log", is_flag=True, help="Add to log")
 def click_led_intensity(channel, intensity, source_of_event, no_log):
