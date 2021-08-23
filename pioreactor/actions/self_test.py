@@ -69,9 +69,11 @@ def check_temperature_and_heating(unit, experiment, logger):
         measured_pcb_temps.append(tc.read_external_temperature())
 
     tc._update_heater(0)
+    measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
+    logger.debug(f"Correlation: {measured_correlation}")
     publish(
         f"pioreactor/{unit}/{experiment}/self_test/positive_correlation_between_temp_and_heating",
-        int(correlation(dcs, measured_pcb_temps) > 0.9),
+        int(measured_correlation > 0.9),
         retain=False,
     )
 
@@ -79,6 +81,7 @@ def check_temperature_and_heating(unit, experiment, logger):
 
 
 def check_leds_and_pds(unit, experiment, logger):
+    from pprint import pprint
 
     INTENSITIES = list(range(0, 48, 9))
     current_experiment_name = get_latest_experiment_name()
@@ -146,10 +149,18 @@ def check_leds_and_pds(unit, experiment, logger):
             varying_intensity_results[3].append(readings[3])
 
         # compute the linear correlation between the intensities and observed PD measurements
-        results[(channel, 0)] = correlation(INTENSITIES, varying_intensity_results[0])
-        results[(channel, 1)] = correlation(INTENSITIES, varying_intensity_results[1])
-        results[(channel, 2)] = correlation(INTENSITIES, varying_intensity_results[2])
-        results[(channel, 3)] = correlation(INTENSITIES, varying_intensity_results[3])
+        results[(channel, 0)] = round(
+            correlation(INTENSITIES, varying_intensity_results[0]), 2
+        )
+        results[(channel, 1)] = round(
+            correlation(INTENSITIES, varying_intensity_results[1]), 2
+        )
+        results[(channel, 2)] = round(
+            correlation(INTENSITIES, varying_intensity_results[2]), 2
+        )
+        results[(channel, 3)] = round(
+            correlation(INTENSITIES, varying_intensity_results[3]), 2
+        )
 
         # set back to 0
         led_intensity(
@@ -160,7 +171,7 @@ def check_leds_and_pds(unit, experiment, logger):
             verbose=False,
         )
 
-    logger.debug(f"Correlations: {results}")
+    logger.debug(f"Correlations: {pprint(results)}")
     detected_relationships = []
     for pair, measured_correlation in results.items():
         if measured_correlation > 0.85:

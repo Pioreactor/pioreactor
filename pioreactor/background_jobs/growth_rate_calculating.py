@@ -100,7 +100,7 @@ class GrowthRateCalculator(BackgroundJob):
             ]
         )
 
-        initial_covariance = 1e-6 * np.eye(
+        initial_covariance = 1e-5 * np.eye(
             3
         )  # empirically selected - TODO: this should probably scale with `expected_dt`
         self.logger.debug(f"Initial covariance matrix:\n{str(initial_covariance)}")
