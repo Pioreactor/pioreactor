@@ -7,6 +7,7 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio log
 """
 import sys
+from time import sleep
 import click
 import pioreactor
 from pioreactor.whoami import (
@@ -21,6 +22,7 @@ from pioreactor import actions
 from pioreactor import plugin_management
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.utils import temporarily_set_gpio_unavailable
 
 
 @click.group()
@@ -57,6 +59,36 @@ def logs():
 
     while True:
         pass
+
+
+@pio.command(name="blink", short_help="blink LED")
+def blink():
+    import RPi.GPIO as GPIO
+
+    GPIO.setmode(GPIO.BCM)
+
+    from pioreactor.hardware_mappings import PCB_LED_PIN as LED_PIN
+
+    def led_on(self):
+        GPIO.output(LED_PIN, GPIO.HIGH)
+
+    def led_off(self):
+        GPIO.output(LED_PIN, GPIO.LOW)
+
+    with temporarily_set_gpio_unavailable(LED_PIN):
+
+        GPIO.setup(LED_PIN, GPIO.OUT)
+
+        for _ in range(4):
+
+            led_on()
+            sleep(0.14)
+            led_off()
+            sleep(0.14)
+            led_on()
+            sleep(0.14)
+            led_off()
+            sleep(0.45)
 
 
 @pio.command(name="kill", short_help="kill job(s)")

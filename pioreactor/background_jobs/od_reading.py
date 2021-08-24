@@ -341,7 +341,10 @@ class ADCReader(BackgroundSubJob):
 
         y_model = C + b * np.sin(freq * tau * x) + c * np.cos(freq * tau * x)
         SSE = np.sum((y - y_model) ** 2)
-        AIC = n * np.log(SSE / n) + 2 * 3
+
+        AIC = (
+            n * np.log(SSE / n) + 2 * 3
+        )  # TODO: this can raise an error RuntimeWarning: divide by zero encountered in log
 
         A = np.sqrt(b ** 2 + c ** 2)
         phi = np.arcsin(c / np.sqrt(b ** 2 + c ** 2))

@@ -70,7 +70,7 @@ def check_temperature_and_heating(unit, experiment, logger):
 
     tc._update_heater(0)
     measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
-    logger.debug(f"Correlation: {measured_correlation}")
+    logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
     publish(
         f"pioreactor/{unit}/{experiment}/self_test/positive_correlation_between_temp_and_heating",
         int(measured_correlation > 0.9),
@@ -81,7 +81,7 @@ def check_temperature_and_heating(unit, experiment, logger):
 
 
 def check_leds_and_pds(unit, experiment, logger):
-    from pprint import pprint
+    from pprint import pformat
 
     INTENSITIES = list(range(0, 48, 9))
     current_experiment_name = get_latest_experiment_name()
@@ -171,10 +171,10 @@ def check_leds_and_pds(unit, experiment, logger):
             verbose=False,
         )
 
-    logger.debug(f"Correlations: {pprint(results)}")
+    logger.debug(f"Correlations between LEDs and PD: {pformat(results)}")
     detected_relationships = []
     for pair, measured_correlation in results.items():
-        if measured_correlation > 0.85:
+        if measured_correlation > 0.90:
             detected_relationships.append(pair)
 
     publish(
