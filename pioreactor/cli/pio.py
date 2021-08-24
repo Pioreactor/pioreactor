@@ -22,7 +22,7 @@ from pioreactor import actions
 from pioreactor import plugin_management
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.utils import temporarily_set_gpio_unavailable
+from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 
 
 @click.group()
