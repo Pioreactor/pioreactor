@@ -12,7 +12,7 @@ from pioreactor.pubsub import subscribe
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp
-from pioreactor.utils import gpio_helpers
+from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 
 JOB_NAME = "stirring"
 
@@ -53,7 +53,7 @@ class Stirrer(BackgroundJob):
 
         self.pwm = PWM(self.pin, hertz)
         self.pwm.lock()
-        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_UNAVAILABLE)
+        set_gpio_availability(self.pin, GPIO_states.GPIO_UNAVAILABLE)
 
         self.set_duty_cycle(duty_cycle)
         self.start_stirring()
@@ -66,7 +66,7 @@ class Stirrer(BackgroundJob):
         if hasattr(self, "sneak_in_timer"):
             self.sneak_in_timer.cancel()
 
-        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_AVAILABLE)
+        set_gpio_availability(self.pin, GPIO_states.GPIO_AVAILABLE)
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start

@@ -20,7 +20,7 @@ from pioreactor.hardware_mappings import (
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
 from pioreactor.utils import pio_jobs_running
-from pioreactor.utils import gpio_helpers
+from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.version import __version__
 
 
@@ -72,8 +72,8 @@ class Monitor(BackgroundJob):
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
-        gpio_helpers.set_gpio_availability(BUTTON_PIN, gpio_helpers.GPIO_UNAVAILABLE)
-        gpio_helpers.set_gpio_availability(LED_PIN, gpio_helpers.GPIO_UNAVAILABLE)
+        set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_UNAVAILABLE)
+        set_gpio_availability(LED_PIN, GPIO_states.GPIO_UNAVAILABLE)
 
     def self_checks(self):
         # watch for undervoltage problems
@@ -132,8 +132,8 @@ class Monitor(BackgroundJob):
     def on_disconnect(self):
         self.GPIO.cleanup(LED_PIN)
         self.GPIO.cleanup(BUTTON_PIN)
-        gpio_helpers.set_gpio_availability(BUTTON_PIN, gpio_helpers.GPIO_AVAILABLE)
-        gpio_helpers.set_gpio_availability(LED_PIN, gpio_helpers.GPIO_AVAILABLE)
+        set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_AVAILABLE)
+        set_gpio_availability(LED_PIN, GPIO_states.GPIO_AVAILABLE)
 
     def led_on(self):
         self.GPIO.output(LED_PIN, self.GPIO.HIGH)

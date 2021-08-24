@@ -60,7 +60,9 @@ class PWM:
                 f"PWM-{self.pin} is currently locked but a task is trying to use it."
             )
 
-        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_UNAVAILABLE)
+        gpio_helpers.set_gpio_availability(
+            self.pin, gpio_helpers.GPIO_states.GPIO_UNAVAILABLE
+        )
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_AVAILABLE_PINS):
             if is_testing_env():
@@ -136,7 +138,9 @@ class PWM:
     def cleanup(self):
         self.stop()
         self.unlock()
-        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_AVAILABLE)
+        gpio_helpers.set_gpio_availability(
+            self.pin, gpio_helpers.GPIO_states.GPIO_AVAILABLE
+        )
 
         if self.using_hardware:
             # `stop` handles cleanup.

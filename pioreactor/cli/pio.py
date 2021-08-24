@@ -69,10 +69,10 @@ def blink():
 
     from pioreactor.hardware_mappings import PCB_LED_PIN as LED_PIN
 
-    def led_on(self):
+    def led_on():
         GPIO.output(LED_PIN, GPIO.HIGH)
 
-    def led_off(self):
+    def led_off():
         GPIO.output(LED_PIN, GPIO.LOW)
 
     with temporarily_set_gpio_unavailable(LED_PIN):

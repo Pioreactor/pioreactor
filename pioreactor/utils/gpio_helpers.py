@@ -1,27 +1,30 @@
 # -*- coding: utf-8 -*-
 # gpio helpers
 
-from pioreactor.utils import local_intermittent_storage
 from contextlib import contextmanager
+from pioreactor.utils import local_intermittent_storage
 
 
-GPIO_AVAILABLE = b"1"
-GPIO_UNAVAILABLE = b"0"
+class GPIO_states:
+    GPIO_AVAILABLE = b"1"
+    GPIO_UNAVAILABLE = b"0"
 
 
-def set_gpio_availability(pin, is_in_use):
-    assert is_in_use in [GPIO_AVAILABLE, GPIO_UNAVAILABLE]
+def set_gpio_availability(pin: int, is_in_use: GPIO_states):
+    assert is_in_use in [GPIO_states.GPIO_AVAILABLE, GPIO_states.GPIO_UNAVAILABLE]
     with local_intermittent_storage("gpio_in_use") as cache:
         cache[str(pin)] = is_in_use
 
 
-def is_gpio_available(pin):
+def is_gpio_available(pin: int) -> bool:
     with local_intermittent_storage("gpio_in_use") as cache:
-        return cache.get(str(pin), GPIO_AVAILABLE) == GPIO_AVAILABLE
+        return (
+            cache.get(str(pin), GPIO_states.GPIO_AVAILABLE) == GPIO_states.GPIO_AVAILABLE
+        )
 
 
 @contextmanager
-def temporarily_set_gpio_unavailable(pin):
+def temporarily_set_gpio_unavailable(pin: int):
     """
 
     Examples
@@ -32,7 +35,7 @@ def temporarily_set_gpio_unavailable(pin):
     >
     """
     try:
-        set_gpio_availability(pin, GPIO_UNAVAILABLE)
+        set_gpio_availability(pin, GPIO_states.GPIO_UNAVAILABLE)
         yield
     finally:
-        set_gpio_availability(pin, GPIO_AVAILABLE)
+        set_gpio_availability(pin, GPIO_states.GPIO_AVAILABLE)

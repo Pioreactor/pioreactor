@@ -5,7 +5,7 @@ from pioreactor.pubsub import publish, QOS
 
 
 @contextmanager
-def publish_ready_to_disconnected_state(unit, experiment, name):
+def publish_ready_to_disconnected_state(unit: str, experiment: str, name: str):
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test.
 
@@ -37,7 +37,7 @@ def publish_ready_to_disconnected_state(unit, experiment, name):
 
 
 @contextmanager
-def local_intermittent_storage(cache_name):
+def local_intermittent_storage(cache_name: str):
     """
     Examples
     ---------
@@ -64,7 +64,7 @@ def local_intermittent_storage(cache_name):
 
 
 @contextmanager
-def local_persistant_storage(cache_name):
+def local_persistant_storage(cache_name: str):
     """
     Values stored in this storage will stay around between RPi restarts, and until overwritten
     or deleted.
@@ -92,7 +92,7 @@ def clamp(minimum, x, maximum):
     return max(minimum, min(x, maximum))
 
 
-def correlation(x, y):
+def correlation(x, y) -> float:
     from statistics import stdev, mean
 
     mean_x, std_x = mean(x), stdev(x)
@@ -113,7 +113,7 @@ def correlation(x, y):
     return (running_sum / (running_count - 1)) / std_y / std_x
 
 
-def is_pio_job_running(target_job):
+def is_pio_job_running(target_job) -> bool:
     with local_intermittent_storage("pio_jobs_running") as cache:
         if cache.get(target_job, b"0") == b"0":
             return False
@@ -122,7 +122,7 @@ def is_pio_job_running(target_job):
             return target_job in pio_jobs_running()
 
 
-def pio_jobs_running():
+def pio_jobs_running() -> list:
     """
     This returns a list of the current pioreactor jobs/actions running. Ex:
 
@@ -154,7 +154,7 @@ def pio_jobs_running():
     return jobs
 
 
-def pump_ml_to_duration(ml, duty_cycle, duration_=0):
+def pump_ml_to_duration(ml, duty_cycle, duration_=0) -> float:
     """
     ml: the desired volume
     duration_ : the coefficient from calibration
@@ -162,7 +162,7 @@ def pump_ml_to_duration(ml, duty_cycle, duration_=0):
     return ml / duration_
 
 
-def pump_duration_to_ml(duration, duty_cycle, duration_=0):
+def pump_duration_to_ml(duration, duty_cycle, duration_=0) -> float:
     """
     duration: the desired volume
     duration_ : the coefficient from calibration
