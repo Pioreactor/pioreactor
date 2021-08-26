@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 try:
     from importlib.metadata import entry_points, metadata
 except ImportError:  # TODO: this is available in 3.8+
