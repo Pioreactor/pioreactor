@@ -95,7 +95,10 @@ def od_blank(od_angle_channels, N_samples=15):
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            pubsub.publish_to_pioreactor_com("od_blank_mean", json=means)
+            to_share = means.copy()
+            to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
+            to_share["ir_intensity"] = config["od_config.od_sampling"]["ir_intensity"]
+            pubsub.publish_to_pioreactor_cloud("od_blank_mean", json=to_share)
 
         logger.info("OD blank reading finished.")
 

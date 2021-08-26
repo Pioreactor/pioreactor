@@ -269,7 +269,7 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
     client.disconnect()
 
 
-def publish_to_pioreactor_com(endpoint, data=None, json=None):
+def publish_to_pioreactor_cloud(endpoint, data=None, json=None):
     """
     Parameters
     ------------

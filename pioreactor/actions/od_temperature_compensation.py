@@ -38,7 +38,7 @@ from pioreactor.whoami import (
     is_testing_env,
 )
 
-from pioreactor.pubsub import subscribe_and_callback, publish_to_pioreactor_com
+from pioreactor.pubsub import subscribe_and_callback, publish_to_pioreactor_cloud
 
 
 def simple_linear_regression(x, y):
@@ -157,9 +157,13 @@ def od_temperature_compensation():
         if config.getboolean(
             "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
         ):
-            publish_to_pioreactor_com(
+            to_share = dict(zip(temps, ods))
+            to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
+            to_share["ir_intensity"] = config["od_config.od_sampling"]["ir_intensity"]
+
+            publish_to_pioreactor_cloud(
                 "od_temperature_compensation",
-                json=dict(zip(temps, ods)),
+                json=to_share,
             )
 
         logger.info("Finished OD temperature compensation.")

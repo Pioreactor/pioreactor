@@ -97,13 +97,22 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 "send_od_statistics_to_Pioreactor",
                 fallback=False,
             ):
-                pubsub.publish_to_pioreactor_com(
+
+                add_on = {
+                    "ir_led_part_number": config["od_config"]["ir_led_part_number"],
+                    "ir_intensity": config["od_config.od_sampling"]["ir_intensity"],
+                }
+
+                pubsub.publish_to_pioreactor_cloud(
                     "od_normalization_variance",
-                    json=variances,
+                    json={
+                        **variances,
+                        **add_on,
+                    },  # TODO: this syntax changed in a recent python version...
                 )
-                pubsub.publish_to_pioreactor_com(
+                pubsub.publish_to_pioreactor_cloud(
                     "od_normalization_mean",
-                    json=means,
+                    json={**means, **add_on},
                 )
 
             return means, variances
