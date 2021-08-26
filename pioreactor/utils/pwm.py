@@ -50,7 +50,7 @@ class PWM:
     HARDWARE_PWM_CHANNELS = {12: 0, 13: 1}
     using_hardware = False
 
-    def __init__(self, pin, hz, always_use_software=False):
+    def __init__(self, pin: int, hz: float, always_use_software: bool = False):
         self.logger = create_logger("PWM")
         self.pin = pin
         self.hz = hz
@@ -111,7 +111,7 @@ class PWM:
             f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}."
         )
 
-    def start(self, initial_duty_cycle):
+    def start(self, initial_duty_cycle: float):
         assert (
             0 <= initial_duty_cycle <= 100
         ), "dc should be between 0 and 100, inclusive."
@@ -124,7 +124,7 @@ class PWM:
     def stop(self):
         self.pwm.stop()
 
-    def change_duty_cycle(self, dc):
+    def change_duty_cycle(self, dc: float):
         assert 0 <= dc <= 100, "dc should be between 0 and 100, inclusive."
 
         with local_intermittent_storage("pwm_dc") as cache:
@@ -160,7 +160,7 @@ class PWM:
             GPIO.cleanup(self.pin)
         self.logger.debug(f"Cleaned up PWM-{self.pin}.")
 
-    def is_locked(self):
+    def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
             return pwm_locks.get(str(self.pin)) == PWM_LOCKED
 

@@ -169,7 +169,7 @@ class Stirrer(BackgroundJob):
 
 def start_stirring(
     duty_cycle=0, dc_increase_between_adc_readings=False, unit=None, experiment=None
-):
+) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 

@@ -580,6 +580,21 @@ class _BackgroundJob(metaclass=PostInitCaller):
             allow_retained=False,
         )
 
+    def clear_mqtt_cache(self):
+        """
+        From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
+        This does NOTE clear the state however.
+        """
+        for attr in self.published_settings:
+            if attr == "state":
+                continue
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
+                None,
+                retain=True,
+                qos=QOS.EXACTLY_ONCE,
+            )
+
     def check_for_duplicate_process(self):
 
         with local_intermittent_storage("pio_jobs_running") as cache:

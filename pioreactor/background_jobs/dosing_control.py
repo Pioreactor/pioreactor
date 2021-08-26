@@ -22,7 +22,6 @@ import time
 import json
 import click
 
-from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
@@ -107,19 +106,6 @@ class DosingController(BackgroundJob):
             pass
         finally:
             self.clear_mqtt_cache()
-
-    def clear_mqtt_cache(self):
-        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        # TODO: this could move to the base class
-        for attr in self.published_settings:
-            if attr == "state":
-                continue
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                retain=True,
-                qos=QOS.EXACTLY_ONCE,
-            )
 
 
 def run(automation=None, duration=None, skip_first_run=False, **kwargs):

@@ -717,6 +717,7 @@ class ODReader(BackgroundJob):
         except Exception:
             pass
         self.stop_ir_led()
+        self.clear_mqtt_cache()
 
     def compensate_od_for_temperature(self, reading):
         return self.temperature_compensator.compensate_od_for_temperature(reading)

@@ -45,5 +45,5 @@ class RunningContinuously(Event):
     pass
 
 
-class ErrorOccured(Event):
+class ErrorOccurred(Event):
     pass

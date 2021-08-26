@@ -25,7 +25,6 @@ import json, signal, time
 
 import click
 
-from pioreactor.pubsub import QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
@@ -184,19 +183,6 @@ class TemperatureController(BackgroundJob):
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
-
-    def clear_mqtt_cache(self):
-        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        # TODO: this could move to the base class
-        for attr in self.published_settings:
-            if attr in ["state"]:
-                continue
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                retain=True,
-                qos=QOS.EXACTLY_ONCE,
-            )
 
     def _update_heater(self, new_duty_cycle):
         self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)

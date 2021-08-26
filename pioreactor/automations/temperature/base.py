@@ -80,7 +80,7 @@ class TemperatureAutomation(BackgroundSubJob):
         for job in self.sub_jobs:
             job.set_state("disconnected")
 
-        self._clear_mqtt_cache()
+        self.clear_mqtt_cache()
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
@@ -108,18 +108,6 @@ class TemperatureAutomation(BackgroundSubJob):
 
         if self.state == self.READY:
             self.execute()
-
-    def _clear_mqtt_cache(self):
-        # From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        for attr in self.published_settings:
-            if attr == "state":
-                continue
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                retain=True,
-                qos=QOS.EXACTLY_ONCE,
-            )
 
     def _send_details_to_mqtt(self):
         self.publish(
