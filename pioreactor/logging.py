@@ -7,6 +7,7 @@ from pioreactor.whoami import (
     am_I_active_worker,
     UNIVERSAL_EXPERIMENT,
     get_latest_experiment_name,
+    get_uuid,
 )
 from pioreactor.config import config
 from pioreactor.utils.timing import current_utc_time
@@ -23,6 +24,7 @@ class CustomisedJSONFormatter(JSONFormatter):
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_time()
+        extra["rpi_uuid"] = get_uuid()
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)

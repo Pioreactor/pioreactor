@@ -74,3 +74,9 @@ def am_I_active_worker() -> bool:
     from pioreactor.config import get_active_workers_in_inventory
 
     return get_unit_name() in get_active_workers_in_inventory()
+
+
+def get_uuid() -> str:
+    from uuid import getnode
+
+    return str(getnode())

@@ -273,15 +273,19 @@ def publish_to_pioreactor_com(endpoint, data=None, json=None):
     """
     Parameters
     ------------
+    endpoint: the function to send to the data to
     data: (optional) Dictionary, list of tuples, bytes, or file-like object to send in the body.
     json: (optional) json data to send in the body.
 
     """
-    from pioreactor.whoami import is_testing_env
+    from pioreactor.whoami import is_testing_env, get_uuid
     from requests import post
 
     if is_testing_env():
         return
+
+    if json is not None:
+        json["rpi_uuid"] = get_uuid()
 
     try:
         headers = {"Content-type": "application/json", "Accept": "text/plain"}

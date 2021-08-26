@@ -78,7 +78,7 @@ make decisions. For example, if a bubbler/visible light LED is active, it should
 s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
 from __future__ import annotations
-
+from typing import Optional
 import time
 import json
 import signal
@@ -792,10 +792,10 @@ def create_channel_angle_map(
 
 
 def start_od_reading(
-    od_angle_channel0,
-    od_angle_channel1,
-    od_angle_channel2,
-    od_angle_channel3,
+    od_angle_channel0: Optional[str],
+    od_angle_channel1: Optional[str],
+    od_angle_channel2: Optional[str],
+    od_angle_channel3: Optional[str],
     sampling_rate=1 / config.getfloat("od_config.od_sampling", "samples_per_second"),
     fake_data=False,
     unit=None,
