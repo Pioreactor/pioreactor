@@ -13,6 +13,7 @@ configure-mqtt:
 	grep -qxF 'protocol mqtt'         /etc/mosquitto/mosquitto.conf || echo "protocol mqtt"         | sudo tee /etc/mosquitto/mosquitto.conf -a
 	grep -qxF 'listener 9001'         /etc/mosquitto/mosquitto.conf || echo "listener 9001"         | sudo tee /etc/mosquitto/mosquitto.conf -a
 	grep -qxF 'protocol websockets'   /etc/mosquitto/mosquitto.conf || echo "protocol websockets"   | sudo tee /etc/mosquitto/mosquitto.conf -a
+	grep -qxF 'allow_anonymous true'   /etc/mosquitto/mosquitto.conf || echo "allow_anonymous true"   | sudo tee /etc/mosquitto/mosquitto.conf -a
 
 install-i2c:
 	sudo apt install -y i2c-tools
