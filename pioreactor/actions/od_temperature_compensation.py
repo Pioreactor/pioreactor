@@ -158,8 +158,8 @@ def od_temperature_compensation():
             "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
         ):
             publish_to_pioreactor_com(
-                "pioreactor/od_temperature_compensation",
-                json.dumps(dict(zip(temps, ods))),
+                "od_temperature_compensation",
+                json=dict(zip(temps, ods)),
             )
 
         logger.info("Finished OD temperature compensation.")

@@ -98,12 +98,12 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 fallback=False,
             ):
                 pubsub.publish_to_pioreactor_com(
-                    f"pioreactor/{unit}/{experiment}/{action_name}/variance",
-                    json.dumps(variances),
+                    "od_normalization_variance",
+                    json=variances,
                 )
                 pubsub.publish_to_pioreactor_com(
-                    f"pioreactor/{unit}/{experiment}/{action_name}/mean",
-                    json.dumps(means),
+                    "od_normalization_mean",
+                    json=means,
                 )
 
             return means, variances

@@ -95,9 +95,7 @@ def od_blank(od_angle_channels, N_samples=15):
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            pubsub.publish_to_pioreactor_com(
-                f"pioreactor/{unit}/{experiment}/{action_name}/mean", json.dumps(means)
-            )
+            pubsub.publish_to_pioreactor_com("od_blank_mean", json=means)
 
         logger.info("OD blank reading finished.")
 

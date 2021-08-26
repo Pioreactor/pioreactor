@@ -269,16 +269,27 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
     client.disconnect()
 
 
-def publish_to_pioreactor_com(topic, msg):
-    return
+def publish_to_pioreactor_com(endpoint, data=None, json=None):
+    """
+    Parameters
+    ------------
+    data: (optional) Dictionary, list of tuples, bytes, or file-like object to send in the body.
+    json: (optional) json data to send in the body.
+
+    """
+    from pioreactor.whoami import is_testing_env
+    from requests import post
+
+    if is_testing_env():
+        return
+
     try:
-        publish(
-            topic,
-            msg,
-            hostname="mqtt.pioreactor.com",
-            qos=QOS.AT_MOST_ONCE,
-            retain=False,
-            retries=1,
+        headers = {"Content-type": "application/json", "Accept": "text/plain"}
+        post(
+            f"https://us-central1-pioreactor-backend.cloudfunctions.net/{endpoint}",
+            data=data,
+            json=json,
+            headers=headers,
         )
-    except ConnectionRefusedError:
+    except (ConnectionRefusedError, ConnectionError):
         pass
