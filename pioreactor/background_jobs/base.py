@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
 import signal
 import os
 import sys
@@ -8,6 +6,7 @@ import threading
 import atexit
 from collections import namedtuple
 from json import dumps
+from typing import TypedDict
 
 from pioreactor.utils import pio_jobs_running, local_intermittent_storage
 from pioreactor.pubsub import QOS, create_client
@@ -37,6 +36,12 @@ def format_with_optional_units(value, units):
             return f"{value} {units}"
     else:
         return f"{value}"
+
+
+class PublishableSetting(TypedDict, total=False):
+    datatype: str
+    unit: str
+    settable: bool
 
 
 class PostInitCaller(type):
@@ -133,7 +138,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # be published to MQTT and available settable attributes will be editable. Currently supported
     # attributes are
     # {'datatype', 'unit', 'settable'}
-    published_settings: dict[str, dict] = dict()
+    published_settings: dict[str, PublishableSetting] = dict()
 
     def __init__(
         self, job_name: str, source: str, experiment: str = None, unit: str = None
@@ -142,7 +147,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
-        self.sub_jobs: list["_BackgroundJob"] = []
+        self.sub_jobs: list[_BackgroundJob] = []
         self.published_settings["state"] = {"datatype": "string", "settable": True}
 
         self.logger = create_logger(

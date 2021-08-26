@@ -198,7 +198,7 @@ def test_bad_key_in_published_settings():
                 "datatype": "float",
                 "units": "%",
                 "settable": True,
-            },  # units is wrong, should be units.
+            },  # units is intentiall wrong, should be unit.
         }
 
         def __init__(self, *args, **kwargs):

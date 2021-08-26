@@ -1,11 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import annotations
-
-try:
-    from importlib.metadata import entry_points, metadata
-except ImportError:  # TODO: this is available in 3.8+
-    from importlib_metadata import entry_points, metadata
-
+from importlib_metadata import entry_points, metadata
 from collections import namedtuple
 
 from pioreactor.version import __version__  # noqa: F401

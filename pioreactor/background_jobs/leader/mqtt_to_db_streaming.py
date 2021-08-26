@@ -19,12 +19,6 @@ from pioreactor.utils.timing import current_utc_time
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
-class SetAttrSplitTopic:
-    pioreactor_unit: str
-    experiment: str
-    timestamp: str
-
-
 class TopicToParserToTable:
     topic: str
     parser: Callable[[str, str], dict]
@@ -117,7 +111,7 @@ def produce_metadata(topic: str):
     # helper function for parsers below
     split_topic = topic.split("/")
     return (
-        SetAttrSplitTopic(split_topic[1], split_topic[2], current_utc_time()),
+        {"pioreactor_unit": split_topic[1], "experiment": split_topic[2]},
         split_topic,
     )
 
@@ -136,8 +130,8 @@ def mqtt_to_db_streaming():
         metadata, split_topic = produce_metadata(topic)
         payload = json.loads(payload)
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "od_reading_v": payload["voltage"],
             "angle": payload["angle"],
@@ -149,8 +143,8 @@ def mqtt_to_db_streaming():
         payload = json.loads(payload)
 
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "normalized_od_reading": payload["od_filtered"],
         }
@@ -160,8 +154,8 @@ def mqtt_to_db_streaming():
         metadata, _ = produce_metadata(topic)
 
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "volume_change_ml": payload["volume_change"],
             "event": payload["event"],
@@ -173,8 +167,8 @@ def mqtt_to_db_streaming():
         metadata, _ = produce_metadata(topic)
 
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "channel": payload["channel"],
             "intensity": payload["intensity"],
@@ -187,8 +181,8 @@ def mqtt_to_db_streaming():
         payload = json.loads(payload)
 
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "rate": float(payload["growth_rate"]),
         }
@@ -202,8 +196,8 @@ def mqtt_to_db_streaming():
         payload = json.loads(payload)
 
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "temperature_c": float(payload["temperature"]),
         }
@@ -212,9 +206,9 @@ def mqtt_to_db_streaming():
         metadata, _ = produce_metadata(topic)
         payload = json.loads(payload)
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
+            "timestamp": current_utc_time(),
             "setpoint": payload["setpoint"],
             "output_limits_lb": payload["output_limits_lb"],
             "output_limits_ub": payload["output_limits_ub"],
@@ -235,8 +229,8 @@ def mqtt_to_db_streaming():
         payload = json.loads(payload)
 
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "alt_media_fraction": float(payload["alt_media_fraction"]),
         }
@@ -245,8 +239,8 @@ def mqtt_to_db_streaming():
         metadata, split_topic = produce_metadata(topic)
         payload = json.loads(payload)
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
             "timestamp": payload["timestamp"],
             "message": payload["message"],
             "task": payload["task"],
@@ -258,9 +252,9 @@ def mqtt_to_db_streaming():
         metadata, _ = produce_metadata(topic)
         payload = json.loads(payload)
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
+            "timestamp": current_utc_time(),
             "state": json.dumps(payload["state"]),
             "covariance_matrix": json.dumps(payload["covariance_matrix"]),
         }
@@ -272,18 +266,18 @@ def mqtt_to_db_streaming():
     def parse_stirring_rates(topic, payload):
         metadata = produce_metadata(topic)
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
+            "timestamp": current_utc_time(),
             "rpm": float(payload),
         }
 
     def parse_od_statistics(topic, payload):
         metadata, split_topic = produce_metadata(topic)
         return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "experiment": metadata["experiment"],
+            "pioreactor_unit": metadata["pioreactor_unit"],
+            "timestamp": current_utc_time(),
             "source": split_topic[-2],
             "estimator": split_topic[-1],
             "estimate": float(payload),

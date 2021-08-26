@@ -15,7 +15,6 @@ configure-mqtt:
 	grep -qxF 'protocol websockets'   /etc/mosquitto/mosquitto.conf || echo "protocol websockets"   | sudo tee /etc/mosquitto/mosquitto.conf -a
 
 install-i2c:
-	sudo apt install -y python-smbus # this is python2...
 	sudo apt install -y i2c-tools
 	echo "dtparam=i2c_arm=on"    | sudo tee /boot/config.txt -a
 	echo "i2c-dev"               | sudo tee /etc/modules -a
@@ -172,7 +171,6 @@ install-leader-as-worker: install-leader install-worker
 	printf "# Any settings here are specific to $$(hostname), and override the settings in config.ini\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini ;\
 	printf "[stirring]\n" >> /home/pi/.pioreactor/config_$$(hostname).ini   ;\
 	printf "duty_cycle=80\n\n" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
-	printf "[pump_calibration]" >> /home/pi/.pioreactor/config_$$(hostname).ini  ;\
 	cp /home/pi/.pioreactor/config_$$(hostname).ini /home/pi/.pioreactor/unit_config.ini ;\
 	}
 

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import fastentrypoints  # noqa: F401
 from setuptools import setup, find_packages
 
 exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exec"))

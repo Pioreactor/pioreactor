@@ -77,12 +77,11 @@ In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other job
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
-from __future__ import annotations
-
 import time
 import json
 import signal
 import click
+from typing import Literal
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
@@ -99,7 +98,7 @@ from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
 
-CHANNELS = int  # Literal[0, 1, 2, 3]
+CHANNELS = Literal[0, 1, 2, 3]
 
 
 class ADCReader(BackgroundSubJob):
@@ -156,6 +155,9 @@ class ADCReader(BackgroundSubJob):
         super(ADCReader, self).__init__(
             job_name=self.JOB_NAME, unit=unit, experiment=experiment, **kwargs
         )
+
+        from adafruit_ads1x15.analog_in import AnalogIn
+
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
         self.gain = initial_gain
@@ -163,7 +165,7 @@ class ADCReader(BackgroundSubJob):
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.10)
         self.ads = None
         self.channels = channels
-        self.analog_in = {}  # dict[CHANNELS, "AnalogIn"]
+        self.analog_in: dict[CHANNELS, AnalogIn] = {}
 
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
