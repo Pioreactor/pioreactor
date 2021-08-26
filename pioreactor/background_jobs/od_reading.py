@@ -80,7 +80,6 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 import time
 import json
 import signal
-from typing import Literal
 import click
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
@@ -98,7 +97,7 @@ from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
 
-CHANNELS = Literal[0, 1, 2, 3]
+CHANNELS = int  # Literal[0, 1, 2, 3]
 
 
 class ADCReader(BackgroundSubJob):
