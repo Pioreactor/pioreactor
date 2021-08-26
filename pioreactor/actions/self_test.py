@@ -83,7 +83,7 @@ def check_temperature_and_heating(unit, experiment, logger):
 def check_leds_and_pds(unit, experiment, logger):
     from pprint import pformat
 
-    INTENSITIES = list(range(0, 48, 9))
+    INTENSITIES = list(range(0, 48, 10))
     current_experiment_name = get_latest_experiment_name()
     results = {}
     try:
@@ -171,10 +171,10 @@ def check_leds_and_pds(unit, experiment, logger):
             verbose=False,
         )
 
-    logger.debug(f"Correlations between LEDs and PD: {pformat(results)}")
+    logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
     detected_relationships = []
     for pair, measured_correlation in results.items():
-        if measured_correlation > 0.90:
+        if measured_correlation > 0.85:
             detected_relationships.append(pair)
 
     publish(

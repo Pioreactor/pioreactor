@@ -70,12 +70,9 @@ class PIDTurbidostat(DosingAutomation):
                 volumes_actually_moved = self.execute_io_action(
                     media_ml=self.volume_to_cycle, waste_ml=self.volume_to_cycle
                 )
-                e = events.DilutionEvent(
+                return events.DilutionEvent(
                     f"Volume cycled={volumes_actually_moved[0]:.2f}mL"
                 )
-                e.volume_to_cycle = self.volume_to_cycle
-                e.pid_output = pid_output
-                return e
 
     @property
     def min_od(self):

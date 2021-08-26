@@ -50,8 +50,6 @@ class DosingAutomation(BackgroundSubJob):
         # can be invoked in DosingController.
         if hasattr(cls, "key"):
             DosingController.automations[cls.key] = cls
-        else:
-            raise KeyError("Missing required field `key` in automation")
 
     def __init__(
         self,
@@ -336,4 +334,4 @@ class DosingAutomation(BackgroundSubJob):
 
 
 class DosingAutomationContrib(DosingAutomation):
-    key: str = None
+    key: str

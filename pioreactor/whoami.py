@@ -8,16 +8,16 @@ UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
 
 
-def get_latest_testing_experiment_name():
+def get_latest_testing_experiment_name() -> str:
     exp = get_latest_experiment_name()
     return f"_testing_{exp}"
 
 
 @lru_cache(maxsize=1)
-def get_latest_experiment_name():
+def get_latest_experiment_name() -> str:
 
-    if os.environ.get("EXPERIMENT"):
-        return os.environ.get("EXPERIMENT")
+    if os.environ.get("EXPERIMENT") is not None:
+        return os.environ["EXPERIMENT"]
     elif is_testing_env():
         return "_testing_experiment"
 
@@ -39,22 +39,22 @@ def get_latest_experiment_name():
         sys.exit()
 
 
-def is_testing_env():
-    return "pytest" in sys.modules or os.environ.get("TESTING")
+def is_testing_env() -> bool:
+    return "pytest" in sys.modules or (os.environ.get("TESTING") is not None)
 
 
-def get_hostname():
+def get_hostname() -> str:
     import socket
 
     if os.environ.get("HOSTNAME"):
-        return os.environ.get("HOSTNAME")
+        return os.environ["HOSTNAME"]
     elif is_testing_env():
         return "testing_unit"
     else:
         return socket.gethostname()
 
 
-def get_unit_name():
+def get_unit_name() -> str:
 
     hostname = get_hostname()
 
@@ -64,13 +64,13 @@ def get_unit_name():
         return hostname
 
 
-def am_I_leader():
+def am_I_leader() -> bool:
     from pioreactor.config import leader_hostname
 
     return get_unit_name() == leader_hostname
 
 
-def am_I_active_worker():
+def am_I_active_worker() -> bool:
     from pioreactor.config import get_active_workers_in_inventory
 
     return get_unit_name() in get_active_workers_in_inventory()

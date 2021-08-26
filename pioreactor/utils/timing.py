@@ -10,12 +10,12 @@ from contextlib import contextmanager
 
 
 @contextmanager
-def catchtime() -> float:
+def catchtime():
     start = perf_counter()
     yield lambda: perf_counter() - start
 
 
-def current_utc_time():
+def current_utc_time() -> str:
     # this is timezone aware.
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 

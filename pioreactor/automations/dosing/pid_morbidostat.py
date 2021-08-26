@@ -80,12 +80,9 @@ class PIDMorbidostat(DosingAutomation):
             self.execute_io_action(
                 alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume
             )
-            event = events.AltMediaEvent(
+            return events.AltMediaEvent(
                 f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL"
             )
-            event.media_ml = media_ml  # can be used for testing later
-            event.alt_media_ml = alt_media_ml
-            return event
 
     @property
     def min_od(self):

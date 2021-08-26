@@ -90,6 +90,8 @@ def blink():
             led_off()
             sleep(0.45)
 
+        GPIO.cleanup(LED_PIN)
+
 
 @pio.command(name="kill", short_help="kill job(s)")
 @click.argument("job", nargs=-1)

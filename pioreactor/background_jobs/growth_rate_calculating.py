@@ -213,7 +213,6 @@ class GrowthRateCalculator(BackgroundJob):
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
             timeout=1.5,
-            qos=QOS.EXACTLY_ONCE,
         )
         if message:
             return float(json.loads(message.payload)["growth_rate"])
@@ -224,7 +223,6 @@ class GrowthRateCalculator(BackgroundJob):
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
             timeout=1.5,
-            qos=QOS.EXACTLY_ONCE,
         )
         if message:
             return float(json.loads(message.payload)["od_filtered"])
@@ -339,6 +337,7 @@ class GrowthRateCalculator(BackgroundJob):
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
                 {"growth_rate": self.state_[1], "timestamp": payload["timestamp"]},
                 retain=True,
+                qos=QOS.EXACTLY_ONCE,
             )
 
             self.publish(
@@ -348,6 +347,7 @@ class GrowthRateCalculator(BackgroundJob):
                     "covariance_matrix": self.ekf.covariance_.tolist(),
                     "timestamp": payload["timestamp"],
                 },
+                qos=QOS.EXACTLY_ONCE,
             )
 
             self.publish(
@@ -356,6 +356,7 @@ class GrowthRateCalculator(BackgroundJob):
                     "od_filtered": self.state_[0],
                     "timestamp": payload["timestamp"],
                 },
+                qos=QOS.EXACTLY_ONCE,
                 retain=True,
             )
 

@@ -131,7 +131,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # be published to MQTT and available settable attributes will be editable. Currently supported
     # attributes are
     # {'datatype', 'unit', 'settable'}
-    published_settings = dict()
+    published_settings: dict[str, dict] = dict()
 
     def __init__(
         self, job_name: str, source: str, experiment: str = None, unit: str = None
@@ -140,7 +140,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
-        self.sub_jobs = []
+        self.sub_jobs: list["_BackgroundJob"] = []
         self.published_settings["state"] = {"datatype": "string", "settable": True}
 
         self.logger = create_logger(

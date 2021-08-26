@@ -80,7 +80,7 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 import time
 import json
 import signal
-
+from typing import Literal
 import click
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
@@ -96,6 +96,9 @@ from pioreactor.actions.led_intensity import (
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
+
+
+CHANNELS = Literal[0, 1, 2, 3]
 
 
 class ADCReader(BackgroundSubJob):
@@ -159,12 +162,12 @@ class ADCReader(BackgroundSubJob):
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.10)
         self.ads = None
         self.channels = channels
-        self.analog_in = []
+        self.analog_in = {}  # dict[CHANNELS, "AnalogIn"]
 
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
         self.first_ads_obs_time = None
-        self.batched_readings = dict()
+        self.batched_readings = {}
 
     def setup_adc(self):
         """
@@ -186,7 +189,7 @@ class ADCReader(BackgroundSubJob):
 
             # we may change the gain dynamically later.
             # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-            # TODO: update this to ADS1015
+            # TODO: update this to ADS1015 / dynamically choose
             self.ads = ADS.ADS1115(i2c, data_rate=self.DATA_RATE)
             self.set_ads_gain(self.gain)
         except ValueError as e:
@@ -201,14 +204,14 @@ class ADCReader(BackgroundSubJob):
                 from adafruit_ads1x15.analog_in import AnalogIn
 
                 ai = AnalogIn(self.ads, channel)
-            self.analog_in.append((channel, ai))
+            self.analog_in[channel] = ai
 
         # check if using correct gain
         # this may need to be adjusted for higher rates of data collection
         if self.dynamic_gain:
             max_signal = 0
             # we will instantiate and sweep through to set the gain
-            for _, ai in self.analog_in:
+            for ai in self.analog_in.values():
 
                 raw_signal_ = ai.voltage
                 max_signal = max(raw_signal_, max_signal)
@@ -394,7 +397,7 @@ class ADCReader(BackgroundSubJob):
             with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
                     with catchtime() as time_code_took_to_run:
-                        for channel, ai in self.analog_in:
+                        for channel, ai in self.analog_in.items():
                             timestamps[channel].append(time_since_start())
                             # raw_signal_ = ai.voltage
 
@@ -609,12 +612,12 @@ class ODReader(BackgroundJob):
 
     def __init__(
         self,
-        channel_angle_map,
-        interval,
+        channel_angle_map: dict[CHANNELS, str],
+        interval: float,
+        adc_reader: ADCReader,
         unit=None,
         experiment=None,
         stop_IR_led_between_ADC_readings=True,
-        adc_reader: ADCReader = None,
         temperature_compensator: TemperatureCompensator = None,
     ):
         super(ODReader, self).__init__(
@@ -624,7 +627,10 @@ class ODReader(BackgroundJob):
 
         self.adc_reader = adc_reader
         self.temperature_compensator = temperature_compensator
-        self.sub_jobs = [self.adc_reader, self.temperature_compensator]
+        self.sub_jobs = [self.adc_reader]
+
+        if self.temperature_compensator is not None:
+            self.sub_jobs.append(self.temperature_compensator)
 
         self.channel_angle_map = channel_angle_map
         self.interval = interval
@@ -763,10 +769,10 @@ class ODReader(BackgroundJob):
 
 def create_channel_angle_map(
     od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
-):
+) -> dict[CHANNELS, str]:
     # Inputs are either None, or a string like "135", "90,45", ...
     # Example return dict: {0: "90,135", 1: "45,135", 3:"90"}
-    channel_angle_map = {}
+    channel_angle_map: dict[CHANNELS, str] = {}
     if od_angle_channel0:
         # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
         channel_angle_map[0] = od_angle_channel0
@@ -792,7 +798,7 @@ def start_od_reading(
     fake_data=False,
     unit=None,
     experiment=None,
-):
+) -> ODReader:
 
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()

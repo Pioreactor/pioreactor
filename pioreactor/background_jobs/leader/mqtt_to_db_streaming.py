@@ -6,9 +6,7 @@ import signal
 import os
 import click
 import json
-from collections import namedtuple
-from dataclasses import dataclass
-
+from typing import Callable
 
 from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob
@@ -18,25 +16,26 @@ from pioreactor.utils.timing import current_utc_time
 
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
-SetAttrSplitTopic = namedtuple(
-    "SetAttrSplitTopic", ["pioreactor_unit", "experiment", "timestamp"]
-)
 
-TopicToParserToTable = namedtuple("TopicToParserToTable", ["topic", "parser", "table"])
+class SetAttrSplitTopic:
+    pioreactor_unit: str
+    experiment: str
+    timestamp: str
 
 
-@dataclass
-class TopicToParserToTableContrib:
+class TopicToParserToTable:
+    topic: str
+    parser: Callable[[str, str], dict]
+    table: str
+
+
+class TopicToParserToTableContrib(TopicToParserToTable):
     """
     plugins subclass this.
     parser (callable) must accept (topic: str, payload: str)
 
     TODO: untested
     """
-
-    topic: str
-    parser: callable
-    table: str
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -46,7 +45,7 @@ class TopicToParserToTableContrib:
 
 class MqttToDBStreamer(BackgroundJob):
 
-    topics_to_tables_from_plugins = []
+    topics_to_tables_from_plugins: list[TopicToParserToTableContrib] = []
 
     def __init__(self, topics_to_tables, **kwargs):
 
@@ -112,7 +111,7 @@ class MqttToDBStreamer(BackgroundJob):
             )
 
 
-def produce_metadata(topic):
+def produce_metadata(topic: str):
     # helper function for parsers below
     split_topic = topic.split("/")
     return (

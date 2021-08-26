@@ -118,7 +118,6 @@ def test_pid_turbidostat_automation():
     pause()
     e = algo.run()
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle > 1.0
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -131,7 +130,6 @@ def test_pid_turbidostat_automation():
     pause()
     e = algo.run()
     assert isinstance(e, events.DilutionEvent)
-    assert e.volume_to_cycle > 1.0
 
 
 def test_morbidostat_automation():

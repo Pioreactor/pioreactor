@@ -26,7 +26,7 @@ class TrackOD(LEDAutomation):
 
     key = "track_od"
 
-    def __init__(self, max_od=None, **kwargs):
+    def __init__(self, max_od: float, **kwargs):
         super(TrackOD, self).__init__(**kwargs)
         assert max_od is not None, "max_od should be set"
         self.max_od = max_od
@@ -38,7 +38,7 @@ class TrackOD(LEDAutomation):
     def execute(self, *args, **kwargs) -> events.Event:
         new_intensity = 100 ** (min(self.latest_od, self.max_od) / self.max_od)
         self.set_led_intensity(self.white_light, new_intensity)
-        return events.IncreasedLuminosity(f"new output: {new_intensity}")
+        return events.ChangedLuminosity(f"new output: {new_intensity}")
 
 
 class FlashUV(LEDAutomation):
@@ -54,4 +54,4 @@ class FlashUV(LEDAutomation):
         self.set_led_intensity(self.uv_led, 100)
         time.sleep(1)
         self.set_led_intensity(self.uv_led, 0)
-        return events.UvFlash("Flashed UV for 1 second")
+        return events.ChangedLuminosity("Flashed UV for 1 second")

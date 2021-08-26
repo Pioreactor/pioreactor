@@ -37,7 +37,7 @@ class AltMediaEvent(Event):
     pass
 
 
-class IncreasedLuminosity(Event):
+class ChangedLuminosity(Event):
     pass
 
 
