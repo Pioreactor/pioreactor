@@ -77,6 +77,8 @@ In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other job
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
+from __future__ import annotations
+
 import time
 import json
 import signal

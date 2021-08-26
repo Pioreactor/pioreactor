@@ -2,6 +2,8 @@
 """
 This job runs on the leader, and is a replacement for the NodeRed database streaming job.
 """
+from __future__ import annotations
+
 import signal
 import os
 import click
