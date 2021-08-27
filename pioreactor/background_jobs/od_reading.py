@@ -79,8 +79,8 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
 from __future__ import annotations
 from typing import Optional
-import time
-import json
+from time import time, sleep
+from json import loads
 import signal
 import click
 
@@ -98,8 +98,7 @@ from pioreactor.actions.led_intensity import (
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
-
-CHANNELS = int  # Literal[0, 1, 2, 3]
+PD_Channel = int  # Literal[0,1,2,3]
 
 
 class ADCReader(BackgroundSubJob):
@@ -145,7 +144,7 @@ class ADCReader(BackgroundSubJob):
 
     def __init__(
         self,
-        channels,
+        channels: list[PD_Channel],
         fake_data: bool = False,
         dynamic_gain: bool = True,
         initial_gain=1,
@@ -163,7 +162,7 @@ class ADCReader(BackgroundSubJob):
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.10)
         self.ads = None
         self.channels = channels
-        self.analog_in = {}  # dict[CHANNELS, "AnalogIn"]
+        self.analog_in = {}  # dict[PD_Channel, AnalogIn]
 
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
@@ -371,7 +370,7 @@ class ADCReader(BackgroundSubJob):
             raise ValueError("Must call setup_adc() first.")
 
         if self.first_ads_obs_time is None:
-            self.first_ads_obs_time = time.time()
+            self.first_ads_obs_time = time()
 
         # in case some other process is also using the ADC chip and changes the gain, we want
         # to always confirm our settings before take a snapshot.
@@ -409,7 +408,7 @@ class ADCReader(BackgroundSubJob):
                             ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
                             aggregated_signals[channel].append(value1015)
 
-                    time.sleep(
+                    sleep(
                         max(
                             0,
                             0.80 / (oversampling_count - 1)
@@ -522,7 +521,7 @@ class TemperatureCompensator(BackgroundSubJob):
         if not msg.payload:
             return
 
-        tmp = json.loads(msg.payload)["temperature"]
+        tmp = loads(msg.payload)["temperature"]
 
         if self.initial_temperature is None:
             self.initial_temperature = tmp
@@ -533,7 +532,7 @@ class TemperatureCompensator(BackgroundSubJob):
             self.previous_temperature = self.latest_temperature
 
         self.latest_temperature = tmp
-        self.time_of_last_temperature = time.time()
+        self.time_of_last_temperature = time()
 
     def start_passive_listeners(self):
         self.subscribe_and_callback(
@@ -568,7 +567,7 @@ class LinearTemperatureCompensator(TemperatureCompensator):
         else:
             from math import exp
 
-            time_since_last = time.time() - self.time_of_last_temperature
+            time_since_last = time() - self.time_of_last_temperature
             f = min(time_since_last / (10 * 60), 1)  # interpolate to current temp
             iterpolated_temp = (
                 f * self.latest_temperature + (1 - f) * self.previous_temperature
@@ -613,7 +612,7 @@ class ODReader(BackgroundJob):
 
     def __init__(
         self,
-        channel_angle_map: dict[CHANNELS, str],
+        channel_angle_map: dict[PD_Channel, str],
         interval: float,
         adc_reader: ADCReader,
         unit=None,
@@ -662,10 +661,10 @@ class ODReader(BackgroundJob):
 
     def record_and_publish_from_adc(self):
 
-        pre_duration = 0.1
+        pre_duration = 0.1  # turn on LED prior to taking snapshot and wait
 
         self.start_ir_led()
-        time.sleep(pre_duration)
+        sleep(pre_duration)
         batched_readings = self.adc_reader.take_reading()
         self.stop_ir_led()
 
@@ -771,10 +770,10 @@ class ODReader(BackgroundJob):
 
 def create_channel_angle_map(
     od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
-) -> dict[CHANNELS, str]:
+) -> dict[PD_Channel, str]:
     # Inputs are either None, or a string like "135", "90,45", ...
     # Example return dict: {0: "90,135", 1: "45,135", 3:"90"}
-    channel_angle_map: dict[CHANNELS, str] = {}
+    channel_angle_map: dict[PD_Channel, str] = {}
     if od_angle_channel0:
         # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
         channel_angle_map[0] = od_angle_channel0
