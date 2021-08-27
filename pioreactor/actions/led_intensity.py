@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import click
+from typing import Tuple, Dict, Optional
 
 from pioreactor.pubsub import create_client, QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -15,7 +16,9 @@ LED_Channel = str  # Literal[...]
 CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
 
 
-def update_current_state(channel, intensity):
+def update_current_state(
+    channel, intensity
+) -> Tuple[Dict[LED_Channel, float], Dict[LED_Channel, float]]:
     """
     this ignores the status of "power on"
 
@@ -35,12 +38,12 @@ def update_current_state(channel, intensity):
 
 
 def led_intensity(
-    channel,
-    intensity,
-    source_of_event=None,
-    unit=None,
-    experiment=None,
-    verbose=True,
+    channel: LED_Channel,
+    intensity: float,
+    source_of_event: Optional[str] = None,
+    unit: str = None,
+    experiment: str = None,
+    verbose: bool = True,
     pubsub_client=None,
 ):
     """

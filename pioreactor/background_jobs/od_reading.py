@@ -78,7 +78,7 @@ make decisions. For example, if a bubbler/visible light LED is active, it should
 s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, NewType
 from time import time, sleep
 from json import loads
 import signal
@@ -98,7 +98,7 @@ from pioreactor.actions.led_intensity import (
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
-PD_Channel = int  # Literal[0,1,2,3]
+PD_Channel = NewType("PD_Channel", int)  # Literal[0,1,2,3]
 
 
 class ADCReader(BackgroundSubJob):
@@ -776,16 +776,16 @@ def create_channel_angle_map(
     channel_angle_map: dict[PD_Channel, str] = {}
     if od_angle_channel0:
         # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
-        channel_angle_map[0] = od_angle_channel0
+        channel_angle_map[PD_Channel(0)] = od_angle_channel0
 
     if od_angle_channel1:
-        channel_angle_map[1] = od_angle_channel1
+        channel_angle_map[PD_Channel(1)] = od_angle_channel1
 
     if od_angle_channel2:
-        channel_angle_map[2] = od_angle_channel2
+        channel_angle_map[PD_Channel(2)] = od_angle_channel2
 
     if od_angle_channel3:
-        channel_angle_map[3] = od_angle_channel3
+        channel_angle_map[PD_Channel(3)] = od_angle_channel3
 
     return channel_angle_map
 

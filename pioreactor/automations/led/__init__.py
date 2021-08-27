@@ -36,9 +36,12 @@ class TrackOD(LEDAutomation):
         self.set_led_intensity(self.white_light, 0)
 
     def execute(self, *args, **kwargs) -> events.Event:
-        new_intensity = 100 ** (min(self.latest_od, self.max_od) / self.max_od)
-        self.set_led_intensity(self.white_light, new_intensity)
-        return events.ChangedLuminosity(f"new output: {new_intensity}")
+        if self.latest_od is not None:
+            new_intensity = 100 ** (min(self.latest_od, self.max_od) / self.max_od)
+            self.set_led_intensity(self.white_light, new_intensity)
+            return events.ChangedLuminosity(f"new output: {new_intensity}")
+        else:
+            return events.NoEvent()
 
 
 class FlashUV(LEDAutomation):
