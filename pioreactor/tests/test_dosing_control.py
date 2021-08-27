@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time
+import time, json
 
 from pioreactor.automations.dosing.morbidostat import Morbidostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
@@ -13,6 +13,8 @@ from pioreactor.automations import DosingAutomation
 from pioreactor.automations import events
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
+from pioreactor.utils import local_persistant_storage
+
 
 unit = get_unit_name()
 experiment = get_latest_experiment_name()
@@ -21,6 +23,13 @@ experiment = get_latest_experiment_name()
 def pause():
     # to avoid race conditions when updating state
     time.sleep(0.5)
+
+
+def setup_function():
+    with local_persistant_storage("pump_calibration") as cache:
+        cache["media_ml_calibration"] = json.dumps({"duration_": 1.0})
+        cache["alt_media_ml_calibration"] = json.dumps({"duration_": 1.0})
+        cache["waste_ml_calibration"] = json.dumps({"duration_": 1.0})
 
 
 def test_silent_automation():
@@ -283,7 +292,7 @@ def test_changing_turbidostat_params_over_mqtt():
 
     og_volume = 0.5
     og_target_od = 1.0
-    algo = PIDTurbidostat(
+    algo = Turbidostat(
         volume=og_volume,
         target_od=og_target_od,
         duration=60,
@@ -324,8 +333,6 @@ def test_changing_turbidostat_params_over_mqtt():
     )
     pause()
     assert algo.target_od == new_od
-    assert algo.pid.pid.setpoint == new_od
-    assert algo.min_od == 0.75 * new_od
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
@@ -417,7 +424,8 @@ def test_throughput_calculator():
         f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput", 0, retain=True
     )
 
-    algo = PIDMorbidostat(
+    algo = DosingController(
+        "pid_morbidostat",
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
@@ -435,7 +443,7 @@ def test_throughput_calculator():
         '{"od_filtered": 1.0}',
     )
     pause()
-    algo.run()
+    algo.dosing_automation_job.run()
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -446,7 +454,7 @@ def test_throughput_calculator():
         '{"od_filtered": 0.95}',
     )
     pause()
-    algo.run()
+    algo.dosing_automation_job.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
 
@@ -459,7 +467,7 @@ def test_throughput_calculator():
         '{"od_filtered": 0.95}',
     )
     pause()
-    algo.run()
+    algo.dosing_automation_job.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
 
@@ -472,7 +480,7 @@ def test_throughput_calculator():
         '{"od_filtered": 0.95}',
     )
     pause()
-    algo.run()
+    algo.dosing_automation_job.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
 
@@ -489,10 +497,11 @@ def test_throughput_calculator_restart():
         retain=True,
     )
 
-    algo = PIDMorbidostat(
-        target_growth_rate=0.06,
+    algo = DosingController(
+        "turbidostat",
         target_od=1.0,
-        duration=60,
+        duration=5 / 60,
+        volume=1.0,
         unit=unit,
         experiment=experiment,
     )
@@ -513,10 +522,11 @@ def test_throughput_calculator_manual_set():
         retain=True,
     )
     pause()
-    algo = PIDMorbidostat(
-        target_growth_rate=0.05,
+    algo = DosingController(
+        "turbidostat",
         target_od=1.0,
-        duration=60,
+        duration=5 / 60,
+        volume=1.0,
         unit=unit,
         experiment=experiment,
     )
@@ -528,6 +538,7 @@ def test_throughput_calculator_manual_set():
         f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput/set", 0
     )
     pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput/set", 0)
+    pause()
     pause()
     assert algo.throughput_calculator.media_throughput == 0
     assert algo.throughput_calculator.alt_media_throughput == 0
@@ -544,27 +555,30 @@ def test_execute_io_action():
         None,
         retain=True,
     )
-    ca = DosingAutomation(unit=unit, experiment=experiment)
-    ca.execute_io_action(media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35)
+    ca = DosingController("silent", unit=unit, experiment=experiment)
+    ca.dosing_automation_job.execute_io_action(
+        media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35
+    )
     pause()
     assert ca.throughput_calculator.media_throughput == 0.65
     assert ca.throughput_calculator.alt_media_throughput == 0.35
 
-    ca.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
+    ca.dosing_automation_job.execute_io_action(
+        media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3
+    )
     pause()
     assert ca.throughput_calculator.media_throughput == 0.80
     assert ca.throughput_calculator.alt_media_throughput == 0.50
 
-    ca.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
+    ca.dosing_automation_job.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 0.50
 
-    ca.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
+    ca.dosing_automation_job.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 1.50
-    ca.set_state("disconnected")
 
 
 def test_execute_io_action2():
@@ -585,12 +599,13 @@ def test_execute_io_action2():
         retain=True,
     )
 
-    ca = DosingAutomation(unit=unit, experiment=experiment)
-    ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+    ca = DosingController("silent", unit=unit, experiment=experiment)
+    ca.dosing_automation_job.execute_io_action(
+        media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26
+    )
     pause()
     assert ca.throughput_calculator.media_throughput == 1.25
     assert ca.throughput_calculator.alt_media_throughput == 0.01
-    ca.set_state("disconnected")
 
 
 def test_execute_io_action_outputs():
