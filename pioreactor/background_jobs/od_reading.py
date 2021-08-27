@@ -813,7 +813,7 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=channel_angle_map.keys(),
+            channels=list(channel_angle_map.keys()),
             fake_data=fake_data,
             unit=unit,
             experiment=experiment,

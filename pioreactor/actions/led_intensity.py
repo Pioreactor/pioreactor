@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 import json
 import click
 
@@ -8,7 +9,10 @@ from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils import local_intermittent_storage
 
-CHANNELS = ["A", "B", "C", "D"]
+
+LED_Channel = str  # Literal[...]
+
+CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
 
 
 def update_current_state(channel, intensity):
