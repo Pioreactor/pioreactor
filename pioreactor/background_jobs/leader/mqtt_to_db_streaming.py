@@ -9,6 +9,7 @@ import os
 import click
 import json
 from typing import Callable
+from dataclasses import dataclass
 
 from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob
@@ -19,12 +20,14 @@ from pioreactor.utils.timing import current_utc_time
 JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
+@dataclass
 class SetAttrSplitTopic:
     pioreactor_unit: str
     experiment: str
     timestamp: str
 
 
+@dataclass
 class TopicToParserToTable:
     topic: str
     parser: Callable[[str, str], dict]
