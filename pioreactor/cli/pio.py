@@ -260,6 +260,11 @@ if am_I_leader():
         import re
         import time
 
+        logger = create_logger(
+            "CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
+        )
+        logger.info(f"Adding new pioreactor {new_name} to cluster.")
+
         def is_allowable_hostname(hostname):
             return True if re.match(r"^[0-9a-zA-Z\-]+$", hostname) else False
 
@@ -274,6 +279,7 @@ if am_I_leader():
 
         # check to make sure new_name isn't already on the network
         if is_host_on_network(new_name):
+            logger.error(f"Name {new_name} is already on the network. Try another name.")
             click.echo(
                 f"Name {new_name} is already on the network. Try another name.", err=True
             )
@@ -282,6 +288,9 @@ if am_I_leader():
             click.echo(
                 "New name should only contain numbers, -, and English alphabet: a-z.",
                 err=True,
+            )
+            logger.error(
+                "New name should only contain numbers, -, and English alphabet: a-z."
             )
             sys.exit(1)
 
@@ -305,6 +314,9 @@ if am_I_leader():
                         f"`{machine_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on.",
                         err=True,
                     )
+                    logger.error(
+                        f"`{machine_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
+                    )
                     sys.exit(1)
             else:
                 raspberrypi_on_network = True
@@ -317,9 +329,6 @@ if am_I_leader():
             shell=True,
         )
         if res == 0:
-            logger = create_logger(
-                "CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
-            )
             logger.info(f"New pioreactor {new_name} successfully added to cluster.")
 
 
