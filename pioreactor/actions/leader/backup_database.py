@@ -48,7 +48,7 @@ def backup_database(output: str):
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = datetime.strptime(
                     cache["latest_backup_timestamp"].decode("utf-8"),
-                    "%Y-%m-%dT%H:%M:%S.%f",
+                    "%Y-%m-%dT%H:%M:%S.%fZ",
                 )
 
                 if (datetime.utcnow() - latest_backup_at).days > 30:
