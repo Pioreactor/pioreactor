@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
 import time
 from datetime import datetime
 
@@ -8,6 +7,7 @@ import click
 from pioreactor.config import config, get_active_workers_in_inventory
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
 
 LAST_BACKUP_TIMESTAMP_PATH = "/home/pi/.pioreactor/.last_backup_time"
@@ -32,12 +32,16 @@ def backup_database(output: str):
     logger = create_logger("backup_database")
 
     # let's check to see how old the last backup is and alert the user if too old.
-    if os.path.isfile(LAST_BACKUP_TIMESTAMP_PATH):
-        with open(LAST_BACKUP_TIMESTAMP_PATH, "r") as f:
-            latest_backup_at = datetime.strptime(f.read(), "%Y-%m-%dT%H:%M:%S.%f")
+    with local_persistant_storage("database_backups") as cache:
+        if cache.get("latest_backup_timestamp"):
+            latest_backup_at = datetime.strptime(
+                cache["latest_backup_timestamp"], "%Y-%m-%dT%H:%M:%S.%f"
+            )
 
-        if (datetime.utcnow() - latest_backup_at).days > 30:
-            logger.warning("Database hasn't been backed up in over 30 days. Running now.")
+            if (datetime.utcnow() - latest_backup_at).days > 30:
+                logger.warning(
+                    "Database hasn't been backed up in over 30 days. Running now."
+                )
 
     def progress(status, remaining, total):
         logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
@@ -55,8 +59,8 @@ def backup_database(output: str):
     bck.close()
     con.close()
 
-    with open(LAST_BACKUP_TIMESTAMP_PATH, "w") as f:
-        f.write(current_utc_time())
+    with local_persistant_storage("database_backups") as cache:
+        cache["latest_backup_timestamp"] = current_utc_time()
 
     logger.info("Completed backup of database.")
 

@@ -2,6 +2,7 @@
 from dbm import ndbm
 from contextlib import contextmanager
 from pioreactor.pubsub import publish, QOS
+from typing import Generator, MutableMapping
 
 
 @contextmanager
@@ -37,7 +38,9 @@ def publish_ready_to_disconnected_state(unit: str, experiment: str, name: str):
 
 
 @contextmanager
-def local_intermittent_storage(cache_name: str):
+def local_intermittent_storage(
+    cache_name: str,
+) -> Generator[MutableMapping[str, str], None, None]:
     """
     Examples
     ---------
@@ -58,13 +61,15 @@ def local_intermittent_storage(cache_name: str):
     """
     try:
         cache = ndbm.open(f"/tmp/{cache_name}", "c")
-        yield cache
+        yield cache  # type: ignore
     finally:
         cache.close()
 
 
 @contextmanager
-def local_persistant_storage(cache_name: str):
+def local_persistant_storage(
+    cache_name: str,
+) -> Generator[MutableMapping[str, str], None, None]:
     """
     Values stored in this storage will stay around between RPi restarts, and until overwritten
     or deleted.
@@ -83,12 +88,12 @@ def local_persistant_storage(cache_name: str):
             cache = ndbm.open(f".pioreactor/local_storage/{cache_name}", "c")
         else:
             cache = ndbm.open(f"/home/pi/.pioreactor/local_storage/{cache_name}", "c")
-        yield cache
+        yield cache  # type: ignore
     finally:
         cache.close()
 
 
-def clamp(minimum, x, maximum):
+def clamp(minimum: float, x: float, maximum: float) -> float:
     return max(minimum, min(x, maximum))
 
 
