@@ -47,7 +47,8 @@ def backup_database(output: str):
         with local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = datetime.strptime(
-                    str(cache["latest_backup_timestamp"]), "%Y-%m-%dT%H:%M:%S.%f"
+                    cache["latest_backup_timestamp"].decode("utf-8"),
+                    "%Y-%m-%dT%H:%M:%S.%f",
                 )
 
                 if (datetime.utcnow() - latest_backup_at).days > 30:
