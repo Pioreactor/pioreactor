@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import socket
-import time
 import threading
+import time
+
 from pioreactor.config import leader_hostname
 
 
@@ -278,8 +279,9 @@ def publish_to_pioreactor_cloud(endpoint, data=None, json=None):
     json: (optional) json data to send in the body.
 
     """
-    from pioreactor.whoami import is_testing_env, get_uuid
-    from requests import post
+    from requests import exceptions, post
+
+    from pioreactor.whoami import get_uuid, is_testing_env
 
     if is_testing_env():
         return
@@ -295,5 +297,5 @@ def publish_to_pioreactor_cloud(endpoint, data=None, json=None):
             json=json,
             headers=headers,
         )
-    except (ConnectionRefusedError, ConnectionError):
+    except exceptions.RequestException:
         pass

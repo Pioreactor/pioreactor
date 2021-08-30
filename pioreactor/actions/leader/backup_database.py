@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
-import os, time
+import os
+import time
 from datetime import datetime
+
 import click
+
 from pioreactor.config import config, get_active_workers_in_inventory
-from pioreactor.whoami import get_unit_name
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
-
+from pioreactor.whoami import get_unit_name
 
 LAST_BACKUP_TIMESTAMP_PATH = "/home/pi/.pioreactor/.last_backup_time"
 
 
-def backup_database(output, force):
+def backup_database(output: str):
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
@@ -24,7 +26,8 @@ def backup_database(output, force):
     """
 
     import sqlite3
-    from sh import rsync, ErrorReturnCode
+
+    from sh import ErrorReturnCode, rsync
 
     logger = create_logger("backup_database")
 
@@ -85,8 +88,8 @@ def backup_database(output, force):
 
 @click.command(name="backup_database")
 @click.option("--output", default="/home/pi/.pioreactor/pioreactor.sqlite.backup")
-def click_backup_database(output, force):
+def click_backup_database(output):
     """
     (leader only) Backup db to workers.
     """
-    return backup_database(output, force)
+    return backup_database(output)

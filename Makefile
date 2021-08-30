@@ -79,6 +79,7 @@ install-pioreactor-worker:
 
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
 	mkdir -p /home/pi/.pioreactor
+	mkdir -p /home/pi/.pioreactor/local_storage
 	touch /home/pi/.pioreactor/unit_config.ini
 	sudo python3 setup.py install
 
