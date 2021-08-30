@@ -7,8 +7,12 @@ import click
 from pioreactor.config import config, get_active_workers_in_inventory
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
-from pioreactor.utils import local_persistant_storage
-from pioreactor.whoami import get_unit_name
+from pioreactor.utils import (
+    local_persistant_storage,
+    is_pio_job_running,
+    publish_ready_to_disconnected_state,
+)
+from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 
 LAST_BACKUP_TIMESTAMP_PATH = "/home/pi/.pioreactor/.last_backup_time"
 
@@ -26,66 +30,76 @@ def backup_database(output: str):
     """
 
     import sqlite3
-
     from sh import ErrorReturnCode, rsync
 
-    logger = create_logger("backup_database")
+    unit = get_unit_name()
+    experiment = UNIVERSAL_EXPERIMENT
 
-    # let's check to see how old the last backup is and alert the user if too old.
-    with local_persistant_storage("database_backups") as cache:
-        if cache.get("latest_backup_timestamp"):
-            latest_backup_at = datetime.strptime(
-                cache["latest_backup_timestamp"], "%Y-%m-%dT%H:%M:%S.%f"
-            )
+    with publish_ready_to_disconnected_state("backup_database", unit, experiment):
 
-            if (datetime.utcnow() - latest_backup_at).days > 30:
-                logger.warning(
-                    "Database hasn't been backed up in over 30 days. Running now."
+        logger = create_logger("backup_database")
+
+        if is_pio_job_running("od_reading"):
+            logger.error("Won't run if od_reading is running.")
+            return
+
+        # let's check to see how old the last backup is and alert the user if too old.
+        with local_persistant_storage("database_backups") as cache:
+            if cache.get("latest_backup_timestamp"):
+                latest_backup_at = datetime.strptime(
+                    str(cache["latest_backup_timestamp"]), "%Y-%m-%dT%H:%M:%S.%f"
                 )
 
-    def progress(status, remaining, total):
-        logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
-        logger.debug(f"Writing to local backup {output}.")
+                if (datetime.utcnow() - latest_backup_at).days > 30:
+                    logger.warning(
+                        "Database hasn't been backed up in over 30 days. Running now."
+                    )
 
-    logger.debug(f"Starting backup of database to {output}")
-    time.sleep(1)  # pause a second so the log entry above gets recorded into the DB.
+        def progress(status, remaining, total):
+            logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
+            logger.debug(f"Writing to local backup {output}.")
 
-    con = sqlite3.connect(config.get("storage", "database"))
-    bck = sqlite3.connect(output)
+        logger.debug(f"Starting backup of database to {output}")
+        time.sleep(1)  # pause a second so the log entry above gets recorded into the DB.
 
-    with bck:
-        con.backup(bck, pages=-1, progress=progress)
+        con = sqlite3.connect(config.get("storage", "database"))
+        bck = sqlite3.connect(output)
 
-    bck.close()
-    con.close()
+        with bck:
+            con.backup(bck, pages=-1, progress=progress)
 
-    with local_persistant_storage("database_backups") as cache:
-        cache["latest_backup_timestamp"] = current_utc_time()
+        bck.close()
+        con.close()
 
-    logger.info("Completed backup of database.")
+        with local_persistant_storage("database_backups") as cache:
+            cache["latest_backup_timestamp"] = current_utc_time()
 
-    n_backups = 2
-    backups_complete = 0
-    available_workers = get_active_workers_in_inventory()
+        logger.info("Completed backup of database.")
 
-    while (backups_complete < n_backups) and (len(available_workers) > 0):
-        backup_unit = available_workers.pop()
-        if backup_unit == get_unit_name():
-            continue
+        n_backups = 2
+        backups_complete = 0
+        available_workers = get_active_workers_in_inventory()
 
-        try:
-            rsync("-hz", "--partial", "--inplace", output, f"{backup_unit}:{output}")
-        except ErrorReturnCode:
-            logger.debug(
-                f"Unable to backup database to {backup_unit}. Is it online?",
-                exc_info=True,
-            )
-            logger.warning(f"Unable to backup database to {backup_unit}. Is it online?")
-        else:
-            logger.debug(f"Backed up database to {backup_unit}:{output}.")
-            backups_complete += 1
+        while (backups_complete < n_backups) and (len(available_workers) > 0):
+            backup_unit = available_workers.pop()
+            if backup_unit == get_unit_name():
+                continue
 
-    return
+            try:
+                rsync("-hz", "--partial", "--inplace", output, f"{backup_unit}:{output}")
+            except ErrorReturnCode:
+                logger.debug(
+                    f"Unable to backup database to {backup_unit}. Is it online?",
+                    exc_info=True,
+                )
+                logger.warning(
+                    f"Unable to backup database to {backup_unit}. Is it online?"
+                )
+            else:
+                logger.debug(f"Backed up database to {backup_unit}:{output}.")
+                backups_complete += 1
+
+        return
 
 
 @click.command(name="backup_database")
