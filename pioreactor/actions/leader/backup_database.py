@@ -34,9 +34,7 @@ def backup_database(output: str):
     # let's check to see how old the last backup is and alert the user if too old.
     if os.path.isfile(LAST_BACKUP_TIMESTAMP_PATH):
         with open(LAST_BACKUP_TIMESTAMP_PATH, "r") as f:
-            latest_backup_at = datetime.datetime.strptime(
-                f.read(), "%Y-%m-%dT%H:%M:%S.%f"
-            )
+            latest_backup_at = datetime.strptime(f.read(), "%Y-%m-%dT%H:%M:%S.%f")
 
         if (datetime.utcnow() - latest_backup_at).days > 30:
             logger.warning("Database hasn't been backed up in over 30 days. Running now.")
