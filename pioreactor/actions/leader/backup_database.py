@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import time
-from datetime import datetime
 
 import click
 
@@ -14,19 +13,16 @@ from pioreactor.utils import (
 )
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 
-LAST_BACKUP_TIMESTAMP_PATH = "/home/pi/.pioreactor/.last_backup_time"
-
 
 def backup_database(output: str):
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
 
-    This job actually consumes a lot of power, and I've seen the LED output
+    This job actually consumes _a lot_ of resources, and I've seen the LED output
     drop due to this running. See issue #81. For now, we will skip the backup if `od_reading` is running
 
     Elsewhere, a cronjob is set up as well to run this action every N days.
-
     """
 
     import sqlite3
@@ -37,24 +33,11 @@ def backup_database(output: str):
 
     with publish_ready_to_disconnected_state("backup_database", unit, experiment):
 
-        logger = create_logger("backup_database")
+        logger = create_logger("backup_database", experiment=experiment, unit=unit)
 
         if is_pio_job_running("od_reading"):
             logger.error("Won't run if od_reading is running.")
             return
-
-        # let's check to see how old the last backup is and alert the user if too old.
-        with local_persistant_storage("database_backups") as cache:
-            if cache.get("latest_backup_timestamp"):
-                latest_backup_at = datetime.strptime(
-                    cache["latest_backup_timestamp"].decode("utf-8"),
-                    "%Y-%m-%dT%H:%M:%S.%fZ",
-                )
-
-                if (datetime.utcnow() - latest_backup_at).days > 30:
-                    logger.warning(
-                        "Database hasn't been backed up in over 30 days. Running now."
-                    )
 
         def progress(status, remaining, total):
             logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")

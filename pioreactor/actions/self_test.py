@@ -192,9 +192,11 @@ def check_leds_and_pds(unit, experiment, logger):
 
 def self_test():
 
-    logger = create_logger("self_test")
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
+    logger = create_logger(
+        "self_test", unit=unit, experiment=get_latest_experiment_name()
+    )
 
     with publish_ready_to_disconnected_state(unit, experiment, "self_test"):
 

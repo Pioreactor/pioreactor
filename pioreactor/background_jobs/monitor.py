@@ -3,6 +3,7 @@ from time import sleep
 from json import dumps
 from sys import modules
 from signal import pause
+from datetime import datetime
 
 import click
 
@@ -11,6 +12,7 @@ from pioreactor.whoami import (
     UNIVERSAL_EXPERIMENT,
     is_testing_env,
     get_latest_experiment_name,
+    am_I_leader,
 )
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
@@ -19,7 +21,7 @@ from pioreactor.hardware_mappings import (
     PCB_LED_PIN as LED_PIN,
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
-from pioreactor.utils import pio_jobs_running
+from pioreactor.utils import pio_jobs_running, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.version import __version__
 
@@ -31,6 +33,10 @@ class Monitor(BackgroundJob):
      1. Reports metadata (voltage, CPU usage, etc.) about the Rpi / Pioreactor to the leader
      2. Controls the LED / Button interaction
      3. Correction after a restart
+
+     TODO:
+
+     4. Check database backup if leader
 
     """
 
@@ -81,6 +87,22 @@ class Monitor(BackgroundJob):
 
         # report on CPU usage, memory, disk space
         self.publish_self_statistics()
+
+        # report on last database backup, if leader
+        if am_I_leader():
+            self.check_for_last_backup()
+
+    def check_for_last_backup(self):
+
+        with local_persistant_storage("database_backups") as cache:
+            if cache.get("latest_backup_timestamp"):
+                latest_backup_at = datetime.strptime(
+                    cache["latest_backup_timestamp"].decode("utf-8"),
+                    "%Y-%m-%dT%H:%M:%S.%fZ",
+                )
+
+                if (datetime.utcnow() - latest_backup_at).days > 30:
+                    self.logger.warning("Database hasn't been backed up in over 30 days.")
 
     def check_state_of_jobs_on_machine(self):
         """
