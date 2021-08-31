@@ -83,7 +83,7 @@ def check_temperature_and_heating(unit, experiment, logger):
 def check_leds_and_pds(unit, experiment, logger):
     from pprint import pformat
 
-    INTENSITIES = list(range(0, 48, 12))
+    INTENSITIES = list(range(2, 51, 8))
     current_experiment_name = get_latest_experiment_name()
     results = {}
     try:

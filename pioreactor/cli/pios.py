@@ -22,7 +22,7 @@ from pioreactor.config import get_active_workers_in_inventory, get_leader_hostna
 from pioreactor.logging import create_logger
 
 
-def universal_identifier_to_all_units(units):
+def universal_identifier_to_all_active_workers(units) -> tuple[str]:
     if units == (UNIVERSAL_IDENTIFIER,):
         units = get_active_workers_in_inventory()
     return units
@@ -126,7 +126,7 @@ def update(units):
             logger.debug(e, exc_info=True)
             return False
 
-    units = universal_identifier_to_all_units(units)
+    units = universal_identifier_to_all_active_workers(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -175,7 +175,7 @@ def install_plugin(plugin, units):
             logger.debug(e, exc_info=True)
             return False
 
-    units = add_leader(universal_identifier_to_all_units(units))
+    units = add_leader(universal_identifier_to_all_active_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -224,7 +224,7 @@ def uninstall_plugin(plugin, units):
             logger.debug(e, exc_info=True)
             return False
 
-    units = add_leader(universal_identifier_to_all_units(units))
+    units = add_leader(universal_identifier_to_all_active_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -267,7 +267,7 @@ def sync_configs(units):
             logger.debug(e, exc_info=True)
             return False
 
-    units = universal_identifier_to_all_units(units)
+    units = universal_identifier_to_all_active_workers(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -338,7 +338,7 @@ def kill(job, units, all_jobs, y):
             logger.error(e)
             return False
 
-    units = universal_identifier_to_all_units(units)
+    units = universal_identifier_to_all_active_workers(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -409,7 +409,7 @@ def run(ctx, job, units, y):
             logger.error(e)
             return False
 
-    units = universal_identifier_to_all_units(units)
+    units = universal_identifier_to_all_active_workers(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -453,7 +453,7 @@ def update_settings(ctx, job, units):
             publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
         return True
 
-    units = universal_identifier_to_all_units(units)
+    units = universal_identifier_to_all_active_workers(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 

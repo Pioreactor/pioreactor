@@ -62,7 +62,7 @@ def backup_database(output: str):
 
         n_backups = 2
         backups_complete = 0
-        available_workers = get_active_workers_in_inventory()
+        available_workers = list(get_active_workers_in_inventory())
 
         while (backups_complete < n_backups) and (len(available_workers) > 0):
             backup_unit = available_workers.pop()
