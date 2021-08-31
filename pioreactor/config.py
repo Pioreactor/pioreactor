@@ -106,7 +106,7 @@ def get_active_workers_in_inventory() -> tuple[str]:
     # because we are not using config.getboolean here, values like "0" are seen as true,
     # hence we use the built in config.BOOLEAN_STATES to determine truthiness
     config = get_config()
-    return (
+    return tuple(
         unit
         for (unit, available) in config["network.inventory"].items()
         if config.BOOLEAN_STATES[available]
