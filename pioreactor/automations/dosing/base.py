@@ -118,7 +118,7 @@ class DosingAutomation(BackgroundSubJob):
             if (not is_pio_job_running("od_reading")) or (
                 not is_pio_job_running("growth_rate_calculating")
             ):
-                self.logger.error(
+                self.logger.warning(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.

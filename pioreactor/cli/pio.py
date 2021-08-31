@@ -150,7 +150,9 @@ def version(verbose):
 def update(ui, app):
     import subprocess
 
-    logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+    logger = create_logger(
+        "update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
+    )
 
     if (not app) and (not ui):
         click.echo("Nothing to do. Specify either --app or --ui.")
@@ -261,7 +263,7 @@ if am_I_leader():
         import time
 
         logger = create_logger(
-            "CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
+            "add_pioreactor", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
         logger.info(f"Adding new pioreactor {new_name} to cluster.")
 
@@ -313,7 +315,7 @@ if am_I_leader():
                     click.echo(
                         f"`{machine_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on.",
                         err=True,
-                    )
+                    )  # TODO - is this echo redundant?
                     logger.error(
                         f"`{machine_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
                     )

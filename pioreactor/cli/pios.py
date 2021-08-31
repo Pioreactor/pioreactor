@@ -101,7 +101,7 @@ def update(units):
     import paramiko
 
     logger = create_logger(
-        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+        "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
     command = "pio update --app"
@@ -150,7 +150,7 @@ def install_plugin(plugin, units):
     import paramiko
 
     logger = create_logger(
-        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+        "install_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
     command = f"pio install-plugin {plugin}"
@@ -199,7 +199,7 @@ def uninstall_plugin(plugin, units):
     import paramiko
 
     logger = create_logger(
-        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+        "uninstall_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
     command = f"pio uninstall-plugin {plugin}"
@@ -247,7 +247,7 @@ def sync_configs(units):
     import paramiko
 
     logger = create_logger(
-        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+        "sync_configs", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
     def _thread_function(unit):
