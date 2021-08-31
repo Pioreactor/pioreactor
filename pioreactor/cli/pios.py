@@ -7,6 +7,7 @@ command line for running the same command on all workers,
 > pios sync
 > pios kill <substring>
 """
+from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 import sys
 
