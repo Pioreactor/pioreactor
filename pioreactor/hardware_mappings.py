@@ -4,11 +4,11 @@
 
 PWM_TO_PIN = {
     # map between PCB labels and GPIO pins
-    0: 6,
-    1: 13,  # hardware PWM1 available
-    2: 16,
-    3: 12,  # hardware PWM0 available
-    4: 18,
+    1: 6,
+    2: 13,  # hardware PWM1 available
+    3: 16,
+    4: 12,  # hardware PWM0 available
+    5: 18,
 }
 
 # led and button GPIO pins
@@ -23,4 +23,4 @@ SCL = 3
 # I2C channels used
 ADC = hex(72)
 DAC = hex(73)
-TMP = hex(79)
+TEMP = hex(79)
