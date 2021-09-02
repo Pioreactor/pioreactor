@@ -159,7 +159,7 @@ class ADCReader(BackgroundSubJob):
         self.dynamic_gain = dynamic_gain
         self.gain = initial_gain
         self._counter = 0
-        self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.10)
+        self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.ads = None
         self.channels = channels
         self.analog_in = {}  # dict[PD_Channel, AnalogIn]
@@ -447,7 +447,7 @@ class ADCReader(BackgroundSubJob):
                     / 32767
                 )
 
-                batched_estimates_[channel] = best_estimate_of_signal_
+                batched_estimates_[channel] = max(best_estimate_of_signal_, 0)
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
@@ -491,7 +491,7 @@ class ADCReader(BackgroundSubJob):
         except OSError as e:
             # just skip, not sure why this happens when add_media or remove_waste are called.
             self.logger.debug(e, exc_info=True)
-            self.logger.error(f"error {str(e)}. Attempting to continue.")
+            self.logger.error(f"Encountered {str(e)}. Attempting to continue.")
 
         except Exception as e:
             self.logger.debug(e, exc_info=True)

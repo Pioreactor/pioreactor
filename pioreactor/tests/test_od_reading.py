@@ -13,6 +13,9 @@ def pause():
 
 
 def test_LinearTemperatureCompensator():
+    """
+    Simulate a non-growing culture that is changing temperatures
+    """
 
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -45,8 +48,17 @@ def test_LinearTemperatureCompensator():
     assert tc.previous_temperature == 25
     assert tc.latest_temperature == 30
 
-    # temp increased, but OD stayed the same, so comped OD should go down.
-    assert tc.compensate_od_for_temperature(1.0) > 1.0
+    # temp increased, therefore OD decreased, so comped OD should be higher than observed (0.95V)
+    reading_ = tc.compensate_od_for_temperature(0.95)
+    assert reading_ > 0.95
+
+    pause()
+    pause()
+    pause()
+    pause()
+
+    # should keep increasing
+    assert tc.compensate_od_for_temperature(0.95) > reading_
 
 
 def test_sin_regression_exactly():

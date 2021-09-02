@@ -112,8 +112,10 @@ configure-rpi:
 	# add to second line of script...
 	sudo sed -i '2s/^/\/usr\/bin\/tvservice -o\n/' /etc/rc.local
 
-	# remove activelow led - I think it's the red led
-	echo "dtparam=act_led_activelow=on" | sudo tee -a /boot/config.txt
+	# remove activelow led
+	# TODO this doesn't work for RPi Zero, https://mlagerberg.gitbooks.io/raspberry-pi/content/5.2-leds.html
+	echo "dtparam=act_led_trigger=none" | sudo tee -a /boot/config.txt
+	echo "dtparam=act_led_activelow=off" | sudo tee -a /boot/config.txt
 
 	#####################################################################
 	#####################################################################
