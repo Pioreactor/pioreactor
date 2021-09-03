@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from collections import defaultdict
 
 import click
 
@@ -18,11 +19,17 @@ from pioreactor.whoami import (
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.background_jobs.stirring import Stirrer
 
 
-def od_blank(od_angle_channels, N_samples=15):
+def od_blank(
+    od_angle_channel1,
+    od_angle_channel2,
+    od_angle_channel3,
+    od_angle_channel4,
+    N_samples=15,
+):
     from statistics import mean
-    from collections import defaultdict
 
     action_name = "od_blank"
     logger = create_logger(action_name)
@@ -43,13 +50,29 @@ def od_blank(od_angle_channels, N_samples=15):
             )
             return
 
+        # turn on stirring if not already on
+        if not is_pio_job_running("stirring"):
+            # start stirring
+            st = Stirrer(
+                config.getint("stirring", "duty_cycle"),
+                unit=unit,
+                experiment=testing_experiment,
+            )
+            st.start_stirring()
+        else:
+            pass
+            # TODO: it could be paused, we should make sure it's running
+
         logger.info("Starting reading of blank OD. This will take about a minute.")
 
         sampling_rate = 1 / config.getfloat("od_config.od_sampling", "samples_per_second")
 
         # start od_reading
         start_od_reading(
-            *od_angle_channels,
+            od_angle_channel1,
+            od_angle_channel2,
+            od_angle_channel3,
+            od_angle_channel4,
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=testing_experiment,
@@ -107,13 +130,6 @@ def od_blank(od_angle_channels, N_samples=15):
 
 @click.command(name="od_blank")
 @click.option(
-    "--od-angle-channel0",
-    default=config.get("od_config.photodiode_channel", "0", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 0, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
     "--od-angle-channel1",
     default=config.get("od_config.photodiode_channel", "1", fallback=None),
     type=click.STRING,
@@ -134,12 +150,22 @@ def od_blank(od_angle_channels, N_samples=15):
     show_default=True,
     help="specify the angle(s) between the IR LED(s) and the PD in channel 3, separated by commas. Don't specify if channel is empty.",
 )
+@click.option(
+    "--od-angle-channel4",
+    default=config.get("od_config.photodiode_channel", "4", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 4, separated by commas. Don't specify if channel is empty.",
+)
 def click_od_blank(
-    od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
+    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
 ):
     """
     Compute statistics about the blank OD timeseries
     """
     od_blank(
-        [od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3],
+        od_angle_channel1,
+        od_angle_channel2,
+        od_angle_channel3,
+        od_angle_channel4,
     )

@@ -112,10 +112,10 @@ def od_temperature_compensation():
         # it's important to use od_reading (and not ADCReader) because we want to mimic
         # production environment as closely as possible (i.e. same LED behaviours, same sampling, etc)
         od_reader = start_od_reading(
-            config.get("od_config.photodiode_channel", "0", fallback=None),
             config.get("od_config.photodiode_channel", "1", fallback=None),
             config.get("od_config.photodiode_channel", "2", fallback=None),
             config.get("od_config.photodiode_channel", "3", fallback=None),
+            config.get("od_config.photodiode_channel", "4", fallback=None),
             sampling_rate=1
             / config.getfloat("od_config.od_sampling", "samples_per_second"),
             unit=unit,
