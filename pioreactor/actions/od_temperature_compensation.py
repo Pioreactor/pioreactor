@@ -21,6 +21,7 @@ Questions include:
 """
 import json, time
 import click
+from collections import defaultdict
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -74,7 +75,7 @@ def od_temperature_compensation():
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
     testing_experiment = get_latest_testing_experiment_name()
-    temps, ods = [], []
+    temps, ods = [], defaultdict(list)
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
@@ -111,7 +112,10 @@ def od_temperature_compensation():
         # it's important to use od_reading (and not ADCReader) because we want to mimic
         # production environment as closely as possible (i.e. same LED behaviours, same sampling, etc)
         od_reader = start_od_reading(
-            *["90", None, None, None],
+            config.get("od_config.photodiode_channel", "0", fallback=None),
+            config.get("od_config.photodiode_channel", "1", fallback=None),
+            config.get("od_config.photodiode_channel", "2", fallback=None),
+            config.get("od_config.photodiode_channel", "3", fallback=None),
             sampling_rate=1
             / config.getfloat("od_config.od_sampling", "samples_per_second"),
             unit=unit,
@@ -130,7 +134,8 @@ def od_temperature_compensation():
                 temp = json.loads(message.payload)["temperature"]
 
                 temps.append(temp)
-                ods.append(od_reader.latest_reading[0])
+                for channel in od_reader.channel_angle_map.keys():
+                    ods[channel].append(od_reader.latest_reading[channel])
 
         # I want to listen for new temperatures coming in, and when I observe one, take od reading
         subscribe_and_callback(
@@ -145,26 +150,33 @@ def od_temperature_compensation():
             duty_cycle += 4
             tc.temperature_automation_job.set_duty_cycle(duty_cycle)
 
-        log_ods = np.log(ods)
-        (temp_coef, std_error_temp_coef), _ = simple_linear_regression(x=temps, y=log_ods)
-        logger.debug(f"temp_coef={temp_coef}, std_error_temp_coef={std_error_temp_coef}")
+        for channel, angle in od_reader.channel_angle_map.items():
 
-        with local_persistant_storage("od_temperature_compensation") as cache:
-            cache["log_linear"] = json.dumps(
-                {"estimate": temp_coef, "std_error": std_error_temp_coef}
+            log_ods = np.log(ods[channel])
+            (temp_coef, std_error_temp_coef), _ = simple_linear_regression(
+                x=temps, y=log_ods
+            )
+            logger.debug(
+                f"{channel}, {angle}: temp_coef={temp_coef}, std_error_temp_coef={std_error_temp_coef}"
             )
 
-        if config.getboolean(
-            "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
-        ):
-            to_share = dict(zip(temps, ods))
-            to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
-            to_share["ir_intensity"] = config["od_config.od_sampling"]["ir_intensity"]
+            with local_persistant_storage("od_temperature_compensation") as cache:
+                cache["log_linear"] = json.dumps(
+                    {"estimate": temp_coef, "std_error": std_error_temp_coef}
+                )
 
-            publish_to_pioreactor_cloud(
-                "od_temperature_compensation",
-                json=to_share,
-            )
+            if config.getboolean(
+                "data_sharing_with_pioreactor", "send_od_statistics_to_Pioreactor"
+            ):
+                to_share = dict(zip(temps, ods))
+                to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
+                to_share["ir_intensity"] = config["od_config.od_sampling"]["ir_intensity"]
+                to_share["angle"] = angle
+
+                publish_to_pioreactor_cloud(
+                    "od_temperature_compensation",
+                    json=to_share,
+                )
 
         logger.info("Finished OD temperature compensation.")
 

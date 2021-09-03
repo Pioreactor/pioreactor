@@ -78,7 +78,7 @@ make decisions. For example, if a bubbler/visible light LED is active, it should
 s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
 from __future__ import annotations
-from typing import Optional, NewType
+from typing import Optional, NewType, Any
 from time import time, sleep
 from json import loads
 import signal
@@ -160,14 +160,13 @@ class ADCReader(BackgroundSubJob):
         self.gain = initial_gain
         self._counter = 0
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
-        self.ads = None
         self.channels = channels
         self.analog_in = {}  # dict[PD_Channel, AnalogIn]
 
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
-        self.first_ads_obs_time = None
-        self.batched_readings = {}
+        self.first_ads_obs_time: Optional[float] = None
+        self.batched_readings: dict[PD_Channel, float] = {}
 
     def setup_adc(self):
         """
@@ -354,15 +353,15 @@ class ADCReader(BackgroundSubJob):
 
         return (C, A, phi), AIC
 
-    def take_reading(self):
+    def take_reading(self) -> dict[PD_Channel, float]:
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
 
         Returns
         ---------
         readings: dict
-            a dict with `timestamp` of when the reading occurred, and specified channels (as ints) and their reading
-            Ex: {0: 0.10240, 1: 0.1023459, 'timestamp': '2021-07-29T18:44:43.556804'}
+            a dict with specified channels (as ints) and their reading
+            Ex: {0: 0.10240, 1: 0.1023459}
 
 
         """
@@ -388,8 +387,12 @@ class ADCReader(BackgroundSubJob):
         }
         max_signal = 0
 
-        aggregated_signals = {channel: [] for channel in self.channels}
-        timestamps = {channel: [] for channel in self.channels}
+        aggregated_signals: dict[PD_Channel, list[int]] = {
+            channel: [] for channel in self.channels
+        }
+        timestamps: dict[PD_Channel, list[float]] = {
+            channel: [] for channel in self.channels
+        }
         # oversample over each channel, and we aggregate the results into a single signal.
         oversampling_count = 25
 
@@ -420,7 +423,7 @@ class ADCReader(BackgroundSubJob):
                         )
                     )
 
-            batched_estimates_ = {}
+            batched_estimates_: dict[PD_Channel, float] = {}
             for channel in self.channels:
 
                 (
@@ -466,9 +469,6 @@ class ADCReader(BackgroundSubJob):
                 max_signal = max(max_signal, best_estimate_of_signal_)
                 self.check_on_max(max_signal)
 
-            # publish the batch of data, too, for reading,
-            # publishes to pioreactor/{self.unit}/{self.experiment}/{self.job_name}/batched_readings
-            batched_estimates_["timestamp"] = current_utc_time()
             self.batched_readings = batched_estimates_
 
             # the max signal should determine the ADS1x15's gain
@@ -492,6 +492,7 @@ class ADCReader(BackgroundSubJob):
             # just skip, not sure why this happens when add_media or remove_waste are called.
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Encountered {str(e)}. Attempting to continue.")
+            return {}
 
         except Exception as e:
             self.logger.debug(e, exc_info=True)
@@ -521,7 +522,7 @@ class TemperatureCompensator(BackgroundSubJob):
         if not msg.payload:
             return
 
-        tmp = loads(msg.payload)["temperature"]
+        tmp: float = loads(msg.payload)["temperature"]
 
         if self.initial_temperature is None:
             self.initial_temperature = tmp
@@ -547,12 +548,12 @@ class TemperatureCompensator(BackgroundSubJob):
 
 
 class LinearTemperatureCompensator(TemperatureCompensator):
-    def __init__(self, linear_coefficient, *args, **kwargs):
+    def __init__(self, linear_coefficient: float, *args, **kwargs):
         super(LinearTemperatureCompensator, self).__init__(*args, **kwargs)
         assert linear_coefficient < 0, "should be negative..."
         self.linear_coefficient = linear_coefficient
 
-    def compensate_od_for_temperature(self, OD):
+    def compensate_od_for_temperature(self, OD: float):
         """
         See https://github.com/Pioreactor/pioreactor/issues/143 for our analysis
 
@@ -665,12 +666,14 @@ class ODReader(BackgroundJob):
 
         self.start_ir_led()
         sleep(pre_duration)
+        timestamp_of_readings = current_utc_time()
         batched_readings = self.adc_reader.take_reading()
         self.stop_ir_led()
 
         self.latest_reading = batched_readings
-        self.publish_single(batched_readings)
-        self.publish_batch(batched_readings)
+
+        self.publish_single(batched_readings, timestamp_of_readings)
+        self.publish_batch(batched_readings, timestamp_of_readings)
 
     def start_ir_led(self):
         r = change_led_intensity(
@@ -721,33 +724,31 @@ class ODReader(BackgroundJob):
     def compensate_od_for_temperature(self, reading):
         return self.temperature_compensator.compensate_od_for_temperature(reading)
 
-    def publish_batch(self, batched_ads_readings):
+    def publish_batch(
+        self, batched_ads_readings: dict[PD_Channel, float], timestamp: str
+    ):
         if self.state != self.READY:
             return
 
-        od_readings = {"od_raw": {}}
+        od_readings: dict[str, Any] = {"od_raw": {}}
         for channel, angle in self.channel_angle_map.items():
-            try:
-                od_readings["od_raw"][channel] = {
-                    "voltage": self.compensate_od_for_temperature(
-                        batched_ads_readings[channel]
-                    ),
-                    "angle": angle,
-                }
-            except KeyError:
-                self.logger.error(
-                    f"Wrong channel found/not found, provided {channel}. Only valid channels are 0, 1, 2, 3."
-                )
-                self.set_state(self.DISCONNECTED)
+            od_readings["od_raw"][channel] = {
+                "voltage": self.compensate_od_for_temperature(
+                    batched_ads_readings[channel]
+                ),
+                "angle": angle,
+            }
 
-        od_readings["timestamp"] = batched_ads_readings["timestamp"]
+        od_readings["timestamp"] = timestamp
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
             od_readings,
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def publish_single(self, batched_ads_readings):
+    def publish_single(
+        self, batched_ads_readings: dict[PD_Channel, float], timestamp: str
+    ):
         if self.state != self.READY:
             return
 
@@ -758,7 +759,7 @@ class ODReader(BackgroundJob):
                     batched_ads_readings[channel]
                 ),
                 "angle": angle,
-                "timestamp": batched_ads_readings["timestamp"],
+                "timestamp": timestamp,
             }
 
             self.publish(
