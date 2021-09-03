@@ -7,7 +7,7 @@ Topics published to
 
 Ex:
 
-    pioreactor/pioreactor1/trial15/od_raw/0
+    pioreactor/pioreactor1/trial15/od_raw/1
 
 a json file like:
 
@@ -26,7 +26,7 @@ a serialized json like:
 
     {
       "od_raw": {
-        "0": {
+        "2": {
           "voltage": 0.1008556663221068,
           "angle": "135,45"
         },
@@ -98,7 +98,7 @@ from pioreactor.actions.led_intensity import (
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
-PD_Channel = NewType("PD_Channel", int)  # Literal[0,1,2,3]
+PD_Channel = NewType("PD_Channel", int)  # Literal[1,2,3,4]
 
 
 class ADCReader(BackgroundSubJob):
@@ -119,7 +119,7 @@ class ADCReader(BackgroundSubJob):
     Parameters
     ------------
     channels: list
-        a list of channels, a subset of [0, 1, 2, 3]
+        a list of channels, a subset of [1, 2, 3, 4]
     fake_data: bool
         generate fake ADC readings internally.
     dynamic_gain: bool
@@ -202,7 +202,9 @@ class ADCReader(BackgroundSubJob):
             else:
                 from adafruit_ads1x15.analog_in import AnalogIn
 
-                ai = AnalogIn(self.ads, channel)
+                ai = AnalogIn(
+                    self.ads, channel - 1
+                )  # subtract 1 because we use 1-indexing
             self.analog_in[channel] = ai
 
         # check if using correct gain
@@ -586,7 +588,7 @@ class ODReader(BackgroundJob):
     -----------
 
     channel_angle_map: dict
-        dict of (ADS channel: label) pairs, ex: {"A0": "135/0", "A1": "90/1"}
+        dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
     stop_IR_led_between_ADC_readings: bool
         bool for if the IR LED should turn off between ADC readings. Helps improve
         lifetime of LED and allows for other optics signals to occur with interference.
@@ -770,16 +772,13 @@ class ODReader(BackgroundJob):
 
 
 def create_channel_angle_map(
-    od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
+    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
 ) -> dict[PD_Channel, str]:
     # Inputs are either None, or a string like "135", "90,45", ...
-    # Example return dict: {0: "90,135", 1: "45,135", 3:"90"}
+    # Example return dict: {1: "90,135", 2: "45,135", 4:"90"}
     channel_angle_map: dict[PD_Channel, str] = {}
-    if od_angle_channel0:
-        # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
-        channel_angle_map[PD_Channel(0)] = od_angle_channel0
-
     if od_angle_channel1:
+        # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
         channel_angle_map[PD_Channel(1)] = od_angle_channel1
 
     if od_angle_channel2:
@@ -788,14 +787,17 @@ def create_channel_angle_map(
     if od_angle_channel3:
         channel_angle_map[PD_Channel(3)] = od_angle_channel3
 
+    if od_angle_channel4:
+        channel_angle_map[PD_Channel(4)] = od_angle_channel4
+
     return channel_angle_map
 
 
 def start_od_reading(
-    od_angle_channel0: Optional[str],
     od_angle_channel1: Optional[str],
     od_angle_channel2: Optional[str],
     od_angle_channel3: Optional[str],
+    od_angle_channel4: Optional[str],
     sampling_rate=1 / config.getfloat("od_config.od_sampling", "samples_per_second"),
     fake_data=False,
     unit=None,
@@ -805,7 +807,7 @@ def start_od_reading(
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
     channel_angle_map = create_channel_angle_map(
-        od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3
+        od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
     )
 
     return ODReader(
@@ -827,13 +829,6 @@ def start_od_reading(
 
 @click.command(name="od_reading")
 @click.option(
-    "--od-angle-channel0",
-    default=config.get("od_config.photodiode_channel", "0", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 0, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
     "--od-angle-channel1",
     default=config.get("od_config.photodiode_channel", "1", fallback=None),
     type=click.STRING,
@@ -854,18 +849,25 @@ def start_od_reading(
     show_default=True,
     help="specify the angle(s) between the IR LED(s) and the PD in channel 3, separated by commas. Don't specify if channel is empty.",
 )
+@click.option(
+    "--od-angle-channel4",
+    default=config.get("od_config.photodiode_channel", "4", fallback=None),
+    type=click.STRING,
+    show_default=True,
+    help="specify the angle(s) between the IR LED(s) and the PD in channel 4, separated by commas. Don't specify if channel is empty.",
+)
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
 def click_od_reading(
-    od_angle_channel0, od_angle_channel1, od_angle_channel2, od_angle_channel3, fake_data
+    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4, fake_data
 ):
     """
     Start the optical density reading job
     """
     start_od_reading(
-        od_angle_channel0,
         od_angle_channel1,
         od_angle_channel2,
         od_angle_channel3,
+        od_angle_channel4,
         fake_data=fake_data or is_testing_env(),
     )
     signal.pause()
