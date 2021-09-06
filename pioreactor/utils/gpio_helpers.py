@@ -7,8 +7,8 @@ from pioreactor.utils import local_intermittent_storage
 
 
 class GPIO_states(Enum):
-    GPIO_AVAILABLE = b"1"
-    GPIO_UNAVAILABLE = b"0"
+    GPIO_AVAILABLE = "1"
+    GPIO_UNAVAILABLE = "0"
 
 
 def set_gpio_availability(pin: int, is_in_use: GPIO_states):

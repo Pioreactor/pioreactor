@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import click
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, NewType
 
 from pioreactor.pubsub import create_client, QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -10,10 +10,8 @@ from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils import local_intermittent_storage
 
-
-LED_Channel = str  # Literal[...]
-
-CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
+LED_Channel = NewType("LED_Channel", str)  # Literal["A", "B", "C", "D"]
+LED_CHANNELS = [LED_Channel("A"), LED_Channel("B"), LED_Channel("C"), LED_Channel("D")]
 
 
 def update_current_state(
@@ -27,12 +25,16 @@ def update_current_state(
     """
 
     with local_intermittent_storage("leds") as led_cache:
-        old_state = {channel: float(led_cache.get(channel, 0)) for channel in CHANNELS}
+        old_state = {
+            channel: float(led_cache.get(channel, 0)) for channel in LED_CHANNELS
+        }
 
         # update cache
         led_cache[channel] = str(intensity)
 
-        new_state = {channel: float(led_cache.get(channel, 0)) for channel in CHANNELS}
+        new_state = {
+            channel: float(led_cache.get(channel, 0)) for channel in LED_CHANNELS
+        }
 
         return new_state, old_state
 
@@ -68,7 +70,7 @@ def led_intensity(
 
     try:
         assert 0 <= intensity <= 100
-        assert channel in CHANNELS, f"saw incorrect channel {channel}"
+        assert channel in LED_CHANNELS, f"saw incorrect channel {channel}"
         intensity = float(intensity)
 
         dac = DAC43608()
@@ -127,7 +129,7 @@ def led_intensity(
 @click.command(name="led_intensity")
 @click.option(
     "--channel",
-    type=click.Choice(CHANNELS, case_sensitive=False),
+    type=click.Choice(LED_CHANNELS, case_sensitive=False),
     multiple=True,
     required=True,
 )

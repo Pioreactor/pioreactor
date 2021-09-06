@@ -30,11 +30,11 @@ from pioreactor.whoami import (
     is_testing_env,
 )
 from pioreactor.background_jobs.temperature_control import TemperatureController
-from pioreactor.background_jobs.od_reading import ADCReader
+from pioreactor.background_jobs.od_reading import ADCReader, PD_CHANNELS
 from pioreactor.utils import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
-from pioreactor.actions.led_intensity import led_intensity, CHANNELS
+from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS
 from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
 
 
@@ -98,9 +98,9 @@ def check_leds_and_pds(unit, experiment, logger):
         adc_reader.setup_adc()
 
         # set all to 0, but use original experiment name, since we indeed are setting them to 0.
-        for channel in CHANNELS:
+        for led_channel in LED_CHANNELS:
             assert led_intensity(
-                channel,
+                led_channel,
                 intensity=0,
                 unit=unit,
                 source_of_event="self_test",
@@ -126,13 +126,13 @@ def check_leds_and_pds(unit, experiment, logger):
             retain=False,
         )
 
-    for channel in CHANNELS:
-        logger.debug(f"Varying intensity of channel {channel}.")
+    for led_channel in LED_CHANNELS:
+        logger.debug(f"Varying intensity of channel {led_channel}.")
         varying_intensity_results = defaultdict(list)
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
             led_intensity(
-                channel,
+                led_channel,
                 intensity=intensity,
                 unit=unit,
                 experiment=current_experiment_name,
@@ -143,28 +143,19 @@ def check_leds_and_pds(unit, experiment, logger):
             readings = adc_reader.take_reading()
 
             # Add to accumulating list
-            varying_intensity_results[0].append(readings[0])
-            varying_intensity_results[1].append(readings[1])
-            varying_intensity_results[2].append(readings[2])
-            varying_intensity_results[3].append(readings[3])
+            for pd_channel in PD_CHANNELS:
+                varying_intensity_results[pd_channel].append(readings[pd_channel])
 
         # compute the linear correlation between the intensities and observed PD measurements
-        results[(channel, 0)] = round(
-            correlation(INTENSITIES, varying_intensity_results[0]), 2
-        )
-        results[(channel, 1)] = round(
-            correlation(INTENSITIES, varying_intensity_results[1]), 2
-        )
-        results[(channel, 2)] = round(
-            correlation(INTENSITIES, varying_intensity_results[2]), 2
-        )
-        results[(channel, 3)] = round(
-            correlation(INTENSITIES, varying_intensity_results[3]), 2
-        )
+
+        for pd_channel in PD_CHANNELS:
+            results[(led_channel, pd_channel)] = round(
+                correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
+            )
 
         # set back to 0
         led_intensity(
-            channel,
+            led_channel,
             intensity=0,
             unit=unit,
             experiment=current_experiment_name,
@@ -187,6 +178,15 @@ def check_leds_and_pds(unit, experiment, logger):
         json.dumps(detected_relationships),
         retain=False,
     )
+
+    # test ambiant light interference. With all LEDs off, we should see near 0 light.
+    readings = adc_reader.take_reading()
+    publish(
+        f"pioreactor/{unit}/{experiment}/self_test/ambiant_light_interference",
+        int(all([readings[pd_channel] < 0.001 for pd_channel in PD_CHANNELS])),
+        retain=False,
+    )
+
     return detected_relationships
 
 

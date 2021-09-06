@@ -93,12 +93,13 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
-    CHANNELS as LED_CHANNELS,
+    LED_CHANNELS,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
 PD_Channel = NewType("PD_Channel", int)  # Literal[1,2,3,4]
+PD_CHANNELS = [PD_Channel(1), PD_Channel(2), PD_Channel(3), PD_Channel(4)]
 
 
 class ADCReader(BackgroundSubJob):

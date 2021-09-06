@@ -10,7 +10,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.led_control import LEDController
-from pioreactor.actions.led_intensity import led_intensity
+from pioreactor.actions.led_intensity import led_intensity, LED_Channel
 from pioreactor.automations import events
 from pioreactor.utils.timing import current_utc_time
 
@@ -156,7 +156,7 @@ class LEDAutomation(BackgroundSubJob):
     def most_stale_time(self):
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
-    def set_led_intensity(self, channel, intensity):
+    def set_led_intensity(self, channel: LED_Channel, intensity: float):
         """
         Parameters
         ------------
