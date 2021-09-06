@@ -88,7 +88,7 @@ def check_leds_and_pds(unit, experiment, logger):
     results = {}
     try:
         adc_reader = ADCReader(
-            channels=[0, 1, 2, 3],
+            channels=PD_CHANNELS,
             unit=unit,
             experiment=experiment,
             dynamic_gain=False,

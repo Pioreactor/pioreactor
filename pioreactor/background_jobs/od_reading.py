@@ -364,7 +364,7 @@ class ADCReader(BackgroundSubJob):
         ---------
         readings: dict
             a dict with specified channels (as ints) and their reading
-            Ex: {0: 0.10240, 1: 0.1023459}
+            Ex: {1: 0.10240, 2: 0.1023459}
 
 
         """
