@@ -181,6 +181,7 @@ def check_leds_and_pds(unit, experiment, logger):
 
     # test ambiant light interference. With all LEDs off, we should see near 0 light.
     readings = adc_reader.take_reading()
+    print(readings)
     publish(
         f"pioreactor/{unit}/{experiment}/self_test/ambiant_light_interference",
         int(all([readings[pd_channel] < 0.001 for pd_channel in PD_CHANNELS])),
