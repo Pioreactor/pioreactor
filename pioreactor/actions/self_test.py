@@ -69,6 +69,8 @@ def check_temperature_and_heating(unit, experiment, logger):
         measured_pcb_temps.append(tc.read_external_temperature())
 
     tc._update_heater(0)
+    print(dcs)
+    print(measured_pcb_temps)
     measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
     logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
     publish(
@@ -137,6 +139,7 @@ def check_leds_and_pds(unit, experiment, logger):
                 unit=unit,
                 experiment=current_experiment_name,
                 verbose=False,
+                source_of_event="self_test",
             )
 
             # record from ADC
@@ -160,6 +163,7 @@ def check_leds_and_pds(unit, experiment, logger):
             unit=unit,
             experiment=current_experiment_name,
             verbose=False,
+            source_of_event="self_test",
         )
 
     logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
@@ -179,12 +183,12 @@ def check_leds_and_pds(unit, experiment, logger):
         retain=False,
     )
 
-    # test ambiant light interference. With all LEDs off, we should see near 0 light.
+    # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
+    # TODO: it's never 0 because of the common current problem.
     readings = adc_reader.take_reading()
-    print(readings)
     publish(
-        f"pioreactor/{unit}/{experiment}/self_test/ambiant_light_interference",
-        int(all([readings[pd_channel] < 0.001 for pd_channel in PD_CHANNELS])),
+        f"pioreactor/{unit}/{experiment}/self_test/ambient_light_interference",
+        int(all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])),
         retain=False,
     )
 
