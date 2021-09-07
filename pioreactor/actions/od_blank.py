@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
+import time
 from collections import defaultdict
-
 import click
 
 from pioreactor.config import config
@@ -67,6 +67,7 @@ def od_blank(
                 experiment=testing_experiment,
             )
             st.start_stirring()
+            time.sleep(5)
         else:
             pass
             # TODO: it could be paused, we should make sure it's running
@@ -98,7 +99,11 @@ def od_blank(
         for count, batched_reading in enumerate(signal):
             for (sensor, reading) in batched_reading["od_raw"].items():
                 readings[sensor].append(reading["voltage"])
-
+                pubsub.publish(
+                    f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                    count / n_samples * 100,
+                )
+                print(f"Progress: {count/n_samples:.0%}")
             if count == n_samples:
                 break
 

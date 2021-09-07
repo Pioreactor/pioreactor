@@ -71,6 +71,11 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
                 for (sensor, reading) in batched_reading["od_raw"].items():
                     readings[sensor].append(reading["voltage"])
 
+                pubsub.publish(
+                    f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                    count / n_samples * 100,
+                )
+                print(f"Progress: {count/n_samples:.0%}")
                 if count == n_samples:
                     break
             variances = {}
