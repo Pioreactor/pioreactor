@@ -27,7 +27,7 @@ def od_blank(
     od_angle_channel2,
     od_angle_channel3,
     od_angle_channel4,
-    N_samples=15,
+    n_samples=30,
 ):
     from statistics import mean
 
@@ -93,7 +93,7 @@ def od_blank(
             for (sensor, reading) in batched_reading["od_raw"].items():
                 readings[sensor].append(reading["voltage"])
 
-            if count == N_samples:
+            if count == n_samples:
                 break
 
         means = {}
@@ -125,7 +125,7 @@ def od_blank(
 
         logger.info("OD blank reading finished.")
 
-        return
+        return means
 
 
 @click.command(name="od_blank")
@@ -157,15 +157,24 @@ def od_blank(
     show_default=True,
     help="specify the angle(s) between the IR LED(s) and the PD in channel 4, separated by commas. Don't specify if channel is empty.",
 )
+@click.option(
+    "--n-samples",
+    default=30,
+    show_default=True,
+    help="Number of samples",
+)
 def click_od_blank(
-    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
+    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4, n_samples
 ):
     """
     Compute statistics about the blank OD timeseries
     """
-    od_blank(
-        od_angle_channel1,
-        od_angle_channel2,
-        od_angle_channel3,
-        od_angle_channel4,
+    print(
+        od_blank(
+            od_angle_channel1,
+            od_angle_channel2,
+            od_angle_channel3,
+            od_angle_channel4,
+            n_samples=n_samples,
+        )
     )
