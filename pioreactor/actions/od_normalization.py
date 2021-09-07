@@ -67,7 +67,7 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
 
         try:
 
-            for count, batched_reading in enumerate(signal):
+            for count, batched_reading in enumerate(signal, start=1):
                 for (sensor, reading) in batched_reading["od_raw"].items():
                     readings[sensor].append(reading["voltage"])
 
@@ -140,4 +140,4 @@ def click_od_normalization(n_samples):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    print(od_normalization(n_samples, unit, experiment))
+    print(od_normalization(unit, experiment, n_samples=n_samples))

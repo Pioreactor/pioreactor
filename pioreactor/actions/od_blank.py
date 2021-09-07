@@ -96,7 +96,7 @@ def od_blank(
         signal = yield_from_mqtt()
         readings = defaultdict(list)
 
-        for count, batched_reading in enumerate(signal):
+        for count, batched_reading in enumerate(signal, start=1):
             for (sensor, reading) in batched_reading["od_raw"].items():
                 readings[sensor].append(reading["voltage"])
                 pubsub.publish(
