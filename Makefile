@@ -190,10 +190,10 @@ seed-experiment:
 install-worker: install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files install-log2ram
 	sudo apt-get clean
 
-install-worker-from-args: install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files
+install-worker-from-args: install-python configure-hostname-from-args configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files install-log2ram
 	sudo reboot
 
-install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-pioreactor-leader install-db systemd-leader systemd-all logging-files install-ui seed-experiment
+install-leader: install-python configure-hostname install-mqtt configure-mqtt configure-rpi install-pioreactor-leader install-db systemd-leader systemd-all logging-files install-log2ram install-ui seed-experiment
 	sudo crudini --set /etc/log2ram.conf "" SIZE 75M
 
 	rm -f /home/pi/.ssh/id_rsa

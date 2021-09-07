@@ -34,7 +34,7 @@ from pioreactor import pubsub
 from pioreactor.logging import create_logger
 
 
-def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_samples=30):
+def od_normalization(unit=None, experiment=None, n_samples=35):
     from statistics import mean, variance
 
     action_name = "od_normalization"
@@ -71,7 +71,7 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
                 for (sensor, reading) in batched_reading["od_raw"].items():
                     readings[sensor].append(reading["voltage"])
 
-                if count == N_samples:
+                if count == n_samples:
                     break
             variances = {}
             means = {}
@@ -124,21 +124,15 @@ def od_normalization(od_angle_channel=None, unit=None, experiment=None, N_sample
 
 @click.command(name="od_normalization")
 @click.option(
-    "--od-angle-channel",
-    multiple=True,
-    default=list(config["od_config.photodiode_channel"].values()),
-    type=click.STRING,
-    help="""
-pair of angle,channel for optical density reading. Can be invoked multiple times. Ex:
-
---od-angle-channel 135,0 --od-angle-channel 90,1 --od-angle-channel 45,2
-
-""",
+    "--n-samples",
+    default=30,
+    show_default=True,
+    help="Number of samples",
 )
-def click_od_normalization(od_angle_channel):
+def click_od_normalization(n_samples):
     """
     Compute statistics about the OD timeseries
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    print(od_normalization(od_angle_channel, unit, experiment))
+    print(od_normalization(n_samples, unit, experiment))

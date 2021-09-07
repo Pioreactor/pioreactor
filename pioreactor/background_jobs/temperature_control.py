@@ -258,7 +258,7 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
-            N_sample_points = 16
+            N_sample_points = 17
             time_between_samples = 10
             timestamp = current_utc_time()
 

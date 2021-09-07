@@ -27,15 +27,23 @@ def od_blank(
     od_angle_channel2,
     od_angle_channel3,
     od_angle_channel4,
-    n_samples=30,
+    n_samples: int = 30,
 ):
-    from statistics import mean
+    """
+    Compute the sample average of the photodiodes attached.
+
+    Note that because of the sensitivity of the growth rate (and normalized OD) to the starting values,
+    we need a very accurate estimate of these statistics.
+
+    """
+    from statistics import mean, variance
 
     action_name = "od_blank"
     logger = create_logger(action_name)
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
     testing_experiment = get_latest_testing_experiment_name()
+    logger.info("Starting reading of blank OD. This will take about a few minutes.")
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
@@ -62,8 +70,6 @@ def od_blank(
         else:
             pass
             # TODO: it could be paused, we should make sure it's running
-
-        logger.info("Starting reading of blank OD. This will take about a minute.")
 
         sampling_rate = 1 / config.getfloat("od_config.od_sampling", "samples_per_second")
 
@@ -97,9 +103,11 @@ def od_blank(
                 break
 
         means = {}
+        variances = {}
         for sensor, reading_series in readings.items():
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
             means[sensor] = mean(reading_series)
+            variances[str(sensor) + "_var"] = variance(reading_series)
 
         # store locally as the source of truth.
         with local_persistant_storage(action_name) as cache:
@@ -118,9 +126,13 @@ def od_blank(
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            to_share = means.copy()
+            to_share = {**means, **variances}
             to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
             to_share["ir_intensity"] = config["od_config.od_sampling"]["ir_intensity"]
+            to_share["od_angle_channel1"] = od_angle_channel1
+            to_share["od_angle_channel2"] = od_angle_channel2
+            to_share["od_angle_channel3"] = od_angle_channel3
+            to_share["od_angle_channel4"] = od_angle_channel4
             pubsub.publish_to_pioreactor_cloud("od_blank_mean", json=to_share)
 
         logger.info("OD blank reading finished.")
@@ -167,7 +179,7 @@ def click_od_blank(
     od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4, n_samples
 ):
     """
-    Compute statistics about the blank OD timeseries
+    Compute statistics about the blank OD time series
     """
     print(
         od_blank(
