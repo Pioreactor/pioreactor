@@ -103,7 +103,8 @@ def od_blank(
                     f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
                     count / n_samples * 100,
                 )
-                print(f"Progress: {count/n_samples:.0%}")
+
+            print(f"Progress: {count/n_samples:.0%}")
             if count == n_samples:
                 break
 
