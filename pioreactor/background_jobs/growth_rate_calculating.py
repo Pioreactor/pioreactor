@@ -46,14 +46,12 @@ from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
 
-JOB_NAME = "growth_rate_calculating"
-
 
 class GrowthRateCalculator(BackgroundJob):
     def __init__(self, ignore_cache: bool = False, unit=None, experiment=None):
 
         super(GrowthRateCalculator, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment
+            job_name="growth_rate_calculating", unit=unit, experiment=experiment
         )
 
         self.ignore_cache = ignore_cache

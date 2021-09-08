@@ -5,7 +5,6 @@ This job runs on the leader, and is a replacement for the NodeRed database strea
 from __future__ import annotations
 
 import signal
-import os
 import click
 import json
 from typing import Callable
@@ -16,8 +15,6 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
 from pioreactor.utils.timing import current_utc_time
-
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 @dataclass
@@ -56,7 +53,7 @@ class MqttToDBStreamer(BackgroundJob):
 
         from sqlite3worker import Sqlite3Worker
 
-        super(MqttToDBStreamer, self).__init__(job_name=JOB_NAME, **kwargs)
+        super(MqttToDBStreamer, self).__init__(job_name="mqtt_to_db_streaming", **kwargs)
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["database"], max_queue_size=250, raise_on_error=False
         )

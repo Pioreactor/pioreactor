@@ -3,14 +3,10 @@
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
 
-import os
-import json
-
+from json import loads
 
 from pioreactor.pubsub import subscribe, QOS
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
-
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 class ThroughputCalculator(BackgroundSubJob):
@@ -27,7 +23,7 @@ class ThroughputCalculator(BackgroundSubJob):
 
     def __init__(self, unit=None, experiment=None, **kwargs) -> None:
         super(ThroughputCalculator, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment, **kwargs
+            job_name="throughput_calculator", unit=unit, experiment=experiment, **kwargs
         )
 
         self.media_throughput = self.get_initial_media_throughput()
@@ -36,7 +32,7 @@ class ThroughputCalculator(BackgroundSubJob):
         self.start_passive_listeners()
 
     def on_dosing_event(self, message):
-        payload = json.loads(message.payload)
+        payload = loads(message.payload)
         volume, event = float(payload["volume_change"]), payload["event"]
         if event == "add_media":
             self.update_media_throughput(volume, 0)
@@ -47,7 +43,7 @@ class ThroughputCalculator(BackgroundSubJob):
         else:
             raise ValueError("Unknown event type")
 
-    def update_media_throughput(self, media_delta, alt_media_delta):
+    def update_media_throughput(self, media_delta: float, alt_media_delta: float):
 
         self.alt_media_throughput += alt_media_delta
         self.media_throughput += media_delta
@@ -64,7 +60,7 @@ class ThroughputCalculator(BackgroundSubJob):
         else:
             return 0
 
-    def get_initial_alt_media_throughput(self):
+    def get_initial_alt_media_throughput(self) -> float:
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/alt_media_throughput",
             timeout=2,
@@ -74,7 +70,7 @@ class ThroughputCalculator(BackgroundSubJob):
         else:
             return 0
 
-    def start_passive_listeners(self) -> None:
+    def start_passive_listeners(self):
         self.subscribe_and_callback(
             self.on_dosing_event,
             f"pioreactor/{self.unit}/{self.experiment}/dosing_events",

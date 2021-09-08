@@ -14,8 +14,6 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 
-JOB_NAME = "stirring"
-
 
 class Stirrer(BackgroundJob):
     """
@@ -45,9 +43,11 @@ class Stirrer(BackgroundJob):
         hertz=67,
         dc_increase_between_adc_readings=False,
     ):
-        super(Stirrer, self).__init__(job_name=JOB_NAME, unit=unit, experiment=experiment)
+        super(Stirrer, self).__init__(
+            job_name="stirring", unit=unit, experiment=experiment
+        )
 
-        self.logger.debug(f"Starting stirring with initial duty cycle {duty_cycle}.")
+        self.logger.debug(f"Starting stirring with initial duty cycle {duty_cycle}%.")
         self.pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
         self.set_dc_increase_between_adc_readings(dc_increase_between_adc_readings)
 

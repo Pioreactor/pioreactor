@@ -40,11 +40,9 @@ class Monitor(BackgroundJob):
 
     """
 
-    JOB_NAME = "monitor"
-
     def __init__(self, unit, experiment):
         super(Monitor, self).__init__(
-            job_name=self.JOB_NAME, unit=unit, experiment=experiment
+            job_name="monitor", unit=unit, experiment=experiment
         )
 
         self.logger.debug(f"PioreactorApp version: {__version__}")

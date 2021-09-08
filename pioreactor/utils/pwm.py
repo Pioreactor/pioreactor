@@ -108,7 +108,7 @@ class PWM:
             cache[str(self.pin)] = str(self.hz)
 
         self.logger.debug(
-            f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}."
+            f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}, initial frequency is {self.hz}hz."
         )
 
     def start(self, initial_duty_cycle: float):

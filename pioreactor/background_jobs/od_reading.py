@@ -140,7 +140,6 @@ class ADCReader(BackgroundSubJob):
         16: (-1, 0.256),  # 1 bit = 0.125mV
     }
 
-    JOB_NAME = "adc_reader"
     published_settings = {"first_ads_obs_time": {"datatype": "float", "settable": False}}
 
     def __init__(
@@ -154,7 +153,7 @@ class ADCReader(BackgroundSubJob):
         **kwargs,
     ):
         super(ADCReader, self).__init__(
-            job_name=self.JOB_NAME, unit=unit, experiment=experiment, **kwargs
+            job_name="adc_reader", unit=unit, experiment=experiment, **kwargs
         )
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain

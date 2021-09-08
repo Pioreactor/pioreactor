@@ -3,8 +3,7 @@
 Continuously monitor the bioreactor and provide summary statistics on what's going on
 """
 
-import json
-import os
+from json import loads
 
 from pioreactor.pubsub import subscribe, QOS
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
@@ -12,7 +11,6 @@ from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.config import config
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
-JOB_NAME = os.path.splitext(os.path.basename((__file__)))[0]
 
 
 class AltMediaCalculator(BackgroundSubJob):
@@ -24,7 +22,7 @@ class AltMediaCalculator(BackgroundSubJob):
 
     def __init__(self, unit=None, experiment=None, **kwargs) -> None:
         super(AltMediaCalculator, self).__init__(
-            job_name=JOB_NAME, unit=unit, experiment=experiment, **kwargs
+            job_name="alt_media_calculator", unit=unit, experiment=experiment, **kwargs
         )
         self.latest_alt_media_fraction = self.get_initial_alt_media_fraction()
 
@@ -40,7 +38,7 @@ class AltMediaCalculator(BackgroundSubJob):
         self.publish_periodically_thread.cancel()
 
     def on_dosing_event(self, message):
-        payload = json.loads(message.payload)
+        payload = loads(message.payload)
         volume, event = float(payload["volume_change"]), payload["event"]
         if event == "add_media":
             self.update_alt_media_fraction(volume, 0)
@@ -53,7 +51,7 @@ class AltMediaCalculator(BackgroundSubJob):
 
     def publish_latest_alt_media_fraction(self):
         self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{JOB_NAME}/alt_media_fraction",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction",
             {
                 "alt_media_fraction": self.latest_alt_media_fraction,
                 "timestamp": current_utc_time(),
@@ -62,7 +60,7 @@ class AltMediaCalculator(BackgroundSubJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def update_alt_media_fraction(self, media_delta, alt_media_delta):
+    def update_alt_media_fraction(self, media_delta: float, alt_media_delta: float):
 
         total_delta = media_delta + alt_media_delta
 
@@ -83,14 +81,14 @@ class AltMediaCalculator(BackgroundSubJob):
 
         return self.latest_alt_media_fraction
 
-    def get_initial_alt_media_fraction(self):
+    def get_initial_alt_media_fraction(self) -> float:
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/alt_media_fraction",
             timeout=2,
         )
 
         if message:
-            return json.loads(message.payload)["alt_media_fraction"]
+            return loads(message.payload)["alt_media_fraction"]
         else:
             return 0
 
