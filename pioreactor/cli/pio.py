@@ -357,7 +357,7 @@ if am_I_leader():
             reachable = networking.is_reachable(hostname)
 
             click.echo(
-                f"{hostname:20s} {('✅' if hostname==get_leader_hostname() else '❌'):15s} {ip:20s} {state:15s} {('✅' if reachable else '❌'):10s}"
+                f"{hostname:20s} {('Y' if hostname==get_leader_hostname() else 'N'):15s} {ip:20s} {state:15s} {('Y' if reachable else 'N'):10s}"
             )
 
 
