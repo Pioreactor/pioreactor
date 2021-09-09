@@ -21,7 +21,7 @@ from pioreactor import background_jobs as jobs
 from pioreactor import actions
 from pioreactor import plugin_management
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.pubsub import subscribe_and_callback, subscribe
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 
 
@@ -257,6 +257,7 @@ if am_I_leader():
         Add a new pioreactor to the cluster. new_name should be lowercase
         characters with only [a-z] and [0-9]
         """
+        # TODO: move this to it's own file
         import socket
         import subprocess
         import re
@@ -332,6 +333,36 @@ if am_I_leader():
         )
         if res == 0:
             logger.info(f"New pioreactor {new_name} successfully added to cluster.")
+
+    @pio.command(
+        name="cluster-info", short_help="report information on the pioreactor cluster"
+    )
+    def cluster_information():
+        import socket
+
+        click.echo(f"{'Hostname':20s} {'IP address':20s} {'State':20s}")
+        for hostname, inventory_status in config["network.inventory"].items():
+            if not inventory_status:
+                continue
+
+            # get ip
+            try:
+                ip = socket.gethostbyname(hostname)
+            except OSError:
+                ip = "Unknown"
+
+            # get state
+            payload_or_None = subscribe(
+                f"pioreactor/{hostname}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=1
+            )
+            if payload_or_None:
+                state = payload_or_None.decode()
+            else:
+                state = "Unknown"
+
+            click.echo(
+                f"{hostname:20s} {ip:20s} {state:20s} {'✅' if state=='READY' else '❌'}"
+            )
 
 
 if not am_I_leader() and not am_I_active_worker():

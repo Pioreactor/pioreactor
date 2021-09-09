@@ -99,12 +99,12 @@ def od_blank(
         for count, batched_reading in enumerate(signal, start=1):
             for (sensor, reading) in batched_reading["od_raw"].items():
                 readings[sensor].append(reading["voltage"])
-                pubsub.publish(
-                    f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                    count / n_samples * 100,
-                )
 
-            print(f"Progress: {count/n_samples:.0%}")
+            pubsub.publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                count / n_samples * 100,
+            )
+            logger.debug(f"Progress: {count/n_samples:.0%}")
             if count == n_samples:
                 break
 

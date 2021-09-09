@@ -75,7 +75,7 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
                     f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
                     count / n_samples * 100,
                 )
-                print(f"Progress: {count/n_samples:.0%}")
+                logger.debug(f"Progress: {count/n_samples:.0%}")
                 if count == n_samples:
                     break
             variances = {}
