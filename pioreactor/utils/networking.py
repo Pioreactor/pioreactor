@@ -2,7 +2,7 @@
 import socket
 
 
-def is_host_on_network(hostname):
+def is_hostname_on_network(hostname):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((hostname, 22))
@@ -10,6 +10,19 @@ def is_host_on_network(hostname):
         return True
     except socket.error:
         return False
+
+
+def is_reachable(hostname):
+    import subprocess
+
+    ping_response = str(
+        subprocess.Popen(
+            ["ping", "-c1", "-W50", hostname],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        ).stdout.read()
+    )
+    return True if "1 packets received" in ping_response else False
 
 
 def is_allowable_hostname(hostname):

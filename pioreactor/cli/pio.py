@@ -270,7 +270,7 @@ if am_I_leader():
         logger.info(f"Adding new pioreactor {new_name} to cluster.")
 
         # check to make sure new_name isn't already on the network
-        if networking.is_host_on_network(new_name):
+        if networking.is_hostname_on_network(new_name):
             logger.error(f"Name {new_name} is already on the network. Try another name.")
             click.echo(
                 f"Name {new_name} is already on the network. Try another name.", err=True
@@ -354,7 +354,7 @@ if am_I_leader():
                 state = "Unknown"
 
             # is reachable?
-            reachable = networking.is_host_on_network(hostname)
+            reachable = networking.is_reachable(hostname)
 
             click.echo(f"{hostname:20s} {ip:20s} {state:12s} {'✅' if reachable else '❌'}")
 
