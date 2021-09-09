@@ -18,7 +18,7 @@ from pioreactor.whoami import (
     get_unit_name,
     UNIVERSAL_EXPERIMENT,
 )
-from pioreactor.config import config
+from pioreactor.config import config, get_leader_hostname
 from pioreactor import background_jobs as jobs
 from pioreactor import actions
 from pioreactor import plugin_management
@@ -329,7 +329,7 @@ if am_I_leader():
     def cluster_information():
 
         click.echo(
-            f"{'Unit name':20s} {'IP address':20s} {'State':12s} {'Reachable':10s}"
+            f"{'Unit name':20s} {'Is Leader?':10s} {'IP address':20s} {'State':12s} {'Reachable?':10s}"
         )
         for hostname, inventory_status in config["network.inventory"].items():
             if not inventory_status:
@@ -356,7 +356,9 @@ if am_I_leader():
             # is reachable?
             reachable = networking.is_reachable(hostname)
 
-            click.echo(f"{hostname:20s} {ip:20s} {state:12s} {'✅' if reachable else '❌'}")
+            click.echo(
+                f"{hostname:20s} {'✔︎' if hostname==get_leader_hostname() else '✘':10s} {ip:20s} {state:12s} {'✔︎' if reachable else '✘'}"
+            )
 
 
 if not am_I_leader() and not am_I_active_worker():
