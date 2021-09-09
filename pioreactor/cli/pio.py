@@ -7,7 +7,9 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio log
 """
 import sys
+import socket
 from time import sleep
+
 import click
 import pioreactor
 from pioreactor.whoami import (
@@ -23,6 +25,7 @@ from pioreactor import plugin_management
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import subscribe_and_callback, subscribe
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
+import pioreactor.utils.networking as networking
 
 
 @click.group()
@@ -260,34 +263,20 @@ if am_I_leader():
         # TODO: move this to it's own file
         import socket
         import subprocess
-        import re
-        import time
 
         logger = create_logger(
             "add_pioreactor", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
         logger.info(f"Adding new pioreactor {new_name} to cluster.")
 
-        def is_allowable_hostname(hostname):
-            return True if re.match(r"^[0-9a-zA-Z\-]+$", hostname) else False
-
-        def is_host_on_network(hostname):
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                s.connect((hostname, 22))
-                s.close()
-                return True
-            except socket.error:
-                return False
-
         # check to make sure new_name isn't already on the network
-        if is_host_on_network(new_name):
+        if networking.is_host_on_network(new_name):
             logger.error(f"Name {new_name} is already on the network. Try another name.")
             click.echo(
                 f"Name {new_name} is already on the network. Try another name.", err=True
             )
             sys.exit(1)
-        elif not is_allowable_hostname(new_name):
+        elif not networking.is_allowable_hostname(new_name):
             click.echo(
                 "New name should only contain numbers, -, and English alphabet: a-z.",
                 err=True,
@@ -310,7 +299,7 @@ if am_I_leader():
 
             except socket.gaierror:
                 machine_name = ip if ip else "raspberrypi"
-                time.sleep(3)
+                sleep(3)
                 click.echo(f"`{machine_name}` not found on network - checking again.")
                 if checks >= max_checks:
                     click.echo(
@@ -338,23 +327,17 @@ if am_I_leader():
         name="cluster-info", short_help="report information on the pioreactor cluster"
     )
     def cluster_information():
-        import socket
 
-        click.echo(f"{'Hostname':20s} {'IP address':20s} {'State':20s}")
+        click.echo(
+            f"{'Unit name':20s} {'IP address':20s} {'State':12s} {'Reachable':10s}"
+        )
         for hostname, inventory_status in config["network.inventory"].items():
             if not inventory_status:
                 continue
 
             # get ip
             if get_unit_name() == hostname:
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                try:
-                    s.connect(("10.255.255.255", 1))
-                    ip = s.getsockname()[0]
-                except Exception:
-                    ip = "127.0.0.1"
-                finally:
-                    s.close()
+                ip = networking.get_ip()
             else:
                 try:
                     ip = socket.gethostbyname(hostname)
@@ -370,9 +353,10 @@ if am_I_leader():
             else:
                 state = "Unknown"
 
-            click.echo(
-                f"{hostname:20s} {ip:20s} {state:20s} {'✅' if state=='ready' else '❌'}"
-            )
+            # is reachable?
+            reachable = networking.is_host_on_network(hostname)
+
+            click.echo(f"{hostname:20s} {ip:20s} {state:12s} {'✅' if reachable else '❌'}")
 
 
 if not am_I_leader() and not am_I_active_worker():
