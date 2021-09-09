@@ -328,8 +328,9 @@ if am_I_leader():
     )
     def cluster_information():
 
-        click.echo(
-            f"{'Unit name':20s} {'Is Leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}"
+        click.secho(
+            f"{'Unit name':20s} {'Is Leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
+            bold=True,
         )
         for hostname, inventory_status in config["network.inventory"].items():
             if not inventory_status:
@@ -353,11 +354,13 @@ if am_I_leader():
             else:
                 state = "Unknown"
 
+            state = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
+
             # is reachable?
             reachable = networking.is_reachable(hostname)
 
             click.echo(
-                f"{hostname:20s} {('Y' if hostname==get_leader_hostname() else 'N'):15s} {ip:20s} {state:15s} {('Y' if reachable else 'N'):10s}"
+                f"{hostname:20s} {('Y' if hostname==get_leader_hostname() else 'N'):15s} {ip:20s} {state} {(  click.style('Y', fg='green') if reachable else click.style('N', fg='red') ):10s}"
             )
 
 
