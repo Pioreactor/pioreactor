@@ -352,11 +352,11 @@ if am_I_leader():
                 ip = "Unknown"
 
             # get state
-            payload_or_None = subscribe(
+            result = subscribe(
                 f"pioreactor/{hostname}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=1
             )
-            if payload_or_None:
-                state = payload_or_None.decode()
+            if result:
+                state = result.payload.decode()
             else:
                 state = "Unknown"
 
