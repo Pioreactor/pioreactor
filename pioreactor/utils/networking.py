@@ -22,7 +22,8 @@ def is_reachable(hostname):
             stderr=subprocess.DEVNULL,
         ).stdout.read()
     )
-    return True if "1 packets received" in ping_response else False
+    # TODO: find a better test, or rethink above ping...
+    return True if "1 received" in ping_response else False
 
 
 def is_allowable_hostname(hostname):
