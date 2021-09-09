@@ -346,10 +346,20 @@ if am_I_leader():
                 continue
 
             # get ip
-            try:
-                ip = socket.gethostbyname(hostname)
-            except OSError:
-                ip = "Unknown"
+            if get_unit_name() == hostname:
+                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                try:
+                    s.connect(("10.255.255.255", 1))
+                    ip = s.getsockname()[0]
+                except Exception:
+                    ip = "127.0.0.1"
+                finally:
+                    s.close()
+            else:
+                try:
+                    ip = socket.gethostbyname(hostname)
+                except OSError:
+                    ip = "Unknown"
 
             # get state
             result = subscribe(
@@ -361,7 +371,7 @@ if am_I_leader():
                 state = "Unknown"
 
             click.echo(
-                f"{hostname:20s} {ip:20s} {state:20s} {'✅' if state=='READY' else '❌'}"
+                f"{hostname:20s} {ip:20s} {state:20s} {'✅' if state=='ready' else '❌'}"
             )
 
 
