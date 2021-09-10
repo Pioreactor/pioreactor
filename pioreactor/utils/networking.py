@@ -2,7 +2,7 @@
 import socket
 
 
-def is_hostname_on_network(hostname):
+def is_hostname_on_network(hostname: str) -> bool:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((hostname, 22))
@@ -12,7 +12,7 @@ def is_hostname_on_network(hostname):
         return False
 
 
-def is_reachable(hostname):
+def is_reachable(hostname: str) -> bool:
     import subprocess
 
     ping_response = str(
@@ -26,13 +26,13 @@ def is_reachable(hostname):
     return True if "1 received" in ping_response else False
 
 
-def is_allowable_hostname(hostname):
+def is_allowable_hostname(hostname: str) -> bool:
     import re
 
     return True if re.match(r"^[0-9a-zA-Z\-]+$", hostname) else False
 
 
-def get_ip():
+def get_ip() -> str:
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("10.255.255.255", 1))

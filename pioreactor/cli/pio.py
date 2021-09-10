@@ -324,12 +324,12 @@ if am_I_leader():
             logger.info(f"New pioreactor {new_name} successfully added to cluster.")
 
     @pio.command(
-        name="cluster-info", short_help="report information on the pioreactor cluster"
+        name="cluster-status", short_help="report information on the pioreactor cluster"
     )
-    def cluster_information():
+    def cluster_status():
 
         click.secho(
-            f"{'Unit name':20s} {'Is Leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
+            f"{'Unit name':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
             bold=True,
         )
         for hostname, inventory_status in config["network.inventory"].items():
