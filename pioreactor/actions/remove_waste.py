@@ -27,9 +27,9 @@ def remove_waste(
 ):
     logger = create_logger("remove_waste")
 
-    assert 0 <= duty_cycle <= 100
-    assert (ml is not None) or (duration is not None), "Input either ml or duration"
-    assert not ((ml is not None) and (duration is not None)), "Only input ml or duration"
+    assert 0 <= duty_cycle <= 100, "duty_cycle must be between 0 and 100, inclusive"
+    assert (ml is not None) or (duration is not None), "either ml or duration must be set"
+    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     try:
         with local_persistant_storage("pump_calibration") as cache:

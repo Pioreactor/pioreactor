@@ -26,8 +26,8 @@ def add_alt_media(
     logger = create_logger("add_alt_media")
 
     # TODO: turn these into proper exceptions and logging
-    assert 0 <= duty_cycle <= 100
-    assert (ml is not None) or (duration is not None)
+    assert 0 <= duty_cycle <= 100, "duty_cycle must be between 0 and 100, inclusive"
+    assert (ml is not None) or (duration is not None), "either ml or duration must be set"
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     try:
@@ -46,7 +46,7 @@ def add_alt_media(
     hz = 100
     if ml is not None:
         user_submitted_ml = True
-        assert ml >= 0
+        assert ml >= 0, "ml should be >= than 0"
         duration = pump_ml_to_duration(
             ml,
             duty_cycle,
@@ -59,7 +59,7 @@ def add_alt_media(
             duty_cycle,
             **calibration,
         )
-    assert duration >= 0
+    assert duration >= 0, "duration should be >= than 0"
 
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",

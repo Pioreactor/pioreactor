@@ -27,9 +27,11 @@ def add_media(
 ):
     logger = create_logger("add_media")
 
-    assert 0 <= duty_cycle <= 100
-    assert (ml is not None) or (duration is not None) or (continuously)
-    assert not ((ml is not None) and (duration is not None))
+    assert 0 <= duty_cycle <= 100, "duty_cycle must be between 0 and 100, inclusive"
+    assert (
+        (ml is not None) or (duration is not None) or continuously
+    ), "either ml or duration must be set"
+    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     hz = 100
 
@@ -47,7 +49,7 @@ def add_media(
         return 0.0
 
     if ml is not None:
-        assert ml >= 0
+        assert ml >= 0, "ml should be greater than 0"
         duration = pump_ml_to_duration(ml, duty_cycle, **calibration)
         logger.info(f"{round(ml, 2)}mL")
     elif duration is not None:
@@ -62,7 +64,7 @@ def add_media(
         )
         logger.info("Running pump continuously.")
 
-    assert duration >= 0
+    assert duration >= 0, "duration should be greater than 0"
 
     # publish this first, as downstream jobs need to know about it.
     json_output = dumps(
