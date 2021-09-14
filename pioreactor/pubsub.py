@@ -3,6 +3,8 @@ import socket
 import threading
 import time
 
+from paho.mqtt.client import Client
+
 from pioreactor.config import leader_hostname
 
 
@@ -13,8 +15,12 @@ class QOS:
     EXACTLY_ONCE = 2
 
 
-def create_client(hostname=leader_hostname, last_will=None, client_id=None, keepalive=60):
-    from paho.mqtt.client import Client
+def create_client(
+    hostname=leader_hostname, last_will=None, client_id=None, keepalive=60, max_retries=3
+) -> Client:
+    """
+    Create a MQTT client and connect to a host.
+    """
 
     def on_connect(client, userdata, flags, rc, properties=None):
         if rc > 1:
@@ -30,7 +36,7 @@ def create_client(hostname=leader_hostname, last_will=None, client_id=None, keep
         client.will_set(**last_will)
 
     retries = 0
-    while retries < 3:
+    while retries < max_retries:
         try:
             client.connect(hostname, keepalive=keepalive)
         except (socket.gaierror, OSError):
@@ -38,7 +44,8 @@ def create_client(hostname=leader_hostname, last_will=None, client_id=None, keep
             time.sleep(retries * 5)
         else:
             client.loop_start()
-            return client
+            break
+    return client
 
 
 def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs):
@@ -123,7 +130,6 @@ def subscribe(
     indefinitely for a message. The parent job may not exit properly.
 
     """
-    import paho.mqtt.client as mqtt
 
     retry_count = 1
     while True:
@@ -147,7 +153,7 @@ def subscribe(
                 "messages": None,
             }
 
-            client = mqtt.Client(userdata=userdata)
+            client = Client(userdata=userdata)
             client.on_connect = on_connect
             client.on_message = on_message
             client.connect(leader_hostname)
@@ -188,7 +194,7 @@ def subscribe_and_callback(
     job_name=None,
     allow_retained=True,
     **mqtt_kwargs,
-):
+) -> Client:
     """
     Creates a new thread, wrapping around paho's subscribe.callback. Callbacks only accept a single parameter, message.
 
@@ -204,8 +210,6 @@ def subscribe_and_callback(
         subscriber "fresh", it will have retain=False on the client side. More here:
         https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
     """
-    from paho.mqtt.client import Client
-
     assert callable(
         callback
     ), "callback should be callable - do you need to change the order of arguments?"
