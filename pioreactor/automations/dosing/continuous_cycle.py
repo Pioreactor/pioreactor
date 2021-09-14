@@ -29,11 +29,13 @@ class ContinuousCycle(DosingAutomation):
 
     def __init__(self, duty_cycle=100, **kwargs):
         super(ContinuousCycle, self).__init__(**kwargs)
+        pin = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
+        self.pwm = PWM(pin, self.hz)
         self.duty_cycle = duty_cycle
 
     def set_duty_cycle(self, new_dc):
         self.duty_cycle = clamp(0, float(new_dc), 100)
-        self.pwm.change_duty_cycle(new_dc)
+        self.pwm.change_duty_cycle(self.duty_cycle)
 
     def run(self):
         if self.state == self.DISCONNECTED:
@@ -65,10 +67,6 @@ class ContinuousCycle(DosingAutomation):
         super(ContinuousCycle, self).on_disconnect()
 
     def execute(self, *args, **kwargs):
-
-        pin = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
-
-        self.pwm = PWM(pin, self.hz)
         self.pwm.start(self.duty_cycle)
         return events.RunningContinuously(
             f"Running pump on channel {config.getint('PWM_reverse', 'media')} continuously"

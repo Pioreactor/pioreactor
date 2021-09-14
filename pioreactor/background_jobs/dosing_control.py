@@ -100,6 +100,10 @@ class DosingController(BackgroundJob):
 
     def on_disconnect(self):
         try:
+
+            for job in self.sub_jobs:
+                job.set_state(job.DISCONNECTED)
+
             self.dosing_automation_job.set_state(self.DISCONNECTED)
         except AttributeError:
             # if disconnect is called right after starting, dosing_automation_job isn't instantiated

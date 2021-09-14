@@ -105,7 +105,9 @@ class LEDAutomation(BackgroundSubJob):
 
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
             counter = 0
-            while (self.latest_growth_rate is None) or (self.latest_od is None):
+            while (
+                (self.latest_growth_rate is None) or (self.latest_od is None)
+            ) and self.state == self.READY:
                 time.sleep(5)
                 counter += 1
 

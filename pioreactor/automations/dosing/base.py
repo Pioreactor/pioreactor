@@ -124,10 +124,8 @@ class DosingAutomation(BackgroundSubJob):
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
             time_waited = 0
             while (
-                (self.latest_growth_rate is None)
-                or (self.latest_od is None)
-                and self.state == self.READY
-            ):
+                (self.latest_growth_rate is None) or (self.latest_od is None)
+            ) and self.state == self.READY:
                 sleep_for = 5
                 time.sleep(sleep_for)
                 time_waited += sleep_for

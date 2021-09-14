@@ -52,6 +52,11 @@ class TemperatureController(BackgroundJob):
     If you have your own thermo-couple, you can publish to this topic, with the same schema
     and all should just work™️. You'll need to provide your own feedback loops however.
 
+
+    Parameters
+    ------------
+    eval_and_publish_immediately: bool, default True
+        evaluate and publish the temperature once the class is created (in the background)
     """
 
     automations = {}
@@ -61,7 +66,14 @@ class TemperatureController(BackgroundJob):
         "temperature": {"datatype": "float", "settable": False, "unit": "℃"},
     }
 
-    def __init__(self, temperature_automation, unit=None, experiment=None, **kwargs):
+    def __init__(
+        self,
+        temperature_automation,
+        eval_and_publish_immediately: bool = True,
+        unit=None,
+        experiment=None,
+        **kwargs,
+    ):
         super(TemperatureController, self).__init__(
             job_name="temperature_control", unit=unit, experiment=experiment
         )
@@ -92,7 +104,9 @@ class TemperatureController(BackgroundJob):
         self.read_external_temperature_timer.start()
 
         self.publish_temperature_timer = RepeatedTimer(
-            10 * 60, self.evaluate_and_publish_temperature, run_immediately=True
+            10 * 60,
+            self.evaluate_and_publish_temperature,
+            run_immediately=eval_and_publish_immediately,
         )
         self.publish_temperature_timer.start()
 
@@ -214,7 +228,7 @@ class TemperatureController(BackgroundJob):
                 f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self.update_heater(self.heater_duty_cycle * 0.90)
+            self._update_heater(self.heater_duty_cycle * 0.90)
 
     def on_sleeping(self):
         self.temperature_automation_job.set_state(self.SLEEPING)

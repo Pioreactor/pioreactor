@@ -36,9 +36,11 @@ def add_leader(list_of_units):
     return list_of_units
 
 
-def sync_config_files(ssh_client, unit):
+def sync_config_files(ssh_client, unit: str):
     """
-    this function occurs in a thread
+    Moves both the config.ini and config_{unit}.ini to the remote Pioreactor.
+
+    Note: this function occurs in a thread
     """
     ftp_client = ssh_client.open_sftp()
 
@@ -46,14 +48,15 @@ def sync_config_files(ssh_client, unit):
     # there was a bug where if the leader == unit, the config.ini would get wiped
     if get_leader_hostname() != unit:
         ftp_client.put(
-            "/home/pi/.pioreactor/config.ini", "/home/pi/.pioreactor/config.ini"
+            localpath="/home/pi/.pioreactor/config.ini",
+            remotepath="/home/pi/.pioreactor/config.ini",
         )
 
     # move the local config.ini
     try:
         ftp_client.put(
-            f"/home/pi/.pioreactor/config_{unit}.ini",
-            "/home/pi/.pioreactor/unit_config.ini",
+            localpath=f"/home/pi/.pioreactor/config_{unit}.ini",
+            remotepath="/home/pi/.pioreactor/unit_config.ini",
         )
     except Exception:
         click.echo(
