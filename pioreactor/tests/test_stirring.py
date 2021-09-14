@@ -15,7 +15,8 @@ def pause():
 
 
 def test_stirring_runs():
-    start_stirring(50)
+    st = start_stirring(50)
+    st.set_state(st.DISCONNECTED)
 
 
 def test_change_stirring_mid_cycle():
@@ -37,6 +38,7 @@ def test_change_stirring_mid_cycle():
     pause()
     assert st.duty_cycle == 0
     pause()
+    st.set_state(st.DISCONNECTED)
 
 
 def test_pause_stirring_mid_cycle():
@@ -55,6 +57,7 @@ def test_pause_stirring_mid_cycle():
     pause()
 
     assert st.duty_cycle == 50
+    st.set_state(st.DISCONNECTED)
 
 
 def test_pause_stirring_mid_cycle_with_modified_dc():
@@ -77,6 +80,7 @@ def test_pause_stirring_mid_cycle_with_modified_dc():
     pause()
 
     assert st.duty_cycle == new_dc
+    st.set_state(st.DISCONNECTED)
 
 
 def test_publish_duty_cycle():
@@ -90,3 +94,4 @@ def test_publish_duty_cycle():
     pause()
     message = subscribe(f"pioreactor/{unit}/{exp}/stirring/duty_cycle")
     assert float(message.payload) == 50
+    st.set_state(st.DISCONNECTED)

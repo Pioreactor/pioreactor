@@ -3,8 +3,9 @@ import sqlite3, time, json
 import numpy as np
 from pioreactor.config import config
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
-from pioreactor.background_jobs.od_reading import ODReader
+from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
+from pioreactor.utils import local_persistant_storage
 
 
 def test_kalman_filter_entries():
@@ -36,14 +37,22 @@ def test_kalman_filter_entries():
 
     # turn on data collection
     interval = 0.5
-    ODReader(
-        channel_angle_map={"A0": "135", "A1": "90"},
+    od = start_od_reading(
+        od_angle_channel1="135",
+        od_angle_channel2="90",
         sampling_rate=interval,
+        fake_data=True,
         unit=unit,
         experiment=exp,
-        fake_data=True,
     )
-    GrowthRateCalculator(unit=unit, experiment=exp)
+
+    with local_persistant_storage("od_normalization_mean") as cache:
+        cache[exp] = json.dumps({"1": 0.5, "2": 0.8})
+
+    with local_persistant_storage("od_normalization_variance") as cache:
+        cache[exp] = json.dumps({"1": 1e-6, "2": 1e-4})
+
+    gr = GrowthRateCalculator(unit=unit, experiment=exp)
 
     # turn on our mqtt to db
     parsers = [
@@ -54,7 +63,7 @@ def test_kalman_filter_entries():
         )
     ]
 
-    m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp)
+    m = m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp)
 
     # let data collect
     time.sleep(10)
@@ -68,6 +77,12 @@ def test_kalman_filter_entries():
         (exp,),
     )
     results = cursor.fetchone()
-    assert results[0] == 4
-    assert results[1] == 4
-    assert np.array(json.loads(results[2])).shape == (4, 4)
+    assert (
+        results[0] == 3
+    )  # why 3? growth rate, od filtered, and acceleration are the three hidden states
+    assert results[1] == 3
+    assert np.array(json.loads(results[2])).shape == (3, 3)
+
+    od.set_state(od.DISCONNECTED)
+    gr.set_state(gr.DISCONNECTED)
+    m.set_state(m.DISCONNECTED)

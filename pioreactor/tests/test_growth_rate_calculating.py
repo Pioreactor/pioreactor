@@ -127,6 +127,7 @@ class TestGrowthRateCalculating:
         pause()
 
         assert calc.state_ is not None
+        calc.set_state(calc.DISCONNECTED)
 
     def test_restart(self):
 
@@ -195,10 +196,13 @@ class TestGrowthRateCalculating:
         pause()
 
         assert calc1.state_[-1] != 0
+        calc1.set_state(calc1.DISCONNECTED)
 
         calc2 = GrowthRateCalculator(unit=unit, experiment=experiment)
         pause()
         assert calc2.initial_growth_rate != 0
+
+        calc2.set_state(calc2.DISCONNECTED)
 
     def test_single_observation(self):
 
@@ -216,7 +220,7 @@ class TestGrowthRateCalculating:
             retain=True,
         )
 
-        GrowthRateCalculator(unit=unit, experiment=experiment)
+        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
@@ -227,6 +231,7 @@ class TestGrowthRateCalculating:
         pause()
 
         assert True
+        calc.set_state(calc.DISCONNECTED)
 
     def test_scaling_works(self):
 
@@ -248,6 +253,8 @@ class TestGrowthRateCalculating:
 
         pause()
         assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
+
+        calc.set_state(calc.DISCONNECTED)
 
     def test_shock_from_dosing_works(self):
 
@@ -352,6 +359,7 @@ class TestGrowthRateCalculating:
         # should revert back
         assert not calc.ekf._currently_scaling_covariance
         assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
+        calc.set_state(calc.DISCONNECTED)
 
     def test_end_to_end(self):
 
@@ -374,6 +382,7 @@ class TestGrowthRateCalculating:
 
         time.sleep(35)
         assert calc.ekf.state_[-2] != 1.0
+        calc.set_state(calc.DISCONNECTED)
 
     def test_od_blank_being_non_zero(self):
 
@@ -517,3 +526,4 @@ class TestGrowthRateCalculating:
         calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
         assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {"2": 2.0, "1": 0.25}
+        calc.set_state(calc.DISCONNECTED)

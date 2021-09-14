@@ -56,6 +56,7 @@ def test_silent_automation():
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_turbidostat_automation():
@@ -107,6 +108,7 @@ def test_turbidostat_automation():
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_pid_turbidostat_automation():
@@ -139,9 +141,21 @@ def test_pid_turbidostat_automation():
     pause()
     e = algo.run()
     assert isinstance(e, events.DilutionEvent)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_morbidostat_automation():
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+        None,
+        retain=True,
+    )
+
     target_od = 1.0
     algo = Morbidostat(
         target_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
@@ -212,6 +226,7 @@ def test_morbidostat_automation():
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_pid_morbidostat_automation():
@@ -264,6 +279,7 @@ def test_pid_morbidostat_automation():
     )
     pause()
     assert isinstance(algo.run(), events.AltMediaEvent)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_morbidostat_parameters_over_mqtt():
@@ -286,6 +302,7 @@ def test_changing_morbidostat_parameters_over_mqtt():
     pause()
     assert algo.target_growth_rate == new_target
     assert algo.pid.pid.setpoint == new_target
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_turbidostat_params_over_mqtt():
@@ -333,11 +350,12 @@ def test_changing_turbidostat_params_over_mqtt():
     )
     pause()
     assert algo.target_od == new_od
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter():
 
-    DosingAutomation(
+    algo = DosingAutomation(
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
@@ -347,6 +365,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter():
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07)
     # there should be a log published with "Unable to set garbage in dosing_automation"
     pause()
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_pause_in_dosing_automation():
@@ -370,6 +389,7 @@ def test_pause_in_dosing_automation():
     )
     pause()
     assert algo.state == "ready"
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_pause_in_dosing_control_also_pauses_automation():
@@ -394,6 +414,7 @@ def test_pause_in_dosing_control_also_pauses_automation():
     pause()
     assert algo.state == "ready"
     assert algo.dosing_automation_job.state == "ready"
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_old_readings_will_not_execute_io():
@@ -413,15 +434,19 @@ def test_old_readings_will_not_execute_io():
     assert algo.most_stale_time == algo.latest_od_timestamp
 
     assert isinstance(algo.run(), events.NoEvent)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_throughput_calculator():
-    job_name = "throughput_calculating"
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 0, retain=True
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
+        0,
+        retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput", 0, retain=True
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
+        0,
+        retain=True,
     )
 
     algo = DosingController(
@@ -483,16 +508,18 @@ def test_throughput_calculator():
     algo.dosing_automation_job.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_throughput_calculator_restart():
-    job_name = "throughput_calculating"
 
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
+        1.0,
+        retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
         1.5,
         retain=True,
     )
@@ -508,16 +535,18 @@ def test_throughput_calculator_restart():
     pause()
     assert algo.throughput_calculator.media_throughput == 1.0
     assert algo.throughput_calculator.alt_media_throughput == 1.5
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_throughput_calculator_manual_set():
-    job_name = "throughput_calculating"
 
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput", 1.0, retain=True
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
+        1.0,
+        retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
         1.5,
         retain=True,
     )
@@ -535,23 +564,27 @@ def test_throughput_calculator_manual_set():
     assert algo.throughput_calculator.alt_media_throughput == 1.5
 
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/{job_name}/alt_media_throughput/set", 0
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput/set",
+        0,
     )
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/{job_name}/media_throughput/set", 0)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput/set", 0
+    )
     pause()
     pause()
     assert algo.throughput_calculator.media_throughput == 0
     assert algo.throughput_calculator.alt_media_throughput == 0
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_execute_io_action():
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
         None,
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
         None,
         retain=True,
     )
@@ -579,6 +612,7 @@ def test_execute_io_action():
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 1.50
+    ca.set_state(ca.DISCONNECTED)
 
 
 def test_execute_io_action2():
@@ -589,12 +623,12 @@ def test_execute_io_action2():
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
         None,
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
         None,
         retain=True,
     )
@@ -606,9 +640,10 @@ def test_execute_io_action2():
     pause()
     assert ca.throughput_calculator.media_throughput == 1.25
     assert ca.throughput_calculator.alt_media_throughput == 0.01
+    ca.set_state(ca.DISCONNECTED)
 
 
-def test_execute_io_action_outputs():
+def test_execute_io_action_outputs1():
     # regression test
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
@@ -616,12 +651,12 @@ def test_execute_io_action_outputs():
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
         None,
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
         None,
         retain=True,
     )
@@ -631,6 +666,7 @@ def test_execute_io_action_outputs():
     assert result[0] == 1.25
     assert result[1] == 0.01
     assert result[2] == 1.26
+    ca.set_state(ca.DISCONNECTED)
 
 
 def test_execute_io_action_outputs_will_shortcut_if_lost():
@@ -641,12 +677,12 @@ def test_execute_io_action_outputs_will_shortcut_if_lost():
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
         None,
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
         None,
         retain=True,
     )
@@ -657,6 +693,7 @@ def test_execute_io_action_outputs_will_shortcut_if_lost():
     assert result[0] == 0.0
     assert result[1] == 0.0
     assert result[2] == 0.0
+    ca.set_state(ca.DISCONNECTED)
 
 
 def test_duration_and_timer():
@@ -691,6 +728,7 @@ def test_duration_and_timer():
     time.sleep(10)
     pause()
     assert isinstance(algo.latest_event, events.AltMediaEvent)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_duration_over_mqtt():
@@ -718,7 +756,8 @@ def test_changing_duration_over_mqtt():
         f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set", 60 / 60
     )
     time.sleep(10)
-    assert algo.timer_thread.interval == 60
+    assert algo.run_thread.interval == 60
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_algo_over_mqtt_solo():
@@ -742,6 +781,7 @@ def test_changing_algo_over_mqtt_solo():
     assert algo.dosing_automation == "pid_morbidostat"
     assert isinstance(algo.dosing_automation_job, PIDMorbidostat)
     assert algo.dosing_automation_job.target_growth_rate == 0.07
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
@@ -765,16 +805,17 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback():
     assert algo.dosing_automation == "turbidostat"
     assert isinstance(algo.dosing_automation_job, Turbidostat)
     assert algo.dosing_automation_job.target_od == 1.0
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
         None,
         retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/alt_media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
         None,
         retain=True,
     )
@@ -822,11 +863,12 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
     pause()
     pause()
     assert algo.dosing_automation_job.target_od == 1.5
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculating/media_throughput",
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
         None,
         retain=True,
     )
@@ -850,6 +892,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay():
     )  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.dosing_automation_job, PIDTurbidostat)
     assert algo.dosing_automation_job.target_od == 1.0
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_disconnect_cleanly():
@@ -868,6 +911,7 @@ def test_disconnect_cleanly():
         f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
     )
     time.sleep(10)
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_custom_class_will_register_and_run():
@@ -888,13 +932,14 @@ def test_custom_class_will_register_and_run():
             if self.latest_od > self.target_od:
                 self.execute_io_action(media_ml=1.0, waste_ml=1.0)
 
-    DosingController(
+    algo = DosingController(
         "naive_turbidostat",
         target_od=2.0,
         duration=10,
         unit=get_unit_name(),
         experiment=get_latest_experiment_name(),
     )
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_what_happens_when_no_od_data_is_coming_in():
@@ -913,6 +958,7 @@ def test_what_happens_when_no_od_data_is_coming_in():
     event = algo.run()
     assert isinstance(event, events.NoEvent)
     assert "Waited too long on sensor data. Skipping this run" in event.message
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_duty_cycle_over_mqtt():
@@ -922,3 +968,4 @@ def test_changing_duty_cycle_over_mqtt():
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/duty_cycle/set", 50)
     pause()
     assert algo.duty_cycle == 50
+    algo.set_state(algo.DISCONNECTED)

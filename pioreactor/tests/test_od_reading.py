@@ -59,6 +59,7 @@ def test_LinearTemperatureCompensator():
 
     # should keep increasing
     assert tc.compensate_od_for_temperature(0.95) > reading_
+    tc.set_state(tc.DISCONNECTED)
 
 
 def test_sin_regression_exactly():
@@ -75,6 +76,7 @@ def test_sin_regression_exactly():
     assert np.abs(C - 10) < 0.1
     assert np.abs(A - 2) < 0.1
     assert np.abs(phi - 0) < 0.1
+    adc_reader.set_state(adc_reader.DISCONNECTED)
 
 
 def test_sin_regression_all_zeros_should_return_zeros():
@@ -89,6 +91,7 @@ def test_sin_regression_all_zeros_should_return_zeros():
     )
     assert C == 0
     assert A == 0
+    adc_reader.set_state(adc_reader.DISCONNECTED)
 
 
 def test_sin_regression_constant_should_return_constant():
@@ -103,6 +106,7 @@ def test_sin_regression_constant_should_return_constant():
     )
     assert C == 1.0
     assert A == 0.0
+    adc_reader.set_state(adc_reader.DISCONNECTED)
 
 
 def test_sin_regression_with_linear_change_should_return_close_to_mean():
@@ -118,6 +122,7 @@ def test_sin_regression_with_linear_change_should_return_close_to_mean():
         [i / 25 for i in range(25)], y, 60
     )
     assert np.abs(C - np.mean(y)) < 0.001
+    adc_reader.set_state(adc_reader.DISCONNECTED)
 
 
 def test_sin_regression_with_slightly_lower_frequency():
@@ -134,6 +139,7 @@ def test_sin_regression_with_slightly_lower_frequency():
 
     (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, 60)
     assert np.abs(C - 10) < 0.1
+    adc_reader.set_state(adc_reader.DISCONNECTED)
 
 
 def test_sin_regression_with_slightly_higher_frequency_but_correct_freq_has_better_fit():
@@ -153,6 +159,7 @@ def test_sin_regression_with_slightly_higher_frequency_but_correct_freq_has_bett
 
     (C_61, A, phi), aic_61 = adc_reader.sin_regression_with_known_freq(x, y, actual_freq)
     assert aic_61 < aic_60  # lower is better
+    adc_reader.set_state(adc_reader.DISCONNECTED)
 
 
 def test_sin_regression_with_strong_penalizer():
@@ -166,3 +173,4 @@ def test_sin_regression_with_strong_penalizer():
         [i / 25 for i in range(25)], [100] * 25, 60, prior_C=125, penalizer_C=1_000_000
     )
     assert abs(C - 125) < 0.01
+    adc_reader.set_state(adc_reader.DISCONNECTED)

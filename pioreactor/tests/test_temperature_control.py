@@ -50,6 +50,7 @@ def test_changing_temperature_algo_over_mqtt():
     assert algo.temperature_automation == "pid_stable"
     assert isinstance(algo.temperature_automation_job, PIDStable)
     assert algo.temperature_automation_job.target_temperature == 20
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_changing_temperature_algo_over_mqtt_and_then_update_params():
@@ -79,6 +80,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params():
     )
     pause()
     assert algo.temperature_automation_job.duty_cycle == 30
+    algo.set_state(algo.DISCONNECTED)
 
 
 def test_heating_is_reduced_when_set_temp_is_exceeded():
@@ -88,11 +90,12 @@ def test_heating_is_reduced_when_set_temp_is_exceeded():
     )
     t.tmp_driver.get_temperature = lambda *args: 55
 
-    t.temperature_automation_job.update_heater(50)
+    t._update_heater(50)
     assert t.heater_duty_cycle == 50
-    time.sleep(13)
+    time.sleep(12)
 
-    assert t.heater_duty_cycle == 50 * 0.8
+    assert 0 < t.heater_duty_cycle < 50
+    t.set_state(t.DISCONNECTED)
 
 
 def test_heating_stops_when_max_temp_is_exceeded():
@@ -100,19 +103,21 @@ def test_heating_stops_when_max_temp_is_exceeded():
     t = temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     )
+    # monkey path the driver
     t.tmp_driver.get_temperature = lambda *args: 57
 
-    t.temperature_automation_job.update_heater(50)
+    t._update_heater(50)
     assert t.heater_duty_cycle == 50
     time.sleep(12)
 
     assert t.heater_duty_cycle == 0
+    t.set_state(t.DISCONNECTED)
 
 
 def test_child_cant_update_heater_when_locked():
 
     t = temperature_control.TemperatureController(
-        "silent", unit=unit, experiment=experiment
+        "silent", unit=unit, experiment=experiment, eval_and_publish_immediately=False
     )
     assert t.temperature_automation_job.update_heater(50)
 
@@ -121,6 +126,7 @@ def test_child_cant_update_heater_when_locked():
         assert not t.update_heater(50)
 
     assert t.temperature_automation_job.update_heater(50)
+    t.set_state(t.DISCONNECTED)
 
 
 def test_constant_duty_cycle_init():
@@ -142,3 +148,4 @@ def test_constant_duty_cycle_init():
     )
     pause()
     assert algo.heater_duty_cycle == dc
+    algo.set_state(algo.DISCONNECTED)
