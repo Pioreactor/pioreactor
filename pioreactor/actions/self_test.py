@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This action checks the following on the Pioreactor:
+This action checks the following on the Pioreactor (using pytest):
 
 1. Heating and temperature sensor by gradually increase heating's DC, and record temperature
     [x] do we detect the heating PCB over i2c?
@@ -10,6 +10,7 @@ This action checks the following on the Pioreactor:
     [x] do we measure a positive correlation between any LED output and PD?
     [x] output should be a list of pairs (LED_X, PD_Y) where a positive correlation is detected
     [x] Detect the Pioreactor HAT
+    [x] detect ambient light?
 
 3. Stirring: ramp up output voltage for stirring and record RPM
     [ ] do we measure a positive correlation between stirring voltage and RPM?
@@ -22,6 +23,7 @@ Outputs from each check go into MQTT, and return to the command line.
 import time
 import json
 import click
+import pytest
 from collections import defaultdict
 from pioreactor.whoami import (
     get_unit_name,
@@ -36,100 +38,93 @@ from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
 from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS
 from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
+from pioreactor.background_jobs.stirring import start_stirring
 
 
-def check_temperature_and_heating(unit, experiment, logger):
-    try:
-        tc = TemperatureController("silent", unit=unit, experiment=experiment)
+@pytest.fixture(scope="session")
+def unit():
+    return get_unit_name()
+
+
+@pytest.fixture(scope="session")
+def experiment():
+    return get_latest_testing_experiment_name()
+
+
+@pytest.fixture(scope="session")
+def logger():
+    return create_logger("self_test", unit=unit, experiment=get_latest_experiment_name())
+
+
+class SelfTestPlugin:
+    def __init__(self):
+        self.unit = get_unit_name()
+        self.experiment = get_latest_testing_experiment_name()
+        self.did_all_pass = True
+
+    def pytest_runtest_logreport(self, report):
+        if report.when == "call":
+            test = report.nodeid.split("::")[1]
+            publish(
+                f"pioreactor/{self.unit}/{self.experiment}/self_test/{test}",
+                int(report.passed),
+            )
+            self.did_all_pass &= report.passed
+
+    def pytest_sessionfinish(self):
         publish(
-            f"pioreactor/{unit}/{experiment}/self_test/detect_heating_pcb",
-            1,
-            retain=False,
+            f"pioreactor/{self.unit}/{self.experiment}/self_test/all_tests_passed",
+            int(self.did_all_pass),
+            retain=True,
         )
-    except IOError:
-        # no point continuing
-        publish(
-            f"pioreactor/{unit}/{experiment}/self_test/detect_heating_pcb",
-            0,
-            retain=False,
-        )
-        publish(
-            f"pioreactor/{unit}/{experiment}/self_test/positive_correlation_between_temp_and_heating",
-            0,
-            retain=False,
-        )
-        return
-
-    measured_pcb_temps = []
-    dcs = list(range(0, 50, 6))
-    logger.debug("Varying heating.")
-    for dc in dcs:
-        tc._update_heater(dc)
-        time.sleep(0.75)
-        measured_pcb_temps.append(tc.read_external_temperature())
-
-    tc._update_heater(0)
-    print(dcs)
-    print(measured_pcb_temps)
-    measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
-    logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
-    publish(
-        f"pioreactor/{unit}/{experiment}/self_test/positive_correlation_between_temp_and_heating",
-        int(measured_correlation > 0.9),
-        retain=False,
-    )
-
-    return
 
 
-def check_leds_and_pds(unit, experiment, logger):
-    from pprint import pformat
-
-    INTENSITIES = list(range(2, 51, 8))
-    current_experiment_name = get_latest_experiment_name()
-    results = {}
+def test_pioreactor_hat_present(unit, experiment):
     try:
         adc_reader = ADCReader(
             channels=PD_CHANNELS,
             unit=unit,
             experiment=experiment,
             dynamic_gain=False,
-            initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
+            initial_gain=16,
             fake_data=is_testing_env(),
         )
         adc_reader.setup_adc()
-
-        # set all to 0, but use original experiment name, since we indeed are setting them to 0.
-        for led_channel in LED_CHANNELS:
-            assert led_intensity(
-                led_channel,
-                intensity=0,
-                unit=unit,
-                source_of_event="self_test",
-                experiment=current_experiment_name,
-                verbose=False,
-            )
     except (AssertionError, OSError):
-        publish(
-            f"pioreactor/{unit}/{experiment}/self_test/pioreactor_hat_present",
-            0,
-            retain=False,
-        )
-        publish(
-            f"pioreactor/{unit}/{experiment}/self_test/atleast_one_correlation_between_pds_and_leds",
-            0,
-            retain=False,
-        )
-        return
-    finally:
-        publish(
-            f"pioreactor/{unit}/{experiment}/self_test/pioreactor_hat_present",
-            1,
-            retain=False,
+        assert False
+    else:
+        assert True
+        adc_reader.set_state(adc_reader.DISCONNECTED)
+
+
+def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
+    from pprint import pformat
+
+    INTENSITIES = list(range(2, 58, 8))
+    current_experiment_name = get_latest_experiment_name()
+    results = {}
+
+    adc_reader = ADCReader(
+        channels=PD_CHANNELS,
+        unit=unit,
+        experiment=experiment,
+        dynamic_gain=False,
+        initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
+        fake_data=is_testing_env(),
+    )
+    adc_reader.setup_adc()
+    # set all to 0, but use original experiment name, since we indeed are setting them to 0.
+    for led_channel in LED_CHANNELS:
+        assert led_intensity(
+            led_channel,
+            intensity=0,
+            unit=unit,
+            source_of_event="self_test",
+            experiment=current_experiment_name,
+            verbose=False,
         )
 
     for led_channel in LED_CHANNELS:
-        logger.debug(f"Varying intensity of channel {led_channel}.")
         varying_intensity_results = defaultdict(list)
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
@@ -173,64 +168,107 @@ def check_leds_and_pds(unit, experiment, logger):
             detected_relationships.append(pair)
 
     publish(
-        f"pioreactor/{unit}/{experiment}/self_test/atleast_one_correlation_between_pds_and_leds",
-        int(len(detected_relationships) > 0),
-        retain=False,
-    )
-    publish(
         f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
         json.dumps(detected_relationships),
-        retain=False,
     )
 
+    adc_reader.set_state(adc_reader.DISCONNECTED)
+
+    assert len(detected_relationships) > 0
+
+
+def test_ambient_light_interference(unit, experiment):
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     # TODO: it's never 0 because of the common current problem.
+
+    adc_reader = ADCReader(
+        channels=PD_CHANNELS,
+        unit=unit,
+        experiment=experiment,
+        dynamic_gain=False,
+        initial_gain=16,
+        fake_data=is_testing_env(),
+    )
+    adc_reader.setup_adc()
+
+    for led_channel in LED_CHANNELS:
+        assert led_intensity(
+            led_channel,
+            intensity=0,
+            unit=unit,
+            source_of_event="self_test",
+            experiment=experiment,
+            verbose=False,
+        )
+
     readings = adc_reader.take_reading()
-    publish(
-        f"pioreactor/{unit}/{experiment}/self_test/ambient_light_interference",
-        int(all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])),
-        retain=False,
-    )
+    adc_reader.set_state(adc_reader.DISCONNECTED)
 
-    return detected_relationships
+    assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])
 
 
-def self_test():
+def test_detect_heating_pcb(unit, experiment):
+    try:
+        tc = TemperatureController("silent", unit=unit, experiment=experiment)
+    except IOError:
+        assert False
+    else:
+        tc.set_state(tc.DISCONNECTED)
+        assert True
 
+
+def test_positive_correlation_between_temp_and_heating(unit, experiment, logger):
+    tc = TemperatureController("silent", unit=unit, experiment=experiment)
+
+    measured_pcb_temps = []
+    dcs = list(range(0, 48, 6))
+    logger.debug("Varying heating.")
+    for dc in dcs:
+        tc._update_heater(dc)
+        time.sleep(0.75)
+        measured_pcb_temps.append(tc.read_external_temperature())
+
+    tc._update_heater(0)
+    measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
+    logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
+    assert measured_correlation > 0.9
+
+    tc.set_state(tc.DISCONNECTED)
+
+
+def test_positive_correlation_between_rpm_and_stirring(unit, experiment):
+
+    st = start_stirring(unit=unit, experiment=experiment)
+    time.sleep(4)
+    st.set_state(st.DISCONNECTED)
+    assert False
+
+
+@click.command(name="self_test")
+def click_self_test():
+    """
+    Test the input/output in the Pioreactor
+    """
     unit = get_unit_name()
-    experiment = get_latest_testing_experiment_name()
-    logger = create_logger(
-        "self_test", unit=unit, experiment=get_latest_experiment_name()
-    )
+    experiment = get_latest_experiment_name()
 
-    with publish_ready_to_disconnected_state(unit, experiment, "self_test"):
+    with publish_ready_to_disconnected_state(
+        unit, get_latest_testing_experiment_name(), "self_test"
+    ):
 
         if (
             is_pio_job_running("od_reading")
             or is_pio_job_running("temperature_control")
             or is_pio_job_running("stirring")
         ):
+            logger = create_logger("self_test", unit=unit, experiment=experiment)
+
             logger.error(
                 "Make sure OD Reading, Temperature Control, and Stirring are off before running a self test. Exiting."
             )
             return
 
-        # LEDs and PDs
-        logger.debug("Check LEDs and PDs...")
-        check_leds_and_pds(unit, experiment, logger=logger)
-
-        # temp and heating
-        logger.debug("Check temperature and heating...")
-        check_temperature_and_heating(unit, experiment, logger=logger)
-
-        # TODO: stirring
-        #
-        #
-
-
-@click.command(name="self_test")
-def click_self_test():
-    """
-    Check the IO in the Pioreactor
-    """
-    self_test()
+        return pytest.main(
+            ["./pioreactor/actions/self_test.py", "-s", "-qq", "--tb=no"],
+            plugins=[SelfTestPlugin()],
+        )
