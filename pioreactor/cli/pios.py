@@ -123,7 +123,7 @@ def update(units):
             return True
 
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)
             return False
 
@@ -172,7 +172,7 @@ def install_plugin(plugin, units):
             return True
 
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)
             return False
 
@@ -221,7 +221,7 @@ def uninstall_plugin(plugin, units):
             return True
 
         except Exception as e:
-            logger.error(e)
+            logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)
             return False
 
@@ -305,7 +305,6 @@ def kill(job, units, all_jobs, y):
     > pios kill --all
 
 
-
     """
     from sh import ssh
 
@@ -336,7 +335,7 @@ def kill(job, units, all_jobs, y):
 
         except Exception as e:
             logger.debug(e, exc_info=True)
-            logger.error(e)
+            logger.error(f"Unable to connect to unit {unit}.")
             return False
 
     units = universal_identifier_to_all_active_workers(units)
@@ -407,7 +406,7 @@ def run(ctx, job, units, y):
                 "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
             )
             logger.debug(e, exc_info=True)
-            logger.error(e)
+            logger.error(f"Unable to connect to unit {unit}.")
             return False
 
     units = universal_identifier_to_all_active_workers(units)
