@@ -300,7 +300,7 @@ class ADCReader(BackgroundSubJob):
         """
         import numpy as np
 
-        assert len(x) == len(y)
+        assert len(x) == len(y), "shape mismatch"
         x = np.asarray(x)
         y = np.asarray(y)
         n = x.shape[0]
