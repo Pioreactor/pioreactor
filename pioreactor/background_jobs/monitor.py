@@ -40,6 +40,8 @@ class Monitor(BackgroundJob):
 
     """
 
+    MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE = 2
+
     def __init__(self, unit, experiment):
         super(Monitor, self).__init__(
             job_name="monitor", unit=unit, experiment=experiment
@@ -86,9 +88,23 @@ class Monitor(BackgroundJob):
         # report on CPU usage, memory, disk space
         self.publish_self_statistics()
 
-        # report on last database backup, if leader
         if am_I_leader():
+            # report on last database backup, if leader
             self.check_for_last_backup()
+
+        if not am_I_leader():
+            # check for MQTT connection to leader
+            self.check_for_mqtt_connection_to_leader()
+
+    def check_for_mqtt_connection_to_leader(self):
+        # TODO test this
+        if (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
+            self.logger.warning(
+                "MQTT client(s) are not connected to leader."
+            )  # remember, this doesn't go to leader...
+            self.flicker_led_error_code(
+                self.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE
+            )
 
     def check_for_last_backup(self):
 
@@ -142,7 +158,7 @@ class Monitor(BackgroundJob):
         return
 
     def on_ready(self):
-        self.flicker_led()
+        self.flicker_led_response_okay()
 
         # we can delay this check until ready.
         self.check_state_of_jobs_on_machine()
@@ -286,10 +302,7 @@ class Monitor(BackgroundJob):
             ),
         )
 
-    def flicker_led(self, *args):
-        # what happens when I hear multiple msgs in quick succession? Seems like calls to this function
-        # are queued.
-
+    def flicker_led_response_okay(self, *args):
         for _ in range(4):
 
             self.led_on()
@@ -301,10 +314,20 @@ class Monitor(BackgroundJob):
             self.led_off()
             sleep(0.45)
 
+    def flicker_led_error_code(self, error_code):
+        while True:
+            for _ in range(error_code):
+                self.led_on()
+                sleep(0.5)
+                self.led_off()
+                sleep(0.5)
+
+            sleep(5)
+
     def start_passive_listeners(self):
         self.subscribe_and_callback(
-            self.flicker_led,
-            f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led",
+            self.flicker_led_response_okay,
+            f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_response_okay",
             qos=QOS.AT_LEAST_ONCE,
         )
 
