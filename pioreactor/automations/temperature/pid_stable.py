@@ -14,7 +14,7 @@ class PIDStable(TemperatureAutomation):
 
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)
-        assert target_temperature is not None
+        assert target_temperature is not None, "target_temperature must be set"
         self.target_temperature = float(target_temperature)
 
         initial_duty_cycle = (

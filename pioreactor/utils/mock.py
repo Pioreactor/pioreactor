@@ -33,7 +33,7 @@ class MockAnalogIn:
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
 
         # subscribe to dosing events
-        assert channel in [0, 1, 2, 3]
+        assert channel in [1, 2, 3, 4], "channel must be in 1,2,3,4"
         subscribe_and_callback(
             self.react_to_dosing,
             f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
@@ -97,8 +97,8 @@ class MockDAC43608:
         pass
 
     def set_intensity_to(self, channel, intensity):
-        assert 0 <= intensity <= 1
-        assert channel in list(range(16))
+        assert 0 <= intensity <= 1, "intensity should be between 0 and 1"
+        assert channel in list(range(8, 16)), "register should be in 8 to 15"
         # TODO: this should update MQTT too
         return
 

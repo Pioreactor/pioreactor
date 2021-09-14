@@ -187,7 +187,7 @@ def click_od_blank(
     """
     Compute statistics about the blank OD time series
     """
-    print(
+    click.echo(
         od_blank(
             od_angle_channel1,
             od_angle_channel2,

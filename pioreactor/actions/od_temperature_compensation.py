@@ -49,7 +49,7 @@ def simple_linear_regression(x, y):
     y = np.array(y)
 
     n = x.shape[0]
-    assert n > 2
+    assert n > 2, "not enough data points"
 
     sum_x = np.sum(x)
     sum_xx = np.sum(x * x)

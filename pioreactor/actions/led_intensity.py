@@ -69,7 +69,7 @@ def led_intensity(
         pubsub_client = create_client()
 
     try:
-        assert 0 <= intensity <= 100
+        assert 0 <= intensity <= 100, "intensity should be between 0 and 100, inclusive"
         assert channel in LED_CHANNELS, f"saw incorrect channel {channel}"
         intensity = float(intensity)
 
