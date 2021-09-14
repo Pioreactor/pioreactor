@@ -11,7 +11,7 @@ from json import dumps
 
 from pioreactor.utils import pio_jobs_running, local_intermittent_storage
 from pioreactor.pubsub import QOS, create_client
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER, is_testing_env
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER, is_testing_env, get_uuid
 from pioreactor.logging import create_logger
 
 
@@ -262,7 +262,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def create_pub_client(self):
         # see note above as to why we split pub and sub.
-        client = create_client(client_id=f"{self.unit}-pub-{self.job_name}-{id(self)}")
+        client = create_client(
+            client_id=f"{self.unit}-pub-{self.job_name}-{get_uuid()}-{id(self)}"
+        )
 
         return client
 
@@ -292,7 +294,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         }
 
         client = create_client(
-            client_id=f"{self.unit}-sub-{self.job_name}-{id(self)}",
+            client_id=f"{self.unit}-sub-{self.job_name}-{get_uuid()}-{id(self)}",
             last_will=last_will,
             keepalive=20,
         )
@@ -308,7 +310,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client.on_disconnect = on_disconnect
         return client
 
-    def on_mqtt_disconnect(self, rc):
+    def on_mqtt_disconnect(self, rc: int):
         if (
             rc == 0
         ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
@@ -522,7 +524,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     qos=QOS.AT_LEAST_ONCE,
                 )
 
-    def set_state(self, new_state):
+    def set_state(self, new_state: str):
         assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
 
         if hasattr(self, f"on_{self.state}_to_{new_state}"):
@@ -612,9 +614,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         super(_BackgroundJob, self).__setattr__(name, value)
         if (name in self.published_settings) and hasattr(self, name):
             self.publish_attr(name)
-
-    def __exit__(self):
-        self.disconnected()
 
 
 class BackgroundJob(_BackgroundJob):
