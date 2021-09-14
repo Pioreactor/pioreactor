@@ -407,6 +407,7 @@ class TestGrowthRateCalculating:
         results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
         assert abs(results["2"] - 1.5) < 0.00001
         assert abs(results["1"] - 1.4) < 0.00001
+        calc.set_state(calc.DISCONNECTED)
 
     def test_od_blank_being_higher_than_observations(self):
 
@@ -419,7 +420,7 @@ class TestGrowthRateCalculating:
         with local_persistant_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-4})
 
-        GrowthRateCalculator(unit=unit, experiment=experiment)
+        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
         pause()
 
         pause()
@@ -451,6 +452,7 @@ class TestGrowthRateCalculating:
         )
         pause()
         pause()
+        calc.set_state(calc.DISCONNECTED)
 
     def test_od_blank_being_empty(self):
 
@@ -490,6 +492,7 @@ class TestGrowthRateCalculating:
         results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
         assert abs(results["2"] - 1.25) < 0.00001
         assert abs(results["1"] - 1.2) < 0.00001
+        calc.set_state(calc.DISCONNECTED)
 
     def test_observation_order_is_preserved_in_job(self):
 
