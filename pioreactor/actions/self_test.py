@@ -231,9 +231,8 @@ def test_positive_correlation_between_temp_and_heating(unit, experiment, logger)
     tc._update_heater(0)
     measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
     logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
-    assert measured_correlation > 0.9
-
     tc.set_state(tc.DISCONNECTED)
+    assert measured_correlation > 0.9
 
 
 def test_positive_correlation_between_rpm_and_stirring(unit, experiment):
