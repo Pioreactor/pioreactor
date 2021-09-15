@@ -2,9 +2,6 @@
 from __future__ import annotations
 
 import signal
-import os
-
-# import sys
 import threading
 import atexit
 from collections import namedtuple
@@ -12,7 +9,7 @@ from json import dumps
 
 from pioreactor.utils import pio_jobs_running, local_intermittent_storage
 from pioreactor.pubsub import QOS, create_client
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER, is_testing_env, get_uuid
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
 from pioreactor.logging import create_logger
 
 
@@ -316,7 +313,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             rc == 0
         ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
-            os.kill(os.getpid(), signal.SIGUSR1)
 
         else:
             # we won't exit, but the client object will try to reconnect
@@ -411,15 +407,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             return not hasattr(main, "__file__")
 
-        def exit_python(*args):
-            # don't exit in test mode
-            # don't kill yourself if in a shell like `python3` or `ipython`
-            if is_testing_env() or is_interactive():
-                return
-            else:
-                return
-                # sys.exit(0)
-
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
@@ -432,9 +419,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             signal.signal(signal.SIGINT, disconnect_gracefully)
 
             # NOHUP is not included here, as it prevents tools like nohup working: https://unix.stackexchange.com/a/261631
-
-            # user defined signal, we use to exit
-            signal.signal(signal.SIGUSR1, exit_python)
 
     def init(self):
         self.state = self.INIT
