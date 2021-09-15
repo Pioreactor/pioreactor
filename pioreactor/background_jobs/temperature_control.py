@@ -86,6 +86,7 @@ class TemperatureController(BackgroundJob):
 
         try:
             self.tmp_driver = TMP1075()
+            raise ValueError()
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(

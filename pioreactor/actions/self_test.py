@@ -42,20 +42,19 @@ from pioreactor.background_jobs.stirring import start_stirring
 
 def test_pioreactor_hat_present(logger, unit, experiment):
     try:
-        adc_reader = ADCReader(
+        with ADCReader(
             channels=PD_CHANNELS,
             unit=unit,
             experiment=experiment,
             dynamic_gain=False,
             initial_gain=16,
             fake_data=is_testing_env(),
-        )
-        adc_reader.setup_adc()
+        ) as adc_reader:
+            adc_reader.setup_adc()
     except (AssertionError, OSError):
         assert False
     else:
         assert True
-        adc_reader.set_state(adc_reader.DISCONNECTED)
 
 
 def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
@@ -65,135 +64,137 @@ def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
     current_experiment_name = get_latest_experiment_name()
     results = {}
 
-    adc_reader = ADCReader(
+    with ADCReader(
         channels=PD_CHANNELS,
         unit=unit,
         experiment=experiment,
         dynamic_gain=False,
         initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
         fake_data=is_testing_env(),
-    )
-    adc_reader.setup_adc()
-    # set all to 0, but use original experiment name, since we indeed are setting them to 0.
-    for led_channel in LED_CHANNELS:
-        assert led_intensity(
-            led_channel,
-            intensity=0,
-            unit=unit,
-            source_of_event="self_test",
-            experiment=current_experiment_name,
-            verbose=False,
-        )
+    ) as adc_reader:
 
-    for led_channel in LED_CHANNELS:
-        varying_intensity_results = defaultdict(list)
-        for intensity in INTENSITIES:
-            # turn on the LED to set intensity
+        adc_reader.setup_adc()
+
+        # set all to 0, but use original experiment name, since we indeed are setting them to 0.
+        for led_channel in LED_CHANNELS:
+            assert led_intensity(
+                led_channel,
+                intensity=0,
+                unit=unit,
+                source_of_event="self_test",
+                experiment=current_experiment_name,
+                verbose=False,
+            )
+
+        for led_channel in LED_CHANNELS:
+            varying_intensity_results = defaultdict(list)
+            for intensity in INTENSITIES:
+                # turn on the LED to set intensity
+                led_intensity(
+                    led_channel,
+                    intensity=intensity,
+                    unit=unit,
+                    experiment=current_experiment_name,
+                    verbose=False,
+                    source_of_event="self_test",
+                )
+
+                # record from ADC
+                readings = adc_reader.take_reading()
+
+                # Add to accumulating list
+                for pd_channel in PD_CHANNELS:
+                    varying_intensity_results[pd_channel].append(readings[pd_channel])
+
+            # compute the linear correlation between the intensities and observed PD measurements
+
+            for pd_channel in PD_CHANNELS:
+                results[(led_channel, pd_channel)] = round(
+                    correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
+                )
+
+            # set back to 0
             led_intensity(
                 led_channel,
-                intensity=intensity,
+                intensity=0,
                 unit=unit,
                 experiment=current_experiment_name,
                 verbose=False,
                 source_of_event="self_test",
             )
 
-            # record from ADC
-            readings = adc_reader.take_reading()
+        logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
+        detected_relationships = []
+        for pair, measured_correlation in results.items():
+            if measured_correlation > 0.85:
+                detected_relationships.append(pair)
 
-            # Add to accumulating list
-            for pd_channel in PD_CHANNELS:
-                varying_intensity_results[pd_channel].append(readings[pd_channel])
-
-        # compute the linear correlation between the intensities and observed PD measurements
-
-        for pd_channel in PD_CHANNELS:
-            results[(led_channel, pd_channel)] = round(
-                correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
-            )
-
-        # set back to 0
-        led_intensity(
-            led_channel,
-            intensity=0,
-            unit=unit,
-            experiment=current_experiment_name,
-            verbose=False,
-            source_of_event="self_test",
+        publish(
+            f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
+            json.dumps(detected_relationships),
         )
 
-    logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
-    detected_relationships = []
-    for pair, measured_correlation in results.items():
-        if measured_correlation > 0.85:
-            detected_relationships.append(pair)
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
-        json.dumps(detected_relationships),
-    )
-
-    adc_reader.set_state(adc_reader.DISCONNECTED)
-
-    assert len(detected_relationships) > 0
+        assert len(detected_relationships) > 0
 
 
 def test_ambient_light_interference(logger, unit, experiment):
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     # TODO: it's never 0 because of the common current problem.
 
-    adc_reader = ADCReader(
+    with ADCReader(
         channels=PD_CHANNELS,
         unit=unit,
         experiment=experiment,
         dynamic_gain=False,
         initial_gain=16,
         fake_data=is_testing_env(),
-    )
-    adc_reader.setup_adc()
+    ) as adc_reader:
 
-    for led_channel in LED_CHANNELS:
-        assert led_intensity(
-            led_channel,
-            intensity=0,
-            unit=unit,
-            source_of_event="self_test",
-            experiment=experiment,
-            verbose=False,
-        )
+        adc_reader.setup_adc()
 
-    readings = adc_reader.take_reading()
-    adc_reader.set_state(adc_reader.DISCONNECTED)
+        for led_channel in LED_CHANNELS:
+            assert led_intensity(
+                led_channel,
+                intensity=0,
+                unit=unit,
+                source_of_event="self_test",
+                experiment=experiment,
+                verbose=False,
+            )
 
-    assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])
+        readings = adc_reader.take_reading()
+        adc_reader.set_state(adc_reader.DISCONNECTED)
+
+        assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])
 
 
 def test_detect_heating_pcb(logger, unit, experiment):
     try:
-        tc = TemperatureController("silent", unit=unit, experiment=experiment)
+        with TemperatureController("silent", unit=unit, experiment=experiment):
+            pass
     except IOError:
         assert False
     else:
-        tc.set_state(tc.DISCONNECTED)
         assert True
 
 
 def test_positive_correlation_between_temp_and_heating(logger, unit, experiment):
-    tc = TemperatureController("silent", unit=unit, experiment=experiment)
+    with TemperatureController("silent", unit=unit, experiment=experiment) as tc:
 
-    measured_pcb_temps = []
-    dcs = list(range(0, 48, 6))
-    logger.debug("Varying heating.")
-    for dc in dcs:
-        tc._update_heater(dc)
-        time.sleep(0.75)
-        measured_pcb_temps.append(tc.read_external_temperature())
+        measured_pcb_temps = []
+        dcs = list(range(0, 48, 6))
+        logger.debug("Varying heating.")
+        for dc in dcs:
+            tc._update_heater(dc)
+            time.sleep(0.75)
+            measured_pcb_temps.append(tc.read_external_temperature())
 
-    tc._update_heater(0)
-    measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
-    logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
-    tc.set_state(tc.DISCONNECTED)
-    assert measured_correlation > 0.9
+        tc._update_heater(0)
+        measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
+        logger.debug(
+            f"Correlation between temp sensor and heating: {measured_correlation}"
+        )
+        assert measured_correlation > 0.9
 
 
 def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
@@ -241,7 +242,8 @@ def click_self_test():
 
             try:
                 test(logger, unit, testing_experiment)
-            except Exception:
+            except Exception as e:
+                print(e)
                 res = False
             else:
                 res = True
@@ -261,3 +263,4 @@ def click_self_test():
             int(count_passed == count_tested),
             retain=True,
         )
+        print(count_passed, count_tested)

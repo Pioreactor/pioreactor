@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import signal
 import os
-import sys
+
+# import sys
 import threading
 import atexit
 from collections import namedtuple
@@ -416,7 +417,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if is_testing_env() or is_interactive():
                 return
             else:
-                sys.exit(0)
+                return
+                # sys.exit(0)
 
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
@@ -614,6 +616,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         super(_BackgroundJob, self).__setattr__(name, value)
         if (name in self.published_settings) and hasattr(self, name):
             self.publish_attr(name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.disconnected()
 
 
 class BackgroundJob(_BackgroundJob):
