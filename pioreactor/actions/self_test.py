@@ -10,7 +10,7 @@ This action checks the following on the Pioreactor (using pytest):
     [x] do we measure a positive correlation between any LED output and PD?
     [x] output should be a list of pairs (LED_X, PD_Y) where a positive correlation is detected
     [x] Detect the Pioreactor HAT
-    [x] Detect ambient light?
+    [x] detect ambient light?
 
 3. Stirring: ramp up output voltage for stirring and record RPM
     [ ] do we measure a positive correlation between stirring voltage and RPM?
@@ -90,7 +90,7 @@ def test_pioreactor_hat_present(unit, experiment):
             fake_data=is_testing_env(),
         )
         adc_reader.setup_adc()
-    except Exception:
+    except (AssertionError, OSError):
         assert False
     else:
         assert True
@@ -232,7 +232,6 @@ def test_positive_correlation_between_temp_and_heating(unit, experiment, logger)
     measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
     logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
     tc.set_state(tc.DISCONNECTED)
-
     assert measured_correlation > 0.9
 
 

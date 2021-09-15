@@ -857,7 +857,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs():
     # note that we manually run, as we have skipped the first run in the json
     algo.dosing_automation_job.run()
     time.sleep(5)
-    assert algo.dosing_automation_job.throughput_calculator.media_throughput == 1.0
+    assert algo.throughput_calculator.media_throughput == 1.0
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_od/set", 1.5)
     pause()

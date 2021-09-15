@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import configparser
-import sys
-import os
 from functools import lru_cache
+
+from pioreactor.whoami import is_testing_env
 
 
 def __getattr__(attr):
@@ -66,7 +66,7 @@ def get_config():
         **{k: True for k in ["1", "yes", "true", "on"]},
     }
 
-    if "pytest" in sys.modules or os.environ.get("TESTING"):
+    if is_testing_env():
         global_config_path = "./config.dev.ini"
         local_config_path = ""
     else:

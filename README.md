@@ -15,3 +15,14 @@ Coming soon! Sign up [here](https://pioreactor.com/) for updates.
 ### Documentation
 
 All the documentation is [available in our wiki](https://pioreactor.com/pages/documentation).
+
+### Development
+
+#### Testing
+
+Paho MQTT uses lots of sockets, and running all tests at once can overload the max allowed open files. Try something
+like `ulimit -Sn 10000` if you receive `OSError: [Errno 24] Too many open files`
+
+```
+py.test pioreactor/tests
+```
