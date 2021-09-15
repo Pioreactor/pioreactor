@@ -199,8 +199,8 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
 
 def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
 
-    st = start_stirring(unit=unit, experiment=experiment)
-    time.sleep(4)
+    st = start_stirring(duty_cycle=100, unit=unit, experiment=experiment)
+    time.sleep(2)
     st.set_state(st.DISCONNECTED)
     assert False
 
@@ -263,4 +263,4 @@ def click_self_test():
             int(count_passed == count_tested),
             retain=True,
         )
-        print(count_passed, count_tested)
+        return int(count_passed != count_tested)

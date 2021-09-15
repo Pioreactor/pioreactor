@@ -446,6 +446,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
+            self.set_state("disconnected")
+            raise e
 
     def ready(self):
         self.state = self.READY
@@ -621,7 +623,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.disconnected()
+        self.set_state(self.DISCONNECTED)
 
 
 class BackgroundJob(_BackgroundJob):

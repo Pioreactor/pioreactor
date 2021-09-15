@@ -86,12 +86,13 @@ class TemperatureController(BackgroundJob):
 
         try:
             self.tmp_driver = TMP1075()
-            raise ValueError()
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
+            self.set_state(self.DISCONNECTED)
+
             raise IOError(
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
