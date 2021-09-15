@@ -271,7 +271,7 @@ def click_self_test():
             [
                 "./pioreactor/actions/self_test.py"
                 if is_testing_env()
-                else "/home/pi/pioreactor/actions/self_test.py",
+                else "/home/pi/pioreactor/pioreactor/actions/self_test.py",
                 "-s",
                 "-qq",
                 "--tb=no",
