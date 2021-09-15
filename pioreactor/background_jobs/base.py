@@ -105,6 +105,43 @@ class _BackgroundJob(metaclass=PostInitCaller):
      - `pioreactor/<unit>/<experiment>/<job_name>/$unit` set to its unit (optional)
 
 
+    Best code practices of background jobs
+    ---------------------------------------
+
+    Because of the setup, connections, and tear downs of background jobs, the best practices of using
+    background jobs is as follows:
+
+    1. Use context managers
+
+    > with Stirrer(duty_cycle=50, unit=unit, experiment=experiment) as stirrer:
+    >     stirrer.start_stirring()
+    >     ...
+    >
+
+    This will gracefully disconnect and cleanup the job, provided you clean up in the `on_disconnect` function.
+
+    2. Clean up yourself. The following is not recommended as it does not cleanup connections and state even after the function exits:
+
+    > def do_some_stirring():
+    >     st = Stirrer(duty_cycle=50, unit=unit, experiment=experiment)
+    >     return
+
+    Instead do something like:
+
+    > def do_some_stirring():
+    >     st = Stirrer(duty_cycle=50, unit=unit, experiment=experiment)
+    >     ...
+    >     st.set_state("disconnected")
+    >    return
+
+    When Python exits, jobs will also clean themselves up, so this also works as a script:
+
+    > if __name__ == "__main__":
+    >    st = Stirrer(...)
+    >
+    >    # done
+    >
+
     Parameters
     -----------
 

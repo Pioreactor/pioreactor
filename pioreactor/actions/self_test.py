@@ -248,7 +248,7 @@ def click_self_test():
             else:
                 res = True
 
-            logger.debug(f"{name}: {'T' if res else 'F'}")
+            logger.debug(f"{name}: {'✅' if res else '❌'}")
 
             count_tested += 1
             count_passed += res
