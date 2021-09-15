@@ -121,29 +121,24 @@ def test_error_in_subscribe_and_callback_is_logged():
         f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/logs/app",
     )
 
-    bj = TestJob(
+    with TestJob(
         job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    )
-    publish("pioreactor/testing/subscription", "test")
-    pause()
-    pause()
-    assert len(error_logs) > 0
-    assert "division by zero" in error_logs[0].payload.decode()
-    bj.set_state(bj.DISCONNECTED)
+    ):
+        publish("pioreactor/testing/subscription", "test")
+        pause()
+        pause()
+        assert len(error_logs) > 0
+        assert "division by zero" in error_logs[0].payload.decode()
 
 
 @pytest.mark.xfail
 def test_what_happens_when_an_error_occurs_in_init():
-    """
-    I would prefer for this job to disconnect without the condition of Python exiting.
-    """
-
     class TestJob(BackgroundJob):
         def __init__(self, unit, experiment):
             super(TestJob, self).__init__(
                 job_name="testjob", unit=unit, experiment=experiment
             )
-            1 / 0
+            1 / 0  # we should try to catch this, and do a disconnect as well
 
     state = []
     publish("pioreactor/unit/exp/testjob/$state", None, retain=True)
@@ -161,6 +156,35 @@ def test_what_happens_when_an_error_occurs_in_init():
 
     time.sleep(3)
     bj.set_state(bj.DISCONNECTED)
+
+
+def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect():
+    class TestJob(BackgroundJob):
+        def __init__(self, unit, experiment):
+            super(TestJob, self).__init__(
+                job_name="testjob", unit=unit, experiment=experiment
+            )
+            try:
+                1 / 0
+            except Exception as e:
+                self.logger.error("Error!")
+                self.set_state("disconnected")
+                raise e
+
+    publish("pioreactor/unit/exp/testjob/$state", None, retain=True)
+    state = []
+
+    def update_state(msg):
+        state.append(msg.payload.decode())
+
+    subscribe_and_callback(update_state, "pioreactor/unit/exp/testjob/$state")
+
+    with pytest.raises(ZeroDivisionError):
+        with TestJob(unit="unit", experiment="exp"):
+            pass
+
+    pause()
+    assert state[-1] == "disconnected"
 
 
 def test_state_transition_callbacks():
@@ -227,11 +251,10 @@ def test_bad_key_in_published_settings():
         f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/logs/app",
     )
 
-    bj = TestJob(
+    with TestJob(
         job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    )
-    pause()
-    pause()
-    assert len(warning_logs) > 0
-    assert "Found extra property" in warning_logs[0].payload.decode()
-    bj.set_state(bj.DISCONNECTED)
+    ):
+        pause()
+        pause()
+        assert len(warning_logs) > 0
+        assert "Found extra property" in warning_logs[0].payload.decode()
