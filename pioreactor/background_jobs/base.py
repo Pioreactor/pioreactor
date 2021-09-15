@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import signal
+import signal, os
 import threading
 import atexit
 from collections import namedtuple
@@ -350,6 +350,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             rc == 0
         ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
+            os.kill(os.getpid(), signal.SIGUSR1)
 
         else:
             # we won't exit, but the client object will try to reconnect

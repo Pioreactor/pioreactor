@@ -159,7 +159,7 @@ def click_dosing_control(ctx, automation, duration, skip_first_run):
     """
     Start a dosing automation
     """
-    controller = run(  # noqa: F841
+    run(  # noqa: F841
         automation=automation,
         duration=duration,
         skip_first_run=skip_first_run,
