@@ -268,6 +268,13 @@ def click_self_test():
             return
 
         return pytest.main(
-            ["./pioreactor/actions/self_test.py", "-s", "-qq", "--tb=no"],
+            [
+                "./pioreactor/actions/self_test.py"
+                if is_testing_env()
+                else "/home/pi/pioreactor/actions/self_test.py",
+                "-s",
+                "-qq",
+                "--tb=no",
+            ],
             plugins=[SelfTestPlugin()],
         )
