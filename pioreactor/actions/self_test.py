@@ -20,10 +20,9 @@ Outputs from each check go into MQTT, and return to the command line.
 
 """
 
-import time
+import time, sys
 import json
 import click
-import pytest
 from collections import defaultdict
 from pioreactor.whoami import (
     get_unit_name,
@@ -41,45 +40,7 @@ from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_s
 from pioreactor.background_jobs.stirring import start_stirring
 
 
-@pytest.fixture(scope="session")
-def unit():
-    return get_unit_name()
-
-
-@pytest.fixture(scope="session")
-def experiment():
-    return get_latest_testing_experiment_name()
-
-
-@pytest.fixture(scope="session")
-def logger():
-    return create_logger("self_test", unit=unit, experiment=get_latest_experiment_name())
-
-
-class SelfTestPlugin:
-    def __init__(self):
-        self.unit = get_unit_name()
-        self.experiment = get_latest_testing_experiment_name()
-        self.did_all_pass = True
-
-    def pytest_runtest_logreport(self, report):
-        if report.when == "call":
-            test = report.nodeid.split("::")[1]
-            publish(
-                f"pioreactor/{self.unit}/{self.experiment}/self_test/{test}",
-                int(report.passed),
-            )
-            self.did_all_pass &= report.passed
-
-    def pytest_sessionfinish(self):
-        publish(
-            f"pioreactor/{self.unit}/{self.experiment}/self_test/all_tests_passed",
-            int(self.did_all_pass),
-            retain=True,
-        )
-
-
-def test_pioreactor_hat_present(unit, experiment):
+def test_pioreactor_hat_present(logger, unit, experiment):
     try:
         adc_reader = ADCReader(
             channels=PD_CHANNELS,
@@ -177,7 +138,7 @@ def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
     assert len(detected_relationships) > 0
 
 
-def test_ambient_light_interference(unit, experiment):
+def test_ambient_light_interference(logger, unit, experiment):
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     # TODO: it's never 0 because of the common current problem.
 
@@ -207,7 +168,7 @@ def test_ambient_light_interference(unit, experiment):
     assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])
 
 
-def test_detect_heating_pcb(unit, experiment):
+def test_detect_heating_pcb(logger, unit, experiment):
     try:
         tc = TemperatureController("silent", unit=unit, experiment=experiment)
     except IOError:
@@ -217,7 +178,7 @@ def test_detect_heating_pcb(unit, experiment):
         assert True
 
 
-def test_positive_correlation_between_temp_and_heating(unit, experiment, logger):
+def test_positive_correlation_between_temp_and_heating(logger, unit, experiment):
     tc = TemperatureController("silent", unit=unit, experiment=experiment)
 
     measured_pcb_temps = []
@@ -235,7 +196,7 @@ def test_positive_correlation_between_temp_and_heating(unit, experiment, logger)
     assert measured_correlation > 0.9
 
 
-def test_positive_correlation_between_rpm_and_stirring(unit, experiment):
+def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
 
     st = start_stirring(unit=unit, experiment=experiment)
     time.sleep(4)
@@ -248,8 +209,11 @@ def click_self_test():
     """
     Test the input/output in the Pioreactor
     """
+
     unit = get_unit_name()
+    testing_experiment = get_latest_testing_experiment_name()
     experiment = get_latest_experiment_name()
+    logger = create_logger("self_test", unit=unit, experiment=experiment)
 
     with publish_ready_to_disconnected_state(
         unit, get_latest_testing_experiment_name(), "self_test"
@@ -260,21 +224,40 @@ def click_self_test():
             or is_pio_job_running("temperature_control")
             or is_pio_job_running("stirring")
         ):
-            logger = create_logger("self_test", unit=unit, experiment=experiment)
-
             logger.error(
                 "Make sure OD Reading, Temperature Control, and Stirring are off before running a self test. Exiting."
             )
-            return
+            return 1
 
-        return pytest.main(
-            [
-                "./pioreactor/actions/self_test.py"
-                if is_testing_env()
-                else "/home/pi/pioreactor/pioreactor/actions/self_test.py",
-                "-s",
-                "-qq",
-                "--tb=no",
-            ],
-            plugins=[SelfTestPlugin()],
+        functions_to_test = [
+            (name, f)
+            for (name, f) in vars(sys.modules[__name__]).items()
+            if name.startswith("test_")
+        ]
+
+        count_tested = 0
+        count_passed = 0
+        for name, test in functions_to_test:
+
+            try:
+                test(logger, unit, testing_experiment)
+            except Exception:
+                res = False
+            else:
+                res = True
+
+            logger.debug(f"{name}: {'T' if res else 'F'}")
+
+            count_tested += 1
+            count_passed += res
+
+            publish(
+                f"pioreactor/{unit}/{testing_experiment}/self_test/{name}",
+                int(res),
+            )
+
+        publish(
+            f"pioreactor/{unit}/{testing_experiment}/self_test/all_tests_passed",
+            int(count_passed == count_tested),
+            retain=True,
         )
