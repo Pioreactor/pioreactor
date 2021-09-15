@@ -40,7 +40,7 @@ def get_latest_experiment_name() -> str:
 
 
 def is_testing_env() -> bool:
-    return ("pytest" in sys.modules) or os.environ.get("TESTING", False)
+    return ("pytest" in sys.modules) or (os.environ.get("TESTING") is not None)
 
 
 def get_hostname() -> str:

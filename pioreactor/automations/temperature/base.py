@@ -40,11 +40,7 @@ class TemperatureAutomation(BackgroundSubJob):
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
-        self.logger.info(
-            f"Starting {self.__class__.__name__}"
-            + (f", and {kwargs}" if kwargs else "")
-            + "."
-        )
+        self.logger.info(f"Starting {self.__class__.__name__} automation.")
 
         self.temperature_control_parent = parent
 

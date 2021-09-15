@@ -669,6 +669,41 @@ def test_execute_io_action_outputs1():
     ca.set_state(ca.DISCONNECTED)
 
 
+def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined():
+    # regression test
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
+        None,
+        retain=True,
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
+        None,
+        retain=True,
+    )
+
+    with local_persistant_storage("pump_calibration") as cache:
+        del cache["media_ml_calibration"]
+        del cache["alt_media_ml_calibration"]
+
+    ca = DosingAutomation(unit=unit, experiment=experiment, skip_first_run=True)
+    result = ca.execute_io_action(media_ml=1.0, alt_media_ml=1.0, waste_ml=2.0)
+    assert result[0] == 0
+    assert result[1] == 0.0
+    assert result[2] == 2.0
+    ca.set_state(ca.DISCONNECTED)
+
+    # add back to cache
+    with local_persistant_storage("pump_calibration") as cache:
+        cache["media_ml_calibration"] = '{"duration_" : 1.0}'
+        cache["alt_media_ml_calibration"] = '{"duration_" : 1.0}'
+
+
 def test_execute_io_action_outputs_will_shortcut_if_lost():
     # regression test
     pubsub.publish(

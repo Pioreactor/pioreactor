@@ -62,7 +62,7 @@ class DosingAutomation(BackgroundSubJob):
         super(DosingAutomation, self).__init__(
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
-        self.logger.info(f"Starting {self.__class__.__name__}")
+        self.logger.info(f"Starting {self.__class__.__name__} automation.")
         self.skip_first_run = skip_first_run
 
         self.set_duration(duration)
@@ -156,14 +156,15 @@ class DosingAutomation(BackgroundSubJob):
         return event
 
     def execute(self) -> events.Event:
-        raise NotImplementedError
+        # should be defined in subclass
+        return events.NoEvent()
 
     def wait_until_not_sleeping(self):
         while self.state == self.SLEEPING:
             time.sleep(5)
         return True
 
-    def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0):
+    def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0) -> SummableList:
         """
         This function recursively reduces the amount to add so that
         we don't end up adding 5ml, and then removing 5ml (this could cause
@@ -203,13 +204,13 @@ class DosingAutomation(BackgroundSubJob):
                 and (self.state in [self.READY, self.SLEEPING])
                 and self.wait_until_not_sleeping()
             ):
-                add_media(
+                media_moved = add_media(
                     ml=media_ml,
                     source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
-                volumes_moved[0] += media_ml
+                volumes_moved[0] += media_moved
                 brief_pause()
 
             if (
@@ -217,13 +218,13 @@ class DosingAutomation(BackgroundSubJob):
                 and (self.state in [self.READY, self.SLEEPING])
                 and self.wait_until_not_sleeping()
             ):  # always check that we are still in a valid state, as state can change between pump runs.
-                add_alt_media(
+                alt_media_moved = add_alt_media(
                     ml=alt_media_ml,
                     source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
-                volumes_moved[1] += alt_media_ml
+                volumes_moved[1] += alt_media_moved
                 brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
@@ -232,13 +233,13 @@ class DosingAutomation(BackgroundSubJob):
                 and (self.state in [self.READY, self.SLEEPING])
                 and self.wait_until_not_sleeping()
             ):
-                remove_waste(
+                waste_moved = remove_waste(
                     ml=waste_ml,
                     source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
                 )
-                volumes_moved[2] += waste_ml
+                volumes_moved[2] += waste_moved
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 remove_waste(
                     duration=2,
