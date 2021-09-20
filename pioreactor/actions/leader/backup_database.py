@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time
+from time import sleep
 
 import click
 
@@ -14,7 +14,7 @@ from pioreactor.utils import (
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 
 
-def backup_database(output: str):
+def backup_database(output_file: str):
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
@@ -36,18 +36,18 @@ def backup_database(output: str):
         logger = create_logger("backup_database", experiment=experiment, unit=unit)
 
         if is_pio_job_running("od_reading"):
-            logger.error("Won't run if od_reading is running.")
+            logger.warning("Won't run if OD Reading is running. Exiting")
             return
 
         def progress(status, remaining, total):
             logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
-            logger.debug(f"Writing to local backup {output}.")
+            logger.debug(f"Writing to local backup {output_file}.")
 
-        logger.debug(f"Starting backup of database to {output}")
-        time.sleep(1)  # pause a second so the log entry above gets recorded into the DB.
+        logger.debug(f"Starting backup of database to {output_file}")
+        sleep(1)  # pause a second so the log entry above gets recorded into the DB.
 
         con = sqlite3.connect(config.get("storage", "database"))
-        bck = sqlite3.connect(output)
+        bck = sqlite3.connect(output_file)
 
         with bck:
             con.backup(bck, pages=-1, progress=progress)
@@ -70,7 +70,13 @@ def backup_database(output: str):
                 continue
 
             try:
-                rsync("-hz", "--partial", "--inplace", output, f"{backup_unit}:{output}")
+                rsync(
+                    "-hz",
+                    "--partial",
+                    "--inplace",
+                    output_file,
+                    f"{backup_unit}:{output_file}",
+                )
             except ErrorReturnCode:
                 logger.debug(
                     f"Unable to backup database to {backup_unit}. Is it online?",
@@ -80,7 +86,7 @@ def backup_database(output: str):
                     f"Unable to backup database to {backup_unit}. Is it online?"
                 )
             else:
-                logger.debug(f"Backed up database to {backup_unit}:{output}.")
+                logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
                 backups_complete += 1
 
         return

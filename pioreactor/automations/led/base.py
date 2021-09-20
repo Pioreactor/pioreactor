@@ -94,9 +94,7 @@ class LEDAutomation(BackgroundSubJob):
 
         elif (self.latest_growth_rate is None) or (self.latest_od is None):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if (not is_pio_job_running("od_reading")) or (
-                not is_pio_job_running("growth_rate_calculating")
-            ):
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
                 self.logger.warning(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )

@@ -118,13 +118,24 @@ def correlation(x, y) -> float:
     return (running_sum / (running_count - 1)) / std_y / std_x
 
 
-def is_pio_job_running(target_job) -> bool:
+def is_pio_job_running(*target_jobs: str) -> bool:
+    """
+    pass in jobs to check if they are running
+    ex:
+
+    > res = is_pio_job_running("od_reading")
+
+    > res = is_pio_job_running("od_reading", "stirring")
+    """
     with local_intermittent_storage("pio_jobs_running") as cache:
-        if cache.get(target_job, b"0") == b"0":
-            return False
-        else:
-            # double check with psutil
-            return target_job in pio_jobs_running()
+        for job in target_jobs:
+            if cache.get(job, b"0") == b"0":
+                continue
+            else:
+                # double check with psutil
+                if job in pio_jobs_running():
+                    return True
+    return False
 
 
 def pio_jobs_running() -> list:
@@ -175,7 +186,7 @@ def pump_duration_to_ml(duration, duty_cycle, duration_=0) -> float:
     return duration * duration_
 
 
-def get_ip4_addr():
+def get_ip4_addr() -> str:
     import socket
 
     # from https://github.com/Matthias-Wandel/pi_blink_ip

@@ -81,11 +81,7 @@ def od_temperature_compensation():
 
         logger.info("Starting OD temperature compensation. This will take two hours.")
 
-        if (
-            is_pio_job_running("od_reading")
-            or is_pio_job_running("temperature_control")
-            or is_pio_job_running("stirring")
-        ):
+        if is_pio_job_running("od_reading", "temperature_control", "stirring"):
             logger.error(
                 "Make sure OD Reading, Temperature Control, and Stirring are off before running OD temperature compensation. Exiting."
             )

@@ -142,6 +142,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
     >    # done
     >
 
+    Some jobs need a ``signal.pause()`` as well.
+
     Parameters
     -----------
 
@@ -350,6 +352,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             rc == 0
         ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
+
+            # once disconnected, we send a signal to this specific job on the OS.
+            # this will unblock the signal.pause() that may be running.
             os.kill(os.getpid(), signal.SIGUSR1)
 
         else:

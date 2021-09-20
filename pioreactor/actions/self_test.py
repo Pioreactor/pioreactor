@@ -220,11 +220,7 @@ def click_self_test():
         unit, get_latest_testing_experiment_name(), "self_test"
     ):
 
-        if (
-            is_pio_job_running("od_reading")
-            or is_pio_job_running("temperature_control")
-            or is_pio_job_running("stirring")
-        ):
+        if is_pio_job_running("od_reading", "temperature_control", "stirring"):
             logger.error(
                 "Make sure OD Reading, Temperature Control, and Stirring are off before running a self test. Exiting."
             )
