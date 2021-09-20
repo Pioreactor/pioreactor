@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import signal, os
+import signal
 import threading
 import atexit
 from collections import namedtuple
@@ -355,7 +355,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # once disconnected, we send a signal to this specific job on the OS.
             # this will unblock the signal.pause() that may be running.
-            os.kill(os.getpid(), signal.SIGUSR1)
+            # os.kill(os.getpid(), signal.SIGUSR1)
 
         else:
             # we won't exit, but the client object will try to reconnect
@@ -444,11 +444,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if self.state == self.DISCONNECTED:
                 return
             self.set_state(self.DISCONNECTED)
-
-        def is_interactive():
-            import __main__ as main
-
-            return not hasattr(main, "__file__")
 
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
