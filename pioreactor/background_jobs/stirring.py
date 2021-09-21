@@ -108,7 +108,7 @@ class Stirrer(BackgroundJob):
 
         result = self.pid.update(realized_rpm, dt=1)
         self.logger.debug(f"pid_result={result}")
-        # self.set_duty_cycle(self.duty_cycle + result)
+        self.set_duty_cycle(self.duty_cycle + result)
 
     def _count_rotations(self, seconds: float):
         import RPi.GPIO as GPIO
