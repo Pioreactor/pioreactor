@@ -71,7 +71,7 @@ class Stirrer(BackgroundJob):
         # set up PID
         self.target_rpm = target_rpm
         self.pid = PID(
-            Kp=config.getfloat("stirring.pid", "Kp"),
+            Kp=0.01,  # config.getfloat("stirring.pid", "Kp"),
             Ki=config.getfloat("stirring.pid", "Ki"),
             Kd=config.getfloat("stirring.pid", "Kd"),
             setpoint=self.target_rpm,
