@@ -335,9 +335,9 @@ class PID:
 
     def __init__(
         self,
-        Kp,
-        Ki,
-        Kd,
+        Kp: float,
+        Ki: float,
+        Kd: float,
         K0=0,
         setpoint=None,
         output_limits=(None, None),

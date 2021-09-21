@@ -46,6 +46,9 @@ class Stirrer(BackgroundJob):
     published_settings = {
         "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
     }
+    published_settings = {
+        "actual_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
+    }
     _previous_duty_cycle = None
     hall_sensor_pin = HALL_SENSOR_PIN
     _rpm_counter: int = 0
@@ -61,7 +64,7 @@ class Stirrer(BackgroundJob):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
         )
-        self.logger.debug(f"Starting stirring with initial RPM {target_rpm}%.")
+        self.logger.debug(f"Starting stirring with initial {target_rpm}RPM.")
         self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
 
         set_gpio_availability(self.pwm_pin, GPIO_states.GPIO_UNAVAILABLE)
@@ -74,8 +77,8 @@ class Stirrer(BackgroundJob):
         self.target_rpm = target_rpm
         self.pid = PID(
             Kp=config.getfloat("stirring.pid", "Kp"),
-            Ki=config.getfloat("stirring.pid", "Ki"),
-            Kd=config.getfloat("stirring.pid", "Kd"),
+            Ki=0.0,
+            Kd=0.0,
             setpoint=self.target_rpm,
             unit=self.unit,
             experiment=self.experiment,
@@ -96,6 +99,7 @@ class Stirrer(BackgroundJob):
 
         self.stop_stirring()
         self.pwm.cleanup()
+        self.rpm_check_thread.cancel()
 
         set_gpio_availability(self.pwm_pin, GPIO_states.GPIO_AVAILABLE)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
@@ -112,22 +116,21 @@ class Stirrer(BackgroundJob):
         # we need to start the feedback loop here to orient close to our desired value
         while True:
             error = self.poll_and_update_dc(4)
-            if abs(error) < 0.15:
+            if (
+                abs(error) < 0.15
+            ):  # TODO: I don't like this check, it will tend to overshoot.
                 break
+            time.sleep(0.1)
 
         self.rpm_check_thread.unpause()
 
     def poll_and_update_dc(self, poll_for_seconds: float):
 
         count = self._count_rotations(poll_for_seconds)
-        self.logger.debug(f"count={count}")
-        realized_rpm = count * 60 / poll_for_seconds
-        self.logger.debug(f"realized_rpm={realized_rpm}")
+        self.actual_rpm = count * 60 / poll_for_seconds
 
-        result = self.pid.update(realized_rpm, dt=1)
-        self.logger.debug(f"pid_result={result}")
+        result = self.pid.update(self.actual_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
-        self.logger.debug(f"duty_cycle={self.duty_cycle}")
         return result
 
     def _count_rotations(self, seconds: float):
@@ -171,10 +174,14 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
         # we need to start the feedback loop here to orient close to our desired value
+        # TODO: we should move this outside of this MQTT callback...
         while True:
             error = self.poll_and_update_dc(4)
-            if abs(error) < 0.15:
+            if (
+                abs(error) < 0.15
+            ):  # TODO: I don't like this check, it will tend to overshoot.
                 break
+            time.sleep(0.1)  # sleep for a moment to "apply" the new DC.
 
         self.rpm_check_thread.unpause()
 
