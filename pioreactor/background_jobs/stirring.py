@@ -93,6 +93,7 @@ class Stirrer(BackgroundJob):
         self.duty_cycle = 100
         self.pwm.start(self.duty_cycle)  # get momentum to start
         time.sleep(1.0)
+        self.set_duty_cycle(60)
 
         # we need to start the feedback loop here
         while True:
@@ -118,7 +119,6 @@ class Stirrer(BackgroundJob):
         self._rpm_counter = 0
 
         def cb(channel):
-            print(self._rpm_counter)
             self._rpm_counter = self._rpm_counter + 1
 
         GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
