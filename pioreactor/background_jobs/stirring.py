@@ -33,6 +33,13 @@ class Stirrer(BackgroundJob):
     Note that we _don't_ measure the time between pulses (i.e. measure the frequency) because the stirring could be stalled,
     and we would have an never-returning trigger.
 
+
+    Examples
+    ---------
+
+    > st = Stirrer(500, unit, experiment)
+    > st.start_stirring()
+
     """
 
     published_settings = {
@@ -51,12 +58,11 @@ class Stirrer(BackgroundJob):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
         )
+        self.logger.debug(f"Starting stirring with initial RPM {target_rpm}%.")
+        self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
 
         set_gpio_availability(self.pwm_pin, GPIO_states.GPIO_UNAVAILABLE)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
-
-        self.logger.debug(f"Starting stirring with initial RPM {target_rpm}%.")
-        self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
 
         self.pwm = PWM(self.pwm_pin, hertz)
         self.pwm.lock()
@@ -74,8 +80,6 @@ class Stirrer(BackgroundJob):
             target_name="rpm",
         )
 
-        self.start_stirring()
-
     def on_disconnect(self):
 
         self.stop_stirring()
@@ -85,7 +89,8 @@ class Stirrer(BackgroundJob):
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def start_stirring(self):
-        self.pwm.start(80)  # get momentum to start
+        self.duty_cycle = 80
+        self.pwm.start(self.duty_cycle)  # get momentum to start
         time.sleep(0.5)
 
         # we need to start the feedback loop here
@@ -143,12 +148,12 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
 
-def start_stirring(duty_cycle=0, unit=None, experiment=None) -> Stirrer:
+def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 
     stirrer = Stirrer(
-        duty_cycle,
+        target_rpm=target_rpm,
         unit=unit,
         experiment=experiment,
     )

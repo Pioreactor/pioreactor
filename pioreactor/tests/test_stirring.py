@@ -83,15 +83,15 @@ def test_pause_stirring_mid_cycle_with_modified_dc():
     st.set_state(st.DISCONNECTED)
 
 
-def test_publish_duty_cycle():
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle", None, retain=True)
+def test_publish_target_rpm():
+    publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm", None, retain=True)
     pause()
-    original_dc = 50
+    target_rpm = 500
 
-    st = Stirrer(original_dc, unit, exp)
-    assert st.duty_cycle == original_dc
+    st = Stirrer(target_rpm, unit, exp)
+    assert st.target_rpm == target_rpm
 
     pause()
-    message = subscribe(f"pioreactor/{unit}/{exp}/stirring/duty_cycle")
-    assert float(message.payload) == 50
+    message = subscribe(f"pioreactor/{unit}/{exp}/stirring/target_rpm")
+    assert float(message.payload) == 500
     st.set_state(st.DISCONNECTED)
