@@ -48,6 +48,7 @@ class Stirrer(BackgroundJob):
     _previous_duty_cycle = None
     hall_sensor_pin = HALL_SENSOR_PIN
     _rpm_counter: int = 0
+    duty_cycle: float = 50  # initial duty cycle, we will deviate from this in the feedback loop immediately.
 
     def __init__(
         self,
@@ -71,7 +72,7 @@ class Stirrer(BackgroundJob):
         # set up PID
         self.target_rpm = target_rpm
         self.pid = PID(
-            Kp=0.01,  # config.getfloat("stirring.pid", "Kp"),
+            Kp=config.getfloat("stirring.pid", "Kp"),
             Ki=config.getfloat("stirring.pid", "Ki"),
             Kd=config.getfloat("stirring.pid", "Kd"),
             setpoint=self.target_rpm,
@@ -90,14 +91,14 @@ class Stirrer(BackgroundJob):
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def start_stirring(self):
-        self.duty_cycle = 100
-        self.pwm.start(self.duty_cycle)  # get momentum to start
-        time.sleep(1.0)
-        self.set_duty_cycle(60)
+        self.pwm.start(100)  # get momentum to start
+        time.sleep(0.5)
+        self.set_duty_cycle(self.duty_cycle)
+        time.sleep(0.5)
 
-        # we need to start the feedback loop here
+        # we need to start the feedback loop here to orient close to our desired value
         while True:
-            self.poll_and_update_dc(3)
+            self.poll_and_update_dc(4)
 
     def poll_and_update_dc(self, poll_for_seconds: float):
 
@@ -110,7 +111,7 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"pid_result={result}")
         self.set_duty_cycle(self.duty_cycle + result)
         self.logger.debug(f"duty_cycle={self.duty_cycle}")
-        print()
+        return result
 
     def _count_rotations(self, seconds: float):
         import RPi.GPIO as GPIO
@@ -130,7 +131,6 @@ class Stirrer(BackgroundJob):
 
         return self._rpm_counter
 
-    """
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
         self.set_duty_cycle(0)
@@ -142,7 +142,6 @@ class Stirrer(BackgroundJob):
     def on_sleeping_to_ready(self):
         self.duty_cycle = self._previous_duty_cycle
         self.start_stirring()
-    """
 
     def set_duty_cycle(self, value):
         self.duty_cycle = clamp(0, round(float(value), 5), 100)
