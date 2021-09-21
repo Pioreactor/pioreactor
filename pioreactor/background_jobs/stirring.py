@@ -123,11 +123,12 @@ class Stirrer(BackgroundJob):
         time.sleep(0.5)
 
         # we need to start the feedback loop here to orient close to our desired value
-        while True:
-            error = self.poll_and_update_dc(4)
+        while (self.state == self.READY) or (self.state == self.INIT):
+            self.poll_and_update_dc(4)
             if (
-                abs(error) < 0.15
+                abs(self.actual_rpm - self.target_rpm) < 20
             ):  # TODO: I don't like this check, it will tend to overshoot.
+                self.poll_and_update_dc(4)  # one last correction to avoid overshooting
                 break
             time.sleep(0.5)
 
@@ -187,11 +188,12 @@ class Stirrer(BackgroundJob):
 
         # we need to start the feedback loop here to orient close to our desired value
         # TODO: we should move this outside of this MQTT callback...
-        while True:
-            error = self.poll_and_update_dc(4)
+        while (self.state == self.READY) or (self.state == self.INIT):
+            self.poll_and_update_dc(4)
             if (
-                abs(error) < 0.15
+                abs(self.actual_rpm - self.target_rpm) < 20
             ):  # TODO: I don't like this check, it will tend to overshoot.
+                self.poll_and_update_dc(4)  # one last correction to avoid overshooting
                 break
             time.sleep(0.1)  # sleep for a moment to "apply" the new DC.
 
