@@ -45,8 +45,6 @@ class Stirrer(BackgroundJob):
 
     published_settings = {
         "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
-    }
-    published_settings = {
         "actual_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
     }
     _previous_duty_cycle = None
@@ -64,7 +62,7 @@ class Stirrer(BackgroundJob):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
         )
-        self.logger.debug(f"Starting stirring with initial {target_rpm}RPM.")
+        self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
         self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
 
         set_gpio_availability(self.pwm_pin, GPIO_states.GPIO_UNAVAILABLE)
