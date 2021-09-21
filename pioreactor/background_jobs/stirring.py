@@ -90,7 +90,7 @@ class Stirrer(BackgroundJob):
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def start_stirring(self):
-        self.duty_cycle = 80
+        self.duty_cycle = 100
         self.pwm.start(self.duty_cycle)  # get momentum to start
         time.sleep(0.5)
 
@@ -101,10 +101,11 @@ class Stirrer(BackgroundJob):
     def poll_and_update_dc(self, poll_for_seconds: float):
 
         count = self._count_rotations(poll_for_seconds)
+        self.logger.debug(f"count={count}")
         realized_rpm = count * 60 / poll_for_seconds
 
         result = self.pid.update(realized_rpm, dt=1)
-        self.logger.debug(result)
+        self.logger.debug(f"pid_result={result}")
         self.set_duty_cycle(self.duty_cycle + result)
 
     def _count_rotations(self, seconds: float):
