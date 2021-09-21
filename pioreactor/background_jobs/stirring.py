@@ -116,7 +116,7 @@ class Stirrer(BackgroundJob):
 
         def cb(channel):
             global counter
-            counter += 1
+            counter = counter + 1
 
         GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
         time.sleep(seconds)
