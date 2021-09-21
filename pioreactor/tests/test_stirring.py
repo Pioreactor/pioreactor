@@ -15,28 +15,28 @@ def pause():
 
 
 def test_stirring_runs():
-    st = start_stirring(50)
+    st = start_stirring(target_rpm=500)
     st.set_state(st.DISCONNECTED)
 
 
-def test_change_stirring_mid_cycle():
-    original_dc = 50
+def test_change_target_rpm_mid_cycle():
+    original_rpm = 500
 
-    st = Stirrer(original_dc, unit, exp)
-    assert st.duty_cycle == original_dc
+    st = Stirrer(original_rpm, unit, exp)
+    assert st.target_rpm == original_rpm
     pause()
 
-    new_dc = 75
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", new_dc)
+    new_rpm = 750
+    publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", new_rpm)
 
     pause()
 
-    assert st.duty_cycle == new_dc
+    assert st.target_rpm == new_rpm
     assert st.state == "ready"
 
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", 0)
+    publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", 0)
     pause()
-    assert st.duty_cycle == 0
+    assert st.target_rpm == 0
     pause()
     st.set_state(st.DISCONNECTED)
 

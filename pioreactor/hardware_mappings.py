@@ -15,6 +15,9 @@ PWM_TO_PIN = {
 PCB_LED_PIN = 23
 PCB_BUTTON_PIN = 24
 
+# hall sensor
+HALL_SENSOR_PIN = 15
+
 # I2C GPIO pins
 SDA = 2
 SCL = 3
