@@ -60,7 +60,7 @@ class Stirrer(BackgroundJob):
     _previous_duty_cycle = None
     hall_sensor_pin = HALL_SENSOR_PIN
     _rpm_counter: int = 0
-    duty_cycle: float = 50  # initial duty cycle, we will deviate from this in the feedback loop immediately.
+    duty_cycle: float = 55  # initial duty cycle, we will deviate from this in the feedback loop immediately.
 
     def __init__(
         self,
@@ -129,7 +129,7 @@ class Stirrer(BackgroundJob):
                 abs(error) < 0.15
             ):  # TODO: I don't like this check, it will tend to overshoot.
                 break
-            time.sleep(0.1)
+            time.sleep(0.5)
 
         self.rpm_check_thread.unpause()
 
