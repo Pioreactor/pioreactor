@@ -118,6 +118,7 @@ class Stirrer(BackgroundJob):
         self._rpm_counter = 0
 
         def cb(channel):
+            print(self._rpm_counter)
             self._rpm_counter = self._rpm_counter + 1
 
         GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
