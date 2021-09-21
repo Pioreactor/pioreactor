@@ -163,17 +163,17 @@ def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
 
 @click.command(name="stirring")
 @click.option(
-    "--duty-cycle",
-    default=config.getint("stirring", "duty_cycle", fallback=0),
-    help="set the duty cycle",
+    "--target-rpm",
+    default=config.getint("stirring", "target_rpm", fallback=0),
+    help="set the target RPM",
     show_default=True,
-    type=click.IntRange(0, 100, clamp=True),
+    type=click.IntRange(0, 1000, clamp=True),
 )
-def click_stirring(duty_cycle):
+def click_stirring(target_rpm):
     """
     Start the stirring of the Pioreactor.
     """
     start_stirring(
-        duty_cycle=duty_cycle,
+        target_rpm=target_rpm,
     )
     signal.pause()
