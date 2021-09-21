@@ -47,6 +47,7 @@ class Stirrer(BackgroundJob):
     }
     _previous_duty_cycle = None
     hall_sensor_pin = HALL_SENSOR_PIN
+    _rpm_counter: int = 0
 
     def __init__(
         self,
@@ -112,18 +113,17 @@ class Stirrer(BackgroundJob):
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.hall_sensor_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        counter = 0
+        self._rpm_counter = 0
 
         def cb(channel):
-            global counter
-            counter = counter + 1
+            self._rpm_counter = self._rpm_counter + 1
 
         GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
         time.sleep(seconds)
         GPIO.remove_event_detect(self.hall_sensor_pin)
         GPIO.cleanup(self.hall_sensor_pin)
 
-        return counter
+        return self._rpm_counter
 
     """
     def stop_stirring(self):
