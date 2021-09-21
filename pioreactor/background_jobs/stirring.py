@@ -97,7 +97,7 @@ class Stirrer(BackgroundJob):
 
         # we need to start the feedback loop here
         while True:
-            self.poll_and_update_dc(2)
+            self.poll_and_update_dc(3)
 
     def poll_and_update_dc(self, poll_for_seconds: float):
 
@@ -108,7 +108,7 @@ class Stirrer(BackgroundJob):
 
         result = self.pid.update(realized_rpm, dt=1)
         self.logger.debug(f"pid_result={result}")
-        self.set_duty_cycle(self.duty_cycle + result)
+        # self.set_duty_cycle(self.duty_cycle + result)
 
     def _count_rotations(self, seconds: float):
         import RPi.GPIO as GPIO
@@ -119,6 +119,7 @@ class Stirrer(BackgroundJob):
         self._rpm_counter = 0
 
         def cb(channel):
+            print(self._rpm_counter)
             self._rpm_counter = self._rpm_counter + 1
 
         GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
