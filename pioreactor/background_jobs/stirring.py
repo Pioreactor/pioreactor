@@ -92,17 +92,18 @@ class Stirrer(BackgroundJob):
     def start_stirring(self):
         self.duty_cycle = 100
         self.pwm.start(self.duty_cycle)  # get momentum to start
-        time.sleep(0.5)
+        time.sleep(1.0)
 
         # we need to start the feedback loop here
-        self.poll_and_update_dc(2)
-        self.poll_and_update_dc(2)
+        while True:
+            self.poll_and_update_dc(2)
 
     def poll_and_update_dc(self, poll_for_seconds: float):
 
         count = self._count_rotations(poll_for_seconds)
         self.logger.debug(f"count={count}")
         realized_rpm = count * 60 / poll_for_seconds
+        self.logger.debug(f"realized_rpm={realized_rpm}")
 
         result = self.pid.update(realized_rpm, dt=1)
         self.logger.debug(f"pid_result={result}")
