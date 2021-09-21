@@ -109,6 +109,8 @@ class Stirrer(BackgroundJob):
         result = self.pid.update(realized_rpm, dt=1)
         self.logger.debug(f"pid_result={result}")
         self.set_duty_cycle(self.duty_cycle + result)
+        self.logger.debug(f"duty_cycle={self.duty_cycle}")
+        print()
 
     def _count_rotations(self, seconds: float):
         import RPi.GPIO as GPIO
@@ -119,7 +121,6 @@ class Stirrer(BackgroundJob):
         self._rpm_counter = 0
 
         def cb(channel):
-            print(self._rpm_counter)
             self._rpm_counter = self._rpm_counter + 1
 
         GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
