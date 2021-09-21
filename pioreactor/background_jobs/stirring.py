@@ -60,7 +60,7 @@ class Stirrer(BackgroundJob):
     _previous_duty_cycle = None
     hall_sensor_pin = HALL_SENSOR_PIN
     _rpm_counter: int = 0
-    duty_cycle: float = 55  # initial duty cycle, we will deviate from this in the feedback loop immediately.
+    duty_cycle: float = 45  # initial duty cycle, we will deviate from this in the feedback loop immediately.
 
     def __init__(
         self,
