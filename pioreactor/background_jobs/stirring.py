@@ -27,9 +27,14 @@ class Stirrer(BackgroundJob):
     Notes
     -------
 
-    The create a feedback loop between the duty-cycle level and the RPM, we set up a polling algorithm. Periodically, we set uo
+    The create a feedback loop between the duty-cycle level and the RPM, we set up a polling algorithm. We set up
     an edge detector on the hall sensor pin, and count the number of pulses in N seconds. We convert this count to RPM, and
     then use a PID system to update the amount of duty cycle to apply.
+
+    We perform the above in three places:
+    1. When the job starts or unpauses, we tune the DC (using above algorithm) until we reach a value "close" to the `target_rpm`
+    2. When we change the `target_rpm`, we tune the DC until we reach a value "close" to the `target_rpm`
+    3. Every N minutes, we perform a small tweak to correct for long term changes.
 
     Note that we _don't_ measure the time between pulses (i.e. measure the frequency) because the stirring could be stalled,
     and we would have an never-returning trigger.
@@ -40,6 +45,11 @@ class Stirrer(BackgroundJob):
 
     > st = Stirrer(500, unit, experiment)
     > st.start_stirring()
+
+
+     - [ ] implement some checks for failed stirring / motor / fan
+     - [ ] test pausing
+     - [ ] what happens if I change target_rpm in quick succession?
 
     """
 
@@ -98,6 +108,7 @@ class Stirrer(BackgroundJob):
         self.stop_stirring()
         self.pwm.cleanup()
         self.rpm_check_thread.cancel()
+        self.clear_mqtt_cache()
 
         set_gpio_availability(self.pwm_pin, GPIO_states.GPIO_AVAILABLE)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
@@ -126,9 +137,12 @@ class Stirrer(BackgroundJob):
 
         count = self._count_rotations(poll_for_seconds)
         self.actual_rpm = count * 60 / poll_for_seconds
+        self.logger.debug(f"count={count}")
 
         result = self.pid.update(self.actual_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
+        self.logger.debug(f"duty_cycle={self.duty_cycle}")
+
         return result
 
     def _count_rotations(self, seconds: float):

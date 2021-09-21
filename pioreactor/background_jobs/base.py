@@ -579,9 +579,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         previous_value = getattr(self, attr)
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
-        # for example, see Stirring, and `set_state` here
-        if hasattr(self, "set_%s" % attr):
-            getattr(self, "set_%s" % attr)(new_value)
+        # for example, see Stirring.set_target_rpm, and `set_state` here
+        if hasattr(self, f"set_{attr}"):
+            getattr(self, f"set_{attr}")(new_value)
 
         else:
             try:
