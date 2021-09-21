@@ -12,6 +12,7 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.utils.streaming_calculations import PID
+from pioreactor.utils.timing import RepeatedTimer
 
 
 class Stirrer(BackgroundJob):
@@ -82,6 +83,15 @@ class Stirrer(BackgroundJob):
             target_name="rpm",
         )
 
+        # set up thread to periodically check the rpm
+        self.rpm_check_thread = RepeatedTimer(
+            120,
+            self.poll_and_update_dc,
+            job_name=self.job_name,
+            run_immediately=False,
+            poll_for_seconds=6,
+        ).start()
+
     def on_disconnect(self):
 
         self.stop_stirring()
@@ -91,6 +101,9 @@ class Stirrer(BackgroundJob):
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def start_stirring(self):
+        # stop the thread from running,
+        self.rpm_check_thread.pause()
+
         self.pwm.start(100)  # get momentum to start
         time.sleep(0.5)
         self.set_duty_cycle(self.duty_cycle)
@@ -98,7 +111,11 @@ class Stirrer(BackgroundJob):
 
         # we need to start the feedback loop here to orient close to our desired value
         while True:
-            self.poll_and_update_dc(4)
+            error = self.poll_and_update_dc(4)
+            if abs(error) < 0.15:
+                break
+
+        self.rpm_check_thread.unpause()
 
     def poll_and_update_dc(self, poll_for_seconds: float):
 
@@ -148,8 +165,18 @@ class Stirrer(BackgroundJob):
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value):
+        self.rpm_check_thread.pause()
+
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
+
+        # we need to start the feedback loop here to orient close to our desired value
+        while True:
+            error = self.poll_and_update_dc(4)
+            if abs(error) < 0.15:
+                break
+
+        self.rpm_check_thread.unpause()
 
 
 def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:

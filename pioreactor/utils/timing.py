@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, logging
+from typing import Callable, Optional
 from datetime import datetime, timezone
 from threading import Event, Thread
 from time import perf_counter
@@ -63,11 +64,11 @@ class RepeatedTimer:
 
     def __init__(
         self,
-        interval,
-        function,
-        job_name=None,
-        run_immediately=False,
-        run_after=None,
+        interval: float,
+        function: Callable,
+        job_name: Optional[str] = None,
+        run_immediately: bool = False,
+        run_after: Optional[float] = None,
         *args,
         **kwargs
     ):
