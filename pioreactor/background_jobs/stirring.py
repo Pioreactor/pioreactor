@@ -192,7 +192,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            5 * 60,
+            500 * 60,
             self._iterate_dc_to_rpm,
             job_name=self.job_name,
             run_immediately=False,
