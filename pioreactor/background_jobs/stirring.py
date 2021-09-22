@@ -193,10 +193,9 @@ class Stirrer(BackgroundJob):
         # set up thread to periodically check the rpm
         self.rpm_check_thread = RepeatedTimer(
             5 * 60,
-            self.poll_and_update_dc,
+            self._iterate_dc_to_rpm,
             job_name=self.job_name,
             run_immediately=False,
-            poll_for_seconds=6,
         ).start()
 
     def on_disconnect(self):
@@ -209,25 +208,13 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self):
         # stop the thread from running,
-        self.rpm_check_thread.pause()
 
         self.pwm.start(100)  # get momentum to start
         sleep(0.5)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
 
-        # we need to start the feedback loop here to orient close to our desired value
-        while (self.state == self.READY) or (self.state == self.INIT):
-            self.poll_and_update_dc(6)
-            if (
-                abs(self.actual_rpm - self.target_rpm) < 15
-            ):  # TODO: I don't like this check, it will tend to overshoot.
-                sleep(0.1)
-                self.poll_and_update_dc(6)  # one last correction to avoid overshooting
-                break
-            sleep(0.1)
-
-        self.rpm_check_thread.unpause()
+        self.rpm_check_thread.execute_function()
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """
@@ -255,10 +242,12 @@ class Stirrer(BackgroundJob):
 
     def on_ready_to_sleeping(self):
         self._previous_duty_cycle = self.duty_cycle
+        self.rpm_check_thread.pause()
         self.stop_stirring()
 
     def on_sleeping_to_ready(self):
         self.duty_cycle = self._previous_duty_cycle
+        self.rpm_check_thread.unpause()
         self.start_stirring()
 
     def set_duty_cycle(self, value):
@@ -266,23 +255,24 @@ class Stirrer(BackgroundJob):
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value):
-        self.rpm_check_thread.pause()
 
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
+        self.rpm_check_thread.execute_function()
 
+    def _iterate_dc_to_rpm(self):
         # we need to start the feedback loop here to orient close to our desired value
         # TODO: we should move this outside of this MQTT callback...
         while (self.state == self.READY) or (self.state == self.INIT):
-            self.poll_and_update_dc(6)
+            self.poll_and_update_dc(poll_for_seconds=6)
             if (
                 abs(self.actual_rpm - self.target_rpm) < 15
             ):  # TODO: I don't like this check, it will tend to overshoot.
-                self.poll_and_update_dc(6)  # one last correction to avoid overshooting
+                self.poll_and_update_dc(
+                    poll_for_seconds=6
+                )  # one last correction to avoid overshooting
                 break
             sleep(0.1)  # sleep for a moment to "apply" the new DC.
-
-        self.rpm_check_thread.unpause()
 
 
 def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:

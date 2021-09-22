@@ -53,12 +53,14 @@ class RepeatedTimer:
     Examples
     ---------
 
-    >> thread = RepeatedTimer(seconds_to_wait, callback)
+    >> thread = RepeatedTimer(seconds_to_wait, callback, callback_arg1="1", callback_arg2=2)
     >> thread.start()
+    >> # manually execute the callback with `thread.run()`
     >> ...
     >> thread.cancel()
+    >>
 
-    To run a job right away (i.e. don't wait interval seconds), use run_immediately
+    To run a job right away (i.e. don't wait interval seconds), use run_immediately`
 
     """
 
@@ -80,6 +82,9 @@ class RepeatedTimer:
             job_name or "RepeatedTimer"
         )  # TODO: I don't think this works as expected.
         self.is_paused = False
+        self.is_currently_executing = (
+            False  # used to make sure we don't run the function overtop itself.
+        )
         self.run_after = run_after or 0
         self.run_immediately = run_immediately
         self.event = Event()
@@ -95,16 +100,34 @@ class RepeatedTimer:
 
         self.start_time = time.time()
         if self.run_immediately:
-            self.function(*self.args, **self.kwargs)
+            self.execute_function()
 
-        while not self.event.wait(self._time):
+        while not self.event.wait(self._time) and not self.is_currently_executing:
             if self.is_paused:
                 continue
-            try:
-                self.function(*self.args, **self.kwargs)
-            except Exception as e:
-                self.logger.debug(e, exc_info=True)
-                self.logger.error(e)
+            self.execute_function()
+
+    def execute_function(self) -> bool:
+        """
+        Returns if the function successfully ran or not. Exits early (with False) if the function is
+        currently executing.
+        """
+        if self.is_currently_executing:
+            return False
+
+        self.is_currently_executing = True
+
+        try:
+            self.function(*self.args, **self.kwargs)
+            did_run = True
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(e)
+            did_run = False
+        finally:
+            self.is_currently_executing = False
+
+        return did_run
 
     @property
     def _time(self):
