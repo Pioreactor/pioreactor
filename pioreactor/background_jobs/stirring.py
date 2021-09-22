@@ -39,14 +39,14 @@ class RpmFromFrequency:
 
         self._start_time = obs_time
 
-    def __call__(self, seconds_to_observe: float):
+    def __call__(self, seconds_to_observe: float) -> int:
 
         self._running_sum = 0
         self._running_count = 0
         self._start_time = None
 
         self.GPIO.add_event_detect(
-            self.hall_sensor_pin, self.GPIO.RISING, callback=self._callback, bouncetime=10
+            self.hall_sensor_pin, self.GPIO.RISING, callback=self._callback, bouncetime=2
         )
         sleep(seconds_to_observe)
         self.GPIO.remove_event_detect(self.hall_sensor_pin)
@@ -54,7 +54,35 @@ class RpmFromFrequency:
         if self._running_sum == 0:
             return 0
         else:
-            return self._running_count * 60 / self._running_sum
+            return int(self._running_count * 60 / self._running_sum)
+
+
+class RpmFromCount:
+
+    _rpm_counter = 0
+    hall_sensor_pin = HALL_SENSOR_PIN
+
+    def __init__(self):
+        import RPi.GPIO as GPIO
+
+        self.GPIO = GPIO
+        self.GPIO.setmode(self.GPIO.BCM)
+        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
+
+    def _callback(self, *args):
+        self._rpm_counter = self._rpm_counter + 1
+
+    def __call__(self, seconds_to_observe: float) -> int:
+
+        self._rpm_counter = 0
+
+        self.GPIO.add_event_detect(
+            self.hall_sensor_pin, self.GPIO.RISING, callback=self._callback, bouncetime=2
+        )
+        sleep(seconds_to_observe)
+        self.GPIO.remove_event_detect(self.hall_sensor_pin)
+
+        return int(self._rpm_counter * 60 / seconds_to_observe)
 
 
 class Stirrer(BackgroundJob):
@@ -154,9 +182,9 @@ class Stirrer(BackgroundJob):
         self.rpm_check_thread.pause()
 
         self.pwm.start(100)  # get momentum to start
-        sleep(1.5)
-        self.set_duty_cycle(self.duty_cycle)
         sleep(0.5)
+        self.set_duty_cycle(self.duty_cycle)
+        sleep(0.25)
 
         while self._currently_polling:
             # if another process is running polling, pass.
@@ -184,31 +212,10 @@ class Stirrer(BackgroundJob):
     def poll_and_update_dc(self, poll_for_seconds: float):
         measured_rpm = self.poll(poll_for_seconds)
         result = self.pid.update(measured_rpm, dt=1)
-        # self.set_duty_cycle(self.duty_cycle + result)
+        self.set_duty_cycle(self.duty_cycle + result)
         self.logger.debug(f"duty_cycle={self.duty_cycle}")
 
         return result
-
-    def _estimate_rpm_from_count_rotations(self, seconds_to_observe: float):
-        # abstract to another class
-        import RPi.GPIO as GPIO
-
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.hall_sensor_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-        self._rpm_counter = 0
-
-        def cb(channel):
-            self._rpm_counter = self._rpm_counter + 1
-
-        GPIO.add_event_detect(
-            self.hall_sensor_pin, GPIO.RISING, callback=cb, bouncetime=10
-        )
-        sleep(seconds_to_observe)
-        GPIO.remove_event_detect(self.hall_sensor_pin)
-        GPIO.cleanup(self.hall_sensor_pin)
-
-        return self._rpm_counter * 60 / seconds_to_observe
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
