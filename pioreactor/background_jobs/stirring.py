@@ -57,10 +57,10 @@ class Stirrer(BackgroundJob):
         "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
         "actual_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
     }
-    _previous_duty_cycle = None
+    _previous_duty_cycle: float = 0
+    duty_cycle: float = 45  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     hall_sensor_pin = HALL_SENSOR_PIN
     _rpm_counter: int = 0
-    duty_cycle: float = 45  # initial duty cycle, we will deviate from this in the feedback loop immediately.
 
     def __init__(
         self,
@@ -75,7 +75,6 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
         self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
 
-        set_gpio_availability(self.pwm_pin, GPIO_states.GPIO_UNAVAILABLE)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
 
         self.pwm = PWM(self.pwm_pin, hertz)
@@ -110,7 +109,6 @@ class Stirrer(BackgroundJob):
         self.rpm_check_thread.cancel()
         self.clear_mqtt_cache()
 
-        set_gpio_availability(self.pwm_pin, GPIO_states.GPIO_AVAILABLE)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def start_stirring(self):

@@ -293,8 +293,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # look for missing properties
             if not set(properties.keys()).issuperset(necessary_properies):
-                self.logger.error(
-                    f"Found missing necessary property in setting {setting}."
+                raise ValueError(f"Missing necessary property in setting {setting}.")
+
+            if not all(ss.isalnum() for ss in setting.split("_")):
+                # only alphanumeric seperated by _ is allowed.
+                raise ValueError(
+                    f"setting {setting} has bad characters - must be alphanumeric, and only seperated by underscore."
                 )
 
     def create_pub_client(self):

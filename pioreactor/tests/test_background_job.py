@@ -234,7 +234,7 @@ def test_bad_key_in_published_settings():
                 "datatype": "float",
                 "units": "%",
                 "settable": True,
-            },  # units is wrong, should be units.
+            },  # units is wrong, should be unit.
         }
 
         def __init__(self, *args, **kwargs):
@@ -258,3 +258,22 @@ def test_bad_key_in_published_settings():
         pause()
         assert len(warning_logs) > 0
         assert "Found extra property" in warning_logs[0].payload.decode()
+
+
+def test_bad_setting_name_in_published_settings():
+    class TestJob(BackgroundJob):
+
+        published_settings = {
+            "some--!4key": {
+                "datatype": "float",
+                "settable": True,
+            },
+        }
+
+        def __init__(self, *args, **kwargs):
+            super(TestJob, self).__init__(*args, **kwargs)
+
+    with pytest.raises(ValueError):
+        TestJob(
+            job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
+        )
