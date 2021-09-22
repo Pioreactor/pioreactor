@@ -146,7 +146,7 @@ class Stirrer(BackgroundJob):
     def poll_and_update_dc(self, poll_for_seconds: float):
         measured_rpm = self.poll(poll_for_seconds)
         result = self.pid.update(measured_rpm, dt=1)
-        self.set_duty_cycle(self.duty_cycle + result)
+        # self.set_duty_cycle(self.duty_cycle + result)
         self.logger.debug(f"duty_cycle={self.duty_cycle}")
 
         return result
