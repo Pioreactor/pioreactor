@@ -4,7 +4,6 @@ from signal import pause
 from time import sleep, time
 from typing import Optional
 import click
-from threading import Thread
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -192,7 +191,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            500 * 60,
+            60,
             self._iterate_dc_to_rpm,
             job_name=self.job_name,
             run_immediately=False,
@@ -207,23 +206,13 @@ class Stirrer(BackgroundJob):
         self.clear_mqtt_cache()
 
     def start_stirring(self):
-        # stop the thread from running,
-
+        self.rpm_check_repeated_thread.pause()
         self.pwm.start(100)  # get momentum to start
         sleep(0.5)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
-
-        if self.rpm_check_thread is None:
-            # probably this is the first time user called start_stirring, so we need to
-            # create the thread and start it.
-            self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
-            self.rpm_check_thread.start()
-        elif not self.rpm_check_thread.is_alive():
-            # if the thread is still alive (i.e. running), then the set point will have moved, and we
-            # will keep iterating in the while loop.
-            self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
-            self.rpm_check_thread.start()
+        self._iterate_dc_to_rpm()
+        self.rpm_check_repeated_thread.unpause()
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """
@@ -264,23 +253,20 @@ class Stirrer(BackgroundJob):
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value):
+        self.rpm_check_repeated_thread.pause()
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
-
-        if not self.rpm_check_thread.is_alive():
-            # if the thread is still alive (i.e. running), then the set point will have moved, and we
-            # will keep iterating in the while loop.
-            self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
-            self.rpm_check_thread.start()
+        self._iterate_dc_to_rpm()
+        self.rpm_check_repeated_thread.unpause()
 
     def _iterate_dc_to_rpm(self):
         # we need to start the feedback loop here to orient close to our desired value
         while (self.state == self.READY) or (self.state == self.INIT):
             self.poll_and_update_dc(poll_for_seconds=6)
-            # if (
-            #     abs(self.actual_rpm - self.target_rpm) < 10
-            # ):  # TODO: I don't like this check, it will tend to overshoot.
-            #     break
+            if (
+                abs(self.actual_rpm - self.target_rpm) < 10
+            ):  # TODO: I don't like this check, it will tend to overshoot.
+                break
             sleep(0.1)  # sleep for a moment to "apply" the new DC.
 
 
