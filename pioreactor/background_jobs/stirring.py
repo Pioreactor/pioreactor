@@ -60,7 +60,7 @@ class Stirrer(BackgroundJob):
     _previous_duty_cycle: float = 0
     duty_cycle: float = 45  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     hall_sensor_pin = HALL_SENSOR_PIN
-    _rpm_counter: int = 0
+    _currently_polling: bool = False
 
     def __init__(
         self,
@@ -120,31 +120,69 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(self.duty_cycle)
         time.sleep(0.5)
 
+        while self._currently_polling:
+            # if another process is running polling, pass.
+            pass
+
         # we need to start the feedback loop here to orient close to our desired value
         while (self.state == self.READY) or (self.state == self.INIT):
-            self.poll_and_update_dc(4)
+            self.poll_and_update_dc(6)
             if (
-                abs(self.actual_rpm - self.target_rpm) < 20
+                abs(self.actual_rpm - self.target_rpm) < 15
             ):  # TODO: I don't like this check, it will tend to overshoot.
-                self.poll_and_update_dc(4)  # one last correction to avoid overshooting
+                time.sleep(0.1)
+                self.poll_and_update_dc(6)  # one last correction to avoid overshooting
                 break
-            time.sleep(0.5)
+            time.sleep(0.1)
 
         self.rpm_check_thread.unpause()
 
+    def poll(self, poll_for_seconds: float):
+        self._currently_polling = True
+        self.actual_rpm = self._estimate_rpm_from_frequency(poll_for_seconds)
+        self._currently_polling = False
+        return self.actual_rpm
+
     def poll_and_update_dc(self, poll_for_seconds: float):
-
-        count = self._count_rotations(poll_for_seconds)
-        self.actual_rpm = count * 60 / poll_for_seconds
-        self.logger.debug(f"count={count}")
-
-        result = self.pid.update(self.actual_rpm, dt=1)
+        measured_rpm = self.poll(poll_for_seconds)
+        result = self.pid.update(measured_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
         self.logger.debug(f"duty_cycle={self.duty_cycle}")
 
         return result
 
-    def _count_rotations(self, seconds: float):
+    def _estimate_rpm_from_frequency(self, seconds_to_observe: float):
+        import RPi.GPIO as GPIO
+
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(self.hall_sensor_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+        self._running_sum = 0
+        self._running_count = 0
+        self._start_time = None
+
+        def cb(channel):
+            obs_time = time.time()
+
+            if self._start_time is not None:
+                delta_time = obs_time - self._start_time
+                self._running_sum = self._running_sum + delta_time
+                self._running_count = self._running_count + 1
+
+            self._start_time = obs_time
+
+        GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
+        time.sleep(seconds_to_observe)
+        GPIO.remove_event_detect(self.hall_sensor_pin)
+        GPIO.cleanup(self.hall_sensor_pin)
+
+        if self._running_sum == 0:
+            return 0
+        else:
+            return self._running_count * 60 / self._running_sum
+
+    def _estimate_rpm_from_count_rotations(self, seconds_to_observe: float):
+        # abstract to another class
         import RPi.GPIO as GPIO
 
         GPIO.setmode(GPIO.BCM)
@@ -156,11 +194,11 @@ class Stirrer(BackgroundJob):
             self._rpm_counter = self._rpm_counter + 1
 
         GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
-        time.sleep(seconds)
+        time.sleep(seconds_to_observe)
         GPIO.remove_event_detect(self.hall_sensor_pin)
         GPIO.cleanup(self.hall_sensor_pin)
 
-        return self._rpm_counter
+        return self._rpm_counter * 60 / seconds_to_observe
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
@@ -181,17 +219,20 @@ class Stirrer(BackgroundJob):
     def set_target_rpm(self, value):
         self.rpm_check_thread.pause()
 
+        while self._currently_polling:
+            pass
+
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
 
         # we need to start the feedback loop here to orient close to our desired value
         # TODO: we should move this outside of this MQTT callback...
         while (self.state == self.READY) or (self.state == self.INIT):
-            self.poll_and_update_dc(4)
+            self.poll_and_update_dc(6)
             if (
-                abs(self.actual_rpm - self.target_rpm) < 20
+                abs(self.actual_rpm - self.target_rpm) < 15
             ):  # TODO: I don't like this check, it will tend to overshoot.
-                self.poll_and_update_dc(4)  # one last correction to avoid overshooting
+                self.poll_and_update_dc(6)  # one last correction to avoid overshooting
                 break
             time.sleep(0.1)  # sleep for a moment to "apply" the new DC.
 
