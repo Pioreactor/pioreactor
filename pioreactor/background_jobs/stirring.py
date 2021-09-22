@@ -4,6 +4,7 @@ from signal import pause
 from time import sleep, time
 from typing import Optional
 import click
+from threading import Thread
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -123,7 +124,8 @@ class Stirrer(BackgroundJob):
 
     target_rpm: float
         Send message to "pioreactor/{unit}/{experiment}/stirring/target_rpm/set" to change the stirring speed.
-
+    rpm_calculator: RpmCalculator
+        See RpmCalculator and examples below.
 
     Notes
     -------
@@ -133,12 +135,9 @@ class Stirrer(BackgroundJob):
     then use a PID system to update the amount of duty cycle to apply.
 
     We perform the above in three places:
-    1. When the job starts or unpauses, we tune the DC (using above algorithm) until we reach a value "close" to the `target_rpm`
-    2. When we change the `target_rpm`, we tune the DC until we reach a value "close" to the `target_rpm`
-    3. Every N minutes, we perform a small tweak to correct for long term changes.
-
-    Note that we _don't_ measure the time between pulses (i.e. measure the frequency) because the stirring could be stalled,
-    and we would have an never-returning trigger.
+    1. When the job starts or unpauses, we tune the DC (using above algorithm) until we reach a value "close" to the `target_rpm`. This occurs in a Thread.
+    2. When we change the `target_rpm`, we tune the DC until we reach a value "close" to the `target_rpm`. This occurs in a Thread.
+    3. Every N minutes, we perform a small tweak to correct for long term changes. This occurs in a RepeatedTimer (internally a Thread).
 
 
     Examples
@@ -157,6 +156,7 @@ class Stirrer(BackgroundJob):
     }
     _previous_duty_cycle: float = 0
     duty_cycle: float = 60  # initial duty cycle, we will deviate from this in the feedback loop immediately.
+    rpm_check_thread = None
 
     def __init__(
         self,
@@ -191,7 +191,7 @@ class Stirrer(BackgroundJob):
         )
 
         # set up thread to periodically check the rpm
-        self.rpm_check_thread = RepeatedTimer(
+        self.rpm_check_repeated_thread = RepeatedTimer(
             5 * 60,
             self._iterate_dc_to_rpm,
             job_name=self.job_name,
@@ -200,7 +200,7 @@ class Stirrer(BackgroundJob):
 
     def on_disconnect(self):
 
-        self.rpm_check_thread.cancel()
+        self.rpm_check_repeated_thread.cancel()
         self.stop_stirring()
         self.pwm.cleanup()
         self.rpm_calculator.cleanup()
@@ -214,7 +214,12 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
 
-        self.rpm_check_thread.execute_function()
+        if self.rpm_check_thread is None:
+            self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
+            self.rpm_check_thread.start()
+        elif not self.rpm_check_thread.is_alive():
+            self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
+            self.rpm_check_thread.start()
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """
@@ -242,12 +247,12 @@ class Stirrer(BackgroundJob):
 
     def on_ready_to_sleeping(self):
         self._previous_duty_cycle = self.duty_cycle
-        self.rpm_check_thread.pause()
+        self.rpm_check_repeated_thread.pause()
         self.stop_stirring()
 
     def on_sleeping_to_ready(self):
         self.duty_cycle = self._previous_duty_cycle
-        self.rpm_check_thread.unpause()
+        self.rpm_check_repeated_thread.unpause()
         self.start_stirring()
 
     def set_duty_cycle(self, value):
@@ -255,14 +260,15 @@ class Stirrer(BackgroundJob):
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value):
-
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
-        self.rpm_check_thread.execute_function()
+
+        if not self.rpm_check_thread.is_alive():
+            self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
+            self.rpm_check_thread.start()
 
     def _iterate_dc_to_rpm(self):
         # we need to start the feedback loop here to orient close to our desired value
-        # TODO: we should move this outside of this MQTT callback...
         while (self.state == self.READY) or (self.state == self.INIT):
             self.poll_and_update_dc(poll_for_seconds=6)
             if (

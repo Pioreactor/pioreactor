@@ -82,9 +82,7 @@ class RepeatedTimer:
             job_name or "RepeatedTimer"
         )  # TODO: I don't think this works as expected.
         self.is_paused = False
-        self.is_currently_executing = (
-            False  # used to make sure we don't run the function overtop itself.
-        )
+        self.is_currently_executing = False
         self.run_after = run_after or 0
         self.run_immediately = run_immediately
         self.event = Event()
@@ -92,6 +90,8 @@ class RepeatedTimer:
 
     def _target(self):
         """
+        This function runs in a thread.
+
         First we wait for run_after seconds (default is 0), then we run the func immediately if requested,
         and then every N seconds after that, we run func.
 
@@ -100,34 +100,29 @@ class RepeatedTimer:
 
         self.start_time = time.time()
         if self.run_immediately:
-            self.execute_function()
+            self._execute_function()
 
         while not self.event.wait(self._time) and not self.is_currently_executing:
             if self.is_paused:
                 continue
-            self.execute_function()
+            self._execute_function()
 
-    def execute_function(self) -> bool:
+    def _execute_function(self) -> bool:
         """
-        Returns if the function successfully ran or not. Exits early (with False) if the function is
-        currently executing.
+        Exits early if the function is currently executing.
         """
         if self.is_currently_executing:
-            return False
+            return
 
         self.is_currently_executing = True
 
         try:
             self.function(*self.args, **self.kwargs)
-            did_run = True
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
-            did_run = False
         finally:
             self.is_currently_executing = False
-
-        return did_run
 
     @property
     def _time(self):
