@@ -194,9 +194,9 @@ class Stirrer(BackgroundJob):
             15,
             self.poll_and_update_dc,
             job_name=self.job_name,
-            run_immediately=False,
+            run_immediately=True,
             poll_for_seconds=6,
-        ).start()
+        )
 
     def on_disconnect(self):
 
@@ -207,11 +207,11 @@ class Stirrer(BackgroundJob):
         self.clear_mqtt_cache()
 
     def start_stirring(self):
-        self.rpm_check_repeated_thread.pause()
         self.pwm.start(100)  # get momentum to start
         sleep(0.5)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
+        self.rpm_check_repeated_thread.start()
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """
