@@ -215,9 +215,13 @@ class Stirrer(BackgroundJob):
         sleep(0.25)
 
         if self.rpm_check_thread is None:
+            # probably this is the first time user called start_stirring, so we need to
+            # create the thread and start it.
             self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
             self.rpm_check_thread.start()
         elif not self.rpm_check_thread.is_alive():
+            # if the thread is still alive (i.e. running), then the set point will have moved, and we
+            # will keep iterating in the while loop.
             self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
             self.rpm_check_thread.start()
 
@@ -264,6 +268,8 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
         if not self.rpm_check_thread.is_alive():
+            # if the thread is still alive (i.e. running), then the set point will have moved, and we
+            # will keep iterating in the while loop.
             self.rpm_check_thread = Thread(target=self._iterate_dc_to_rpm, daemon=True)
             self.rpm_check_thread.start()
 
@@ -272,11 +278,8 @@ class Stirrer(BackgroundJob):
         while (self.state == self.READY) or (self.state == self.INIT):
             self.poll_and_update_dc(poll_for_seconds=6)
             if (
-                abs(self.actual_rpm - self.target_rpm) < 15
+                abs(self.actual_rpm - self.target_rpm) < 10
             ):  # TODO: I don't like this check, it will tend to overshoot.
-                self.poll_and_update_dc(
-                    poll_for_seconds=6
-                )  # one last correction to avoid overshooting
                 break
             sleep(0.1)  # sleep for a moment to "apply" the new DC.
 
