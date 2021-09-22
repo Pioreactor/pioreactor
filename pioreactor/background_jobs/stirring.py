@@ -191,10 +191,11 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            45,
-            self._iterate_dc_to_rpm,
+            15,
+            self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=False,
+            poll_for_seconds=6,
         ).start()
 
     def on_disconnect(self):
@@ -211,8 +212,6 @@ class Stirrer(BackgroundJob):
         sleep(0.5)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
-        self._iterate_dc_to_rpm()
-        self.rpm_check_repeated_thread.unpause()
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """
@@ -253,21 +252,22 @@ class Stirrer(BackgroundJob):
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value):
-        self.rpm_check_repeated_thread.pause()
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
-        self._iterate_dc_to_rpm()  # I really wish this was performed async...
-        self.rpm_check_repeated_thread.unpause()
 
     def _iterate_dc_to_rpm(self):
         # we need to start the feedback loop here to orient close to our desired value
         while (self.state == self.READY) or (self.state == self.INIT):
-            self.poll_and_update_dc(poll_for_seconds=6)
+            self.poll_and_update_dc(
+                poll_for_seconds=6
+            )  # TODO: compare how accurate this? Maybe more / less than 6 is needed
             if (
                 abs(self.actual_rpm - self.target_rpm) < 5
             ):  # TODO: I don't like this check, it will tend to overshoot.
                 break
-            sleep(0.1)  # sleep for a moment to "apply" the new DC.
+            sleep(
+                0.2
+            )  # sleep for a moment to "apply" the new DC, i.e. the stirring has a slow response time.
 
 
 def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
