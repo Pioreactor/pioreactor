@@ -2,6 +2,7 @@
 
 from signal import pause
 from time import sleep, time
+from typing import Optional
 import click
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -22,8 +23,8 @@ class RpmCalculator:
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
         self.GPIO.cleanup(self.hall_sensor_pin)
 
-    def __call__(self, seconds_to_observe: float) -> int:
-        return 0
+    def __call__(self, seconds_to_observe: float) -> Optional[int]:
+        return None
 
 
 class RpmFromFrequency(RpmCalculator):
@@ -191,7 +192,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_thread = RepeatedTimer(
-            120,
+            5 * 60,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=False,
@@ -228,7 +229,10 @@ class Stirrer(BackgroundJob):
 
         self.rpm_check_thread.unpause()
 
-    def poll(self, poll_for_seconds: float) -> int:
+    def poll(self, poll_for_seconds: float) -> Optional[int]:
+        """
+        Returns an RPM, or None if not measure RPM.
+        """
         self.actual_rpm = self.rpm_calculator(poll_for_seconds)
         if self.actual_rpm == 0:
             self.logger.warning("Stirring RPM is 0 - has it failed?")
@@ -237,6 +241,10 @@ class Stirrer(BackgroundJob):
 
     def poll_and_update_dc(self, poll_for_seconds: float):
         measured_rpm = self.poll(poll_for_seconds)
+
+        if measured_rpm is None:
+            return
+
         result = self.pid.update(measured_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
         self.logger.debug(f"duty_cycle={self.duty_cycle}")
