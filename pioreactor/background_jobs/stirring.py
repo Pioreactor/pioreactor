@@ -277,10 +277,10 @@ class Stirrer(BackgroundJob):
         # we need to start the feedback loop here to orient close to our desired value
         while (self.state == self.READY) or (self.state == self.INIT):
             self.poll_and_update_dc(poll_for_seconds=6)
-            if (
-                abs(self.actual_rpm - self.target_rpm) < 10
-            ):  # TODO: I don't like this check, it will tend to overshoot.
-                break
+            # if (
+            #     abs(self.actual_rpm - self.target_rpm) < 10
+            # ):  # TODO: I don't like this check, it will tend to overshoot.
+            #     break
             sleep(0.1)  # sleep for a moment to "apply" the new DC.
 
 
