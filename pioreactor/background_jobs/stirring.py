@@ -191,7 +191,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            60,
+            45,
             self._iterate_dc_to_rpm,
             job_name=self.job_name,
             run_immediately=False,
@@ -256,7 +256,7 @@ class Stirrer(BackgroundJob):
         self.rpm_check_repeated_thread.pause()
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
-        self._iterate_dc_to_rpm()
+        self._iterate_dc_to_rpm()  # I really wish this was performed async...
         self.rpm_check_repeated_thread.unpause()
 
     def _iterate_dc_to_rpm(self):
@@ -264,7 +264,7 @@ class Stirrer(BackgroundJob):
         while (self.state == self.READY) or (self.state == self.INIT):
             self.poll_and_update_dc(poll_for_seconds=6)
             if (
-                abs(self.actual_rpm - self.target_rpm) < 10
+                abs(self.actual_rpm - self.target_rpm) < 5
             ):  # TODO: I don't like this check, it will tend to overshoot.
                 break
             sleep(0.1)  # sleep for a moment to "apply" the new DC.
