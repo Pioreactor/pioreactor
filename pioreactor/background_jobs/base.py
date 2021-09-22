@@ -554,7 +554,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 )
 
     def set_state(self, new_state: str):
-        assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
+        if new_state not in self.LIFECYCLE_STATES:
+            self.logger.error(f"saw {new_state}: not a valid state")
+            return
 
         if hasattr(self, f"on_{self.state}_to_{new_state}"):
             getattr(self, f"on_{self.state}_to_{new_state}")()

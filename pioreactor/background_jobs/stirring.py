@@ -16,6 +16,10 @@ from pioreactor.utils.timing import RepeatedTimer
 
 
 class RpmFromFrequency:
+    """
+    Averages the duration between rises in an N second window. This is more accurate (but less robust)
+    than RpmFromCount
+    """
 
     _running_sum = 0
     _running_count = 0
@@ -54,10 +58,13 @@ class RpmFromFrequency:
         if self._running_sum == 0:
             return 0
         else:
-            return int(self._running_count * 60 / self._running_sum)
+            return round(self._running_count * 60 / self._running_sum)
 
 
 class RpmFromCount:
+    """
+    Counts the number of rises in an N second window.
+    """
 
     _rpm_counter = 0
     hall_sensor_pin = HALL_SENSOR_PIN
@@ -82,7 +89,7 @@ class RpmFromCount:
         sleep(seconds_to_observe)
         self.GPIO.remove_event_detect(self.hall_sensor_pin)
 
-        return int(self._rpm_counter * 60 / seconds_to_observe)
+        return round(self._rpm_counter * 60 / seconds_to_observe)
 
 
 class Stirrer(BackgroundJob):
@@ -90,8 +97,8 @@ class Stirrer(BackgroundJob):
     Parameters
     ------------
 
-    duty_cycle: int
-        Send message to "pioreactor/{unit}/{experiment}/stirring/duty_cycle/set" to change the stirring speed.
+    target_rpm: float
+        Send message to "pioreactor/{unit}/{experiment}/stirring/target_rpm/set" to change the stirring speed.
 
 
     Notes
@@ -116,23 +123,22 @@ class Stirrer(BackgroundJob):
     > st = Stirrer(500, unit, experiment)
     > st.start_stirring()
 
-
-     - [ ] implement some checks for failed stirring / motor / fan
-     - [ ] test pausing
      - [ ] what happens if I change target_rpm in quick succession?
 
     """
 
     published_settings = {
-        "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
-        "actual_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
+        "target_rpm": {"datatype": "int", "settable": True, "unit": "RPM"},
+        "actual_rpm": {"datatype": "int", "settable": False, "unit": "RPM"},
     }
     _previous_duty_cycle: float = 0
     duty_cycle: float = 60  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     hall_sensor_pin = HALL_SENSOR_PIN
     _currently_polling: bool = False
 
-    def __init__(self, target_rpm, unit, experiment, hertz=67, rpm_calculator=None):
+    def __init__(
+        self, target_rpm: int, unit: str, experiment: str, hertz=67, rpm_calculator=None
+    ):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
         )
@@ -188,6 +194,7 @@ class Stirrer(BackgroundJob):
 
         while self._currently_polling:
             # if another process is running polling, pass.
+            # this makes me nervous...
             pass
 
         # we need to start the feedback loop here to orient close to our desired value
@@ -203,9 +210,12 @@ class Stirrer(BackgroundJob):
 
         self.rpm_check_thread.unpause()
 
-    def poll(self, poll_for_seconds: float):
+    def poll(self, poll_for_seconds: float) -> int:
         self._currently_polling = True
         self.actual_rpm = self.rpm_calculator(poll_for_seconds)
+        if self.actual_rpm == 0:
+            self.logger.warning("Stirring RPM is 0 - has it failed?")
+
         self._currently_polling = False
         return self.actual_rpm
 
@@ -214,8 +224,6 @@ class Stirrer(BackgroundJob):
         result = self.pid.update(measured_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
         self.logger.debug(f"duty_cycle={self.duty_cycle}")
-
-        return result
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.
