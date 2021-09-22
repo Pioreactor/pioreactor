@@ -15,7 +15,18 @@ from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import RepeatedTimer
 
 
-class RpmFromFrequency:
+class RpmCalculator:
+    hall_sensor_pin = HALL_SENSOR_PIN
+
+    def cleanup(self):
+        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
+        self.GPIO.cleanup(self.hall_sensor_pin)
+
+    def __call__(self, seconds_to_observe: float) -> int:
+        return 0
+
+
+class RpmFromFrequency(RpmCalculator):
     """
     Averages the duration between rises in an N second window. This is more accurate (but less robust)
     than RpmFromCount
@@ -24,7 +35,7 @@ class RpmFromFrequency:
     _running_sum = 0
     _running_count = 0
     _start_time = None
-    hall_sensor_pin = HALL_SENSOR_PIN
+    _currently_polling = False
 
     def __init__(self):
         import RPi.GPIO as GPIO
@@ -44,6 +55,10 @@ class RpmFromFrequency:
         self._start_time = obs_time
 
     def __call__(self, seconds_to_observe: float) -> int:
+        while self._currently_polling:
+            pass
+
+        self._currently_polling = True
 
         self._running_sum = 0
         self._running_count = 0
@@ -55,19 +70,21 @@ class RpmFromFrequency:
         sleep(seconds_to_observe)
         self.GPIO.remove_event_detect(self.hall_sensor_pin)
 
+        self._currently_polling = False
+
         if self._running_sum == 0:
             return 0
         else:
             return round(self._running_count * 60 / self._running_sum)
 
 
-class RpmFromCount:
+class RpmFromCount(RpmCalculator):
     """
     Counts the number of rises in an N second window.
     """
 
     _rpm_counter = 0
-    hall_sensor_pin = HALL_SENSOR_PIN
+    _currently_polling = False
 
     def __init__(self):
         import RPi.GPIO as GPIO
@@ -80,6 +97,10 @@ class RpmFromCount:
         self._rpm_counter = self._rpm_counter + 1
 
     def __call__(self, seconds_to_observe: float) -> int:
+        while self._currently_polling:
+            pass
+
+        self._currently_polling = True
 
         self._rpm_counter = 0
 
@@ -88,6 +109,8 @@ class RpmFromCount:
         )
         sleep(seconds_to_observe)
         self.GPIO.remove_event_detect(self.hall_sensor_pin)
+
+        self._currently_polling = False
 
         return round(self._rpm_counter * 60 / seconds_to_observe)
 
@@ -133,19 +156,20 @@ class Stirrer(BackgroundJob):
     }
     _previous_duty_cycle: float = 0
     duty_cycle: float = 60  # initial duty cycle, we will deviate from this in the feedback loop immediately.
-    hall_sensor_pin = HALL_SENSOR_PIN
-    _currently_polling: bool = False
 
     def __init__(
-        self, target_rpm: int, unit: str, experiment: str, hertz=67, rpm_calculator=None
+        self,
+        target_rpm: int,
+        unit: str,
+        experiment: str,
+        rpm_calculator: RpmCalculator,
+        hertz=67,
     ):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
         )
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
         self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
-
-        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
 
         self.pwm = PWM(self.pwm_pin, hertz)
         self.pwm.lock()
@@ -176,12 +200,11 @@ class Stirrer(BackgroundJob):
 
     def on_disconnect(self):
 
+        self.rpm_check_thread.cancel()
         self.stop_stirring()
         self.pwm.cleanup()
-        self.rpm_check_thread.cancel()
+        self.rpm_calculator.cleanup()
         self.clear_mqtt_cache()
-
-        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def start_stirring(self):
         # stop the thread from running,
@@ -191,11 +214,6 @@ class Stirrer(BackgroundJob):
         sleep(0.5)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
-
-        while self._currently_polling:
-            # if another process is running polling, pass.
-            # this makes me nervous...
-            pass
 
         # we need to start the feedback loop here to orient close to our desired value
         while (self.state == self.READY) or (self.state == self.INIT):
@@ -211,12 +229,10 @@ class Stirrer(BackgroundJob):
         self.rpm_check_thread.unpause()
 
     def poll(self, poll_for_seconds: float) -> int:
-        self._currently_polling = True
         self.actual_rpm = self.rpm_calculator(poll_for_seconds)
         if self.actual_rpm == 0:
             self.logger.warning("Stirring RPM is 0 - has it failed?")
 
-        self._currently_polling = False
         return self.actual_rpm
 
     def poll_and_update_dc(self, poll_for_seconds: float):
@@ -243,9 +259,6 @@ class Stirrer(BackgroundJob):
 
     def set_target_rpm(self, value):
         self.rpm_check_thread.pause()
-
-        while self._currently_polling:
-            pass
 
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
