@@ -58,7 +58,7 @@ class Stirrer(BackgroundJob):
         "actual_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
     }
     _previous_duty_cycle: float = 0
-    duty_cycle: float = 45  # initial duty cycle, we will deviate from this in the feedback loop immediately.
+    duty_cycle: float = 60  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     hall_sensor_pin = HALL_SENSOR_PIN
     _currently_polling: bool = False
 
@@ -116,7 +116,7 @@ class Stirrer(BackgroundJob):
         self.rpm_check_thread.pause()
 
         self.pwm.start(100)  # get momentum to start
-        time.sleep(0.5)
+        time.sleep(1.5)
         self.set_duty_cycle(self.duty_cycle)
         time.sleep(0.5)
 
