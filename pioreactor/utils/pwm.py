@@ -75,12 +75,6 @@ class PWM:
 
         else:
 
-            if is_testing_env():
-                import fake_rpi
-
-                sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-                sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
             import RPi.GPIO as GPIO
 
             GPIO.setmode(GPIO.BCM)
@@ -146,11 +140,6 @@ class PWM:
             # `stop` handles cleanup.
             pass
         else:
-            if is_testing_env():
-                import fake_rpi
-
-                sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
-                sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
 
             import RPi.GPIO as GPIO
 

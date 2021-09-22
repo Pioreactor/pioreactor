@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import time, signal
-
+from signal import pause
+from time import sleep, time
 import click
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -13,6 +13,48 @@ from pioreactor.utils import clamp
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import RepeatedTimer
+
+
+class RpmFromFrequency:
+
+    _running_sum = 0
+    _running_count = 0
+    _start_time = None
+    hall_sensor_pin = HALL_SENSOR_PIN
+
+    def __init__(self):
+        import RPi.GPIO as GPIO
+
+        self.GPIO = GPIO
+        self.GPIO.setmode(self.GPIO.BCM)
+        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
+
+    def _callback(self, *args):
+        obs_time = time()
+
+        if self._start_time is not None:
+            delta_time = obs_time - self._start_time
+            self._running_sum = self._running_sum + delta_time
+            self._running_count = self._running_count + 1
+
+        self._start_time = obs_time
+
+    def __call__(self, seconds_to_observe: float):
+
+        self._running_sum = 0
+        self._running_count = 0
+        self._start_time = None
+
+        self.GPIO.add_event_detect(
+            self.hall_sensor_pin, self.GPIO.RISING, callback=self._callback, bouncetime=10
+        )
+        sleep(seconds_to_observe)
+        self.GPIO.remove_event_detect(self.hall_sensor_pin)
+
+        if self._running_sum == 0:
+            return 0
+        else:
+            return self._running_count * 60 / self._running_sum
 
 
 class Stirrer(BackgroundJob):
@@ -62,13 +104,7 @@ class Stirrer(BackgroundJob):
     hall_sensor_pin = HALL_SENSOR_PIN
     _currently_polling: bool = False
 
-    def __init__(
-        self,
-        target_rpm,
-        unit,
-        experiment,
-        hertz=67,
-    ):
+    def __init__(self, target_rpm, unit, experiment, hertz=67, rpm_calculator=None):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
         )
@@ -79,6 +115,8 @@ class Stirrer(BackgroundJob):
 
         self.pwm = PWM(self.pwm_pin, hertz)
         self.pwm.lock()
+
+        self.rpm_calculator = rpm_calculator
 
         # set up PID
         self.target_rpm = target_rpm
@@ -116,9 +154,9 @@ class Stirrer(BackgroundJob):
         self.rpm_check_thread.pause()
 
         self.pwm.start(100)  # get momentum to start
-        time.sleep(1.5)
+        sleep(1.5)
         self.set_duty_cycle(self.duty_cycle)
-        time.sleep(0.5)
+        sleep(0.5)
 
         while self._currently_polling:
             # if another process is running polling, pass.
@@ -130,16 +168,16 @@ class Stirrer(BackgroundJob):
             if (
                 abs(self.actual_rpm - self.target_rpm) < 15
             ):  # TODO: I don't like this check, it will tend to overshoot.
-                time.sleep(0.1)
+                sleep(0.1)
                 self.poll_and_update_dc(6)  # one last correction to avoid overshooting
                 break
-            time.sleep(0.1)
+            sleep(0.1)
 
         self.rpm_check_thread.unpause()
 
     def poll(self, poll_for_seconds: float):
         self._currently_polling = True
-        self.actual_rpm = self._estimate_rpm_from_frequency(poll_for_seconds)
+        self.actual_rpm = self.rpm_calculator(poll_for_seconds)
         self._currently_polling = False
         return self.actual_rpm
 
@@ -150,36 +188,6 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"duty_cycle={self.duty_cycle}")
 
         return result
-
-    def _estimate_rpm_from_frequency(self, seconds_to_observe: float):
-        import RPi.GPIO as GPIO
-
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.hall_sensor_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-        self._running_sum = 0
-        self._running_count = 0
-        self._start_time = None
-
-        def cb(channel):
-            obs_time = time.time()
-
-            if self._start_time is not None:
-                delta_time = obs_time - self._start_time
-                self._running_sum = self._running_sum + delta_time
-                self._running_count = self._running_count + 1
-
-            self._start_time = obs_time
-
-        GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
-        time.sleep(seconds_to_observe)
-        GPIO.remove_event_detect(self.hall_sensor_pin)
-        GPIO.cleanup(self.hall_sensor_pin)
-
-        if self._running_sum == 0:
-            return 0
-        else:
-            return self._running_count * 60 / self._running_sum
 
     def _estimate_rpm_from_count_rotations(self, seconds_to_observe: float):
         # abstract to another class
@@ -193,8 +201,10 @@ class Stirrer(BackgroundJob):
         def cb(channel):
             self._rpm_counter = self._rpm_counter + 1
 
-        GPIO.add_event_detect(self.hall_sensor_pin, GPIO.RISING, callback=cb)
-        time.sleep(seconds_to_observe)
+        GPIO.add_event_detect(
+            self.hall_sensor_pin, GPIO.RISING, callback=cb, bouncetime=10
+        )
+        sleep(seconds_to_observe)
         GPIO.remove_event_detect(self.hall_sensor_pin)
         GPIO.cleanup(self.hall_sensor_pin)
 
@@ -234,7 +244,7 @@ class Stirrer(BackgroundJob):
             ):  # TODO: I don't like this check, it will tend to overshoot.
                 self.poll_and_update_dc(6)  # one last correction to avoid overshooting
                 break
-            time.sleep(0.1)  # sleep for a moment to "apply" the new DC.
+            sleep(0.1)  # sleep for a moment to "apply" the new DC.
 
         self.rpm_check_thread.unpause()
 
@@ -247,6 +257,7 @@ def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
         target_rpm=target_rpm,
         unit=unit,
         experiment=experiment,
+        rpm_calculator=RpmFromFrequency(),
     )
     stirrer.start_stirring()
     return stirrer
@@ -267,4 +278,4 @@ def click_stirring(target_rpm):
     start_stirring(
         target_rpm=target_rpm,
     )
-    signal.pause()
+    pause()
