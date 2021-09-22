@@ -191,11 +191,11 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            15,
+            10,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
-            poll_for_seconds=6,
+            poll_for_seconds=4,
         )
 
     def on_disconnect(self):
@@ -211,7 +211,11 @@ class Stirrer(BackgroundJob):
         sleep(0.5)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
-        self.rpm_check_repeated_thread.start()
+
+        try:
+            self.rpm_check_repeated_thread.start()
+        except RuntimeError:
+            pass
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """
