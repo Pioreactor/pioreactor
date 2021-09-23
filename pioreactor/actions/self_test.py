@@ -199,6 +199,10 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
 
 def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
     class EmptyRpmCalculator:
+        """
+        mimics RpmCalculators, but does nothing - I don't want this to return an RPM, so Stirrer won't update anything.
+        """
+
         def __call__(self, *args):
             return
 
@@ -208,6 +212,8 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
     dcs = list(range(90, 50, -5))
     measured_rpms = []
 
+    rpm_calc = stirring.RpmFromFrequency()
+
     st = stirring.Stirrer(
         target_rpm=400,
         unit=unit,
@@ -216,13 +222,14 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
         initial_duty_cycle=dcs[0],
     )
     st.start_stirring()
-    rpm_calc = stirring.RpmFromFrequency()
     time.sleep(2)
 
     for dc in dcs:
         st.set_duty_cycle(dc)
         time.sleep(1)
         measured_rpms.append(rpm_calc(4))
+
+    rpm_calc.cleanup()
 
     measured_correlation = round(correlation(dcs, measured_rpms), 2)
     logger.debug(

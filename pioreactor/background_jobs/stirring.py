@@ -24,7 +24,12 @@ class RpmCalculator:
     We do some funky things with RPi.GPIO here.
 
     1) to minimize global imports, we import in init, and attach the module to self.
-    2)
+    2) More egregious: we previously has this class call `add_event_detect` and afterwards `remove_event_detect`
+       in each __call__ - this made sure that we were saving CPU resources when we were not measuring the RPM.
+       This was causing `Bus error`, and crashing Python. What I think was happening was that the folder
+       `/sys/class/gpio/gpio15` was constantly being written and deleted in each __call__, causing problems with the
+       SD card. Anyways, what we do now is turn the pin from IN to OUT inbetween the calls to RPM measurement. This
+       is taken care of in `turn_{on,off}_collection`.
 
     """
 
@@ -37,9 +42,7 @@ class RpmCalculator:
 
         self.GPIO = GPIO
         self.GPIO.setmode(self.GPIO.BCM)
-        self.GPIO.setup(
-            self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP
-        )  # we will turn on later.
+        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
         self.GPIO.add_event_detect(
             self.hall_sensor_pin, self.GPIO.RISING, callback=self.callback, bouncetime=2
         )
@@ -102,7 +105,7 @@ class RpmFromCount(RpmCalculator):
 
     _rpm_counter = 0
 
-    def _callback(self, *args):
+    def callback(self, *args):
         self._rpm_counter = self._rpm_counter + 1
 
     def __call__(self, seconds_to_observe: float) -> int:
