@@ -19,6 +19,13 @@ from pioreactor.utils.timing import RepeatedTimer
 class RpmCalculator:
     """
     Super class for determining how to calculate the RPM from the hall sensor.
+
+
+    We do some funky things with RPi.GPIO here.
+
+    1) to minimize global imports, we import in init, and attach the module to self.
+    2)
+
     """
 
     hall_sensor_pin = HALL_SENSOR_PIN
@@ -56,6 +63,9 @@ class RpmCalculator:
 class EmptyRpmCalculator(RpmCalculator):
     def __call__(self, seconds_to_observe: float) -> None:
         return None
+
+    def callback(self, *args):
+        return
 
 
 class RpmFromFrequency(RpmCalculator):
@@ -107,9 +117,9 @@ class RpmFromCount(RpmCalculator):
 
         self._rpm_counter = 0
 
-        self.collect = True
+        self.turn_on_collection()
         sleep(seconds_to_observe)
-        self.collect = False
+        self.turn_off_collection()
 
         return round(self._rpm_counter * 60 / seconds_to_observe)
 
