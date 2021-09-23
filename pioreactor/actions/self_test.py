@@ -209,6 +209,7 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
         initial_duty_cycle=dcs[0],
     )
     rpm_calc = stirring.RpmFromFrequency()
+    time.sleep(2)
 
     for dc in dcs:
         st.set_duty_cycle(dc)
