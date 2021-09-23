@@ -30,11 +30,23 @@ class RpmCalculator:
 
         self.GPIO = GPIO
         self.GPIO.setmode(self.GPIO.BCM)
+        self.GPIO.setup(
+            self.hall_sensor_pin, self.GPIO.OUT, pull_up_down=self.GPIO.PUD_UP
+        )  # we will turn on later.
+        self.GPIO.add_event_detect(
+            self.hall_sensor_pin, self.GPIO.RISING, callback=self.callback, bouncetime=2
+        )
+
+    def turn_off_collection(self):
+        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
+
+    def turn_on_collection(self):
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def cleanup(self):
-        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
+        self.GPIO.remove_event_detect(self.hall_sensor_pin)
         self.GPIO.cleanup(self.hall_sensor_pin)
+        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def __call__(self, seconds_to_observe: float) -> Optional[int]:
         pass
@@ -55,7 +67,7 @@ class RpmFromFrequency(RpmCalculator):
     _running_count = 0
     _start_time = None
 
-    def _callback(self, *args):
+    def callback(self, *args):
         obs_time = perf_counter()
 
         if self._start_time is not None:
@@ -70,11 +82,9 @@ class RpmFromFrequency(RpmCalculator):
         self._running_count = 0
         self._start_time = None
 
-        self.GPIO.add_event_detect(
-            self.hall_sensor_pin, self.GPIO.RISING, callback=self._callback, bouncetime=2
-        )
+        self.turn_on_collection()
         sleep(seconds_to_observe)
-        self.GPIO.remove_event_detect(self.hall_sensor_pin)
+        self.turn_off_collection()
 
         if self._running_sum == 0:
             return 0
@@ -96,11 +106,9 @@ class RpmFromCount(RpmCalculator):
 
         self._rpm_counter = 0
 
-        self.GPIO.add_event_detect(
-            self.hall_sensor_pin, self.GPIO.RISING, callback=self._callback, bouncetime=2
-        )
+        self.collect = True
         sleep(seconds_to_observe)
-        self.GPIO.remove_event_detect(self.hall_sensor_pin)
+        self.collect = False
 
         return round(self._rpm_counter * 60 / seconds_to_observe)
 

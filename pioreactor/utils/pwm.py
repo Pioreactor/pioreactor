@@ -78,8 +78,7 @@ class PWM:
             import RPi.GPIO as GPIO
 
             GPIO.setmode(GPIO.BCM)
-            GPIO.setup(self.pin, GPIO.OUT)
-            GPIO.output(self.pin, 0)
+            GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
 
             if hz > 5000:
                 self.logger.warning(
@@ -144,8 +143,7 @@ class PWM:
             import RPi.GPIO as GPIO
 
             GPIO.setmode(GPIO.BCM)
-            GPIO.setup(self.pin, GPIO.OUT)
-            GPIO.output(self.pin, 0)
+            GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
             GPIO.cleanup(self.pin)
         self.logger.debug(f"Cleaned up PWM-{self.pin}.")
 
