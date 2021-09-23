@@ -60,14 +60,6 @@ class RpmCalculator:
         pass
 
 
-class EmptyRpmCalculator(RpmCalculator):
-    def __call__(self, seconds_to_observe: float) -> None:
-        return None
-
-    def callback(self, *args):
-        return
-
-
 class RpmFromFrequency(RpmCalculator):
     """
     Averages the duration between rises in an N second window. This is more accurate (but less robust)

@@ -198,6 +198,13 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
 
 
 def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
+    class EmptyRpmCalculator:
+        def __call__(self, *args):
+            return
+
+        def cleanup(self):
+            return
+
     dcs = list(range(90, 50, -5))
     measured_rpms = []
 
@@ -205,7 +212,7 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
         target_rpm=400,
         unit=unit,
         experiment=experiment,
-        rpm_calculator=stirring.EmptyRpmCalculator(),
+        rpm_calculator=EmptyRpmCalculator(),
         initial_duty_cycle=dcs[0],
     )
     st.start_stirring()
