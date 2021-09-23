@@ -79,7 +79,7 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 """
 from __future__ import annotations
 from typing import Optional, NewType, Any
-from time import time, sleep
+from time import time, sleep, perf_counter
 from json import loads
 import signal
 import click
@@ -535,7 +535,7 @@ class TemperatureCompensator(BackgroundSubJob):
             self.previous_temperature = self.latest_temperature
 
         self.latest_temperature = tmp
-        self.time_of_last_temperature = time()
+        self.time_of_last_temperature = perf_counter()
 
     def start_passive_listeners(self):
         self.subscribe_and_callback(
@@ -570,7 +570,7 @@ class LinearTemperatureCompensator(TemperatureCompensator):
         else:
             from math import exp
 
-            time_since_last = time() - self.time_of_last_temperature
+            time_since_last = perf_counter() - self.time_of_last_temperature
             f = min(time_since_last / (10 * 60), 1)  # interpolate to current temp
             iterpolated_temp = (
                 f * self.latest_temperature + (1 - f) * self.previous_temperature

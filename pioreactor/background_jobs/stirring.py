@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from signal import pause
-from time import sleep, time
+from time import sleep, perf_counter
 from typing import Optional
 import click
 
@@ -17,10 +17,24 @@ from pioreactor.utils.timing import RepeatedTimer
 
 
 class RpmCalculator:
+    """
+    Super class for determining how to calculate the RPM from the hall sensor.
+
+    """
+
     hall_sensor_pin = HALL_SENSOR_PIN
 
-    def cleanup(self):
+    def __init__(self):
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
+
+        import RPi.GPIO as GPIO
+
+        self.GPIO = GPIO
+        self.GPIO.setmode(self.GPIO.BCM)
+        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
+
+    def cleanup(self):
+        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
         self.GPIO.cleanup(self.hall_sensor_pin)
 
     def __call__(self, seconds_to_observe: float) -> Optional[int]:
@@ -36,30 +50,17 @@ class RpmFromFrequency(RpmCalculator):
     _running_sum = 0
     _running_count = 0
     _start_time = None
-    _currently_polling = False
-
-    def __init__(self):
-        import RPi.GPIO as GPIO
-
-        self.GPIO = GPIO
-        self.GPIO.setmode(self.GPIO.BCM)
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def _callback(self, *args):
-        obs_time = time()
+        obs_time = perf_counter()
 
         if self._start_time is not None:
-            delta_time = obs_time - self._start_time
-            self._running_sum = self._running_sum + delta_time
-            self._running_count = self._running_count + 1
+            self._running_sum += obs_time - self._start_time
+            self._running_count += 1
 
         self._start_time = obs_time
 
     def __call__(self, seconds_to_observe: float) -> int:
-        while self._currently_polling:
-            pass
-
-        self._currently_polling = True
 
         self._running_sum = 0
         self._running_count = 0
@@ -70,8 +71,6 @@ class RpmFromFrequency(RpmCalculator):
         )
         sleep(seconds_to_observe)
         self.GPIO.remove_event_detect(self.hall_sensor_pin)
-
-        self._currently_polling = False
 
         if self._running_sum == 0:
             return 0
@@ -85,23 +84,11 @@ class RpmFromCount(RpmCalculator):
     """
 
     _rpm_counter = 0
-    _currently_polling = False
-
-    def __init__(self):
-        import RPi.GPIO as GPIO
-
-        self.GPIO = GPIO
-        self.GPIO.setmode(self.GPIO.BCM)
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def _callback(self, *args):
         self._rpm_counter = self._rpm_counter + 1
 
     def __call__(self, seconds_to_observe: float) -> int:
-        while self._currently_polling:
-            pass
-
-        self._currently_polling = True
 
         self._rpm_counter = 0
 
@@ -110,8 +97,6 @@ class RpmFromCount(RpmCalculator):
         )
         sleep(seconds_to_observe)
         self.GPIO.remove_event_detect(self.hall_sensor_pin)
-
-        self._currently_polling = False
 
         return round(self._rpm_counter * 60 / seconds_to_observe)
 
@@ -133,10 +118,8 @@ class Stirrer(BackgroundJob):
     an edge detector on the hall sensor pin, and count the number of pulses in N seconds. We convert this count to RPM, and
     then use a PID system to update the amount of duty cycle to apply.
 
-    We perform the above in three places:
-    1. When the job starts or unpauses, we tune the DC (using above algorithm) until we reach a value "close" to the `target_rpm`. This occurs in a Thread.
-    2. When we change the `target_rpm`, we tune the DC until we reach a value "close" to the `target_rpm`. This occurs in a Thread.
-    3. Every N minutes, we perform a small tweak to correct for long term changes. This occurs in a RepeatedTimer (internally a Thread).
+    We perform the above every N seconds. That is, there is PID controller that checks every N seconds and nudges the duty cycle
+    to match the requested RPM.
 
 
     Examples
@@ -144,9 +127,6 @@ class Stirrer(BackgroundJob):
 
     > st = Stirrer(500, unit, experiment)
     > st.start_stirring()
-
-     - [ ] what happens if I change target_rpm in quick succession?
-
     """
 
     published_settings = {
@@ -258,20 +238,6 @@ class Stirrer(BackgroundJob):
     def set_target_rpm(self, value):
         self.target_rpm = float(value)
         self.pid.set_setpoint(self.target_rpm)
-
-    def _iterate_dc_to_rpm(self):
-        # we need to start the feedback loop here to orient close to our desired value
-        while (self.state == self.READY) or (self.state == self.INIT):
-            self.poll_and_update_dc(
-                poll_for_seconds=6
-            )  # TODO: compare how accurate this? Maybe more / less than 6 is needed
-            if (
-                abs(self.actual_rpm - self.target_rpm) < 5
-            ):  # TODO: I don't like this check, it will tend to overshoot.
-                break
-            sleep(
-                0.2
-            )  # sleep for a moment to "apply" the new DC, i.e. the stirring has a slow response time.
 
 
 def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
