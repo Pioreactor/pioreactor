@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import time
-from pioreactor.background_jobs.stirring import start_stirring, Stirrer
+from pioreactor.background_jobs.stirring import (
+    start_stirring,
+    Stirrer,
+    RpmCalculator,
+    RpmFromFrequency,
+)
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.pubsub import publish, subscribe
 
@@ -22,7 +27,7 @@ def test_stirring_runs():
 def test_change_target_rpm_mid_cycle():
     original_rpm = 500
 
-    st = Stirrer(original_rpm, unit, exp)
+    st = Stirrer(original_rpm, unit, exp, rpm_calculator=RpmCalculator())
     assert st.target_rpm == original_rpm
     pause()
 
@@ -42,10 +47,9 @@ def test_change_target_rpm_mid_cycle():
 
 
 def test_pause_stirring_mid_cycle():
-    original_dc = 50
 
-    st = Stirrer(original_dc, unit, exp)
-    assert st.duty_cycle == original_dc
+    st = Stirrer(500, unit, exp, rpm_calculator=RpmCalculator())
+    original_dc = st.duty_cycle
     pause()
 
     publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
@@ -56,30 +60,7 @@ def test_pause_stirring_mid_cycle():
     publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "ready")
     pause()
 
-    assert st.duty_cycle == 50
-    st.set_state(st.DISCONNECTED)
-
-
-def test_pause_stirring_mid_cycle_with_modified_dc():
-    original_dc = 50
-
-    st = Stirrer(original_dc, unit, exp)
     assert st.duty_cycle == original_dc
-
-    new_dc = 80
-    publish(f"pioreactor/{unit}/{exp}/stirring/duty_cycle/set", new_dc)
-
-    pause()
-
-    publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "sleeping")
-    pause()
-
-    assert st.duty_cycle == 0
-
-    publish(f"pioreactor/{unit}/{exp}/stirring/$state/set", "ready")
-    pause()
-
-    assert st.duty_cycle == new_dc
     st.set_state(st.DISCONNECTED)
 
 
@@ -88,10 +69,26 @@ def test_publish_target_rpm():
     pause()
     target_rpm = 500
 
-    st = Stirrer(target_rpm, unit, exp)
+    st = Stirrer(target_rpm, unit, exp, rpm_calculator=RpmCalculator())
     assert st.target_rpm == target_rpm
 
     pause()
     message = subscribe(f"pioreactor/{unit}/{exp}/stirring/target_rpm")
     assert float(message.payload) == 500
+    st.set_state(st.DISCONNECTED)
+
+
+def test_publish_actual_rpm():
+    publish(f"pioreactor/{unit}/{exp}/stirring/actual_rpm", None, retain=True)
+    pause()
+    target_rpm = 500
+
+    st = Stirrer(target_rpm, unit, exp, rpm_calculator=RpmFromFrequency())
+    st.start_stirring()
+    assert st.target_rpm == target_rpm
+
+    pause()
+
+    message = subscribe(f"pioreactor/{unit}/{exp}/stirring/actual_rpm")
+    assert float(message.payload) == 0
     st.set_state(st.DISCONNECTED)

@@ -37,6 +37,11 @@ class RpmCalculator:
         self.GPIO.cleanup(self.hall_sensor_pin)
 
     def __call__(self, seconds_to_observe: float) -> Optional[int]:
+        pass
+
+
+class EmptyRpmCalculator(RpmCalculator):
+    def __call__(self, seconds_to_observe: float) -> None:
         return None
 
 
@@ -133,7 +138,6 @@ class Stirrer(BackgroundJob):
         "actual_rpm": {"datatype": "int", "settable": False, "unit": "RPM"},
     }
     _previous_duty_cycle: float = 0
-    duty_cycle: float = 60  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     rpm_check_thread = None
 
     def __init__(
@@ -143,6 +147,7 @@ class Stirrer(BackgroundJob):
         experiment: str,
         rpm_calculator: RpmCalculator,
         hertz=67,
+        initial_duty_cycle: float = 60,  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     ):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
@@ -152,6 +157,8 @@ class Stirrer(BackgroundJob):
 
         self.pwm = PWM(self.pwm_pin, hertz)
         self.pwm.lock()
+
+        self.initial_duty_cycle = initial_duty_cycle
 
         self.rpm_calculator = rpm_calculator
 

@@ -82,7 +82,6 @@ class RepeatedTimer:
             job_name or "RepeatedTimer"
         )  # TODO: I don't think this works as expected.
         self.is_paused = False
-        self.is_currently_executing = False
         self.run_after = run_after or 0
         self.run_immediately = run_immediately
         self.event = Event()
@@ -102,27 +101,21 @@ class RepeatedTimer:
         if self.run_immediately:
             self._execute_function()
 
-        while not self.event.wait(self._time) and not self.is_currently_executing:
+        while not self.event.wait(self._time):
             if self.is_paused:
                 continue
             self._execute_function()
 
-    def _execute_function(self) -> bool:
+    def _execute_function(self):
         """
         Exits early if the function is currently executing.
         """
-        if self.is_currently_executing:
-            return
-
-        self.is_currently_executing = True
 
         try:
             self.function(*self.args, **self.kwargs)
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
-        finally:
-            self.is_currently_executing = False
 
     @property
     def _time(self):
