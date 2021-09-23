@@ -30,10 +30,13 @@ class RpmCalculator:
 
         self.GPIO = GPIO
         self.GPIO.setmode(self.GPIO.BCM)
-        self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)  # we will turn on later.
+        self.GPIO.setup(
+            self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP
+        )  # we will turn on later.
         self.GPIO.add_event_detect(
             self.hall_sensor_pin, self.GPIO.RISING, callback=self.callback, bouncetime=2
         )
+        self.turn_off_collection()
 
     def turn_off_collection(self):
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
