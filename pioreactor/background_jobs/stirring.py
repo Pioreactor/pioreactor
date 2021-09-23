@@ -166,8 +166,8 @@ class Stirrer(BackgroundJob):
         self.target_rpm = target_rpm
         self.pid = PID(
             Kp=config.getfloat("stirring.pid", "Kp"),
-            Ki=0.0,
-            Kd=0.0,
+            Ki=config.getfloat("stirring.pid", "Ki"),
+            Kd=config.getfloat("stirring.pid", "Kd"),
             setpoint=self.target_rpm,
             unit=self.unit,
             experiment=self.experiment,
@@ -247,7 +247,9 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
 
-def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
+def start_stirring(
+    target_rpm=0, unit=None, experiment=None, initial_duty_cycle=60
+) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 
@@ -256,6 +258,7 @@ def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
         unit=unit,
         experiment=experiment,
         rpm_calculator=RpmFromFrequency(),
+        initial_duty_cycle=initial_duty_cycle,
     )
     stirrer.start_stirring()
     return stirrer
@@ -269,11 +272,16 @@ def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
     show_default=True,
     type=click.IntRange(0, 1000, clamp=True),
 )
-def click_stirring(target_rpm):
+@click.option(
+    "--initial-duty-cycle",
+    default=config.getint("stirring", "initial_duty_cycle", fallback=60),
+    help="set the initial duty cycle",
+    show_default=True,
+    type=click.IntRange(0, 100, clamp=True),
+)
+def click_stirring(target_rpm, initial_duty_cycle):
     """
     Start the stirring of the Pioreactor.
     """
-    start_stirring(
-        target_rpm=target_rpm,
-    )
+    start_stirring(target_rpm=target_rpm, initial_duty_cycle=initial_duty_cycle)
     pause()
