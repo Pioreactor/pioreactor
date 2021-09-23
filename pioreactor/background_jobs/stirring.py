@@ -19,7 +19,6 @@ from pioreactor.utils.timing import RepeatedTimer
 class RpmCalculator:
     """
     Super class for determining how to calculate the RPM from the hall sensor.
-
     """
 
     hall_sensor_pin = HALL_SENSOR_PIN
@@ -195,6 +194,7 @@ class Stirrer(BackgroundJob):
         try:
             self.rpm_check_repeated_thread.start()
         except RuntimeError:
+            # possibly the thread has already started
             pass
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
