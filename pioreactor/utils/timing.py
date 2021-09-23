@@ -107,10 +107,6 @@ class RepeatedTimer:
             self._execute_function()
 
     def _execute_function(self):
-        """
-        Exits early if the function is currently executing.
-        """
-
         try:
             self.function(*self.args, **self.kwargs)
         except Exception as e:

@@ -158,7 +158,7 @@ class Stirrer(BackgroundJob):
         self.pwm = PWM(self.pwm_pin, hertz)
         self.pwm.lock()
 
-        self.initial_duty_cycle = initial_duty_cycle
+        self.duty_cycle = initial_duty_cycle
 
         self.rpm_calculator = rpm_calculator
 
