@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from time import sleep
 from json import dumps
-from sys import modules
 from signal import pause
 from datetime import datetime
 
@@ -63,12 +62,6 @@ class Monitor(BackgroundJob):
         self.start_passive_listeners()
 
     def setup_GPIO(self):
-        if is_testing_env():
-            import fake_rpi
-
-            modules["RPi"] = fake_rpi.RPi  # Fake RPi
-            modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
-
         import RPi.GPIO as GPIO
 
         # I am hiding all the slow imports, but in this case, I need GPIO module

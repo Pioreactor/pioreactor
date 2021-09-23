@@ -106,7 +106,7 @@ def create_logger(
     file_handler.setFormatter(
         logging.Formatter(
             "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+            datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
     )
 
@@ -116,7 +116,7 @@ def create_logger(
     console_handler.setFormatter(
         logging.Formatter(
             "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+            datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
     )
 

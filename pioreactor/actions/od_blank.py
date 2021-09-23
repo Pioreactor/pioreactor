@@ -19,7 +19,7 @@ from pioreactor.whoami import (
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.background_jobs.stirring import start_stirring
 
 
 def od_blank(
@@ -61,12 +61,11 @@ def od_blank(
         # turn on stirring if not already on
         if not is_pio_job_running("stirring"):
             # start stirring
-            st = Stirrer(
-                config.getint("stirring", "duty_cycle"),
+            start_stirring(
+                target_rpm=config.getint("stirring", "target_rpm"),
                 unit=unit,
                 experiment=testing_experiment,
             )
-            st.start_stirring()
             time.sleep(5)
         else:
             pass

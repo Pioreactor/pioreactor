@@ -25,7 +25,7 @@ from collections import defaultdict
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.utils import (
     is_pio_job_running,
     publish_ready_to_disconnected_state,
@@ -88,12 +88,11 @@ def od_temperature_compensation():
             return
 
         # start stirring
-        st = Stirrer(
-            config.getint("stirring", "duty_cycle"),
+        start_stirring(
+            target_rpm=config.getint("stirring", "target_rpm"),
             unit=unit,
             experiment=testing_experiment,
         )
-        st.start_stirring()
 
         # initialize temperature controller.
         duty_cycle = 10

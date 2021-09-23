@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, logging
+from typing import Callable, Optional
 from datetime import datetime, timezone
 from threading import Event, Thread
 from time import perf_counter
@@ -52,22 +53,24 @@ class RepeatedTimer:
     Examples
     ---------
 
-    >> thread = RepeatedTimer(seconds_to_wait, callback)
+    >> thread = RepeatedTimer(seconds_to_wait, callback, callback_arg1="1", callback_arg2=2)
     >> thread.start()
+    >> # manually execute the callback with `thread.run()`
     >> ...
     >> thread.cancel()
+    >>
 
-    To run a job right away (i.e. don't wait interval seconds), use run_immediately
+    To run a job right away (i.e. don't wait interval seconds), use run_immediately`
 
     """
 
     def __init__(
         self,
-        interval,
-        function,
-        job_name=None,
-        run_immediately=False,
-        run_after=None,
+        interval: float,
+        function: Callable,
+        job_name: Optional[str] = None,
+        run_immediately: bool = False,
+        run_after: Optional[float] = None,
         *args,
         **kwargs
     ):
@@ -86,6 +89,8 @@ class RepeatedTimer:
 
     def _target(self):
         """
+        This function runs in a thread.
+
         First we wait for run_after seconds (default is 0), then we run the func immediately if requested,
         and then every N seconds after that, we run func.
 
@@ -94,16 +99,19 @@ class RepeatedTimer:
 
         self.start_time = time.time()
         if self.run_immediately:
-            self.function(*self.args, **self.kwargs)
+            self._execute_function()
 
         while not self.event.wait(self._time):
             if self.is_paused:
                 continue
-            try:
-                self.function(*self.args, **self.kwargs)
-            except Exception as e:
-                self.logger.debug(e, exc_info=True)
-                self.logger.error(e)
+            self._execute_function()
+
+    def _execute_function(self):
+        try:
+            self.function(*self.args, **self.kwargs)
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(e)
 
     @property
     def _time(self):

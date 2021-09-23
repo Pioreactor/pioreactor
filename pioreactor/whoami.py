@@ -80,3 +80,10 @@ def get_uuid() -> str:
     from uuid import getnode
 
     return str(getnode())
+
+
+if is_testing_env():
+    import fake_rpi
+
+    sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
+    sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO

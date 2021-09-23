@@ -293,8 +293,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # look for missing properties
             if not set(properties.keys()).issuperset(necessary_properies):
-                self.logger.error(
-                    f"Found missing necessary property in setting {setting}."
+                raise ValueError(f"Missing necessary property in setting {setting}.")
+
+            if not all(ss.isalnum() for ss in setting.split("_")):
+                # only alphanumeric seperated by _ is allowed.
+                raise ValueError(
+                    f"setting {setting} has bad characters - must be alphanumeric, and only seperated by underscore."
                 )
 
     def create_pub_client(self):
@@ -333,7 +337,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client = create_client(
             client_id=f"{self.unit}-sub-{self.job_name}-{get_uuid()}-{id(self)}",
             last_will=last_will,
-            keepalive=20,
         )
         # we catch exceptions and report them in our software
         client.suppress_exceptions = True
@@ -551,7 +554,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 )
 
     def set_state(self, new_state: str):
-        assert new_state in self.LIFECYCLE_STATES, f"saw {new_state}: not a valid state"
+        if new_state not in self.LIFECYCLE_STATES:
+            self.logger.error(f"saw {new_state}: not a valid state")
+            return
 
         if hasattr(self, f"on_{self.state}_to_{new_state}"):
             getattr(self, f"on_{self.state}_to_{new_state}")()
@@ -580,9 +585,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         previous_value = getattr(self, attr)
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
-        # for example, see Stirring, and `set_state` here
-        if hasattr(self, "set_%s" % attr):
-            getattr(self, "set_%s" % attr)(new_value)
+        # for example, see Stirring.set_target_rpm, and `set_state` here
+        if hasattr(self, f"set_{attr}"):
+            getattr(self, f"set_{attr}")(new_value)
 
         else:
             try:

@@ -37,7 +37,7 @@ from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
 from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS
 from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
-from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.background_jobs import stirring
 
 
 def test_pioreactor_hat_present(logger, unit, experiment):
@@ -198,15 +198,35 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
 
 
 def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
+    dcs = list(range(90, 50, -5))
+    measured_rpms = []
 
-    st = start_stirring(duty_cycle=100, unit=unit, experiment=experiment)
+    st = stirring.Stirrer(
+        target_rpm=400,
+        unit=unit,
+        experiment=experiment,
+        rpm_calculator=stirring.EmptyRpmCalculator(),
+        initial_duty_cycle=dcs[0],
+    )
+    st.start_stirring()
+    rpm_calc = stirring.RpmFromFrequency()
     time.sleep(2)
-    st.set_state(st.DISCONNECTED)
-    assert False
+
+    for dc in dcs:
+        st.set_duty_cycle(dc)
+        time.sleep(1)
+        measured_rpms.append(rpm_calc(4))
+
+    measured_correlation = round(correlation(dcs, measured_rpms), 2)
+    logger.debug(
+        f"Correlation between stirring RPM and duty cycle: {measured_correlation}"
+    )
+    assert measured_correlation > 0.9
 
 
 @click.command(name="self_test")
-def click_self_test():
+@click.option("-k", help="see pytest's k argument", type=str)
+def click_self_test(k):
     """
     Test the input/output in the Pioreactor
     """
@@ -230,7 +250,12 @@ def click_self_test():
             (name, f)
             for (name, f) in vars(sys.modules[__name__]).items()
             if name.startswith("test_")
-        ]
+        ]  # automagically finds the test_ functions.
+
+        if k:
+            functions_to_test = [
+                (name, f) for (name, f) in functions_to_test if (k in name)
+            ]
 
         count_tested = 0
         count_passed = 0
