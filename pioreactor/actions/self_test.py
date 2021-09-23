@@ -206,7 +206,7 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
         unit=unit,
         experiment=experiment,
         rpm_calculator=stirring.EmptyRpmCalculator(),
-        inital_duty_cycle=dcs[0],
+        initial_duty_cycle=dcs[0],
     )
     rpm_calc = stirring.RpmFromFrequency()
 
@@ -223,7 +223,8 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
 
 
 @click.command(name="self_test")
-def click_self_test():
+@click.option("-k", help="see pytest's k argument", type=str)
+def click_self_test(k):
     """
     Test the input/output in the Pioreactor
     """
@@ -248,6 +249,11 @@ def click_self_test():
             for (name, f) in vars(sys.modules[__name__]).items()
             if name.startswith("test_")
         ]  # automagically finds the test_ functions.
+
+        if k:
+            functions_to_test = [
+                (name, f) for (name, f) in functions_to_test if (k in name)
+            ]
 
         count_tested = 0
         count_passed = 0
