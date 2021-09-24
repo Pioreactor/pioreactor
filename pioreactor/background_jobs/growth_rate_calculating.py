@@ -163,9 +163,18 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
                 "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?",
                 exc_info=True,
             )
-            self.logger.debug(
+            self.logger.error(
                 "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
             )
+
+            # we should clear the cache here...
+
+            with local_persistant_storage("od_normalization_mean") as cache:
+                del cache[self.experiment]
+
+            with local_persistant_storage("od_normalization_variance") as cache:
+                del cache[self.experiment]
+
             raise ZeroDivisionError(
                 "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
             )
@@ -183,12 +192,13 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
                 unit=self.unit, experiment=self.experiment
             )
             self.logger.info("Completed OD normalization metrics.")
-            initial_growth_rate = 0
+            initial_growth_rate = 0.0
+            initial_od = 1.0
         else:
             od_normalization_factors = self.get_od_normalization_from_cache()
             od_variances = self.get_od_variances_from_cache()
             initial_growth_rate = self.get_growth_rate_from_broker()
-            initial_od = self.get_od_from_broker()
+            initial_od = self.get_previous_od_from_broker()
 
         od_blank = self.get_od_blank_from_cache()
 
@@ -229,7 +239,7 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         else:
             return 0
 
-    def get_od_from_broker(self):
+    def get_previous_od_from_broker(self):
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
             timeout=1.5,
