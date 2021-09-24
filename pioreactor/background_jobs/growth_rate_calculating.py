@@ -39,7 +39,7 @@ from datetime import datetime
 import click
 
 from pioreactor.actions.od_normalization import od_normalization
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
 from pioreactor.config import config
 from pioreactor.pubsub import QOS, subscribe
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
@@ -47,7 +47,7 @@ from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
 
 
-class GrowthRateCalculator(BackgroundJob):
+class GrowthRateCalculator(NiceMixin, BackgroundJob):
     def __init__(self, ignore_cache: bool = False, unit=None, experiment=None):
 
         super(GrowthRateCalculator, self).__init__(

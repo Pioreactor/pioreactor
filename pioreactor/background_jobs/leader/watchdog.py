@@ -4,11 +4,11 @@ import signal, time
 import click
 
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
 from pioreactor.pubsub import subscribe
 
 
-class WatchDog(BackgroundJob):
+class WatchDog(NiceMixin, BackgroundJob):
     def __init__(self, unit, experiment):
         super(WatchDog, self).__init__(
             job_name="watchdog", unit=unit, experiment=experiment

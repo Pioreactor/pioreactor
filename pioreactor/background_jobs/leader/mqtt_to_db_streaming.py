@@ -11,7 +11,7 @@ from typing import Callable
 from dataclasses import dataclass
 
 from pioreactor.pubsub import QOS
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
 from pioreactor.utils.timing import current_utc_time
@@ -45,7 +45,7 @@ class TopicToParserToTableContrib(TopicToParserToTable):
         MqttToDBStreamer.topics_to_tables_from_plugins.append(cls)
 
 
-class MqttToDBStreamer(BackgroundJob):
+class MqttToDBStreamer(NiceMixin, BackgroundJob):
 
     topics_to_tables_from_plugins: list[TopicToParserToTableContrib] = []
 
