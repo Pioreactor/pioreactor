@@ -41,7 +41,18 @@ def format_with_optional_units(value, units):
 
 class NiceMixin:
     """
-    Decrease the priority of a job
+    Decrease the priority of a job by 1
+
+
+    Examples
+    ---------
+
+    > class SomeBoringJob(NiceMixin, BackgroundJob):
+    >     def __init__(...)
+    >         super().__init__(...)
+
+
+
     """
 
     def __init__(self, *args, **kwargs):

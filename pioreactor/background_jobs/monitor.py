@@ -3,6 +3,7 @@ from time import sleep
 from json import dumps
 from signal import pause
 from datetime import datetime
+from enum import IntEnum
 
 import click
 
@@ -25,6 +26,12 @@ from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.version import __version__
 
 
+class ErrorCode(IntEnum):
+
+    MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE = 2
+    DISK_IS_ALMOST_FULL_ERROR_CODE = 3
+
+
 class Monitor(NiceMixin, BackgroundJob):
     """
     This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
@@ -38,9 +45,6 @@ class Monitor(NiceMixin, BackgroundJob):
      4. Check database backup if leader
 
     """
-
-    MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE = 2
-    DISK_IS_ALMOST_FULL_ERROR_CODE = 3
 
     def __init__(self, unit, experiment):
         super().__init__(job_name="monitor", unit=unit, experiment=experiment)
@@ -97,7 +101,7 @@ class Monitor(NiceMixin, BackgroundJob):
 
             # should this be in a thread?
             self.flicker_led_error_code(
-                self.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE
+                ErrorCode.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE
             )
 
     def check_for_last_backup(self):
@@ -265,7 +269,7 @@ class Monitor(NiceMixin, BackgroundJob):
         else:
             # TODO: add documentation to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
-            self.flicker_led_error_code(self.DISK_IS_ALMOST_FULL_ERROR_CODE)
+            self.flicker_led_error_code(ErrorCode.DISK_IS_ALMOST_FULL_ERROR_CODE)
 
         if cpu_usage_percent <= 75:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")

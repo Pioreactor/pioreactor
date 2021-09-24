@@ -38,6 +38,7 @@ from pioreactor.logging import create_logger
 from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS
 from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
 from pioreactor.background_jobs import stirring
+from pioreactor.config import config
 
 
 def test_pioreactor_hat_present(logger, unit, experiment):
@@ -58,6 +59,8 @@ def test_pioreactor_hat_present(logger, unit, experiment):
 
 
 def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
+    # def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment):
+
     from pprint import pformat
 
     INTENSITIES = list(range(2, 58, 8))
@@ -134,7 +137,15 @@ def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
             json.dumps(detected_relationships),
         )
 
-        assert len(detected_relationships) > 0
+        # we require that the IR photodiodes defined in the config have a
+        # correlation with the IR led
+
+        ir_led_channel = config["leds_reverse"]["ir_led"]
+
+        for ir_pd_channel, angle in config["od_config.photodiode_channel"].items():
+            if angle:
+                # present
+                assert results[(ir_led_channel, ir_pd_channel)] > 0.85
 
 
 def test_ambient_light_interference(logger, unit, experiment):
