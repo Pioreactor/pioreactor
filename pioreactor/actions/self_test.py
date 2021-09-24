@@ -145,7 +145,7 @@ def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
         for ir_pd_channel, angle in config["od_config.photodiode_channel"].items():
             if angle:
                 # present
-                assert results[(ir_led_channel, ir_pd_channel)] > 0.85
+                assert results[(ir_led_channel, int(ir_pd_channel))] > 0.85
 
 
 def test_ambient_light_interference(logger, unit, experiment):
