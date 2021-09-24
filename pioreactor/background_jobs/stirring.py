@@ -29,7 +29,7 @@ class RpmCalculator:
        This was causing `Bus error`, and crashing Python. What I think was happening was that the folder
        `/sys/class/gpio/gpio15` was constantly being written and deleted in each __call__, causing problems with the
        SD card. Anyways, what we do now is turn the pin from IN to OUT inbetween the calls to RPM measurement. This
-       is taken care of in `turn_{on,off}_collection`.
+       is taken care of in `turn_{on,off}_collection`. Flipping this only writes to `/sys/class/gpio/gpio15/direction`.
 
     """
 
@@ -49,6 +49,7 @@ class RpmCalculator:
         self.turn_off_collection()
 
     def turn_off_collection(self):
+        # I can also just write to the file system from python...
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
 
     def turn_on_collection(self):

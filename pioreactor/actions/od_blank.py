@@ -114,6 +114,12 @@ def od_blank(
             means[sensor] = mean(reading_series)
             variances[str(sensor) + "_var"] = variance(reading_series)
 
+            # warn users that a blank is 0 - maybe this should be an error instead? TODO: link this to a docs page.
+            if means[sensor] == 0.0:
+                logger.warning(
+                    f"OD reading for PD Channel {sensor} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"
+                )
+
         # store locally as the source of truth.
         with local_persistant_storage(action_name) as cache:
             cache[experiment] = json.dumps(means)

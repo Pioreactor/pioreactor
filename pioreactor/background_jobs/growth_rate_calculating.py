@@ -143,18 +143,32 @@ class GrowthRateCalculator(BackgroundJob):
         """
         import numpy as np
 
-        scaling_obs_variances = np.array(
-            [
-                self.od_variances[channel]
-                / (self.od_normalization_factors[channel] - self.od_blank[channel]) ** 2
-                for channel in self.od_normalization_factors
-            ]
-        )
+        try:
 
-        obs_variances = config.getfloat("growth_rate_kalman", "obs_std") ** 2 * np.diag(
-            scaling_obs_variances
-        )
-        return obs_variances
+            scaling_obs_variances = np.array(
+                [
+                    self.od_variances[channel]
+                    / (self.od_normalization_factors[channel] - self.od_blank[channel])
+                    ** 2
+                    for channel in self.od_normalization_factors
+                ]
+            )
+
+            obs_variances = config.getfloat(
+                "growth_rate_kalman", "obs_std"
+            ) ** 2 * np.diag(scaling_obs_variances)
+            return obs_variances
+        except ZeroDivisionError:
+            self.logger.debug(
+                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?",
+                exc_info=True,
+            )
+            self.logger.debug(
+                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
+            )
+            raise ZeroDivisionError(
+                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
+            )
 
     def get_precomputed_values(self):
         if self.ignore_cache:

@@ -298,4 +298,10 @@ def click_self_test(k):
             int(count_passed == count_tested),
             retain=True,
         )
+
+        if count_passed == count_tested:
+            logger.info("All tests passed ✅")
+        else:
+            logger.info(f"{count_tested-count_passed} failed tests.")
+
         return int(count_passed != count_tested)

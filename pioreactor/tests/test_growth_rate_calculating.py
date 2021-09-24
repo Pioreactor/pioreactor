@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import time
+import pytest
 import numpy as np
 from numpy.testing import assert_array_equal
 
@@ -527,3 +528,18 @@ class TestGrowthRateCalculating:
 
         assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {"2": 2.0, "1": 0.25}
         calc.set_state(calc.DISCONNECTED)
+
+    def test_zero_blank_and_zero_od_coming_in(self):
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"1": 0})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"1": 0})
+
+        with local_persistant_storage("od_blank") as cache:
+            cache[experiment] = json.dumps({"1": 0})
+
+        with pytest.raises(ZeroDivisionError):
+            with GrowthRateCalculator(unit=unit, experiment=experiment):
+                pass
