@@ -17,6 +17,7 @@ from pioreactor.whoami import (
     am_I_active_worker,
     get_unit_name,
     UNIVERSAL_EXPERIMENT,
+    get_rpi_machine,
 )
 from pioreactor.config import config, get_leader_hostname
 from pioreactor import background_jobs as jobs
@@ -32,10 +33,8 @@ import pioreactor.utils.networking as networking
 def pio():
     """
     Execute commands on this Pioreactor.
-
-    See full documentation here: pioreactor.com/pages/Command-line-interface
-
-    Report errors or feedback here: github.com/Pioreactor/pioreactor/issues
+    See full documentation here: https://pioreactor.com/pages/Command-line-interface
+    Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
 
 
@@ -137,12 +136,11 @@ def version(verbose):
 
     if verbose:
         import platform
-        import board
 
         # TODO include HAT version and latest git shas
         click.echo(f"Pioreactor:             {pioreactor.__version__}")
         click.echo(f"Operating system:       {platform.platform()}")
-        click.echo(f"Raspberry Pi:           {board.detector.get_device_model()}")
+        click.echo(f"Raspberry Pi:           {get_rpi_machine()}")
     else:
         click.echo(pioreactor.__version__)
 

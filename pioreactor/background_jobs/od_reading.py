@@ -76,6 +76,14 @@ Dataflow of raw signal to final output:
 In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other jobs can read it and
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur.
+
+
+TODO:
+Part of me feels like ADCReader and Temperature Compenstator _don't_ need to be SubBackgroundJobs
+classes - I never(?) care about their state, as it doesn't really change (right?) - and they
+use minimal MQTT, which can be just hardcoded in instead of using lots of extra code / CPU.
+
+
 """
 from __future__ import annotations
 from typing import Optional, NewType, Any
@@ -139,6 +147,7 @@ class ADCReader(BackgroundSubJob):
         8: (0.256, 0.512),  # 1 bit = 0.25mV
         16: (-1, 0.256),  # 1 bit = 0.125mV
     }
+    oversampling_count = 25
 
     published_settings = {"first_ads_obs_time": {"datatype": "float", "settable": False}}
 
@@ -395,12 +404,10 @@ class ADCReader(BackgroundSubJob):
         timestamps: dict[PD_Channel, list[float]] = {
             channel: [] for channel in self.channels
         }
-        # oversample over each channel, and we aggregate the results into a single signal.
-        oversampling_count = 25
 
         try:
             with catchtime() as time_since_start:
-                for counter in range(oversampling_count):
+                for counter in range(self.oversampling_count):
                     with catchtime() as time_code_took_to_run:
                         for channel, ai in self.analog_in.items():
                             timestamps[channel].append(time_since_start())
@@ -416,12 +423,12 @@ class ADCReader(BackgroundSubJob):
                     sleep(
                         max(
                             0,
-                            0.80 / (oversampling_count - 1)
+                            0.80 / (self.oversampling_count - 1)
                             - time_code_took_to_run()  # the time_code_took_to_run() reduces the variance by accounting for the duration of each sampling.
                             + 0.005
                             * (
                                 (counter * 0.618034) % 1
-                            ),  # this is to artificially spread out the samples, so that we observe less aliasing.
+                            ),  # this is to artificially spread out the samples, so that we observe less aliasing. That constant is phi.
                         )
                     )
 
@@ -478,7 +485,6 @@ class ADCReader(BackgroundSubJob):
                 self.max_signal_moving_average.update(max_signal)
 
             # check if using correct gain
-            # this should update after first observation
             # this may need to be adjusted for higher rates of data collection
             check_gain_every_n = 5
             if (
@@ -589,13 +595,8 @@ class ODReader(BackgroundJob):
 
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
-    stop_IR_led_between_ADC_readings: bool
-        bool for if the IR LED should turn off between ADC readings. Helps improve
-        lifetime of LED and allows for other optics signals to occur with interference.
-    adc_reader:
-        Probably an ADCReader
-    temperature_compensator:
-        Probably a TemperatureCompensator
+    adc_reader: ADCReader
+    temperature_compensator: TemperatureCompensator
 
 
     Attributes
@@ -620,7 +621,6 @@ class ODReader(BackgroundJob):
         adc_reader: ADCReader,
         unit=None,
         experiment=None,
-        stop_IR_led_between_ADC_readings=True,
         temperature_compensator: TemperatureCompensator = None,
     ):
         super(ODReader, self).__init__(

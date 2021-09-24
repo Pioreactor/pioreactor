@@ -5,7 +5,7 @@ from time import sleep, perf_counter
 from typing import Optional
 import click
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, get_rpi_machine
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
@@ -49,14 +49,12 @@ class RpmCalculator:
         self.turn_off_collection()
 
     def turn_off_collection(self):
-        # I can also just write to the file system from python...
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
 
     def turn_on_collection(self):
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def cleanup(self):
-        self.GPIO.remove_event_detect(self.hall_sensor_pin)
         self.GPIO.cleanup(self.hall_sensor_pin)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
@@ -192,7 +190,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            10,
+            20 if "Raspberry Pi Zero" in get_rpi_machine() else 15,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -221,7 +219,7 @@ class Stirrer(BackgroundJob):
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """
-        Returns an RPM, or None if not measure RPM.
+        Returns an RPM, or None if not measuring RPM.
         """
         self.actual_rpm = self.rpm_calculator(poll_for_seconds)
         if self.actual_rpm == 0:
@@ -237,7 +235,6 @@ class Stirrer(BackgroundJob):
 
         result = self.pid.update(measured_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
-        self.logger.debug(f"duty_cycle={self.duty_cycle}")
 
     def stop_stirring(self):
         # if the user unpauses, we want to go back to their previous value, and not the default.

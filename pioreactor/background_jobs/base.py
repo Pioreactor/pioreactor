@@ -4,6 +4,8 @@ from __future__ import annotations
 import signal
 import threading
 import atexit
+import os
+
 from collections import namedtuple
 from json import dumps
 
@@ -35,6 +37,16 @@ def format_with_optional_units(value, units):
             return f"{value} {units}"
     else:
         return f"{value}"
+
+
+class NiceMixin:
+    """
+    Decrease the priority of a job
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        os.nice(1)
 
 
 class PostInitCaller(type):

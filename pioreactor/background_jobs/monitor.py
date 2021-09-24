@@ -13,7 +13,7 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
     am_I_leader,
 )
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import QOS
 from pioreactor.hardware_mappings import (
@@ -25,7 +25,7 @@ from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.version import __version__
 
 
-class Monitor(BackgroundJob):
+class Monitor(NiceMixin, BackgroundJob):
     """
     This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
 
@@ -40,11 +40,10 @@ class Monitor(BackgroundJob):
     """
 
     MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE = 2
+    DISK_IS_ALMOST_FULL_ERROR_CODE = 3
 
     def __init__(self, unit, experiment):
-        super(Monitor, self).__init__(
-            job_name="monitor", unit=unit, experiment=experiment
-        )
+        super().__init__(job_name="monitor", unit=unit, experiment=experiment)
 
         self.logger.debug(f"PioreactorApp version: {__version__}")
 
@@ -95,6 +94,8 @@ class Monitor(BackgroundJob):
             self.logger.warning(
                 "MQTT client(s) are not connected to leader."
             )  # remember, this doesn't go to leader...
+
+            # should this be in a thread?
             self.flicker_led_error_code(
                 self.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE
             )
@@ -259,11 +260,12 @@ class Monitor(BackgroundJob):
         with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
             cpu_temperature_celcius = round(int(f.read().strip()) / 1000)
 
-        if disk_usage_percent <= 70:
+        if disk_usage_percent <= 80:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
             # TODO: add documentation to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
+            self.flicker_led_error_code(self.DISK_IS_ALMOST_FULL_ERROR_CODE)
 
         if cpu_usage_percent <= 75:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")

@@ -82,6 +82,15 @@ def get_uuid() -> str:
     return str(getnode())
 
 
+def get_rpi_machine() -> str:
+    if not is_testing_env():
+        from board import detector
+
+        return detector.get_device_model()
+    else:
+        return "Raspberry Pi 4 - testing"
+
+
 if is_testing_env():
     import fake_rpi
 
