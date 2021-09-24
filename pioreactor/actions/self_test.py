@@ -58,8 +58,7 @@ def test_pioreactor_hat_present(logger, unit, experiment):
         assert True
 
 
-def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
-    # def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment):
+def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment):
 
     from pprint import pformat
 
@@ -143,9 +142,11 @@ def test_atleast_one_correlation_between_pds_and_leds(logger, unit, experiment):
         ir_led_channel = config["leds_reverse"]["ir_led"]
 
         for ir_pd_channel, angle in config["od_config.photodiode_channel"].items():
-            if angle:
+            if angle != "":
                 # present
-                assert results[(ir_led_channel, int(ir_pd_channel))] > 0.85
+                assert (
+                    results[(ir_led_channel, int(ir_pd_channel))] > 0.85
+                ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
 def test_ambient_light_interference(logger, unit, experiment):
@@ -313,6 +314,8 @@ def click_self_test(k):
         if count_passed == count_tested:
             logger.info("All tests passed ✅")
         else:
-            logger.info(f"{count_tested-count_passed} failed tests.")
+            logger.info(
+                f"{count_tested-count_passed} failed test{'s' if (count_tested-count_passed) > 1 else ''}."
+            )
 
         return int(count_passed != count_tested)
