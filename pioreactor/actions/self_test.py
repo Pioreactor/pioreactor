@@ -277,11 +277,18 @@ def click_self_test(k):
             for (name, f) in vars(sys.modules[__name__]).items()
             if name.startswith("test_")
         ]  # automagically finds the test_ functions.
-
         if k:
             functions_to_test = [
                 (name, f) for (name, f) in functions_to_test if (k in name)
             ]
+
+        # clear the mqtt cache
+        for name, _ in functions_to_test:
+            publish(
+                f"pioreactor/{unit}/{testing_experiment}/self_test/{name}",
+                None,
+                retain=True,
+            )
 
         count_tested = 0
         count_passed = 0
@@ -303,6 +310,7 @@ def click_self_test(k):
             publish(
                 f"pioreactor/{unit}/{testing_experiment}/self_test/{name}",
                 int(res),
+                retain=True,
             )
 
         publish(
