@@ -7,7 +7,7 @@ import json
 import click
 
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, get_rpi_machine
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
@@ -194,7 +194,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            20 if "Raspberry Pi Zero" in get_rpi_machine() else 15,
+            19,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
