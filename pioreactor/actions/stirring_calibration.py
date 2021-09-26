@@ -44,8 +44,8 @@ def stirring_calibration():
             )
             return
 
-        dcs = list(range(95, 45, -5)) + list(
-            range(46, 96, 5)
+        dcs = list(range(95, 50, -5)) + list(
+            range(51, 96, 5)
         )  # we go up and down to exercise any hystersis in the system
         measured_rpms = []
 
