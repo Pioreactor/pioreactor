@@ -55,6 +55,7 @@ def stirring_calibration():
             experiment=experiment,
             rpm_calculator=None,
         )
+        st.duty_cycle = dcs[0]
         st.start_stirring()
         time.sleep(10)
 
@@ -66,7 +67,9 @@ def stirring_calibration():
         rpm_calc.cleanup()
         st.set_state(st.DISCONNECTED)
 
-        publish_to_pioreactor_cloud("stirring_calibration", json=zip(dcs, measured_rpms))
+        publish_to_pioreactor_cloud(
+            "stirring_calibration", json=dict(zip(dcs, measured_rpms))
+        )
 
         # drop any 0 in RPM, too little DC
         dcs, measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))

@@ -219,6 +219,8 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
     st = stirring.Stirrer(
         target_rpm=400, unit=unit, experiment=experiment, rpm_calculator=None
     )
+    st.duty_cycle = dcs[0]
+
     st.start_stirring()
     time.sleep(2)
 
