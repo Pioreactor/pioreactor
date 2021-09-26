@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import time
+import time, json
 from pioreactor.background_jobs.stirring import (
     start_stirring,
     Stirrer,
     RpmCalculator,
     RpmFromFrequency,
 )
+from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.pubsub import publish, subscribe
 
@@ -91,4 +92,25 @@ def test_publish_actual_rpm():
 
     message = subscribe(f"pioreactor/{unit}/{exp}/stirring/actual_rpm")
     assert float(message.payload) == 0
+    st.set_state(st.DISCONNECTED)
+
+
+def test_stirring_with_lookup_linear_v1():
+
+    with local_persistant_storage("stirring_calibration") as cache:
+        cache["linear_v1"] = json.dumps({"rpm_coef": 0.1, "intercept": 20})
+
+    target_rpm = 500
+    st = Stirrer(target_rpm, unit, exp, rpm_calculator=None)
+    st.start_stirring()
+
+    assert st.duty_cycle == 0.1 * target_rpm + 20
+
+    target_rpm = 600
+    publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", 600)
+    pause()
+    pause()
+
+    assert st.duty_cycle == 0.1 * target_rpm + 20
+
     st.set_state(st.DISCONNECTED)

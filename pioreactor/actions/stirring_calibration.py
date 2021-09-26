@@ -79,12 +79,14 @@ def stirring_calibration():
         print(rpm_coef, intercept)
 
         with local_persistant_storage("stirring_calibration") as cache:
-            cache["linear"] = json.dumps({"rpm_coef": rpm_coef, "intercept": intercept})
+            cache["linear_v1"] = json.dumps(
+                {"rpm_coef": rpm_coef, "intercept": intercept}
+            )
 
 
 @click.command(name="stirring_calibration")
 def click_stirring_calibration():
     """
-    (Optional) Generate a compensation function for stirring and voltage
+    (Optional) Generate a lookup between stirring and voltage
     """
     stirring_calibration()

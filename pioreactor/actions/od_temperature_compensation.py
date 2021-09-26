@@ -154,6 +154,6 @@ def od_temperature_compensation():
 @click.command(name="od_temperature_compensation")
 def click_od_temperature_compensation():
     """
-    Generate a OD vs. Temperature compensation value.
+    Generate a OD vs Temperature compensation value.
     """
     od_temperature_compensation()

@@ -3,14 +3,16 @@
 from signal import pause
 from time import sleep, perf_counter
 from typing import Optional
+import json
 import click
+
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, get_rpi_machine
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils import clamp
+from pioreactor.utils import clamp, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import RepeatedTimer
@@ -151,7 +153,9 @@ class Stirrer(BackgroundJob):
         "actual_rpm": {"datatype": "int", "settable": False, "unit": "RPM"},
     }
     _previous_duty_cycle: float = 0
-    rpm_check_thread = None
+    duty_cycle: float = config.getint(
+        "stirring", "initial_duty_cycle", fallback=60.0
+    )  # only used in calibration isn't defined.
 
     def __init__(
         self,
@@ -160,7 +164,6 @@ class Stirrer(BackgroundJob):
         experiment: str,
         rpm_calculator: Optional[RpmCalculator],
         hertz=67,
-        initial_duty_cycle: float = 60,  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     ):
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
@@ -171,12 +174,13 @@ class Stirrer(BackgroundJob):
         self.pwm = PWM(self.pwm_pin, hertz)
         self.pwm.lock()
 
-        self.duty_cycle = initial_duty_cycle
-
         self.rpm_calculator = rpm_calculator
+        self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
+        self.target_rpm = target_rpm
+
+        self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
         # set up PID
-        self.target_rpm = target_rpm
         self.pid = PID(
             Kp=config.getfloat("stirring.pid", "Kp"),
             Ki=config.getfloat("stirring.pid", "Ki"),
@@ -197,6 +201,16 @@ class Stirrer(BackgroundJob):
             poll_for_seconds=4,
         )
 
+    def initialize_rpm_to_dc_lookup(self):
+        with local_persistant_storage("stirring_calibration") as cache:
+            if "linear_v1" in cache:
+                parameters = json.loads(cache["linear_v1"])
+                coef = parameters.pop("rpm_coef")
+                intercept = parameters.pop("intercept")
+                return lambda rpm: coef * rpm + intercept
+            else:
+                return lambda rpm: self.duty_cycle
+
     def on_disconnect(self):
 
         self.rpm_check_repeated_thread.cancel()
@@ -210,9 +224,9 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self):
         self.pwm.start(100)  # get momentum to start
-        sleep(0.5)
-        self.set_duty_cycle(self.duty_cycle)
         sleep(0.25)
+        self.set_duty_cycle(self.duty_cycle)
+        sleep(0.5)
 
         try:
             self.rpm_check_repeated_thread.start()
@@ -263,6 +277,7 @@ class Stirrer(BackgroundJob):
 
     def set_target_rpm(self, value):
         self.target_rpm = float(value)
+        self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 
 
@@ -291,16 +306,9 @@ def start_stirring(
     show_default=True,
     type=click.IntRange(0, 1000, clamp=True),
 )
-@click.option(
-    "--initial-duty-cycle",
-    default=config.getint("stirring", "initial_duty_cycle", fallback=60),
-    help="set the initial duty cycle",
-    show_default=True,
-    type=click.IntRange(0, 100, clamp=True),
-)
-def click_stirring(target_rpm, initial_duty_cycle):
+def click_stirring(target_rpm):
     """
     Start the stirring of the Pioreactor.
     """
-    start_stirring(target_rpm=target_rpm, initial_duty_cycle=initial_duty_cycle)
+    start_stirring(target_rpm=target_rpm)
     pause()
