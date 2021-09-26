@@ -286,12 +286,14 @@ def publish_to_pioreactor_cloud(endpoint, data=None, json=None):
     from requests import exceptions, post
 
     from pioreactor.whoami import get_uuid, is_testing_env
+    from pioreactor.utils.timing import current_utc_time
 
     if is_testing_env():
         return
 
     if json is not None:
         json["rpi_uuid"] = get_uuid()
+        json["timestamp"] = current_utc_time()
 
     try:
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
