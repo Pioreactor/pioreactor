@@ -10,7 +10,7 @@ This should be run with a vial in, with a stirbar. Water is fine.
 
 
 import time, click, json
-from pioreactor.pubsub import publish_to_pioreactor_cloud
+from pioreactor.pubsub import publish_to_pioreactor_cloud, publish
 
 from pioreactor.background_jobs import stirring
 from pioreactor.utils.math_helpers import simple_linear_regression
@@ -60,11 +60,19 @@ def stirring_calibration():
         st.duty_cycle = dcs[0]
         st.start_stirring()
         time.sleep(10)
+        n_samples = len(dcs)
 
-        for dc in dcs:
+        for count, dc in enumerate(dcs):
             st.set_duty_cycle(dc)
             time.sleep(8)
             measured_rpms.append(rpm_calc(4))
+
+            # log progress
+            publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                count / n_samples * 100,
+            )
+            logger.debug(f"Progress: {count/n_samples:.0%}")
 
         rpm_calc.cleanup()
         st.set_state(st.DISCONNECTED)
