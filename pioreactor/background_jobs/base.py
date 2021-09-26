@@ -666,7 +666,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def __setattr__(self, name: str, value) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
-        if (name in self.published_settings) and hasattr(self, name):
+        if name in self.published_settings:
             self.publish_attr(name)
 
     def __enter__(self):

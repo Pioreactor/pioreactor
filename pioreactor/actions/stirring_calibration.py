@@ -44,7 +44,9 @@ def stirring_calibration():
             )
             return
 
-        dcs = list(range(95, 45, -3))
+        dcs = list(range(95, 45, -5)) + list(
+            range(46, 96, 5)
+        )  # we go up and down to exercise any hystersis in the system
         measured_rpms = []
 
         rpm_calc = stirring.RpmFromFrequency()
@@ -61,7 +63,7 @@ def stirring_calibration():
 
         for dc in dcs:
             st.set_duty_cycle(dc)
-            time.sleep(10)
+            time.sleep(8)
             measured_rpms.append(rpm_calc(4))
 
         rpm_calc.cleanup()
