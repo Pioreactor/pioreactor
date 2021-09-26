@@ -100,27 +100,6 @@ def clamp(minimum: float, x: float, maximum: float) -> float:
     return max(minimum, min(x, maximum))
 
 
-def correlation(x, y) -> float:
-    from statistics import stdev, mean
-
-    mean_x, std_x = mean(x), stdev(x)
-    mean_y, std_y = mean(y), stdev(y)
-
-    if (std_y == 0) or (std_x == 0):
-        return 0
-
-    running_sum = 0
-    running_count = 0
-    for (x_, y_) in zip(x, y):
-        running_sum += (x_ - mean_x) * (y_ - mean_y)
-        running_count += 1
-
-    if running_count < 1:
-        return 0
-
-    return (running_sum / (running_count - 1)) / std_y / std_x
-
-
 def is_pio_job_running(*target_jobs: str) -> bool:
     """
     pass in jobs to check if they are running

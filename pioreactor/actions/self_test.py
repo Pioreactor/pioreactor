@@ -32,7 +32,7 @@ from pioreactor.whoami import (
 )
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.background_jobs.od_reading import ADCReader, PD_CHANNELS
-from pioreactor.utils import correlation
+from pioreactor.utils.math_helpers import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
 from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS
