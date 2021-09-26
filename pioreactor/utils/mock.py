@@ -33,7 +33,7 @@ class MockAnalogIn:
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
 
         # subscribe to dosing events
-        assert channel in [1, 2, 3, 4], "channel must be in 1,2,3,4"
+        assert channel in [0, 1, 2, 3], "channel must be in 0, 1, 2, 3"
         subscribe_and_callback(
             self.react_to_dosing,
             f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",

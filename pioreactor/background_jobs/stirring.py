@@ -158,7 +158,7 @@ class Stirrer(BackgroundJob):
         target_rpm: int,
         unit: str,
         experiment: str,
-        rpm_calculator: RpmCalculator,
+        rpm_calculator: Optional[RpmCalculator],
         hertz=67,
         initial_duty_cycle: float = 60,  # initial duty cycle, we will deviate from this in the feedback loop immediately.
     ):
@@ -202,7 +202,10 @@ class Stirrer(BackgroundJob):
         self.rpm_check_repeated_thread.cancel()
         self.stop_stirring()
         self.pwm.cleanup()
-        self.rpm_calculator.cleanup()
+
+        if self.rpm_calculator:
+            self.rpm_calculator.cleanup()
+
         self.clear_mqtt_cache()
 
     def start_stirring(self):
@@ -221,7 +224,11 @@ class Stirrer(BackgroundJob):
         """
         Returns an RPM, or None if not measuring RPM.
         """
-        self.actual_rpm = self.rpm_calculator(poll_for_seconds)
+        if self.rpm_calculator:
+            self.actual_rpm = self.rpm_calculator(poll_for_seconds)
+        else:
+            self.actual_rpm = None
+
         if self.actual_rpm == 0:
             self.logger.warning("Stirring RPM is 0 - has it failed?")
 

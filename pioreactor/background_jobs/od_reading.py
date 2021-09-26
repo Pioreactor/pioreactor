@@ -96,7 +96,6 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
-from pioreactor.utils.mock import MockAnalogIn, MockI2C
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import (
@@ -170,7 +169,6 @@ class ADCReader(BackgroundSubJob):
         self._counter = 0
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
-        self.analog_in = {}  # dict[PD_Channel, AnalogIn]
 
         # this is actually important to set in the init. When this job starts, setting these the "default" values
         # will clear any cache in mqtt (if a cache exists).
@@ -185,36 +183,28 @@ class ADCReader(BackgroundSubJob):
         See ODReader for an example.
         """
 
-        try:
-            import adafruit_ads1x15.ads1115 as ADS
+        import adafruit_ads1x15.ads1115 as ADS
 
-            if self.fake_data:
-                i2c = MockI2C(SCL, SDA)
-            else:
-                import busio
+        if self.fake_data:
+            from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C
+        else:
+            from adafruit_ads1x15.analog_in import AnalogIn
+            from busio import I2C
 
-                i2c = busio.I2C(SCL, SDA)
+        i2c = I2C(SCL, SDA)
 
-            # we may change the gain dynamically later.
-            # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
-            # TODO: update this to ADS1015 / dynamically choose
-            self.ads = ADS.ADS1115(i2c, data_rate=self.DATA_RATE)
-            self.set_ads_gain(self.gain)
-        except ValueError as e:
-            self.logger.error(e)
-            self.logger.debug(e, exc_info=True)
-            raise e
+        # we may change the gain dynamically later.
+        # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
+        # TODO: update this to ADS1015 / dynamically choose
+        self.ads = ADS.ADS1115(i2c, data_rate=self.DATA_RATE)
+        self.set_ads_gain(self.gain)
+
+        self.analog_in: dict[PD_Channel, AnalogIn] = {}
 
         for channel in self.channels:
-            if self.fake_data:
-                ai = MockAnalogIn(self.ads, channel)
-            else:
-                from adafruit_ads1x15.analog_in import AnalogIn
-
-                ai = AnalogIn(
-                    self.ads, channel - 1
-                )  # subtract 1 because we use 1-indexing
-            self.analog_in[channel] = ai
+            self.analog_in[channel] = AnalogIn(
+                self.ads, channel - 1
+            )  # subtract 1 because we use 1-indexing
 
         # check if using correct gain
         # this may need to be adjusted for higher rates of data collection
