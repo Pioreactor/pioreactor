@@ -156,12 +156,12 @@ def view_cache(cache):
     if os.path.isfile(f"/tmp/{cache}.db"):
         with local_intermittent_storage(cache) as c:
             for key in c.keys():
-                click.echo(f"{key} = {c[key]}")
+                click.echo(f"{key.decode()} = {c[key].decode()}")
 
     elif os.path.isfile(f".pioreactor/local_storage/{cache}.db"):
         with local_persistant_storage(cache) as c:
             for key in c.keys():
-                click.echo(f"{key} = {c[key]}")
+                click.echo(f"{key.decode()} = {c[key].decode()}")
     else:
         click.echo(f"cache {cache} not found.")
 
