@@ -16,7 +16,6 @@ class Turbidostat(DosingAutomation):
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
-        "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
     def __init__(self, target_od=None, volume=None, **kwargs):
@@ -24,7 +23,7 @@ class Turbidostat(DosingAutomation):
         self.target_od = float(target_od)
         self.volume = float(volume)
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         if self.latest_od >= self.target_od:
             self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return events.DilutionEvent(

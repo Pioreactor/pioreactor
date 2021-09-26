@@ -18,7 +18,7 @@ class Chemostat(DosingAutomation):
         super(Chemostat, self).__init__(**kwargs)
         self.volume = float(volume)
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         volume_actually_cycled = self.execute_io_action(
             media_ml=self.volume, waste_ml=self.volume
         )

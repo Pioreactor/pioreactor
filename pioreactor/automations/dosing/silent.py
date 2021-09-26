@@ -37,5 +37,5 @@ class Silent(DosingAutomation):
             self.latest_event = event
             return event
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         return events.NoEvent("never execute dosing events in Silent mode")

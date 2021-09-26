@@ -55,7 +55,7 @@ class PIDMorbidostat(DosingAutomation):
             self.target_growth_rate * VIAL_VOLUME * (self.duration / 60), 4
         )
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         if self.latest_od <= self.min_od:
             return events.NoEvent(
                 f"latest OD less than OD to start diluting, {self.min_od:.2f}"

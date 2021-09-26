@@ -66,7 +66,7 @@ class ContinuousCycle(DosingAutomation):
             pass
         super(ContinuousCycle, self).on_disconnect()
 
-    def execute(self, *args, **kwargs):
+    def execute(self):
         self.pwm.start(self.duty_cycle)
         return events.RunningContinuously(
             f"Running pump on channel {config.getint('PWM_reverse', 'media')} continuously"

@@ -13,7 +13,7 @@ class Silent(LEDAutomation):
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         return events.NoEvent("nothing occurs in Silent")
 
 
@@ -35,7 +35,7 @@ class TrackOD(LEDAutomation):
         )  # TODO: update to new led config.ini syntax
         self.set_led_intensity(self.white_light, 0)
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         if self.latest_od is not None:
             new_intensity = 100 ** (min(self.latest_od, self.max_od) / self.max_od)
             self.set_led_intensity(self.white_light, new_intensity)
@@ -53,7 +53,7 @@ class FlashUV(LEDAutomation):
         self.uv_led = config.get("leds_reverse", "uv")
         self.set_led_intensity(self.uv_led, 0)
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         self.set_led_intensity(self.uv_led, 100)
         time.sleep(1)
         self.set_led_intensity(self.uv_led, 0)

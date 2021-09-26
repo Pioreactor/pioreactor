@@ -41,7 +41,7 @@ class PIDTurbidostat(DosingAutomation):
             target_name="od",
         )
 
-    def execute(self, *args, **kwargs) -> events.Event:
+    def execute(self) -> events.Event:
         import numpy as np
 
         if self.latest_od <= self.min_od:

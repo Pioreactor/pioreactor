@@ -145,6 +145,27 @@ def version(verbose):
         click.echo(pioreactor.__version__)
 
 
+@pio.command(name="version", short_help="print the Pioreactor software version")
+@click.argument("cache")
+def view_cache(cache):
+    import os.path
+
+    from pioreactor.utils import local_intermittent_storage, local_persistant_storage
+
+    # is it a temp cache?
+    if os.path.isfile(f"/tmp/{cache}"):
+        with local_intermittent_storage(cache) as c:
+            for key in c.keys():
+                click.echo(f"{key} = {c[key]}")
+
+    elif os.path.isfile(f".pioreactor/local_storage/{cache}"):
+        with local_persistant_storage(cache) as c:
+            for key in c.keys():
+                click.echo(f"{key} = {c[key]}")
+    else:
+        click.echo(f"cache {cache} not found.")
+
+
 @pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
 @click.option("--ui", is_flag=True, help="update the PioreactoUI to latest")
 @click.option("--app", is_flag=True, help="update the PioreactoApp to latest")
