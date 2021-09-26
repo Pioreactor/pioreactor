@@ -281,9 +281,7 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
 
-def start_stirring(
-    target_rpm=0, unit=None, experiment=None, initial_duty_cycle=60
-) -> Stirrer:
+def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 
@@ -292,7 +290,6 @@ def start_stirring(
         unit=unit,
         experiment=experiment,
         rpm_calculator=RpmFromFrequency(),
-        initial_duty_cycle=initial_duty_cycle,
     )
     stirrer.start_stirring()
     return stirrer

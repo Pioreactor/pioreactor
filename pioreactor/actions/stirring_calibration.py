@@ -54,7 +54,6 @@ def stirring_calibration():
             unit=unit,
             experiment=experiment,
             rpm_calculator=None,
-            initial_duty_cycle=dcs[0],
         )
         st.start_stirring()
         time.sleep(10)
