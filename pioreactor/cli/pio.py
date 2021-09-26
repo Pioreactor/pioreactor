@@ -145,7 +145,7 @@ def version(verbose):
         click.echo(pioreactor.__version__)
 
 
-@pio.command(name="version", short_help="print the Pioreactor software version")
+@pio.command(name="view-cache", short_help="print out the contents of a cache")
 @click.argument("cache")
 def view_cache(cache):
     import os.path

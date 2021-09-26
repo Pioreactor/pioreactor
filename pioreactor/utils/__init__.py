@@ -42,6 +42,9 @@ def local_intermittent_storage(
     cache_name: str,
 ) -> Generator[MutableMapping[str, str], None, None]:
     """
+
+    The cache is deleted upon a Raspberry Pi restart!
+
     Examples
     ---------
     > with local_intermittent_storage('pwm') as cache:
