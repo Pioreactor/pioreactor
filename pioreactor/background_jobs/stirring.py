@@ -207,9 +207,12 @@ class Stirrer(BackgroundJob):
                 parameters = json.loads(cache["linear_v1"])
                 coef = parameters.pop("rpm_coef")
                 intercept = parameters.pop("intercept")
-                # we scale this by 95% to make sure the PID doesn't overshoot,
+                # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
-                return lambda rpm: (coef * rpm + intercept) * 0.95
+                # equilivant to a weighted average: 0.1 * current + 0.9 * predicted
+                return lambda rpm: self.duty_cycle - 0.9 * (
+                    self.duty_cycle - (coef * rpm + intercept)
+                )
             else:
                 return lambda rpm: self.duty_cycle
 

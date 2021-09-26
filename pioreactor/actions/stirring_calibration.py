@@ -44,9 +44,9 @@ def stirring_calibration():
             )
             return
 
-        dcs = list(range(95, 50, -5)) + list(
-            range(51, 96, 5)
-        )  # we go up and down to exercise any hystersis in the system
+        dcs = list(range(95, 50, -4)) + list(
+            range(52, 97, 4)
+        )  # we go up and down to exercise any hysteresis in the system
         measured_rpms = []
 
         rpm_calc = stirring.RpmFromFrequency()
@@ -59,7 +59,7 @@ def stirring_calibration():
         )
         st.duty_cycle = dcs[0]
         st.start_stirring()
-        time.sleep(10)
+        time.sleep(8)
         n_samples = len(dcs)
 
         for count, dc in enumerate(dcs):
@@ -77,9 +77,7 @@ def stirring_calibration():
         rpm_calc.cleanup()
         st.set_state(st.DISCONNECTED)
 
-        publish_to_pioreactor_cloud(
-            "stirring_calibration", json=dict(zip(dcs, measured_rpms))
-        )
+        publish_to_pioreactor_cloud(action_name, json=dict(zip(dcs, measured_rpms)))
 
         # drop any 0 in RPM, too little DC
         dcs, measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
@@ -90,7 +88,7 @@ def stirring_calibration():
         (rpm_coef, _), (intercept, _) = simple_linear_regression(measured_rpms, dcs)
         print(rpm_coef, intercept)
 
-        with local_persistant_storage("stirring_calibration") as cache:
+        with local_persistant_storage(action_name) as cache:
             cache["linear_v1"] = json.dumps(
                 {"rpm_coef": rpm_coef, "intercept": intercept}
             )
