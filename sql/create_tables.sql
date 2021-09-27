@@ -100,27 +100,6 @@ CREATE INDEX IF NOT EXISTS experiments_ix ON experiments (timestamp, experiment,
 
 
 
-CREATE TABLE IF NOT EXISTS pid_logs (
-    timestamp              TEXT  NOT NULL,
-    pioreactor_unit        TEXT  NOT NULL,
-    experiment             TEXT  NOT NULL,
-    job_name               TEXT  NOT NULL,
-    target_name            TEXT  NOT NULL,
-    setpoint               REAL  NOT NULL,
-    output_limits_lb       REAL,
-    output_limits_ub       REAL,
-    Kp                     REAL  NOT NULL,
-    Ki                     REAL  NOT NULL,
-    Kd                     REAL  NOT NULL,
-    proportional           REAL,
-    integral               REAL,
-    derivative             REAL,
-    latest_input           REAL  NOT NULL,
-    latest_output          REAL  NOT NULL
-);
-
-
-
 CREATE TABLE IF NOT EXISTS dosing_automation_settings (
     pioreactor_unit          TEXT  NOT NULL,
     experiment               TEXT  NOT NULL,

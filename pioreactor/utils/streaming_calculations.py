@@ -370,11 +370,10 @@ class PID:
 
     def update(self, input_, dt):
         output = self.pid(input_, dt) + self.K0
-        self.publish_pid_stats()
         return output
 
     def publish_pid_stats(self):
-
+        # not currently being saved in database.
         to_send = {
             "setpoint": self.pid.setpoint,
             "output_limits_lb": self.pid.output_limits[0],

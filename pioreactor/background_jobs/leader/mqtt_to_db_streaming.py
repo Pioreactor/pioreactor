@@ -208,28 +208,6 @@ def mqtt_to_db_streaming():
             "temperature_c": float(payload["temperature"]),
         }
 
-    def parse_pid_logs(topic, payload):
-        metadata, _ = produce_metadata(topic)
-        payload = json.loads(payload)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "setpoint": payload["setpoint"],
-            "output_limits_lb": payload["output_limits_lb"],
-            "output_limits_ub": payload["output_limits_ub"],
-            "Kd": payload["Kd"],
-            "Ki": payload["Ki"],
-            "Kp": payload["Kp"],
-            "integral": payload["integral"],
-            "proportional": payload["proportional"],
-            "derivative": payload["derivative"],
-            "latest_input": payload["latest_input"],
-            "latest_output": payload["latest_output"],
-            "job_name": payload["job_name"],
-            "target_name": payload["target_name"],
-        }
-
     def parse_alt_media_fraction(topic, payload):
         metadata, _ = produce_metadata(topic)
         payload = json.loads(payload)
@@ -312,7 +290,6 @@ def mqtt_to_db_streaming():
             parse_temperature,
             "temperature_readings",
         ),
-        TopicToParserToTable("pioreactor/+/+/pid_log", parse_pid_logs, "pid_logs"),
         TopicToParserToTable(
             "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
             parse_alt_media_fraction,

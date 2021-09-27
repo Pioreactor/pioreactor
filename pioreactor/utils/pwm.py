@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import sys, threading, signal
 from contextlib import contextmanager
 from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
@@ -32,7 +31,16 @@ class PWM:
     > pwm.change_duty_cycle(25) # 25% duty cycle
     >
     > pwm.stop()
-    > pwm.cleanup()
+    > pwm.cleanup() # make sure to cleanup! Or use context manager, see below.
+
+
+    Use as a context manager:
+
+    >with PMW(12, 15) as pwm:
+    >    pwm.start(100
+    >    time.sleep(10)
+
+
 
 
     > # locking
@@ -80,22 +88,12 @@ class PWM:
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
 
-            if hz > 5000:
+            if self.hz > 5000:
                 self.logger.warning(
                     "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
                 )
 
-            self.pwm = GPIO.PWM(self.pin, hz)
-
-        # signals only work in main thread
-        if threading.current_thread() is threading.main_thread():
-            # terminate command, ex: pkill
-            def on_kill(*args):
-                self.cleanup()
-                sys.exit()
-
-            signal.signal(signal.SIGTERM, on_kill)
-            signal.signal(signal.SIGINT, on_kill)
+            self.pwm = GPIO.PWM(self.pin, self.hz)
 
         with local_intermittent_storage("pwm_hz") as cache:
             cache[str(self.pin)] = str(self.hz)
@@ -152,6 +150,7 @@ class PWM:
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
             GPIO.cleanup(self.pin)
+
         self.logger.debug(f"Cleaned up PWM-{self.pin}.")
 
     def is_locked(self) -> bool:
@@ -174,5 +173,8 @@ class PWM:
         finally:
             self.unlock()
 
-    def __exit__(self):
+    def __exit__(self, *args):
         self.cleanup()
+
+    def __enter__(self):
+        return self

@@ -231,7 +231,7 @@ class Stirrer(BackgroundJob):
         self.pwm.start(100)  # get momentum to start
         sleep(0.25)
         self.set_duty_cycle(self.duty_cycle)
-        sleep(0.5)
+        sleep(0.75)
 
         try:
             self.rpm_check_repeated_thread.start()
