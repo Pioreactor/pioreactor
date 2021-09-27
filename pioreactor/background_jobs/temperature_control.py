@@ -246,6 +246,12 @@ class TemperatureController(BackgroundJob):
             pass
 
         try:
+            self.read_external_temperature_timer.cancel()
+            self.publish_temperature_timer.cancel()
+        except AttributeError:
+            pass
+
+        try:
             self._update_heater(0)
             self.pwm.stop()
             self.pwm.cleanup()

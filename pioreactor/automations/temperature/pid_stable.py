@@ -45,7 +45,7 @@ class PIDStable(TemperatureAutomation):
                 self.update_heater(
                     delta_t * 2.5
                 )  # TODO: provide a better linear estimate here.
-            return  # we'll update the PID on the next loop.
+            return  # we'll update with the PID on the next loop.
 
         output = self.pid.update(
             self.latest_temperature, dt=1
