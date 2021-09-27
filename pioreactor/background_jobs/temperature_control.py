@@ -201,7 +201,7 @@ class TemperatureController(BackgroundJob):
             self.logger.warning(f"Change failed because of {str(e)}")
 
     def _update_heater(self, new_duty_cycle):
-        self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 2), 100)
+        self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 5), 100)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp):

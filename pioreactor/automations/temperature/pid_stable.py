@@ -11,16 +11,12 @@ class PIDStable(TemperatureAutomation):
     published_settings = {
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }
+    first_update = True
 
     def __init__(self, target_temperature, **kwargs):
         super(PIDStable, self).__init__(**kwargs)
         assert target_temperature is not None, "target_temperature must be set"
         self.target_temperature = float(target_temperature)
-
-        initial_duty_cycle = (
-            10  # TODO: decent starting point...can be smarter in the future
-        )
-        self.update_heater(initial_duty_cycle)
 
         self.pid = PID(
             Kp=config.getfloat("temperature_automation.pid_stable", "Kp"),
@@ -30,11 +26,27 @@ class PIDStable(TemperatureAutomation):
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
-            output_limits=(None, 10),  # only ever increase DC by a max limit each cycle.
             target_name="temperature",
         )
 
     def execute(self):
+        # this runs every time a new temperature reading comes in.
+
+        if self.first_update:
+            self.first_update = False
+            # this is the first run of execute. Let's do something
+            # smart and look at the delta between the latest_temperature and target_temperature
+            # to set a reasonable initial value.
+            delta_t = self.target_temperature - self.latest_temperature
+            if delta_t <= 0:
+                # turn off heater, to drop the temp
+                self.update_heater(0)
+            else:
+                self.update_heater(
+                    delta_t * 2.5
+                )  # TODO: provide a better linear estimate here.
+            return  # we'll update the PID on the next loop.
+
         output = self.pid.update(
             self.latest_temperature, dt=1
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
