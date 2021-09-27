@@ -7,7 +7,6 @@ To change the automation over MQTT,
 topic: `pioreactor/<unit>/<experiment>/led_control/led_automation/set`
 message: a json object with required keyword argument. Specify the new automation with name `"led_automation"`.
 """
-import signal
 import time
 import json
 
@@ -81,14 +80,12 @@ def run(automation=None, duration=None, skip_first_run=False, **kwargs):
         kwargs["duration"] = duration
         kwargs["skip_first_run"] = skip_first_run
 
-        LEDController(
+        return LEDController(
             automation,
             unit=get_unit_name(),
             experiment=get_latest_experiment_name(),
             **kwargs,
         )
-
-        signal.pause()
 
     except Exception as e:
         logger = create_logger("led_automation")
@@ -120,9 +117,11 @@ def click_led_control(ctx, automation, duration, skip_first_run):
     """
     Start an LED automation
     """
-    run(  # noqa: F841
+    lc = run(
         automation=automation,
         duration=duration,
         skip_first_run=skip_first_run,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
+
+    lc.block_until_disconnected()

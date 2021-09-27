@@ -162,10 +162,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
     > if __name__ == "__main__":
     >    st = Stirrer(...)
     >
-    >    # done
+
+    If you want the script to pause until the job disconnects, use
+
+    > if __name__ == "__main__":
+    >    st = Stirrer(...)
+    >
+    >    st.block_until_disconnected()
     >
 
-    Some jobs need a ``signal.pause()`` as well.
+
 
     Parameters
     -----------

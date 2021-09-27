@@ -32,7 +32,6 @@ with payload
 
 """
 import json
-import signal
 from collections import defaultdict
 from datetime import datetime
 
@@ -439,4 +438,4 @@ def click_growth_rate_calculating(ignore_cache):
     calculator = GrowthRateCalculator(  # noqa: F841
         ignore_cache=ignore_cache, unit=unit, experiment=experiment
     )
-    signal.pause()
+    calculator.block_until_disconnected()

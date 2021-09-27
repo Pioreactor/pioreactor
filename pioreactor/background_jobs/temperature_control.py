@@ -365,37 +365,8 @@ def click_temperature_control(ctx, automation):
     """
     Start a temperature automation.
     """
-    """
-    # option 1
-    tc = run(  # noqa: F841
+    tc = run(
         automation=automation,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
-
-    while tc.state != tc.DISCONNECTED:
-        time.sleep(1)
-
-
-    # option 2
-    def pause_and_wait_for_signal()
-        # Note: on_disconnected would send a SIGUSR1
-        pause()
-
-
-    tc = run(  # noqa: F841
-        automation=automation,
-        **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
-    )
-    pause_and_wait_for_signal() # this is only used in `click` blocks. Scripts would not use this - what would scripts use then?
-
-
-    # option 3
-    # tc has a threading.Event() called event?
-    tc = run(  # noqa: F841
-        automation=automation,
-        **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
-    )
-    tc.event.wait()
-    # in on_disconnect, we call self.event.set()
-    """
-    pass
+    tc.block_until_disconnected()

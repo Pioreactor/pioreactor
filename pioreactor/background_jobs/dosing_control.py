@@ -17,7 +17,6 @@ Using the CLI, specific automation values can be specified as additional options
 
 
 """
-import signal
 import time
 import json
 import click
@@ -122,9 +121,7 @@ def run(automation=None, duration=None, skip_first_run=False, **kwargs):
         kwargs["unit"] = unit
         kwargs["experiment"] = experiment
         kwargs["skip_first_run"] = skip_first_run
-        controller = DosingController(automation, **kwargs)  # noqa: F841
-
-        signal.pause()
+        return DosingController(automation, **kwargs)  # noqa: F841
 
     except Exception as e:
         logger = create_logger("dosing_automation")
@@ -159,9 +156,10 @@ def click_dosing_control(ctx, automation, duration, skip_first_run):
     """
     Start a dosing automation
     """
-    run(  # noqa: F841
+    dc = run(
         automation=automation,
         duration=duration,
         skip_first_run=skip_first_run,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
+    dc.block_until_disconnected()

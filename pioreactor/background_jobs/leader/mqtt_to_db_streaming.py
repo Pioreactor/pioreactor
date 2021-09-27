@@ -4,11 +4,10 @@ This job runs on the leader, and is a replacement for the NodeRed database strea
 """
 from __future__ import annotations
 
-import signal
-import click
 import json
 from typing import Callable
 from dataclasses import dataclass
+import click
 
 from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
@@ -329,11 +328,9 @@ def mqtt_to_db_streaming():
         ),
     ]
 
-    MqttToDBStreamer(  # noqa: F841
+    return MqttToDBStreamer(
         topics_to_tables, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name()
     )
-
-    signal.pause()
 
 
 @click.command(name="mqtt_to_db_streaming")
@@ -341,4 +338,5 @@ def click_mqtt_to_db_streaming():
     """
     (leader only) Send MQTT streams to the database. Parsers should return a dict of all the entries in the corresponding table.
     """
-    mqtt_to_db_streaming()
+    job = mqtt_to_db_streaming()
+    job.block_until_disconnected()

@@ -89,7 +89,6 @@ from __future__ import annotations
 from typing import Optional, NewType, Any
 from time import time, sleep, perf_counter
 from json import loads
-import signal
 import click
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
@@ -853,11 +852,11 @@ def click_od_reading(
     """
     Start the optical density reading job
     """
-    start_od_reading(
+    od = start_od_reading(
         od_angle_channel1,
         od_angle_channel2,
         od_angle_channel3,
         od_angle_channel4,
         fake_data=fake_data or is_testing_env(),
     )
-    signal.pause()
+    od.block_until_disconnected()

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-import signal
 import urllib.request
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
@@ -34,5 +33,5 @@ class Logs2slack(BackgroundJob):
 
 if __name__ == "__main__":
 
-    Logs2slack(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-    signal.pause()
+    lg = Logs2slack(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+    lg.block_until_disconnected()

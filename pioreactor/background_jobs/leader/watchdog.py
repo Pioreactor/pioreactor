@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import signal, time
+import time
 
 import click
 
@@ -78,6 +78,6 @@ def click_watchdog():
     """
     Start the watchdog on the leader
     """
-    WatchDog(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+    wd = WatchDog(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
-    signal.pause()
+    wd.block_until_disconnected()
