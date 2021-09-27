@@ -293,6 +293,10 @@ class TemperatureController(BackgroundJob):
                 ] = self.read_external_temperature()
                 time.sleep(time_between_samples)
 
+                if self.state != self.READY:
+                    # if our state changes in this loop, exit.
+                    return
+
             self.logger.debug(feature_vector)
 
             # update heater first, before publishing the temperature. Why? A downstream process
