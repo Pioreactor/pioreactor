@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from time import sleep
 from json import dumps
-from signal import pause
 from datetime import datetime
 from enum import IntEnum
 
@@ -336,6 +335,5 @@ def click_monitor():
     """
     Monitor and report metadata on the unit.
     """
-    Monitor(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
-
-    pause()
+    job = Monitor(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+    job.block_until_disconnected()
