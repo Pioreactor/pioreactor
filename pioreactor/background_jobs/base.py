@@ -379,9 +379,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
 
-            # once disconnected, we send a signal to this specific job on the OS.
-            # this will unblock the signal.pause() that may be running.
-            # os.kill(os.getpid(), signal.SIGUSR1)
+            # MQTT is the last thing to disconnect, so once this is done,
+            # we "set" the internal event, which will cause any event.waits to finishing blocking.
+            self._blocking_event.set()
 
         else:
             # we won't exit, but the client object will try to reconnect
@@ -484,6 +484,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # NOHUP is not included here, as it prevents tools like nohup working: https://unix.stackexchange.com/a/261631
 
+        self._blocking_event = threading.Event()
+
     def init(self):
         self.state = self.INIT
         self.log_state(self.state)
@@ -547,8 +549,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         for client in self.pubsub_clients:
             client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
-
-        # a disconnect callback calls sys.exit(), so no code below will run.
 
     def declare_settable_properties_to_broker(self):
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
@@ -650,6 +650,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 retain=True,
                 qos=QOS.EXACTLY_ONCE,
             )
+
+    def block_until_disconnected(self):
+        """
+        This will block the main thread until disconnected() is called. This can happen
+        1. a kill/keyboard interrupt signal is sent
+        2. state is set to "disconnected" over MQTT or programmatically
+        """
+        self._blocking_event.wait()
 
     def check_for_duplicate_process(self):
 

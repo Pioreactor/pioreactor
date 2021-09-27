@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from signal import pause
 from time import sleep, perf_counter
 from typing import Optional
 import json
@@ -312,5 +311,5 @@ def click_stirring(target_rpm):
     """
     Start the stirring of the Pioreactor.
     """
-    start_stirring(target_rpm=target_rpm)
-    pause()
+    st = start_stirring(target_rpm=target_rpm)
+    st.block_until_disconnected()

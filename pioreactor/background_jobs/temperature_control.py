@@ -21,7 +21,7 @@ topic: `pioreactor/<unit>/<experiment>/temperture_control/temperature_automation
 message: a json object with required keyword argument. Specify the new automation with name `"temperature_automation"`.
 
 """
-import json, signal, time
+import json, time
 
 import click
 
@@ -337,14 +337,12 @@ class TemperatureController(BackgroundJob):
 
 def run(automation, **kwargs):
     try:
-        TemperatureController(
+        return TemperatureController(
             automation,
             unit=get_unit_name(),
             experiment=get_latest_experiment_name(),
             **kwargs,
         )
-
-        signal.pause()
     except Exception as e:
         logger = create_logger("temperature_automation")
         logger.error(e)
@@ -367,7 +365,37 @@ def click_temperature_control(ctx, automation):
     """
     Start a temperature automation.
     """
-    run(  # noqa: F841
+    """
+    # option 1
+    tc = run(  # noqa: F841
         automation=automation,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
+
+    while tc.state != tc.DISCONNECTED:
+        time.sleep(1)
+
+
+    # option 2
+    def pause_and_wait_for_signal()
+        # Note: on_disconnected would send a SIGUSR1
+        pause()
+
+
+    tc = run(  # noqa: F841
+        automation=automation,
+        **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
+    )
+    pause_and_wait_for_signal() # this is only used in `click` blocks. Scripts would not use this - what would scripts use then?
+
+
+    # option 3
+    # tc has a threading.Event() called event?
+    tc = run(  # noqa: F841
+        automation=automation,
+        **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
+    )
+    tc.event.wait()
+    # in on_disconnect, we call self.event.set()
+    """
+    pass
