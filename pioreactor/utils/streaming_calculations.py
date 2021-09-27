@@ -368,7 +368,7 @@ class PID:
     def set_setpoint(self, new_setpoint):
         self.pid.setpoint = new_setpoint
 
-    def update(self, input_, dt):
+    def update(self, input_, dt) -> float:
         output = self.pid(input_, dt) + self.K0
         return output
 

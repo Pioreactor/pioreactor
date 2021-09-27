@@ -37,8 +37,8 @@ class DosingAutomation(BackgroundSubJob):
 
     latest_growth_rate = None
     latest_od = None
-    latest_od_timestamp = None
-    latest_growth_rate_timestamp = None
+    latest_od_timestamp = 0
+    latest_growth_rate_timestamp = 0
     latest_event = None
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
@@ -162,7 +162,9 @@ class DosingAutomation(BackgroundSubJob):
             time.sleep(5)
         return True
 
-    def execute_io_action(self, alt_media_ml=0, media_ml=0, waste_ml=0) -> SummableList:
+    def execute_io_action(
+        self, alt_media_ml: float = 0, media_ml: float = 0, waste_ml: float = 0
+    ) -> SummableList:
         """
         This function recursively reduces the amount to add so that
         we don't end up adding 5ml, and then removing 5ml (this could cause
@@ -250,7 +252,7 @@ class DosingAutomation(BackgroundSubJob):
         return volumes_moved
 
     @property
-    def most_stale_time(self):
+    def most_stale_time(self) -> float:
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def on_disconnect(self):

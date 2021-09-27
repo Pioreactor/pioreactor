@@ -3,6 +3,7 @@
 import time
 import json
 from threading import Thread
+from typing import Optional
 
 
 from pioreactor.pubsub import QOS
@@ -65,7 +66,7 @@ class LEDAutomation(BackgroundSubJob):
 
         self.logger.info(f"Starting {self.__class__.__name__} automation.")
 
-    def set_duration(self, duration):
+    def set_duration(self, duration: Optional[float]):
         if duration:
             self.duration = float(duration)
 
