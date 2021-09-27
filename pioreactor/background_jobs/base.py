@@ -659,9 +659,20 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def block_until_disconnected(self):
         """
-        This will block the main thread until disconnected() is called. This can happen
+        This will block the main thread until disconnected() is called.
+
+        This will unblock if:
+
         1. a kill/keyboard interrupt signal is sent
         2. state is set to "disconnected" over MQTT or programmatically
+
+        Useful for standalone jobs (and with click). Ex:
+
+        > if __name__ == "__main__":
+        >     job = Job(...)
+        >     job.block_until_disconnected()
+
+
         """
         self._blocking_event.wait()
 

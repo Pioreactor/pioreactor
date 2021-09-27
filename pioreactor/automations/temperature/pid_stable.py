@@ -38,6 +38,7 @@ class PIDStable(TemperatureAutomation):
             # smart and look at the delta between the latest_temperature and target_temperature
             # to set a reasonable initial value.
             delta_t = self.target_temperature - self.latest_temperature
+            self.logger(delta_t, self.target_temperature, self.latest_temperature)
             if delta_t <= 0:
                 # turn off heater, to drop the temp
                 self.update_heater(0)
