@@ -315,6 +315,7 @@ def start_stirring(target_rpm=0, unit=None, experiment=None, ignore_rpm=False) -
 @click.option(
     "--ignore-rpm",
     help="don't use feedback loop",
+    is_flag=True,
 )
 def click_stirring(target_rpm, ignore_rpm):
     """
