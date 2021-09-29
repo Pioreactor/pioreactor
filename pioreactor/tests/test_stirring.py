@@ -104,13 +104,14 @@ def test_stirring_with_lookup_linear_v1():
     st = Stirrer(target_rpm, unit, exp, rpm_calculator=None)
     st.start_stirring()
 
-    assert st.duty_cycle == 0.1 * target_rpm + 20
+    assert st.duty_cycle == 60 - 0.9 * (60 - (0.1 * target_rpm + 20))
 
+    dc = st.duty_cycle
     target_rpm = 600
     publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", 600)
     pause()
     pause()
 
-    assert st.duty_cycle == 0.1 * target_rpm + 20
+    assert st.duty_cycle == dc - 0.9 * (dc - (0.1 * target_rpm + 20))
 
     st.set_state(st.DISCONNECTED)

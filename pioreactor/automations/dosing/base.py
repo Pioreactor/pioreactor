@@ -38,11 +38,11 @@ class DosingAutomation(BackgroundSubJob):
 
     latest_growth_rate = None
     latest_od = None
-    latest_od_timestamp = 0
-    latest_growth_rate_timestamp = 0
-    latest_event = None
-    latest_settings_started_at = current_utc_time()
-    latest_settings_ended_at = None
+    latest_od_timestamp: float = 0
+    latest_growth_rate_timestamp: float = 0
+    latest_event: Optional[events.Event] = None
+    latest_settings_started_at: str = current_utc_time()
+    latest_settings_ended_at: Optional[str] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

@@ -62,6 +62,9 @@ class RpmCalculator:
     def __call__(self, seconds_to_observe: float) -> Optional[int]:
         pass
 
+    def callback(self, *args):
+        pass
+
 
 class RpmFromFrequency(RpmCalculator):
     """
@@ -155,7 +158,7 @@ class Stirrer(BackgroundJob):
     duty_cycle: float = config.getint(
         "stirring", "initial_duty_cycle", fallback=60.0
     )  # only used in calibration isn't defined.
-    actual_rpm: float = 0
+    actual_rpm: int = 0
 
     def __init__(
         self,
@@ -177,7 +180,6 @@ class Stirrer(BackgroundJob):
         self.rpm_calculator = rpm_calculator
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
         self.target_rpm = target_rpm
-
         self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
         # set up PID
@@ -193,6 +195,7 @@ class Stirrer(BackgroundJob):
         )
 
         # set up thread to periodically check the rpm
+
         self.rpm_check_repeated_thread = RepeatedTimer(
             19,
             self.poll_and_update_dc,
@@ -243,11 +246,11 @@ class Stirrer(BackgroundJob):
         """
         Returns an RPM, or None if not measuring RPM.
         """
-        if self.rpm_calculator:
+        if self.rpm_calculator is not None:
             measured_rpm = self.rpm_calculator(poll_for_seconds)
-            if self.actual_rpm:
+            if self.actual_rpm is not None:
                 # use a simple EMA, 0.05 chosen arbitrarily
-                self.actual_rpm = 0.05 * self.actual_rpm + 0.95 * measured_rpm
+                self.actual_rpm = int(0.05 * self.actual_rpm + 0.95 * measured_rpm)
             else:
                 self.actual_rpm = measured_rpm
         else:

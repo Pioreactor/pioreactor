@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import annotations
 import time
 import json
 from threading import Thread
@@ -35,6 +35,8 @@ class LEDAutomation(BackgroundSubJob):
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     published_settings = {"duration": {"datatype": "float", "settable": True}}
+    edited_channels: set[LED_Channel] = set()
+    latest_event: Optional[events.Event] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -55,9 +57,6 @@ class LEDAutomation(BackgroundSubJob):
         super(LEDAutomation, self).__init__(
             job_name="led_automation", unit=unit, experiment=experiment
         )
-
-        self.edited_channels = set([])
-        self.latest_event = None
 
         self.skip_first_run = skip_first_run  # TODO: needed?
 
