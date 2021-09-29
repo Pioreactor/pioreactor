@@ -21,6 +21,7 @@ topic: `pioreactor/<unit>/<experiment>/temperture_control/temperature_automation
 message: a json object with required keyword argument. Specify the new automation with name `"temperature_automation"`.
 
 """
+from __future__ import annotations
 import json, time
 from typing import Optional, Any
 
