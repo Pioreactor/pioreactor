@@ -47,7 +47,7 @@ class WatchDog(NiceMixin, BackgroundJob):
 
             # continue to pull the latest state to see if anything has changed.
             while True:
-                time.sleep(5 * 60)
+                time.sleep(2.5 * 60)
                 current_state = subscribe(
                     f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
                 ).payload.decode()

@@ -155,6 +155,7 @@ class Stirrer(BackgroundJob):
     duty_cycle: float = config.getint(
         "stirring", "initial_duty_cycle", fallback=60.0
     )  # only used in calibration isn't defined.
+    actual_rpm: float = 0
 
     def __init__(
         self,
@@ -243,7 +244,12 @@ class Stirrer(BackgroundJob):
         Returns an RPM, or None if not measuring RPM.
         """
         if self.rpm_calculator:
-            self.actual_rpm = self.rpm_calculator(poll_for_seconds)
+            measured_rpm = self.rpm_calculator(poll_for_seconds)
+            if self.actual_rpm:
+                # use a simple EMA, 0.05 chosen arbitrarily
+                self.actual_rpm = 0.05 * self.actual_rpm + 0.95 * measured_rpm
+            else:
+                self.actual_rpm = measured_rpm
         else:
             self.actual_rpm = None
 

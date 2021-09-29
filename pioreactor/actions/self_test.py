@@ -62,7 +62,9 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
 
     from pprint import pformat
 
-    INTENSITIES = list(range(2, 58, 8))
+    INTENSITIES = list(
+        range(2, 59, 7)
+    )  # better to err on the side of MORE samples than less - it's only a few extra seconds...
     current_experiment_name = get_latest_experiment_name()
     results = {}
 

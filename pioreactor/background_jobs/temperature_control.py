@@ -65,6 +65,7 @@ class TemperatureController(BackgroundJob):
         "temperature_automation": {"datatype": "string", "settable": True},
         "temperature": {"datatype": "float", "settable": False, "unit": "℃"},
     }
+    temperature = None
 
     def __init__(
         self,
@@ -327,7 +328,13 @@ class TemperatureController(BackgroundJob):
             if i > 0:
                 delta_threshold = 0.1 + 0.2 / (1 + exp(-0.15 * (temp - 35)))
                 if abs(prev_temp - temp) < delta_threshold:
-                    return (temp + prev_temp) / 2
+
+                    # take a moving average with previous temperature, if available
+                    # 0.05 was arbitrary
+                    if self.temperature:
+                        return 0.05 * self.temperature + 0.95 * (temp + prev_temp) / 2
+                    else:
+                        return (temp + prev_temp) / 2
 
             prev_temp = temp
 
