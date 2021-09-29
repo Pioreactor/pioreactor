@@ -5,6 +5,8 @@ import signal
 import threading
 import atexit
 import os
+import sys
+
 
 from collections import namedtuple
 from json import dumps
@@ -476,6 +478,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if self.state == self.DISCONNECTED:
                 return
             self.set_state(self.DISCONNECTED)
+            # after we've disconnected, we sys.exit out.
+            # should we pause here?
+            sys.exit()
 
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
