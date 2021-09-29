@@ -312,7 +312,6 @@ def start_stirring(target_rpm=0, unit=None, experiment=None, ignore_rpm=False) -
     show_default=True,
     type=click.IntRange(0, 1000, clamp=True),
 )
-@click.command(name="stirring")
 @click.option(
     "--ignore-rpm",
     help="don't use feedback loop",
