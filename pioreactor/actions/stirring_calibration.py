@@ -83,6 +83,11 @@ def stirring_calibration():
         # set x=measure_rpms, y=dcs
         (rpm_coef, _), (intercept, _) = simple_linear_regression(measured_rpms, dcs)
 
+        assert rpm_coef > 0, "something went wrong - this coef should be greater than 0"
+        assert (
+            intercept > 0
+        ), "something went wrong - this intercept should be greater than 0"
+
         with local_persistant_storage(action_name) as cache:
             cache["linear_v1"] = json.dumps(
                 {"rpm_coef": rpm_coef, "intercept": intercept}

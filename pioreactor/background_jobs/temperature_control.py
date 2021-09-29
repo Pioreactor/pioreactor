@@ -22,6 +22,7 @@ message: a json object with required keyword argument. Specify the new automatio
 
 """
 import json, time
+from typing import Optional, Any
 
 import click
 
@@ -65,7 +66,7 @@ class TemperatureController(BackgroundJob):
         "temperature_automation": {"datatype": "string", "settable": True},
         "temperature": {"datatype": "float", "settable": False, "unit": "℃"},
     }
-    temperature = None
+    temperature: Optional[dict[str, Any]] = None
 
     def __init__(
         self,
@@ -128,7 +129,7 @@ class TemperatureController(BackgroundJob):
         self._update_heater(0)
         self.pwm.stop()
 
-    def update_heater(self, new_duty_cycle):
+    def update_heater(self, new_duty_cycle: float):
         """
         Update heater's duty cycle. This function checks for the PWM lock, and will not
         update if the PWM is locked.
@@ -144,7 +145,7 @@ class TemperatureController(BackgroundJob):
         else:
             return False
 
-    def update_heater_with_delta(self, delta_duty_cycle):
+    def update_heater_with_delta(self, delta_duty_cycle: float):
         """
         Update heater's duty cycle by `delta_duty_cycle` amount. This function checks for the PWM lock, and will not
         update if the PWM is locked.
@@ -201,11 +202,11 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
-    def _update_heater(self, new_duty_cycle):
+    def _update_heater(self, new_duty_cycle: float):
         self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 5), 100)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
-    def _check_if_exceeds_max_temp(self, temp):
+    def _check_if_exceeds_max_temp(self, temp: float):
         MAX_TEMP_TO_REDUCE_HEATING = 53.0
         MAX_TEMP_TO_DISABLE_HEATING = 56.0
         MAX_TEMP_TO_SHUTDOWN = 58.0
@@ -317,7 +318,7 @@ class TemperatureController(BackgroundJob):
             "timestamp": timestamp,
         }
 
-    def approximate_temperature(self, feature_vector):
+    def approximate_temperature(self, feature_vector: dict) -> float:
         # check if we are using silent, if so, we can short this and return single value?s
 
         # some heuristic for now:
@@ -332,7 +333,10 @@ class TemperatureController(BackgroundJob):
                     # take a moving average with previous temperature, if available
                     # 0.05 was arbitrary
                     if self.temperature:
-                        return 0.05 * self.temperature + 0.95 * (temp + prev_temp) / 2
+                        return (
+                            0.05 * self.temperature["temperature"]
+                            + 0.95 * (temp + prev_temp) / 2
+                        )
                     else:
                         return (temp + prev_temp) / 2
 
