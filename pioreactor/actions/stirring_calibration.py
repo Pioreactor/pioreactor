@@ -40,7 +40,9 @@ def stirring_calibration():
             return
 
         # we go up and down to exercise any hysteresis in the system
-        dcs = list(range(55, 97, 4)) + list(range(95, 50, -4))
+        # dcs = list(range(55, 97, 4)) + list(range(95, 50, -4))
+        dcs = list(range(30, 60, 4)) + list(range(63, 30, -4))
+
         measured_rpms = []
 
         rpm_calc = stirring.RpmFromFrequency()
