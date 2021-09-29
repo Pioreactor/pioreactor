@@ -255,7 +255,9 @@ class Monitor(NiceMixin, BackgroundJob):
             return
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
-        cpu_usage_percent = round(psutil.cpu_percent())
+        cpu_usage_percent = round(
+            psutil.cpu_percent()
+        )  # TODO: this is a noisy process, and we should average it over a small window.
         available_memory_percent = round(
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )

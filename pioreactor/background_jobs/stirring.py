@@ -285,15 +285,20 @@ class Stirrer(BackgroundJob):
         self.pid.set_setpoint(self.target_rpm)
 
 
-def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
+def start_stirring(target_rpm=0, unit=None, experiment=None, ignore_rpm=False) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
+
+    if ignore_rpm:
+        rpm_calculator = None
+    else:
+        rpm_calculator = RpmFromFrequency()
 
     stirrer = Stirrer(
         target_rpm=target_rpm,
         unit=unit,
         experiment=experiment,
-        rpm_calculator=RpmFromFrequency(),
+        rpm_calculator=rpm_calculator,
     )
     stirrer.start_stirring()
     return stirrer
@@ -307,9 +312,14 @@ def start_stirring(target_rpm=0, unit=None, experiment=None) -> Stirrer:
     show_default=True,
     type=click.IntRange(0, 1000, clamp=True),
 )
-def click_stirring(target_rpm):
+@click.command(name="stirring")
+@click.option(
+    "--ignore-rpm",
+    help="don't use feedback loop",
+)
+def click_stirring(target_rpm, ignore_rpm):
     """
     Start the stirring of the Pioreactor.
     """
-    st = start_stirring(target_rpm=target_rpm)
+    st = start_stirring(target_rpm=target_rpm, ignore_rpm=ignore_rpm)
     st.block_until_disconnected()

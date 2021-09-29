@@ -353,7 +353,7 @@ if am_I_leader():
             bold=True,
         )
         for hostname, inventory_status in config["network.inventory"].items():
-            if not inventory_status:
+            if inventory_status == "0":
                 continue
 
             # get ip

@@ -6,6 +6,16 @@ from pioreactor.utils import clamp
 
 
 class PIDStable(TemperatureAutomation):
+    """
+    Uses a PID controller to change the DC% to match a target temperature.
+
+    TODO: The PID below uses a derivative term, but we don't have a filter
+    filter before or after the derivative. We can improve the output
+    by introducing a filter. Unfortunately, the library we are using, simple-pid,
+    doesn't have an API for doing this.
+
+
+    """
 
     key = "pid_stable"
     published_settings = {

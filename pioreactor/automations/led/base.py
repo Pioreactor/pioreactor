@@ -30,8 +30,8 @@ class LEDAutomation(BackgroundSubJob):
 
     latest_growth_rate = None
     latest_od = None
-    latest_od_timestamp = None
-    latest_growth_rate_timestamp = None
+    latest_od_timestamp = 0
+    latest_growth_rate_timestamp = 0
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
     published_settings = {"duration": {"datatype": "float", "settable": True}}
@@ -46,7 +46,7 @@ class LEDAutomation(BackgroundSubJob):
 
     def __init__(
         self,
-        duration=None,
+        duration: Optional[float] = None,
         skip_first_run=False,
         unit=None,
         experiment=None,

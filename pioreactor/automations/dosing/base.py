@@ -3,6 +3,7 @@
 import time
 import json
 from threading import Thread
+from typing import Optional
 
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
@@ -55,7 +56,7 @@ class DosingAutomation(BackgroundSubJob):
         self,
         unit=None,
         experiment=None,
-        duration=None,
+        duration: Optional[float] = None,
         skip_first_run=False,
         **kwargs,
     ):

@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
-# stirring calibration
 """
-
 maps DC -> RPM, and PID will correct any disturbances
 This should be run with a vial in, with a stirbar. Water is fine.
 
-
 """
-
-
 import time, click, json
 from pioreactor.pubsub import publish_to_pioreactor_cloud, publish
 
@@ -44,9 +39,8 @@ def stirring_calibration():
             )
             return
 
-        dcs = list(range(95, 50, -4)) + list(
-            range(52, 97, 4)
-        )  # we go up and down to exercise any hysteresis in the system
+        # we go up and down to exercise any hysteresis in the system
+        dcs = list(range(55, 97, 4)) + list(range(95, 50, -4))
         measured_rpms = []
 
         rpm_calc = stirring.RpmFromFrequency()
@@ -81,12 +75,10 @@ def stirring_calibration():
 
         # drop any 0 in RPM, too little DC
         dcs, measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
-        print(dcs, measured_rpms)
 
         # since in practice, we want a look up from RPM -> required DC, we
         # set x=measure_rpms, y=dcs
         (rpm_coef, _), (intercept, _) = simple_linear_regression(measured_rpms, dcs)
-        print(rpm_coef, intercept)
 
         with local_persistant_storage(action_name) as cache:
             cache["linear_v1"] = json.dumps(
