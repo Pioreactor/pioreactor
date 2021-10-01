@@ -160,9 +160,8 @@ CREATE TABLE IF NOT EXISTS stirring_rates (
     timestamp                TEXT NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
     experiment               TEXT NOT NULL,
-    rpm                      REAL NOT NULL
+    actual_rpm               REAL NOT NULL
 );
-
 
 
 CREATE TABLE IF NOT EXISTS od_reading_statistics (
@@ -172,4 +171,22 @@ CREATE TABLE IF NOT EXISTS od_reading_statistics (
     source                   TEXT NOT NULL,
     estimator                TEXT NOT NULL,
     estimate                 REAL NOT NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS od_reading_statistics (
+    timestamp                TEXT NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    source                   TEXT NOT NULL,
+    estimator                TEXT NOT NULL,
+    estimate                 REAL NOT NULL
+);
+
+
+
+CREATE TABLE IF NOT EXISTS config_files (
+    timestamp                TEXT NOT NULL,
+    filename                 TEXT NOT NULL,
+    data                     TEXT NOT NULL
 );

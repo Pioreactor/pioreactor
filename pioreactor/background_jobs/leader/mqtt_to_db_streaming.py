@@ -252,7 +252,7 @@ def mqtt_to_db_streaming():
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": metadata.timestamp,
-            "rpm": float(payload),
+            "actual_rpm": float(payload),
         }
 
     def parse_od_statistics(topic, payload):
@@ -316,7 +316,7 @@ def mqtt_to_db_streaming():
             "kalman_filter_outputs",
         ),
         TopicToParserToTable(
-            "pioreactor/+/+/stirring/rpm", parse_stirring_rates, "stirring_rates"
+            "pioreactor/+/+/stirring/actual_rpm", parse_stirring_rates, "stirring_rates"
         ),
         TopicToParserToTable(
             "pioreactor/+/od_blank/+", parse_od_statistics, "od_reading_statistics"

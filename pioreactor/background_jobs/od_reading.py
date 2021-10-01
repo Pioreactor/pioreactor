@@ -3,11 +3,11 @@
 Continuously take an optical density reading (more accurately: a turbidity reading, which is a proxy for OD).
 Topics published to
 
-    pioreactor/<unit>/<experiment>/od_raw/<channel>
+    pioreactor/<unit>/<experiment>/od_reading/od_raw/<channel>
 
 Ex:
 
-    pioreactor/pioreactor1/trial15/od_raw/1
+    pioreactor/pioreactor1/trial15/od_reading/od_raw/1
 
 a json file like:
 

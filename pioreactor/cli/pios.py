@@ -19,8 +19,9 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
     get_unit_name,
 )
-from pioreactor.config import get_active_workers_in_inventory, get_leader_hostname
+from pioreactor.config import get_active_workers_in_inventory, get_leader_hostname, config
 from pioreactor.logging import create_logger
+from pioreactor.utils.timing import current_utc_timestamp
 
 
 def universal_identifier_to_all_active_workers(units) -> tuple[str]:
@@ -36,33 +37,58 @@ def add_leader(list_of_units):
     return list_of_units
 
 
-def sync_config_files(ssh_client, unit: str):
+def save_config_files_to_db(units, shared: bool, specific: bool):
+    import sqlite3
+
+    conn = sqlite3.connect(config["storage"]["database"])
+    cur = conn.cursor()
+
+    timestamp = current_utc_timestamp()
+    sql = "INSERT INTO config_files(timestamp,filename,data) VALUES(?,?,?)"
+
+    if specific:
+        for unit in units:
+            with open(f"/home/pi/.pioreactor/config_{unit}.ini") as f:
+                cur.execute(sql, (timestamp, f"config_{unit}.ini", f.read()))
+
+    if shared:
+        with open("/home/pi/.pioreactor/config.ini") as f:
+            cur.execute(sql, (timestamp, "config.ini", f.read()))
+
+    conn.commit()
+    conn.close()
+
+
+def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool):
     """
-    Moves both the config.ini and config_{unit}.ini to the remote Pioreactor.
+    Moves
+
+    1. the config.ini (if shared is True)
+    2. config_{unit}.ini to the remote Pioreactor (if specific is True)
 
     Note: this function occurs in a thread
     """
-    ftp_client = ssh_client.open_sftp()
-
     # move the global config.ini
     # there was a bug where if the leader == unit, the config.ini would get wiped
-    if get_leader_hostname() != unit:
+    if (get_leader_hostname() != unit) and shared:
         ftp_client.put(
             localpath="/home/pi/.pioreactor/config.ini",
             remotepath="/home/pi/.pioreactor/config.ini",
         )
 
-    # move the local config.ini
-    try:
-        ftp_client.put(
-            localpath=f"/home/pi/.pioreactor/config_{unit}.ini",
-            remotepath="/home/pi/.pioreactor/unit_config.ini",
-        )
-    except Exception:
-        click.echo(
-            f"Did you forget to create a config_{unit}.ini to deploy to {unit}?", err=True
-        )
-        sys.exit(1)
+    # move the specific unit config.ini
+    if specific:
+        try:
+            ftp_client.put(
+                localpath=f"/home/pi/.pioreactor/config_{unit}.ini",
+                remotepath="/home/pi/.pioreactor/unit_config.ini",
+            )
+        except Exception as e:
+            click.echo(
+                f"Did you forget to create a config_{unit}.ini to deploy to {unit}?",
+                err=True,
+            )
+            raise e
 
     ftp_client.close()
     return
@@ -114,15 +140,14 @@ def update(units):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
 
-            client = paramiko.SSHClient()
-            client.load_system_host_keys()
-            client.connect(unit, username="pi", compress=True)
+            with paramiko.SSHClient() as client:
+                client.load_system_host_keys()
+                client.connect(unit, username="pi", compress=True)
 
-            (stdin, stdout, stderr) = client.exec_command(command)
-            for line in stderr.readlines():
-                pass
+                (stdin, stdout, stderr) = client.exec_command(command)
+                for line in stderr.readlines():
+                    pass
 
-            client.close()
             return True
 
         except Exception as e:
@@ -162,16 +187,14 @@ def install_plugin(plugin, units):
     def _thread_function(unit):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
+            with paramiko.SSHClient() as client:
+                client.load_system_host_keys()
+                client.connect(unit, username="pi", compress=True)
 
-            client = paramiko.SSHClient()
-            client.load_system_host_keys()
-            client.connect(unit, username="pi", compress=True)
+                (stdin, stdout, stderr) = client.exec_command(command)
+                for line in stderr.readlines():
+                    pass
 
-            (stdin, stdout, stderr) = client.exec_command(command)
-            for line in stderr.readlines():
-                pass
-
-            client.close()
             return True
 
         except Exception as e:
@@ -212,15 +235,14 @@ def uninstall_plugin(plugin, units):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
 
-            client = paramiko.SSHClient()
-            client.load_system_host_keys()
-            client.connect(unit, username="pi", compress=True)
+            with paramiko.SSHClient() as client:
+                client.load_system_host_keys()
+                client.connect(unit, username="pi", compress=True)
 
-            (stdin, stdout, stderr) = client.exec_command(command)
-            for line in stderr.readlines():
-                pass
+                (stdin, stdout, stderr) = client.exec_command(command)
+                for line in stderr.readlines():
+                    pass
 
-            client.close()
             return True
 
         except Exception as e:
@@ -244,34 +266,51 @@ def uninstall_plugin(plugin, units):
     type=click.STRING,
     help="specify a hostname, default is all active units",
 )
-def sync_configs(units):
+@click.option(
+    "--shared",
+    is_flag=True,
+    help="sync the shared config.ini",
+)
+@click.option(
+    "--specific",
+    is_flag=True,
+    help="sync the worker specific config.ini(s)",
+)
+def sync_configs(units, shared, specific):
     """
-    Deploys the global config.ini and worker specific config.inis to the workers.
+    Deploys the shared config.ini and worker specific config.inis to the workers.
+
+    If neither `--shared` not `--specific` are specified, both are set to true.
     """
     import paramiko
 
     logger = create_logger(
         "sync_configs", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
+    units = universal_identifier_to_all_active_workers(units)
+
+    if not shared and not specific:
+        shared = specific = True
 
     def _thread_function(unit):
         logger.debug(f"Syncing configs on {unit}...")
         try:
+            with paramiko.SSHClient() as client:
+                client.load_system_host_keys()
+                client.connect(unit, username="pi", compress=True)
 
-            client = paramiko.SSHClient()
-            client.load_system_host_keys()
-            client.connect(unit, username="pi", compress=True)
+                with client.open_sftp() as ftp_client:
+                    sync_config_files(ftp_client, unit, shared, specific)
 
-            sync_config_files(client, unit)
-
-            client.close()
             return True
         except Exception as e:
             logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)
             return False
 
-    units = universal_identifier_to_all_active_workers(units)
+    # save config.inis to database
+    save_config_files_to_db(units, shared, specific)
+
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
