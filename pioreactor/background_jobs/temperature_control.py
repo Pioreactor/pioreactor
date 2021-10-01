@@ -29,7 +29,6 @@ import click
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.logging import create_logger
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.hardware_mappings import PWM_TO_PIN
@@ -71,10 +70,10 @@ class TemperatureController(BackgroundJob):
 
     def __init__(
         self,
-        temperature_automation,
+        temperature_automation: str,
         eval_and_publish_immediately: bool = True,
-        unit=None,
-        experiment=None,
+        unit: str = None,
+        experiment: str = None,
         **kwargs,
     ):
         super(TemperatureController, self).__init__(
@@ -104,9 +103,14 @@ class TemperatureController(BackgroundJob):
         self.update_heater(0)
 
         self.read_external_temperature_timer = RepeatedTimer(
-            30, self.read_external_temperature, run_immediately=True
+            60, self.read_external_temperature, run_immediately=True
         )
         self.read_external_temperature_timer.start()
+
+        self.temperature = {
+            "temperature": self.read_external_temperature(),
+            "timestamp": current_utc_time(),
+        }
 
         self.publish_temperature_timer = RepeatedTimer(
             10 * 60,
@@ -348,18 +352,12 @@ class TemperatureController(BackgroundJob):
 
 
 def run(automation, **kwargs):
-    try:
-        return TemperatureController(
-            automation,
-            unit=get_unit_name(),
-            experiment=get_latest_experiment_name(),
-            **kwargs,
-        )
-    except Exception as e:
-        logger = create_logger("temperature_automation")
-        logger.error(e)
-        logger.debug(e, exc_info=True)
-        raise e
+    return TemperatureController(
+        automation,
+        unit=get_unit_name(),
+        experiment=get_latest_experiment_name(),
+        **kwargs,
+    )
 
 
 @click.command(
