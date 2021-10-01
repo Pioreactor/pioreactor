@@ -21,7 +21,7 @@ from pioreactor.whoami import (
 )
 from pioreactor.config import get_active_workers_in_inventory, get_leader_hostname, config
 from pioreactor.logging import create_logger
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_time
 
 
 def universal_identifier_to_all_active_workers(units) -> tuple[str]:
@@ -43,7 +43,7 @@ def save_config_files_to_db(units, shared: bool, specific: bool):
     conn = sqlite3.connect(config["storage"]["database"])
     cur = conn.cursor()
 
-    timestamp = current_utc_timestamp()
+    timestamp = current_utc_time()
     sql = "INSERT INTO config_files(timestamp,filename,data) VALUES(?,?,?)"
 
     if specific:
