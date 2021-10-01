@@ -74,7 +74,7 @@ class MqttToDBStreamer(NiceMixin, BackgroundJob):
     def on_disconnect(self):
         self.sqliteworker.close()  # close the db safely
 
-    def create_on_message_callback(self, parser, table):
+    def create_on_message_callback(self, parser: Callable, table: str):
         def _callback(message):
             # TODO: filter testing experiments here?
             try:
@@ -112,7 +112,7 @@ class MqttToDBStreamer(NiceMixin, BackgroundJob):
             )
 
 
-def produce_metadata(topic: str):
+def produce_metadata(topic: str) -> tuple[SetAttrSplitTopic, list]:
     # helper function for parsers below
     split_topic = topic.split("/")
     return (
@@ -247,7 +247,7 @@ def mqtt_to_db_streaming():
         return payload
 
     def parse_stirring_rates(topic, payload):
-        metadata = produce_metadata(topic)
+        metadata, _ = produce_metadata(topic)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
