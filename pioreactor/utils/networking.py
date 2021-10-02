@@ -36,6 +36,7 @@ def is_allowable_hostname(hostname: str) -> bool:
 
 
 def get_ip() -> str:
+    # psutil.net_if_addrs()?
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("10.255.255.255", 1))

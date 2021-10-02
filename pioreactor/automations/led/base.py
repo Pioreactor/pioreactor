@@ -49,9 +49,9 @@ class LEDAutomation(BackgroundSubJob):
     def __init__(
         self,
         duration: Optional[float] = None,
-        skip_first_run=False,
-        unit=None,
-        experiment=None,
+        skip_first_run: bool = False,
+        unit: str = None,
+        experiment: str = None,
         **kwargs,
     ):
         super(LEDAutomation, self).__init__(
@@ -151,7 +151,7 @@ class LEDAutomation(BackgroundSubJob):
         raise NotImplementedError
 
     @property
-    def most_stale_time(self):
+    def most_stale_time(self) -> float:
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
     def set_led_intensity(self, channel: LED_Channel, intensity: float):

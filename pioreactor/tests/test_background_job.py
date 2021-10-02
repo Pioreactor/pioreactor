@@ -277,3 +277,36 @@ def test_bad_setting_name_in_published_settings():
         TestJob(
             job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
         )
+
+
+def test_editing_readonly_attr_via_mqtt():
+    class TestJob(BackgroundJob):
+
+        published_settings = {
+            "readonly_attr": {
+                "datatype": "float",
+                "settable": False,
+            },
+        }
+
+    warning_logs = []
+
+    def collect_logs(msg):
+        if "read-only" in msg.payload.decode():
+            warning_logs.append(msg)
+
+    subscribe_and_callback(
+        collect_logs,
+        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/logs/app",
+    )
+
+    with TestJob(
+        job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
+    ):
+        publish(
+            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/job/readonly_attr/set",
+            1.0,
+        )
+        pause()
+
+    assert len(warning_logs) > 0

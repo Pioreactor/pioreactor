@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import signal
+from typing import Callable, Union, Any
 import threading
 import atexit
 import os
@@ -17,16 +18,18 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
 from pioreactor.logging import create_logger
 
 
-def split_topic_for_setting(topic):
-    SetAttrSplitTopic = namedtuple(
-        "SetAttrSplitTopic", ["unit", "experiment", "job_name", "attr"]
-    )
+SetAttrSplitTopic = namedtuple(
+    "SetAttrSplitTopic", ["unit", "experiment", "job_name", "attr"]
+)
+
+
+def split_topic_for_setting(topic) -> SetAttrSplitTopic:
     v = topic.split("/")
     assert len(v) == 6, "something is wrong"
     return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
-def format_with_optional_units(value, units):
+def format_with_optional_units(value: Any, units: str) -> str:
     """
     Ex:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
@@ -192,10 +195,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
     DISCONNECTED = "disconnected"
     SLEEPING = "sleeping"
     LOST = "lost"
-    LIFECYCLE_STATES = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
+    LIFECYCLE_STATES: set[str] = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
 
     # initial state is disconnected
-    state = DISCONNECTED
+    state: str = DISCONNECTED
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
@@ -253,62 +256,62 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this function is called AFTER the subclasses __init__ finishes
         self.set_state(self.READY)
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         # overwrite this to in subclasses to subscribe to topics in MQTT
         # using this handles reconnects correctly.
         pass
 
     # subclasses to override these to perform certain actions on a state transfer
-    def on_ready(self):
+    def on_ready(self) -> None:
         # specific things to do when is ready (again)
         pass
 
-    def on_init(self):
+    def on_init(self) -> None:
         # Note: this is called after this classes __init__, but before the subclasses __init__
         pass
 
-    def on_sleeping(self):
+    def on_sleeping(self) -> None:
         # specific things to do when a job sleeps / pauses
         pass
 
-    def on_disconnect(self):
+    def on_disconnect(self) -> None:
         # specific things to do when a job disconnects / exits
         pass
 
-    def on_disconnected_to_ready(self):
+    def on_disconnected_to_ready(self) -> None:
         pass
 
-    def on_ready_to_disconnected(self):
+    def on_ready_to_disconnected(self) -> None:
         pass
 
-    def on_disconnected_to_sleeping(self):
+    def on_disconnected_to_sleeping(self) -> None:
         pass
 
-    def on_sleeping_to_disconnected(self):
+    def on_sleeping_to_disconnected(self) -> None:
         pass
 
-    def on_disconnected_to_init(self):
+    def on_disconnected_to_init(self) -> None:
         pass
 
-    def on_init_to_disconnected(self):
+    def on_init_to_disconnected(self) -> None:
         pass
 
-    def on_ready_to_sleeping(self):
+    def on_ready_to_sleeping(self) -> None:
         pass
 
-    def on_sleeping_to_ready(self):
+    def on_sleeping_to_ready(self) -> None:
         pass
 
-    def on_ready_to_init(self):
+    def on_ready_to_init(self) -> None:
         pass
 
-    def on_init_to_ready(self):
+    def on_init_to_ready(self) -> None:
         pass
 
-    def on_sleeping_to_init(self):
+    def on_sleeping_to_init(self) -> None:
         pass
 
-    def on_init_to_sleeping(self):
+    def on_init_to_sleeping(self) -> None:
         pass
 
     ########### private #############
@@ -353,7 +356,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.start_general_passive_listeners()
             self.start_passive_listeners()
 
-        def on_disconnect(client, userdata, rc):
+        def on_disconnect(client, userdata, rc) -> None:
             self.on_mqtt_disconnect(rc)
 
         # we give the last_will to this sub client because when it reconnects, it
@@ -381,7 +384,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client.on_disconnect = on_disconnect
         return client
 
-    def on_mqtt_disconnect(self, rc: int):
+    def on_mqtt_disconnect(self, rc: int) -> None:
         if (
             rc == 0
         ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
@@ -398,7 +401,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Disconnected from MQTT with rc {rc}.")
             return
 
-    def publish(self, topic, payload, **kwargs):
+    def publish(self, topic: str, payload, **kwargs):
         """
         Publish payload to topic.
 
@@ -428,7 +431,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def subscribe_and_callback(self, callback, subscriptions, allow_retained=True, qos=0):
+    def subscribe_and_callback(
+        self,
+        callback: Callable,
+        subscriptions: Union[list[str], str],
+        allow_retained=True,
+        qos=0,
+    ):
         """
         Parameters
         -------------
@@ -597,14 +606,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         getattr(self, new_state)()
 
-    def log_state(self, state):
+    def log_state(self, state: str):
         if state == self.READY or state == self.DISCONNECTED:
             self.logger.info(state.capitalize() + ".")
         else:
             self.logger.debug(state.capitalize() + ".")
 
     def set_attr_from_message(self, message):
-
         new_value = message.payload.decode()
         info_from_topic = split_topic_for_setting(message.topic)
         attr = info_from_topic.attr.lstrip("$")
@@ -613,7 +621,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             (attr in self.published_settings)
             and (self.published_settings[attr]["settable"])
         ):
-            self.logger.debug(f"Unable to set {attr} in {self.job_name}.")
+            self.logger.debug(
+                f"Unable to set {attr} in {self.job_name}. {attr} is read-only."
+            )
             return
 
         previous_value = getattr(self, attr)

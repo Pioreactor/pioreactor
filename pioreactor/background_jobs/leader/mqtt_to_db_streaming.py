@@ -5,7 +5,7 @@ This job runs on the leader, and is a replacement for the NodeRed database strea
 from __future__ import annotations
 
 import json
-from typing import Callable
+from typing import Callable, Any
 from dataclasses import dataclass
 import click
 
@@ -69,12 +69,12 @@ class MqttToDBStreamer(NiceMixin, BackgroundJob):
             for topic_to_table in topics_to_tables
         ]
 
-        self.start_passive_listeners(topics_and_callbacks)
+        self.initialize_callbacks(topics_and_callbacks)
 
     def on_disconnect(self):
         self.sqliteworker.close()  # close the db safely
 
-    def create_on_message_callback(self, parser: Callable, table: str):
+    def create_on_message_callback(self, parser: Callable[[str, Any], dict], table: str):
         def _callback(message):
             # TODO: filter testing experiments here?
             try:
@@ -102,7 +102,7 @@ class MqttToDBStreamer(NiceMixin, BackgroundJob):
 
         return _callback
 
-    def start_passive_listeners(self, topics_and_callbacks):
+    def initialize_callbacks(self, topics_and_callbacks: list[dict]):
         for topic_and_callback in topics_and_callbacks:
             self.subscribe_and_callback(
                 topic_and_callback["callback"],
@@ -112,7 +112,7 @@ class MqttToDBStreamer(NiceMixin, BackgroundJob):
             )
 
 
-def produce_metadata(topic: str) -> tuple[SetAttrSplitTopic, list]:
+def produce_metadata(topic: str) -> tuple[SetAttrSplitTopic, list[str]]:
     # helper function for parsers below
     split_topic = topic.split("/")
     return (
