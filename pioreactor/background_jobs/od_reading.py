@@ -575,6 +575,11 @@ class LinearTemperatureCompensator(TemperatureCompensator):
             )
 
 
+class NullTemperatureCompensator(TemperatureCompensator):
+    def compensate_od_for_temperature(self, OD: float):
+        return OD
+
+
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -810,7 +815,7 @@ def start_od_reading(
             unit=unit,
             experiment=experiment,
         ),
-        temperature_compensator=None,
+        temperature_compensator=NullTemperatureCompensator(),
     )
 
 
