@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     unit = get_unit_name()
     interval_for_testing = 0.025
-    config["od_config.od_sampling"]["samples_per_second"] = "0.2"
+    config["od_config"]["samples_per_second"] = "0.2"
 
     for (ov, ac) in [(0.0005, 0.006)]:
 

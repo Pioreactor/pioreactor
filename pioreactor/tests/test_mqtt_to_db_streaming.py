@@ -10,7 +10,7 @@ from pioreactor.utils import local_persistant_storage
 
 def test_kalman_filter_entries():
     config["storage"]["database"] = "test.sqlite"
-    config["od_config.od_sampling"]["samples_per_second"] = "0.2"
+    config["od_config"]["samples_per_second"] = "0.2"
 
     unit = "unit"
     exp = "exp"

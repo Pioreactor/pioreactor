@@ -56,7 +56,7 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         self.ignore_cache = ignore_cache
         self.time_of_previous_observation = datetime.utcnow()
         self.expected_dt = 1 / (
-            60 * 60 * config.getfloat("od_config.od_sampling", "samples_per_second")
+            60 * 60 * config.getfloat("od_config", "samples_per_second")
         )
         self.initial_acc = 0
 

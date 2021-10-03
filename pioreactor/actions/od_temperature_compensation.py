@@ -86,8 +86,7 @@ def od_temperature_compensation():
             config.get("od_config.photodiode_channel", "2", fallback=None),
             config.get("od_config.photodiode_channel", "3", fallback=None),
             config.get("od_config.photodiode_channel", "4", fallback=None),
-            sampling_rate=1
-            / config.getfloat("od_config.od_sampling", "samples_per_second"),
+            sampling_rate=1 / config.getfloat("od_config", "samples_per_second"),
             unit=unit,
             experiment=testing_experiment,
             fake_data=is_testing_env(),
@@ -140,7 +139,7 @@ def od_temperature_compensation():
             ):
                 to_share = dict(zip(temps, ods))
                 to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
-                to_share["ir_intensity"] = config["od_config.od_sampling"]["ir_intensity"]
+                to_share["ir_intensity"] = config["od_config"]["ir_intensity"]
                 to_share["angle"] = angle
 
                 publish_to_pioreactor_cloud(

@@ -584,6 +584,7 @@ class ODReader(BackgroundJob):
 
         if self._initial_led_output is None:
             self._initial_led_output = batched_readings[self.ir_led_output_channel]
+            print(batched_readings[self.ir_led_output_channel])
 
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
@@ -728,7 +729,9 @@ def start_od_reading(
         od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
     )
 
-    assert ir_led_output_channel not in channel_angle_map
+    assert (
+        ir_led_output_channel not in channel_angle_map
+    ), "ir_led_output_channel should not be used as a OD photodiode."
 
     return ODReader(
         channel_angle_map,
@@ -737,7 +740,7 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=list(channel_angle_map.keys()),
+            channels=list(channel_angle_map.keys()) + [ir_led_output_channel],
             fake_data=fake_data,
             unit=unit,
             experiment=experiment,

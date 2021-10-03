@@ -105,7 +105,7 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
 
                 add_on = {
                     "ir_led_part_number": config["od_config"]["ir_led_part_number"],
-                    "ir_intensity": config["od_config.od_sampling"]["ir_intensity"],
+                    "ir_intensity": config["od_config"]["ir_intensity"],
                 }
 
                 pubsub.publish_to_pioreactor_cloud(

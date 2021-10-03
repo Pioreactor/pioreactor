@@ -63,13 +63,10 @@ class MockAnalogIn:
         import numpy as np
 
         self.gr = self.growth_rate(
-            self._counter / config.getfloat("od_config.od_sampling", "samples_per_second")
+            self._counter / config.getfloat("od_config", "samples_per_second")
         )
         self.state *= np.exp(
-            self.gr
-            / 60
-            / 60
-            / config.getfloat("od_config.od_sampling", "samples_per_second")
+            self.gr / 60 / 60 / config.getfloat("od_config", "samples_per_second")
         )
         self._counter += 1
         return self.state + random.normalvariate(0, sigma=self.state * 0.01)

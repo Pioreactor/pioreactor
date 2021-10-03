@@ -367,7 +367,7 @@ class TestGrowthRateCalculating:
         exp = "experiment"
         unit = "unit"
         interval = 0.1
-        config["od_config.od_sampling"]["samples_per_second"] = "0.2"
+        config["od_config"]["samples_per_second"] = "0.2"
 
         start_od_reading(
             *["135", "90", None, None],

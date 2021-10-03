@@ -71,7 +71,7 @@ def od_blank(
             pass
             # TODO: it could be paused, we should make sure it's running
 
-        sampling_rate = 1 / config.getfloat("od_config.od_sampling", "samples_per_second")
+        sampling_rate = 1 / config.getfloat("od_config", "samples_per_second")
 
         # start od_reading
         start_od_reading(
@@ -139,7 +139,7 @@ def od_blank(
         ):
             to_share = {**means, **variances}
             to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
-            to_share["ir_intensity"] = config["od_config.od_sampling"]["ir_intensity"]
+            to_share["ir_intensity"] = config["od_config"]["ir_intensity"]
             to_share["od_angle_channel1"] = od_angle_channel1
             to_share["od_angle_channel2"] = od_angle_channel2
             to_share["od_angle_channel3"] = od_angle_channel3
