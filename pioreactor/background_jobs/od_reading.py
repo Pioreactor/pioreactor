@@ -36,6 +36,7 @@ a serialized json like:
         }
       },
       "timestamp": "2021-06-06T15:08:12.081153"
+      "ir_led_output": 0.01
     }
 
 
@@ -86,9 +87,8 @@ use minimal MQTT, which can be just hardcoded in instead of using lots of extra 
 
 """
 from __future__ import annotations
-from typing import Optional, NewType, Any
-from time import time, sleep, perf_counter
-from json import loads
+from typing import Optional, NewType
+from time import time, sleep
 import click
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
@@ -497,89 +497,6 @@ class ADCReader(BackgroundSubJob):
             raise e
 
 
-class TemperatureCompensator(BackgroundSubJob):
-    """
-    This class listens for changes in temperature, and will allow OD to compensate
-    for the temp changes.
-
-    Override `compensate_od_for_temperature(self, OD)` to perform the compensation.
-    """
-
-    def __init__(self, unit=None, experiment=None, **kwargs):
-        super(TemperatureCompensator, self).__init__(
-            job_name="temperature_compensator", unit=unit, experiment=experiment, **kwargs
-        )
-        self.initial_temperature = None
-        self.latest_temperature = None
-        self.previous_temperature = None
-        self.time_of_last_temperature = None
-        self.start_passive_listeners()
-
-    def update_temperature(self, msg):
-        if not msg.payload:
-            return
-
-        tmp: float = loads(msg.payload)["temperature"]
-
-        if self.initial_temperature is None:
-            self.initial_temperature = tmp
-
-        if self.previous_temperature is None:
-            self.previous_temperature = tmp
-        else:
-            self.previous_temperature = self.latest_temperature
-
-        self.latest_temperature = tmp
-        self.time_of_last_temperature = perf_counter()
-
-    def start_passive_listeners(self):
-        self.subscribe_and_callback(
-            self.update_temperature,
-            f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
-            qos=QOS.EXACTLY_ONCE,
-            allow_retained=False,
-        )
-
-    def compensate_od_for_temperature(self, OD):
-        raise NotImplementedError
-
-
-class LinearTemperatureCompensator(TemperatureCompensator):
-    def __init__(self, linear_coefficient: float, *args, **kwargs):
-        super(LinearTemperatureCompensator, self).__init__(*args, **kwargs)
-        assert linear_coefficient < 0, "should be negative..."
-        self.linear_coefficient = linear_coefficient
-
-    def compensate_od_for_temperature(self, OD: float):
-        """
-        See https://github.com/Pioreactor/pioreactor/issues/143 for our analysis
-
-        To avoid large jumps when a new temperature reading arrives,
-        we interpolate between the new temp reading and the old temp reading. This should
-        smooth things out.
-
-        """
-
-        if self.initial_temperature is None:
-            return OD
-        else:
-            from math import exp
-
-            time_since_last = perf_counter() - self.time_of_last_temperature
-            f = min(time_since_last / (10 * 60), 1)  # interpolate to current temp
-            iterpolated_temp = (
-                f * self.latest_temperature + (1 - f) * self.previous_temperature
-            )
-            return OD / exp(
-                self.linear_coefficient * (iterpolated_temp - self.initial_temperature)
-            )
-
-
-class NullTemperatureCompensator(TemperatureCompensator):
-    def compensate_od_for_temperature(self, OD: float):
-        return OD
-
-
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -590,14 +507,13 @@ class ODReader(BackgroundJob):
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
     adc_reader: ADCReader
-    temperature_compensator: TemperatureCompensator
-
+    ir_led_output_channel: channel
+        the channel that measures how much output the IR led is giving off.
 
     Attributes
     ------------
 
     adc_reader: ADCReader
-    temperature_compensator: TemperatureCompensator
     latest_reading: dict
         represents the most recent dict from the adc_reader
 
@@ -611,11 +527,11 @@ class ODReader(BackgroundJob):
     def __init__(
         self,
         channel_angle_map: dict[PD_Channel, str],
+        ir_led_output_channel: PD_Channel,
         interval: float,
         adc_reader: ADCReader,
         unit=None,
         experiment=None,
-        temperature_compensator: TemperatureCompensator = None,
     ):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
@@ -623,18 +539,16 @@ class ODReader(BackgroundJob):
         self.logger.debug(f"Starting od_reading and channels {channel_angle_map}.")
 
         self.adc_reader = adc_reader
-        self.temperature_compensator = temperature_compensator
         self.sub_jobs = [self.adc_reader]
-
-        if self.temperature_compensator is not None:
-            self.sub_jobs.append(self.temperature_compensator)
 
         self.channel_angle_map = channel_angle_map
         self.interval = interval
         self.latest_reading = None
+        self.ir_led_output_channel = ir_led_output_channel
+        self._initial_led_output = None
 
         # start IR led before ADC starts, as it needs it.
-        self.led_intensity = config.getint("od_config.od_sampling", "ir_intensity")
+        self.led_intensity = config.getint("od_config", "ir_intensity")
         self.ir_channel = self.get_ir_channel_from_configuration()
 
         self.start_ir_led()
@@ -667,6 +581,9 @@ class ODReader(BackgroundJob):
         self.stop_ir_led()
 
         self.latest_reading = batched_readings
+
+        if self._initial_led_output is None:
+            self._initial_led_output = batched_readings[self.ir_led_output_channel]
 
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
@@ -717,28 +634,30 @@ class ODReader(BackgroundJob):
         self.stop_ir_led()
         self.clear_mqtt_cache()
 
-    def compensate_od_for_temperature(self, reading):
-        return self.temperature_compensator.compensate_od_for_temperature(reading)
-
     def publish_batch(
         self, batched_ads_readings: dict[PD_Channel, float], timestamp: str
     ):
         if self.state != self.READY:
             return
 
-        od_readings: dict[str, Any] = {"od_raw": {}}
+        output = {
+            "od_raw": {},
+            "timestamp": timestamp,
+        }
+
         for channel, angle in self.channel_angle_map.items():
-            od_readings["od_raw"][channel] = {
-                "voltage": self.compensate_od_for_temperature(
-                    batched_ads_readings[channel]
+            output["od_raw"][channel] = {
+                "voltage": batched_ads_readings[channel]
+                / (
+                    batched_ads_readings[self.ir_led_output_channel]
+                    / self._initial_led_output
                 ),
                 "angle": angle,
             }
 
-        od_readings["timestamp"] = timestamp
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
-            od_readings,
+            output,
             qos=QOS.EXACTLY_ONCE,
         )
 
@@ -751,8 +670,10 @@ class ODReader(BackgroundJob):
         for channel, angle in self.channel_angle_map.items():
 
             payload = {
-                "voltage": self.compensate_od_for_temperature(
-                    batched_ads_readings[channel]
+                "voltage": batched_ads_readings[channel]
+                / (
+                    batched_ads_readings[self.ir_led_output_channel]
+                    / self._initial_led_output
                 ),
                 "angle": angle,
                 "timestamp": timestamp,
@@ -792,7 +713,10 @@ def start_od_reading(
     od_angle_channel2: Optional[str] = None,
     od_angle_channel3: Optional[str] = None,
     od_angle_channel4: Optional[str] = None,
-    sampling_rate=1 / config.getfloat("od_config.od_sampling", "samples_per_second"),
+    ir_led_output_channel: PD_Channel = config.getint(
+        "od_config", "ir_led_output_channel"
+    ),
+    sampling_rate=1 / config.getfloat("od_config", "samples_per_second"),
     fake_data=False,
     unit=None,
     experiment=None,
@@ -804,8 +728,11 @@ def start_od_reading(
         od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
     )
 
+    assert ir_led_output_channel not in channel_angle_map
+
     return ODReader(
         channel_angle_map,
+        ir_led_output_channel=ir_led_output_channel,
         interval=sampling_rate,
         unit=unit,
         experiment=experiment,
@@ -815,7 +742,6 @@ def start_od_reading(
             unit=unit,
             experiment=experiment,
         ),
-        temperature_compensator=NullTemperatureCompensator(),
     )
 
 

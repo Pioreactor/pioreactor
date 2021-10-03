@@ -209,7 +209,9 @@ class TemperatureController(BackgroundJob):
             self.logger.warning(f"Change failed because of {str(e)}")
 
     def _update_heater(self, new_duty_cycle: float):
-        self.heater_duty_cycle = clamp(0, round(float(new_duty_cycle), 5), 100)
+        self.heater_duty_cycle = clamp(
+            0, round(float(new_duty_cycle), 5), 50
+        )  # TODO: update upperbound with better constant later.
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp: float):
@@ -218,7 +220,7 @@ class TemperatureController(BackgroundJob):
         MAX_TEMP_TO_SHUTDOWN = 58.0
 
         if temp > MAX_TEMP_TO_SHUTDOWN:
-            self.logger.warning(
+            self.logger.error(
                 f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
             )
 
