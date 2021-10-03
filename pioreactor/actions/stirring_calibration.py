@@ -66,7 +66,7 @@ def stirring_calibration():
             # log progress
             publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                count / n_samples * 100,
+                count // n_samples * 100,
             )
             logger.debug(f"Progress: {count/n_samples:.0%}")
 

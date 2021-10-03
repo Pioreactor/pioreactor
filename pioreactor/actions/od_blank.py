@@ -101,7 +101,7 @@ def od_blank(
 
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                count / n_samples * 100,
+                count // n_samples * 100,
             )
             logger.debug(f"Progress: {count/n_samples:.0%}")
             if count == n_samples:

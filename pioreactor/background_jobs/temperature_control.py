@@ -116,6 +116,7 @@ class TemperatureController(BackgroundJob):
             10 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
+            run_after=30,
         )
         self.publish_temperature_timer.start()
 
@@ -230,7 +231,7 @@ class TemperatureController(BackgroundJob):
                 f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
 
-            self.turn_off_heater()
+            self._update_heater(0)
 
         elif temp > MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(

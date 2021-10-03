@@ -73,7 +73,7 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
 
                 pubsub.publish(
                     f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                    count / n_samples * 100,
+                    count // n_samples * 100,
                 )
                 logger.debug(f"Progress: {count/n_samples:.0%}")
                 if count == n_samples:

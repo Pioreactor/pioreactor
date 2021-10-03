@@ -1,23 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-This action checks the following on the Pioreactor (using pytest):
+This action performs internal hardware & software tests of the system to confirm things work as expected.
 
-1. Heating and temperature sensor by gradually increase heating's DC, and record temperature
-    [x] do we detect the heating PCB over i2c?
-    [x] is there a positive correlation between heating DC and temperature?
+Functions with prefix `test_` are ran, and an Exception thrown means the test failed.
 
-2. LEDs and PDs, ramp up each LED's output and record outputs from PDs (from ADC)
-    [x] do we measure a positive correlation between any LED output and PD?
-    [x] output should be a list of pairs (LED_X, PD_Y) where a positive correlation is detected
-    [x] Detect the Pioreactor HAT
-    [x] detect ambient light?
-
-3. Stirring: ramp up output voltage for stirring and record RPM
-    [ ] do we measure a positive correlation between stirring voltage and RPM?
-
-
-Outputs from each check go into MQTT, and return to the command line.
-
+Outputs from each test go into MQTT, and return to the command line.
 """
 
 import time, sys
@@ -59,7 +46,10 @@ def test_pioreactor_hat_present(logger, unit, experiment):
 
 
 def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment):
-
+    """
+    This tests that there is a positive correlation between the IR LED channel, and the photodiodes
+    as defined in the config.ini.
+    """
     from pprint import pformat
 
     INTENSITIES = list(
@@ -136,6 +126,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
         publish(
             f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
             json.dumps(detected_relationships),
+            retain=True,
         )
 
         # we require that the IR photodiodes defined in the config have a
@@ -212,7 +203,6 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
 
 
 def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
-
     dcs = list(range(90, 50, -5))
     measured_rpms = []
 
