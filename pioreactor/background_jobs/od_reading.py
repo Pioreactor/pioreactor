@@ -584,7 +584,6 @@ class ODReader(BackgroundJob):
 
         if self._initial_led_output is None:
             self._initial_led_output = batched_readings[self.ir_led_output_channel]
-            print(batched_readings[self.ir_led_output_channel])
 
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
@@ -685,6 +684,12 @@ class ODReader(BackgroundJob):
                 payload,
                 qos=QOS.EXACTLY_ONCE,
             )
+
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/ir_led_output",
+            batched_ads_readings[self.ir_led_output_channel],
+            qos=QOS.EXACTLY_ONCE,
+        )
 
 
 def create_channel_angle_map(
