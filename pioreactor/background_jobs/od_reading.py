@@ -158,7 +158,9 @@ class ADCReader(LoggerMixin):
         self.channels = channels
 
         self.batched_readings: dict[PD_Channel, float] = {}
-        self.logger.debug(f"ADC ready to read from PD channels {','.join(channels)}.")
+        self.logger.debug(
+            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
+        )
 
     def setup_adc(self):
         """
