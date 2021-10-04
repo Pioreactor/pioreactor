@@ -32,8 +32,6 @@ def test_pioreactor_hat_present(logger, unit, experiment):
     try:
         with ADCReader(
             channels=PD_CHANNELS,
-            unit=unit,
-            experiment=experiment,
             dynamic_gain=False,
             initial_gain=16,
             fake_data=is_testing_env(),
@@ -60,8 +58,6 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
 
     with ADCReader(
         channels=PD_CHANNELS,
-        unit=unit,
-        experiment=experiment,
         dynamic_gain=False,
         initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
         fake_data=is_testing_env(),
@@ -150,8 +146,6 @@ def test_ambient_light_interference(logger, unit, experiment):
 
     with ADCReader(
         channels=PD_CHANNELS,
-        unit=unit,
-        experiment=experiment,
         dynamic_gain=False,
         initial_gain=16,
         fake_data=is_testing_env(),

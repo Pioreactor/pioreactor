@@ -149,7 +149,6 @@ class ADCReader:
         fake_data: bool = False,
         dynamic_gain: bool = True,
         initial_gain=1,
-        **kwargs,
     ):
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
@@ -238,15 +237,6 @@ class ADCReader:
 
     def set_ads_gain(self, gain):
         self.ads.gain = gain  # this assignment checks to see if the the gain is allowed.
-
-    def on_disconnect(self):
-        for attr in self.published_settings:
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                retain=True,
-                qos=QOS.AT_LEAST_ONCE,
-            )
 
     def sin_regression_with_known_freq(self, x, y, freq, prior_C=None, penalizer_C=None):
         r"""
@@ -480,6 +470,12 @@ class ADCReader:
             self.logger.error(e)
             raise e
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
 
 class IrLedOutputTracker:
     """
@@ -563,7 +559,7 @@ class ODReader(BackgroundJob):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
         )
-        self.logger.debug(f"Starting od_reading and channels {channel_angle_map}.")
+        self.logger.debug(f"Starting od_reading with channels {channel_angle_map}.")
 
         self.adc_reader = adc_reader
 
@@ -767,8 +763,6 @@ def start_od_reading(
         adc_reader=ADCReader(
             channels=list(channel_angle_map.keys()) + [ir_led_output_channel],
             fake_data=fake_data,
-            unit=unit,
-            experiment=experiment,
         ),
         ir_led_output_tracker=ir_led_output_tracker,
     )
