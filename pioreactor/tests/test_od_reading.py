@@ -1,65 +1,14 @@
 # -*- coding: utf-8 -*-
 # test_od_reading.py
 
-import time, json
+import time
 import numpy as np
-from pioreactor.background_jobs.od_reading import LinearTemperatureCompensator, ADCReader
+from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name
-from pioreactor.pubsub import publish
 
 
 def pause():
     time.sleep(0.25)
-
-
-def test_LinearTemperatureCompensator():
-    """
-    Simulate a non-growing culture that is changing temperatures
-    """
-
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
-
-    tc = LinearTemperatureCompensator(-0.6, unit=unit, experiment=experiment)
-
-    assert tc.compensate_od_for_temperature(1.0) == 1.0
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-        json.dumps({"temperature": 25, "timestamp": "2020-10-01"}),
-    )
-    pause()
-    assert tc.initial_temperature == 25
-    assert tc.latest_temperature == 25
-
-    assert abs(tc.compensate_od_for_temperature(1.0) - 1.0) < 0.0001
-
-    publish(
-        f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-        json.dumps({"temperature": 30, "timestamp": "2020-10-01"}),
-    )
-
-    pause()
-    pause()
-    pause()
-    pause()
-
-    assert tc.initial_temperature == 25
-    assert tc.previous_temperature == 25
-    assert tc.latest_temperature == 30
-
-    # temp increased, therefore OD decreased, so comped OD should be higher than observed (0.95V)
-    reading_ = tc.compensate_od_for_temperature(0.95)
-    assert reading_ > 0.95
-
-    pause()
-    pause()
-    pause()
-    pause()
-
-    # should keep increasing
-    assert tc.compensate_od_for_temperature(0.95) > reading_
-    tc.set_state(tc.DISCONNECTED)
 
 
 def test_sin_regression_exactly():

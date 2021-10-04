@@ -546,6 +546,7 @@ class ODReader(BackgroundJob):
         self.latest_reading = None
         self.ir_led_output_channel = ir_led_output_channel
         self._initial_led_output = None
+        self.led_output_ema = ExponentialMovingAverage(0.70)
 
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getint("od_config", "ir_intensity")
@@ -584,6 +585,10 @@ class ODReader(BackgroundJob):
 
         if self._initial_led_output is None:
             self._initial_led_output = batched_readings[self.ir_led_output_channel]
+
+        self.led_output_ema.update(
+            batched_readings[self.ir_led_output_channel] / self._initial_led_output
+        )
 
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
@@ -641,17 +646,13 @@ class ODReader(BackgroundJob):
             return
 
         output = {
-            "od_raw": {},
+            "od_raw": dict(),
             "timestamp": timestamp,
         }
 
         for channel, angle in self.channel_angle_map.items():
             output["od_raw"][channel] = {
-                "voltage": batched_ads_readings[channel]
-                / (
-                    batched_ads_readings[self.ir_led_output_channel]
-                    / self._initial_led_output
-                ),
+                "voltage": batched_ads_readings[channel] / self.led_output_ema(),
                 "angle": angle,
             }
 
@@ -670,11 +671,7 @@ class ODReader(BackgroundJob):
         for channel, angle in self.channel_angle_map.items():
 
             payload = {
-                "voltage": batched_ads_readings[channel]
-                / (
-                    batched_ads_readings[self.ir_led_output_channel]
-                    / self._initial_led_output
-                ),
+                "voltage": batched_ads_readings[channel] / self.led_output_ema(),
                 "angle": angle,
                 "timestamp": timestamp,
             }

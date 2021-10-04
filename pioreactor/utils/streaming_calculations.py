@@ -5,15 +5,18 @@ from pioreactor.pubsub import publish
 
 
 class ExponentialMovingAverage:
-    def __init__(self, alpha):
+    def __init__(self, alpha: float):
         self.value = None
         self.alpha = alpha
 
-    def update(self, new_value):
+    def update(self, new_value: float) -> float:
         if self.value is None:
             self.value = new_value
         else:
             self.value = (1 - self.alpha) * new_value + self.alpha * self.value
+        return self.value
+
+    def __call__(self):
         return self.value
 
 

@@ -116,7 +116,6 @@ class TemperatureController(BackgroundJob):
             10 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
-            run_after=30,
         )
         self.publish_temperature_timer.start()
 
@@ -142,8 +141,6 @@ class TemperatureController(BackgroundJob):
 
         Returns true if the update was made (eg: no lock), else returns false
         """
-
-        # TODO: new_duty_cycle should be capped at some value (since 100 will certainly push us over the temp maximum).
 
         if not self.pwm.is_locked():
             self._update_heater(new_duty_cycle)
@@ -292,7 +289,6 @@ class TemperatureController(BackgroundJob):
 
             N_sample_points = 17
             time_between_samples = 10
-            timestamp = current_utc_time()
 
             feature_vector = {}
             # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
@@ -323,7 +319,7 @@ class TemperatureController(BackgroundJob):
 
         self.temperature = {
             "temperature": approximated_temperature,
-            "timestamp": timestamp,
+            "timestamp": current_utc_time(),
         }
 
     def approximate_temperature(self, feature_vector: dict) -> float:
