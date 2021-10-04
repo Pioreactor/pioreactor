@@ -5,6 +5,10 @@ from pioreactor.pubsub import publish
 
 
 class ExponentialMovingAverage:
+    """
+    y_n = (1 - ⍺)·x + ⍺·y_{n-1}
+    """
+
     def __init__(self, alpha: float):
         self.value = None
         self.alpha = alpha

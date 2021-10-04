@@ -763,9 +763,11 @@ def start_od_reading(
             ir_led_output_channel not in channel_angle_map
         ), "ir_led_output_channel should not be used as a OD photodiode."
         ir_led_output_tracker = PDIrLedOutputTracker(ir_led_output_channel)
+        channels = list(channel_angle_map.keys()) + [ir_led_output_channel]
 
     else:
         ir_led_output_tracker = NullIrLedOutputTracker()
+        channels = list(channel_angle_map.keys())
 
     return ODReader(
         channel_angle_map,
@@ -773,7 +775,7 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=list(channel_angle_map.keys()) + [ir_led_output_channel],
+            channels=channels,
             fake_data=fake_data,
         ),
         ir_led_output_tracker=ir_led_output_tracker,
