@@ -96,20 +96,19 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
     LED_CHANNELS,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
-from pioreactor.logging import create_logger
 
 PD_Channel = NewType("PD_Channel", int)  # Literal[1,2,3,4]
 PD_CHANNELS = [PD_Channel(1), PD_Channel(2), PD_Channel(3), PD_Channel(4)]
 
 
-class ADCReader:
+class ADCReader(LoggerMixin):
     """
 
 
@@ -150,15 +149,16 @@ class ADCReader:
         dynamic_gain: bool = True,
         initial_gain=1,
     ):
+        super().__init__()
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
         self.gain = initial_gain
         self._counter = 0
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
-        self.logger = create_logger("ADCReader")
 
         self.batched_readings: dict[PD_Channel, float] = {}
+        self.logger.debug(f"ADC ready to read from PD channels {','.join(channels)}.")
 
     def setup_adc(self):
         """
@@ -477,7 +477,12 @@ class ADCReader:
         pass
 
 
-class IrLedOutputTracker:
+class IrLedOutputTracker(LoggerMixin):
+    def __init__(self):
+        super().__init__()
+
+
+class PDIrLedOutputTracker(IrLedOutputTracker):
     """
     This class contains the logic on how we incorporate the
     direct IR LED output into OD readings.
@@ -494,9 +499,11 @@ class IrLedOutputTracker:
 
     _initial_led_output = None
 
-    def __init__(self, channel: PD_Channel):
+    def __init__(self, channel: Optional[PD_Channel]):
+        super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.70)
         self.channel = channel
+        self.logger.debug(f"Using PD channel {channel} to track IR LED output.")
 
     def update(self, batched_reading: dict[PD_Channel, float]):
         ir_output_reading = batched_reading[self.channel]
@@ -511,7 +518,8 @@ class IrLedOutputTracker:
 
 class NullIrLedOutputTracker(IrLedOutputTracker):
     def __init__(self):
-        pass
+        super().__init__()
+        self.logger.debug("Not using any IR LED Output.")
 
     def update(self, batched_reading: dict[PD_Channel, float]):
         pass
@@ -750,7 +758,7 @@ def start_od_reading(
         assert (
             ir_led_output_channel not in channel_angle_map
         ), "ir_led_output_channel should not be used as a OD photodiode."
-        ir_led_output_tracker = IrLedOutputTracker(ir_led_output_channel)
+        ir_led_output_tracker = PDIrLedOutputTracker(ir_led_output_channel)
 
     else:
         ir_led_output_tracker = NullIrLedOutputTracker()

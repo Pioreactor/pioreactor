@@ -65,6 +65,12 @@ class NiceMixin:
         os.nice(1)
 
 
+class LoggerMixin:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.logger = create_logger(name=self.__class__.__name__)
+
+
 class PostInitCaller(type):
     def __call__(cls, *args, **kwargs):
         obj = type.__call__(cls, *args, **kwargs)
