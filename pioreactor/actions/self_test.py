@@ -131,15 +131,17 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
 
         # we require that the IR photodiodes defined in the config have a
         # correlation with the IR led
-
+        pd_channels_to_test = [
+            int(ch)
+            for (ch, angle) in config["od_config.photodiode_channel"].items()
+            if angle != ""
+        ] + [config.getint("od_config", "ir_led_output_channel")]
         ir_led_channel = config["leds_reverse"]["ir_led"]
 
-        for ir_pd_channel, angle in config["od_config.photodiode_channel"].items():
-            if angle != "":
-                # present
-                assert (
-                    results[(ir_led_channel, int(ir_pd_channel))] > 0.85
-                ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
+        for ir_pd_channel in pd_channels_to_test:
+            assert (
+                results[(ir_led_channel, ir_pd_channel)] > 0.85
+            ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
 def test_ambient_light_interference(logger, unit, experiment):

@@ -44,9 +44,10 @@ Internally, the ODReader runs a function every `interval` seconds. The function
  1. turns on the IR LED
  2. calls the subjob ADCReader reads all channels from the ADC.
  3. Turns off LED
- 4. Publishes data to MQTT
+ 4. Performs any transformations (see below)
+ 5. Publishes data to MQTT
 
-Transforms are also inside the above, ex: sin regression, and temperature compensation. See diagram below.
+Transforms are ex: sin regression, and LED output compensation. See diagram below.
 
 Dataflow of raw signal to final output:
 
@@ -55,13 +56,13 @@ Dataflow of raw signal to final output:
 │                                                                                │
 │                                                                                │
 │   ┌──────────────────────────────────────────┐    ┌────────────────────────┐   │
-│   │ADCReader                                 │    │TemperatureCompensator  │   │
+│   │ADCReader                                 │    │IrLedOutputTracker      │   │
 │   │                                          │    │                        │   │
 │   │                                          │    │                        │   │
 │   │ ┌──────────────┐       ┌───────────────┐ │    │  ┌─────────────────┐   │   │
 │   │ │              ├───────►               │ │    │  │                 │   │   │
 │   │ │              │       │               │ │    │  │                 │   │   │    MQTT
-│   │ │ samples from ├───────►      sin      ├─┼────┼──►  temperature    ├───┼───┼───────►
+│   │ │ samples from ├───────►      sin      ├─┼────┼──►  IR output      ├───┼───┼───────►
 │   │ │     ADC      │       │   regression  │ │    │  │  compensation   │   │   │
 │   │ │              ├───────►               │ │    │  │                 │   │   │
 │   │ └──────────────┘       └───────────────┘ │    │  └─────────────────┘   │   │
@@ -74,13 +75,13 @@ Dataflow of raw signal to final output:
 
 
 
-In the ADCReader class, we publish the `first_ads_obs_time` to MQTT so other jobs can read it and
+In the ODReader class, we publish the `first_od_obs_time` to MQTT so other jobs can read it and
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur.
 
 
 TODO:
-Part of me feels like ADCReader and Temperature Compenstator _don't_ need to be SubBackgroundJobs
+Part of me feels like ADCReader _don't_ need to be SubBackgroundJobs
 classes - I never(?) care about their state, as it doesn't really change (right?) - and they
 use minimal MQTT, which can be just hardcoded in instead of using lots of extra code / CPU.
 
@@ -96,26 +97,21 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_test
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
     LED_CHANNELS,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
+from pioreactor.logging import create_logger
 
 PD_Channel = NewType("PD_Channel", int)  # Literal[1,2,3,4]
 PD_CHANNELS = [PD_Channel(1), PD_Channel(2), PD_Channel(3), PD_Channel(4)]
 
 
-class ADCReader(BackgroundSubJob):
+class ADCReader:
     """
-    This job publishes the voltage reading from specified channels. Call `take_reading`
-    to extract a reading.
 
-    We publish the `first_ads_obs_time` to MQTT so other jobs can read it and
-    make decisions. For example, if a bubbler is active, it should time itself
-    s.t. it is _not_ running when an turbidity measurement is about to occur.
 
     Notes
     ------
@@ -147,31 +143,22 @@ class ADCReader(BackgroundSubJob):
     }
     oversampling_count = 25
 
-    published_settings = {"first_ads_obs_time": {"datatype": "float", "settable": False}}
-
     def __init__(
         self,
         channels: list[PD_Channel],
         fake_data: bool = False,
         dynamic_gain: bool = True,
         initial_gain=1,
-        unit: str = None,
-        experiment: str = None,
         **kwargs,
     ):
-        super(ADCReader, self).__init__(
-            job_name="adc_reader", unit=unit, experiment=experiment, **kwargs
-        )
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
         self.gain = initial_gain
         self._counter = 0
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
+        self.logger = create_logger("ADCReader")
 
-        # this is actually important to set in the init. When this job starts, setting these the "default" values
-        # will clear any cache in mqtt (if a cache exists).
-        self.first_ads_obs_time: Optional[float] = None
         self.batched_readings: dict[PD_Channel, float] = {}
 
     def setup_adc(self):
@@ -368,9 +355,6 @@ class ADCReader(BackgroundSubJob):
         if not self._setup_complete:
             raise ValueError("Must call setup_adc() first.")
 
-        if self.first_ads_obs_time is None:
-            self.first_ads_obs_time = time()
-
         # in case some other process is also using the ADC chip and changes the gain, we want
         # to always confirm our settings before take a snapshot.
         self.set_ads_gain(self.gain)
@@ -497,6 +481,49 @@ class ADCReader(BackgroundSubJob):
             raise e
 
 
+class IrLedOutputTracker:
+    """
+    This class contains the logic on how we incorporate the
+    direct IR LED output into OD readings.
+
+    Tracking and "normalizing" (TBD) the od signals by the IR LED output is important
+    because the OD signal is linearly proportional to the LED output.
+
+    The following are causes of LED output changing:
+    - change in temperature of LED, caused by change in ambient temperature, or change in intensity of LED
+    - LED dimming over time
+    - drop in 3.3V rail -> changes the reference voltage for LED driver -> changes the output
+
+    """
+
+    _initial_led_output = None
+
+    def __init__(self, channel: PD_Channel):
+        self.led_output_ema = ExponentialMovingAverage(0.70)
+        self.channel = channel
+
+    def update(self, batched_reading: dict[PD_Channel, float]):
+        ir_output_reading = batched_reading[self.channel]
+        if self._initial_led_output is None:
+            self._initial_led_output = ir_output_reading
+
+        self.led_output_ema.update(ir_output_reading / self._initial_led_output)
+
+    def __call__(self, od_signal: float) -> float:
+        return od_signal / self.led_output_ema()
+
+
+class NullIrLedOutputTracker(IrLedOutputTracker):
+    def __init__(self):
+        pass
+
+    def update(self, batched_reading: dict[PD_Channel, float]):
+        pass
+
+    def __call__(self, od_signal: float) -> float:
+        return od_signal
+
+
 class ODReader(BackgroundJob):
     """
     Produce a stream of OD readings from the sensors.
@@ -507,8 +534,7 @@ class ODReader(BackgroundJob):
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
     adc_reader: ADCReader
-    ir_led_output_channel: channel
-        the channel that measures how much output the IR led is giving off.
+    ir_led_output_tracker
 
     Attributes
     ------------
@@ -520,6 +546,7 @@ class ODReader(BackgroundJob):
     """
 
     published_settings = {
+        "first_od_obs_time": {"datatype": "float", "settable": False},
         "led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "interval": {"datatype": "float", "settable": False},
     }
@@ -527,9 +554,9 @@ class ODReader(BackgroundJob):
     def __init__(
         self,
         channel_angle_map: dict[PD_Channel, str],
-        ir_led_output_channel: PD_Channel,
         interval: float,
         adc_reader: ADCReader,
+        ir_led_output_tracker: IrLedOutputTracker,
         unit=None,
         experiment=None,
     ):
@@ -539,14 +566,13 @@ class ODReader(BackgroundJob):
         self.logger.debug(f"Starting od_reading and channels {channel_angle_map}.")
 
         self.adc_reader = adc_reader
-        self.sub_jobs = [self.adc_reader]
+
+        self.first_od_obs_time: Optional[float] = None
 
         self.channel_angle_map = channel_angle_map
         self.interval = interval
         self.latest_reading = None
-        self.ir_led_output_channel = ir_led_output_channel
-        self._initial_led_output = None
-        self.led_output_ema = ExponentialMovingAverage(0.70)
+        self.ir_led_output_tracker = ir_led_output_tracker
 
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getint("od_config", "ir_intensity")
@@ -573,6 +599,9 @@ class ODReader(BackgroundJob):
 
     def record_and_publish_from_adc(self):
 
+        if self.first_od_obs_time is None:
+            self.first_od_obs_time = time()
+
         pre_duration = 0.1  # turn on LED prior to taking snapshot and wait
 
         self.start_ir_led()
@@ -583,12 +612,7 @@ class ODReader(BackgroundJob):
 
         self.latest_reading = batched_readings
 
-        if self._initial_led_output is None:
-            self._initial_led_output = batched_readings[self.ir_led_output_channel]
-
-        self.led_output_ema.update(
-            batched_readings[self.ir_led_output_channel] / self._initial_led_output
-        )
+        self.ir_led_output_tracker.update(batched_readings)
 
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
@@ -628,8 +652,6 @@ class ODReader(BackgroundJob):
         self.record_from_adc_timer.unpause()
 
     def on_disconnect(self):
-        for job in self.sub_jobs:
-            job.set_state("disconnected")
 
         # turn off the LED after we have take our last ADC reading..
         try:
@@ -652,7 +674,7 @@ class ODReader(BackgroundJob):
 
         for channel, angle in self.channel_angle_map.items():
             output["od_raw"][channel] = {
-                "voltage": batched_ads_readings[channel] / self.led_output_ema(),
+                "voltage": self.normalize_by_led_output(batched_ads_readings[channel]),
                 "angle": angle,
             }
 
@@ -671,7 +693,7 @@ class ODReader(BackgroundJob):
         for channel, angle in self.channel_angle_map.items():
 
             payload = {
-                "voltage": batched_ads_readings[channel] / self.led_output_ema(),
+                "voltage": self.normalize_by_led_output(batched_ads_readings[channel]),
                 "angle": angle,
                 "timestamp": timestamp,
             }
@@ -682,11 +704,8 @@ class ODReader(BackgroundJob):
                 qos=QOS.EXACTLY_ONCE,
             )
 
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/ir_led_output",
-            batched_ads_readings[self.ir_led_output_channel],
-            qos=QOS.EXACTLY_ONCE,
-        )
+    def normalize_by_led_output(self, od_signal):
+        return self.ir_led_output_tracker(od_signal)
 
 
 def create_channel_angle_map(
@@ -717,7 +736,7 @@ def start_od_reading(
     od_angle_channel3: Optional[str] = None,
     od_angle_channel4: Optional[str] = None,
     ir_led_output_channel: PD_Channel = config.getint(
-        "od_config", "ir_led_output_channel"
+        "od_config", "ir_led_output_channel", fallback=None
     ),
     sampling_rate=1 / config.getfloat("od_config", "samples_per_second"),
     fake_data=False,
@@ -731,13 +750,17 @@ def start_od_reading(
         od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
     )
 
-    assert (
-        ir_led_output_channel not in channel_angle_map
-    ), "ir_led_output_channel should not be used as a OD photodiode."
+    if ir_led_output_channel is not None:
+        assert (
+            ir_led_output_channel not in channel_angle_map
+        ), "ir_led_output_channel should not be used as a OD photodiode."
+        ir_led_output_tracker = IrLedOutputTracker(ir_led_output_channel)
+
+    else:
+        ir_led_output_tracker = NullIrLedOutputTracker()
 
     return ODReader(
         channel_angle_map,
-        ir_led_output_channel=ir_led_output_channel,
         interval=sampling_rate,
         unit=unit,
         experiment=experiment,
@@ -747,6 +770,7 @@ def start_od_reading(
             unit=unit,
             experiment=experiment,
         ),
+        ir_led_output_tracker=ir_led_output_tracker,
     )
 
 
