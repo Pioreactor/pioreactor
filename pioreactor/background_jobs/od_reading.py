@@ -517,7 +517,7 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
         self.led_output_ema.update(ir_output_reading / self._initial_led_output)
 
     def __call__(self, od_signal: float) -> float:
-        self.logger.debug(od_signal, self.led_output_ema())
+        self.logger.debug(f"{od_signal}, {self.led_output_ema()}")
         return od_signal / self.led_output_ema()
 
 
