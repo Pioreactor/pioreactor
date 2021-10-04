@@ -52,7 +52,7 @@ def logs():
 
         # time module is used below because it is the same that the logging module uses: https://docs.python.org/3/library/logging.html#logging.Formatter.formatTime
         click.echo(
-            f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} [{payload['task']}] {payload['level']} {payload['message']}"
+            f"{time.strftime('%Y-%m-%dT%H:%M:%S-%z', time.localtime())} [{payload['task']}] {payload['level']} {payload['message']}"
         )
 
     click.echo(tail("-n", 100, config["logging"]["log_file"]))
@@ -60,7 +60,7 @@ def logs():
     subscribe_and_callback(cb, f"pioreactor/{get_unit_name()}/+/logs/+")
 
     while True:
-        pass
+        time.sleep(0.1)
 
 
 @pio.command(name="blink", short_help="blink LED")

@@ -323,7 +323,7 @@ class TemperatureController(BackgroundJob):
         }
 
     def approximate_temperature(self, feature_vector: dict) -> float:
-        # check if we are using silent, if so, we can short this and return single value?s
+        # check if we are using silent, if so, we can short this and return single value?
 
         # some heuristic for now:
         from math import exp

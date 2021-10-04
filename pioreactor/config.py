@@ -61,6 +61,15 @@ def get_config():
     # https://stackoverflow.com/a/19359720/1895939
     config.optionxform = str
 
+    def safe_getint(section, option, fallback=None, **kwargs):
+        value = config.get(section, option, **kwargs)
+        if value:
+            return int(value)
+        else:
+            return None
+
+    config.getint = safe_getint
+
     config.BOOLEAN_STATES = {
         **{k: False for k in ["0", "false", "no", "off"]},
         **{k: True for k in ["1", "yes", "true", "on"]},

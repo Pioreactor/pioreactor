@@ -164,7 +164,6 @@ def test_ambient_light_interference(logger, unit, experiment):
             )
 
         readings = adc_reader.take_reading()
-        adc_reader.set_state(adc_reader.DISCONNECTED)
 
         assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])
 
@@ -223,7 +222,7 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
     logger.debug(
         f"Correlation between stirring RPM and duty cycle: {measured_correlation}"
     )
-    assert measured_correlation > 0.9
+    assert measured_correlation > 0.9, (dcs, measured_rpms)
 
 
 @click.command(name="self_test")
