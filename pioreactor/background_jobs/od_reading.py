@@ -79,13 +79,6 @@ In the ODReader class, we publish the `first_od_obs_time` to MQTT so other jobs 
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
 s.t. it is _not_ running when an turbidity measurement is about to occur.
 
-
-TODO:
-Part of me feels like ADCReader _don't_ need to be SubBackgroundJobs
-classes - I never(?) care about their state, as it doesn't really change (right?) - and they
-use minimal MQTT, which can be just hardcoded in instead of using lots of extra code / CPU.
-
-
 """
 from __future__ import annotations
 from typing import Optional, NewType
@@ -472,12 +465,6 @@ class ADCReader(LoggerMixin):
             self.logger.error(e)
             raise e
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        pass
-
 
 class IrLedOutputTracker(LoggerMixin):
     def __init__(self):
@@ -501,7 +488,7 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
 
     _initial_led_output = None
 
-    def __init__(self, channel: Optional[PD_Channel]):
+    def __init__(self, channel: PD_Channel):
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.85)
         self.channel = channel

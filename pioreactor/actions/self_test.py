@@ -30,13 +30,13 @@ from pioreactor.config import config
 
 def test_pioreactor_hat_present(logger, unit, experiment):
     try:
-        with ADCReader(
+        adc_reader = ADCReader(
             channels=PD_CHANNELS,
             dynamic_gain=False,
             initial_gain=16,
             fake_data=is_testing_env(),
-        ) as adc_reader:
-            adc_reader.setup_adc()
+        )
+        adc_reader.setup_adc()
     except (AssertionError, OSError):
         assert False
     else:
@@ -56,116 +56,116 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
     current_experiment_name = get_latest_experiment_name()
     results = {}
 
-    with ADCReader(
+    adc_reader = ADCReader(
         channels=PD_CHANNELS,
         dynamic_gain=False,
         initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
         fake_data=is_testing_env(),
-    ) as adc_reader:
+    )
 
-        adc_reader.setup_adc()
+    adc_reader.setup_adc()
 
-        # set all to 0, but use original experiment name, since we indeed are setting them to 0.
-        for led_channel in LED_CHANNELS:
-            assert led_intensity(
-                led_channel,
-                intensity=0,
-                unit=unit,
-                source_of_event="self_test",
-                experiment=current_experiment_name,
-                verbose=False,
-            )
-
-        for led_channel in LED_CHANNELS:
-            varying_intensity_results = defaultdict(list)
-            for intensity in INTENSITIES:
-                # turn on the LED to set intensity
-                led_intensity(
-                    led_channel,
-                    intensity=intensity,
-                    unit=unit,
-                    experiment=current_experiment_name,
-                    verbose=False,
-                    source_of_event="self_test",
-                )
-
-                # record from ADC
-                readings = adc_reader.take_reading()
-
-                # Add to accumulating list
-                for pd_channel in PD_CHANNELS:
-                    varying_intensity_results[pd_channel].append(readings[pd_channel])
-
-            # compute the linear correlation between the intensities and observed PD measurements
-
-            for pd_channel in PD_CHANNELS:
-                results[(led_channel, pd_channel)] = round(
-                    correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
-                )
-
-            # set back to 0
-            led_intensity(
-                led_channel,
-                intensity=0,
-                unit=unit,
-                experiment=current_experiment_name,
-                verbose=False,
-                source_of_event="self_test",
-            )
-
-        logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
-        detected_relationships = []
-        for pair, measured_correlation in results.items():
-            if measured_correlation > 0.85:
-                detected_relationships.append(pair)
-
-        publish(
-            f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
-            json.dumps(detected_relationships),
-            retain=True,
+    # set all to 0, but use original experiment name, since we indeed are setting them to 0.
+    for led_channel in LED_CHANNELS:
+        led_intensity(
+            led_channel,
+            intensity=0,
+            unit=unit,
+            source_of_event="self_test",
+            experiment=current_experiment_name,
+            verbose=False,
         )
 
-        # we require that the IR photodiodes defined in the config have a
-        # correlation with the IR led
-        pd_channels_to_test = [
-            int(ch)
-            for (ch, angle) in config["od_config.photodiode_channel"].items()
-            if angle != ""
-        ] + [config.getint("od_config", "ir_led_output_channel")]
-        ir_led_channel = config["leds_reverse"]["ir_led"]
+    for led_channel in LED_CHANNELS:
+        varying_intensity_results = defaultdict(list)
+        for intensity in INTENSITIES:
+            # turn on the LED to set intensity
+            led_intensity(
+                led_channel,
+                intensity=intensity,
+                unit=unit,
+                experiment=current_experiment_name,
+                verbose=False,
+                source_of_event="self_test",
+            )
 
-        for ir_pd_channel in pd_channels_to_test:
-            assert (
-                results[(ir_led_channel, ir_pd_channel)] > 0.85
-            ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
+            # record from ADC
+            readings = adc_reader.take_reading()
+
+            # Add to accumulating list
+            for pd_channel in PD_CHANNELS:
+                varying_intensity_results[pd_channel].append(readings[pd_channel])
+
+        # compute the linear correlation between the intensities and observed PD measurements
+
+        for pd_channel in PD_CHANNELS:
+            results[(led_channel, pd_channel)] = round(
+                correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
+            )
+
+        # set back to 0
+        led_intensity(
+            led_channel,
+            intensity=0,
+            unit=unit,
+            experiment=current_experiment_name,
+            verbose=False,
+            source_of_event="self_test",
+        )
+
+    logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
+    detected_relationships = []
+    for pair, measured_correlation in results.items():
+        if measured_correlation > 0.85:
+            detected_relationships.append(pair)
+
+    publish(
+        f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
+        json.dumps(detected_relationships),
+        retain=True,
+    )
+
+    # we require that the IR photodiodes defined in the config have a
+    # correlation with the IR led
+    pd_channels_to_test = [
+        int(ch)
+        for (ch, angle) in config["od_config.photodiode_channel"].items()
+        if angle != ""
+    ] + [config.getint("od_config", "ir_led_output_channel")]
+    ir_led_channel = config["leds_reverse"]["ir_led"]
+
+    for ir_pd_channel in pd_channels_to_test:
+        assert (
+            results[(ir_led_channel, ir_pd_channel)] > 0.85
+        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
 def test_ambient_light_interference(logger, unit, experiment):
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     # TODO: it's never 0 because of the common current problem.
 
-    with ADCReader(
+    adc_reader = ADCReader(
         channels=PD_CHANNELS,
         dynamic_gain=False,
         initial_gain=16,
         fake_data=is_testing_env(),
-    ) as adc_reader:
+    )
 
-        adc_reader.setup_adc()
+    adc_reader.setup_adc()
 
-        for led_channel in LED_CHANNELS:
-            assert led_intensity(
-                led_channel,
-                intensity=0,
-                unit=unit,
-                source_of_event="self_test",
-                experiment=experiment,
-                verbose=False,
-            )
+    for led_channel in LED_CHANNELS:
+        led_intensity(
+            led_channel,
+            intensity=0,
+            unit=unit,
+            source_of_event="self_test",
+            experiment=experiment,
+            verbose=False,
+        )
 
-        readings = adc_reader.take_reading()
+    readings = adc_reader.take_reading()
 
-        assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS])
+    assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS]), readings
 
 
 def test_detect_heating_pcb(logger, unit, experiment):
@@ -194,7 +194,7 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
         logger.debug(
             f"Correlation between temp sensor and heating: {measured_correlation}"
         )
-        assert measured_correlation > 0.9
+        assert measured_correlation > 0.9, (dcs, measured_pcb_temps)
 
 
 def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):

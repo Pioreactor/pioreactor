@@ -35,18 +35,20 @@ def format_with_optional_units(value: Any, units: str) -> str:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
     > format_with_optional_units(25.0, None) # returns "25.0"
     """
-    if units is not None:
-        if units == "%":
-            return f"{value}{units}"
-        else:
-            return f"{value} {units}"
-    else:
+    if units is None:
         return f"{value}"
+
+    if units == "%":
+        return f"{value}{units}"
+    else:
+        return f"{value} {units}"
 
 
 class NiceMixin:
     """
     Decrease the priority of a job by 1
+
+    TODO: change this to a function, not a mixin
 
 
     Examples
