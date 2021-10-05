@@ -489,7 +489,7 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
     This class contains the logic on how we incorporate the
     direct IR LED output into OD readings.
 
-    Tracking and "normalizing" (TBD) the od signals by the IR LED output is important
+    Tracking and "normalizing" (TBD) the OD signals by the IR LED output is important
     because the OD signal is linearly proportional to the LED output.
 
     The following are causes of LED output changing:
@@ -503,7 +503,7 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
 
     def __init__(self, channel: Optional[PD_Channel]):
         super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(0.80)
+        self.led_output_ema = ExponentialMovingAverage(0.85)
         self.channel = channel
         self.logger.debug(f"Using PD channel {channel} to track IR LED output.")
 
@@ -512,12 +512,9 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
         if self._initial_led_output is None:
             self._initial_led_output = ir_output_reading
 
-        self.logger.debug(ir_output_reading)
-
         self.led_output_ema.update(ir_output_reading / self._initial_led_output)
 
     def __call__(self, od_signal: float) -> float:
-        self.logger.debug(f"{od_signal}, {self.led_output_ema()}")
         return od_signal / self.led_output_ema()
 
 

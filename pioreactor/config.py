@@ -56,13 +56,14 @@ def get_config():
 
 
     """
-    config = configparser.ConfigParser()
+    # allow_no_value is true because we don't want to break reading config files if the user forgets something / makes a mistake.
+    config = configparser.ConfigParser(allow_no_value=True)
 
     # https://stackoverflow.com/a/19359720/1895939
     config.optionxform = str
 
     def safe_getint(section, option, fallback=None, **kwargs):
-        value = config.get(section, option, **kwargs)
+        value = config.get(section, option, fallback=fallback, **kwargs)
         if value:
             return int(value)
         else:
