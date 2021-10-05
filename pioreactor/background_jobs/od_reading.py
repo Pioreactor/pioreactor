@@ -512,6 +512,8 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
         if self._initial_led_output is None:
             self._initial_led_output = ir_output_reading
 
+        self.logger.debug(ir_output_reading)
+
         self.led_output_ema.update(ir_output_reading / self._initial_led_output)
 
     def __call__(self, od_signal: float) -> float:
