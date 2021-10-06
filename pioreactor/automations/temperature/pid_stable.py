@@ -40,8 +40,7 @@ class PIDStable(TemperatureAutomation):
         )
 
     def execute(self):
-        # this runs every time a new temperature reading comes in.
-
+        # this runs every time a new temperature reading comes in, including a retained temperature
         if self.first_update:
             self.first_update = False
             # this is the first run of execute. Let's do something
@@ -54,7 +53,7 @@ class PIDStable(TemperatureAutomation):
             else:
                 self.update_heater(
                     delta_t * 3.0
-                )  # TODO: provide a better linear estimate here.
+                )  # TODO: provide a better linear estimate here, also will fail if using an external PSU
             return  # we'll update with the PID on the next loop.
 
         output = self.pid.update(

@@ -60,6 +60,10 @@ class TemperatureController(BackgroundJob):
         evaluate and publish the temperature once the class is created (in the background)
     """
 
+    MAX_TEMP_TO_REDUCE_HEATING = 56.0
+    MAX_TEMP_TO_DISABLE_HEATING = 58.0
+    MAX_TEMP_TO_SHUTDOWN = 60.0  # PLA glass transition temp
+
     automations = {}
 
     published_settings = {
@@ -103,7 +107,7 @@ class TemperatureController(BackgroundJob):
         self.update_heater(0)
 
         self.read_external_temperature_timer = RepeatedTimer(
-            60, self.read_external_temperature, run_immediately=True
+            45, self.read_external_temperature, run_immediately=False
         )
         self.read_external_temperature_timer.start()
 
@@ -116,6 +120,7 @@ class TemperatureController(BackgroundJob):
             10 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
+            run_after=60,
         )
         self.publish_temperature_timer.start()
 
@@ -212,29 +217,26 @@ class TemperatureController(BackgroundJob):
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp: float):
-        MAX_TEMP_TO_REDUCE_HEATING = 53.0
-        MAX_TEMP_TO_DISABLE_HEATING = 56.0
-        MAX_TEMP_TO_SHUTDOWN = 58.0
 
-        if temp > MAX_TEMP_TO_SHUTDOWN:
+        if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down to prevent further problems. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
             )
 
             from subprocess import call
 
             call("sudo shutdown --poweroff", shell=True)
 
-        elif temp > MAX_TEMP_TO_DISABLE_HEATING:
+        elif temp > self.MAX_TEMP_TO_DISABLE_HEATING:
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
 
-        elif temp > MAX_TEMP_TO_REDUCE_HEATING:
+        elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(self.heater_duty_cycle * 0.90)
@@ -331,7 +333,7 @@ class TemperatureController(BackgroundJob):
         prev_temp = 1_000_000
         for i, temp in enumerate(feature_vector.values()):
             if i > 0:
-                delta_threshold = 0.1 + 0.2 / (1 + exp(-0.15 * (temp - 35)))
+                delta_threshold = 0.15 + 0.2 / (1 + exp(-0.15 * (temp - 35)))
                 if abs(prev_temp - temp) < delta_threshold:
 
                     # take a moving average with previous temperature, if available

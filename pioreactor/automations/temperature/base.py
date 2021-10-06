@@ -102,7 +102,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = float(json.loads(message.payload)["temperature"])
 
-        if self.state == self.READY:
+        if self.state == self.READY or self.state == self.INIT:
             self.execute()
 
     def _send_details_to_mqtt(self):
@@ -137,7 +137,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self.subscribe_and_callback(
             self._set_temperature,
             f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
-            allow_retained=False,
+            allow_retained=True,
         )
 
 
