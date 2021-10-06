@@ -470,13 +470,22 @@ class IrLedOutputTracker(LoggerMixin):
     def __init__(self):
         super().__init__()
 
+    def update(self, batched_reading: dict[PD_Channel, float]):
+        pass
+
+    def set_blank(self, batched_reading: dict[PD_Channel, float]):
+        pass
+
+    def __call__(self, od_signal: float) -> float:
+        return od_signal
+
 
 class PDIrLedOutputTracker(IrLedOutputTracker):
     """
     This class contains the logic on how we incorporate the
     direct IR LED output into OD readings.
 
-    Tracking and "normalizing" (TBD) the OD signals by the IR LED output is important
+    Tracking and "normalizing" (see below) the OD signals by the IR LED output is important
     because the OD signal is linearly proportional to the LED output.
 
     The following are causes of LED output changing:
@@ -484,24 +493,43 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
     - LED dimming over time
     - drop in 3.3V rail -> changes the reference voltage for LED driver -> changes the output
 
+    Internally, we track the _initial_ led output signal, and use this as a reference value. For example, let's say
+    that the blank led output signal (i.e. led intensity is 0%, but we still detect a small value) is 0.0001,
+    and the initial led output is 0.1. The latest IR led output is 0.09 (perhaps the ambient temp increased),
+    so then we use the factor: (0.09 - 0.0001) / (0.1 - 0.0001) = 0.8998998999
+
+    This factor is then used to normalize OD readings. Let's say the OD reading is 0.45, so the new value
+    is 0.45 / 0.8998998999 = 0.500055617
+
+    Inside, we also use an EMA to smooth the LED output readings, to reduce noise in this signal.
+
     """
 
-    _initial_led_output = None
+    initial_led_output: Optional[float] = None
+    blank_reading: float = 0.0
 
     def __init__(self, channel: PD_Channel):
         super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(0.85)
+        self.led_output_ema = ExponentialMovingAverage(
+            0.85
+        )  # TODO: test a very very low value
         self.channel = channel
         self.logger.debug(f"Using PD channel {channel} to track IR LED output.")
 
     def update(self, batched_reading: dict[PD_Channel, float]):
         ir_output_reading = batched_reading[self.channel]
-        if self._initial_led_output is None:
-            self._initial_led_output = ir_output_reading
+        if self.initial_led_output is None:
+            self.initial_led_output = ir_output_reading
 
         self.logger.debug(ir_output_reading)
 
-        self.led_output_ema.update(ir_output_reading / self._initial_led_output)
+        self.led_output_ema.update(
+            (ir_output_reading - self.blank_reading)
+            / (self._initial_led_output - self.blank_reading)
+        )
+
+    def set_blank(self, batched_reading: dict[PD_Channel, float]):
+        self.blank_reading = batched_reading[self.channel]
 
     def __call__(self, od_signal: float) -> float:
         return od_signal / self.led_output_ema()
@@ -511,12 +539,6 @@ class NullIrLedOutputTracker(IrLedOutputTracker):
     def __init__(self):
         super().__init__()
         self.logger.debug("Not using any IR LED Output.")
-
-    def update(self, batched_reading: dict[PD_Channel, float]):
-        pass
-
-    def __call__(self, od_signal: float) -> float:
-        return od_signal
 
 
 class ODReader(BackgroundJob):
@@ -576,6 +598,10 @@ class ODReader(BackgroundJob):
         self.start_ir_led()
         self.adc_reader.setup_adc()
         self.stop_ir_led()
+
+        # get blank values, this slightly improves the accuracy of the IR LED output tracker,
+        # see that class's docs.
+        self.ir_led_output_tracker.set_blank(self.adc_reader.take_reading())
 
         self.record_from_adc_timer = RepeatedTimer(
             self.interval,

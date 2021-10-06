@@ -131,7 +131,10 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
         int(ch)
         for (ch, angle) in config["od_config.photodiode_channel"].items()
         if angle != ""
-    ] + [config.getint("od_config", "ir_led_output_channel")]
+    ]
+    if config.getint("od_config", "ir_led_output_channel"):
+        pd_channels_to_test.append(config.getint("od_config", "ir_led_output_channel"))
+
     ir_led_channel = config["leds_reverse"]["ir_led"]
 
     for ir_pd_channel in pd_channels_to_test:
