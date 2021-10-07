@@ -332,15 +332,17 @@ class Monitor(NiceMixin, BackgroundJob):
             quote,
         )  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
-        job_name = msg.topic.split("/")[-1]
+        job_name = quote(msg.topic.split("/")[-1])
         payload = loads(msg.payload)
 
         prefix = ["nohup"]
         core_command = ["pio", "run", job_name]
-        args = sum([[f"--{key}", str(value)] for key, value in payload.items()], [])
+        args = sum(
+            [[f"--{key}", quote(str(value))] for key, value in payload.items()], []
+        )
         suffix = [">/dev/null", "2>&1", "&"]
 
-        command = quote(" ".join((prefix + core_command + args + suffix)))
+        command = " ".join((prefix + core_command + args + suffix))
 
         self.logger.debug(f"Running `{command}` from monitor job.")
 

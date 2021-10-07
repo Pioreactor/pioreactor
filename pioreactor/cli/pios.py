@@ -429,10 +429,10 @@ def run(ctx, job, units, y):
         click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
         sys.exit(1)
 
-    core_command = " ".join(["pio", "run", job, *extra_args])
+    core_command = " ".join(["pio", "run", quote(job), *extra_args])
 
     # pipe all output to null, and escape bad things using quote
-    command = quote(" ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"]))
+    command = " ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"])
 
     if not y:
         confirm = input(f"Confirm running `{core_command}` on {units}? Y/n: ").strip()
