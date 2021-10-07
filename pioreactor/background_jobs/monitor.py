@@ -39,10 +39,10 @@ class Monitor(NiceMixin, BackgroundJob):
      1. Reports metadata (voltage, CPU usage, etc.) about the Rpi / Pioreactor to the leader
      2. Controls the LED / Button interaction
      3. Correction after a restart
-
-     TODO:
-
      4. Check database backup if leader
+     5. Use the LED blinks to report error codes to the user, see ErrorCode
+     6. Listens to MQTT for job to start, on the topic
+         pioreactor/{unit}/$experiment/run/{job_name}   json-encoded args as message
 
     """
 
@@ -338,7 +338,11 @@ class Monitor(NiceMixin, BackgroundJob):
         prefix = ["nohup"]
         core_command = ["pio", "run", job_name]
         args = sum(
-            [[f"--{key}", quote(str(value))] for key, value in payload.items()], []
+            [
+                [f"--{quote(key).replace('_', '-')}", quote(str(value))]
+                for key, value in payload.items()
+            ],
+            [],
         )
         suffix = [">/dev/null", "2>&1", "&"]
 

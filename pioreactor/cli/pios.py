@@ -431,7 +431,7 @@ def run(ctx, job, units, y):
 
     core_command = " ".join(["pio", "run", quote(job), *extra_args])
 
-    # pipe all output to null, and escape bad things using quote
+    # pipe all output to null
     command = " ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"])
 
     if not y:
