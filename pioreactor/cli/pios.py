@@ -421,6 +421,7 @@ def run(ctx, job, units, y):
 
     """
     from sh import ssh
+    from shlex import quote  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
     extra_args = list(ctx.args)
 
@@ -430,8 +431,8 @@ def run(ctx, job, units, y):
 
     core_command = " ".join(["pio", "run", job, *extra_args])
 
-    # pipe all output to  null
-    command = " ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"])
+    # pipe all output to null, and escape bad things using quote
+    command = quote(" ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"]))
 
     if not y:
         confirm = input(f"Confirm running `{core_command}` on {units}? Y/n: ").strip()

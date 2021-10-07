@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from time import sleep
-from json import dumps
+from json import dumps, loads
 from datetime import datetime
 from enum import IntEnum
 
@@ -9,6 +9,7 @@ import click
 from pioreactor.whoami import (
     get_unit_name,
     UNIVERSAL_EXPERIMENT,
+    UNIVERSAL_IDENTIFIER,
     is_testing_env,
     get_latest_experiment_name,
     am_I_leader,
@@ -324,11 +325,44 @@ class Monitor(NiceMixin, BackgroundJob):
 
             sleep(5)
 
+    def run_job_on_machine(self, msg):
+
+        import subprocess
+        from shlex import (
+            quote,
+        )  # https://docs.python.org/3/library/shlex.html#shlex.quote
+
+        job_name = msg.topic.split("/")[-1]
+        payload = loads(msg.payload)
+
+        prefix = ["nohup"]
+        core_command = ["pio", "run", job_name]
+        args = sum([[f"--{key}", str(value)] for key, value in payload.items()], [])
+        suffix = [">/dev/null", "2>&1", "&"]
+
+        command = quote(" ".join((prefix + core_command + args + suffix)))
+
+        self.logger.debug(f"Running `{command}` from monitor job.")
+
+        subprocess.run(command, shell=True)
+
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self.flicker_led_response_okay,
             f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_response_okay",
             qos=QOS.AT_LEAST_ONCE,
+        )
+
+        # one can also start jobs via MQTT, using the following topics.
+        # The message provided is options the the command line.
+        self.subscribe_and_callback(
+            self.run_job_on_machine,
+            f"pioreactor/{self.unit}/{UNIVERSAL_EXPERIMENT}/run/+",
+        )
+
+        self.subscribe_and_callback(
+            self.run_job_on_machine,
+            f"pioreactor/{UNIVERSAL_IDENTIFIER}/{UNIVERSAL_EXPERIMENT}/run/+",
         )
 
 
