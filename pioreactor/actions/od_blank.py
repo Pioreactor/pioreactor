@@ -68,8 +68,8 @@ def od_blank(
             )
             time.sleep(5)
         else:
-            pass
             # TODO: it could be paused, we should make sure it's running
+            ...
 
         sampling_rate = 1 / config.getfloat("od_config", "samples_per_second")
 

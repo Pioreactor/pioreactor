@@ -2,6 +2,7 @@
 import socket
 import threading
 import time
+from contextlib import suppress
 
 from paho.mqtt.client import Client
 
@@ -16,7 +17,11 @@ class QOS:
 
 
 def create_client(
-    hostname=leader_hostname, last_will=None, client_id=None, keepalive=60, max_retries=3
+    hostname: str = leader_hostname,
+    last_will=None,
+    client_id=None,
+    keepalive=60,
+    max_retries=3,
 ) -> Client:
     """
     Create a MQTT client and connect to a host.
@@ -36,7 +41,7 @@ def create_client(
         client.will_set(**last_will)
 
     retries = 0
-    while retries < max_retries:
+    for retries in range(max_retries):
         try:
             client.connect(hostname, keepalive=keepalive)
         except (socket.gaierror, OSError):
@@ -48,12 +53,12 @@ def create_client(
     return client
 
 
-def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs):
+def publish(
+    topic: str, message, hostname: str = leader_hostname, retries: int = 10, **mqtt_kwargs
+):
     from paho.mqtt import publish as mqtt_publish
 
-    retry_count = 0
-
-    while True:
+    for retry_count in range(retries):
         try:
             mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
             return
@@ -67,14 +72,12 @@ def publish(topic, message, hostname=leader_hostname, retries=10, **mqtt_kwargs)
                 exc_info=True,
             )
             time.sleep(5 * retry_count)  # linear backoff
-            retry_count += 1
 
-        if retry_count == retries:
-            from pioreactor.logging import create_logger
+    else:
 
-            logger = create_logger("pubsub.publish", to_mqtt=False)
-            logger.error(f"Unable to connect to host: {hostname}.")
-            raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
+        logger = create_logger("pubsub.publish", to_mqtt=False)
+        logger.error(f"Unable to connect to host: {hostname}.")
+        raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
 def publish_multiple(
@@ -86,9 +89,7 @@ def publish_multiple(
     """
     from paho.mqtt import publish as mqtt_publish
 
-    retry_count = 0
-
-    while True:
+    for retry_count in range(retries):
         try:
             mqtt_publish.multiple(
                 list_of_topic_message_tuples, hostname=hostname, **mqtt_kwargs
@@ -104,14 +105,12 @@ def publish_multiple(
                 exc_info=True,
             )
             time.sleep(5 * retry_count)  # linear backoff
-            retry_count += 1
 
-        if retry_count == retries:
-            from pioreactor.logging import create_logger
+    else:
 
-            logger = create_logger("pubsub.publish_multiple", to_mqtt=False)
-            logger.error(f"Unable to connect to host: {hostname}. Exiting.")
-            raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
+        logger = create_logger("pubsub.publish_multiple", to_mqtt=False)
+        logger.error(f"Unable to connect to host: {hostname}. Exiting.")
+        raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
 def subscribe(
@@ -132,7 +131,7 @@ def subscribe(
     """
 
     retry_count = 1
-    while True:
+    for retry_count in range(retries):
         try:
 
             def on_connect(client, userdata, flags, rc):
@@ -175,20 +174,16 @@ def subscribe(
             )
 
             time.sleep(5 * retry_count)  # linear backoff
-            retry_count += 1
 
-        if retry_count == retries:
-            from pioreactor.logging import create_logger
-
-            logger = create_logger("pubsub.subscribe", to_mqtt=False)
-            logger.error(f"Unable to connect to host: {hostname}. Exiting.")
-            raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
+    else:
+        logger = create_logger("pubsub.subscribe", to_mqtt=False)
+        logger.error(f"Unable to connect to host: {hostname}. Exiting.")
+        raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 
 def subscribe_and_callback(
     callback,
     topics,
-    client=None,
     hostname=leader_hostname,
     last_will=None,
     job_name=None,
@@ -274,7 +269,7 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
     client.disconnect()
 
 
-def publish_to_pioreactor_cloud(endpoint, data=None, json=None):
+def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None):
     """
     Parameters
     ------------
@@ -295,13 +290,11 @@ def publish_to_pioreactor_cloud(endpoint, data=None, json=None):
         json["rpi_uuid"] = get_uuid()
         json["timestamp"] = current_utc_time()
 
-    try:
+    with suppress(exceptions.RequestException):
         headers = {"Content-type": "application/json", "Accept": "text/plain"}
         post(
-            f"https://us-central1-pioreactor-backend.cloudfunctions.net/{endpoint}",
+            f"https://cloud.pioreactor.com/{endpoint}",
             data=data,
             json=json,
             headers=headers,
         )
-    except exceptions.RequestException:
-        pass

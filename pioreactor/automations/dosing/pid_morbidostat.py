@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from contextlib import suppress
 from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.automations import events
 from pioreactor.utils.streaming_calculations import PID
@@ -94,7 +95,5 @@ class PIDMorbidostat(DosingAutomation):
 
     def set_target_growth_rate(self, value):
         self.target_growth_rate = float(value)
-        try:
+        with suppress(AttributeError):
             self.pid.set_setpoint(self.target_growth_rate)
-        except AttributeError:
-            pass

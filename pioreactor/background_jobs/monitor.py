@@ -58,13 +58,13 @@ class Monitor(NiceMixin, BackgroundJob):
 
         # set up GPIO for accessing the button
         self.setup_GPIO()
-        self.GPIO.add_event_detect(
-            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up
-        )
 
         self.start_passive_listeners()
 
     def setup_GPIO(self):
+        set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_UNAVAILABLE)
+        set_gpio_availability(LED_PIN, GPIO_states.GPIO_UNAVAILABLE)
+
         import RPi.GPIO as GPIO
 
         # I am hiding all the slow imports, but in this case, I need GPIO module
@@ -74,8 +74,9 @@ class Monitor(NiceMixin, BackgroundJob):
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
-        set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_UNAVAILABLE)
-        set_gpio_availability(LED_PIN, GPIO_states.GPIO_UNAVAILABLE)
+        self.GPIO.add_event_detect(
+            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up
+        )
 
     def self_checks(self):
         # watch for undervoltage problems

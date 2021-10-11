@@ -216,11 +216,6 @@ class ADCReader(LoggerMixin):
                     source_of_event=self.job_name,
                     verbose=True,
                 )
-            try:
-                # parent object, ODReading, isn't always present - sometimes we use ADCReader outside of ODReading
-                self.parent.set_state("disconnected")
-            except Exception:
-                pass
 
     def check_on_gain(self, value):
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():

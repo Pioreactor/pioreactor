@@ -32,6 +32,7 @@ from pioreactor.utils import (
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
+from pioreactor.utils.math_helpers import correlation
 
 
 def od_normalization(unit=None, experiment=None, n_samples=35):
@@ -78,14 +79,17 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
                 logger.debug(f"Progress: {count/n_samples:.0%}")
                 if count == n_samples:
                     break
+
             variances = {}
             means = {}
+            autcorrelations = {}  # lag 1
 
-            for sensor, reading_series in readings.items():
-                # measure the variance and publish. The variance will be used in downstream jobs.
-                variances[sensor] = variance(reading_series)
-                # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
-                means[sensor] = mean(reading_series)
+            for sensor, od_reading_series in readings.items():
+                variances[sensor] = variance(od_reading_series)
+                means[sensor] = mean(od_reading_series)
+                autcorrelations[sensor] = correlation(
+                    od_reading_series[:-1], od_reading_series[1:]
+                )
 
             with local_persistant_storage("od_normalization_mean") as cache:
                 cache[experiment] = json.dumps(means)
@@ -95,6 +99,7 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
 
             logger.debug(f"measured mean: {means}")
             logger.debug(f"measured variances: {variances}")
+            logger.debug(f"measured autcorrelations: {autcorrelations}")
             logger.debug("OD normalization finished.")
 
             if config.getboolean(

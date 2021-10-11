@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from dbm import ndbm
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pioreactor.pubsub import publish, QOS
 from typing import Generator, MutableMapping
 
@@ -139,7 +139,7 @@ def pio_jobs_running() -> list:
 
     jobs = []
     for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
-        try:
+        with suppress(Exception):
             if (
                 proc.info["cmdline"]
                 and (proc.info["cmdline"][0] == "/usr/bin/python3")
@@ -147,8 +147,6 @@ def pio_jobs_running() -> list:
             ):
                 job = proc.info["cmdline"][3]
                 jobs.append(job)
-        except Exception:
-            pass
     return jobs
 
 

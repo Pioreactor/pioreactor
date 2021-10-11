@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 import json
 from threading import Thread
+from contextlib import suppress
 from typing import Optional
 
 
@@ -69,10 +70,8 @@ class LEDAutomation(BackgroundSubJob):
         if duration:
             self.duration = float(duration)
 
-            try:
+            with suppress(AttributeError):
                 self.run_thread.cancel()
-            except AttributeError:
-                pass
 
             self.run_thread = RepeatedTimer(
                 self.duration * 60,
@@ -174,10 +173,8 @@ class LEDAutomation(BackgroundSubJob):
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
-        try:
-            self.timer_thread.cancel()
-        except AttributeError:
-            pass
+        with suppress(AttributeError):
+            self.run_thread.cancel()
 
         for job in self.sub_jobs:
             job.set_state("disconnected")

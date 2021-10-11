@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, logging
+from contextlib import suppress
 from typing import Callable, Optional
 from datetime import datetime, timezone
 from threading import Event, Thread
@@ -132,15 +133,15 @@ class RepeatedTimer:
 
     def cancel(self):
         self.event.set()
-        try:
-            self.thread.join()
-        except RuntimeError:
+        with suppress(RuntimeError):
             # possible to happen if self.thread hasn't started yet,
             # so cancelling doesn't make sense.
-            pass
+            self.thread.join()
 
     def start(self):
-        self.thread.start()
+        # this is idempotent
+        with suppress(RuntimeError):
+            self.thread.start()
         return self
 
     def join(self):

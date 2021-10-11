@@ -65,6 +65,9 @@ class RpmCalculator:
     def callback(self, *args):
         pass
 
+    def sleep_for(self, seconds):
+        sleep(seconds)
+
 
 class RpmFromFrequency(RpmCalculator):
     """
@@ -92,7 +95,7 @@ class RpmFromFrequency(RpmCalculator):
         self._start_time = None
 
         self.turn_on_collection()
-        sleep(seconds_to_observe)
+        self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
 
         if self._running_sum == 0:
@@ -116,7 +119,7 @@ class RpmFromCount(RpmCalculator):
         self._rpm_counter = 0
 
         self.turn_on_collection()
-        sleep(seconds_to_observe)
+        self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
 
         return round(self._rpm_counter * 60 / seconds_to_observe)
@@ -157,7 +160,7 @@ class Stirrer(BackgroundJob):
     _previous_duty_cycle: float = 0
     duty_cycle: float = config.getint(
         "stirring", "initial_duty_cycle", fallback=60.0
-    )  # only used in calibration isn't defined.
+    )  # only used if calibration isn't defined.
     actual_rpm: Optional[int] = None
 
     def __init__(
@@ -195,7 +198,6 @@ class Stirrer(BackgroundJob):
         )
 
         # set up thread to periodically check the rpm
-
         self.rpm_check_repeated_thread = RepeatedTimer(
             19,
             self.poll_and_update_dc,
@@ -212,7 +214,7 @@ class Stirrer(BackgroundJob):
                 intercept = parameters.pop("intercept")
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
-                # equilivant to a weighted average: 0.1 * current + 0.9 * predicted
+                # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
                 return lambda rpm: self.duty_cycle - 0.9 * (
                     self.duty_cycle - (coef * rpm + intercept)
                 )
@@ -236,11 +238,7 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.75)
 
-        try:
-            self.rpm_check_repeated_thread.start()
-        except RuntimeError:
-            # possibly the thread has already started
-            pass
+        self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
         """

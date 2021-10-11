@@ -174,7 +174,7 @@ def test_ambient_light_interference(logger, unit, experiment):
 def test_detect_heating_pcb(logger, unit, experiment):
     try:
         with TemperatureController("silent", unit=unit, experiment=experiment):
-            pass
+            ...
     except IOError:
         assert False
     else:

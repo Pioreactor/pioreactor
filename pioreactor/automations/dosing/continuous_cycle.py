@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
+from contextlib import suppress
 from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.automations import events
 from pioreactor.hardware_mappings import PWM_TO_PIN
@@ -60,10 +61,9 @@ class ContinuousCycle(DosingAutomation):
         self.pwm.start(self.duty_cycle)
 
     def on_disconnect(self):
-        try:
+        with suppress(AttributeError):
             self.pwm.cleanup()
-        except AttributeError:
-            pass
+
         super(ContinuousCycle, self).on_disconnect()
 
     def execute(self):

@@ -255,17 +255,6 @@ def mqtt_to_db_streaming():
             "actual_rpm": float(payload),
         }
 
-    def parse_od_statistics(topic, payload):
-        metadata, split_topic = produce_metadata(topic)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "source": split_topic[-2],
-            "estimator": split_topic[-1],
-            "estimate": float(payload),
-        }
-
     topics_to_tables = [
         TopicToParserToTable(
             "pioreactor/+/+/growth_rate_calculating/od_filtered",
@@ -317,14 +306,6 @@ def mqtt_to_db_streaming():
         ),
         TopicToParserToTable(
             "pioreactor/+/+/stirring/actual_rpm", parse_stirring_rates, "stirring_rates"
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/od_blank/+", parse_od_statistics, "od_reading_statistics"
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/od_normalization/+",
-            parse_od_statistics,
-            "od_reading_statistics",
         ),
     ]
 

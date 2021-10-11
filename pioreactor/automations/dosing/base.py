@@ -4,6 +4,7 @@ import time
 import json
 from threading import Thread
 from typing import Optional
+from contextlib import suppress
 
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
@@ -72,10 +73,10 @@ class DosingAutomation(BackgroundSubJob):
     def set_duration(self, duration):
         if duration:
             self.duration = float(duration)
-            try:
+
+            with suppress(AttributeError):
                 self.run_thread.cancel()
-            except AttributeError:
-                pass
+
             self.run_thread = RepeatedTimer(
                 self.duration * 60,
                 self.run,
@@ -260,10 +261,8 @@ class DosingAutomation(BackgroundSubJob):
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
-        try:
+        with suppress(AttributeError):
             self.run_thread.join()
-        except AttributeError:
-            pass
 
         for job in self.sub_jobs:
             job.set_state("disconnected")

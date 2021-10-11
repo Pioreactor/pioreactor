@@ -542,4 +542,4 @@ class TestGrowthRateCalculating:
 
         with pytest.raises(ZeroDivisionError):
             with GrowthRateCalculator(unit=unit, experiment=experiment):
-                pass
+                ...
