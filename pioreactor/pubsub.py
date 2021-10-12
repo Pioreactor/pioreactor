@@ -2,15 +2,16 @@
 import socket
 import threading
 import time
+from enum import IntEnum
 from contextlib import suppress
 
 from paho.mqtt.client import Client
+from paho.mqtt import publish as mqtt_publish
 
 from pioreactor.config import leader_hostname
 
 
-class QOS:
-    # this could be Enum in the future
+class QOS(IntEnum):
     AT_MOST_ONCE = 0
     AT_LEAST_ONCE = 1
     EXACTLY_ONCE = 2
@@ -56,7 +57,6 @@ def create_client(
 def publish(
     topic: str, message, hostname: str = leader_hostname, retries: int = 10, **mqtt_kwargs
 ):
-    from paho.mqtt import publish as mqtt_publish
 
     for retry_count in range(retries):
         try:
@@ -87,8 +87,6 @@ def publish_multiple(
     list_of_topic_message_tuples is of the form ("<topic>", "<payload>", qos, retain)
 
     """
-    from paho.mqtt import publish as mqtt_publish
-
     for retry_count in range(retries):
         try:
             mqtt_publish.multiple(

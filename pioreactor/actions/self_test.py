@@ -8,9 +8,8 @@ Outputs from each test go into MQTT, and return to the command line.
 """
 
 import time, sys
-import json
+from json import dumps
 import click
-from collections import defaultdict
 from pioreactor.whoami import (
     get_unit_name,
     get_latest_testing_experiment_name,
@@ -77,7 +76,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
         )
 
     for led_channel in LED_CHANNELS:
-        varying_intensity_results = defaultdict(list)
+        varying_intensity_results = {pd_channel: [] for pd_channel in PD_CHANNELS}
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
             led_intensity(
@@ -89,12 +88,15 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
                 source_of_event="self_test",
             )
 
-            # record from ADC
-            readings = adc_reader.take_reading()
+            # record from ADC, we'll average them
+            readings1 = adc_reader.take_reading()
+            readings2 = adc_reader.take_reading()
 
             # Add to accumulating list
             for pd_channel in PD_CHANNELS:
-                varying_intensity_results[pd_channel].append(readings[pd_channel])
+                varying_intensity_results[pd_channel].append(
+                    0.5 * (readings1[pd_channel] + readings2[pd_channel])
+                )
 
         # compute the linear correlation between the intensities and observed PD measurements
 
@@ -121,7 +123,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
 
     publish(
         f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
-        json.dumps(detected_relationships),
+        dumps(detected_relationships),
         retain=True,
     )
 
@@ -132,6 +134,8 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
         for (ch, angle) in config["od_config.photodiode_channel"].items()
         if angle != ""
     ]
+
+    # also check if we have a REF channel
     if config.getint("od_config", "ir_led_output_channel"):
         pd_channels_to_test.append(config.getint("od_config", "ir_led_output_channel"))
 
@@ -146,6 +150,9 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
 def test_ambient_light_interference(logger, unit, experiment):
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     # TODO: it's never 0 because of the common current problem.
+
+    # A "sunlight" be useful is detecting a high autocorrelation of the PD signal when LED%=0. Sunlight tends to increase and decrease
+    # with cloud cover. This requires us to take a time series of data points though...
 
     adc_reader = ADCReader(
         channels=PD_CHANNELS,

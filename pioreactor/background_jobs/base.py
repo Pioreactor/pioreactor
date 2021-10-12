@@ -584,6 +584,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
             ",".join(self.published_settings),
             qos=QOS.AT_LEAST_ONCE,
+            retain=True,
         )
 
         for setting, props in self.published_settings.items():
@@ -591,17 +592,20 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
                 props["settable"],
                 qos=QOS.AT_LEAST_ONCE,
+                retain=True,
             )
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$datatype",
                 props["datatype"],
                 qos=QOS.AT_LEAST_ONCE,
+                retain=True,
             )
             if props.get("unit"):
                 self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$unit",
                     props["unit"],
                     qos=QOS.AT_LEAST_ONCE,
+                    retain=True,
                 )
 
     def set_state(self, new_state: str):
