@@ -80,10 +80,12 @@ class RpmFromFrequency(RpmCalculator):
     _start_time = None
 
     def callback(self, *args):
+        print("here")
         obs_time = perf_counter()
 
         if self._start_time is not None:
             self._running_sum += obs_time - self._start_time
+            print(self._running_sum)
             self._running_count += 1
 
         self._start_time = obs_time
