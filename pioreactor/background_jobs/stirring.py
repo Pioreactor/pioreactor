@@ -50,11 +50,9 @@ class RpmCalculator:
         self.turn_off_collection()
 
     def turn_off_collection(self):
-        print("off")
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
 
     def turn_on_collection(self):
-        print("on")
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def cleanup(self):
@@ -158,6 +156,7 @@ class Stirrer(BackgroundJob):
     published_settings = {
         "target_rpm": {"datatype": "int", "settable": True, "unit": "RPM"},
         "actual_rpm": {"datatype": "int", "settable": False, "unit": "RPM"},
+        "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
     _previous_duty_cycle: float = 0
     duty_cycle: float = config.getint(
@@ -239,7 +238,6 @@ class Stirrer(BackgroundJob):
         sleep(0.25)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.75)
-
         self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def poll(self, poll_for_seconds: float) -> Optional[int]:
