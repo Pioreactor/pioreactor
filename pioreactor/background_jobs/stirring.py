@@ -45,14 +45,16 @@ class RpmCalculator:
         self.GPIO.setmode(self.GPIO.BCM)
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
         self.GPIO.add_event_detect(
-            self.hall_sensor_pin, self.GPIO.RISING, callback=self.callback, bouncetime=2
+            self.hall_sensor_pin, self.GPIO.RISING, callback=self.callback
         )
         self.turn_off_collection()
 
     def turn_off_collection(self):
+        print("off")
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
 
     def turn_on_collection(self):
+        print("on")
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def cleanup(self):
@@ -80,12 +82,10 @@ class RpmFromFrequency(RpmCalculator):
     _start_time = None
 
     def callback(self, *args):
-        print("here")
         obs_time = perf_counter()
 
         if self._start_time is not None:
             self._running_sum += obs_time - self._start_time
-            print(self._running_sum)
             self._running_count += 1
 
         self._start_time = obs_time
