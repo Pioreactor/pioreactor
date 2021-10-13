@@ -61,7 +61,9 @@ def stirring_calibration():
         for count, dc in enumerate(dcs):
             st.set_duty_cycle(dc)
             time.sleep(8)
-            measured_rpms.append(rpm_calc(4))
+            rpm = rpm_calc(4)
+            print(dc, rpm)
+            measured_rpms.append(rpm)
 
             # log progress
             publish(

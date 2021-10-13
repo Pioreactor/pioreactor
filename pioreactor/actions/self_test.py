@@ -192,7 +192,7 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
     with TemperatureController("silent", unit=unit, experiment=experiment) as tc:
 
         measured_pcb_temps = []
-        dcs = list(range(0, 48, 6))
+        dcs = list(range(0, 30, 4))
         logger.debug("Varying heating.")
         for dc in dcs:
             tc._update_heater(dc)
@@ -232,6 +232,7 @@ def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment)
     logger.debug(
         f"Correlation between stirring RPM and duty cycle: {measured_correlation}"
     )
+    logger.debug(f"{(dcs, measured_rpms)}")
     assert measured_correlation > 0.9, (dcs, measured_rpms)
 
 
