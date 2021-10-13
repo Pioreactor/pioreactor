@@ -177,7 +177,6 @@ def mqtt_to_db_streaming():
             "timestamp": payload["timestamp"],
             "channel": payload["channel"],
             "intensity": payload["intensity"],
-            "event": payload["event"],
             "source_of_event": payload["source_of_event"],
         }
 
@@ -248,12 +247,15 @@ def mqtt_to_db_streaming():
 
     def parse_stirring_rates(topic, payload):
         metadata, _ = produce_metadata(topic)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "actual_rpm": float(payload),
-        }
+
+        if payload:
+
+            return {
+                "experiment": metadata.experiment,
+                "pioreactor_unit": metadata.pioreactor_unit,
+                "timestamp": metadata.timestamp,
+                "actual_rpm": float(payload),
+            }
 
     topics_to_tables = [
         TopicToParserToTable(

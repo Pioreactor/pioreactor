@@ -15,7 +15,8 @@ LED_CHANNELS = [LED_Channel("A"), LED_Channel("B"), LED_Channel("C"), LED_Channe
 
 
 def update_current_state(
-    channel, intensity
+    channel: LED_Channel,
+    intensity: float,
 ) -> Tuple[Dict[LED_Channel, float], Dict[LED_Channel, float]]:
     """
     this ignores the status of "power on"
@@ -43,12 +44,29 @@ def led_intensity(
     channel: LED_Channel,
     intensity: float,
     source_of_event: Optional[str] = None,
-    unit: str = None,
-    experiment: str = None,
     verbose: bool = True,
     pubsub_client=None,
-):
+    unit: str = None,
+    experiment: str = None,
+) -> bool:
     """
+
+    Parameters
+    ------------
+    channel: an LED channel
+    intensity: float
+        a value between 0 and 100 to set the LED channel to.
+    verbose: bool
+        if True, log the change, and send event to led_event table & mqtt. This is FALSE
+        in od_reading job, so as to not create spam.
+    pubsub_client:
+        provide a MQTT paho client to use for publishing.
+
+    Returns
+    --------
+    bool representing if the LED channel intensity was successfully changed
+
+
     State is also updated in
 
     pioreactor/<unit>/<experiment>/led/<channel>/intensity   <intensity>
@@ -58,7 +76,8 @@ def led_intensity(
     pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
     """
-    logger = create_logger("led_intensity", experiment=experiment)
+    logger = create_logger("led_intensity", experiment=experiment, unit=unit)
+
     try:
         from DAC43608 import DAC43608
     except NotImplementedError:
@@ -88,42 +107,41 @@ def led_intensity(
             "Is the Pioreactor HAT attached to the Raspberry Pi? Unable to find I²C for LED driver."
         )
         return False
-    else:
-        new_state, old_state = update_current_state(channel, intensity)
 
-        if verbose:
-            logger.info(
-                f"Updated LED {channel} from {old_state[channel]:g}% to {new_state[channel]:g}%."
-            )
+    new_state, old_state = update_current_state(channel, intensity)
 
-        event = {
-            "channel": channel,
-            "intensity": intensity,
-            "event": "change_intensity",
-            "source_of_event": source_of_event,
-            "timestamp": current_utc_time(),
-        }
+    event = {
+        "channel": channel,
+        "intensity": intensity,
+        "source_of_event": source_of_event,
+        "timestamp": current_utc_time(),
+    }
 
-        pubsub_client.publish(
-            f"pioreactor/{unit}/{experiment}/led/{channel}/intensity",
-            intensity,
-            qos=QOS.AT_MOST_ONCE,
-            retain=True,
-        )
-        pubsub_client.publish(
-            f"pioreactor/{unit}/{experiment}/leds/intensity",
-            json.dumps(new_state),
-            qos=QOS.AT_MOST_ONCE,
-            retain=True,
-        )
+    pubsub_client.publish(
+        f"pioreactor/{unit}/{experiment}/led/{channel}/intensity",
+        intensity,
+        qos=QOS.AT_MOST_ONCE,
+        retain=True,
+    )
+    pubsub_client.publish(
+        f"pioreactor/{unit}/{experiment}/leds/intensity",
+        json.dumps(new_state),
+        qos=QOS.AT_MOST_ONCE,
+        retain=True,
+    )
+
+    if verbose:
         pubsub_client.publish(
             f"pioreactor/{unit}/{experiment}/led_events",
             json.dumps(event),
             qos=QOS.AT_MOST_ONCE,
             retain=False,
         )
+        logger.info(
+            f"Updated LED {channel} from {old_state[channel]:g}% to {new_state[channel]:g}%."
+        )
 
-        return True
+    return True
 
 
 @click.command(name="led_intensity")

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from json import dumps
+from typing import Optional
 from threading import Timer
 from pioreactor.pubsub import publish
 
@@ -10,7 +11,7 @@ class ExponentialMovingAverage:
     """
 
     def __init__(self, alpha: float):
-        self.value = None
+        self.value: Optional[float] = None
         self.alpha = alpha
 
     def update(self, new_value: float) -> float:

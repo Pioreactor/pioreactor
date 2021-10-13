@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS dosing_events (
 CREATE TABLE IF NOT EXISTS led_events (
     timestamp              TEXT  NOT NULL,
     experiment             TEXT  NOT NULL,
-    event                  TEXT  NOT NULL,
     channel                TEXT  NOT NULL,
     intensity              REAL  NOT NULL,
     pioreactor_unit        TEXT  NOT NULL,

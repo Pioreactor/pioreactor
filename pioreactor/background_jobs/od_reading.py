@@ -93,6 +93,7 @@ from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
     LED_CHANNELS,
+    LED_Channel,  # type
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
@@ -134,6 +135,7 @@ class ADCReader(LoggerMixin):
         16: (-1, 0.256),  # 1 bit = 0.125mV
     }
     oversampling_count = 25
+    batched_readings: dict[PD_Channel, float] = {}
 
     def __init__(
         self,
@@ -150,7 +152,6 @@ class ADCReader(LoggerMixin):
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
 
-        self.batched_readings: dict[PD_Channel, float] = {}
         self.logger.debug(
             f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
         )
@@ -171,12 +172,9 @@ class ADCReader(LoggerMixin):
             from adafruit_ads1x15.analog_in import AnalogIn
             from busio import I2C
 
-        i2c = I2C(SCL, SDA)
-
         # we may change the gain dynamically later.
-        # data_rate is measured in signals-per-second, and generally has less noise the lower the value. See datasheet.
         # TODO: update this to ADS1015 / dynamically choose
-        self.ads = ADS.ADS1115(i2c, data_rate=self.DATA_RATE)
+        self.ads = ADS.ADS1115(I2C(SCL, SDA), data_rate=self.DATA_RATE)
         self.set_ads_gain(self.gain)
 
         self.analog_in: dict[PD_Channel, AnalogIn] = {}
@@ -202,7 +200,7 @@ class ADCReader(LoggerMixin):
         self._setup_complete = True
         return self
 
-    def check_on_max(self, value):
+    def check_on_max(self, value: float):
         if value > 3.1:
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
@@ -211,13 +209,11 @@ class ADCReader(LoggerMixin):
                 change_led_intensity(
                     channel,
                     intensity=0,
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    source_of_event=self.job_name,
+                    source_of_event="ADCReader",
                     verbose=True,
                 )
 
-    def check_on_gain(self, value):
+    def check_on_gain(self, value: float):
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
             if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
                 self.gain = gain
@@ -226,7 +222,7 @@ class ADCReader(LoggerMixin):
                 break
 
     def set_ads_gain(self, gain):
-        self.ads.gain = gain  # this assignment checks to see if the the gain is allowed.
+        self.ads.gain = gain  # this assignment checks to see if the gain is allowed.
 
     def sin_regression_with_known_freq(self, x, y, freq, prior_C=None, penalizer_C=None):
         r"""
@@ -518,7 +514,7 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
 
         self.led_output_ema.update(
             (ir_output_reading - self.blank_reading)
-            / (self._initial_led_output - self.blank_reading)
+            / (self.initial_led_output - self.blank_reading)
         )
 
     def set_blank(self, batched_reading: dict[PD_Channel, float]):
@@ -585,8 +581,8 @@ class ODReader(BackgroundJob):
         self.ir_led_output_tracker = ir_led_output_tracker
 
         # start IR led before ADC starts, as it needs it.
-        self.led_intensity = config.getint("od_config", "ir_intensity")
-        self.ir_channel = self.get_ir_channel_from_configuration()
+        self.led_intensity = config.getfloat("od_config", "ir_intensity")
+        self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
 
         self.start_ir_led()
         self.adc_reader.setup_adc()
@@ -602,9 +598,9 @@ class ODReader(BackgroundJob):
             run_immediately=True,
         ).start()
 
-    def get_ir_channel_from_configuration(self):
+    def get_ir_channel_from_configuration(self) -> LED_Channel:
         try:
-            return config.get("leds_reverse", "ir_led")
+            return LED_Channel(config.get("leds_reverse", "ir_led"))
         except Exception:
             self.logger.error(
                 "`leds` section must contain `ir_led`. Ex: \n\n[leds]\nA=ir_led"
@@ -638,8 +634,8 @@ class ODReader(BackgroundJob):
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
-            verbose=False,
             pubsub_client=self.pub_client,
+            verbose=False,
         )
         if not r:
             raise ValueError("IR LED could not be started. Stopping OD reading.")
@@ -718,7 +714,7 @@ class ODReader(BackgroundJob):
                 qos=QOS.EXACTLY_ONCE,
             )
 
-    def normalize_by_led_output(self, od_signal):
+    def normalize_by_led_output(self, od_signal: float) -> float:
         return self.ir_led_output_tracker(od_signal)
 
 

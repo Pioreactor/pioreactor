@@ -31,6 +31,7 @@ with payload
     }
 
 """
+from __future__ import annotations
 import json
 from collections import defaultdict
 from datetime import datetime
@@ -39,6 +40,7 @@ import click
 
 from pioreactor.actions.od_normalization import od_normalization
 from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
+from pioreactor.background_jobs.od_reading import PD_Channel
 from pioreactor.config import config
 from pioreactor.pubsub import QOS, subscribe
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
@@ -219,7 +221,7 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
             od_blank,
         )
 
-    def get_od_blank_from_cache(self):
+    def get_od_blank_from_cache(self) -> dict[PD_Channel, float]:
         with local_persistant_storage("od_blank") as cache:
             result = cache.get(self.experiment, None)
 
@@ -228,7 +230,7 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         else:
             return defaultdict(lambda: 0)
 
-    def get_growth_rate_from_broker(self):
+    def get_growth_rate_from_broker(self) -> float:
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
             timeout=1.5,
@@ -236,9 +238,9 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         if message:
             return float(json.loads(message.payload)["growth_rate"])
         else:
-            return 0
+            return 0.0
 
-    def get_previous_od_from_broker(self):
+    def get_previous_od_from_broker(self) -> float:
         message = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
             timeout=1.5,
@@ -248,12 +250,12 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         else:
             return 1.0
 
-    def get_od_normalization_from_cache(self):
+    def get_od_normalization_from_cache(self) -> dict[PD_Channel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_mean") as cache:
             result = cache.get(self.experiment, None)
 
-        if result:
+        if result is not None:
             return json.loads(result)
         else:
             self.logger.debug("od_normalization/mean not found in cache.")
@@ -297,7 +299,7 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         else:
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
-    def scale_raw_observations(self, observations):
+    def scale_raw_observations(self, observations) -> dict[PD_Channel, float]:
         def scale_and_shift(obs, shift, scale):
             return (obs - shift) / (scale - shift)
 
@@ -318,6 +320,7 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         return v
 
     def update_state_from_observation(self, message):
+
         if self.state != self.READY:
             return
 
@@ -349,7 +352,6 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
-            # raise e
         else:
             # TODO: EKF values can be nans...
             self.publish(
@@ -362,8 +364,10 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
                 {
-                    "state": self.state_.tolist(),
-                    "covariance_matrix": self.ekf.covariance_.tolist(),
+                    "state": self.format_list(self.state_.tolist()),
+                    "covariance_matrix": [
+                        self.format_list(x) for x in self.ekf.covariance_.tolist()
+                    ],
                     "timestamp": payload["timestamp"],
                 },
                 qos=QOS.EXACTLY_ONCE,
@@ -378,6 +382,15 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
                 qos=QOS.EXACTLY_ONCE,
                 retain=True,
             )
+
+    @staticmethod
+    def format_list(np_list: list[float]) -> list[str]:
+        # we found that storing lists of floating point values as strings in the database
+        # was consume a lot of storage on disk. So we format the values, without losing
+        # much resolution, to reduce the storage impact.
+        import numpy as np
+
+        return [np.format_float_scientific(x, precision=2) for x in np_list]
 
     def response_to_dosing_event(self, message):
         # here we can add custom logic to handle dosing events.
@@ -411,17 +424,17 @@ class GrowthRateCalculator(NiceMixin, BackgroundJob):
         # removed for now, because it was messing with the new dynamic stirring
 
     @staticmethod
-    def batched_raw_od_readings_to_dict(raw_od_readings):
+    def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[PD_Channel, float]:
         """
         Inputs looks like
         {
-            "0": {"voltage": 0.13, "angle": "135,45"},
-            "1": {"voltage": 0.03, "angle": "90,135"}
+            0: {"voltage": 0.13, "angle": "135,45"},
+            1: {"voltage": 0.03, "angle": "90,135"}
         }
 
         """
         return {
-            channel: float(raw_od_readings[channel]["voltage"])
+            PD_Channel(channel): float(raw_od_readings[channel]["voltage"])
             for channel in sorted(raw_od_readings, reverse=True)
         }
 
