@@ -40,7 +40,7 @@ def stirring_calibration():
             return
 
         # we go up and down to exercise any hysteresis in the system
-        dcs = list(range(20, 40, 4)) + list(range(43, 20, -4))
+        dcs = list(range(25, 45, 4)) + list(range(43, 25, -4))
 
         measured_rpms = []
 
