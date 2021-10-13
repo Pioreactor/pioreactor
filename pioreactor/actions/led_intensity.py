@@ -174,6 +174,11 @@ def click_led_intensity(channel, intensity, source_of_event, no_log):
     status = True
     for channel_ in channel:
         status &= led_intensity(
-            channel_, intensity, source_of_event, unit, experiment, verbose=not no_log
+            channel=channel_,
+            intensity=intensity,
+            source_of_event=source_of_event,
+            unit=unit,
+            experiment=experiment,
+            verbose=not no_log,
         )
     return status
