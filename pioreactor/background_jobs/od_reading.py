@@ -501,7 +501,7 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
 
     def __init__(self, channel: PD_Channel):
         super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(0.75)
+        self.led_output_ema = ExponentialMovingAverage(0.55)
         self.channel = channel
         self.logger.debug(f"Using PD channel {channel} to track IR LED output.")
 

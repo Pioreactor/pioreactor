@@ -5,6 +5,22 @@ from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils import clamp
 
 
+class DEMA:
+
+    initial_value = 0
+
+    def __init__(self, alpha):
+        self.alpha = alpha
+        self.value = self.initial_value
+
+    def __call__(self, input_, prev_input_):
+        if prev_input_ is not None:
+            self.value = (
+                self.alpha * (input_ - prev_input_) + (1 - self.alpha) * self.value
+            )
+        return self.value
+
+
 class PIDStable(TemperatureAutomation):
     """
     Uses a PID controller to change the DC% to match a target temperature.
@@ -38,6 +54,9 @@ class PIDStable(TemperatureAutomation):
             job_name=self.job_name,
             target_name="temperature",
         )
+
+        # d-term is noisy, add this.
+        self.pid.pid.add_derivative_hook(DEMA(0.85))
 
     def execute(self):
         # this runs every time a new temperature reading comes in, including a retained temperature
