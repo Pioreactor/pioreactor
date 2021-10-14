@@ -13,14 +13,12 @@ from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
-from pioreactor.utils.timing import current_utc_time
 
 
 @dataclass
 class SetAttrSplitTopic:
     pioreactor_unit: str
     experiment: str
-    timestamp: str
 
 
 @dataclass
@@ -116,7 +114,7 @@ def produce_metadata(topic: str) -> tuple[SetAttrSplitTopic, list[str]]:
     # helper function for parsers below
     split_topic = topic.split("/")
     return (
-        SetAttrSplitTopic(split_topic[1], split_topic[2], current_utc_time()),
+        SetAttrSplitTopic(split_topic[1], split_topic[2]),
         split_topic,
     )
 
@@ -257,16 +255,18 @@ def mqtt_to_db_streaming():
         return payload
 
     def parse_stirring_rates(topic, payload):
+        if not payload:
+            return None
+
         metadata, _ = produce_metadata(topic)
+        payload = loads(payload)
 
-        if payload:
-
-            return {
-                "experiment": metadata.experiment,
-                "pioreactor_unit": metadata.pioreactor_unit,
-                "timestamp": metadata.timestamp,
-                "actual_rpm": float(payload),
-            }
+        return {
+            "experiment": metadata.experiment,
+            "pioreactor_unit": metadata.pioreactor_unit,
+            "timestamp": payload["timestamp"],
+            "measured_rpm": payload["rpm"],
+        }
 
     topics_to_tables = [
         TopicToParserToTable(
@@ -318,7 +318,7 @@ def mqtt_to_db_streaming():
             "kalman_filter_outputs",
         ),
         TopicToParserToTable(
-            "pioreactor/+/+/stirring/actual_rpm", parse_stirring_rates, "stirring_rates"
+            "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
         ),
         TopicToParserToTable("pioreactor/+/+/od_blank/+", parse_od_blank, "od_blanks"),
     ]

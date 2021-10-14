@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS stirring_rates (
     timestamp                TEXT NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
     experiment               TEXT NOT NULL,
-    actual_rpm               REAL NOT NULL
+    measured_rpm             REAL NOT NULL
 );
 
 

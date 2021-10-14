@@ -79,8 +79,8 @@ def test_publish_target_rpm():
     st.set_state(st.DISCONNECTED)
 
 
-def test_publish_actual_rpm():
-    publish(f"pioreactor/{unit}/{exp}/stirring/actual_rpm", None, retain=True)
+def test_publish_measured_rpm():
+    publish(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", None, retain=True)
     pause()
     target_rpm = 500
 
@@ -90,8 +90,8 @@ def test_publish_actual_rpm():
 
     pause()
 
-    message = subscribe(f"pioreactor/{unit}/{exp}/stirring/actual_rpm")
-    assert float(message.payload) == 0
+    message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm")
+    assert json.loads(message.payload)["rpm"] == 0
     st.set_state(st.DISCONNECTED)
 
 

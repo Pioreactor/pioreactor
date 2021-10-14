@@ -14,7 +14,7 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.utils.streaming_calculations import PID
-from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 
 
 class RpmCalculator:
@@ -62,8 +62,8 @@ class RpmCalculator:
         self.GPIO.cleanup(self.hall_sensor_pin)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
-    def __call__(self, seconds_to_observe: float) -> Optional[float]:
-        pass
+    def __call__(self, seconds_to_observe: float) -> float:
+        return 0
 
     def callback(self, *args):
         pass
@@ -158,14 +158,14 @@ class Stirrer(BackgroundJob):
 
     published_settings = {
         "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
-        "actual_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
+        "measured_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
     _previous_duty_cycle: float = 0
     duty_cycle: float = config.getint(
         "stirring", "initial_duty_cycle", fallback=60.0
     )  # only used if calibration isn't defined.
-    actual_rpm: Optional[float] = None
+    _measured_rpm: Optional[float] = None
 
     def __init__(
         self,
@@ -247,30 +247,30 @@ class Stirrer(BackgroundJob):
         """
         Returns an RPM, or None if not measuring RPM.
         """
-        if self.rpm_calculator is not None:
-            measured_rpm = self.rpm_calculator(poll_for_seconds)
-            if self.actual_rpm is not None and measured_rpm is not None:
-                # use a simple EMA, 0.05 chosen arbitrarily, but should be a function of delta time.
-                self.actual_rpm = 0.05 * self.actual_rpm + 0.95 * measured_rpm
-            elif measured_rpm is not None:
-                self.actual_rpm = measured_rpm
-            else:
-                self.actual_rpm = None
-        else:
-            self.actual_rpm = None
+        if self.rpm_calculator is None:
+            return None
 
-        if self.actual_rpm == 0:
+        recent_rpm = self.rpm_calculator(poll_for_seconds)
+
+        if self._measured_rpm is not None:
+            # use a simple EMA, 0.05 chosen arbitrarily, but should be a function of delta time.
+            self._measured_rpm = 0.05 * self._measured_rpm + 0.95 * recent_rpm
+        else:
+            self._measured_rpm = recent_rpm
+
+        if self._measured_rpm == 0:
             self.logger.warning("Stirring RPM is 0 - has it failed?")
 
-        return self.actual_rpm
+        self.measured_rpm = {"timestamp": current_utc_time(), "rpm": self._measured_rpm}
+        return self._measured_rpm
 
     def poll_and_update_dc(self, poll_for_seconds: float):
-        measured_rpm = self.poll(poll_for_seconds)
+        self.poll(poll_for_seconds)
 
-        if measured_rpm is None:
+        if self._measured_rpm is None:
             return
 
-        result = self.pid.update(measured_rpm, dt=1)
+        result = self.pid.update(self._measured_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
 
     def stop_stirring(self):
