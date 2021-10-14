@@ -569,7 +569,6 @@ class ODReader(BackgroundJob):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
         )
-        self.logger.debug(f"Starting od_reading with channels {channel_angle_map}.")
 
         self.adc_reader = adc_reader
 
@@ -583,6 +582,10 @@ class ODReader(BackgroundJob):
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getfloat("od_config", "ir_intensity")
         self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
+
+        self.logger.debug(
+            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.led_intensity} on channel {self.ir_channel}."
+        )
 
         self.start_ir_led()
         self.adc_reader.setup_adc()
