@@ -13,6 +13,7 @@ algorithm is below, housed in TemperatureController
     2. Every 10 minutes, we trigger a sequence:
         1. Turn off heating completely (a lock is introduced so other jobs can't change this)
         2. Every 10 seconds, record the temperature on the PCB.
+        3. Use the series of PCB temperatures to infer the temperature of vial.
 
 
 To change the automation over MQTT,
@@ -69,6 +70,7 @@ class TemperatureController(BackgroundJob):
     published_settings = {
         "temperature_automation": {"datatype": "string", "settable": True},
         "temperature": {"datatype": "float", "settable": False, "unit": "℃"},
+        "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
     }
     temperature: Optional[dict[str, Any]] = None
 

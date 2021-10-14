@@ -158,3 +158,38 @@ def test_setting_pid_control_after_startup_will_start_some_heating():
 
         pause(3)
         assert t.heater_duty_cycle > 0
+
+
+def test_duty_cycle_is_published_and_not_settable():
+
+    dc_msgs = []
+
+    def collect(msg):
+        dc_msgs.append(msg.payload)
+
+    pubsub.subscribe_and_callback(
+        collect,
+        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/temperature_control/heater_duty_cycle",
+    )
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ):
+        # change to PID stable
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_control/temperature_automation/set",
+            '{"temperature_automation": "pid_stable", "target_temperature": 35}',
+        )
+
+        pause(3)
+
+        # should produce an "Unable to set heater_duty_cycle"
+        pubsub.publish(
+            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/temperature_control/heater_duty_cycle/set",
+            10,
+        )
+
+        pause(1)
+
+    assert len(dc_msgs) > 0
