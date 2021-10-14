@@ -21,6 +21,7 @@ from pioreactor.logging import create_logger
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.utils.math_helpers import correlation
+from pioreactor.utils.timing import current_utc_time
 
 
 def od_blank(
@@ -125,6 +126,13 @@ def od_blank(
                 logger.warning(
                     f"OD reading for PD Channel {channel} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"
                 )
+
+            pubsub.publish(
+                f"pioreactor/{unit}/{experiment}/od_blank/{channel}",
+                json.dumps(
+                    {"timestamp": current_utc_time(), "od_reading_v": means[channel]}
+                ),
+            )
 
         # store locally as the source of truth.
         with local_persistant_storage(action_name) as cache:

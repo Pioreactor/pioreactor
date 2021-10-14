@@ -4,7 +4,7 @@ This job runs on the leader, and is a replacement for the NodeRed database strea
 """
 from __future__ import annotations
 
-import json
+from json import dumps, loads
 from typing import Callable, Any
 from dataclasses import dataclass
 import click
@@ -133,7 +133,7 @@ def mqtt_to_db_streaming():
 
     def parse_od(topic, payload):
         metadata, split_topic = produce_metadata(topic)
-        payload = json.loads(payload)
+        payload = loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
@@ -145,7 +145,7 @@ def mqtt_to_db_streaming():
 
     def parse_od_filtered(topic, payload):
         metadata, split_topic = produce_metadata(topic)
-        payload = json.loads(payload)
+        payload = loads(payload)
 
         return {
             "experiment": metadata.experiment,
@@ -154,8 +154,19 @@ def mqtt_to_db_streaming():
             "normalized_od_reading": payload["od_filtered"],
         }
 
+    def parse_od_blank(topic, payload):
+        metadata, split_topic = produce_metadata(topic)
+        payload = loads(payload)
+        return {
+            "experiment": metadata.experiment,
+            "pioreactor_unit": metadata.pioreactor_unit,
+            "timestamp": payload["timestamp"],
+            "od_reading_v": payload["od_reading_v"],
+            "channel": split_topic[-1],
+        }
+
     def parse_dosing_events(topic, payload):
-        payload = json.loads(payload)
+        payload = loads(payload)
         metadata, _ = produce_metadata(topic)
 
         return {
@@ -168,7 +179,7 @@ def mqtt_to_db_streaming():
         }
 
     def parse_led_events(topic, payload):
-        payload = json.loads(payload)
+        payload = loads(payload)
         metadata, _ = produce_metadata(topic)
 
         return {
@@ -182,7 +193,7 @@ def mqtt_to_db_streaming():
 
     def parse_growth_rate(topic, payload):
         metadata, _ = produce_metadata(topic)
-        payload = json.loads(payload)
+        payload = loads(payload)
 
         return {
             "experiment": metadata.experiment,
@@ -197,7 +208,7 @@ def mqtt_to_db_streaming():
         if not payload:
             return None
 
-        payload = json.loads(payload)
+        payload = loads(payload)
 
         return {
             "experiment": metadata.experiment,
@@ -208,7 +219,7 @@ def mqtt_to_db_streaming():
 
     def parse_alt_media_fraction(topic, payload):
         metadata, _ = produce_metadata(topic)
-        payload = json.loads(payload)
+        payload = loads(payload)
 
         return {
             "experiment": metadata.experiment,
@@ -219,7 +230,7 @@ def mqtt_to_db_streaming():
 
     def parse_logs(topic, payload):
         metadata, split_topic = produce_metadata(topic)
-        payload = json.loads(payload)
+        payload = loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
@@ -232,17 +243,17 @@ def mqtt_to_db_streaming():
 
     def parse_kalman_filter_outputs(topic, payload):
         metadata, _ = produce_metadata(topic)
-        payload = json.loads(payload)
+        payload = loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
-            "state": json.dumps(payload["state"]),
-            "covariance_matrix": json.dumps(payload["covariance_matrix"]),
+            "timestamp": payload["timestamp"],
+            "state": dumps(payload["state"]),
+            "covariance_matrix": dumps(payload["covariance_matrix"]),
         }
 
     def parse_automation_settings(topic, payload):
-        payload = json.loads(payload.decode())
+        payload = loads(payload.decode())
         return payload
 
     def parse_stirring_rates(topic, payload):
@@ -309,6 +320,7 @@ def mqtt_to_db_streaming():
         TopicToParserToTable(
             "pioreactor/+/+/stirring/actual_rpm", parse_stirring_rates, "stirring_rates"
         ),
+        TopicToParserToTable("pioreactor/+/+/od_blank/+", parse_od_blank, "od_blanks"),
     ]
 
     return MqttToDBStreamer(

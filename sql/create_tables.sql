@@ -169,3 +169,11 @@ CREATE TABLE IF NOT EXISTS config_files (
     filename                 TEXT NOT NULL,
     data                     TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS od_blanks (
+    timestamp                TEXT NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    channel                  TEXT NOT NULL,
+    od_reading_v             REAL NOT NULL
+);
