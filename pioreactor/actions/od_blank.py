@@ -20,6 +20,7 @@ from pioreactor import pubsub
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.utils.math_helpers import correlation
 
 
 def od_blank(
@@ -66,7 +67,7 @@ def od_blank(
                 unit=unit,
                 experiment=testing_experiment,
             )
-            time.sleep(5)
+            time.sleep(8)
         else:
             # TODO: it could be paused, we should make sure it's running
             ...
@@ -96,8 +97,8 @@ def od_blank(
         readings = defaultdict(list)
 
         for count, batched_reading in enumerate(signal, start=1):
-            for (sensor, reading) in batched_reading["od_raw"].items():
-                readings[sensor].append(reading["voltage"])
+            for (channel, reading) in batched_reading["od_raw"].items():
+                readings[channel].append(reading["voltage"])
 
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
@@ -109,15 +110,20 @@ def od_blank(
 
         means = {}
         variances = {}
-        for sensor, reading_series in readings.items():
+        autocorrelations = {}  # lag 1
+
+        for channel, od_reading_series in readings.items():
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
-            means[sensor] = mean(reading_series)
-            variances[str(sensor) + "_var"] = variance(reading_series)
+            means[channel] = mean(od_reading_series)
+            variances[channel] = variance(od_reading_series)
+            autocorrelations[channel] = correlation(
+                od_reading_series[:-1], od_reading_series[1:]
+            )
 
             # warn users that a blank is 0 - maybe this should be an error instead? TODO: link this to a docs page.
-            if means[sensor] == 0.0:
+            if means[channel] == 0.0:
                 logger.warning(
-                    f"OD reading for PD Channel {sensor} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"
+                    f"OD reading for PD Channel {channel} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"
                 )
 
         # store locally as the source of truth.
@@ -137,8 +143,10 @@ def od_blank(
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            to_share = {**means, **variances}
-            to_share["ir_led_part_number"] = config["od_config"]["ir_led_part_number"]
+            to_share = {"mean": means, "variance": variances}
+            to_share["ir_led_reference_channel"] = config["od_config"][
+                "ir_led_output_channel"
+            ]
             to_share["ir_intensity"] = config["od_config"]["ir_intensity"]
             to_share["od_angle_channel1"] = od_angle_channel1
             to_share["od_angle_channel2"] = od_angle_channel2
@@ -146,7 +154,10 @@ def od_blank(
             to_share["od_angle_channel4"] = od_angle_channel4
             pubsub.publish_to_pioreactor_cloud("od_blank_mean", json=to_share)
 
-        logger.info("OD blank reading finished.")
+        logger.debug(f"measured mean: {means}")
+        logger.debug(f"measured variances: {variances}")
+        logger.debug(f"measured autocorrelations: {autocorrelations}")
+        logger.debug("OD normalization finished.")
 
         return means
 

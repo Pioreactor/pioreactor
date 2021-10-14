@@ -82,12 +82,12 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
 
             variances = {}
             means = {}
-            autcorrelations = {}  # lag 1
+            autocorrelations = {}  # lag 1
 
             for sensor, od_reading_series in readings.items():
                 variances[sensor] = variance(od_reading_series)
                 means[sensor] = mean(od_reading_series)
-                autcorrelations[sensor] = correlation(
+                autocorrelations[sensor] = correlation(
                     od_reading_series[:-1], od_reading_series[1:]
                 )
 
@@ -99,7 +99,7 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
 
             logger.debug(f"measured mean: {means}")
             logger.debug(f"measured variances: {variances}")
-            logger.debug(f"measured autcorrelations: {autcorrelations}")
+            logger.debug(f"measured autocorrelations: {autocorrelations}")
             logger.debug("OD normalization finished.")
 
             if config.getboolean(
@@ -109,7 +109,6 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
             ):
 
                 add_on = {
-                    "ir_led_part_number": config["od_config"]["ir_led_part_number"],
                     "ir_intensity": config["od_config"]["ir_intensity"],
                 }
 
