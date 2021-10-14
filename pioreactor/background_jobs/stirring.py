@@ -62,7 +62,7 @@ class RpmCalculator:
         self.GPIO.cleanup(self.hall_sensor_pin)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
-    def __call__(self, seconds_to_observe: float) -> Optional[int]:
+    def __call__(self, seconds_to_observe: float) -> Optional[float]:
         pass
 
     def callback(self, *args):
@@ -91,7 +91,7 @@ class RpmFromFrequency(RpmCalculator):
 
         self._start_time = obs_time
 
-    def __call__(self, seconds_to_observe: float) -> int:
+    def __call__(self, seconds_to_observe: float) -> float:
 
         self._running_sum = 0
         self._running_count = 0
@@ -104,7 +104,7 @@ class RpmFromFrequency(RpmCalculator):
         if self._running_sum == 0:
             return 0
         else:
-            return round(self._running_count * 60 / self._running_sum)
+            return self._running_count * 60 / self._running_sum
 
 
 class RpmFromCount(RpmCalculator):
@@ -117,7 +117,7 @@ class RpmFromCount(RpmCalculator):
     def callback(self, *args):
         self._rpm_counter = self._rpm_counter + 1
 
-    def __call__(self, seconds_to_observe: float) -> int:
+    def __call__(self, seconds_to_observe: float) -> float:
 
         self._rpm_counter = 0
 
@@ -125,7 +125,7 @@ class RpmFromCount(RpmCalculator):
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
 
-        return round(self._rpm_counter * 60 / seconds_to_observe)
+        return self._rpm_counter * 60 / seconds_to_observe
 
 
 class Stirrer(BackgroundJob):
@@ -157,19 +157,19 @@ class Stirrer(BackgroundJob):
     """
 
     published_settings = {
-        "target_rpm": {"datatype": "int", "settable": True, "unit": "RPM"},
-        "actual_rpm": {"datatype": "int", "settable": False, "unit": "RPM"},
+        "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
+        "actual_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
     _previous_duty_cycle: float = 0
     duty_cycle: float = config.getint(
         "stirring", "initial_duty_cycle", fallback=60.0
     )  # only used if calibration isn't defined.
-    actual_rpm: Optional[int] = None
+    actual_rpm: Optional[float] = None
 
     def __init__(
         self,
-        target_rpm: int,
+        target_rpm: float,
         unit: str,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator],
@@ -203,7 +203,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            19,
+            23,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -243,17 +243,19 @@ class Stirrer(BackgroundJob):
         sleep(0.75)
         self.rpm_check_repeated_thread.start()  # .start is idempotent
 
-    def poll(self, poll_for_seconds: float) -> Optional[int]:
+    def poll(self, poll_for_seconds: float) -> Optional[float]:
         """
         Returns an RPM, or None if not measuring RPM.
         """
         if self.rpm_calculator is not None:
             measured_rpm = self.rpm_calculator(poll_for_seconds)
             if self.actual_rpm is not None and measured_rpm is not None:
-                # use a simple EMA, 0.05 chosen arbitrarily
-                self.actual_rpm = int(0.05 * self.actual_rpm + 0.95 * measured_rpm)
-            else:
+                # use a simple EMA, 0.05 chosen arbitrarily, but should be a function of delta time.
+                self.actual_rpm = 0.05 * self.actual_rpm + 0.95 * measured_rpm
+            elif measured_rpm is not None:
                 self.actual_rpm = measured_rpm
+            else:
+                self.actual_rpm = None
         else:
             self.actual_rpm = None
 
@@ -317,10 +319,10 @@ def start_stirring(target_rpm=0, unit=None, experiment=None, ignore_rpm=False) -
 @click.command(name="stirring")
 @click.option(
     "--target-rpm",
-    default=config.getint("stirring", "target_rpm", fallback=0),
+    default=config.getfloat("stirring", "target_rpm", fallback=0),
     help="set the target RPM",
     show_default=True,
-    type=click.IntRange(0, 1000, clamp=True),
+    type=click.FloatRange(0, 1000, clamp=True),
 )
 @click.option(
     "--ignore-rpm",

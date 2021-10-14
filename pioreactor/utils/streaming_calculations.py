@@ -378,6 +378,7 @@ class PID:
 
     def update(self, input_, dt) -> float:
         output = self.pid(input_, dt) + self.K0
+        self.publish_pid_stats()
         return output
 
     def publish_pid_stats(self):
