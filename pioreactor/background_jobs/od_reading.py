@@ -205,6 +205,9 @@ class ADCReader(LoggerMixin):
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
+
+            # turn off all LEDs that might be causing problems
+            # however, ODReader may turn on the IR LED again.
             for channel in LED_CHANNELS:
                 change_led_intensity(
                     channel,
@@ -212,6 +215,11 @@ class ADCReader(LoggerMixin):
                     source_of_event="ADCReader",
                     verbose=True,
                 )
+
+            # kill ourselves - this will hopefully kill ODReader.
+            import sys
+
+            sys.exit(1)
 
     def check_on_gain(self, value: float):
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
@@ -584,7 +592,7 @@ class ODReader(BackgroundJob):
         self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
 
         self.logger.debug(
-            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.led_intensity} on channel {self.ir_channel}."
+            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.led_intensity}% on channel {self.ir_channel}."
         )
 
         self.start_ir_led()
