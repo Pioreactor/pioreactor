@@ -8,7 +8,8 @@ from typing import Optional
 
 
 from pioreactor.pubsub import QOS
-from pioreactor.utils import is_pio_job_running
+
+# from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.led_control import LEDController
@@ -59,12 +60,12 @@ class LEDAutomation(BackgroundSubJob):
             job_name="led_automation", unit=unit, experiment=experiment
         )
 
-        self.skip_first_run = skip_first_run  # TODO: needed?
+        self.skip_first_run = skip_first_run
 
         self.set_duration(duration)
         self.start_passive_listeners()
 
-        self.logger.info(f"Starting {self.__class__.__name__} automation.")
+        self.logger.info(f"Starting {self.__class__.__name__} LED automation.")
 
     def set_duration(self, duration: Optional[float]):
         if duration:
@@ -91,28 +92,30 @@ class LEDAutomation(BackgroundSubJob):
             # we ended early.
             return
 
-        elif (self.latest_growth_rate is None) or (self.latest_od is None):
-            self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                self.logger.warning(
-                    "`od_reading` and `growth_rate_calculating` should be running."
-                )
+        # so, I don't think it's necessary to have LED automations need growth rate and OD
 
-            # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
-            counter = 0
-            while (
-                (self.latest_growth_rate is None) or (self.latest_od is None)
-            ) and self.state == self.READY:
-                time.sleep(5)
-                counter += 1
+        # elif (self.latest_growth_rate is None) or (self.latest_od is None):
+        #    self.logger.debug("Waiting for OD and growth rate data to arrive")
+        #    if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+        #        self.logger.warning(
+        #            "`od_reading` and `growth_rate_calculating` should be running."
+        #        )
 
-                if self.duration and counter > (self.duration * 60 / 4) / 5:
-                    event = events.NoEvent(
-                        "Waited too long on sensor data. Skipping this run."
-                    )
-                    break
-            else:
-                return self.run()
+        #    # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
+        #    counter = 0
+        #    while (
+        #        (self.latest_growth_rate is None) or (self.latest_od is None)
+        #    ) and self.state == self.READY:
+        #        time.sleep(5)
+        #        counter += 1
+
+        #        if self.duration and counter > (self.duration * 60 / 4) / 5:
+        #            event = events.NoEvent(
+        #                "Waited too long on sensor data. Skipping this run."
+        #            )
+        #            break
+        #    else:
+        #        return self.run()
 
         elif self.state != self.READY:
 
@@ -130,10 +133,10 @@ class LEDAutomation(BackgroundSubJob):
             else:
                 return self.run()
 
-        elif (time.time() - self.most_stale_time) > 5 * 60:
-            event = events.NoEvent(
-                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
-            )
+        # elif (time.time() - self.most_stale_time) > 5 * 60:
+        #    event = events.NoEvent(
+        #        "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+        #    )
         else:
             try:
                 event = self.execute()
@@ -165,7 +168,14 @@ class LEDAutomation(BackgroundSubJob):
 
         """
         self.edited_channels.add(channel)
-        led_intensity(channel, intensity, unit=self.unit, experiment=self.experiment)
+        led_intensity(
+            channel,
+            intensity,
+            unit=self.unit,
+            experiment=self.experiment,
+            pubsub_client=self.pub_client,
+            source_of_event=self.job_name,
+        )
 
     ########## Private & internal methods
 

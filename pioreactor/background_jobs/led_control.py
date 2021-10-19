@@ -11,7 +11,7 @@ import time
 import json
 
 import click
-
+from contextlib import suppress
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
@@ -60,16 +60,13 @@ class LEDController(BackgroundJob):
             self.led_automation_job.set_state(self.SLEEPING)
 
     def on_ready(self):
-        try:
+        with suppress(AttributeError):
             if self.led_automation_job.state != self.READY:
                 self.led_automation_job.set_state(self.READY)
-        except AttributeError:
-            # attribute error occurs on first init of _control
-            pass
 
     def on_disconnect(self):
-
-        self.led_automation_job.set_state("disconnected")
+        with suppress(AttributeError):
+            self.led_automation_job.set_state("disconnected")
 
         self.clear_mqtt_cache()
 
