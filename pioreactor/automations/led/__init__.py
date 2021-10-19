@@ -39,7 +39,7 @@ class TrackOD(LEDAutomation):
         if self.latest_od is not None:
             new_intensity = 100 ** (min(self.latest_od, self.max_od) / self.max_od)
             self.set_led_intensity(self.white_light, new_intensity)
-            return events.ChangedLuminosity(f"new output: {new_intensity}")
+            return events.ChangedLEDIntensity(f"new output: {new_intensity}")
         else:
             return events.NoEvent()
 
@@ -57,4 +57,4 @@ class FlashUV(LEDAutomation):
         self.set_led_intensity(self.uv_led, 100)
         time.sleep(1)
         self.set_led_intensity(self.uv_led, 0)
-        return events.ChangedLuminosity("Flashed UV for 1 second")
+        return events.ChangedLEDIntensity("Flashed UV for 1 second")
