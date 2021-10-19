@@ -60,6 +60,11 @@ class MQTTHandler(logging.Handler):
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish()
 
+    def close(self):
+        self.client.disconnect()
+        self.client.loop_stop()
+        super().close()
+
 
 def create_logger(
     name, unit=None, experiment=None, source="app", pub_client=None, to_mqtt=True
