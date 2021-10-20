@@ -2,6 +2,9 @@
 # first argument is the new hostname of the pioreactor, to replace raspberry pi
 # (optional) second argument is the new ip of the raspberry pi machine to replace.
 
+set -x
+export LC_ALL=C
+
 MACHINE=${2:-"raspberrypi.local"}
 
 # remove from known_hosts if already present

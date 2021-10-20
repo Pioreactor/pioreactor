@@ -1,7 +1,10 @@
 #!/bin/bash
 
+
 # exit if any error
 set -e
+set -x
+export LC_ALL=C
 
 
 sudo apt-get install -y sqlite3

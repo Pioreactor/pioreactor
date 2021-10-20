@@ -406,7 +406,7 @@ class ADCReader(LoggerMixin):
                     )
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=0.5,  # TODO: this penalizer should scale with reading...
+                    penalizer_C=0.5,  # TODO: this penalizer should scale with absolute value of reading, and duration between readings...
                 )
 
                 # convert to voltage

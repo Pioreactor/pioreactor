@@ -3,6 +3,9 @@
 # arg1 is the name of the plugin to install
 # arg2 is the git url, possible None.
 set -e
+set -x
+export LC_ALL=C
+
 
 plugin_name=$1
 url=$2

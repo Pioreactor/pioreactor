@@ -561,7 +561,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # disconnect, etc.
         # ideally, the on_disconnect shouldn't care what state it was in prior to being called.
         try:
-            self.on_disconnect()  # TODO: shouldn't this be is_disconnected
+            self.on_disconnect()  # TODO: shouldn't this be on_disconnected
         except Exception as e:
             # since on_disconnected errors are common (see point below), we don't bother
             # making the visible to the user.

@@ -24,7 +24,7 @@ class LEDController(BackgroundJob):
 
     published_settings = {"led_automation": {"datatype": "string", "settable": True}}
 
-    def __init__(self, led_automation, unit=None, experiment=None, **kwargs):
+    def __init__(self, led_automation, unit: str, experiment: str, **kwargs):
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
@@ -35,7 +35,7 @@ class LEDController(BackgroundJob):
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 
-    def set_led_automation(self, new_led_automation_json):
+    def set_led_automation(self, new_led_automation_json: str):
         algo_init = json.loads(new_led_automation_json)
 
         try:
@@ -71,17 +71,15 @@ class LEDController(BackgroundJob):
         self.clear_mqtt_cache()
 
 
-def run(automation=None, duration=None, skip_first_run=False, **kwargs):
+def run(automation: str, duration: float = None, skip_first_run=False, **kwargs):
     try:
-
-        kwargs["duration"] = duration
-        kwargs["skip_first_run"] = skip_first_run
 
         return LEDController(
             automation,
             unit=get_unit_name(),
             experiment=get_latest_experiment_name(),
-            **kwargs,
+            skip_first_run=skip_first_run,
+            duration=duration,
         )
 
     except Exception as e:
