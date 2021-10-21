@@ -13,7 +13,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.led_control import LEDController
-from pioreactor.actions.led_intensity import led_intensity, LED_Channel
+from pioreactor.actions.led_intensity import led_intensity, LED_Channel, is_locked
 from pioreactor.automations import events
 from pioreactor.utils.timing import current_utc_time
 
@@ -158,6 +158,9 @@ class LEDAutomation(BackgroundSubJob):
 
     def set_led_intensity(self, channel: LED_Channel, intensity: float):
         """
+        This first checks the lock on the LED channel, and will wait a few seconds for it to clear,
+        and error out if it waits too long.
+
         Parameters
         ------------
 
@@ -167,15 +170,22 @@ class LEDAutomation(BackgroundSubJob):
             A float between 0-100, inclusive.
 
         """
-        self.edited_channels.add(channel)
-        led_intensity(
-            channel,
-            intensity,
-            unit=self.unit,
-            experiment=self.experiment,
-            pubsub_client=self.pub_client,
-            source_of_event=self.job_name,
-        )
+        for attempt in range(3):
+            if not is_locked(channel):
+                self.edited_channels.add(channel)
+                led_intensity(
+                    channel,
+                    intensity,
+                    unit=self.unit,
+                    experiment=self.experiment,
+                    pubsub_client=self.pub_client,
+                    source_of_event=self.job_name,
+                )
+                return True
+
+            time.sleep(0.75)
+
+        return False
 
     ########## Private & internal methods
 

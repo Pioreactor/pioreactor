@@ -2,7 +2,8 @@
 from __future__ import annotations
 import json
 import click
-from typing import Tuple, Dict, Optional, NewType
+from typing import Tuple, Dict, Optional, NewType, Union
+from contextlib import contextmanager
 
 from pioreactor.pubsub import create_client, QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -14,14 +15,35 @@ LED_Channel = NewType("LED_Channel", str)  # Literal["A", "B", "C", "D"]
 LED_CHANNELS = [LED_Channel("A"), LED_Channel("B"), LED_Channel("C"), LED_Channel("D")]
 
 
-def update_current_state(
-    channel: LED_Channel,
-    intensity: float,
+LED_LOCKED = b"1"
+LED_UNLOCKED = b"0"
+
+
+@contextmanager
+def lock_leds_temporarily(channels: list[LED_Channel]):
+    try:
+        with local_intermittent_storage("led_locks") as cache:
+            for c in channels:
+                cache[c] = LED_LOCKED
+                print(cache[c])
+        yield
+    finally:
+        with local_intermittent_storage("led_locks") as cache:
+            for c in channels:
+                cache[c] = LED_UNLOCKED
+
+
+def is_locked(channel: LED_Channel):
+    with local_intermittent_storage("led_locks") as cache:
+        return cache.get(channel, LED_UNLOCKED) == LED_LOCKED
+
+
+def _update_current_state(
+    channels: list[LED_Channel],
+    intensities: list[float],
 ) -> Tuple[Dict[LED_Channel, float], Dict[LED_Channel, float]]:
     """
-    this ignores the status of "power on"
-
-    This use to use MQTT, but network latency could really cause trouble.
+    Previously this used MQTT, but network latency could really cause trouble.
     Eventually I should try to modify the UI to not even need this `state` variable,
     """
 
@@ -31,7 +53,8 @@ def update_current_state(
         }
 
         # update cache
-        led_cache[channel] = str(intensity)
+        for channel, intensity in zip(channels, intensities):
+            led_cache[channel] = str(intensity)
 
         new_state = {
             channel: float(led_cache.get(channel, 0)) for channel in LED_CHANNELS
@@ -40,9 +63,16 @@ def update_current_state(
         return new_state, old_state
 
 
+def to_list(x) -> list:
+    if isinstance(x, list):
+        return x
+    else:
+        return [x]
+
+
 def led_intensity(
-    channel: LED_Channel,
-    intensity: float,
+    channels: Union[LED_Channel, list[LED_Channel]],
+    intensities: Union[float, list[float]],
     source_of_event: Optional[str] = None,
     verbose: bool = True,
     pubsub_client=None,
@@ -53,8 +83,8 @@ def led_intensity(
 
     Parameters
     ------------
-    channel: an LED channel
-    intensity: float
+    channel: an LED channel or list
+    intensity: float or list
         a value between 0 and 100 to set the LED channel to.
     verbose: bool
         if True, log the change, and send event to led_event table & mqtt. This is FALSE
@@ -87,42 +117,42 @@ def led_intensity(
     if pubsub_client is None:
         pubsub_client = create_client()
 
-    try:
-        assert 0 <= intensity <= 100, "intensity should be between 0 and 100, inclusive"
-        assert channel in LED_CHANNELS, f"saw incorrect channel {channel}"
-        intensity = float(intensity)
+    channels, intensities = list(channels), to_list(intensities)
 
-        dac = DAC43608()
-        dac.power_up(getattr(dac, channel))
-        dac.set_intensity_to(getattr(dac, channel), intensity / 100)
+    for channel, intensity in zip(channels, intensities):
 
-        if intensity == 0:
-            # setting to 0 doesn't fully remove the current, there is some residual current. We turn off
-            # the channel to guarantee no output.
-            dac.power_down(getattr(dac, channel))
+        try:
+            assert (
+                0 <= intensity <= 100
+            ), "intensity should be between 0 and 100, inclusive"
+            assert channel in LED_CHANNELS, f"saw incorrect channel {channel}"
+            intensity = float(intensity)
 
-    except ValueError as e:
-        logger.debug(e, exc_info=True)
-        logger.error(
-            "Is the Pioreactor HAT attached to the Raspberry Pi? Unable to find I²C for LED driver."
-        )
-        return False
+            dac = DAC43608()
+            dac.power_up(getattr(dac, channel))
+            dac.set_intensity_to(getattr(dac, channel), intensity / 100)
 
-    new_state, old_state = update_current_state(channel, intensity)
+            if intensity == 0:
+                # setting to 0 doesn't fully remove the current, there is some residual current. We turn off
+                # the channel to guarantee no output.
+                dac.power_down(getattr(dac, channel))
 
-    event = {
-        "channel": channel,
-        "intensity": intensity,
-        "source_of_event": source_of_event,
-        "timestamp": current_utc_time(),
-    }
+            pubsub_client.publish(
+                f"pioreactor/{unit}/{experiment}/led/{channel}/intensity",
+                intensity,
+                qos=QOS.AT_MOST_ONCE,
+                retain=True,
+            )
 
-    pubsub_client.publish(
-        f"pioreactor/{unit}/{experiment}/led/{channel}/intensity",
-        intensity,
-        qos=QOS.AT_MOST_ONCE,
-        retain=True,
-    )
+        except ValueError as e:
+            logger.debug(e, exc_info=True)
+            logger.error(
+                "Is the Pioreactor HAT attached to the Raspberry Pi? Unable to find I²C for LED driver."
+            )
+            return False
+
+    new_state, old_state = _update_current_state(channels, intensities)
+
     pubsub_client.publish(
         f"pioreactor/{unit}/{experiment}/leds/intensity",
         json.dumps(new_state),
@@ -131,15 +161,24 @@ def led_intensity(
     )
 
     if verbose:
-        pubsub_client.publish(
-            f"pioreactor/{unit}/{experiment}/led_events",
-            json.dumps(event),
-            qos=QOS.AT_MOST_ONCE,
-            retain=False,
-        )
-        logger.info(
-            f"Updated LED {channel} from {old_state[channel]:g}% to {new_state[channel]:g}%."
-        )
+        for channel, intensity in zip(channels, intensities):
+            event = {
+                "channel": channel,
+                "intensity": intensity,
+                "source_of_event": source_of_event,
+                "timestamp": current_utc_time(),
+            }
+
+            pubsub_client.publish(
+                f"pioreactor/{unit}/{experiment}/led_events",
+                json.dumps(event),
+                qos=QOS.AT_MOST_ONCE,
+                retain=False,
+            )
+
+            logger.info(
+                f"Updated LED {channel} from {old_state[channel]:g}% to {new_state[channel]:g}%."
+            )
 
     return True
 
@@ -171,14 +210,12 @@ def click_led_intensity(channel, intensity, source_of_event, no_log):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    status = True
-    for channel_ in channel:
-        status &= led_intensity(
-            channel=channel_,
-            intensity=intensity,
-            source_of_event=source_of_event,
-            unit=unit,
-            experiment=experiment,
-            verbose=not no_log,
-        )
+    status = led_intensity(
+        channels=channel,
+        intensities=[intensity] * len(channel),
+        source_of_event=source_of_event,
+        unit=unit,
+        experiment=experiment,
+        verbose=not no_log,
+    )
     return status

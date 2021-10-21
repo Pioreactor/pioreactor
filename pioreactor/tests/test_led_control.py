@@ -4,8 +4,10 @@
 import time, json
 
 from pioreactor.background_jobs.led_control import LEDController
+from pioreactor.automations.led.base import LEDAutomation
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
+from pioreactor.actions.led_intensity import lock_leds_temporarily
 
 
 unit = get_unit_name()
@@ -35,3 +37,17 @@ def test_silent():
     )
     assert r.payload.decode() == "silent"
     ld.set_state(ld.DISCONNECTED)
+
+
+def test_we_respect_any_locks_on_leds_we_want_to_modify():
+
+    ld = LEDAutomation(duration=1, unit=unit, experiment=experiment)
+    pause()
+    pause()
+    assert ld.set_led_intensity("B", 1)
+
+    # someone else locks channel B
+    with lock_leds_temporarily(["B"]):
+        assert not ld.set_led_intensity("B", 2)
+
+    assert ld.set_led_intensity("B", 3)

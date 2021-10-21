@@ -89,11 +89,13 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
     LED_CHANNELS,
     LED_Channel,  # type
+    lock_leds_temporarily,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
@@ -208,13 +210,12 @@ class ADCReader(LoggerMixin):
 
             # turn off all LEDs that might be causing problems
             # however, ODReader may turn on the IR LED again.
-            for channel in LED_CHANNELS:
-                change_led_intensity(
-                    channel,
-                    intensity=0,
-                    source_of_event="ADCReader",
-                    verbose=True,
-                )
+            change_led_intensity(
+                channels=LED_CHANNELS,
+                intensities=[0] * len(LED_CHANNELS),
+                source_of_event="ADCReader",
+                verbose=True,
+            )
 
             # kill ourselves - this will hopefully kill ODReader.
             import sys
@@ -625,15 +626,20 @@ class ODReader(BackgroundJob):
 
         pre_duration = 0.1  # turn on LED prior to taking snapshot and wait
 
-        # Why not stop all other LEDs? It's up to the other jobs to implement "dancing" around
-        # the IR led. Otherwise, if we turn off LEDs here, a job could easily turn it
-        # back on during our recording. OD readings are the most important, so they
-        # are the dance leaders.
-        self.start_ir_led()
-        sleep(pre_duration)
-        timestamp_of_readings = current_utc_time()
-        batched_readings = self.adc_reader.take_reading()
-        self.stop_ir_led()
+        # we put a soft lock on the LED channels - it's up to the
+        # other jobs to make sure they check the locks.
+        with lock_leds_temporarily(LED_CHANNELS):
+
+            state = self.turn_off_leds()
+
+            self.start_ir_led()
+            sleep(pre_duration)
+
+            timestamp_of_readings = current_utc_time()
+            batched_readings = self.adc_reader.take_reading()
+
+            self.stop_ir_led()  # TODO: I don't think I need this, as IR led will be set to 0 in the next line.
+            self.turn_on_leds_to_previous_state(state)
 
         self.latest_reading = batched_readings
         self.ir_led_output_tracker.update(batched_readings)
@@ -641,10 +647,37 @@ class ODReader(BackgroundJob):
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
 
+    def turn_off_leds(self) -> dict[LED_Channel, float]:
+        with local_intermittent_storage("leds") as cache:
+            state = {c: float(cache.get(c, 0)) for c in LED_CHANNELS}
+
+        change_led_intensity(
+            LED_CHANNELS,
+            [0] * len(LED_CHANNELS),
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            pubsub_client=self.pub_client,
+            verbose=False,
+        )
+
+        return state
+
+    def turn_on_leds_to_previous_state(self, state: dict[LED_Channel, float]):
+        change_led_intensity(
+            list(state.keys()),
+            list(state.values()),
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            pubsub_client=self.pub_client,
+            verbose=False,
+        )
+
     def start_ir_led(self):
         r = change_led_intensity(
-            self.ir_channel,
-            intensity=self.led_intensity,
+            channels=self.ir_channel,
+            intensities=self.led_intensity,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -658,8 +691,8 @@ class ODReader(BackgroundJob):
 
     def stop_ir_led(self):
         change_led_intensity(
-            self.ir_channel,
-            intensity=0,
+            channels=self.ir_channel,
+            intensities=0,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
