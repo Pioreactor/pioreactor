@@ -25,6 +25,7 @@ def click_list_plugins(json):
                         "homepage": metadata.homepage
                         if metadata.homepage != "UNKNOWN"
                         else None,
+                        "source": metadata.source,
                     }
                     for plugin, metadata in pioreactor.plugins.items()
                 ]

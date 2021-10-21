@@ -625,6 +625,10 @@ class ODReader(BackgroundJob):
 
         pre_duration = 0.1  # turn on LED prior to taking snapshot and wait
 
+        # Why not stop all other LEDs? It's up to the other jobs to implement "dancing" around
+        # the IR led. Otherwise, if we turn off LEDs here, a job could easily turn it
+        # back on during our recording. OD readings are the most important, so they
+        # are the dance leaders.
         self.start_ir_led()
         sleep(pre_duration)
         timestamp_of_readings = current_utc_time()
@@ -632,7 +636,6 @@ class ODReader(BackgroundJob):
         self.stop_ir_led()
 
         self.latest_reading = batched_readings
-
         self.ir_led_output_tracker.update(batched_readings)
 
         self.publish_single(batched_readings, timestamp_of_readings)

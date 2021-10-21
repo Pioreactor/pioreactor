@@ -19,7 +19,7 @@ def __getattr__(attr):
         raise AttributeError
 
 
-Plugin = namedtuple("Plugin", ["module", "description", "version", "homepage"])
+Plugin = namedtuple("Plugin", ["module", "description", "version", "homepage", "source"])
 
 
 def get_plugins() -> dict[str, Plugin]:
@@ -37,7 +37,11 @@ def get_plugins() -> dict[str, Plugin]:
         try:
             md = metadata(plugin.name)
             plugins[md["Name"]] = Plugin(
-                plugin.load(), md["Summary"], md["Version"], md["Home-page"]
+                plugin.load(),
+                md["Summary"],
+                md["Version"],
+                md["Home-page"],
+                "entry_points",
             )
         except Exception as e:
             print(f"{plugin.name} plugin load error: {e}")
@@ -51,6 +55,7 @@ def get_plugins() -> dict[str, Plugin]:
     # __summary__
     # __version__
     # __homepage__
+    BLANK = "UNKNOWN"
 
     # The directory containing your modules needs to be on the search path.
     MODULE_DIR = "/home/pi/.pioreactor/plugins"
@@ -66,9 +71,10 @@ def get_plugins() -> dict[str, Plugin]:
         module = importlib.import_module(module_name)
         plugins[getattr(module, "__name__", module_name)] = Plugin(
             module,
-            getattr(module, "__summary__", None),
-            getattr(module, "__version__", None),
-            getattr(module, "__homepage__", None),
+            getattr(module, "__summary__", BLANK),
+            getattr(module, "__version__", BLANK),
+            getattr(module, "__homepage__", BLANK),
+            "plugins_folder",
         )
 
     return plugins

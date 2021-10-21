@@ -99,7 +99,7 @@ def run(automation: str, duration: float = None, skip_first_run=False, **kwargs)
     show_default=True,
 )
 @click.option(
-    "--duration", default=60, help="Time, in minutes, between every monitor check"
+    "--duration", default=60.0, help="Time, in minutes, between every monitor check"
 )
 @click.option(
     "--skip-first-run",

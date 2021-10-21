@@ -138,7 +138,7 @@ def od_blank(
         with local_persistant_storage(action_name) as cache:
             cache[experiment] = json.dumps(means)
 
-        # publish to UI - this may disappear in the future
+        # publish to UI and database
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/{action_name}/mean",
             json.dumps(means),

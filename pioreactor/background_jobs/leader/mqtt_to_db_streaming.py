@@ -320,7 +320,7 @@ def mqtt_to_db_streaming():
         TopicToParserToTable(
             "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
         ),
-        TopicToParserToTable("pioreactor/+/+/od_blank/+", parse_od_blank, "od_blanks"),
+        TopicToParserToTable("pioreactor/+/+/od_blank/mean", parse_od_blank, "od_blanks"),
     ]
 
     return MqttToDBStreamer(
