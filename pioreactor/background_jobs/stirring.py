@@ -251,15 +251,14 @@ class Stirrer(BackgroundJob):
             return None
 
         recent_rpm = self.rpm_calculator(poll_for_seconds)
+        if recent_rpm == 0:
+            self.logger.warning("Stirring RPM is 0 - has it failed?")
 
         if self._measured_rpm is not None:
             # use a simple EMA, 0.05 chosen arbitrarily, but should be a function of delta time.
             self._measured_rpm = 0.05 * self._measured_rpm + 0.95 * recent_rpm
         else:
             self._measured_rpm = recent_rpm
-
-        if self._measured_rpm == 0:
-            self.logger.warning("Stirring RPM is 0 - has it failed?")
 
         self.measured_rpm = {"timestamp": current_utc_time(), "rpm": self._measured_rpm}
         return self._measured_rpm
