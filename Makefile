@@ -54,7 +54,8 @@ install-pioreactor-leader:
 
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_leader.txt
 	mkdir -p /home/pi/.pioreactor
-	mkdir -p /home/pi/.pioreactor/local_storage
+	mkdir -p /home/pi/.pioreactor/storage
+	mkdir -p /home/pi/.pioreactor/plugins
 	cp /home/pi/pioreactor/config.example.ini /home/pi/.pioreactor/config.ini
 	sudo python3 setup.py install
 
@@ -79,7 +80,8 @@ install-pioreactor-worker:
 
 	sudo pip3 install -r /home/pi/pioreactor/requirements/requirements_worker.txt
 	mkdir -p /home/pi/.pioreactor
-	mkdir -p /home/pi/.pioreactor/local_storage
+	mkdir -p /home/pi/.pioreactor/storage
+	mkdir -p /home/pi/.pioreactor/plugins
 	touch /home/pi/.pioreactor/unit_config.ini
 	sudo python3 setup.py install
 
@@ -181,7 +183,7 @@ install-leader-as-worker: install-leader install-worker
 
 seed-experiment:
 	# techdebt: seed.sql adds an experiment to the db, so we need to match it in mqtt too
-	sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < /home/pi/pioreactor/sql/seed_initial_experiment.sql
+	sqlite3 /home/pi/.pioreactor/storage/pioreactor.sqlite < /home/pi/pioreactor/sql/seed_initial_experiment.sql
 	mosquitto_pub -t "pioreactor/latest_experiment" -m "Demo experiment" -r
 
 install-worker: install-python configure-hostname configure-rpi systemd-worker systemd-all install-i2c install-pioreactor-worker logging-files install-log2ram

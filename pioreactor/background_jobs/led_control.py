@@ -30,7 +30,6 @@ class LEDController(BackgroundJob):
         )
 
         self.led_automation = led_automation
-
         self.led_automation_job = self.automations[self.led_automation](
             unit=self.unit, experiment=self.experiment, **kwargs
         )
@@ -73,13 +72,13 @@ class LEDController(BackgroundJob):
 
 def run(automation: str, duration: float = None, skip_first_run=False, **kwargs):
     try:
-
         return LEDController(
             automation,
             unit=get_unit_name(),
             experiment=get_latest_experiment_name(),
             skip_first_run=skip_first_run,
             duration=duration,
+            **kwargs,
         )
 
     except Exception as e:

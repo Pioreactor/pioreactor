@@ -158,7 +158,7 @@ def view_cache(cache):
             for key in c.keys():
                 click.echo(f"{key.decode()} = {c[key].decode()}")
 
-    elif os.path.isfile(f".pioreactor/local_storage/{cache}.db"):
+    elif os.path.isfile(f".pioreactor/storage/{cache}.db"):
         with local_persistant_storage(cache) as c:
             for key in c.keys():
                 click.echo(f"{key.decode()} = {c[key].decode()}")

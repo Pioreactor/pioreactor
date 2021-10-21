@@ -88,9 +88,9 @@ def local_persistant_storage(
 
     try:
         if is_testing_env():
-            cache = ndbm.open(f".pioreactor/local_storage/{cache_name}", "c")
+            cache = ndbm.open(f".pioreactor/storage/{cache_name}", "c")
         else:
-            cache = ndbm.open(f"/home/pi/.pioreactor/local_storage/{cache_name}", "c")
+            cache = ndbm.open(f"/home/pi/.pioreactor/storage/{cache_name}", "c")
         yield cache  # type: ignore
     finally:
         cache.close()

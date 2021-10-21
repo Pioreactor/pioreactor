@@ -93,7 +93,7 @@ def backup_database(output_file: str):
 
 
 @click.command(name="backup_database")
-@click.option("--output", default="/home/pi/.pioreactor/pioreactor.sqlite.backup")
+@click.option("--output", default="/home/pi/.pioreactor/storage/pioreactor.sqlite.backup")
 def click_backup_database(output):
     """
     (leader only) Backup db to workers.
