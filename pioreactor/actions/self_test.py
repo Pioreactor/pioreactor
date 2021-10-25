@@ -8,6 +8,7 @@ Outputs from each test go into MQTT, and return to the command line.
 """
 
 import time, sys
+from logging import Logger
 from json import dumps
 import click
 from pioreactor.whoami import (
@@ -17,17 +18,17 @@ from pioreactor.whoami import (
     is_testing_env,
 )
 from pioreactor.background_jobs.temperature_control import TemperatureController
-from pioreactor.background_jobs.od_reading import ADCReader, PD_CHANNELS
+from pioreactor.background_jobs.od_reading import ADCReader, PD_CHANNELS, PD_Channel
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
-from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS
+from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS, LED_Channel
 from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
 
 
-def test_pioreactor_hat_present(logger, unit, experiment):
+def test_pioreactor_hat_present(logger: Logger, unit: str, experiment: str) -> None:
     try:
         adc_reader = ADCReader(
             channels=PD_CHANNELS,
@@ -42,7 +43,9 @@ def test_pioreactor_hat_present(logger, unit, experiment):
         assert True
 
 
-def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment):
+def test_all_positive_correlations_between_pds_and_leds(
+    logger: Logger, unit: str, experiment: str
+) -> None:
     """
     This tests that there is a positive correlation between the IR LED channel, and the photodiodes
     as defined in the config.ini.
@@ -53,7 +56,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
         range(2, 59, 7)
     )  # better to err on the side of MORE samples than less - it's only a few extra seconds...
     current_experiment_name = get_latest_experiment_name()
-    results = {}
+    results: dict[tuple[LED_Channel, PD_Channel], float] = {}
 
     adc_reader = ADCReader(
         channels=PD_CHANNELS,
@@ -67,7 +70,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
         LED_CHANNELS,
-        intensity=[0] * len(LED_CHANNELS),
+        intensities=[0] * len(LED_CHANNELS),
         unit=unit,
         source_of_event="self_test",
         experiment=current_experiment_name,
@@ -75,12 +78,14 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
     )
 
     for led_channel in LED_CHANNELS:
-        varying_intensity_results = {pd_channel: [] for pd_channel in PD_CHANNELS}
+        varying_intensity_results: dict[PD_Channel, list[float]] = {
+            pd_channel: [] for pd_channel in PD_CHANNELS
+        }
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
             led_intensity(
                 led_channel,
-                intensity=intensity,
+                intensities=intensity,
                 unit=unit,
                 experiment=current_experiment_name,
                 verbose=False,
@@ -107,7 +112,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
         # set back to 0
         led_intensity(
             led_channel,
-            intensity=0,
+            intensities=0,
             unit=unit,
             experiment=current_experiment_name,
             verbose=False,
@@ -129,7 +134,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
     # we require that the IR photodiodes defined in the config have a
     # correlation with the IR led
     pd_channels_to_test = [
-        int(ch)
+        PD_Channel(ch)
         for (ch, angle) in config["od_config.photodiode_channel"].items()
         if angle != ""
     ]
@@ -146,7 +151,7 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
-def test_ambient_light_interference(logger, unit, experiment):
+def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
     # TODO: it's never 0 because of the common current problem.
 
@@ -164,7 +169,7 @@ def test_ambient_light_interference(logger, unit, experiment):
 
     led_intensity(
         LED_CHANNELS,
-        intensity=[0] * len(LED_CHANNELS),
+        intensities=[0] * len(LED_CHANNELS),
         unit=unit,
         source_of_event="self_test",
         experiment=experiment,
@@ -176,7 +181,7 @@ def test_ambient_light_interference(logger, unit, experiment):
     assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS]), readings
 
 
-def test_detect_heating_pcb(logger, unit, experiment):
+def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
     try:
         with TemperatureController("silent", unit=unit, experiment=experiment):
             ...
@@ -186,7 +191,9 @@ def test_detect_heating_pcb(logger, unit, experiment):
         assert True
 
 
-def test_positive_correlation_between_temp_and_heating(logger, unit, experiment):
+def test_positive_correlation_between_temp_and_heating(
+    logger: Logger, unit: str, experiment: str
+) -> None:
     with TemperatureController("silent", unit=unit, experiment=experiment) as tc:
 
         measured_pcb_temps = []
@@ -205,7 +212,9 @@ def test_positive_correlation_between_temp_and_heating(logger, unit, experiment)
         assert measured_correlation > 0.9, (dcs, measured_pcb_temps)
 
 
-def test_positive_correlation_between_rpm_and_stirring(logger, unit, experiment):
+def test_positive_correlation_between_rpm_and_stirring(
+    logger: Logger, unit: str, experiment: str
+) -> None:
     dcs = list(range(90, 50, -5))
     measured_rpms = []
 
@@ -274,8 +283,8 @@ def click_self_test(k):
                 retain=True,
             )
 
-        count_tested = 0
-        count_passed = 0
+        count_tested: int = 0
+        count_passed: int = 0
         for name, test in functions_to_test:
 
             try:

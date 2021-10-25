@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-from logging import handlers
+from logging import handlers, Logger
 from pioreactor.pubsub import create_client, publish_to_pioreactor_cloud
 from pioreactor.whoami import (
     get_unit_name,
@@ -67,8 +67,13 @@ class MQTTHandler(logging.Handler):
 
 
 def create_logger(
-    name, unit=None, experiment=None, source="app", pub_client=None, to_mqtt=True
-):
+    name: str,
+    unit: str = None,
+    experiment: str = None,
+    source: str = "app",
+    pub_client=None,
+    to_mqtt: bool = True,
+) -> Logger:
     """
 
     Parameters
