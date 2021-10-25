@@ -25,7 +25,9 @@ try:
 except ImportError:  # TODO: this is available in 3.8+
     from importlib_metadata import entry_points, metadata
 
-from collections import namedtuple
+from dataclasses import dataclass
+from typing import Any
+
 
 from .install_plugin import click_install_plugin
 from .uninstall_plugin import click_uninstall_plugin
@@ -39,7 +41,13 @@ __all__ = (
 )
 
 
-Plugin = namedtuple("Plugin", ["module", "description", "version", "homepage", "source"])
+@dataclass
+class Plugin:
+    module: Any
+    description: str
+    version: str
+    homepage: str
+    source: str
 
 
 def get_plugins() -> dict[str, Plugin]:
