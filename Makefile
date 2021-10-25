@@ -151,11 +151,12 @@ install-ui:
 
 
 configure-hostname:
+	# TODO: force the name to be lowercase, ${string,,}
 	{ \
 	set -e ;\
 	if [ "$$(hostname)" = "raspberrypi" ]; then \
 		read -p "Enter new Pioreactor name: " userEnteredPioName ;\
-		sudo hostname $$userEnteredPioName ;\
+		sudo hostname $${userEnteredPioName,,} ;\
 		hostname | sudo tee /etc/hostname ;\
 		sudo pip3 install pyhostman ;\
 		sudo hostman remove --names raspberrypi ;\

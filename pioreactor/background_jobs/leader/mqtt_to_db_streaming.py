@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-This job runs on the leader, and is a replacement for the NodeRed database streaming job.
+This job runs on the leader
 """
 from __future__ import annotations
 
 from json import dumps, loads
-from typing import Callable, Any
+from typing import Callable, Union, Optional
 from dataclasses import dataclass
 import click
 
@@ -24,7 +24,7 @@ class MetaData:
 @dataclass
 class TopicToParserToTable:
     topic: str
-    parser: Callable[[str, str], dict]
+    parser: Callable[[str, Union[bytes, bytearray]], dict]
     table: str
 
 
@@ -72,7 +72,9 @@ class MqttToDBStreamer(NiceMixin, BackgroundJob):
     def on_disconnect(self):
         self.sqliteworker.close()  # close the db safely
 
-    def create_on_message_callback(self, parser: Callable[[str, Any], dict], table: str):
+    def create_on_message_callback(
+        self, parser: Callable[[str, Union[bytes, bytearray]], Optional[dict]], table: str
+    ):
         def _callback(message):
             # TODO: filter testing experiments here?
             try:

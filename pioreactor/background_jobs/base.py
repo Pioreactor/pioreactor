@@ -453,7 +453,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         callback: Callable[[MQTTMessage], None],
         subscriptions: Union[list[str], str],
         allow_retained: bool = True,
-        qos=0,
+        qos: int = 0,
     ) -> None:
         """
         Parameters

@@ -127,7 +127,9 @@ def led_intensity(
             assert (
                 0 <= intensity <= 100
             ), "intensity should be between 0 and 100, inclusive"
-            assert channel in LED_CHANNELS, f"saw incorrect channel {channel}"
+            assert (
+                channel in LED_CHANNELS
+            ), f"saw incorrect channel {LED_Channel(channel)}, not in {LED_CHANNELS}"
             intensity = float(intensity)
 
             dac = DAC43608()
@@ -213,7 +215,7 @@ def click_led_intensity(channel, intensity, source_of_event, no_log):
     experiment = get_latest_experiment_name()
 
     status = led_intensity(
-        channels=channel,
+        channels=list(channel),
         intensities=[intensity] * len(channel),
         source_of_event=source_of_event,
         unit=unit,
