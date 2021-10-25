@@ -9,7 +9,7 @@ import os
 import sys
 
 
-from collections import namedtuple
+from dataclasses import dataclass
 from json import dumps
 
 from pioreactor.utils import pio_jobs_running, local_intermittent_storage
@@ -19,9 +19,12 @@ from pioreactor.logging import create_logger
 from paho.mqtt.client import Client, MQTTMessage
 
 
-SetAttrSplitTopic = namedtuple(
-    "SetAttrSplitTopic", ["unit", "experiment", "job_name", "attr"]
-)
+@dataclass
+class SetAttrSplitTopic:
+    unit: str
+    experiment: str
+    job_name: str
+    attr: str
 
 
 def split_topic_for_setting(topic: str) -> SetAttrSplitTopic:

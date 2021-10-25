@@ -181,7 +181,7 @@ def subscribe(
 
 
 def subscribe_and_callback(
-    callback: Callable[MQTTMessage, None],
+    callback: Callable[[MQTTMessage], None],
     topics,
     hostname=leader_hostname,
     last_will=None,

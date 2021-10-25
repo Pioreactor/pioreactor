@@ -16,7 +16,7 @@ from pioreactor.config import config
 
 
 @dataclass
-class SetAttrSplitTopic:
+class MetaData:
     pioreactor_unit: str
     experiment: str
 
@@ -110,11 +110,11 @@ class MqttToDBStreamer(NiceMixin, BackgroundJob):
             )
 
 
-def produce_metadata(topic: str) -> tuple[SetAttrSplitTopic, list[str]]:
+def produce_metadata(topic: str) -> tuple[MetaData, list[str]]:
     # helper function for parsers below
     split_topic = topic.split("/")
     return (
-        SetAttrSplitTopic(split_topic[1], split_topic[2]),
+        MetaData(split_topic[1], split_topic[2]),
         split_topic,
     )
 
