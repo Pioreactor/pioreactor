@@ -6,10 +6,10 @@ import pioreactor
 
 @click.command(name="list-plugins", short_help="list the installed plugins")
 @click.option("--json", is_flag=True, help="output as json")
-def click_list_plugins(json):
+def click_list_plugins(json) -> None:
 
     if not json:
-        for plugin in pioreactor.plugins.keys():
+        for plugin in pioreactor.plugin_management.get_plugins().keys():
             click.echo(plugin)
 
     else:
