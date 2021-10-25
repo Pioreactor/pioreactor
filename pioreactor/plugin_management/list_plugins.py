@@ -27,7 +27,7 @@ def click_list_plugins(json) -> None:
                         else None,
                         "source": metadata.source,
                     }
-                    for plugin, metadata in pioreactor.plugins.items()
+                    for plugin, metadata in pioreactor.plugin_management.get_plugins().items()
                 ]
             )
         )
