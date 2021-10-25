@@ -134,7 +134,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # we require that the IR photodiodes defined in the config have a
     # correlation with the IR led
     pd_channels_to_test = [
-        PD_Channel(ch)
+        PD_Channel(int(ch))
         for (ch, angle_or_ref) in config["od_config.photodiode_channel"].items()
         if angle_or_ref != ""
     ]
