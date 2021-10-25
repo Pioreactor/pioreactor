@@ -65,15 +65,14 @@ def test_all_positive_correlations_between_pds_and_leds(logger, unit, experiment
     adc_reader.setup_adc()
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
-    for led_channel in LED_CHANNELS:
-        led_intensity(
-            led_channel,
-            intensity=0,
-            unit=unit,
-            source_of_event="self_test",
-            experiment=current_experiment_name,
-            verbose=False,
-        )
+    led_intensity(
+        LED_CHANNELS,
+        intensity=[0] * len(LED_CHANNELS),
+        unit=unit,
+        source_of_event="self_test",
+        experiment=current_experiment_name,
+        verbose=False,
+    )
 
     for led_channel in LED_CHANNELS:
         varying_intensity_results = {pd_channel: [] for pd_channel in PD_CHANNELS}
@@ -163,15 +162,14 @@ def test_ambient_light_interference(logger, unit, experiment):
 
     adc_reader.setup_adc()
 
-    for led_channel in LED_CHANNELS:
-        led_intensity(
-            led_channel,
-            intensity=0,
-            unit=unit,
-            source_of_event="self_test",
-            experiment=experiment,
-            verbose=False,
-        )
+    led_intensity(
+        LED_CHANNELS,
+        intensity=[0] * len(LED_CHANNELS),
+        unit=unit,
+        source_of_event="self_test",
+        experiment=experiment,
+        verbose=False,
+    )
 
     readings = adc_reader.take_reading()
 

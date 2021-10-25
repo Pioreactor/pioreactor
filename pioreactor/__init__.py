@@ -12,7 +12,7 @@ from collections import namedtuple
 from pioreactor.version import __version__  # noqa: F401
 
 
-def __getattr__(attr):
+def __getattr__(attr) -> dict[str, Plugin]:
     if attr == "plugins":
         return get_plugins()
     else:
@@ -31,8 +31,8 @@ def get_plugins() -> dict[str, Plugin]:
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
     eps = entry_points()
-    pioreactor_plugins = eps.get("pioreactor.plugins", [])
-    plugins = {}
+    pioreactor_plugins: list = eps.get("pioreactor.plugins", [])
+    plugins: dict[str, Plugin] = {}
     for plugin in pioreactor_plugins:
         try:
             md = metadata(plugin.name)

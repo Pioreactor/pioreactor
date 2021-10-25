@@ -14,7 +14,7 @@ class Silent(LEDAutomation):
         super(Silent, self).__init__(**kwargs)
 
     def execute(self) -> events.Event:
-        return events.NoEvent("nothing occurs in Silent")
+        return events.NoEvent("no changes occur in Silent")
 
 
 class TrackOD(LEDAutomation):

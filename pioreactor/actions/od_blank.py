@@ -152,9 +152,6 @@ def od_blank(
             fallback=False,
         ):
             to_share = {"mean": means, "variance": variances}
-            to_share["ir_led_reference_channel"] = config["od_config"][
-                "ir_led_output_channel"
-            ]
             to_share["ir_intensity"] = config["od_config"]["ir_intensity"]
             to_share["od_angle_channel1"] = od_angle_channel1
             to_share["od_angle_channel2"] = od_angle_channel2

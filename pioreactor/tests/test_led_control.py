@@ -20,7 +20,8 @@ def pause():
 
 
 def test_silent():
-    ld = LEDController("silent", unit=unit, experiment=experiment)
+    ld = LEDController("silent", duration=60, unit=unit, experiment=experiment)
+    pause()
     pause()
     pause()
     pubsub.publish(
@@ -31,6 +32,7 @@ def test_silent():
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         '{"od_filtered": 1.0}',
     )
+    pause()
     pause()
     r = pubsub.subscribe(
         f"pioreactor/{unit}/{experiment}/led_control/led_automation", timeout=1

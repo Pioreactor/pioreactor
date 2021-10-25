@@ -65,7 +65,7 @@ class LEDController(BackgroundJob):
 
     def on_disconnect(self):
         with suppress(AttributeError):
-            self.led_automation_job.set_state("disconnected")
+            self.led_automation_job.set_state(self.DISCONNECTED)
 
         self.clear_mqtt_cache()
 

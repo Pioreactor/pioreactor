@@ -377,7 +377,7 @@ class TestGrowthRateCalculating:
             fake_data=True,
         )
 
-        start_stirring(duty_cycle=50, unit=unit, experiment=exp)
+        start_stirring(target_rpm=500, unit=unit, experiment=exp)
 
         calc = GrowthRateCalculator(unit=unit, experiment=exp)
 

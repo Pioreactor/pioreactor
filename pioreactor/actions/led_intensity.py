@@ -5,11 +5,14 @@ import click
 from typing import Tuple, Dict, Optional, NewType, Union
 from contextlib import contextmanager
 
+from paho.mqtt.client import Client  # type: ignore
+
 from pioreactor.pubsub import create_client, QOS
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils import local_intermittent_storage
+
 
 LED_Channel = NewType("LED_Channel", str)  # Literal["A", "B", "C", "D"]
 LED_CHANNELS = [LED_Channel("A"), LED_Channel("B"), LED_Channel("C"), LED_Channel("D")]
@@ -25,7 +28,6 @@ def lock_leds_temporarily(channels: list[LED_Channel]):
         with local_intermittent_storage("led_locks") as cache:
             for c in channels:
                 cache[c] = LED_LOCKED
-                print(cache[c])
         yield
     finally:
         with local_intermittent_storage("led_locks") as cache:
@@ -63,7 +65,7 @@ def _update_current_state(
         return new_state, old_state
 
 
-def to_list(x) -> list:
+def _list(x: Union[list, float, str]) -> list:
     if isinstance(x, list):
         return x
     else:
@@ -75,7 +77,7 @@ def led_intensity(
     intensities: Union[float, list[float]],
     source_of_event: Optional[str] = None,
     verbose: bool = True,
-    pubsub_client=None,
+    pubsub_client: Optional[Client] = None,
     unit: str = None,
     experiment: str = None,
 ) -> bool:
@@ -112,12 +114,12 @@ def led_intensity(
         from DAC43608 import DAC43608
     except NotImplementedError:
         logger.debug("DAC43608 not available; using MockDAC43608")
-        from pioreactor.utils.mock import MockDAC43608 as DAC43608
+        from pioreactor.utils.mock import MockDAC43608 as DAC43608  # type: ignore
 
     if pubsub_client is None:
         pubsub_client = create_client()
 
-    channels, intensities = list(channels), to_list(intensities)
+    channels, intensities = _list(channels), _list(intensities)
 
     for channel, intensity in zip(channels, intensities):
 
@@ -130,7 +132,7 @@ def led_intensity(
 
             dac = DAC43608()
             dac.power_up(getattr(dac, channel))
-            dac.set_intensity_to(getattr(dac, channel), intensity / 100)
+            dac.set_intensity_to(getattr(dac, channel), intensity / 100.0)
 
             if intensity == 0:
                 # setting to 0 doesn't fully remove the current, there is some residual current. We turn off

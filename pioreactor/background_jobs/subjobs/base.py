@@ -17,5 +17,5 @@ class BackgroundSubJob(BackgroundJob):
         self.logger.debug(state.capitalize() + ".")
 
     def check_for_duplicate_process(self):
-        # multiple subjobs can run, for example multiple `ADCReader`s - the parents should control if it's not allowed.
+        # multiple subjobs can run, - the parents should control if it's not allowed.
         return

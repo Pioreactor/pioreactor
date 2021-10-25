@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Union, Any
+from typing import Callable, Union, Any, Optional, NewType
 import threading
 import atexit
 import os
@@ -16,6 +16,7 @@ from pioreactor.utils import pio_jobs_running, local_intermittent_storage
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
 from pioreactor.logging import create_logger
+from paho.mqtt.client import Client, MQTTMessage
 
 
 SetAttrSplitTopic = namedtuple(
@@ -23,13 +24,13 @@ SetAttrSplitTopic = namedtuple(
 )
 
 
-def split_topic_for_setting(topic) -> SetAttrSplitTopic:
+def split_topic_for_setting(topic: str) -> SetAttrSplitTopic:
     v = topic.split("/")
     assert len(v) == 6, "something is wrong"
     return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
-def format_with_optional_units(value: Any, units: str) -> str:
+def format_with_optional_units(value: Any, units: Optional[str]) -> str:
     """
     Ex:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
@@ -78,6 +79,9 @@ class PostInitCaller(type):
         obj = type.__call__(cls, *args, **kwargs)
         obj.__post__init__()
         return obj
+
+
+JobState = NewType("JobState", str)  # TODO: literal...
 
 
 class _BackgroundJob(metaclass=PostInitCaller):
@@ -198,15 +202,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
     """
 
     # Homie lifecycle (normally per device (i.e. an rpi) but we are using it for "nodes", in Homie parlance)
-    INIT = "init"
-    READY = "ready"
-    DISCONNECTED = "disconnected"
-    SLEEPING = "sleeping"
-    LOST = "lost"
-    LIFECYCLE_STATES: set[str] = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
+    INIT = JobState("init")
+    READY = JobState("ready")
+    DISCONNECTED = JobState("disconnected")
+    SLEEPING = JobState("sleeping")
+    LOST = JobState("lost")
+    LIFECYCLE_STATES: set[JobState] = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
 
     # initial state is disconnected
-    state: str = DISCONNECTED
+    state: JobState = DISCONNECTED
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
@@ -216,7 +220,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def __init__(
         self, job_name: str, source: str, experiment: str = None, unit: str = None
-    ):
+    ) -> None:
 
         self.job_name = job_name
         self.experiment = experiment
@@ -260,7 +264,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # let's move to init, next thing that run is the subclasses __init__
         self.set_state(self.INIT)
 
-    def __post__init__(self):
+    def __post__init__(self) -> None:
         # this function is called AFTER the subclasses __init__ finishes
         self.set_state(self.READY)
 
@@ -324,7 +328,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     ########### private #############
 
-    def check_published_settings(self):
+    def check_published_settings(self) -> None:
         necessary_properies = set(["datatype", "settable"])
         optional_properties = set(["unit"])
         all_properties = optional_properties.union(necessary_properies)
@@ -343,7 +347,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     f"setting {setting} has bad characters - must be alphanumeric, and only seperated by underscore."
                 )
 
-    def create_pub_client(self):
+    def create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(
             client_id=f"{self.unit}-pub-{self.job_name}-{get_uuid()}-{id(self)}"
@@ -351,7 +355,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         return client
 
-    def create_sub_client(self):
+    def create_sub_client(self) -> Client:
         # see note above as to why we split pub and sub.
 
         # the client will try to automatically reconnect if something bad happens
@@ -409,7 +413,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Disconnected from MQTT with rc {rc}.")
             return
 
-    def publish(self, topic: str, payload, **kwargs):
+    def publish(
+        self, topic: str, payload: Union[str, bytes, int, float, dict, None], **kwargs
+    ) -> None:
         """
         Publish payload to topic.
 
@@ -441,11 +447,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def subscribe_and_callback(
         self,
-        callback: Callable,
+        callback: Callable[[MQTTMessage], None],
         subscriptions: Union[list[str], str],
-        allow_retained=True,
+        allow_retained: bool = True,
         qos=0,
-    ):
+    ) -> None:
         """
         Parameters
         -------------
@@ -461,7 +467,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             see pioreactor.pubsub.QOS
         """
 
-        def wrap_callback(actual_callback):
+        def wrap_callback(actual_callback) -> Callable:
             def _callback(client, userdata, message):
                 if not allow_retained and message.retain:
                     return
@@ -487,9 +493,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.sub_client.subscribe(sub, qos=qos)
         return
 
-    def set_up_exit_protocol(self):
+    def set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-        def disconnect_gracefully(*args):
+        def disconnect_gracefully(*args) -> None:
             # ignore future keyboard interrupts
             signal.signal(signal.SIGINT, lambda *args: None)
             if self.state == self.DISCONNECTED:
@@ -514,7 +520,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._blocking_event = threading.Event()
 
-    def init(self):
+    def init(self) -> None:
         self.state = self.INIT
         self.log_state(self.state)
 
@@ -524,10 +530,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-            self.set_state("disconnected")
+            self.set_state(self.DISCONNECTED)
             raise e
 
-    def ready(self):
+    def ready(self) -> None:
         self.state = self.READY
         self.log_state(self.state)
 
@@ -537,7 +543,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
 
-    def sleeping(self):
+    def sleeping(self) -> None:
         self.state = self.SLEEPING
         self.log_state(self.state)
 
@@ -547,11 +553,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
 
-    def lost(self):
+    def lost(self) -> None:
         self.state = self.LOST
         self.log_state(self.state)
 
-    def disconnected(self):
+    def disconnected(self) -> None:
         # set state to disconnect
         # call this first to make sure that it gets published to the broker.
         self.state = self.DISCONNECTED
@@ -578,7 +584,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
 
-    def declare_settable_properties_to_broker(self):
+    def declare_settable_properties_to_broker(self) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
@@ -608,7 +614,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     retain=True,
                 )
 
-    def set_state(self, new_state: str):
+    def set_state(self, new_state: JobState) -> None:
         if new_state not in self.LIFECYCLE_STATES:
             self.logger.error(f"saw {new_state}: not a valid state")
             return
@@ -618,13 +624,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         getattr(self, new_state)()
 
-    def log_state(self, state: str):
+    def log_state(self, state: JobState) -> None:
         if state == self.READY or state == self.DISCONNECTED:
             self.logger.info(state.capitalize() + ".")
         else:
             self.logger.debug(state.capitalize() + ".")
 
-    def set_attr_from_message(self, message):
+    def set_attr_from_message(self, message) -> None:
         new_value = message.payload.decode()
         info_from_topic = split_topic_for_setting(message.topic)
         attr = info_from_topic.attr.lstrip("$")
@@ -669,7 +675,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             allow_retained=False,
         )
 
-    def clear_mqtt_cache(self):
+    def clear_mqtt_cache(self) -> None:
         """
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         This does NOTE clear the state however.
@@ -684,7 +690,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 qos=QOS.EXACTLY_ONCE,
             )
 
-    def block_until_disconnected(self):
+    def block_until_disconnected(self) -> None:
         """
         This will block the main thread until disconnected() is called.
 
@@ -703,7 +709,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         self._blocking_event.wait()
 
-    def check_for_duplicate_process(self):
+    def check_for_duplicate_process(self) -> None:
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             if cache.get(self.job_name, b"0") == b"1":
@@ -724,13 +730,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         self.set_state(self.DISCONNECTED)
 
 
 class BackgroundJob(_BackgroundJob):
-    def __init__(self, *args, **kwargs):
-        super(BackgroundJob, self).__init__(*args, **kwargs, source="app")
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, source="app", **kwargs)  # type: ignore
 
 
 class BackgroundJobContrib(_BackgroundJob):
@@ -738,5 +744,5 @@ class BackgroundJobContrib(_BackgroundJob):
     Plugins should inherit from this class.
     """
 
-    def __init__(self, plugin_name, *args, **kwargs):
-        super(BackgroundJobContrib, self).__init__(*args, **kwargs, source=plugin_name)
+    def __init__(self, plugin_name, *args, **kwargs) -> None:
+        super().__init__(*args, source=plugin_name, **kwargs)  # type: ignore

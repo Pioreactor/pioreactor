@@ -13,12 +13,12 @@ from pioreactor.pubsub import publish, subscribe_and_callback
 from pioreactor.config import leader_hostname
 
 
-def pause():
+def pause() -> None:
     # to avoid race conditions
     time.sleep(0.5)
 
 
-def test_states():
+def test_states() -> None:
     unit = get_unit_name()
     exp = get_latest_experiment_name()
 
@@ -44,7 +44,7 @@ def test_states():
 
 
 @pytest.mark.skip(reason="hangs")
-def test_watchdog_will_try_to_fix_lost_job():
+def test_watchdog_will_try_to_fix_lost_job() -> None:
     wd = WatchDog(leader_hostname, UNIVERSAL_EXPERIMENT)
     pause()
 
@@ -69,11 +69,11 @@ def test_watchdog_will_try_to_fix_lost_job():
     monitor.set_state(monitor.DISCONNECTED)
 
 
-def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt():
+def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     # see note in base.py about create_logger
 
-    unit = get_unit_name()
-    exp = get_latest_experiment_name()
+    unit: str = get_unit_name()
+    exp: str = get_latest_experiment_name()
 
     results = []
 
@@ -87,7 +87,7 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt():
     bj.logger.warning("test1")
 
     # disonnect, which should clear logger handlers (but may not...)
-    bj.set_state("disconnected")
+    bj.set_state(bj.DISCONNECTED)
 
     bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
     bj.logger.warning("test2")
@@ -132,7 +132,7 @@ def test_error_in_subscribe_and_callback_is_logged():
 
 
 @pytest.mark.xfail
-def test_what_happens_when_an_error_occurs_in_init():
+def test_what_happens_when_an_error_occurs_in_init() -> None:
     class TestJob(BackgroundJob):
         def __init__(self, unit, experiment):
             super(TestJob, self).__init__(
@@ -158,7 +158,7 @@ def test_what_happens_when_an_error_occurs_in_init():
     bj.set_state(bj.DISCONNECTED)
 
 
-def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect():
+def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect() -> None:
     class TestJob(BackgroundJob):
         def __init__(self, unit, experiment):
             super(TestJob, self).__init__(
@@ -187,7 +187,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
     assert state[-1] == "disconnected"
 
 
-def test_state_transition_callbacks():
+def test_state_transition_callbacks() -> None:
     class TestJob(BackgroundJob):
         def __init__(self, unit, experiment):
             super(TestJob, self).__init__(
@@ -195,38 +195,38 @@ def test_state_transition_callbacks():
             )
 
         def on_init(self):
-            self.on_init = True
+            self.called_on_init = True
 
         def on_ready(self):
-            self.on_ready = True
+            self.called_on_ready = True
 
         def on_sleeping(self):
-            self.on_sleeping = True
+            self.called_on_sleeping = True
 
         def on_ready_to_sleeping(self):
-            self.on_ready_to_sleeping = True
+            self.called_on_ready_to_sleeping = True
 
         def on_sleeping_to_ready(self):
-            self.on_ready_to_sleeping = True
+            self.called_on_sleeping_to_ready = True
 
         def on_init_to_ready(self):
-            self.on_init_to_ready = True
+            self.called_on_init_to_ready = True
 
     unit, exp = get_unit_name(), get_latest_experiment_name()
     tj = TestJob(unit, exp)
-    assert tj.on_init
-    assert tj.on_init_to_ready
-    assert tj.on_ready
+    assert tj.called_on_init
+    assert tj.called_on_init_to_ready
+    assert tj.called_on_ready
     publish(f"pioreactor/{unit}/{exp}/monitor/$state", "sleeping")
-    assert tj.on_sleeping
-    assert tj.on_ready_to_sleeping
+    assert tj.called_on_sleeping
+    assert tj.called_on_ready_to_sleeping
 
     publish(f"pioreactor/{unit}/{exp}/monitor/$state", "ready")
-    assert tj.on_sleeping_to_ready
+    assert tj.called_on_sleeping_to_ready
     tj.set_state(tj.DISCONNECTED)
 
 
-def test_bad_key_in_published_settings():
+def test_bad_key_in_published_settings() -> None:
     class TestJob(BackgroundJob):
 
         published_settings = {
@@ -260,7 +260,7 @@ def test_bad_key_in_published_settings():
         assert "Found extra property" in warning_logs[0].payload.decode()
 
 
-def test_bad_setting_name_in_published_settings():
+def test_bad_setting_name_in_published_settings() -> None:
     class TestJob(BackgroundJob):
 
         published_settings = {
@@ -279,7 +279,7 @@ def test_bad_setting_name_in_published_settings():
         )
 
 
-def test_editing_readonly_attr_via_mqtt():
+def test_editing_readonly_attr_via_mqtt() -> None:
     class TestJob(BackgroundJob):
 
         published_settings = {

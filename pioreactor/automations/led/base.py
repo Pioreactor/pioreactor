@@ -4,7 +4,7 @@ import time
 import json
 from threading import Thread
 from contextlib import suppress
-from typing import Optional
+from typing import Optional, Union
 
 
 from pioreactor.pubsub import QOS
@@ -21,8 +21,8 @@ from pioreactor.utils.timing import current_utc_time
 class LEDAutomation(BackgroundSubJob):
     """
     This is the super class that LED automations inherit from. The `run` function will
-    execute every `duration` minutes (selected at the start of the program). If `duration` is left
-    as None, manually call `run`. This calls the `execute` function, which is what subclasses will define.
+    execute every `duration` minutes (selected at the start of the program), and call the `execute` function
+    which is what subclasses define.
 
     To change setting over MQTT:
 
@@ -32,13 +32,16 @@ class LEDAutomation(BackgroundSubJob):
 
     latest_growth_rate = None
     latest_od = None
-    latest_od_timestamp = 0
-    latest_growth_rate_timestamp = 0
-    latest_settings_started_at = current_utc_time()
-    latest_settings_ended_at = None
+    latest_od_timestamp: float = 0
+    latest_growth_rate_timestamp: float = 0
+    latest_settings_started_at: str = current_utc_time()
+    latest_settings_ended_at: Optional[str] = None
     published_settings = {"duration": {"datatype": "float", "settable": True}}
     edited_channels: set[LED_Channel] = set()
     latest_event: Optional[events.Event] = None
+
+    duration: float
+    run_thread: Union[RepeatedTimer, Thread]
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -50,12 +53,12 @@ class LEDAutomation(BackgroundSubJob):
 
     def __init__(
         self,
-        duration: Optional[float] = None,
+        duration: float,
         skip_first_run: bool = False,
         unit: str = None,
         experiment: str = None,
         **kwargs,
-    ):
+    ) -> None:
         super(LEDAutomation, self).__init__(
             job_name="led_automation", unit=unit, experiment=experiment
         )
@@ -67,30 +70,28 @@ class LEDAutomation(BackgroundSubJob):
 
         self.logger.info(f"Starting {self.__class__.__name__} LED automation.")
 
-    def set_duration(self, duration: Optional[float]):
-        if duration:
-            self.duration = float(duration)
+    def set_duration(self, duration: float) -> None:
+        self.duration = float(duration)
 
-            with suppress(AttributeError):
-                self.run_thread.cancel()
+        with suppress(AttributeError):
+            self.run_thread.join()
 
-            self.run_thread = RepeatedTimer(
-                self.duration * 60,
-                self.run,
-                job_name=self.job_name,
-                run_immediately=(not self.skip_first_run),
-            ).start()
-        else:
-            self.duration = None
-            self.run_thread = Thread(target=self.run, daemon=True)
-            self.run_thread.start()
+        self.run_thread = RepeatedTimer(
+            self.duration * 60,  # RepeatedTimer uses seconds
+            self.run,
+            job_name=self.job_name,
+            run_immediately=(not self.skip_first_run),
+            run_after=2,  # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
+            # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
+        ).start()
 
-    def run(self):
+    def run(self) -> Optional[events.Event]:
         # TODO: this should be close to or equal to the function in DosingAutomation
+        event: Optional[events.Event]
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
-            return
+            return None
 
         # so, I don't think it's necessary to have LED automations need growth rate and OD
 
@@ -125,7 +126,7 @@ class LEDAutomation(BackgroundSubJob):
                 time.sleep(5)
                 counter += 1
 
-                if self.duration and counter > (self.duration * 60 / 4) / 5:
+                if counter > (self.duration * 60 / 4) / 5:
                     event = events.NoEvent(
                         "Waited too long not being in state ready. Am I stuck? Unpause me? Skipping this run."
                     )
@@ -145,18 +146,20 @@ class LEDAutomation(BackgroundSubJob):
                 self.logger.error(e)
                 event = events.ErrorOccurred()
 
-        self.logger.info(f"triggered {event}.")
+        if event:
+            self.logger.info(f"triggered {event}.")
+
         self.latest_event = event
         return event
 
     def execute(self) -> events.Event:
-        raise NotImplementedError
+        pass
 
     @property
     def most_stale_time(self) -> float:
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
-    def set_led_intensity(self, channel: LED_Channel, intensity: float):
+    def set_led_intensity(self, channel: LED_Channel, intensity: float) -> bool:
         """
         This first checks the lock on the LED channel, and will wait a few seconds for it to clear,
         and error out if it waits too long.
@@ -170,7 +173,7 @@ class LEDAutomation(BackgroundSubJob):
             A float between 0-100, inclusive.
 
         """
-        for attempt in range(3):
+        for _ in range(12):
             if not is_locked(channel):
                 self.edited_channels.add(channel)
                 led_intensity(
@@ -183,21 +186,24 @@ class LEDAutomation(BackgroundSubJob):
                 )
                 return True
 
-            time.sleep(0.75)
+            time.sleep(0.1)
 
+        self.logger.warning(
+            f"Unable to update channel {channel} due to a long lock being on the channel."
+        )
         return False
 
     ########## Private & internal methods
 
-    def on_disconnect(self):
+    def on_disconnect(self) -> None:
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
         with suppress(AttributeError):
-            self.run_thread.cancel()
+            self.run_thread.join()
 
         for job in self.sub_jobs:
-            job.set_state("disconnected")
+            job.set_state(job.DISCONNECTED)
 
         for channel in self.edited_channels:
             led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
@@ -212,18 +218,18 @@ class LEDAutomation(BackgroundSubJob):
             self.latest_settings_started_at = current_utc_time()
             self.latest_settings_ended_at = None
 
-    def _set_growth_rate(self, message):
+    def _set_growth_rate(self, message) -> None:
         self.previous_growth_rate = self.latest_growth_rate
         self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
         self.latest_growth_rate_timestamp = time.time()
 
-    def _set_OD(self, message):
+    def _set_OD(self, message) -> None:
 
         self.previous_od = self.latest_od
         self.latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_timestamp = time.time()
 
-    def _send_details_to_mqtt(self):
+    def _send_details_to_mqtt(self) -> None:
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/led_automation_settings",
             json.dumps(
@@ -245,7 +251,7 @@ class LEDAutomation(BackgroundSubJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self._set_OD,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",

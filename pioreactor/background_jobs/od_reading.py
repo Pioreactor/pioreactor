@@ -202,7 +202,7 @@ class ADCReader(LoggerMixin):
         self._setup_complete = True
         return self
 
-    def check_on_max(self, value: float):
+    def check_on_max(self, value: float) -> None:
         if value > 3.1:
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
@@ -222,7 +222,7 @@ class ADCReader(LoggerMixin):
 
             sys.exit(1)
 
-    def check_on_gain(self, value: float):
+    def check_on_gain(self, value: float) -> None:
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
             if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
                 self.gain = gain
@@ -230,7 +230,7 @@ class ADCReader(LoggerMixin):
                 self.logger.debug(f"ADC gain updated to {self.gain}.")
                 break
 
-    def set_ads_gain(self, gain):
+    def set_ads_gain(self, gain) -> None:
         self.ads.gain = gain  # this assignment checks to see if the gain is allowed.
 
     def sin_regression_with_known_freq(self, x, y, freq, prior_C=None, penalizer_C=None):
@@ -466,7 +466,7 @@ class ADCReader(LoggerMixin):
             raise e
 
 
-class IrLedOutputTracker(LoggerMixin):
+class _IrLedReferenceTracker(LoggerMixin):
     def __init__(self):
         super().__init__()
 
@@ -480,7 +480,7 @@ class IrLedOutputTracker(LoggerMixin):
         return od_signal
 
 
-class PDIrLedOutputTracker(IrLedOutputTracker):
+class IrLedReferenceTracker(_IrLedReferenceTracker):
     """
     This class contains the logic on how we incorporate the
     direct IR LED output into OD readings.
@@ -512,7 +512,7 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.55)
         self.channel = channel
-        self.logger.debug(f"Using PD channel {channel} to track IR LED output.")
+        self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
     def update(self, batched_reading: dict[PD_Channel, float]):
         ir_output_reading = batched_reading[self.channel]
@@ -533,10 +533,10 @@ class PDIrLedOutputTracker(IrLedOutputTracker):
         return od_signal / self.led_output_ema()
 
 
-class NullIrLedOutputTracker(IrLedOutputTracker):
+class NullIrLedReferenceTracker(_IrLedReferenceTracker):
     def __init__(self):
         super().__init__()
-        self.logger.debug("Not using any IR LED Output.")
+        self.logger.debug("Not using any IR LED reference.")
 
 
 class ODReader(BackgroundJob):
@@ -549,7 +549,7 @@ class ODReader(BackgroundJob):
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
     adc_reader: ADCReader
-    ir_led_output_tracker
+    ir_led_reference_tracker
 
     Attributes
     ------------
@@ -571,7 +571,7 @@ class ODReader(BackgroundJob):
         channel_angle_map: dict[PD_Channel, str],
         interval: float,
         adc_reader: ADCReader,
-        ir_led_output_tracker: IrLedOutputTracker,
+        ir_led_reference_tracker: _IrLedReferenceTracker,
         unit=None,
         experiment=None,
     ):
@@ -586,14 +586,14 @@ class ODReader(BackgroundJob):
         self.channel_angle_map = channel_angle_map
         self.interval = interval
         self.latest_reading = None
-        self.ir_led_output_tracker = ir_led_output_tracker
+        self.ir_led_reference_tracker = ir_led_reference_tracker
 
         # start IR led before ADC starts, as it needs it.
         self.led_intensity = config.getfloat("od_config", "ir_intensity")
         self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
 
         self.logger.debug(
-            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.led_intensity}% on channel {self.ir_channel}."
+            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.led_intensity}% from channel {self.ir_channel}."
         )
 
         self.start_ir_led()
@@ -602,7 +602,7 @@ class ODReader(BackgroundJob):
 
         # get blank values, this slightly improves the accuracy of the IR LED output tracker,
         # see that class's docs.
-        self.ir_led_output_tracker.set_blank(self.adc_reader.take_reading())
+        self.ir_led_reference_tracker.set_blank(self.adc_reader.take_reading())
 
         self.record_from_adc_timer = RepeatedTimer(
             self.interval,
@@ -624,7 +624,7 @@ class ODReader(BackgroundJob):
         if self.first_od_obs_time is None:
             self.first_od_obs_time = time()
 
-        pre_duration = 0.1  # turn on LED prior to taking snapshot and wait
+        pre_duration = 0.05  # turn on LED prior to taking snapshot and wait
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
@@ -638,11 +638,10 @@ class ODReader(BackgroundJob):
             timestamp_of_readings = current_utc_time()
             batched_readings = self.adc_reader.take_reading()
 
-            self.stop_ir_led()  # TODO: I don't think I need this, as IR led will be set to 0 in the next line.
             self.turn_on_leds_to_previous_state(state)
 
         self.latest_reading = batched_readings
-        self.ir_led_output_tracker.update(batched_readings)
+        self.ir_led_reference_tracker.update(batched_readings)
 
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
@@ -663,7 +662,7 @@ class ODReader(BackgroundJob):
 
         return state
 
-    def turn_on_leds_to_previous_state(self, state: dict[LED_Channel, float]):
+    def turn_on_leds_to_previous_state(self, state: dict[LED_Channel, float]) -> None:
         change_led_intensity(
             list(state.keys()),
             list(state.values()),
@@ -674,7 +673,7 @@ class ODReader(BackgroundJob):
             verbose=False,
         )
 
-    def start_ir_led(self):
+    def start_ir_led(self) -> None:
         r = change_led_intensity(
             channels=self.ir_channel,
             intensities=self.led_intensity,
@@ -689,7 +688,7 @@ class ODReader(BackgroundJob):
 
         return
 
-    def stop_ir_led(self):
+    def stop_ir_led(self) -> None:
         change_led_intensity(
             channels=self.ir_channel,
             intensities=0,
@@ -700,15 +699,15 @@ class ODReader(BackgroundJob):
             pubsub_client=self.pub_client,
         )
 
-    def on_sleeping(self):
+    def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
         self.stop_ir_led()
 
-    def on_sleeping_to_ready(self):
+    def on_sleeping_to_ready(self) -> None:
         self.start_ir_led()
         self.record_from_adc_timer.unpause()
 
-    def on_disconnect(self):
+    def on_disconnect(self) -> None:
 
         # turn off the LED after we have take our last ADC reading..
         try:
@@ -720,7 +719,7 @@ class ODReader(BackgroundJob):
 
     def publish_batch(
         self, batched_ads_readings: dict[PD_Channel, float], timestamp: str
-    ):
+    ) -> None:
         if self.state != self.READY:
             return
 
@@ -743,7 +742,7 @@ class ODReader(BackgroundJob):
 
     def publish_single(
         self, batched_ads_readings: dict[PD_Channel, float], timestamp: str
-    ):
+    ) -> None:
         if self.state != self.READY:
             return
 
@@ -762,26 +761,44 @@ class ODReader(BackgroundJob):
             )
 
     def normalize_by_led_output(self, od_signal: float) -> float:
-        return self.ir_led_output_tracker(od_signal)
+        return self.ir_led_reference_tracker(od_signal)
+
+
+def find_ir_led_reference(
+    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
+) -> Optional[PD_Channel]:
+    REF_keyword = "REF"
+    if od_angle_channel1 == REF_keyword:
+        return PD_Channel(1)
+    elif od_angle_channel2 == REF_keyword:
+        return PD_Channel(2)
+    elif od_angle_channel3 == REF_keyword:
+        return PD_Channel(3)
+    elif od_angle_channel4 == REF_keyword:
+        return PD_Channel(4)
+    else:
+        return None
 
 
 def create_channel_angle_map(
     od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
 ) -> dict[PD_Channel, str]:
-    # Inputs are either None, or a string like "135", "90,45", ...
+    # Inputs are either None, or a string like "135", "90,45", "REF", ...
     # Example return dict: {1: "90,135", 2: "45,135", 4:"90"}
     channel_angle_map: dict[PD_Channel, str] = {}
-    if od_angle_channel1:
-        # TODO: we should do a check here on the values (needs to be an allowable angle) and the count (count should be the same across PDs)
+
+    REF_keyword = "REF"
+
+    if od_angle_channel1 and od_angle_channel1 != REF_keyword:
         channel_angle_map[PD_Channel(1)] = od_angle_channel1
 
-    if od_angle_channel2:
+    if od_angle_channel2 and od_angle_channel2 != REF_keyword:
         channel_angle_map[PD_Channel(2)] = od_angle_channel2
 
-    if od_angle_channel3:
+    if od_angle_channel3 and od_angle_channel3 != REF_keyword:
         channel_angle_map[PD_Channel(3)] = od_angle_channel3
 
-    if od_angle_channel4:
+    if od_angle_channel4 and od_angle_channel4 != REF_keyword:
         channel_angle_map[PD_Channel(4)] = od_angle_channel4
 
     return channel_angle_map
@@ -792,31 +809,31 @@ def start_od_reading(
     od_angle_channel2: Optional[str] = None,
     od_angle_channel3: Optional[str] = None,
     od_angle_channel4: Optional[str] = None,
-    ir_led_output_channel: PD_Channel = config.getint(
-        "od_config", "ir_led_output_channel", fallback=None
-    ),
-    sampling_rate=1 / config.getfloat("od_config", "samples_per_second"),
-    fake_data=False,
-    unit=None,
-    experiment=None,
+    sampling_rate: float = 1 / config.getfloat("od_config", "samples_per_second"),
+    fake_data: bool = False,
+    unit: str = None,
+    experiment: str = None,
 ) -> ODReader:
+
+    ir_led_reference_tracker: _IrLedReferenceTracker
 
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
+
+    ir_led_reference_channel = find_ir_led_reference(
+        od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
+    )
     channel_angle_map = create_channel_angle_map(
         od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
     )
 
-    if ir_led_output_channel is not None:
-        assert (
-            ir_led_output_channel not in channel_angle_map
-        ), "ir_led_output_channel should not be used as a OD photodiode."
-        ir_led_output_tracker = PDIrLedOutputTracker(ir_led_output_channel)
-        channels = list(channel_angle_map.keys()) + [ir_led_output_channel]
+    channels = list(channel_angle_map.keys())
 
+    if ir_led_reference_channel is not None:
+        ir_led_reference_tracker = IrLedReferenceTracker(ir_led_reference_channel)
+        channels.append(ir_led_reference_channel)
     else:
-        ir_led_output_tracker = NullIrLedOutputTracker()
-        channels = list(channel_angle_map.keys())
+        ir_led_reference_tracker = NullIrLedReferenceTracker()
 
     return ODReader(
         channel_angle_map,
@@ -827,7 +844,7 @@ def start_od_reading(
             channels=channels,
             fake_data=fake_data,
         ),
-        ir_led_output_tracker=ir_led_output_tracker,
+        ir_led_reference_tracker=ir_led_reference_tracker,
     )
 
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from time import sleep, perf_counter
-from typing import Optional
+from typing import Optional, Callable
 import json
 import click
 
@@ -174,7 +174,7 @@ class Stirrer(BackgroundJob):
         experiment: str,
         rpm_calculator: Optional[RpmCalculator],
         hertz=67,
-    ):
+    ) -> None:
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
         )
@@ -210,7 +210,7 @@ class Stirrer(BackgroundJob):
             poll_for_seconds=4,
         )
 
-    def initialize_rpm_to_dc_lookup(self):
+    def initialize_rpm_to_dc_lookup(self) -> Callable:
         with local_persistant_storage("stirring_calibration") as cache:
             if "linear_v1" in cache:
                 parameters = json.loads(cache["linear_v1"])
@@ -225,7 +225,7 @@ class Stirrer(BackgroundJob):
             else:
                 return lambda rpm: self.duty_cycle
 
-    def on_disconnect(self):
+    def on_disconnect(self) -> None:
 
         self.rpm_check_repeated_thread.cancel()
         self.stop_stirring()
@@ -236,7 +236,7 @@ class Stirrer(BackgroundJob):
 
         self.clear_mqtt_cache()
 
-    def start_stirring(self):
+    def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
         sleep(0.25)
         self.set_duty_cycle(self.duty_cycle)
@@ -253,6 +253,7 @@ class Stirrer(BackgroundJob):
         recent_rpm = self.rpm_calculator(poll_for_seconds)
         if recent_rpm == 0:
             self.logger.warning("Stirring RPM is 0 - has it failed?")
+            # TODO: attempt to restart stirring
 
         if self._measured_rpm is not None:
             # use a simple EMA, 0.05 chosen arbitrarily, but should be a function of delta time.
@@ -263,7 +264,7 @@ class Stirrer(BackgroundJob):
         self.measured_rpm = {"timestamp": current_utc_time(), "rpm": self._measured_rpm}
         return self._measured_rpm
 
-    def poll_and_update_dc(self, poll_for_seconds: float):
+    def poll_and_update_dc(self, poll_for_seconds: float) -> None:
         self.poll(poll_for_seconds)
 
         if self._measured_rpm is None:
@@ -272,25 +273,25 @@ class Stirrer(BackgroundJob):
         result = self.pid.update(self._measured_rpm, dt=1)
         self.set_duty_cycle(self.duty_cycle + result)
 
-    def stop_stirring(self):
+    def stop_stirring(self) -> None:
         # if the user unpauses, we want to go back to their previous value, and not the default.
         self.set_duty_cycle(0)
 
-    def on_ready_to_sleeping(self):
+    def on_ready_to_sleeping(self) -> None:
         self._previous_duty_cycle = self.duty_cycle
         self.rpm_check_repeated_thread.pause()
         self.stop_stirring()
 
-    def on_sleeping_to_ready(self):
+    def on_sleeping_to_ready(self) -> None:
         self.duty_cycle = self._previous_duty_cycle
         self.rpm_check_repeated_thread.unpause()
         self.start_stirring()
 
-    def set_duty_cycle(self, value):
+    def set_duty_cycle(self, value) -> None:
         self.duty_cycle = clamp(0, round(float(value), 5), 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
-    def set_target_rpm(self, value):
+    def set_target_rpm(self, value) -> None:
         self.target_rpm = float(value)
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)

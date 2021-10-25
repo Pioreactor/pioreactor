@@ -2,7 +2,7 @@
 from dbm import ndbm
 from contextlib import contextmanager, suppress
 from pioreactor.pubsub import publish, QOS
-from typing import Generator, MutableMapping
+from typing import Generator, MutableMapping, Union
 
 
 @contextmanager
@@ -40,7 +40,7 @@ def publish_ready_to_disconnected_state(unit: str, experiment: str, name: str):
 @contextmanager
 def local_intermittent_storage(
     cache_name: str,
-) -> Generator[MutableMapping[str, str], None, None]:
+) -> Generator[MutableMapping[str, Union[str, bytes]], None, None]:
     """
 
     The cache is deleted upon a Raspberry Pi restart!
@@ -49,7 +49,7 @@ def local_intermittent_storage(
     ---------
     > with local_intermittent_storage('pwm') as cache:
     >     assert '1' in cache
-    >     cache['1'] = 0.5
+    >     cache['1'] = str(0.5)
 
 
     Notes
@@ -58,8 +58,8 @@ def local_intermittent_storage(
 
     > with local_intermittent_storage('test') as cache1:
     >     with local_intermittent_storage('test') as cache2:
-    >       cache1['A'] = 1
-    >       cache2['A'] = 0
+    >       cache1['A'] = str(1)
+    >       cache2['A'] = str(0)
 
     """
     try:
@@ -72,7 +72,7 @@ def local_intermittent_storage(
 @contextmanager
 def local_persistant_storage(
     cache_name: str,
-) -> Generator[MutableMapping[str, str], None, None]:
+) -> Generator[MutableMapping[str, Union[str, bytes]], None, None]:
     """
     Values stored in this storage will stay around between RPi restarts, and until overwritten
     or deleted.
@@ -81,7 +81,7 @@ def local_persistant_storage(
     ---------
     > with local_persistant_storage('od_blank') as cache:
     >     assert '1' in cache
-    >     cache['1'] = 0.5
+    >     cache['1'] = str(0.5)
 
     """
     from pioreactor.whoami import is_testing_env
@@ -150,7 +150,7 @@ def pio_jobs_running() -> list:
     return jobs
 
 
-def pump_ml_to_duration(ml, duty_cycle, duration_=0) -> float:
+def pump_ml_to_duration(ml: float, duty_cycle: float, duration_: float = 0) -> float:
     """
     ml: the desired volume
     duration_ : the coefficient from calibration
@@ -158,7 +158,9 @@ def pump_ml_to_duration(ml, duty_cycle, duration_=0) -> float:
     return ml / duration_
 
 
-def pump_duration_to_ml(duration, duty_cycle, duration_=0) -> float:
+def pump_duration_to_ml(
+    duration: float, duty_cycle: float, duration_: float = 0
+) -> float:
     """
     duration: the desired volume
     duration_ : the coefficient from calibration

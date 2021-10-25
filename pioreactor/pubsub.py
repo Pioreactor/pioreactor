@@ -4,8 +4,9 @@ import threading
 import time
 from enum import IntEnum
 from contextlib import suppress
+from typing import Callable
 
-from paho.mqtt.client import Client
+from paho.mqtt.client import Client, MQTTMessage
 from paho.mqtt import publish as mqtt_publish
 
 from pioreactor.config import leader_hostname
@@ -180,7 +181,7 @@ def subscribe(
 
 
 def subscribe_and_callback(
-    callback,
+    callback: Callable[MQTTMessage, None],
     topics,
     hostname=leader_hostname,
     last_will=None,
