@@ -65,7 +65,7 @@ class Monitor(NiceMixin, BackgroundJob):
         set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_UNAVAILABLE)
         set_gpio_availability(LED_PIN, GPIO_states.GPIO_UNAVAILABLE)
 
-        import RPi.GPIO as GPIO
+        import RPi.GPIO as GPIO  # type: ignore
 
         # I am hiding all the slow imports, but in this case, I need GPIO module
         # in many functions.
@@ -251,7 +251,7 @@ class Monitor(NiceMixin, BackgroundJob):
             self.logger.debug(f"Power status: {status_to_human_readable(status)}")
 
     def publish_self_statistics(self):
-        import psutil
+        import psutil  # type: ignore
 
         if is_testing_env():
             return

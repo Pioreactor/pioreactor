@@ -6,8 +6,8 @@ from enum import IntEnum
 from contextlib import suppress
 from typing import Callable
 
-from paho.mqtt.client import Client, MQTTMessage
-from paho.mqtt import publish as mqtt_publish
+from paho.mqtt.client import Client, MQTTMessage  # type: ignore
+from paho.mqtt import publish as mqtt_publish  # type: ignore
 
 from pioreactor.config import leader_hostname
 

@@ -33,13 +33,6 @@ from .install_plugin import click_install_plugin
 from .uninstall_plugin import click_uninstall_plugin
 from .list_plugins import click_list_plugins
 
-__all__ = (
-    "click_uninstall_plugin",
-    "click_install_plugin",
-    "click_list_plugins",
-    "plugins",
-)
-
 
 @dataclass
 class Plugin:
@@ -106,3 +99,11 @@ def get_plugins() -> dict[str, Plugin]:
         )
 
     return plugins
+
+
+__all__ = (
+    "click_uninstall_plugin",
+    "click_install_plugin",
+    "click_list_plugins",
+    "get_plugins",
+)

@@ -127,7 +127,7 @@ class ADCReader(LoggerMixin):
 
     """
 
-    DATA_RATE = 128
+    DATA_RATE: int = 128
     ADS_GAIN_THRESHOLDS = {
         2 / 3: (4.096, 6.144),  # 1 bit = 3mV, for 16bit ADC
         1: (2.048, 4.096),  # 1 bit = 2mV
@@ -136,8 +136,9 @@ class ADCReader(LoggerMixin):
         8: (0.256, 0.512),  # 1 bit = 0.25mV
         16: (-1, 0.256),  # 1 bit = 0.125mV
     }
-    oversampling_count = 25
+    oversampling_count: int = 25
     batched_readings: dict[PD_Channel, float] = {}
+    _counter: int = 0
 
     def __init__(
         self,
@@ -150,7 +151,6 @@ class ADCReader(LoggerMixin):
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
         self.gain = initial_gain
-        self._counter = 0
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
 
@@ -166,13 +166,13 @@ class ADCReader(LoggerMixin):
         See ODReader for an example.
         """
 
-        import adafruit_ads1x15.ads1115 as ADS
+        import adafruit_ads1x15.ads1115 as ADS  # type: ignore
 
         if self.fake_data:
             from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C
         else:
-            from adafruit_ads1x15.analog_in import AnalogIn
-            from busio import I2C
+            from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
+            from busio import I2C  # type: ignore
 
         # we may change the gain dynamically later.
         # TODO: update this to ADS1015 / dynamically choose
@@ -366,7 +366,7 @@ class ADCReader(LoggerMixin):
         try:
             with catchtime() as time_since_start:
                 for counter in range(self.oversampling_count):
-                    with catchtime() as time_code_took_to_run:
+                    with catchtime() as time_sampling_took_to_run:
                         for channel, ai in self.analog_in.items():
                             timestamps[channel].append(time_since_start())
                             # raw_signal_ = ai.voltage
@@ -381,9 +381,9 @@ class ADCReader(LoggerMixin):
                     sleep(
                         max(
                             0,
-                            0.80 / (self.oversampling_count - 1)
-                            - time_code_took_to_run()  # the time_code_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.005
+                            -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
+                            + 0.80 / (self.oversampling_count - 1)
+                            + 0.0025
                             * (
                                 (counter * 0.618034) % 1
                             ),  # this is to artificially spread out the samples, so that we observe less aliasing. That constant is phi.
@@ -399,7 +399,7 @@ class ADCReader(LoggerMixin):
                 ), _ = self.sin_regression_with_known_freq(
                     timestamps[channel],
                     aggregated_signals[channel],
-                    60,
+                    60,  # TODO - this should be empirically determined.
                     prior_C=(
                         self.batched_readings[channel]
                         * 32767
@@ -423,7 +423,7 @@ class ADCReader(LoggerMixin):
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
                 if (
-                    (self._counter % 60 == 0)
+                    (self._counter % 2 == 0)
                     and (best_estimate_of_signal_ >= 2.75)
                     and not self.fake_data
                 ):
@@ -565,6 +565,7 @@ class ODReader(BackgroundJob):
         "led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "interval": {"datatype": "float", "settable": False},
     }
+    latest_reading: dict[PD_Channel, float]
 
     def __init__(
         self,
@@ -572,9 +573,9 @@ class ODReader(BackgroundJob):
         interval: float,
         adc_reader: ADCReader,
         ir_led_reference_tracker: _IrLedReferenceTracker,
-        unit=None,
-        experiment=None,
-    ):
+        unit: str = None,
+        experiment: str = None,
+    ) -> None:
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
         )
@@ -585,7 +586,6 @@ class ODReader(BackgroundJob):
 
         self.channel_angle_map = channel_angle_map
         self.interval = interval
-        self.latest_reading = None
         self.ir_led_reference_tracker = ir_led_reference_tracker
 
         # start IR led before ADC starts, as it needs it.
@@ -619,7 +619,7 @@ class ODReader(BackgroundJob):
             )
             raise KeyError()
 
-    def record_and_publish_from_adc(self):
+    def record_and_publish_from_adc(self) -> None:
 
         if self.first_od_obs_time is None:
             self.first_od_obs_time = time()
@@ -630,7 +630,7 @@ class ODReader(BackgroundJob):
         # other jobs to make sure they check the locks.
         with lock_leds_temporarily(LED_CHANNELS):
 
-            state = self.turn_off_leds()
+            state = self.turn_off_led_and_record_state()
 
             self.start_ir_led()
             sleep(pre_duration)
@@ -646,11 +646,11 @@ class ODReader(BackgroundJob):
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
 
-    def turn_off_leds(self) -> dict[LED_Channel, float]:
+    def turn_off_led_and_record_state(self) -> dict[LED_Channel, float]:
         with local_intermittent_storage("leds") as cache:
             state = {c: float(cache.get(c, 0)) for c in LED_CHANNELS}
 
-        change_led_intensity(
+        assert change_led_intensity(
             LED_CHANNELS,
             [0] * len(LED_CHANNELS),
             unit=self.unit,
@@ -658,12 +658,12 @@ class ODReader(BackgroundJob):
             source_of_event=self.job_name,
             pubsub_client=self.pub_client,
             verbose=False,
-        )
+        ), "turn_off_led_and_record_state failed"
 
         return state
 
     def turn_on_leds_to_previous_state(self, state: dict[LED_Channel, float]) -> None:
-        change_led_intensity(
+        assert change_led_intensity(
             list(state.keys()),
             list(state.values()),
             unit=self.unit,
@@ -671,7 +671,7 @@ class ODReader(BackgroundJob):
             source_of_event=self.job_name,
             pubsub_client=self.pub_client,
             verbose=False,
-        )
+        ), "turn_on_leds_to_previous_state failed"
 
     def start_ir_led(self) -> None:
         r = change_led_intensity(
@@ -689,7 +689,7 @@ class ODReader(BackgroundJob):
         return
 
     def stop_ir_led(self) -> None:
-        change_led_intensity(
+        assert change_led_intensity(
             channels=self.ir_channel,
             intensities=0,
             unit=self.unit,
@@ -697,7 +697,7 @@ class ODReader(BackgroundJob):
             source_of_event=self.job_name,
             verbose=False,
             pubsub_client=self.pub_client,
-        )
+        ), "stop_ir_led failed"
 
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
@@ -764,10 +764,12 @@ class ODReader(BackgroundJob):
         return self.ir_led_reference_tracker(od_signal)
 
 
+REF_keyword = "REF"
+
+
 def find_ir_led_reference(
     od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
 ) -> Optional[PD_Channel]:
-    REF_keyword = "REF"
     if od_angle_channel1 == REF_keyword:
         return PD_Channel(1)
     elif od_angle_channel2 == REF_keyword:
@@ -786,8 +788,6 @@ def create_channel_angle_map(
     # Inputs are either None, or a string like "135", "90,45", "REF", ...
     # Example return dict: {1: "90,135", 2: "45,135", 4:"90"}
     channel_angle_map: dict[PD_Channel, str] = {}
-
-    REF_keyword = "REF"
 
     if od_angle_channel1 and od_angle_channel1 != REF_keyword:
         channel_angle_map[PD_Channel(1)] = od_angle_channel1

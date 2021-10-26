@@ -43,7 +43,7 @@ def logs():
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
-    from sh import tail
+    from sh import tail  # type: ignore
     from json import loads
     import time
 
@@ -65,7 +65,7 @@ def logs():
 
 @pio.command(name="blink", short_help="blink LED")
 def blink():
-    import RPi.GPIO as GPIO
+    import RPi.GPIO as GPIO  # type: ignore
 
     GPIO.setmode(GPIO.BCM)
 
@@ -103,7 +103,7 @@ def kill(job, all_jobs):
     stop a job by sending a SIGTERM to it.
     """
 
-    from sh import pkill
+    from sh import pkill  # type: ignore
 
     def safe_pkill(*args):
         try:

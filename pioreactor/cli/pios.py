@@ -348,7 +348,7 @@ def kill(job, units, all_jobs, y):
 
 
     """
-    from sh import ssh
+    from sh import ssh  # type: ignore
 
     if not y:
         confirm = input(

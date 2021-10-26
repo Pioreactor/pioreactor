@@ -83,7 +83,7 @@ class PWM:
 
         else:
 
-            import RPi.GPIO as GPIO
+            import RPi.GPIO as GPIO  # type: ignore
 
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)

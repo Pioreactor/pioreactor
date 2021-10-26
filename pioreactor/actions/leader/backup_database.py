@@ -26,7 +26,7 @@ def backup_database(output_file: str):
     """
 
     import sqlite3
-    from sh import ErrorReturnCode, rsync
+    from sh import ErrorReturnCode, rsync  # type: ignore
 
     unit = get_unit_name()
     experiment = UNIVERSAL_EXPERIMENT

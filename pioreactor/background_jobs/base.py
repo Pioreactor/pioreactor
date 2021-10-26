@@ -7,16 +7,15 @@ import threading
 import atexit
 import os
 import sys
-
-
 from dataclasses import dataclass
 from json import dumps
+
+from paho.mqtt.client import Client, MQTTMessage  # type: ignore
 
 from pioreactor.utils import pio_jobs_running, local_intermittent_storage
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
 from pioreactor.logging import create_logger
-from paho.mqtt.client import Client, MQTTMessage
 
 
 @dataclass

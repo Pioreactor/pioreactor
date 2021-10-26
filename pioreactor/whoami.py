@@ -84,7 +84,7 @@ def get_uuid() -> str:
 
 def get_rpi_machine() -> str:
     if not is_testing_env():
-        from board import detector
+        from board import detector  # type: ignore
 
         return detector.get_device_model()
     else:
@@ -92,7 +92,7 @@ def get_rpi_machine() -> str:
 
 
 if is_testing_env():
-    import fake_rpi
+    import fake_rpi  # type: ignore
 
     sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
     sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO

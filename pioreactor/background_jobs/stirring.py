@@ -39,7 +39,7 @@ class RpmCalculator:
     def __init__(self):
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
 
-        import RPi.GPIO as GPIO
+        import RPi.GPIO as GPIO  # type: ignore
 
         self.GPIO = GPIO
         self.GPIO.setmode(self.GPIO.BCM)

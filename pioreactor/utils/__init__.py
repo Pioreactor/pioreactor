@@ -135,7 +135,7 @@ def pio_jobs_running() -> list:
     `is_pio_job_runnning` first, and use this as a backup to double check.
 
     """
-    import psutil
+    import psutil  # type: ignore
 
     jobs = []
     for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):

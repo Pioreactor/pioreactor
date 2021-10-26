@@ -11,7 +11,7 @@ from pioreactor.whoami import (
 )
 from pioreactor.config import config
 from pioreactor.utils.timing import current_utc_time
-from json_log_formatter import JSONFormatter  # typing: ignore
+from json_log_formatter import JSONFormatter  # type: ignore
 
 logging.raiseExceptions = False
 
