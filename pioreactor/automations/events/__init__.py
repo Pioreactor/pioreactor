@@ -33,7 +33,11 @@ class DilutionEvent(Event):
     pass
 
 
-class AltMediaEvent(Event):
+class AddMediaEvent(Event):
+    pass
+
+
+class AddAltMediaEvent(Event):
     pass
 
 

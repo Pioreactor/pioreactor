@@ -3,7 +3,7 @@
 import time
 import json
 from threading import Thread
-from typing import Optional
+from typing import Optional, cast
 from contextlib import suppress
 
 from pioreactor.actions.add_media import add_media
@@ -37,8 +37,10 @@ class DosingAutomation(BackgroundSubJob):
 
     """
 
-    latest_growth_rate = None
-    latest_od = None
+    _latest_growth_rate: Optional[float] = None
+    _latest_od: Optional[float] = None
+    previous_od: Optional[float] = None
+    previous_growth_rate: Optional[float] = None
     latest_od_timestamp: float = 0
     latest_growth_rate_timestamp: float = 0
     latest_event: Optional[events.Event] = None
@@ -114,35 +116,6 @@ class DosingAutomation(BackgroundSubJob):
             else:
                 return self.run()
 
-        elif (self.latest_growth_rate is None) or (self.latest_od is None):
-            # this should really only happen on the initialization.
-            self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                self.logger.warning(
-                    "`od_reading` and `growth_rate_calculating` should be running."
-                )
-            # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
-            time_waited = 0
-            while (
-                (self.latest_growth_rate is None) or (self.latest_od is None)
-            ) and self.state == self.READY:
-                sleep_for = 5
-                time.sleep(sleep_for)
-                time_waited += sleep_for
-
-                if self.duration and time_waited > (self.duration * 60 * 0.25):
-                    event = events.NoEvent(
-                        "Waited too long on sensor data. Skipping this run."
-                    )
-                    break
-            else:
-                return self.run()
-
-        elif (time.time() - self.most_stale_time) > 5 * 60:
-            event = events.NoEvent(
-                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
-            )
-
         else:
             try:
                 event = self.execute()
@@ -151,7 +124,7 @@ class DosingAutomation(BackgroundSubJob):
                 self.logger.error(e)
                 event = events.ErrorOccurred()
 
-        self.logger.info(f"triggered {event}.")
+        self.logger.info(f"{event}.")
         self.latest_event = event
         return event
 
@@ -173,10 +146,6 @@ class DosingAutomation(BackgroundSubJob):
         overflow). We also want sufficient time to mix, and this procedure will
         slow dosing down.
         """
-        assert (
-            abs(alt_media_ml + media_ml - waste_ml) < 1e-5
-        ), f"in order to keep same volume, IO should be equal. {alt_media_ml}, {media_ml}, {waste_ml}"
-
         volumes_moved = SummableList([0.0, 0.0, 0.0])
 
         max_ = 0.36  # arbitrary
@@ -257,6 +226,46 @@ class DosingAutomation(BackgroundSubJob):
     def most_stale_time(self) -> float:
         return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
 
+    @property
+    def latest_growth_rate(self) -> float:
+        # check if None
+        if self._latest_growth_rate is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+                raise ValueError(
+                    "`od_reading` and `growth_rate_calculating` should be running."
+                )
+
+        # check most stale time
+        if (time.time() - self.most_stale_time) > 5 * 60:
+            raise ValueError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_growth_rate)
+
+    @property
+    def latest_od(self) -> float:
+        # check if None
+        if self._latest_od is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+                raise ValueError(
+                    "`od_reading` and `growth_rate_calculating` should be running."
+                )
+
+        # check most stale time
+        if (time.time() - self.most_stale_time) > 5 * 60:
+            raise ValueError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_od)
+
+    ########## Private & internal methods
+
     def on_disconnect(self):
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
@@ -278,13 +287,13 @@ class DosingAutomation(BackgroundSubJob):
             self.latest_settings_ended_at = None
 
     def _set_growth_rate(self, message):
-        self.previous_growth_rate = self.latest_growth_rate
-        self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
+        self.previous_growth_rate = self._latest_growth_rate
+        self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message):
-        self.previous_od = self.latest_od
-        self.latest_od = float(json.loads(message.payload)["od_filtered"])
+        self.previous_od = self._latest_od
+        self._latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_timestamp = time.time()
 
     def _send_details_to_mqtt(self):

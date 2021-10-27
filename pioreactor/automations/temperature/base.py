@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 import json
 
+import time
+from typing import Optional, cast
 from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
+from pioreactor.utils import is_pio_job_running
 
 
 class TemperatureAutomation(BackgroundSubJob):
@@ -19,8 +22,12 @@ class TemperatureAutomation(BackgroundSubJob):
 
     """
 
-    latest_growth_rate = None
-    previous_growth_rate = None
+    _latest_growth_rate: Optional[float] = None
+    _latest_od: Optional[float] = None
+    previous_od: Optional[float] = None
+    previous_growth_rate: Optional[float] = None
+    latest_od_timestamp: float = 0
+    latest_growth_rate_timestamp: float = 0
 
     latest_temperature = None
     previous_temperature = None
@@ -67,6 +74,48 @@ class TemperatureAutomation(BackgroundSubJob):
     def execute(self):
         raise NotImplementedError
 
+    @property
+    def most_stale_time(self) -> float:
+        return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
+
+    @property
+    def latest_growth_rate(self) -> float:
+        # check if None
+        if self._latest_growth_rate is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+                raise ValueError(
+                    "`od_reading` and `growth_rate_calculating` should be running."
+                )
+
+        # check most stale time
+        if (time.time() - self.most_stale_time) > 5 * 60:
+            raise ValueError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_growth_rate)
+
+    @property
+    def latest_od(self) -> float:
+        # check if None
+        if self._latest_od is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+                raise ValueError(
+                    "`od_reading` and `growth_rate_calculating` should be running."
+                )
+
+        # check most stale time
+        if (time.time() - self.most_stale_time) > 5 * 60:
+            raise ValueError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_od)
+
     ########## Private & internal methods
 
     def on_disconnect(self):
@@ -92,8 +141,8 @@ class TemperatureAutomation(BackgroundSubJob):
         if not message.payload:
             return
 
-        self.previous_growth_rate = self.latest_growth_rate
-        self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
+        self.previous_growth_rate = self._latest_growth_rate
+        self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
 
     def _set_temperature(self, message):
         if not message.payload:
@@ -104,6 +153,12 @@ class TemperatureAutomation(BackgroundSubJob):
 
         if self.state == self.READY or self.state == self.INIT:
             self.execute()
+
+    def _set_OD(self, message) -> None:
+
+        self.previous_od = self._latest_od
+        self._latest_od = float(json.loads(message.payload)["od_filtered"])
+        self.latest_od_timestamp = time.time()
 
     def _send_details_to_mqtt(self):
         self.publish(
@@ -138,6 +193,11 @@ class TemperatureAutomation(BackgroundSubJob):
             self._set_temperature,
             f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
             allow_retained=True,
+        )
+
+        self.subscribe_and_callback(
+            self._set_OD,
+            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
         )
 
 

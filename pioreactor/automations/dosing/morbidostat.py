@@ -28,7 +28,7 @@ class Morbidostat(DosingAutomation):
             # if we are above the threshold, and growth rate is greater than dilution rate
             # the second condition is an approximation of this.
             self.execute_io_action(alt_media_ml=self.volume, waste_ml=self.volume)
-            return events.AltMediaEvent(
+            return events.AddAltMediaEvent(
                 f"latest OD, {self.latest_od:.2f} >= Target OD, {self.target_od:.2f} and Latest OD, {self.latest_od:.2f} >= Previous OD, {self.previous_od:.2f}"
             )
         else:

@@ -150,12 +150,12 @@ def pio_jobs_running() -> list:
     return jobs
 
 
-def pump_ml_to_duration(ml: float, duty_cycle: float, duration_: float = 0) -> float:
+def pump_ml_to_duration(ml: float, duration_: float = 0, bias_: float = 0) -> float:
     """
     ml: the desired volume
     duration_ : the coefficient from calibration
     """
-    return ml / duration_
+    return (ml - bias_) / duration_
 
 
 def pump_duration_to_ml(duration: float, duration_: float = 0, bias_: float = 0) -> float:

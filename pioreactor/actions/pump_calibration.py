@@ -158,7 +158,7 @@ def main():
             logger.warning(
                 "Slope is negative - you probably want to rerun this calibration..."
             )
-        if slope / std_slope > 1.0:
+        if slope / std_slope < 1.0:
             logger.warning(
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )

@@ -56,7 +56,14 @@ class DosingController(BackgroundJob):
         # because if I append it to the list, it needs to be garbage collected manually
         # when I switch automations.
         # some better system of keep tracking of subjobs is needed.
-        self.dosing_automation_job = self.automations[self.dosing_automation](
+        try:
+            automation_class = self.automations[self.dosing_automation]
+        except KeyError:
+            raise KeyError(
+                f"Unable to find automation {self.dosing_automation}. Available automations are {list(self.automations.keys())}"
+            )
+
+        self.dosing_automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 

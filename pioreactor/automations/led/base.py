@@ -4,18 +4,17 @@ import time
 import json
 from threading import Thread
 from contextlib import suppress
-from typing import Optional, Union
+from typing import Optional, Union, cast
 
 
 from pioreactor.pubsub import QOS
 
-# from pioreactor.utils import is_pio_job_running
-from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.actions.led_intensity import led_intensity, LED_Channel, is_locked
 from pioreactor.automations import events
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils import is_pio_job_running
 
 
 class LEDAutomation(BackgroundSubJob):
@@ -30,8 +29,10 @@ class LEDAutomation(BackgroundSubJob):
 
     """
 
-    latest_growth_rate = None
-    latest_od = None
+    _latest_growth_rate: Optional[float] = None
+    _latest_od: Optional[float] = None
+    previous_od: Optional[float] = None
+    previous_growth_rate: Optional[float] = None
     latest_od_timestamp: float = 0
     latest_growth_rate_timestamp: float = 0
     latest_settings_started_at: str = current_utc_time()
@@ -93,31 +94,6 @@ class LEDAutomation(BackgroundSubJob):
             # we ended early.
             return None
 
-        # so, I don't think it's necessary to have LED automations need growth rate and OD
-
-        # elif (self.latest_growth_rate is None) or (self.latest_od is None):
-        #    self.logger.debug("Waiting for OD and growth rate data to arrive")
-        #    if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-        #        self.logger.warning(
-        #            "`od_reading` and `growth_rate_calculating` should be running."
-        #        )
-
-        #    # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
-        #    counter = 0
-        #    while (
-        #        (self.latest_growth_rate is None) or (self.latest_od is None)
-        #    ) and self.state == self.READY:
-        #        time.sleep(5)
-        #        counter += 1
-
-        #        if self.duration and counter > (self.duration * 60 / 4) / 5:
-        #            event = events.NoEvent(
-        #                "Waited too long on sensor data. Skipping this run."
-        #            )
-        #            break
-        #    else:
-        #        return self.run()
-
         elif self.state != self.READY:
 
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
@@ -134,10 +110,6 @@ class LEDAutomation(BackgroundSubJob):
             else:
                 return self.run()
 
-        # elif (time.time() - self.most_stale_time) > 5 * 60:
-        #    event = events.NoEvent(
-        #        "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
-        #    )
         else:
             try:
                 event = self.execute()
@@ -210,6 +182,44 @@ class LEDAutomation(BackgroundSubJob):
 
         self.clear_mqtt_cache()
 
+    @property
+    def latest_growth_rate(self) -> float:
+        # check if None
+        if self._latest_growth_rate is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+                raise ValueError(
+                    "`od_reading` and `growth_rate_calculating` should be running."
+                )
+
+        # check most stale time
+        if (time.time() - self.most_stale_time) > 5 * 60:
+            raise ValueError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_growth_rate)
+
+    @property
+    def latest_od(self) -> float:
+        # check if None
+        if self._latest_od is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+                raise ValueError(
+                    "`od_reading` and `growth_rate_calculating` should be running."
+                )
+
+        # check most stale time
+        if (time.time() - self.most_stale_time) > 5 * 60:
+            raise ValueError(
+                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+            )
+
+        return cast(float, self._latest_od)
+
     def __setattr__(self, name, value) -> None:
         super(LEDAutomation, self).__setattr__(name, value)
         if name in self.published_settings and name != "state":
@@ -219,14 +229,14 @@ class LEDAutomation(BackgroundSubJob):
             self.latest_settings_ended_at = None
 
     def _set_growth_rate(self, message) -> None:
-        self.previous_growth_rate = self.latest_growth_rate
-        self.latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
+        self.previous_growth_rate = self._latest_growth_rate
+        self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
         self.latest_growth_rate_timestamp = time.time()
 
     def _set_OD(self, message) -> None:
 
-        self.previous_od = self.latest_od
-        self.latest_od = float(json.loads(message.payload)["od_filtered"])
+        self.previous_od = self._latest_od
+        self._latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_timestamp = time.time()
 
     def _send_details_to_mqtt(self) -> None:

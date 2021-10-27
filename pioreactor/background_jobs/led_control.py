@@ -30,7 +30,15 @@ class LEDController(BackgroundJob):
         )
 
         self.led_automation = led_automation
-        self.led_automation_job = self.automations[self.led_automation](
+
+        try:
+            automation_class = self.automations[self.led_automation]
+        except KeyError:
+            raise KeyError(
+                f"Unable to find automation {self.led_automation}. Available automations are {list(self.automations.keys())}"
+            )
+
+        self.led_automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
 

@@ -128,7 +128,14 @@ class TemperatureController(BackgroundJob):
 
         self.temperature_automation = temperature_automation
 
-        self.temperature_automation_job = self.automations[self.temperature_automation](
+        try:
+            automation_class = self.automations[self.temperature_automation]
+        except KeyError:
+            raise KeyError(
+                f"Unable to find automation {self.temperature_automation}. Available automations are {list(self.automations.keys())}"
+            )
+
+        self.temperature_automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, parent=self, **kwargs
         )
 

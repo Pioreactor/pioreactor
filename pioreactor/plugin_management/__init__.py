@@ -32,6 +32,7 @@ from typing import Any
 from .install_plugin import click_install_plugin
 from .uninstall_plugin import click_uninstall_plugin
 from .list_plugins import click_list_plugins
+from pioreactor.whoami import is_testing_env
 
 
 @dataclass
@@ -79,7 +80,11 @@ def get_plugins() -> dict[str, Plugin]:
     BLANK = "UNKNOWN"
 
     # The directory containing your modules needs to be on the search path.
-    MODULE_DIR = "/home/pi/.pioreactor/plugins"
+    if is_testing_env():
+        MODULE_DIR = "example_scripts"
+    else:
+        MODULE_DIR = "/home/pi/.pioreactor/plugins"
+
     sys.path.append(MODULE_DIR)
 
     # Get the stem names (file name, without directory and '.py') of any
@@ -90,11 +95,11 @@ def get_plugins() -> dict[str, Plugin]:
     for py_file in py_files:
         module_name = pathlib.Path(py_file).stem
         module = importlib.import_module(module_name)
-        plugins[getattr(module, "__name__", module_name)] = Plugin(
+        plugins[getattr(module, "__plugin_name__", module_name)] = Plugin(
             module,
-            getattr(module, "__summary__", BLANK),
-            getattr(module, "__version__", BLANK),
-            getattr(module, "__homepage__", BLANK),
+            getattr(module, "__plugin_summary__", BLANK),
+            getattr(module, "__plugin_version__", BLANK),
+            getattr(module, "__plugin_homepage__", BLANK),
             "plugins_folder",
         )
 

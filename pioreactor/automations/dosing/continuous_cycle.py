@@ -22,16 +22,15 @@ class ContinuousCycle(DosingAutomation):
     """
 
     key = "continuous_cycle"
-    hz = 100
     published_settings = {
         "duty_cycle": {"datatype": "float", "unit": "%", "settable": True},
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, duty_cycle=100, **kwargs):
+    def __init__(self, duty_cycle: int = 100, hz: int = 100, **kwargs):
         super(ContinuousCycle, self).__init__(**kwargs)
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
-        self.pwm = PWM(pin, self.hz)
+        self.pwm = PWM(pin, hz)
         self.duty_cycle = duty_cycle
 
     def set_duty_cycle(self, new_dc):

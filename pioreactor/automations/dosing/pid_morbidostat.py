@@ -81,7 +81,7 @@ class PIDMorbidostat(DosingAutomation):
             self.execute_io_action(
                 alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume
             )
-            return events.AltMediaEvent(
+            return events.AddAltMediaEvent(
                 f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL"
             )
 
