@@ -20,12 +20,17 @@ from pioreactor.logging import create_logger
 
 
 def which_pump_are_you_calibrating():
+    with local_persistant_storage("pump_calibration") as cache:
+        missing_media = cache.get("media_ml_calibration", None) is None
+        missing_waste = cache.get("waste_ml_calibration", None) is None
+        missing_alt_media = cache.get("alt_media_ml_calibration", None) is None
+
     r = click.prompt(
         click.style(
-            """Which pump are you calibrating?
-1. Media
-2. Alt-media
-3. Waste
+            f"""Which pump are you calibrating?
+1. Media {'     [missing calibration]' if missing_media else ''}
+2. Alt-media {' [missing calibration]' if missing_alt_media else ''}
+3. Waste {'     [missing calibration]' if missing_waste else ''}
 """,
             fg="green",
         ),
@@ -39,8 +44,14 @@ def which_pump_are_you_calibrating():
     }[r]
 
 
-def setup(pump_name: str, execute_pump: Callable):
+def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float):
     # set up...
+    # clear previous calibration in cache
+    with local_persistant_storage("pump_calibration") as cache:
+        cache[f"{pump_name}_ml_calibration"] = json.dumps(
+            {"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0}
+        )
+
     click.clear()
     click.echo()
     channel = config.getint("PWM_reverse", pump_name)
@@ -140,13 +151,7 @@ def main():
 
         hz, dc = choose_settings()
 
-        # clear previous calibration in cache
-        with local_persistant_storage("pump_calibration") as cache:
-            cache[f"{pump_name}_ml_calibration"] = json.dumps(
-                {"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0}
-            )
-
-        setup(pump_name, execute_pump)
+        setup(pump_name, execute_pump, hz, dc)
         durations, volumes = run_tests(execute_pump)
 
         (slope, std_slope), (bias, std_bias) = simple_linear_regression(
@@ -163,6 +168,7 @@ def main():
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
+        # save to cache
         with local_persistant_storage("pump_calibration") as cache:
             cache[f"{pump_name}_ml_calibration"] = json.dumps(
                 {"duration_": slope, "hz": hz, "dc": dc, "bias_": bias}
