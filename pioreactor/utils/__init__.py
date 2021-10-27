@@ -158,9 +158,7 @@ def pump_ml_to_duration(ml: float, duty_cycle: float, duration_: float = 0) -> f
     return ml / duration_
 
 
-def pump_duration_to_ml(
-    duration: float, duty_cycle: float, duration_: float = 0
-) -> float:
+def pump_duration_to_ml(duration: float, duration_: float = 0) -> float:
     """
     duration: the desired volume
     duration_ : the coefficient from calibration

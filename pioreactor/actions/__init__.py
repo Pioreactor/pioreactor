@@ -7,6 +7,7 @@ from pioreactor.actions import led_intensity
 from pioreactor.actions import od_blank
 from pioreactor.actions import self_test
 from pioreactor.actions import stirring_calibration
+from pioreactor.actions import pump_calibration
 from pioreactor.actions.leader import export_experiment_data
 from pioreactor.actions.leader import backup_database
 
@@ -21,5 +22,6 @@ __all__ = (
     "led_intensity",
     "od_blank",
     "self_test",
+    "pump_calibration",
     "stirring_calibration",
 )

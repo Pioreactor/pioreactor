@@ -96,3 +96,4 @@ if is_testing_env():
 
     sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
     sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
+    fake_rpi.toggle_print(False)

@@ -20,24 +20,20 @@ def add_media(
     ml=None,
     duration=None,
     continuously=False,
-    duty_cycle=66,
     source_of_event=None,
     unit=None,
     experiment=None,
 ):
     logger = create_logger("add_media")
 
-    assert 0 <= duty_cycle <= 100, "duty_cycle must be between 0 and 100, inclusive"
     assert (
         (ml is not None) or (duration is not None) or continuously
     ), "either ml or duration must be set"
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
-    hz = 100
-
     try:
         with local_persistant_storage("pump_calibration") as cache:
-            calibration = loads(cache["media_ml_calibration"])
+            cal = loads(cache["media_ml_calibration"])
     except KeyError:
         logger.error("Calibration not defined. Run pump calibration first.")
         return 0.0
@@ -50,17 +46,16 @@ def add_media(
 
     if ml is not None:
         assert ml >= 0, "ml should be greater than 0"
-        duration = pump_ml_to_duration(ml, duty_cycle, **calibration)
+        duration = pump_ml_to_duration(ml, cal["duration_"])
         logger.info(f"{round(ml, 2)}mL")
     elif duration is not None:
-        ml = pump_duration_to_ml(duration, duty_cycle, **calibration)
+        ml = pump_duration_to_ml(duration, cal["duration_"])
         logger.info(f"{round(duration, 2)}s")
     elif continuously:
         duration = 600
         ml = pump_duration_to_ml(
             duration,
-            duty_cycle,
-            **calibration,
+            cal["duration_"],
         )
         logger.info("Running pump continuously.")
 
@@ -81,9 +76,9 @@ def add_media(
 
     try:
 
-        pwm = PWM(MEDIA_PIN, hz)
+        pwm = PWM(MEDIA_PIN, cal["hz"])
         pwm.lock()
-        pwm.start(duty_cycle)
+        pwm.start(cal["dc"])
 
         time.sleep(duration)
 
