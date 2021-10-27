@@ -38,7 +38,9 @@ class MQTTHandler(logging.Handler):
     to a MQTT server to a topic.
     """
 
-    def __init__(self, topic, client, qos=2, retain=False, **mqtt_kwargs):
+    def __init__(
+        self, topic: str, client, qos: int = 2, retain: bool = False, **mqtt_kwargs
+    ):
         logging.Handler.__init__(self)
         self.topic = topic
         self.qos = qos

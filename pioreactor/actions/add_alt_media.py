@@ -18,7 +18,6 @@ from pioreactor.utils import local_persistant_storage
 def add_alt_media(
     ml=None,
     duration=None,
-    duty_cycle=66,
     source_of_event=None,
     unit=None,
     experiment=None,
@@ -26,13 +25,12 @@ def add_alt_media(
     logger = create_logger("add_alt_media")
 
     # TODO: turn these into proper exceptions and logging
-    assert 0 <= duty_cycle <= 100, "duty_cycle must be between 0 and 100, inclusive"
     assert (ml is not None) or (duration is not None), "either ml or duration must be set"
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     try:
         with local_persistant_storage("pump_calibration") as cache:
-            calibration = loads(cache["alt_media_ml_calibration"])
+            cal = loads(cache["alt_media_ml_calibration"])
     except KeyError:
         logger.error("Calibration not defined. Run pump calibration first.")
         return 0.0
@@ -43,21 +41,20 @@ def add_alt_media(
         logger.error(f"Add `alt_media` to `PWM` section to config_{unit}.ini.")
         return
 
-    hz = 100
     if ml is not None:
         user_submitted_ml = True
         assert ml >= 0, "ml should be >= than 0"
         duration = pump_ml_to_duration(
             ml,
-            duty_cycle,
-            **calibration,
+            cal["duration_"],
+            cal["bias_"],
         )
     elif duration is not None:
         user_submitted_ml = False
         ml = pump_duration_to_ml(
             duration,
-            duty_cycle,
-            **calibration,
+            cal["duration_"],
+            cal["bias_"],
         )
     assert duration >= 0, "duration should be >= than 0"
 
@@ -80,10 +77,10 @@ def add_alt_media(
         logger.info(f"add alt media: {round(duration,2)}s")
 
     try:
-        pwm = PWM(ALT_MEDIA_PIN, hz)
+        pwm = PWM(ALT_MEDIA_PIN, cal["hz"])
         pwm.lock()
 
-        pwm.start(duty_cycle)
+        pwm.start(cal["dc"])
 
         time.sleep(duration)
 
@@ -99,20 +96,17 @@ def add_alt_media(
 @click.command(name="add_alt_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
-@click.option("--duty-cycle", default=66, type=int, show_default=True)
 @click.option(
     "--source-of-event",
     default="CLI",
     type=str,
     help="who is calling this function - data goes into database and MQTT",
 )
-def click_add_alt_media(ml, duration, duty_cycle, source_of_event):
+def click_add_alt_media(ml, duration, source_of_event):
     """
     Add alternative media to unit
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    return add_alt_media(
-        ml, duration, duty_cycle, source_of_event, unit=unit, experiment=experiment
-    )
+    return add_alt_media(ml, duration, source_of_event, unit=unit, experiment=experiment)

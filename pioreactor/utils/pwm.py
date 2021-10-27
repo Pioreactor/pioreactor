@@ -41,8 +41,6 @@ class PWM:
     >    time.sleep(10)
 
 
-
-
     > # locking
     > pwm.lock()
     > pwm.is_locked() # true, and will be true for any other PWM on this channel.
