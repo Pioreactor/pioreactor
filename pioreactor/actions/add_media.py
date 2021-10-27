@@ -46,17 +46,14 @@ def add_media(
 
     if ml is not None:
         assert ml >= 0, "ml should be greater than 0"
-        duration = pump_ml_to_duration(ml, cal["duration_"])
+        duration = pump_ml_to_duration(ml, cal["duration_"], cal["bias_"])
         logger.info(f"{round(ml, 2)}mL")
     elif duration is not None:
-        ml = pump_duration_to_ml(duration, cal["duration_"])
+        ml = pump_duration_to_ml(duration, cal["duration_"], cal["bias_"])
         logger.info(f"{round(duration, 2)}s")
     elif continuously:
         duration = 600
-        ml = pump_duration_to_ml(
-            duration,
-            cal["duration_"],
-        )
+        ml = pump_duration_to_ml(duration, cal["duration_"], cal["bias_"])
         logger.info("Running pump continuously.")
 
     assert duration >= 0, "duration should be greater than 0"
@@ -106,14 +103,13 @@ def add_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
-@click.option("--duty-cycle", default=66, type=int, show_default=True)
 @click.option(
     "--source-of-event",
     default="CLI",
     type=str,
     help="who is calling this function - data goes into database and MQTT",
 )
-def click_add_media(ml, duration, continuously, duty_cycle, source_of_event):
+def click_add_media(ml, duration, continuously, source_of_event):
     """
     Add media to unit
     """
@@ -124,7 +120,6 @@ def click_add_media(ml, duration, continuously, duty_cycle, source_of_event):
         ml=ml,
         duration=duration,
         continuously=continuously,
-        duty_cycle=duty_cycle,
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,

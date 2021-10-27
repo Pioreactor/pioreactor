@@ -2,8 +2,9 @@
 # pump calibration
 from __future__ import annotations
 
-import click
+from typing import Callable
 import json
+import click
 from pioreactor.utils import publish_ready_to_disconnected_state, local_persistant_storage
 from pioreactor.config import config
 from pioreactor.actions.add_media import add_media
@@ -38,7 +39,7 @@ def which_pump_are_you_calibrating():
     }[r]
 
 
-def setup(pump_name, execute_pump):
+def setup(pump_name: str, execute_pump: Callable):
     # set up...
     click.clear()
     click.echo()
@@ -94,7 +95,7 @@ def choose_settings() -> tuple[float, float]:
     return hz, dc
 
 
-def run_tests(execute_pump):
+def run_tests(execute_pump) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
     click.echo("Beginning tests.")
@@ -113,7 +114,7 @@ def run_tests(execute_pump):
         )
         r = click.prompt(
             click.style("Enter amount of water expelled", fg="green"),
-            type=float,
+            type=click.FLOAT,
             confirmation_prompt=True,
         )
         results.append(r)
@@ -142,20 +143,34 @@ def main():
         # clear previous calibration in cache
         with local_persistant_storage("pump_calibration") as cache:
             cache[f"{pump_name}_ml_calibration"] = json.dumps(
-                {"duration_": 1.0, "hz": hz, "dc": dc}
+                {"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0}
             )
 
         setup(pump_name, execute_pump)
         durations, volumes = run_tests(execute_pump)
 
-        (slope, _), (bias, _) = simple_linear_regression(durations, volumes)
+        (slope, std_slope), (bias, std_bias) = simple_linear_regression(
+            durations, volumes
+        )
+
+        # check parameters for problems
+        if slope < 0:
+            logger.warning(
+                "Slope is negative - you probably want to rerun this calibration..."
+            )
+        if slope / std_slope > 1.0:
+            logger.warning(
+                "Too much uncertainty in slope - you probably want to rerun this calibration..."
+            )
 
         with local_persistant_storage("pump_calibration") as cache:
             cache[f"{pump_name}_ml_calibration"] = json.dumps(
-                {"duration_": slope, "hz": hz, "dc": dc}
+                {"duration_": slope, "hz": hz, "dc": dc, "bias_": bias}
             )
 
-        logger.debug(f"{slope}, {bias}")
+        logger.debug(
+            f"slope={slope:0.3f} ± {std_slope:0.2f}, bias={bias:0.3f} ± {std_bias:0.2f}"
+        )
         logger.info("Finished pump calibration.")
 
 
