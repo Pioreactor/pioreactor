@@ -2,6 +2,7 @@
 import time
 from json import loads, dumps
 from configparser import NoOptionError
+from typing import Optional
 import click
 
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
@@ -16,12 +17,12 @@ from pioreactor.utils import local_persistant_storage
 
 
 def add_alt_media(
-    ml=None,
-    duration=None,
-    source_of_event=None,
-    unit=None,
-    experiment=None,
-):
+    ml: Optional[float] = None,
+    duration: Optional[float] = None,
+    source_of_event: Optional[str] = None,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+) -> float:
     logger = create_logger("add_alt_media")
 
     # TODO: turn these into proper exceptions and logging
@@ -39,7 +40,7 @@ def add_alt_media(
         ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "alt_media")]
     except NoOptionError:
         logger.error(f"Add `alt_media` to `PWM` section to config_{unit}.ini.")
-        return
+        return 0
 
     if ml is not None:
         user_submitted_ml = True
@@ -56,7 +57,10 @@ def add_alt_media(
             cal["duration_"],
             cal["bias_"],
         )
-    assert duration >= 0, "duration should be >= than 0"
+
+    assert isinstance(ml, float)
+    assert isinstance(duration, float)
+    assert duration >= 0, "duration should be greater than 0"
 
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",

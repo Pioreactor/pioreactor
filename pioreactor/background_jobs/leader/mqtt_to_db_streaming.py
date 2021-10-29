@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import click
 
 from pioreactor.pubsub import QOS
-from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
 
@@ -42,7 +42,7 @@ class TopicToParserToTableContrib(TopicToParserToTable):
         MqttToDBStreamer.topics_to_tables_from_plugins.append(cls)
 
 
-class MqttToDBStreamer(NiceMixin, BackgroundJob):
+class MqttToDBStreamer(BackgroundJob):
 
     topics_to_tables_from_plugins: list[TopicToParserToTableContrib] = []
 
@@ -335,5 +335,9 @@ def click_mqtt_to_db_streaming():
     """
     (leader only) Send MQTT streams to the database. Parsers should return a dict of all the entries in the corresponding table.
     """
+    import os
+
+    os.nice(1)
+
     job = mqtt_to_db_streaming()
     job.block_until_disconnected()

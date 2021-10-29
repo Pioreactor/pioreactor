@@ -20,7 +20,7 @@ from pioreactor.logging import create_logger
 class LEDController(BackgroundJob):
 
     # this is automagically populated
-    automations = {}
+    automations = {}  # type: ignore
 
     published_settings = {"led_automation": {"datatype": "string", "settable": True}}
 

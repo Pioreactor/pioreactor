@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Callable
 import json
 import click
+import time
 from pioreactor.utils import publish_ready_to_disconnected_state, local_persistant_storage
 from pioreactor.config import config
 from pioreactor.actions.add_media import add_media
@@ -21,30 +22,32 @@ from pioreactor.logging import create_logger
 
 def which_pump_are_you_calibrating():
     with local_persistant_storage("pump_calibration") as cache:
-        missing_media = cache.get("media_ml_calibration", None) is None
-        missing_waste = cache.get("waste_ml_calibration", None) is None
-        missing_alt_media = cache.get("alt_media_ml_calibration", None) is None
+        missing_media = "media_ml_calibration" not in cache
+        missing_waste = "waste_ml_calibration" not in cache
+        missing_alt_media = "alt_media_ml_calibration" not in cache
 
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
-1. Media {'     [missing calibration]' if missing_media else ''}
-2. Alt-media {' [missing calibration]' if missing_alt_media else ''}
-3. Waste {'     [missing calibration]' if missing_waste else ''}
+1. Media{'       [missing calibration]' if missing_media else ''}
+2. Alt-media{'   [missing calibration]' if missing_alt_media else ''}
+3. Waste{'       [missing calibration]' if missing_waste else ''}
 """,
             fg="green",
         ),
         type=click.Choice(["1", "2", "3"]),
         show_choices=True,
     )
-    return {
-        "1": ("media", add_media),
-        "2": ("alt_media", add_alt_media),
-        "3": ("waste", remove_waste),
-    }[r]
+
+    if r == "1":
+        return ("media", add_media)
+    elif r == "2":
+        return ("alt_media", add_alt_media)
+    elif r == "3":
+        return ("waste", remove_waste)
 
 
-def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float):
+def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
     # set up...
     # clear previous calibration in cache
     with local_persistant_storage("pump_calibration") as cache:
@@ -54,12 +57,11 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float):
 
     click.clear()
     click.echo()
-    channel = config.getint("PWM_reverse", pump_name)
     click.echo("We need to prime the pump by filling the tubes completely with water.")
     click.echo("Connecting the tubes to the pump, and fill a container with water.")
     click.echo(
         "Place free ends of the tube into the water. Make sure the pump's power is connected to "
-        + click.style(f"PWM channel {channel}.", bold=True)
+        + click.style(f"PWM channel {config.get('PWM_reverse', pump_name)}.", bold=True)
     )
     click.echo("We'll run the pumps continuously until the tubes are filled.")
     click.echo(
@@ -80,10 +82,8 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float):
         pass
 
     click.echo()
-    click.echo(
-        "Move the output end to the graduated cylinder or a empty container on a scale."
-    )
 
+    time.sleep(0.5)  # pure UX
     return
 
 
@@ -126,7 +126,7 @@ def run_tests(execute_pump) -> tuple[list[float], list[float]]:
         r = click.prompt(
             click.style("Enter amount of water expelled", fg="green"),
             type=click.FLOAT,
-            confirmation_prompt=True,
+            confirmation_prompt=click.style("Repeat for confirmation:", fg="green"),
         )
         results.append(r)
         click.clear()
@@ -135,7 +135,7 @@ def run_tests(execute_pump) -> tuple[list[float], list[float]]:
     return durations_to_test, results
 
 
-def main():
+def pump_calibration() -> None:
 
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -163,7 +163,7 @@ def main():
             logger.warning(
                 "Slope is negative - you probably want to rerun this calibration..."
             )
-        if slope / std_slope < 1.0:
+        if slope / std_slope < 5.0:
             logger.warning(
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
@@ -182,4 +182,4 @@ def main():
 
 @click.command(name="pump_calibration")
 def click_pump_calibration():
-    main()
+    pump_calibration()

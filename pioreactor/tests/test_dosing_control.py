@@ -27,9 +27,15 @@ def pause():
 
 def setup_function():
     with local_persistant_storage("pump_calibration") as cache:
-        cache["media_ml_calibration"] = json.dumps({"duration_": 1.0})
-        cache["alt_media_ml_calibration"] = json.dumps({"duration_": 1.0})
-        cache["waste_ml_calibration"] = json.dumps({"duration_": 1.0})
+        cache["media_ml_calibration"] = json.dumps(
+            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100}
+        )
+        cache["alt_media_ml_calibration"] = json.dumps(
+            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100}
+        )
+        cache["waste_ml_calibration"] = json.dumps(
+            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100}
+        )
 
 
 def test_silent_automation():
@@ -61,87 +67,85 @@ def test_silent_automation():
 
 def test_turbidostat_automation():
     target_od = 1.0
-    algo = Turbidostat(
+    with Turbidostat(
         target_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
-    )
+    ) as algo:
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.01}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 0.98}',
-    )
-    pause()
-    assert isinstance(algo.run(), events.NoEvent)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.01}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 0.98}',
+        )
+        pause()
+        assert isinstance(algo.run(), events.NoEvent)
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.01}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 1.0}',
-    )
-    pause()
-    assert isinstance(algo.run(), events.DilutionEvent)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.01}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 1.0}',
+        )
+        pause()
+        assert isinstance(algo.run(), events.DilutionEvent)
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.01}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 1.01}',
-    )
-    pause()
-    assert isinstance(algo.run(), events.DilutionEvent)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.01}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 1.01}',
+        )
+        pause()
+        assert isinstance(algo.run(), events.DilutionEvent)
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.01}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 0.99}',
-    )
-    pause()
-    assert isinstance(algo.run(), events.NoEvent)
-    algo.set_state(algo.DISCONNECTED)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.01}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 0.99}',
+        )
+        pause()
+        assert isinstance(algo.run(), events.NoEvent)
 
 
 def test_pid_turbidostat_automation():
 
     target_od = 2.4
-    algo = PIDTurbidostat(
+    with PIDTurbidostat(
         target_od=target_od, duration=20, unit=unit, experiment=experiment
-    )
+    ) as algo:
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.01}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 2.6}',
-    )
-    pause()
-    e = algo.run()
-    assert isinstance(e, events.DilutionEvent)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.01}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 2.6}',
+        )
+        pause()
+        e = algo.run()
+        assert isinstance(e, events.DilutionEvent)
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.01}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 2.8}',
-    )
-    pause()
-    e = algo.run()
-    assert isinstance(e, events.DilutionEvent)
-    algo.set_state(algo.DISCONNECTED)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.01}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 2.8}',
+        )
+        pause()
+        e = algo.run()
+        assert isinstance(e, events.DilutionEvent)
 
 
 def test_morbidostat_automation():
@@ -192,7 +196,7 @@ def test_morbidostat_automation():
         '{"od_filtered": 1.05}',
     )
     pause()
-    assert isinstance(algo.run(), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AddAltMediaEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -214,7 +218,7 @@ def test_morbidostat_automation():
         '{"od_filtered": 1.04}',
     )
     pause()
-    assert isinstance(algo.run(), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AddAltMediaEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -258,7 +262,7 @@ def test_pid_morbidostat_automation():
         '{"od_filtered": 0.95}',
     )
     pause()
-    assert isinstance(algo.run(), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AddAltMediaEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
         '{"growth_rate": 0.07}',
@@ -268,7 +272,7 @@ def test_pid_morbidostat_automation():
         '{"od_filtered": 0.95}',
     )
     pause()
-    assert isinstance(algo.run(), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AddAltMediaEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
         '{"growth_rate": 0.065}',
@@ -278,7 +282,7 @@ def test_pid_morbidostat_automation():
         '{"od_filtered": 0.95}',
     )
     pause()
-    assert isinstance(algo.run(), events.AltMediaEvent)
+    assert isinstance(algo.run(), events.AddAltMediaEvent)
     algo.set_state(algo.DISCONNECTED)
 
 
@@ -425,8 +429,8 @@ def test_old_readings_will_not_execute_io():
         unit=unit,
         experiment=experiment,
     )
-    algo.latest_growth_rate = 1
-    algo.latest_od = 1
+    algo._latest_growth_rate = 1
+    algo._latest_od = 1
 
     algo.latest_od_timestamp = time.time() - 10 * 60
     algo.latest_growth_rate_timestamp = time.time() - 4 * 60
@@ -762,7 +766,7 @@ def test_duration_and_timer():
     )
     time.sleep(10)
     pause()
-    assert isinstance(algo.latest_event, events.AltMediaEvent)
+    assert isinstance(algo.latest_event, events.AddAltMediaEvent)
     algo.set_state(algo.DISCONNECTED)
 
 
@@ -980,10 +984,14 @@ def test_custom_class_will_register_and_run():
 def test_what_happens_when_no_od_data_is_coming_in():
 
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate", None
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        None,
+        retain=True,
     )
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered", None
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+        None,
+        retain=True,
     )
 
     algo = Turbidostat(
@@ -991,8 +999,7 @@ def test_what_happens_when_no_od_data_is_coming_in():
     )
     pause()
     event = algo.run()
-    assert isinstance(event, events.NoEvent)
-    assert "Waited too long on sensor data. Skipping this run" in event.message
+    assert isinstance(event, events.ErrorOccurred)
     algo.set_state(algo.DISCONNECTED)
 
 

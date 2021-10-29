@@ -63,9 +63,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         dynamic_gain=False,
         initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
         fake_data=is_testing_env(),
-    )
-
-    adc_reader.setup_adc()
+    ).setup_adc()
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
@@ -122,7 +120,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
     detected_relationships = []
     for pair, measured_correlation in results.items():
-        if measured_correlation > 0.85:
+        if measured_correlation > 0.925:
             detected_relationships.append(pair)
 
     publish(
@@ -143,7 +141,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     for ir_pd_channel in pd_channels_to_test:
         assert (
-            results[(ir_led_channel, ir_pd_channel)] > 0.90
+            results[(ir_led_channel, ir_pd_channel)] > 0.925
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 

@@ -8,7 +8,7 @@ from pioreactor.automations.led.base import LEDAutomation
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
 from pioreactor.actions.led_intensity import lock_leds_temporarily
-
+from pioreactor.utils import local_intermittent_storage
 
 unit = get_unit_name()
 experiment = get_latest_experiment_name()
@@ -42,6 +42,8 @@ def test_silent():
 
 
 def test_we_respect_any_locks_on_leds_we_want_to_modify():
+    with local_intermittent_storage("led_locks") as cache:
+        cache["B"] = b"0"
 
     ld = LEDAutomation(duration=1, unit=unit, experiment=experiment)
     pause()

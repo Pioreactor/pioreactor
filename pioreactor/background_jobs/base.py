@@ -5,7 +5,6 @@ import signal
 from typing import Callable, Union, Any, Optional, NewType
 import threading
 import atexit
-import os
 import sys
 from dataclasses import dataclass
 from json import dumps
@@ -45,29 +44,6 @@ def format_with_optional_units(value: Any, units: Optional[str]) -> str:
         return f"{value}{units}"
     else:
         return f"{value} {units}"
-
-
-class NiceMixin:
-    """
-    Decrease the priority of a job by 1
-
-    TODO: change this to a function, not a mixin
-
-
-    Examples
-    ---------
-
-    > class SomeBoringJob(NiceMixin, BackgroundJob):
-    >     def __init__(...)
-    >         super().__init__(...)
-
-
-
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        os.nice(1)
 
 
 class LoggerMixin:

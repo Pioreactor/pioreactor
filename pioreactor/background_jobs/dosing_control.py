@@ -33,7 +33,7 @@ class DosingController(BackgroundJob):
     # this is populated dynamically with subclasses of DosingAutomations in the form:
     # {DosingAutomation.key: DosingAutomation ... }
     # this includes plugins
-    automations = {}
+    automations = {}  # type: ignore
 
     published_settings = {"dosing_automation": {"datatype": "string", "settable": True}}
 

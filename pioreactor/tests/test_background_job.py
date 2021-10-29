@@ -189,6 +189,13 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
 
 def test_state_transition_callbacks() -> None:
     class TestJob(BackgroundJob):
+        called_on_init = False
+        called_on_ready = False
+        called_on_sleeping = False
+        called_on_ready_to_sleeping = False
+        called_on_sleeping_to_ready = False
+        called_on_init_to_ready = False
+
         def __init__(self, unit, experiment):
             super(TestJob, self).__init__(
                 job_name="testjob", unit=unit, experiment=experiment
@@ -217,11 +224,19 @@ def test_state_transition_callbacks() -> None:
     assert tj.called_on_init
     assert tj.called_on_init_to_ready
     assert tj.called_on_ready
-    publish(f"pioreactor/{unit}/{exp}/monitor/$state", "sleeping")
-    assert tj.called_on_sleeping
+    publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.SLEEPING)
+    pause()
+    pause()
+    pause()
+    pause()
     assert tj.called_on_ready_to_sleeping
+    assert tj.called_on_sleeping
 
-    publish(f"pioreactor/{unit}/{exp}/monitor/$state", "ready")
+    publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.READY)
+    pause()
+    pause()
+    pause()
+    pause()
     assert tj.called_on_sleeping_to_ready
     tj.set_state(tj.DISCONNECTED)
 

@@ -638,6 +638,9 @@ class ODReader(BackgroundJob):
             timestamp_of_readings = current_utc_time()
             batched_readings = self.adc_reader.take_reading()
 
+            # force IR off here - doing it this way batches all changes together, minimizing
+            # chances of race conditions, or weird state updates.
+            state[self.ir_channel] = 0
             self.turn_on_leds_to_previous_state(state)
 
         self.latest_reading = batched_readings

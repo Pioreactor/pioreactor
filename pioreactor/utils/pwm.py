@@ -129,10 +129,12 @@ class PWM:
         self.unlock()
 
         with local_intermittent_storage("pwm_dc") as cache:
-            del cache[str(self.pin)]
+            if str(self.pin) in cache:
+                del cache[str(self.pin)]
 
         with local_intermittent_storage("pwm_hz") as cache:
-            del cache[str(self.pin)]
+            if str(self.pin) in cache:
+                del cache[str(self.pin)]
 
         gpio_helpers.set_gpio_availability(
             self.pin, gpio_helpers.GPIO_states.GPIO_AVAILABLE

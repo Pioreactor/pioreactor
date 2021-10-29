@@ -13,9 +13,15 @@ exp = get_latest_experiment_name()
 
 def setup_function():
     with local_persistant_storage("pump_calibration") as cache:
-        cache["media_ml_calibration"] = json.dumps({"duration_": 1.0})
-        cache["alt_media_ml_calibration"] = json.dumps({"duration_": 1.0})
-        cache["waste_ml_calibration"] = json.dumps({"duration_": 1.0})
+        cache["media_ml_calibration"] = json.dumps(
+            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100}
+        )
+        cache["alt_media_ml_calibration"] = json.dumps(
+            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100}
+        )
+        cache["waste_ml_calibration"] = json.dumps(
+            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100}
+        )
 
 
 def test_pump_io():

@@ -3,6 +3,7 @@
 import time
 from json import loads, dumps
 from configparser import NoOptionError
+from typing import Optional
 
 import click
 
@@ -18,12 +19,12 @@ from pioreactor.utils import local_persistant_storage
 
 
 def remove_waste(
-    ml=None,
-    duration=None,
-    source_of_event=None,
-    unit=None,
-    experiment=None,
-):
+    ml: Optional[float] = None,
+    duration: Optional[float] = None,
+    source_of_event: Optional[str] = None,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+) -> float:
     logger = create_logger("remove_waste")
 
     assert (ml is not None) or (duration is not None), "either ml or duration must be set"
@@ -44,17 +45,20 @@ def remove_waste(
         return 0.0
 
     if ml is not None:
+        assert ml >= 0, "ml should be greater than 0"
         user_submitted_ml = True
-        assert ml >= 0
         duration = pump_ml_to_duration(ml, cal["duration_"], cal["bias_"])
     elif duration is not None:
         user_submitted_ml = False
-        assert duration >= 0
         ml = pump_duration_to_ml(
             duration,
             cal["duration_"],
             cal["bias_"],
         )
+
+    assert isinstance(ml, float)
+    assert isinstance(duration, float)
+    assert duration >= 0, "duration should be greater than 0"
 
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",

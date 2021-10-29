@@ -65,7 +65,7 @@ class TemperatureController(BackgroundJob):
     MAX_TEMP_TO_DISABLE_HEATING = 58.0
     MAX_TEMP_TO_SHUTDOWN = 60.0  # PLA glass transition temp
 
-    automations = {}
+    automations = {}  # type: ignore
 
     published_settings = {
         "temperature_automation": {"datatype": "string", "settable": True},

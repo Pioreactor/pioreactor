@@ -14,7 +14,7 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
     am_I_leader,
 )
-from pioreactor.background_jobs.base import BackgroundJob, NiceMixin
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import QOS
 from pioreactor.hardware_mappings import (
@@ -32,7 +32,7 @@ class ErrorCode(IntEnum):
     DISK_IS_ALMOST_FULL_ERROR_CODE = 3
 
 
-class Monitor(NiceMixin, BackgroundJob):
+class Monitor(BackgroundJob):
     """
     This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
 
@@ -378,5 +378,9 @@ def click_monitor():
     """
     Monitor and report metadata on the unit.
     """
+    import os
+
+    os.nice(1)
+
     job = Monitor(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
     job.block_until_disconnected()

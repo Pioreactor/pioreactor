@@ -2,8 +2,9 @@
 
 import time
 from json import loads, dumps
-import click
 from configparser import NoOptionError
+from typing import Optional
+import click
 
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -17,13 +18,13 @@ from pioreactor.utils import local_persistant_storage
 
 
 def add_media(
-    ml=None,
-    duration=None,
-    continuously=False,
-    source_of_event=None,
-    unit=None,
-    experiment=None,
-):
+    ml: Optional[float] = None,
+    duration: Optional[float] = None,
+    source_of_event: Optional[str] = None,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    continuously: bool = False,
+) -> float:
     logger = create_logger("add_media")
 
     assert (
@@ -56,6 +57,8 @@ def add_media(
         ml = pump_duration_to_ml(duration, cal["duration_"], cal["bias_"])
         logger.info("Running pump continuously.")
 
+    assert isinstance(ml, float)
+    assert isinstance(duration, float)
     assert duration >= 0, "duration should be greater than 0"
 
     # publish this first, as downstream jobs need to know about it.
