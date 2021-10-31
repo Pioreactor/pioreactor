@@ -444,21 +444,16 @@ class ADCReader(LoggerMixin):
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
-            check_gain_every_n = 5
-            if (
-                self.dynamic_gain
-                and self._counter % check_gain_every_n == 1
-                and self.max_signal_moving_average.value is not None
-            ):
-                self.check_on_gain(self.max_signal_moving_average.value)
+            if self.dynamic_gain and self._counter % 5 == 1:
+                self.check_on_gain(self.max_signal_moving_average())
 
             return batched_estimates_
 
         except OSError as e:
             # just skip, not sure why this happens when add_media or remove_waste are called.
             self.logger.debug(e, exc_info=True)
-            self.logger.error(f"Encountered {str(e)}. Attempting to continue.")
-            return {}
+            self.logger.error(e)
+            raise e
 
         except Exception as e:
             self.logger.debug(e, exc_info=True)
@@ -466,7 +461,7 @@ class ADCReader(LoggerMixin):
             raise e
 
 
-class _IrLedReferenceTracker(LoggerMixin):
+class IrLedReferenceTracker(LoggerMixin):
     def __init__(self):
         super().__init__()
 
@@ -480,7 +475,7 @@ class _IrLedReferenceTracker(LoggerMixin):
         return od_signal
 
 
-class IrLedReferenceTracker(_IrLedReferenceTracker):
+class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     """
     This class contains the logic on how we incorporate the
     direct IR LED output into OD readings.
@@ -519,8 +514,6 @@ class IrLedReferenceTracker(_IrLedReferenceTracker):
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
 
-        self.logger.debug(ir_output_reading)
-
         self.led_output_ema.update(
             (ir_output_reading - self.blank_reading)
             / (self.initial_led_output - self.blank_reading)
@@ -533,7 +526,7 @@ class IrLedReferenceTracker(_IrLedReferenceTracker):
         return od_signal / self.led_output_ema()
 
 
-class NullIrLedReferenceTracker(_IrLedReferenceTracker):
+class NullIrLedReferenceTracker(IrLedReferenceTracker):
     def __init__(self):
         super().__init__()
         self.logger.debug("Not using any IR LED reference.")
@@ -572,7 +565,7 @@ class ODReader(BackgroundJob):
         channel_angle_map: dict[PD_Channel, str],
         interval: float,
         adc_reader: ADCReader,
-        ir_led_reference_tracker: _IrLedReferenceTracker,
+        ir_led_reference_tracker: IrLedReferenceTracker,
         unit: str = None,
         experiment: str = None,
     ) -> None:
@@ -643,8 +636,6 @@ class ODReader(BackgroundJob):
 
                 timestamp_of_readings = current_utc_time()
                 batched_readings = self.adc_reader.take_reading()
-
-                self.stop_ir_led()  # this can be removed, I think
 
         self.latest_reading = batched_readings
         self.ir_led_reference_tracker.update(batched_readings)
@@ -794,8 +785,6 @@ def start_od_reading(
     experiment: str = None,
 ) -> ODReader:
 
-    ir_led_reference_tracker: _IrLedReferenceTracker
-
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 
@@ -808,8 +797,11 @@ def start_od_reading(
 
     channels = list(channel_angle_map.keys())
 
+    ir_led_reference_tracker: IrLedReferenceTracker
     if ir_led_reference_channel is not None:
-        ir_led_reference_tracker = IrLedReferenceTracker(ir_led_reference_channel)
+        ir_led_reference_tracker = PhotodiodeIrLedReferenceTracker(
+            ir_led_reference_channel
+        )
         channels.append(ir_led_reference_channel)
     else:
         ir_led_reference_tracker = NullIrLedReferenceTracker()

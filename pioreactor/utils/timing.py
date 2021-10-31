@@ -54,9 +54,8 @@ class RepeatedTimer:
     Examples
     ---------
 
-    >> thread = RepeatedTimer(seconds_to_wait, callback, callback_arg1="1", callback_arg2=2)
+    >> thread = RepeatedTimer(interval, callback, callback_arg1="1", callback_arg2=2)
     >> thread.start()
-    >> # manually execute the callback with `thread.run()`
     >> ...
     >> thread.cancel()
     >>
