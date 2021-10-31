@@ -89,13 +89,13 @@ from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
-from pioreactor.utils import local_intermittent_storage
 from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
     LED_CHANNELS,
     LED_Channel,  # type
     lock_leds_temporarily,
+    turn_off_leds_temporarily,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
@@ -629,52 +629,28 @@ class ODReader(BackgroundJob):
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
         with lock_leds_temporarily(LED_CHANNELS):
+            with turn_off_leds_temporarily(
+                LED_CHANNELS,
+                unit=self.unit,
+                experiment=self.experiment,
+                source_of_event=self.job_name,
+                pubsub_client=self.pub_client,
+                verbose=False,
+            ):
 
-            state = self.turn_off_led_and_record_state()
+                self.start_ir_led()
+                sleep(pre_duration)
 
-            self.start_ir_led()
-            sleep(pre_duration)
+                timestamp_of_readings = current_utc_time()
+                batched_readings = self.adc_reader.take_reading()
 
-            timestamp_of_readings = current_utc_time()
-            batched_readings = self.adc_reader.take_reading()
-
-            # force IR off here - doing it this way batches all changes together, minimizing
-            # chances of race conditions, or weird state updates.
-            state[self.ir_channel] = 0
-            self.turn_on_leds_to_previous_state(state)
+                self.stop_ir_led()  # this can be removed, I think
 
         self.latest_reading = batched_readings
         self.ir_led_reference_tracker.update(batched_readings)
 
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
-
-    def turn_off_led_and_record_state(self) -> dict[LED_Channel, float]:
-        with local_intermittent_storage("leds") as cache:
-            state = {c: float(cache.get(c, 0)) for c in LED_CHANNELS}
-
-        assert change_led_intensity(
-            LED_CHANNELS,
-            [0] * len(LED_CHANNELS),
-            unit=self.unit,
-            experiment=self.experiment,
-            source_of_event=self.job_name,
-            pubsub_client=self.pub_client,
-            verbose=False,
-        ), "turn_off_led_and_record_state failed"
-
-        return state
-
-    def turn_on_leds_to_previous_state(self, state: dict[LED_Channel, float]) -> None:
-        assert change_led_intensity(
-            list(state.keys()),
-            list(state.values()),
-            unit=self.unit,
-            experiment=self.experiment,
-            source_of_event=self.job_name,
-            pubsub_client=self.pub_client,
-            verbose=False,
-        ), "turn_on_leds_to_previous_state failed"
 
     def start_ir_led(self) -> None:
         r = change_led_intensity(

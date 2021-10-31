@@ -23,6 +23,19 @@ LED_UNLOCKED = b"0"
 
 
 @contextmanager
+def turn_off_leds_temporarily(channels: list[LED_Channel], **kwargs):
+    try:
+        with local_intermittent_storage("leds") as cache:
+            old_state = {c: float(cache.get(c, 0)) for c in channels}
+
+        led_intensity(channels, [0] * len(channels), **kwargs)
+
+        yield old_state
+    finally:
+        led_intensity(list(old_state.keys()), list(old_state.values()), **kwargs)
+
+
+@contextmanager
 def lock_leds_temporarily(channels: list[LED_Channel]):
     try:
         with local_intermittent_storage("led_locks") as cache:

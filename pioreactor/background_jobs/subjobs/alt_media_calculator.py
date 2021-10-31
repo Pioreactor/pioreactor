@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 Continuously monitor the bioreactor and provide summary statistics on what's going on
+
+This is 1/2 of all BackgroundSubJob - I'd like to turn this into a non-subjob.
+
 """
 
 from json import loads
@@ -16,8 +19,7 @@ VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
 class AltMediaCalculator(BackgroundSubJob):
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
-    We periodically publish this, too, so the UI
-    graph looks better.
+    We periodically publish this, too, so the UI graph looks better.
     """
 
     def __init__(self, unit=None, experiment=None, **kwargs) -> None:

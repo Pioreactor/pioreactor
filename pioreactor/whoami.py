@@ -97,3 +97,8 @@ if is_testing_env():
     sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
     sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
     fake_rpi.toggle_print(False)
+
+    # allow Blinka to think we are an Rpi:
+    # https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py
+    os.environ["BLINKA_FORCECHIP"] = "BCM2XXX"  # RaspberryPi
+    os.environ["BLINKA_FORCEBOARD"] = "9020e0"  # Raspberry Pi 3 Model A Plus Rev 1.0
