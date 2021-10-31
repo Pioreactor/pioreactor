@@ -23,10 +23,13 @@ class FedBatch(DosingAutomation):
         self.volume = float(volume)
 
     def execute(self):
-        add_media(
+        vol = add_media(
             ml=self.volume,
             source_of_event=f"{self.job_name}:{self.__class__.__name__}",
             unit=self.unit,
             experiment=self.experiment,
         )
-        return events.AddMediaEvent(f"Added {self.volume}mL")
+        if vol != self.volume:
+            self.logger.warning("under-dosed!")
+
+        return events.AddMediaEvent(f"Added {vol}mL")

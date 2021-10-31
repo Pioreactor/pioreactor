@@ -589,9 +589,20 @@ class ODReader(BackgroundJob):
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.led_intensity}% from channel {self.ir_channel}."
         )
 
-        self.start_ir_led()
-        self.adc_reader.setup_adc()
-        self.stop_ir_led()
+        # setup the ADC by turning off all LEDs that might cause problems.
+        with lock_leds_temporarily(LED_CHANNELS):
+            with turn_off_leds_temporarily(
+                LED_CHANNELS,
+                unit=self.unit,
+                experiment=self.experiment,
+                source_of_event=self.job_name,
+                pubsub_client=self.pub_client,
+                verbose=False,
+            ):
+
+                self.start_ir_led()
+                self.adc_reader.setup_adc()
+                self.stop_ir_led()
 
         # get blank values, this slightly improves the accuracy of the IR LED output tracker,
         # see that class's docs.
@@ -617,7 +628,7 @@ class ODReader(BackgroundJob):
         if self.first_od_obs_time is None:
             self.first_od_obs_time = time()
 
-        pre_duration = 0.05  # turn on LED prior to taking snapshot and wait
+        pre_duration = 0.01  # turn on LED prior to taking snapshot and wait
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.

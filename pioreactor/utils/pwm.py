@@ -102,7 +102,7 @@ class PWM:
 
     def start(self, initial_duty_cycle: float):
         assert (
-            0 <= initial_duty_cycle <= 100
+            0.0 <= initial_duty_cycle <= 100.0
         ), "dc should be between 0 and 100, inclusive."
 
         with local_intermittent_storage("pwm_dc") as cache:

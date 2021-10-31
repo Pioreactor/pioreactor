@@ -138,7 +138,7 @@ def led_intensity(
 
         try:
             assert (
-                0 <= intensity <= 100
+                0.0 <= intensity <= 100.0
             ), "intensity should be between 0 and 100, inclusive"
             assert (
                 channel in LED_CHANNELS
