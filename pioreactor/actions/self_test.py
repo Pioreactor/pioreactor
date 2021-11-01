@@ -123,8 +123,10 @@ def test_all_positive_correlations_between_pds_and_leds(
         if measured_correlation > 0.925:
             detected_relationships.append(
                 (
-                    config["leds"].get(led_channel, led_channel),
-                    config["od_config.photodiode_channel"].get(pd_channel, pd_channel),
+                    config["leds"].get(led_channel, fallback=led_channel),
+                    config["od_config.photodiode_channel"].get(
+                        pd_channel, fallback=pd_channel
+                    ),
                 )
             )
 
@@ -214,32 +216,29 @@ def test_positive_correlation_between_temp_and_heating(
 def test_positive_correlation_between_rpm_and_stirring(
     logger: Logger, unit: str, experiment: str
 ) -> None:
-    dcs = list(range(90, 50, -5))
+    dcs = list(range(85, 50, -5))
     measured_rpms = []
 
-    rpm_calc = stirring.RpmFromFrequency()
-
-    st = stirring.Stirrer(
+    with stirring.Stirrer(
         target_rpm=400, unit=unit, experiment=experiment, rpm_calculator=None
-    )
-    st.duty_cycle = dcs[0]
+    ) as st, stirring.RpmFromFrequency() as rpm_calc:
 
-    st.start_stirring()
-    time.sleep(2)
+        st.duty_cycle = dcs[0]
 
-    for dc in dcs:
-        st.set_duty_cycle(dc)
+        st.start_stirring()
         time.sleep(1)
-        measured_rpms.append(rpm_calc(4))
 
-    rpm_calc.cleanup()
+        for dc in dcs:
+            st.set_duty_cycle(dc)
+            time.sleep(1)
+            measured_rpms.append(rpm_calc(4))
 
-    measured_correlation = round(correlation(dcs, measured_rpms), 2)
-    logger.debug(
-        f"Correlation between stirring RPM and duty cycle: {measured_correlation}"
-    )
-    logger.debug(f"{(dcs, measured_rpms)}")
-    assert measured_correlation > 0.9, (dcs, measured_rpms)
+        measured_correlation = round(correlation(dcs, measured_rpms), 2)
+        logger.debug(
+            f"Correlation between stirring RPM and duty cycle: {measured_correlation}"
+        )
+        logger.debug(f"{(dcs, measured_rpms)}")
+        assert measured_correlation > 0.9, (dcs, measured_rpms)
 
 
 @click.command(name="self_test")

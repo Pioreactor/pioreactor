@@ -44,50 +44,58 @@ def stirring_calibration():
 
         measured_rpms = []
 
-        rpm_calc = stirring.RpmFromFrequency()
-
-        st = stirring.Stirrer(
+        with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
             target_rpm=0,
             unit=unit,
             experiment=experiment,
             rpm_calculator=None,
-        )
-        st.duty_cycle = dcs[0]
-        st.start_stirring()
-        time.sleep(8)
-        n_samples = len(dcs)
+        ) as st:
 
-        for count, dc in enumerate(dcs):
-            st.set_duty_cycle(dc)
+            st.duty_cycle = dcs[0]
+            st.start_stirring()
             time.sleep(8)
-            rpm = rpm_calc(4)
-            print(dc, rpm)
-            measured_rpms.append(rpm)
+            n_samples = len(dcs)
 
-            # log progress
-            publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                count // n_samples * 100,
-            )
-            logger.debug(f"Progress: {count/n_samples:.0%}")
+            for count, dc in enumerate(dcs):
+                st.set_duty_cycle(dc)
+                time.sleep(8)
+                rpm = rpm_calc(4)
+                print(dc, rpm)
+                measured_rpms.append(rpm)
 
-        rpm_calc.cleanup()
-        st.set_state(st.DISCONNECTED)
+                # log progress
+                publish(
+                    f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                    count // n_samples * 100,
+                )
+                logger.debug(f"Progress: {count/n_samples:.0%}")
 
         publish_to_pioreactor_cloud(action_name, json=dict(zip(dcs, measured_rpms)))
         logger.debug(dict(zip(dcs, measured_rpms)))
 
         # drop any 0 in RPM, too little DC
-        dcs, measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
+        try:
+            dcs, measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
+        except ValueError:
+            # the above can fail if all measured rpms are 0
+            logger.error("No RPMs were measured. Is the stirring spinning?")
+            return
 
         # since in practice, we want a look up from RPM -> required DC, we
         # set x=measure_rpms, y=dcs
         (rpm_coef, _), (intercept, _) = simple_linear_regression(measured_rpms, dcs)
 
-        assert rpm_coef > 0, "something went wrong - this coef should be greater than 0"
-        assert (
-            intercept > 0
-        ), "something went wrong - this intercept should be greater than 0"
+        if rpm_coef <= 0:
+            logger.warning(
+                "Something went wrong - detected negative correlation between RPM and stirring."
+            )
+            return
+
+        if intercept <= 0:
+            logger.warning(
+                "Something went wrong - the intercept should be greater than 0."
+            )
+            return
 
         with local_persistant_storage(action_name) as cache:
             cache["linear_v1"] = json.dumps(

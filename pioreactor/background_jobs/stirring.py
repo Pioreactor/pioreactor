@@ -71,6 +71,12 @@ class RpmCalculator:
     def sleep_for(self, seconds):
         sleep(seconds)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.cleanup()
+
 
 class RpmFromFrequency(RpmCalculator):
     """
