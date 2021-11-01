@@ -90,7 +90,7 @@ class TemperatureController(BackgroundJob):
             from TMP1075 import TMP1075
         except (NotImplementedError, ModuleNotFoundError):
             self.logger.info("TMP1075 not available; using MockTMP1075")
-            from pioreactor.utils.mock import MockTMP1075 as TMP1075
+            from pioreactor.utils.mock import MockTMP1075 as TMP1075  # type: ignore
 
         try:
             self.tmp_driver = TMP1075()

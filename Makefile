@@ -44,9 +44,6 @@ systemd-leader:
 	sudo chmod 644 /lib/systemd/system/avahi-alias.service
 	sudo systemctl enable avahi-alias.service
 
-	sudo cp /home/pi/pioreactor/system/systemd/timezone.service /lib/systemd/system/
-	sudo chmod 644 /lib/systemd/system/timezone.service
-	sudo systemctl enable timezone.service
 
 install-pioreactor-leader:
 	# the following is needed for numpy on Rpi
