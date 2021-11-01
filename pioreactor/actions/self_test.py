@@ -119,9 +119,14 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
     detected_relationships = []
-    for pair, measured_correlation in results.items():
+    for (led_channel, pd_channel), measured_correlation in results.items():
         if measured_correlation > 0.925:
-            detected_relationships.append(pair)
+            detected_relationships.append(
+                (
+                    config["leds"].get(led_channel, led_channel),
+                    config["od_config.photodiode_channel"].get(pd_channel, pd_channel),
+                )
+            )
 
     publish(
         f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",

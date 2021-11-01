@@ -12,7 +12,7 @@ from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_time, catchtime
 from pioreactor.utils import local_persistant_storage
 
 
@@ -84,9 +84,10 @@ def add_alt_media(
         pwm = PWM(ALT_MEDIA_PIN, cal["hz"])
         pwm.lock()
 
-        pwm.start(cal["dc"])
+        with catchtime() as delta_time:
+            pwm.start(cal["dc"])
 
-        time.sleep(duration)
+        time.sleep(duration - delta_time())
 
     except Exception as e:
         logger.debug("Add alt media failed", exc_info=True)
