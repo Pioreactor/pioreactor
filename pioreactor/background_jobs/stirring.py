@@ -302,12 +302,12 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 
-    def block_until_rpm_is_close_to_target(self, rel_tolerance: float = 0.05):
+    def block_until_rpm_is_close_to_target(self, abs_tolerance: float = 15):
         """
         This function blocks until the stirring is "close enough" to the target RPM.
 
         """
-        while abs(self.measured_rpm / self.target_rpm - 1) > rel_tolerance:
+        while abs(self.measured_rpm - self.target_rpm) > abs_tolerance:
             sleep(0.25)
 
 

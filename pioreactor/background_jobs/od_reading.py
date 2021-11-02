@@ -392,10 +392,10 @@ class ADCReader(LoggerMixin):
 
             batched_estimates_: dict[PD_Channel, float] = {}
             for channel in self.channels:
-
+                print(list(zip(timestamps[channel], aggregated_signals[channel])))
                 (
                     best_estimate_of_signal_,
-                    *_other_params,
+                    *_other_param_estimates,
                 ), _ = self.sin_regression_with_known_freq(
                     timestamps[channel],
                     aggregated_signals[channel],
@@ -407,7 +407,7 @@ class ADCReader(LoggerMixin):
                     )
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=0.5,  # TODO: this penalizer should scale with absolute value of reading, and duration between readings...
+                    penalizer_C=0.5,  # TODO: this penalizer should scale with absolute value of reading, number of samples, and duration between readings...
                 )
 
                 # convert to voltage
