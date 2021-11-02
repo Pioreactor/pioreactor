@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# All GPIO pins below are BCM
+# All GPIO pins below are BCM numbered
 
 PWM_TO_PIN = {
     # map between PCB labels and GPIO pins

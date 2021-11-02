@@ -32,7 +32,10 @@ from pioreactor.utils import (
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor import pubsub
 from pioreactor.logging import create_logger
-from pioreactor.utils.math_helpers import correlation
+from pioreactor.utils.math_helpers import (
+    correlation,
+    residuals_of_simple_linear_regression,
+)
 
 
 def od_normalization(unit=None, experiment=None, n_samples=35):
@@ -85,7 +88,11 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
             autocorrelations = {}  # lag 1
 
             for sensor, od_reading_series in readings.items():
-                variances[sensor] = variance(od_reading_series)
+                variances[sensor] = variance(
+                    residuals_of_simple_linear_regression(
+                        list(range(n_samples)), od_reading_series
+                    )
+                )  # see issue #206
                 means[sensor] = mean(od_reading_series)
                 autocorrelations[sensor] = correlation(
                     od_reading_series[:-1], od_reading_series[1:]
@@ -144,4 +151,4 @@ def click_od_normalization(n_samples):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    print(od_normalization(unit, experiment, n_samples=n_samples))
+    click.echo(od_normalization(unit, experiment, n_samples=n_samples))

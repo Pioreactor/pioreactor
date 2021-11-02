@@ -144,7 +144,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         if angle_or_ref != ""
     ]
 
-    ir_led_channel = config["leds_reverse"]["ir_led"]
+    ir_led_channel = config["leds_reverse"]["ir"]
 
     for ir_pd_channel in pd_channels_to_test:
         assert (
@@ -154,10 +154,6 @@ def test_all_positive_correlations_between_pds_and_leds(
 
 def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
-    # TODO: it's never 0 because of the common current problem.
-
-    # A "sunlight" be useful is detecting a high autocorrelation of the PD signal when LED%=0. Sunlight tends to increase and decrease
-    # with cloud cover. This requires us to take a time series of data points though...
 
     adc_reader = ADCReader(
         channels=PD_CHANNELS,

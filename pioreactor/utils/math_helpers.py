@@ -9,7 +9,7 @@ def simple_linear_regression(x, y):
     y = np.array(y)
 
     n = x.shape[0]
-    assert n > 2, "not enough data points"
+    assert n > 2, "not enough data points for linear regression"
 
     sum_x = np.sum(x)
     sum_xx = np.sum(x * x)
@@ -25,6 +25,16 @@ def simple_linear_regression(x, y):
     )
 
     return (slope, std_error_slope), (bias, std_error_bias)
+
+
+def residuals_of_simple_linear_regression(x, y):
+    import numpy as np
+
+    x = np.array(x)
+    y = np.array(y)
+
+    (slope, _), (bias, _) = simple_linear_regression(x, y)
+    return y - (slope * x + bias)
 
 
 def correlation(x, y) -> float:

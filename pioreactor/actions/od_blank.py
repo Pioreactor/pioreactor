@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-import time
 from collections import defaultdict
 import click
 
@@ -63,12 +62,12 @@ def od_blank(
         # turn on stirring if not already on
         if not is_pio_job_running("stirring"):
             # start stirring
-            start_stirring(
+            st = start_stirring(
                 target_rpm=config.getint("stirring", "target_rpm"),
                 unit=unit,
                 experiment=testing_experiment,
             )
-            time.sleep(8)
+            st.block_until_rpm_is_close_to_target()
         else:
             # TODO: it could be paused, we should make sure it's running
             ...

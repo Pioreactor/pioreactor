@@ -65,7 +65,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
     )
     click.echo("We'll run the pumps continuously until the tubes are filled.")
     click.echo(
-        click.style("Hit ctrl-c when the tubes are fully filled with water.", bold=True)
+        click.style("Press CTRL+C when the tubes are fully filled with water.", bold=True)
     )
 
     while not click.confirm(click.style("Ready?", fg="green")):

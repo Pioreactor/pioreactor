@@ -24,7 +24,7 @@ class MetaData:
 @dataclass
 class TopicToParserToTable:
     topic: str
-    parser: Callable[[str, Union[bytes, bytearray]], dict]
+    parser: Callable[[str, Union[bytes, bytearray]], Optional[dict]]
     table: str
 
 
@@ -156,6 +156,8 @@ def mqtt_to_db_streaming():
 
     def parse_od_blank(topic, payload):
         metadata, split_topic = produce_metadata(topic)
+        if payload is None:
+            return None
         payload = loads(payload)
         return {
             "experiment": metadata.experiment,

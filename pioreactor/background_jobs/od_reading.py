@@ -616,10 +616,10 @@ class ODReader(BackgroundJob):
 
     def get_ir_channel_from_configuration(self) -> LED_Channel:
         try:
-            return LED_Channel(config.get("leds_reverse", "ir_led"))
+            return LED_Channel(config.get("leds_reverse", "ir"))
         except Exception:
             self.logger.error(
-                "`leds` section must contain `ir_led`. Ex: \n\n[leds]\nA=ir_led"
+                "`leds` section must contain `ir_led`. Ex: \n\n[leds]\nA=ir"
             )
             raise KeyError()
 
