@@ -240,6 +240,9 @@ class ADCReader(LoggerMixin):
 
         f(t) = C + A*sin(2*pi*freq*t + phi)
 
+        # TODO: is it implemented as C - A*sin(2*pi*freq*t - phi) ??
+
+
         However, estimation occurs as:
 
         \sum_k (f(t_i) - y_i)^2 + penalizer_C * (C - prior_C)^2
@@ -392,7 +395,6 @@ class ADCReader(LoggerMixin):
 
             batched_estimates_: dict[PD_Channel, float] = {}
             for channel in self.channels:
-                print(list(zip(timestamps[channel], aggregated_signals[channel])))
                 (
                     best_estimate_of_signal_,
                     *_other_param_estimates,
