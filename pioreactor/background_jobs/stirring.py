@@ -217,6 +217,10 @@ class Stirrer(BackgroundJob):
         )
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
+        if self.rpm_calculator is None:
+            # if we can't track RPM, no point in adjusting DC
+            return lambda rpm: self.duty_cycle
+
         with local_persistant_storage("stirring_calibration") as cache:
             if "linear_v1" in cache:
                 parameters = json.loads(cache["linear_v1"])
@@ -336,7 +340,7 @@ def start_stirring(target_rpm=0, unit=None, experiment=None, ignore_rpm=False) -
     default=config.getfloat("stirring", "target_rpm", fallback=0),
     help="set the target RPM",
     show_default=True,
-    type=click.FloatRange(0, 1000, clamp=True),
+    type=click.FloatRange(0, 1200, clamp=True),
 )
 @click.option(
     "--ignore-rpm",

@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from dbm import ndbm
+import sys
+import signal
 from contextlib import contextmanager, suppress
 from pioreactor.pubsub import publish, QOS
 from typing import Generator, MutableMapping, Union
 
 
-@contextmanager
-def publish_ready_to_disconnected_state(unit: str, experiment: str, name: str):
+class publish_ready_to_disconnected_state:
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test.
 
@@ -20,21 +21,35 @@ def publish_ready_to_disconnected_state(unit: str, experiment: str, name: str):
 
 
     """
-    try:
+
+    def __init__(self, unit: str, experiment: str, name: str):
+        self.unit = unit
+        self.experiment = experiment
+        self.name = name
+
+    def _handle_interrupt(self):
+        sys.exit()  # will trigger a exception, causing __exit__ to be called
+
+    def __enter__(self):
+        signal.signal(signal.SIGTERM, self._handle_interrupt)
+
         publish(
-            f"pioreactor/{unit}/{experiment}/{name}/$state",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             "ready",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
-        yield
-    finally:
+
+        return self
+
+    def __exit__(self, *args):
         publish(
-            f"pioreactor/{unit}/{experiment}/{name}/$state",
+            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             "disconnected",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
+        return
 
 
 @contextmanager
