@@ -685,10 +685,8 @@ class ODReader(BackgroundJob):
 
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
-        self.stop_ir_led()
 
     def on_sleeping_to_ready(self) -> None:
-        self.start_ir_led()
         self.record_from_adc_timer.unpause()
 
     def on_disconnect(self) -> None:
