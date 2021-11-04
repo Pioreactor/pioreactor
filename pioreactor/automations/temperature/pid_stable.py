@@ -50,7 +50,7 @@ class PIDStable(TemperatureAutomation):
         )
 
         # d-term is noisy, add this.
-        self.pid.pid.add_derivative_hook(DEMA(0.60))
+        # self.pid.pid.add_derivative_hook(DEMA(0.60))
 
     def execute(self):
         # this runs every time a new temperature reading comes in, including a retained temperature

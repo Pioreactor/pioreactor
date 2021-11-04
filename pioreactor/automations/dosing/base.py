@@ -124,7 +124,9 @@ class DosingAutomation(BackgroundSubJob):
                 self.logger.error(e)
                 event = events.ErrorOccurred()
 
-        self.logger.info(f"{event}.")
+        if event:
+            self.logger.info(str(event))
+
         self.latest_event = event
         return event
 

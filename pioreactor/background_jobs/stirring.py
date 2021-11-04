@@ -209,7 +209,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            23,  # 23 and 5 are coprime
+            17,  # 17 and 5 are coprime
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -311,7 +311,13 @@ class Stirrer(BackgroundJob):
         This function blocks until the stirring is "close enough" to the target RPM.
 
         """
-        while abs(self.measured_rpm - self.target_rpm) > abs_tolerance:
+        if self.rpm_calculator is None:
+            # can't block if we aren't recording the RPM
+            return
+
+        while (self._measured_rpm is not None) and abs(
+            self._measured_rpm - self.target_rpm
+        ) > abs_tolerance:
             sleep(0.25)
 
 

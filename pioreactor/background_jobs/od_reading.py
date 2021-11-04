@@ -543,8 +543,10 @@ class ODReader(BackgroundJob):
 
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
+    interval: float
+        seconds between readings
     adc_reader: ADCReader
-    ir_led_reference_tracker
+    ir_led_reference_tracker: IrLedReferenceTracker
 
     Attributes
     ------------
@@ -558,7 +560,7 @@ class ODReader(BackgroundJob):
     published_settings = {
         "first_od_obs_time": {"datatype": "float", "settable": False},
         "led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
-        "interval": {"datatype": "float", "settable": False},
+        "interval": {"datatype": "float", "settable": False, "unit": "s"},
     }
     latest_reading: dict[PD_Channel, float]
 
@@ -576,19 +578,17 @@ class ODReader(BackgroundJob):
         )
 
         self.adc_reader = adc_reader
-
-        self.first_od_obs_time: Optional[float] = None
-
         self.channel_angle_map = channel_angle_map
         self.interval = interval
         self.ir_led_reference_tracker = ir_led_reference_tracker
 
-        # start IR led before ADC starts, as it needs it.
-        self.led_intensity = config.getfloat("od_config", "ir_intensity")
+        self.first_od_obs_time: Optional[float] = None
+
+        self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
         self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
 
         self.logger.debug(
-            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.led_intensity}% from channel {self.ir_channel}."
+            f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
         )
 
         # setup the ADC by turning off all LEDs that might cause problems.
@@ -602,6 +602,7 @@ class ODReader(BackgroundJob):
                 verbose=False,
             ):
 
+                # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
                 self.adc_reader.setup_adc()
                 self.stop_ir_led()
@@ -618,10 +619,10 @@ class ODReader(BackgroundJob):
 
     def get_ir_channel_from_configuration(self) -> LED_Channel:
         try:
-            return LED_Channel(config.get("leds_reverse", "ir"))
+            return LED_Channel(config.get("leds_reverse", "IR"))
         except Exception:
             self.logger.error(
-                "`leds` section must contain `ir_led`. Ex: \n\n[leds]\nA=ir"
+                "`leds` section must contain `IR` value. Ex: \n\n[leds]\nA=IR"
             )
             raise KeyError()
 
@@ -659,7 +660,7 @@ class ODReader(BackgroundJob):
     def start_ir_led(self) -> None:
         r = change_led_intensity(
             channels=self.ir_channel,
-            intensities=self.led_intensity,
+            intensities=self.ir_led_intensity,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,

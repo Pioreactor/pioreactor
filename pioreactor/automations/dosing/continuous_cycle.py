@@ -49,7 +49,7 @@ class ContinuousCycle(DosingAutomation):
 
         else:
             event = self.execute()
-            self.logger.info(f"triggered {event}.")
+            self.logger.info(str(event))
             self.latest_event = event
             return event
 
