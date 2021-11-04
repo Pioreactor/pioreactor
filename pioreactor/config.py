@@ -23,9 +23,9 @@ def reverse_config_section(section):
     """
     creates an inverted lookup from a config section. Useful to find LEDs and PWM.
     """
-    new_config = {v: k for k, v in section.items()}
+    reversed_section = {v: k for k, v in section.items()}
 
-    if len(new_config) != len(section):
+    if len(reversed_section) != len(section):
 
         values = list(section.values())
         dups = set([x for x in values if values.count(x) > 1])
@@ -35,7 +35,7 @@ def reverse_config_section(section):
             f"Duplicate values, `{next(iter(dups))}`, found in section `{section.name}`. This may lead to unexpected behavior. Please give unique names."
         )
 
-    return new_config
+    return reversed_section
 
 
 @lru_cache(1)
