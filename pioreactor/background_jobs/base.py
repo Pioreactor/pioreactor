@@ -196,9 +196,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # {'datatype', 'unit', 'settable'}
     published_settings: dict[str, dict] = dict()
 
-    def __init__(
-        self, job_name: str, source: str, experiment: str = None, unit: str = None
-    ) -> None:
+    def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
 
         self.job_name = job_name
         self.experiment = experiment
@@ -320,7 +318,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 raise ValueError(f"Missing necessary property in setting {setting}.")
 
             if not all(ss.isalnum() for ss in setting.split("_")):
-                # only alphanumeric seperated by _ is allowed.
+                # only alphanumeric separated by _ is allowed.
                 raise ValueError(
                     f"setting {setting} has bad characters - must be alphanumeric, and only seperated by underscore."
                 )

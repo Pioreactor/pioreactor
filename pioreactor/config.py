@@ -23,16 +23,18 @@ def reverse_config_section(section):
     """
     creates an inverted lookup from a config section. Useful to find LEDs and PWM.
     """
-    reversed_section = {v: k for k, v in section.items()}
+    section_without_empties = {k: v for k, v in section.items() if v != ""}
+    reversed_section = {v: k for k, v in section_without_empties.items()}
 
-    if len(reversed_section) != len(section):
+    if len(reversed_section) != len(section_without_empties):
 
         values = list(section.values())
         dups = set([x for x in values if values.count(x) > 1])
 
         # can't use logger, as the logger module uses config.py...
+        # TODO: I could use paho to publish to log topic in localhost mosquitto?
         print(
-            f"Duplicate values, `{next(iter(dups))}`, found in section `{section.name}`. This may lead to unexpected behavior. Please give unique names."
+            f"WARNING Duplicate values, `{next(iter(dups))}`, found in section `{section.name}`. This may lead to unexpected behavior. Please give unique names."
         )
 
     return reversed_section

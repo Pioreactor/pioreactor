@@ -104,7 +104,7 @@ class LEDAutomation(BackgroundSubJob):
 
                 if counter > (self.duration * 60 / 4) / 5:
                     event = events.NoEvent(
-                        "Waited too long not being in state ready. Am I stuck? Unpause me? Skipping this run."
+                        "Waited too long not being in state Ready. Am I stuck? Unpause me? Skipping this run."
                     )
                     break
             else:

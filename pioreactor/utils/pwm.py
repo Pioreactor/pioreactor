@@ -74,7 +74,7 @@ class PWM:
             if is_testing_env():
                 from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
             else:
-                from rpi_hardware_pwm import HardwarePWM
+                from rpi_hardware_pwm import HardwarePWM  # type: ignore
 
             self.pwm = HardwarePWM(self.HARDWARE_PWM_CHANNELS[self.pin], self.hz)
             self.using_hardware = True

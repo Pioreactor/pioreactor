@@ -18,7 +18,12 @@ from pioreactor.whoami import (
     is_testing_env,
 )
 from pioreactor.background_jobs.temperature_control import TemperatureController
-from pioreactor.background_jobs.od_reading import ADCReader, PD_CHANNELS, PD_Channel
+from pioreactor.background_jobs.od_reading import (
+    ADCReader,
+    PD_CHANNELS,
+    PD_Channel,
+    IR_keyword,
+)
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
@@ -144,7 +149,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         if angle_or_ref != ""
     ]
 
-    ir_led_channel = config["leds_reverse"]["IR"]
+    ir_led_channel = config["leds_reverse"][IR_keyword]
 
     for ir_pd_channel in pd_channels_to_test:
         assert (

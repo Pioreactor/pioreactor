@@ -101,7 +101,10 @@ from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
 PD_Channel = NewType("PD_Channel", int)  # Literal[1,2,3,4]
+
 PD_CHANNELS = [PD_Channel(1), PD_Channel(2), PD_Channel(3), PD_Channel(4)]
+REF_keyword = "REF"
+IR_keyword = "IR"
 
 
 class ADCReader(LoggerMixin):
@@ -605,7 +608,6 @@ class ODReader(BackgroundJob):
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
                 self.adc_reader.setup_adc()
-                self.stop_ir_led()
 
         # get blank values, this slightly improves the accuracy of the IR LED output tracker,
         # see that class's docs.
@@ -619,10 +621,13 @@ class ODReader(BackgroundJob):
 
     def get_ir_channel_from_configuration(self) -> LED_Channel:
         try:
-            return LED_Channel(config.get("leds_reverse", "IR"))
+            return LED_Channel(config.get("leds_reverse", IR_keyword))
         except Exception:
             self.logger.error(
-                "`leds` section must contain `IR` value. Ex: \n\n[leds]\nA=IR"
+                """`leds` section must contain `IR` value. Ex:
+        [leds]
+        A=IR
+            """
             )
             raise KeyError()
 
@@ -672,17 +677,6 @@ class ODReader(BackgroundJob):
 
         return
 
-    def stop_ir_led(self) -> None:
-        assert change_led_intensity(
-            channels=self.ir_channel,
-            intensities=0,
-            unit=self.unit,
-            experiment=self.experiment,
-            source_of_event=self.job_name,
-            verbose=False,
-            pubsub_client=self.pub_client,
-        ), "stop_ir_led failed"
-
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
 
@@ -696,7 +690,6 @@ class ODReader(BackgroundJob):
             self.record_from_adc_timer.cancel()
         except Exception:
             pass
-        self.stop_ir_led()
         self.clear_mqtt_cache()
 
     def publish_batch(
@@ -744,9 +737,6 @@ class ODReader(BackgroundJob):
 
     def normalize_by_led_output(self, od_signal: float) -> float:
         return self.ir_led_reference_tracker(od_signal)
-
-
-REF_keyword = "REF"
 
 
 def find_ir_led_reference(
