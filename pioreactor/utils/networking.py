@@ -33,7 +33,7 @@ def is_reachable(hostname: str) -> bool:
 def is_allowable_hostname(hostname: str) -> bool:
     import re
 
-    return True if re.match(r"^[0-9a-zA-Z\-]+$", hostname) else False
+    return True if re.match(r"^[0-9a-zA-Z\-]+$", hostname) is not None else False
 
 
 def get_ip() -> str:
