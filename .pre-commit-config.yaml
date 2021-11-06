@@ -12,7 +12,7 @@ repos:
     -   id: check-added-large-files
 
 -   repo: https://github.com/ambv/black
-    rev: 21.6b0
+    rev: 21.10b0
     hooks:
     - id: black
       args: ["--line-length", "90"]
@@ -30,7 +30,7 @@ repos:
         # https://flake8.pycqa.org/en/latest/user/error-codes.html
         - "--ignore=E203,E266,E501,W503,E402,E401"
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: ''  # Use the sha / tag you want to point at
+    rev: 'v0.910-1'  # Use the sha / tag you want to point at
     hooks:
     -   id: mypy
         additional_dependencies: [types-requests]
