@@ -109,8 +109,6 @@ IR_keyword = "IR"
 
 class ADCReader(LoggerMixin):
     """
-
-
     Notes
     ------
     It's currently highly specific to the ADS1x15 family - a future code
@@ -704,7 +702,7 @@ class ODReader(BackgroundJob):
         }
 
         for channel, angle in self.channel_angle_map.items():
-            output["od_raw"][channel] = {
+            output["od_raw"][channel] = {  # type: ignore
                 "voltage": self.normalize_by_led_output(batched_ads_readings[channel]),
                 "angle": angle,
             }

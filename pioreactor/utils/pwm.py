@@ -5,6 +5,10 @@ from pioreactor.logging import create_logger
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import gpio_helpers
 
+if is_testing_env():
+    from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
+else:
+    from rpi_hardware_pwm import HardwarePWM  # type: ignore
 
 PWM_LOCKED = b"1"
 PWM_UNLOCKED = b"0"
@@ -54,7 +58,6 @@ class PWM:
 
     HARDWARE_PWM_AVAILABLE_PINS = {12, 13}
     HARDWARE_PWM_CHANNELS = {12: 0, 13: 1}
-    using_hardware = False
 
     def __init__(self, pin: int, hz: float, always_use_software: bool = False):
         self.logger = create_logger("PWM")
@@ -71,13 +74,8 @@ class PWM:
         )
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_AVAILABLE_PINS):
-            if is_testing_env():
-                from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
-            else:
-                from rpi_hardware_pwm import HardwarePWM  # type: ignore
 
             self.pwm = HardwarePWM(self.HARDWARE_PWM_CHANNELS[self.pin], self.hz)
-            self.using_hardware = True
 
         else:
 
@@ -99,6 +97,13 @@ class PWM:
         self.logger.debug(
             f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}, initial frequency is {self.hz}hz."
         )
+
+    @property
+    def using_hardware(self):
+        try:
+            return isinstance(self.pwm, HardwarePWM)
+        except AttributeError:
+            return False
 
     def start(self, initial_duty_cycle: float):
         assert (
@@ -122,7 +127,7 @@ class PWM:
         if self.using_hardware:
             self.pwm.change_duty_cycle(dc)
         else:
-            self.pwm.ChangeDutyCycle(dc)
+            self.pwm.ChangeDutyCycle(dc)  # type: ignore
 
     def cleanup(self):
         self.stop()

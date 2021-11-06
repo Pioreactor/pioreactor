@@ -46,6 +46,7 @@ def logs():
     from sh import tail  # type: ignore
     from json import loads
     import time
+    from signal import pause
 
     def cb(msg):
         payload = loads(msg.payload.decode())
@@ -59,8 +60,7 @@ def logs():
 
     subscribe_and_callback(cb, f"pioreactor/{get_unit_name()}/+/logs/+")
 
-    while True:
-        time.sleep(0.1)
+    pause()
 
 
 @pio.command(name="blink", short_help="blink LED")
@@ -155,12 +155,12 @@ def view_cache(cache):
     # is it a temp cache?
     if os.path.isfile(f"/tmp/{cache}.db"):
         with local_intermittent_storage(cache) as c:
-            for key in c.keys():
+            for key in sorted(c.keys()):
                 click.echo(f"{key.decode()} = {c[key].decode()}")
 
     elif os.path.isfile(f".pioreactor/storage/{cache}.db"):
         with local_persistant_storage(cache) as c:
-            for key in c.keys():
+            for key in sorted(c.keys()):
                 click.echo(f"{key.decode()} = {c[key].decode()}")
     else:
         click.echo(f"cache {cache} not found.")

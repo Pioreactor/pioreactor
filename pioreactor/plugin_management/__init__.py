@@ -23,7 +23,7 @@ import glob, importlib, os, pathlib, sys
 try:
     from importlib.metadata import entry_points, metadata
 except ImportError:  # TODO: this is available in 3.8+
-    from importlib_metadata import entry_points, metadata
+    from importlib_metadata import entry_points, metadata  # type: ignore
 
 from dataclasses import dataclass
 from typing import Any
@@ -53,7 +53,7 @@ def get_plugins() -> dict[str, Plugin]:
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
     eps = entry_points()
-    pioreactor_plugins: list = eps.get("pioreactor.plugins", [])
+    pioreactor_plugins: tuple = eps.get("pioreactor.plugins", tuple())
     plugins: dict[str, Plugin] = {}
     for plugin in pioreactor_plugins:
         try:

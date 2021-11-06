@@ -201,7 +201,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
-        self.sub_jobs: list["_BackgroundJob"] = []
+        self.sub_jobs: list[_BackgroundJob] = []
         self.published_settings["state"] = {"datatype": "string", "settable": True}
 
         self.logger = create_logger(

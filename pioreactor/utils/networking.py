@@ -18,15 +18,16 @@ def is_reachable(hostname: str) -> bool:
     """
     import subprocess
 
-    ping_response = str(
-        subprocess.Popen(
-            ["ping", "-c1", "-W50", hostname],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-        ).stdout.read()
-    )
-    # TODO: find a better test, or rethink above ping...
-    return True if "1 received" in ping_response else False
+    std_out_from_ping = subprocess.Popen(
+        ["ping", "-c1", "-W50", hostname],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+    ).stdout
+    if std_out_from_ping is not None:
+        output = str(std_out_from_ping.read())
+        # TODO: find a better test, or rethink above ping...
+        return True if "1 received" in output else False
+    return False
 
 
 def is_allowable_hostname(hostname: str) -> bool:
