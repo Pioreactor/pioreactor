@@ -109,7 +109,7 @@ def led_intensity(
 
     Returns
     --------
-    bool representing if the LED channel intensity was successfully changed
+    bool representing if the all LED channels intensity were successfully changed
 
 
     State is also updated in
@@ -122,7 +122,7 @@ def led_intensity(
 
     """
     logger = create_logger("led_intensity", experiment=experiment, unit=unit)
-
+    updated_successfully = True
     try:
         from DAC43608 import DAC43608
     except NotImplementedError:
@@ -135,6 +135,13 @@ def led_intensity(
     channels, intensities = _list(channels), _list(intensities)
 
     for channel, intensity in zip(channels, intensities):
+
+        if is_locked(channel):
+            updated_successfully = False
+            logger.warning(
+                f"Unable to update channel {channel} due to a lock on it. Please try again."
+            )
+            continue
 
         try:
             assert (
@@ -166,7 +173,8 @@ def led_intensity(
             logger.error(
                 "Is the Pioreactor HAT attached to the Raspberry Pi? Unable to find I²C for LED driver."
             )
-            return False
+            updated_successfully = False
+            return updated_successfully
 
     new_state, old_state = _update_current_state(channels, intensities)
 
@@ -197,7 +205,7 @@ def led_intensity(
                 f"Updated LED {channel} from {old_state[channel]:0.3g}% to {new_state[channel]:0.3g}%."
             )
 
-    return True
+    return updated_successfully
 
 
 @click.command(name="led_intensity")
