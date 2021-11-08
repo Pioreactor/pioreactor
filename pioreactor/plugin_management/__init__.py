@@ -19,12 +19,7 @@ Adding to ~/.pioreactor/plugins
 """
 from __future__ import annotations
 import glob, importlib, os, pathlib, sys
-
-try:
-    from importlib.metadata import entry_points, metadata
-except ImportError:  # TODO: this is available in 3.8+
-    from importlib_metadata import entry_points, metadata  # type: ignore
-
+from importlib.metadata import entry_points, metadata
 from dataclasses import dataclass
 from typing import Any
 

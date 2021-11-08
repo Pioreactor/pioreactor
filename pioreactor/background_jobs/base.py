@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Union, Any, Optional, NewType
+from typing import Callable, Union, Any, Optional, NewType, TypedDict
 import threading
 import atexit
 import sys
@@ -59,7 +59,13 @@ class PostInitCaller(type):
         return obj
 
 
-JobState = NewType("JobState", str)  # TODO: literal...
+JobState = NewType("JobState", str)
+
+
+class PublishableSetting(TypedDict, total=False):
+    datatype: str
+    unit: str
+    settable: bool
 
 
 class _BackgroundJob(metaclass=PostInitCaller):
@@ -194,7 +200,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # be published to MQTT and available settable attributes will be editable. Currently supported
     # attributes are
     # {'datatype', 'unit', 'settable'}
-    published_settings: dict[str, dict] = dict()
+    published_settings: dict[str, PublishableSetting] = dict()
 
     def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
 

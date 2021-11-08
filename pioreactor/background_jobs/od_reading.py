@@ -81,7 +81,7 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 
 """
 from __future__ import annotations
-from typing import Optional, NewType
+from typing import Optional, Literal
 from time import time, sleep
 import click
 
@@ -100,9 +100,9 @@ from pioreactor.actions.led_intensity import (
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
-PD_Channel = NewType("PD_Channel", int)  # Literal[1,2,3,4]
+PD_Channel = Literal[1, 2, 3, 4]
 
-PD_CHANNELS = [PD_Channel(1), PD_Channel(2), PD_Channel(3), PD_Channel(4)]
+PD_CHANNELS: list[PD_Channel] = [1, 2, 3, 4]
 REF_keyword = "REF"
 IR_keyword = "IR"
 
@@ -741,13 +741,13 @@ def find_ir_led_reference(
     od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
 ) -> Optional[PD_Channel]:
     if od_angle_channel1 == REF_keyword:
-        return PD_Channel(1)
+        return 1
     elif od_angle_channel2 == REF_keyword:
-        return PD_Channel(2)
+        return 2
     elif od_angle_channel3 == REF_keyword:
-        return PD_Channel(3)
+        return 3
     elif od_angle_channel4 == REF_keyword:
-        return PD_Channel(4)
+        return 4
     else:
         return None
 
@@ -760,16 +760,16 @@ def create_channel_angle_map(
     channel_angle_map: dict[PD_Channel, str] = {}
 
     if od_angle_channel1 and od_angle_channel1 != REF_keyword:
-        channel_angle_map[PD_Channel(1)] = od_angle_channel1
+        channel_angle_map[1] = od_angle_channel1
 
     if od_angle_channel2 and od_angle_channel2 != REF_keyword:
-        channel_angle_map[PD_Channel(2)] = od_angle_channel2
+        channel_angle_map[2] = od_angle_channel2
 
     if od_angle_channel3 and od_angle_channel3 != REF_keyword:
-        channel_angle_map[PD_Channel(3)] = od_angle_channel3
+        channel_angle_map[3] = od_angle_channel3
 
     if od_angle_channel4 and od_angle_channel4 != REF_keyword:
-        channel_angle_map[PD_Channel(4)] = od_angle_channel4
+        channel_angle_map[4] = od_angle_channel4
 
     return channel_angle_map
 

@@ -247,7 +247,7 @@ def test_bad_key_in_published_settings() -> None:
         published_settings = {
             "some_key": {
                 "datatype": "float",
-                "units": "%",
+                "units": "%",  # type: ignore
                 "settable": True,
             },  # units is wrong, should be unit.
         }
