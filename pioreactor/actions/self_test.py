@@ -10,6 +10,7 @@ Outputs from each test go into MQTT, and return to the command line.
 import time, sys
 from logging import Logger
 from json import dumps
+from typing import cast
 import click
 from pioreactor.whoami import (
     get_unit_name,
@@ -143,11 +144,11 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     # we require that the IR photodiodes defined in the config have a
     # correlation with the IR led
-    pd_channels_to_test = [
-        PD_Channel(int(ch))
-        for (ch, angle_or_ref) in config["od_config.photodiode_channel"].items()
-        if angle_or_ref != ""
-    ]
+    pd_channels_to_test: list[PD_Channel] = []
+    for (str_channel, angle_or_ref) in config["od_config.photodiode_channel"].items():
+        if angle_or_ref != "":
+            channel = cast(PD_Channel, int(str_channel))
+            pd_channels_to_test.append(channel)
 
     ir_led_channel = config["leds_reverse"][IR_keyword]
 

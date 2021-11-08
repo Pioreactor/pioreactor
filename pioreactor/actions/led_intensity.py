@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import click
-from typing import Tuple, Dict, Optional, NewType, Union
+from typing import Tuple, Dict, Optional, Union, Literal
 from contextlib import contextmanager
 
 from paho.mqtt.client import Client  # type: ignore
@@ -14,8 +14,8 @@ from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils import local_intermittent_storage
 
 
-LED_Channel = NewType("LED_Channel", str)  # Literal["A", "B", "C", "D"]
-LED_CHANNELS = [LED_Channel("A"), LED_Channel("B"), LED_Channel("C"), LED_Channel("D")]
+LED_Channel = Literal["A", "B", "C", "D"]
+LED_CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
 
 
 LED_LOCKED = b"1"
@@ -149,7 +149,7 @@ def led_intensity(
             ), "intensity should be between 0 and 100, inclusive"
             assert (
                 channel in LED_CHANNELS
-            ), f"saw incorrect channel {LED_Channel(channel)}, not in {LED_CHANNELS}"
+            ), f"saw incorrect channel {channel}, not in {LED_CHANNELS}"
             intensity = float(intensity)
 
             dac = DAC43608()

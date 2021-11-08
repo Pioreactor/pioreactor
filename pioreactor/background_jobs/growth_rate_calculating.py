@@ -434,7 +434,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         """
         return {
-            PD_Channel(channel): float(raw_od_readings[channel]["voltage"])
+            channel: float(raw_od_readings[channel]["voltage"])
             for channel in sorted(raw_od_readings, reverse=True)
         }
 
