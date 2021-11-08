@@ -81,7 +81,7 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 
 """
 from __future__ import annotations
-from typing import Optional, Literal
+from typing import Optional, Literal, cast
 from time import time, sleep
 import click
 
@@ -619,7 +619,7 @@ class ODReader(BackgroundJob):
 
     def get_ir_channel_from_configuration(self) -> LED_Channel:
         try:
-            return LED_Channel(config.get("leds_reverse", IR_keyword))
+            return cast(LED_Channel, config.get("leds_reverse", IR_keyword))
         except Exception:
             self.logger.error(
                 """`leds` section must contain `IR` value. Ex:
