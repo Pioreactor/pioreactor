@@ -587,21 +587,22 @@ class ODReader(BackgroundJob):
 
         self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
         self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
+        self.non_ir_led_channels = [ch for ch in LED_CHANNELS if ch != self.ir_channel]
 
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
         )
 
         # setup the ADC by turning off all LEDs that might cause problems.
-        with lock_leds_temporarily(LED_CHANNELS):
-            with turn_off_leds_temporarily(
-                LED_CHANNELS,
-                unit=self.unit,
-                experiment=self.experiment,
-                source_of_event=self.job_name,
-                pubsub_client=self.pub_client,
-                verbose=False,
-            ):
+        with turn_off_leds_temporarily(
+            LED_CHANNELS,
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            pubsub_client=self.pub_client,
+            verbose=False,
+        ):
+            with lock_leds_temporarily(self.non_ir_led_channels):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
@@ -638,15 +639,15 @@ class ODReader(BackgroundJob):
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
-        with lock_leds_temporarily(LED_CHANNELS):
-            with turn_off_leds_temporarily(
-                LED_CHANNELS,
-                unit=self.unit,
-                experiment=self.experiment,
-                source_of_event=self.job_name,
-                pubsub_client=self.pub_client,
-                verbose=False,
-            ):
+        with turn_off_leds_temporarily(
+            LED_CHANNELS,
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            pubsub_client=self.pub_client,
+            verbose=False,
+        ):
+            with lock_leds_temporarily(self.non_ir_led_channels):
 
                 self.start_ir_led()
                 sleep(pre_duration)
