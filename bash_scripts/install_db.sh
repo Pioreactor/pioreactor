@@ -6,12 +6,14 @@ set -e
 set -x
 export LC_ALL=C
 
+DB_LOC=/home/pi/.pioreactor/storage/pioreactor.sqlite
+
 
 sudo apt-get install -y sqlite3
 mkdir -p /home/pi/db
-touch /home/pi/.pioreactor/pioreactor.sqlite
-sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < sql/sqlite_configuration.sql
-sqlite3 /home/pi/.pioreactor/pioreactor.sqlite < sql/create_tables.sql
+touch $DB_LOC
+sqlite3 $DB_LOC < sql/sqlite_configuration.sql
+sqlite3 $DB_LOC < sql/create_tables.sql
 
 # attempt backup database every N days
 # the below overwrites any existing crons
