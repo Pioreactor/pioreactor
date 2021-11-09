@@ -3,6 +3,5 @@ paho-mqtt==1.6.1
 psutil==5.8.0
 sh==1.14.2
 JSON-log-formatter==0.4.0
-importlib_metadata
-requests
+requests==2.26.0
 rpi_hardware_pwm==0.1.3

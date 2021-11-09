@@ -1,4 +1,3 @@
--r requirements.txt
-paramiko
-https://github.com/pioreactor/sqlite3worker/archive/master.zip
-crudini
+paramiko==2.8.0
+sqlite3worker @ git+https://github.com/pioreactor/sqlite3worker.git
+crudini==0.9.3

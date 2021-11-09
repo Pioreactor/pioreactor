@@ -1,9 +1,6 @@
--r requirements.txt
-RPi.GPIO
+RPi.GPIO==0.7.0
 adafruit-circuitpython-ads1x15===2.2.8
-https://github.com/pioreactor/simple-pid/archive/master.zip
+simple-pid @ git+https://github.com/pioreactor/simple-pid.git
 DAC43608==0.2.6
 TMP1075==0.2.0
 rpi-hardware-pwm==0.1.3
-
-# numpy as well, but that's installed elsewhere
