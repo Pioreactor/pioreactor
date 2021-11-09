@@ -29,12 +29,9 @@ def get_latest_experiment_name() -> str:
     else:
         from pioreactor.logging import create_logger
 
-        logger = create_logger("pioreactor")
+        logger = create_logger("pioreactor", to_mqtt=False)
         logger.info(
             "No experiment running, exiting. Try creating a new experiment first."
-        )
-        logger.info(
-            "No experiment found in `pioreactor/latest_experiment` topic in MQTT, exiting."
         )
         sys.exit()
 
