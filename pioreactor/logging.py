@@ -60,7 +60,7 @@ class MQTTHandler(logging.Handler):
             publish_to_pioreactor_cloud("reported_errors", data=payload)
 
         # if Python exits too quickly, the last msg might never make it to the broker.
-        mqtt_msg.wait_for_publish()
+        mqtt_msg.wait_for_publish(timeout=5)
 
     def close(self):
         self.client.disconnect()

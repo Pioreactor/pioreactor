@@ -10,7 +10,6 @@ DB_LOC=/home/pi/.pioreactor/storage/pioreactor.sqlite
 
 
 sudo apt-get install -y sqlite3
-mkdir -p /home/pi/db
 touch $DB_LOC
 sqlite3 $DB_LOC < sql/sqlite_configuration.sql
 sqlite3 $DB_LOC < sql/create_tables.sql

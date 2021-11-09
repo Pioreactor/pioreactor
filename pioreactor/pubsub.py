@@ -47,8 +47,7 @@ def create_client(
         try:
             client.connect(hostname, keepalive=keepalive)
         except (socket.gaierror, OSError):
-            retries += 1
-            time.sleep(retries * 5)
+            time.sleep(retries * 2)
         else:
             client.loop_start()
             break

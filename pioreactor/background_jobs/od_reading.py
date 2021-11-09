@@ -571,8 +571,8 @@ class ODReader(BackgroundJob):
         interval: float,
         adc_reader: ADCReader,
         ir_led_reference_tracker: IrLedReferenceTracker,
-        unit: str = None,
-        experiment: str = None,
+        unit: str,
+        experiment: str,
     ) -> None:
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
@@ -587,7 +587,9 @@ class ODReader(BackgroundJob):
 
         self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
         self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
-        self.non_ir_led_channels = [ch for ch in LED_CHANNELS if ch != self.ir_channel]
+        self.non_ir_led_channels: list[LED_Channel] = [
+            ch for ch in LED_CHANNELS if ch != self.ir_channel
+        ]
 
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
@@ -782,8 +784,8 @@ def start_od_reading(
     od_angle_channel4: Optional[str] = None,
     sampling_rate: float = 1 / config.getfloat("od_config", "samples_per_second"),
     fake_data: bool = False,
-    unit: str = None,
-    experiment: str = None,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
 ) -> ODReader:
 
     unit = unit or get_unit_name()
