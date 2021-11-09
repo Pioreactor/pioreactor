@@ -1,5 +1,5 @@
 click==8.0.3
-paho-mqtt==1.5.1
+paho-mqtt==1.6.1
 psutil==5.8.0
 sh==1.14.2
 JSON-log-formatter==0.4.0
