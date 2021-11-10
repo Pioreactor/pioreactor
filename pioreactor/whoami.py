@@ -29,11 +29,11 @@ def get_latest_experiment_name() -> str:
     else:
         from pioreactor.logging import create_logger
 
-        logger = create_logger("pioreactor", to_mqtt=False)
+        logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT)
         logger.info(
             "No experiment running, exiting. Try creating a new experiment first."
         )
-        sys.exit()
+        return NO_EXPERIMENT
 
 
 def is_testing_env() -> bool:

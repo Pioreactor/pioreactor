@@ -12,20 +12,22 @@ CORE_REQUIREMENTS = [
     "JSON-log-formatter>=0.4.0",
     "requests>=2.0.0",
     "rpi_hardware_pwm>=0.1.3",
+    # tech debt - this need to be in the core?
+    # leader requirement
+    "sqlite3worker @ https://github.com/pioreactor/sqlite3worker/archive/master.zip#egg=sqlite3worker-0.0.1",
+    # worker requirement
+    "simple-pid @ https://github.com/pioreactor/simple-pid/archive/master.zip#egg=simple-pid-0.0.1",
 ]
 
 
 LEADER_REQUIREMENTS = [
     "paramiko>=2.8.0",
-    "sqlite3worker @ git+https://github.com/pioreactor/sqlite3worker.git",
-    "crudini>=0.9.0",
 ]
 
 
 WORKER_REQUIREMENTS = [
     "RPi.GPIO>=0.7.0",
     "adafruit-circuitpython-ads1x15>=2.2.8",
-    "simple-pid @ git+https://github.com/pioreactor/simple-pid.git",
     "DAC43608>=0.2.6",
     "TMP1075>=0.2.0",
     "rpi-hardware-pwm>=0.1.3",

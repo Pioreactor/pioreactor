@@ -1,1 +1,0 @@
-INSERT OR IGNORE INTO experiments (timestamp, experiment, description) VALUES (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'NOW'), 'Demo experiment', 'This is a demo experiment. Feel free to click around. When you are ready, click the "New experiment" above.');

@@ -14,7 +14,7 @@ def uninstall_plugin(name_of_plugin):
     result = subprocess.run(
         [
             "bash",
-            "/home/pi/pioreactor/bash_scripts/uninstall_plugin.sh",
+            "/usr/local/bin/uninstall_pioreactor_plugin.sh",
             quote(name_of_plugin),
         ]
     )
