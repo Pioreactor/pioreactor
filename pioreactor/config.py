@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 import configparser
+import os
 from functools import lru_cache
 
 from pioreactor.whoami import is_testing_env
@@ -96,6 +97,10 @@ def get_config():
     else:
         global_config_path = "/home/pi/.pioreactor/config.ini"
         local_config_path = "/home/pi/.pioreactor/unit_config.ini"
+        if not os.path.isfile(global_config_path):
+            raise ValueError(
+                "/home/pi/.pioreactor/config.ini is missing from this Pioreactor. Has it completed initializing?"
+            )
 
     config_files = [global_config_path, local_config_path]
 
