@@ -1,8 +1,0 @@
-/var/log/pioreactor.log {
-    daily
-    missingok
-    rotate 7
-    compress
-    notifempty
-    create 0640 pi pi
-}

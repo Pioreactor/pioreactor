@@ -29,11 +29,11 @@ def get_latest_experiment_name() -> str:
     else:
         from pioreactor.logging import create_logger
 
-        logger = create_logger("pioreactor", to_mqtt=False)
+        logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT)
         logger.info(
             "No experiment running, exiting. Try creating a new experiment first."
         )
-        sys.exit()
+        return NO_EXPERIMENT
 
 
 def is_testing_env() -> bool:
@@ -81,9 +81,8 @@ def get_uuid() -> str:
 
 def get_rpi_machine() -> str:
     if not is_testing_env():
-        from board import detector  # type: ignore
-
-        return detector.get_device_model()
+        with open("/proc/device-tree/model") as f:
+            return f.read()
     else:
         return "Raspberry Pi 3 - testing"
 

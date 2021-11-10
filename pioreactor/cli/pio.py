@@ -335,7 +335,7 @@ if am_I_leader():
 
         res = subprocess.call(
             [
-                "bash /home/pi/pioreactor/bash_scripts/add_new_worker_from_leader.sh %s %s"
+                "bash /usr/local/bin//add_new_pioreactor_worker_from_leader.sh %s %s"
                 % (new_name, ip)
             ],
             shell=True,

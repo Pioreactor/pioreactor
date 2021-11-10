@@ -13,7 +13,7 @@ def install_plugin(name_of_plugin, url=None):
     result = subprocess.run(
         [
             "bash",
-            "/home/pi/pioreactor/bash_scripts/install_plugin.sh",
+            "/usr/local/bin//install_pioreactor_plugin.sh",
             quote(name_of_plugin),
             url or "",
         ],
