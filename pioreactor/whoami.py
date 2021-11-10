@@ -81,9 +81,8 @@ def get_uuid() -> str:
 
 def get_rpi_machine() -> str:
     if not is_testing_env():
-        from board import detector  # type: ignore
-
-        return detector.get_device_model()
+        with open("/proc/device-tree/model") as f:
+            return f.read()
     else:
         return "Raspberry Pi 3 - testing"
 
