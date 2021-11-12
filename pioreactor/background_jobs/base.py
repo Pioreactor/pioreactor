@@ -6,7 +6,6 @@ from typing import Callable, Union, Any, Optional, NewType, TypedDict
 import threading
 import atexit
 import sys
-from dataclasses import dataclass
 from json import dumps
 
 from paho.mqtt.client import Client, MQTTMessage  # type: ignore
@@ -15,20 +14,6 @@ from pioreactor.utils import pio_jobs_running, local_intermittent_storage
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
 from pioreactor.logging import create_logger
-
-
-@dataclass
-class SetAttrSplitTopic:
-    unit: str
-    experiment: str
-    job_name: str
-    attr: str
-
-
-def split_topic_for_setting(topic: str) -> SetAttrSplitTopic:
-    v = topic.split("/")
-    assert len(v) == 6, "something is wrong"
-    return SetAttrSplitTopic(v[1], v[2], v[3], v[4])
 
 
 def format_with_optional_units(value: Any, units: Optional[str]) -> str:
@@ -612,10 +597,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
         else:
             self.logger.debug(state.capitalize() + ".")
 
+    @staticmethod
+    def get_attr_from_topic(topic):
+        pieces = topic.split("/")
+        assert len(pieces) == 6, "something is wrong"
+        return pieces[4].lstrip("$")
+
     def set_attr_from_message(self, message) -> None:
         new_value = message.payload.decode()
-        info_from_topic = split_topic_for_setting(message.topic)
-        attr = info_from_topic.attr.lstrip("$")
+        attr = self.get_attr_from_topic(message.topic)
 
         if not (
             (attr in self.published_settings)
