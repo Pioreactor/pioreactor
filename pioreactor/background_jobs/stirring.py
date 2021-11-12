@@ -222,6 +222,7 @@ class Stirrer(BackgroundJob):
             return lambda rpm: self.duty_cycle
 
         with local_persistant_storage("stirring_calibration") as cache:
+
             if "linear_v1" in cache:
                 parameters = json.loads(cache["linear_v1"])
                 coef = parameters.pop("rpm_coef")

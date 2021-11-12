@@ -96,22 +96,32 @@ def test_publish_measured_rpm():
 
 
 def test_stirring_with_lookup_linear_v1():
+    class FakeRpmCalculator:
+        def __call__(self, *args):
+            return 475
+
+        def cleanup(self):
+            pass
 
     with local_persistant_storage("stirring_calibration") as cache:
         cache["linear_v1"] = json.dumps({"rpm_coef": 0.1, "intercept": 20})
 
     target_rpm = 500
-    st = Stirrer(target_rpm, unit, exp, rpm_calculator=None)
+    current_dc = Stirrer.duty_cycle
+    st = Stirrer(target_rpm, unit, exp, rpm_calculator=FakeRpmCalculator())
     st.start_stirring()
 
-    assert st.duty_cycle == 60 - 0.9 * (60 - (0.1 * target_rpm + 20))
+    assert st.duty_cycle == current_dc - 0.9 * (current_dc - (0.1 * target_rpm + 20))
 
-    dc = st.duty_cycle
+    pause()
+    pause()
+
+    current_dc = st.duty_cycle
     target_rpm = 600
-    publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", 600)
+    publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", target_rpm)
     pause()
     pause()
 
-    assert st.duty_cycle == dc - 0.9 * (dc - (0.1 * target_rpm + 20))
+    assert st.duty_cycle == current_dc - 0.9 * (current_dc - (0.1 * target_rpm + 20))
 
     st.set_state(st.DISCONNECTED)
