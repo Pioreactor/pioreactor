@@ -171,7 +171,7 @@ def led_intensity(
         except ValueError as e:
             logger.debug(e, exc_info=True)
             logger.error(
-                "Is the Pioreactor HAT attached to the Raspberry Pi? Unable to find I²C for LED driver."
+                "Unable to find I²C for LED driver. Is the Pioreactor HAT attached to the Raspberry Pi? Is I²C enabled on the Raspberry Pi?"
             )
             updated_successfully = False
             return updated_successfully

@@ -41,11 +41,12 @@ a serialized json like:
 
 
 Internally, the ODReader runs a function every `interval` seconds. The function
- 1. turns on the IR LED
- 2. calls the subjob ADCReader reads all channels from the ADC.
- 3. Turns off LED
+ 1. turns off all non-IR LEDs
+ 2. turns on the IR LED
+ 3. calls ADCReader tp read channels from the ADC.
  4. Performs any transformations (see below)
- 5. Publishes data to MQTT
+ 5. Switches back LEDs to previous state from step 1.
+ 6. Publishes data to MQTT
 
 Transforms are ex: sin regression, and LED output compensation. See diagram below.
 
@@ -72,7 +73,6 @@ Dataflow of raw signal to final output:
 │                                                                                │
 │                                                                                │
 └────────────────────────────────────────────────────────────────────────────────┘
-
 
 
 In the ODReader class, we publish the `first_od_obs_time` to MQTT so other jobs can read it and

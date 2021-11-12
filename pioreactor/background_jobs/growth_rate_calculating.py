@@ -49,7 +49,12 @@ from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_test
 
 
 class GrowthRateCalculator(BackgroundJob):
-    def __init__(self, ignore_cache: bool = False, unit=None, experiment=None):
+    def __init__(
+        self,
+        unit,
+        experiment,
+        ignore_cache: bool = False,
+    ):
 
         super(GrowthRateCalculator, self).__init__(
             job_name="growth_rate_calculating", unit=unit, experiment=experiment
