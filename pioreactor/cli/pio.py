@@ -167,10 +167,11 @@ def view_cache(cache):
 
 
 @pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
-@click.option("--ui", is_flag=True, help="update the PioreactoUI to latest")
-@click.option("--app", is_flag=True, help="update the PioreactoApp to latest")
+@click.option("--ui", is_flag=True, help="update the PioreactorUI to latest")
+@click.option("--app", is_flag=True, help="update the Pioreactor to latest")
 def update(ui, app):
     import subprocess
+    import requests
 
     logger = create_logger(
         "update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
@@ -180,10 +181,13 @@ def update(ui, app):
         click.echo("Nothing to do. Specify either --app or --ui.")
 
     if app:
-        cd = "cd ~/pioreactor"
-        gitp = "git pull origin master"
-        setup = "sudo python3 setup.py install"
-        command = " && ".join([cd, gitp, setup])
+        latest_release_metadata = requests.get(
+            "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
+        ).json()
+        latest_release_version = latest_release_metadata["name"]
+        url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{latest_release_version}/pioreactor-{latest_release_version}-py3-none-any.whl"
+
+        command = f'sudo pip3 install "pioreactor @ {url_to_get_whl}"'
         p = subprocess.run(
             command,
             shell=True,
@@ -192,7 +196,7 @@ def update(ui, app):
             stderr=subprocess.PIPE,
         )
         if p.returncode == 0:
-            logger.info("Updated PioreactorApp to latest version.")
+            logger.info(f"Updated Pioreactor to version {latest_release_version}.")
         else:
             logger.error(p.stderr)
 

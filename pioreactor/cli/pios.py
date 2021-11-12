@@ -126,9 +126,9 @@ def pios():
 )
 def update(units):
     """
-    Pulls and installs the latest code from Github to the workers.
+    Pulls and installs the latest code
     """
-    import paramiko
+    import paramiko  # type: ignore
 
     logger = create_logger(
         "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
