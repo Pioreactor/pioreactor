@@ -6,6 +6,7 @@ from typing import Callable, Union, Any, Optional, NewType, TypedDict
 import threading
 import atexit
 import sys
+import time
 from json import dumps
 
 from paho.mqtt.client import Client, MQTTMessage  # type: ignore
@@ -356,8 +357,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
-        while not client.is_connected():
-            continue
+        for _ in range(20):
+            if not client.is_connected():
+                time.sleep(0.5)
+            else:
+                break
 
         client.on_connect = reconnect_protocol
         client.on_disconnect = on_disconnect

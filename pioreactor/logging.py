@@ -48,8 +48,12 @@ class MQTTHandler(logging.Handler):
         self.mqtt_kwargs = mqtt_kwargs
         self.client = client
 
-    def emit(self, record):
+    def emit(self, record) -> None:
         payload = self.format(record)
+
+        if not self.client.is_connected():
+            return
+
         mqtt_msg = self.client.publish(
             self.topic, payload, qos=self.qos, retain=self.retain, **self.mqtt_kwargs
         )

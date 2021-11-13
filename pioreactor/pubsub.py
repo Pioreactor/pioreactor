@@ -42,15 +42,17 @@ def create_client(
     if last_will is not None:
         client.will_set(**last_will)
 
-    retries = 0
-    for retries in range(max_retries):
+    for retries in range(1, max_retries + 1):
         try:
             client.connect(hostname, keepalive=keepalive)
         except (socket.gaierror, OSError):
+            if retries == max_retries:
+                break
             time.sleep(retries * 2)
         else:
             client.loop_start()
             break
+
     return client
 
 
