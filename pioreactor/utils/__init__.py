@@ -7,6 +7,17 @@ from pioreactor.pubsub import publish, QOS
 from typing import Generator, MutableMapping, Union
 
 
+class DbmMapping(MutableMapping):
+    def __getitem__(self, key: str) -> bytes:
+        """
+        Internally, dbm will convert all values to bytes
+        """
+        ...
+
+    def __setitem__(self, key: str, value: Union[str, bytes]) -> None:
+        ...
+
+
 class publish_ready_to_disconnected_state:
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test.
@@ -55,7 +66,7 @@ class publish_ready_to_disconnected_state:
 @contextmanager
 def local_intermittent_storage(
     cache_name: str,
-) -> Generator[MutableMapping[str, Union[str, bytes]], None, None]:
+) -> Generator[DbmMapping, None, None]:
     """
 
     The cache is deleted upon a Raspberry Pi restart!
@@ -87,7 +98,7 @@ def local_intermittent_storage(
 @contextmanager
 def local_persistant_storage(
     cache_name: str,
-) -> Generator[MutableMapping[str, Union[str, bytes]], None, None]:
+) -> Generator[DbmMapping, None, None]:
     """
     Values stored in this storage will stay around between RPi restarts, and until overwritten
     or deleted.

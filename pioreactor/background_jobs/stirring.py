@@ -9,6 +9,7 @@ import click
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.monitor import ErrorCode
 from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp, local_persistant_storage
@@ -263,8 +264,12 @@ class Stirrer(BackgroundJob):
 
         recent_rpm = self.rpm_calculator(poll_for_seconds)
         if recent_rpm == 0:
-            self.logger.warning("Stirring RPM is 0 - has it failed?")
             # TODO: attempt to restart stirring
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
+                ErrorCode.STIRRING_FAILED_ERROR_CODE.value,
+            )
+            self.logger.warning("Stirring RPM is 0 - has it failed?")
 
         if self._measured_rpm is not None:
             # use a simple EMA, 0.05 chosen arbitrarily, but should be a function of delta time.

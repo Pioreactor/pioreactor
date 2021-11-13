@@ -5,6 +5,7 @@ from datetime import datetime
 from enum import IntEnum
 
 import click
+from paho.mqtt.client import MQTTMessage  # type: ignore
 
 from pioreactor.whoami import (
     get_unit_name,
@@ -30,6 +31,7 @@ class ErrorCode(IntEnum):
 
     MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE = 2
     DISK_IS_ALMOST_FULL_ERROR_CODE = 3
+    STIRRING_FAILED_ERROR_CODE = 4
 
 
 class Monitor(BackgroundJob):
@@ -40,28 +42,36 @@ class Monitor(BackgroundJob):
      2. Controls the LED / Button interaction
      3. Correction after a restart
      4. Check database backup if leader
-     5. Use the LED blinks to report error codes to the user, see ErrorCode
+     5. Use the LED blinks to report error codes to the user, see ErrorCode class
      6. Listens to MQTT for job to start, on the topic
          pioreactor/{unit}/$experiment/run/{job_name}   json-encoded args as message
 
     """
+
+    flickering: bool = False
 
     def __init__(self, unit, experiment):
         super().__init__(job_name="monitor", unit=unit, experiment=experiment)
 
         self.logger.debug(f"PioreactorApp version: {__version__}")
 
-        # set up a self check function to periodically check vitals and log them
-        self.self_check_thread = RepeatedTimer(
-            12 * 60 * 60, self.self_checks, job_name=self.job_name, run_immediately=True
-        ).start()
-
-        # set up GPIO for accessing the button
+        # set up GPIO for accessing the button and changing the LED
         self.setup_GPIO()
+
+        # set up a self check function to periodically check vitals and log them
+        # we manually run a self_check outside of a thread first, as if there are
+        # problems detected, we may want to block and not let the job continue.
+        self.self_checks()
+        self.self_check_thread = RepeatedTimer(
+            12 * 60 * 60,
+            self.self_checks,
+            job_name=self.job_name,
+            run_immediately=False,
+        ).start()
 
         self.start_passive_listeners()
 
-    def setup_GPIO(self):
+    def setup_GPIO(self) -> None:
         set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_UNAVAILABLE)
         set_gpio_availability(LED_PIN, GPIO_states.GPIO_UNAVAILABLE)
 
@@ -78,7 +88,7 @@ class Monitor(BackgroundJob):
             BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up
         )
 
-    def self_checks(self):
+    def self_checks(self) -> None:
         # watch for undervoltage problems
         self.check_for_power_problems()
 
@@ -93,19 +103,19 @@ class Monitor(BackgroundJob):
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
 
-    def check_for_mqtt_connection_to_leader(self):
-        # TODO test this
-        if (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
+    def check_for_mqtt_connection_to_leader(self) -> None:
+        while (not self.pub_client.is_connected()) or (
+            not self.sub_client.is_connected()
+        ):
             self.logger.warning(
-                "MQTT client(s) are not connected to leader."
-            )  # remember, this doesn't go to leader...
+                "Not able to connect MQTT clients to leader. Is the leader in config.ini correct?"
+            )  # remember, this doesn't get published to leader...
 
-            # should this be in a thread?
-            self.flicker_led_error_code(
-                ErrorCode.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE
+            self.flicker_led_with_error_code(
+                ErrorCode.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE.value
             )
 
-    def check_for_last_backup(self):
+    def check_for_last_backup(self) -> None:
 
         with local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
@@ -117,7 +127,7 @@ class Monitor(BackgroundJob):
                 if (datetime.utcnow() - latest_backup_at).days > 30:
                     self.logger.warning("Database hasn't been backed up in over 30 days.")
 
-    def check_state_of_jobs_on_machine(self):
+    def check_state_of_jobs_on_machine(self) -> None:
         """
         This compares jobs that are current running on the machine, vs
         what MQTT says. In the case of a restart on leader, MQTT can get out
@@ -128,7 +138,7 @@ class Monitor(BackgroundJob):
         latest_exp = get_latest_experiment_name()
         whats_running = pio_jobs_running()
 
-        def check_against_processes_running(msg):
+        def check_against_processes_running(msg) -> None:
             job = msg.topic.split("/")[3]
             if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
                 job not in whats_running
@@ -156,7 +166,7 @@ class Monitor(BackgroundJob):
 
         return
 
-    def on_ready(self):
+    def on_ready(self) -> None:
         self.flicker_led_response_okay()
 
         # we can delay this check until ready.
@@ -164,19 +174,19 @@ class Monitor(BackgroundJob):
 
         self.logger.info(f"{self.unit} online and ready.")
 
-    def on_disconnect(self):
+    def on_disconnect(self) -> None:
         self.GPIO.cleanup(LED_PIN)
         self.GPIO.cleanup(BUTTON_PIN)
         set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_AVAILABLE)
         set_gpio_availability(LED_PIN, GPIO_states.GPIO_AVAILABLE)
 
-    def led_on(self):
+    def led_on(self) -> None:
         self.GPIO.output(LED_PIN, self.GPIO.HIGH)
 
-    def led_off(self):
+    def led_off(self) -> None:
         self.GPIO.output(LED_PIN, self.GPIO.LOW)
 
-    def button_down_and_up(self, *args):
+    def button_down_and_up(self, *args) -> None:
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
         # don't put anything that is not idempotent in here.
         self.publish(
@@ -204,7 +214,7 @@ class Monitor(BackgroundJob):
         )
         self.led_off()
 
-    def check_for_power_problems(self):
+    def check_for_power_problems(self) -> None:
         """
         Note: `get_throttled` feature isn't available on the Rpi Zero
 
@@ -212,7 +222,7 @@ class Monitor(BackgroundJob):
          and https://github.com/N2Github/Proje
         """
 
-        def status_to_human_readable(status):
+        def status_to_human_readable(status) -> str:
             hr_status = []
 
             # if status & 0x40000:
@@ -250,7 +260,7 @@ class Monitor(BackgroundJob):
         else:
             self.logger.debug(f"Power status: {status_to_human_readable(status)}")
 
-    def publish_self_statistics(self):
+    def publish_self_statistics(self) -> None:
         import psutil  # type: ignore
 
         if is_testing_env():
@@ -272,7 +282,9 @@ class Monitor(BackgroundJob):
         else:
             # TODO: add documentation to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
-            self.flicker_led_error_code(ErrorCode.DISK_IS_ALMOST_FULL_ERROR_CODE)
+            self.flicker_led_with_error_code(
+                ErrorCode.DISK_IS_ALMOST_FULL_ERROR_CODE.value
+            )
 
         if cpu_usage_percent <= 75:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")
@@ -304,7 +316,12 @@ class Monitor(BackgroundJob):
             ),
         )
 
-    def flicker_led_response_okay(self, *args):
+    def flicker_led_response_okay(self, *args) -> None:
+        if self.flickering:
+            return
+
+        self.flickering = True
+
         for _ in range(4):
 
             self.led_on()
@@ -316,17 +333,26 @@ class Monitor(BackgroundJob):
             self.led_off()
             sleep(0.45)
 
-    def flicker_led_error_code(self, error_code):
-        while True:
+        self.flickering = False
+
+    def flicker_led_with_error_code(self, error_code: int) -> None:
+        if self.flickering:
+            return
+
+        self.flickering = True
+
+        for _ in range(3):
             for _ in range(error_code):
                 self.led_on()
-                sleep(0.5)
+                sleep(0.4)
                 self.led_off()
-                sleep(0.5)
+                sleep(0.4)
 
             sleep(5)
 
-    def run_job_on_machine(self, msg):
+        self.flickering = False
+
+    def run_job_on_machine(self, msg: MQTTMessage) -> None:
 
         import subprocess
         from shlex import (
@@ -338,7 +364,7 @@ class Monitor(BackgroundJob):
 
         prefix = ["nohup"]
         core_command = ["pio", "run", job_name]
-        args = sum(
+        args: list[str] = sum(
             [
                 [f"--{quote(key).replace('_', '-')}", quote(str(value))]
                 for key, value in payload.items()
@@ -353,6 +379,10 @@ class Monitor(BackgroundJob):
 
         subprocess.run(command, shell=True)
 
+    def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
+        payload = int(message.payload)
+        self.flicker_led_with_error_code(payload)
+
     def start_passive_listeners(self):
         self.subscribe_and_callback(
             self.flicker_led_response_okay,
@@ -360,8 +390,15 @@ class Monitor(BackgroundJob):
             qos=QOS.AT_LEAST_ONCE,
         )
 
+        # jobs can publish to the following topic to flicker error codes
+        self.subscribe_and_callback(
+            self.flicker_error_code_from_mqtt,
+            f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_with_error_code",
+            qos=QOS.AT_LEAST_ONCE,
+        )
+
         # one can also start jobs via MQTT, using the following topics.
-        # The message provided is options the the command line.
+        # The payload provided is a json dict of options for the command line invocation of the job.
         self.subscribe_and_callback(
             self.run_job_on_machine,
             f"pioreactor/{self.unit}/{UNIVERSAL_EXPERIMENT}/run/+",
