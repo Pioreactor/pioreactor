@@ -90,7 +90,7 @@ def get_rpi_machine() -> str:
 if is_testing_env():
     import fake_rpi  # type: ignore
 
-    fake_rpi.toggle_print(False)
+    # fake_rpi.toggle_print(False)
     sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
     sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
 

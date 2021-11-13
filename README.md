@@ -18,6 +18,18 @@ All the documentation is [available in our wiki](https://pioreactor.com/pages/do
 
 ### Development
 
+#### Images
+
+Images are built in the [Pioreactor/CustoPizer](https://github.com/Pioreactor/CustoPiZer/tree/pioreactor) repo.
+
+#### Local development
+
+```
+pip3 install -e .
+pip3 install -r requirements/requirements_dev.txt
+```
+
+
 #### Testing
 
 Paho MQTT uses lots of sockets, and running all tests at once can overload the max allowed open files. Try something
@@ -25,4 +37,20 @@ like `ulimit -Sn 10000` if you receive `OSError: [Errno 24] Too many open files`
 
 ```
 py.test pioreactor/tests
+```
+
+
+#### Running jobs locally
+
+```
+TESTING=1 pio run <job name>
+```
+
+You can also modify to hostname and experiment with
+
+```
+TESTING=1 \
+HOSTNAME=<whatever> \
+EXPERIMENT=<up to you> \
+pio run <job name>
 ```
