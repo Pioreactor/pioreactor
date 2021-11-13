@@ -3,7 +3,7 @@
 from json import loads
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.whoami import am_I_active_worker
+from pioreactor.whoami import am_I_active_worker, is_testing_env
 import random
 
 
@@ -116,7 +116,7 @@ class MockTMP1075:
         return 3 * math.sin(0.1 * time.time() / 60) + 25 + 0.2 * random.random()
 
 
-if am_I_active_worker():
+if am_I_active_worker() or is_testing_env():
 
     from rpi_hardware_pwm import HardwarePWM
 
