@@ -43,14 +43,16 @@ class Monitor(BackgroundJob):
      3. Correction after a restart
      4. Check database backup if leader
      5. Use the LED blinks to report error codes to the user, see ErrorCode class
+        can also be invoked with the MQTT topic:
+         pioreactor/{unit}/+/monitor/flicker_led_with_error_code   error_code as message
      6. Listens to MQTT for job to start, on the topic
          pioreactor/{unit}/$experiment/run/{job_name}   json-encoded args as message
 
     """
 
-    flickering: bool = False
+    currently_flickering: bool = False
 
-    def __init__(self, unit, experiment):
+    def __init__(self, unit, experiment) -> None:
         super().__init__(job_name="monitor", unit=unit, experiment=experiment)
 
         self.logger.debug(f"PioreactorApp version: {__version__}")
@@ -243,10 +245,10 @@ class Monitor(BackgroundJob):
             )
             return ". ".join(hr_status)
 
-        def currently_throttling(status):
+        def currently_throttling(status) -> int:
             return (status & 0x2) or (status & 0x1) or (status & 0x4)
 
-        def non_ignorable_status(status):
+        def non_ignorable_status(status) -> int:
             return (status & 0x1) or (status & 0x4)
 
         if is_testing_env():
@@ -317,10 +319,10 @@ class Monitor(BackgroundJob):
         )
 
     def flicker_led_response_okay(self, *args) -> None:
-        if self.flickering:
+        if self.currently_flickering:
             return
 
-        self.flickering = True
+        self.currently_flickering = True
 
         for _ in range(4):
 
@@ -333,24 +335,24 @@ class Monitor(BackgroundJob):
             self.led_off()
             sleep(0.45)
 
-        self.flickering = False
+        self.currently_flickering = False
 
     def flicker_led_with_error_code(self, error_code: int) -> None:
-        if self.flickering:
+        if self.currently_flickering:
             return
 
-        self.flickering = True
+        self.currently_flickering = True
 
         for _ in range(3):
             for _ in range(error_code):
                 self.led_on()
-                sleep(0.4)
+                sleep(0.3)
                 self.led_off()
-                sleep(0.4)
+                sleep(0.3)
 
-            sleep(5)
+            sleep(3)
 
-        self.flickering = False
+        self.currently_flickering = False
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
 
@@ -383,7 +385,7 @@ class Monitor(BackgroundJob):
         payload = int(message.payload)
         self.flicker_led_with_error_code(payload)
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.flicker_led_response_okay,
             f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_response_okay",

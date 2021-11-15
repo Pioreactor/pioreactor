@@ -1,3 +1,15 @@
+### Upcoming
+ - jobs can now publish to `pioreactor/<unit>/+/monitor/flicker_led_with_error_code/<error code>`
+    to have the LED flash a specific error code.
+ - fixed errors raised when not able to connect to leader's MQTT
+ - improvements to error handling in monitor job.
+
+### 21.11.1
+ - a version cut to test building images
+
+### 21.11.0
+ - too much to list
+
 ### 21.5.1
 
  - New plugin architecture

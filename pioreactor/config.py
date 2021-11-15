@@ -44,7 +44,7 @@ def reverse_config_section(section):
 @lru_cache(1)
 def get_config():
     """
-    This function intializes the configuration logic for the Pioreactor cluster.
+    This function initializes the configuration logic for the Pioreactor cluster.
 
     Locally, `config.ini` configurations can be overwritten by `unit_config.ini` (hence the very
     specific order we use in `config.read`)

@@ -24,8 +24,9 @@ from pioreactor import background_jobs as jobs
 from pioreactor import actions
 from pioreactor import plugin_management
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import subscribe_and_callback, subscribe
+from pioreactor.pubsub import subscribe_and_callback, subscribe, publish
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
+from pioreactor.utils import local_intermittent_storage
 import pioreactor.utils.networking as networking
 
 
@@ -65,34 +66,43 @@ def logs():
 
 @pio.command(name="blink", short_help="blink LED")
 def blink():
-    import RPi.GPIO as GPIO  # type: ignore
 
-    GPIO.setmode(GPIO.BCM)
+    with local_intermittent_storage("pio_jobs_running") as cache:
+        monitor_running = cache.get("monitor", b"0") == b"1"
 
-    from pioreactor.hardware_mappings import PCB_LED_PIN as LED_PIN
+    if not monitor_running:
 
-    def led_on():
-        GPIO.output(LED_PIN, GPIO.HIGH)
+        import RPi.GPIO as GPIO  # type: ignore
 
-    def led_off():
-        GPIO.output(LED_PIN, GPIO.LOW)
+        GPIO.setmode(GPIO.BCM)
 
-    with temporarily_set_gpio_unavailable(LED_PIN):
+        from pioreactor.hardware_mappings import PCB_LED_PIN as LED_PIN
 
-        GPIO.setup(LED_PIN, GPIO.OUT)
+        def led_on():
+            GPIO.output(LED_PIN, GPIO.HIGH)
 
-        for _ in range(4):
+        def led_off():
+            GPIO.output(LED_PIN, GPIO.LOW)
 
-            led_on()
-            sleep(0.14)
-            led_off()
-            sleep(0.14)
-            led_on()
-            sleep(0.14)
-            led_off()
-            sleep(0.45)
+        with temporarily_set_gpio_unavailable(LED_PIN):
 
-        GPIO.cleanup(LED_PIN)
+            GPIO.setup(LED_PIN, GPIO.OUT)
+
+            for _ in range(4):
+
+                led_on()
+                sleep(0.14)
+                led_off()
+                sleep(0.14)
+                led_on()
+                sleep(0.14)
+                led_off()
+                sleep(0.45)
+
+            GPIO.cleanup(LED_PIN)
+
+    else:
+        publish(f"pioreactor/{get_unit_name()}/.../monitor/flicker_led_response_okay", 1)
 
 
 @pio.command(name="kill", short_help="kill job(s)")
