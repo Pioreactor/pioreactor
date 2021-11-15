@@ -181,7 +181,8 @@ def view_cache(cache: str) -> None:
 @click.option("--app", is_flag=True, help="update the Pioreactor to latest")
 def update(ui: bool, app: bool) -> None:
     import subprocess
-    import requests
+
+    # import requests
 
     logger = create_logger(
         "update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
@@ -191,6 +192,7 @@ def update(ui: bool, app: bool) -> None:
         click.echo("Nothing to do. Specify either --app or --ui.")
 
     if app:
+        """
         latest_release_metadata = requests.get(
             "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
         ).json()
@@ -198,6 +200,10 @@ def update(ui: bool, app: bool) -> None:
         url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{latest_release_version}/pioreactor-{latest_release_version}-py3-none-any.whl"
 
         command = f'sudo pip3 install "pioreactor @ {url_to_get_whl}"'
+        """
+        # for now, let's just update to master to make my life easier
+        latest_release_version = "master"
+        command = "sudo pip3 install https://github.com/pioreactor/pioreactor/archive/master.zip"
         p = subprocess.run(
             command,
             shell=True,
@@ -291,8 +297,8 @@ if am_I_leader():
     )
     def add_pioreactor(new_name: str, ip: str) -> None:
         """
-        Add a new pioreactor to the cluster. new_name should be lowercase
-        characters with only [a-z] and [0-9]
+        Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
+
         """
         # TODO: move this to it's own file
         import socket
@@ -304,48 +310,25 @@ if am_I_leader():
         logger.info(f"Adding new pioreactor {new_name} to cluster.")
 
         # check to make sure new_name isn't already on the network
-        if networking.is_hostname_on_network(new_name):
-            logger.error(f"Name {new_name} is already on the network. Try another name.")
-            click.echo(
-                f"Name {new_name} is already on the network. Try another name.", err=True
-            )
-            sys.exit(1)
-        elif not networking.is_allowable_hostname(new_name):
-            click.echo(
-                "New name should only contain numbers, -, and English alphabet: a-z.",
-                err=True,
-            )
-            logger.error(
-                "New name should only contain numbers, -, and English alphabet: a-z."
-            )
-            sys.exit(1)
 
         # check to make sure raspberrypi.local is on network
-        raspberrypi_on_network = False
         checks, max_checks = 0, 20
-        while not raspberrypi_on_network:
+        while not networking.is_hostname_on_network(new_name):
             checks += 1
             try:
                 if ip:
                     socket.gethostbyaddr(ip)
                 else:
-                    socket.gethostbyname("raspberrypi")
+                    socket.gethostbyname(new_name)
 
             except socket.gaierror:
-                machine_name = ip if ip else "raspberrypi"
                 sleep(3)
-                click.echo(f"`{machine_name}` not found on network - checking again.")
+                click.echo(f"`{new_name}` not found on network - checking again.")
                 if checks >= max_checks:
-                    click.echo(
-                        f"`{machine_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on.",
-                        err=True,
-                    )  # TODO - is this echo redundant?
                     logger.error(
-                        f"`{machine_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
+                        f"`{new_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
                     )
                     sys.exit(1)
-            else:
-                raspberrypi_on_network = True
 
         res = subprocess.call(
             [
