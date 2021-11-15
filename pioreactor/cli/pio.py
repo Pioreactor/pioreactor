@@ -31,7 +31,7 @@ import pioreactor.utils.networking as networking
 
 
 @click.group()
-def pio():
+def pio() -> None:
     """
     Execute commands on this Pioreactor.
     See full documentation here: https://pioreactor.com/pages/Command-line-interface
@@ -40,7 +40,7 @@ def pio():
 
 
 @pio.command(name="logs", short_help="show recent logs")
-def logs():
+def logs() -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
@@ -65,7 +65,7 @@ def logs():
 
 
 @pio.command(name="blink", short_help="blink LED")
-def blink():
+def blink() -> None:
 
     with local_intermittent_storage("pio_jobs_running") as cache:
         monitor_running = cache.get("monitor", b"0") == b"1"
@@ -108,7 +108,7 @@ def blink():
 @pio.command(name="kill", short_help="kill job(s)")
 @click.argument("job", nargs=-1)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(job, all_jobs):
+def kill(job, all_jobs: bool) -> None:
     """
     stop a job by sending a SIGTERM to it.
     """
@@ -157,7 +157,7 @@ def version(verbose):
 
 @pio.command(name="view-cache", short_help="print out the contents of a cache")
 @click.argument("cache")
-def view_cache(cache):
+def view_cache(cache: str) -> None:
     import os.path
 
     from pioreactor.utils import local_intermittent_storage, local_persistant_storage
@@ -179,7 +179,7 @@ def view_cache(cache):
 @pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
 @click.option("--ui", is_flag=True, help="update the PioreactorUI to latest")
 @click.option("--app", is_flag=True, help="update the Pioreactor to latest")
-def update(ui, app):
+def update(ui: bool, app: bool) -> None:
     import subprocess
     import requests
 
@@ -270,14 +270,14 @@ if am_I_leader():
     run.add_command(actions.backup_database.click_backup_database)
 
     @pio.command(short_help="access the db CLI")
-    def db():
+    def db() -> None:
         import os
 
         os.system(f"sqlite3 {config['storage']['database']}")
 
     @pio.command(short_help="tail MQTT")
     @click.option("--topic", "-t", default="pioreactor/#")
-    def mqtt(topic):
+    def mqtt(topic) -> None:
         import os
 
         os.system(f"""mosquitto_sub -v -t '{topic}' -F "%I %t %p" """)
@@ -289,7 +289,7 @@ if am_I_leader():
         help="instead of looking for raspberrypi.local on the network, look for the IP address.",
         default="",
     )
-    def add_pioreactor(new_name, ip):
+    def add_pioreactor(new_name: str, ip: str) -> None:
         """
         Add a new pioreactor to the cluster. new_name should be lowercase
         characters with only [a-z] and [0-9]
@@ -360,7 +360,7 @@ if am_I_leader():
     @pio.command(
         name="cluster-status", short_help="report information on the pioreactor cluster"
     )
-    def cluster_status():
+    def cluster_status() -> None:
 
         click.secho(
             f"{'Unit name':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
