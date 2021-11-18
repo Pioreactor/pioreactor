@@ -696,7 +696,7 @@ class ODReader(BackgroundJob):
     def on_sleeping_to_ready(self) -> None:
         self.record_from_adc_timer.unpause()
 
-    def on_disconnect(self) -> None:
+    def on_disconnected(self) -> None:
 
         # turn off the LED after we have take our last ADC reading..
         try:

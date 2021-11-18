@@ -59,7 +59,7 @@ class ContinuousCycle(DosingAutomation):
     def on_sleeping_to_ready(self):
         self.pwm.start(self.duty_cycle)
 
-    def on_disconnect(self):
+    def on_disconnected(self):
         with suppress(AttributeError):
             self.pwm.cleanup()
 

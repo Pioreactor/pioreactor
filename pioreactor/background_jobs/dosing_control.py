@@ -104,7 +104,7 @@ class DosingController(BackgroundJob):
             # attribute error occurs on first init of _control
             pass
 
-    def on_disconnect(self):
+    def on_disconnected(self):
         try:
 
             for job in self.sub_jobs:

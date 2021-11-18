@@ -268,7 +268,7 @@ class DosingAutomation(BackgroundSubJob):
 
     ########## Private & internal methods
 
-    def on_disconnect(self):
+    def on_disconnected(self):
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 

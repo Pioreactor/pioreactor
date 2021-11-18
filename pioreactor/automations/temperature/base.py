@@ -118,12 +118,12 @@ class TemperatureAutomation(BackgroundSubJob):
 
     ########## Private & internal methods
 
-    def on_disconnect(self):
+    def on_disconnected(self) -> None:
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
         for job in self.sub_jobs:
-            job.set_state("disconnected")
+            job.set_state(self.DISCONNECTED)
 
         self.clear_mqtt_cache()
 
@@ -137,14 +137,14 @@ class TemperatureAutomation(BackgroundSubJob):
                 None,
             )
 
-    def _set_growth_rate(self, message):
+    def _set_growth_rate(self, message) -> None:
         if not message.payload:
             return
 
         self.previous_growth_rate = self._latest_growth_rate
         self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
 
-    def _set_temperature(self, message):
+    def _set_temperature(self, message) -> None:
         if not message.payload:
             return
 
@@ -160,7 +160,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self._latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_timestamp = time.time()
 
-    def _send_details_to_mqtt(self):
+    def _send_details_to_mqtt(self) -> None:
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/temperature_automation_settings",
             json.dumps(

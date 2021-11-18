@@ -167,7 +167,7 @@ class LEDAutomation(BackgroundSubJob):
 
     ########## Private & internal methods
 
-    def on_disconnect(self) -> None:
+    def on_disconnected(self) -> None:
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 

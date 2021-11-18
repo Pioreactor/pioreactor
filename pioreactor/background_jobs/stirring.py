@@ -164,8 +164,8 @@ class Stirrer(BackgroundJob):
     """
 
     published_settings = {
-        "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
-        "measured_rpm": {"datatype": "float", "settable": False, "unit": "RPM"},
+        "target_rpm": {"datatype": "json", "settable": True, "unit": "RPM"},
+        "measured_rpm": {"datatype": "json", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
     _previous_duty_cycle: float = 0
@@ -237,7 +237,7 @@ class Stirrer(BackgroundJob):
             else:
                 return lambda rpm: self.duty_cycle
 
-    def on_disconnect(self) -> None:
+    def on_disconnected(self) -> None:
 
         self.rpm_check_repeated_thread.cancel()
         self.stop_stirring()

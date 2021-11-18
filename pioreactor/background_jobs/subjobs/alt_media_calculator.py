@@ -36,7 +36,7 @@ class AltMediaCalculator(BackgroundSubJob):
 
         self.start_passive_listeners()
 
-    def on_disconnect(self):
+    def on_disconnected(self):
         self.publish_periodically_thread.cancel()
 
     def on_dosing_event(self, message):

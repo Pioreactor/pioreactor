@@ -69,7 +69,7 @@ class MqttToDBStreamer(BackgroundJob):
 
         self.initialize_callbacks(topics_and_callbacks)
 
-    def on_disconnect(self):
+    def on_disconnected(self):
         self.sqliteworker.close()  # close the db safely
 
     def create_on_message_callback(

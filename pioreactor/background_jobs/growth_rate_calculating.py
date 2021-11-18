@@ -361,6 +361,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
         else:
             # TODO: EKF values can be nans...
+            # TODO: these can be published_settings
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
                 {"growth_rate": self.state_[1], "timestamp": payload["timestamp"]},

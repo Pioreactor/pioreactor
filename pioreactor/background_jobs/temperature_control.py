@@ -69,7 +69,7 @@ class TemperatureController(BackgroundJob):
 
     published_settings = {
         "temperature_automation": {"datatype": "string", "settable": True},
-        "temperature": {"datatype": "float", "settable": False, "unit": "℃"},
+        "temperature": {"datatype": "json", "settable": False, "unit": "℃"},
         "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
     }
     temperature: Optional[dict[str, Any]] = None
@@ -256,7 +256,7 @@ class TemperatureController(BackgroundJob):
     def on_sleeping_to_ready(self):
         self.temperature_automation_job.set_state(self.READY)
 
-    def on_disconnect(self):
+    def on_disconnected(self):
         try:
             self.temperature_automation_job.set_state(self.DISCONNECTED)
         except AttributeError:

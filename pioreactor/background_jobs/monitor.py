@@ -176,7 +176,7 @@ class Monitor(BackgroundJob):
 
         self.logger.info(f"{self.unit} online and ready.")
 
-    def on_disconnect(self) -> None:
+    def on_disconnected(self) -> None:
         self.GPIO.cleanup(LED_PIN)
         self.GPIO.cleanup(BUTTON_PIN)
         set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_AVAILABLE)

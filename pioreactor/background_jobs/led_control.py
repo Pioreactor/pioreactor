@@ -71,7 +71,7 @@ class LEDController(BackgroundJob):
             if self.led_automation_job.state != self.READY:
                 self.led_automation_job.set_state(self.READY)
 
-    def on_disconnect(self):
+    def on_disconnected(self):
         with suppress(AttributeError):
             self.led_automation_job.set_state(self.DISCONNECTED)
 

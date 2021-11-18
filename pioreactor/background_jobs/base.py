@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Union, Any, Optional, NewType, TypedDict
+from typing import Callable, Union, Any, Optional, NewType, TypedDict, Literal
 import threading
 import atexit
 import sys
@@ -49,7 +49,7 @@ JobState = NewType("JobState", str)
 
 
 class PublishableSetting(TypedDict, total=False):
-    datatype: str
+    datatype: Literal["string", "float", "integer", "json", "boolean"]
     unit: str
     settable: bool
 
@@ -254,7 +254,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # specific things to do when a job sleeps / pauses
         pass
 
-    def on_disconnect(self) -> None:
+    def on_disconnected(self) -> None:
         # specific things to do when a job disconnects / exits
         pass
 
@@ -533,12 +533,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # call this first to make sure that it gets published to the broker.
         self.state = self.DISCONNECTED
 
-        # call job specific on_disconnect to clean up subjobs, etc.
+        # call job specific on_disconnected to clean up subjobs, etc.
         # however, if it fails, nothing below executes, so we don't get a clean
         # disconnect, etc.
-        # ideally, the on_disconnect shouldn't care what state it was in prior to being called.
+        # ideally, the on_disconnected shouldn't care what state it was in prior to being called.
         try:
-            self.on_disconnect()  # TODO: shouldn't this be on_disconnected
+            self.on_disconnected()
         except Exception as e:
             # since on_disconnected errors are common (see point below), we don't bother
             # making the visible to the user.
