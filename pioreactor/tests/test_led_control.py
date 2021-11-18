@@ -14,12 +14,12 @@ unit = get_unit_name()
 experiment = get_latest_experiment_name()
 
 
-def pause():
+def pause() -> None:
     # to avoid race conditions when updating state
     time.sleep(0.5)
 
 
-def test_silent():
+def test_silent() -> None:
     ld = LEDController("silent", duration=60, unit=unit, experiment=experiment)
     pause()
     pause()
@@ -41,7 +41,7 @@ def test_silent():
     ld.set_state(ld.DISCONNECTED)
 
 
-def test_we_respect_any_locks_on_leds_we_want_to_modify():
+def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     with local_intermittent_storage("led_locks") as cache:
         cache["B"] = b"0"
 

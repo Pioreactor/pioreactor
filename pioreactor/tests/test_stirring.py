@@ -20,12 +20,12 @@ def pause():
     time.sleep(0.5)
 
 
-def test_stirring_runs():
+def test_stirring_runs() -> None:
     st = start_stirring(target_rpm=500)
     st.set_state(st.DISCONNECTED)
 
 
-def test_change_target_rpm_mid_cycle():
+def test_change_target_rpm_mid_cycle() -> None:
     original_rpm = 500
 
     st = Stirrer(original_rpm, unit, exp, rpm_calculator=RpmCalculator())
@@ -47,7 +47,7 @@ def test_change_target_rpm_mid_cycle():
     st.set_state(st.DISCONNECTED)
 
 
-def test_pause_stirring_mid_cycle():
+def test_pause_stirring_mid_cycle() -> None:
 
     st = Stirrer(500, unit, exp, rpm_calculator=RpmCalculator())
     original_dc = st.duty_cycle
@@ -65,7 +65,7 @@ def test_pause_stirring_mid_cycle():
     st.set_state(st.DISCONNECTED)
 
 
-def test_publish_target_rpm():
+def test_publish_target_rpm() -> None:
     publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm", None, retain=True)
     pause()
     target_rpm = 500
@@ -79,7 +79,7 @@ def test_publish_target_rpm():
     st.set_state(st.DISCONNECTED)
 
 
-def test_publish_measured_rpm():
+def test_publish_measured_rpm() -> None:
     publish(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", None, retain=True)
     pause()
     target_rpm = 500
@@ -95,7 +95,7 @@ def test_publish_measured_rpm():
     st.set_state(st.DISCONNECTED)
 
 
-def test_stirring_with_lookup_linear_v1():
+def test_stirring_with_lookup_linear_v1() -> None:
     class FakeRpmCalculator:
         def __call__(self, *args):
             return 475
@@ -108,7 +108,7 @@ def test_stirring_with_lookup_linear_v1():
 
     target_rpm = 500
     current_dc = Stirrer.duty_cycle
-    st = Stirrer(target_rpm, unit, exp, rpm_calculator=FakeRpmCalculator())
+    st = Stirrer(target_rpm, unit, exp, rpm_calculator=FakeRpmCalculator())  # type: ignore
     st.start_stirring()
 
     assert st.duty_cycle == current_dc - 0.9 * (current_dc - (0.1 * target_rpm + 20))

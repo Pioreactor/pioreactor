@@ -92,7 +92,7 @@ from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
 from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
-    LED_CHANNELS,
+    ALL_LED_CHANNELS,
     LED_Channel,  # type
     lock_leds_temporarily,
     turn_off_leds_temporarily,
@@ -100,9 +100,11 @@ from pioreactor.actions.led_intensity import (
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 
-PD_Channel = Literal[1, 2, 3, 4]
+PD_Channel = Literal[
+    "1", "2", "3", "4"
+]  # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless. str suggest symbols, which they are.
+ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2", "3", "4"]
 
-PD_CHANNELS: list[PD_Channel] = [1, 2, 3, 4]
 REF_keyword = "REF"
 IR_keyword = "IR"
 
@@ -212,8 +214,8 @@ class ADCReader(LoggerMixin):
             # turn off all LEDs that might be causing problems
             # however, ODReader may turn on the IR LED again.
             change_led_intensity(
-                channels=LED_CHANNELS,
-                intensities=[0] * len(LED_CHANNELS),
+                channels=ALL_LED_CHANNELS,
+                intensities=[0] * len(ALL_LED_CHANNELS),
                 source_of_event="ADCReader",
                 verbose=True,
             )
@@ -588,7 +590,7 @@ class ODReader(BackgroundJob):
         self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
         self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
         self.non_ir_led_channels: list[LED_Channel] = [
-            ch for ch in LED_CHANNELS if ch != self.ir_channel
+            ch for ch in ALL_LED_CHANNELS if ch != self.ir_channel
         ]
 
         self.logger.debug(
@@ -597,7 +599,7 @@ class ODReader(BackgroundJob):
 
         # setup the ADC by turning off all LEDs that might cause problems.
         with turn_off_leds_temporarily(
-            LED_CHANNELS,
+            ALL_LED_CHANNELS,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -642,7 +644,7 @@ class ODReader(BackgroundJob):
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
         with turn_off_leds_temporarily(
-            LED_CHANNELS,
+            ALL_LED_CHANNELS,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -744,13 +746,13 @@ def find_ir_led_reference(
     od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
 ) -> Optional[PD_Channel]:
     if od_angle_channel1 == REF_keyword:
-        return 1
+        return "1"
     elif od_angle_channel2 == REF_keyword:
-        return 2
+        return "2"
     elif od_angle_channel3 == REF_keyword:
-        return 3
+        return "3"
     elif od_angle_channel4 == REF_keyword:
-        return 4
+        return "4"
     else:
         return None
 
@@ -759,20 +761,20 @@ def create_channel_angle_map(
     od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
 ) -> dict[PD_Channel, str]:
     # Inputs are either None, or a string like "135", "90,45", "REF", ...
-    # Example return dict: {1: "90,135", 2: "45,135", 4:"90"}
+    # Example return dict: {"1": "90,135", "2": "45,135", "4":"90"}
     channel_angle_map: dict[PD_Channel, str] = {}
 
     if od_angle_channel1 and od_angle_channel1 != REF_keyword:
-        channel_angle_map[1] = od_angle_channel1
+        channel_angle_map["1"] = od_angle_channel1
 
     if od_angle_channel2 and od_angle_channel2 != REF_keyword:
-        channel_angle_map[2] = od_angle_channel2
+        channel_angle_map["2"] = od_angle_channel2
 
     if od_angle_channel3 and od_angle_channel3 != REF_keyword:
-        channel_angle_map[3] = od_angle_channel3
+        channel_angle_map["3"] = od_angle_channel3
 
     if od_angle_channel4 and od_angle_channel4 != REF_keyword:
-        channel_angle_map[4] = od_angle_channel4
+        channel_angle_map["4"] = od_angle_channel4
 
     return channel_angle_map
 

@@ -9,14 +9,14 @@ from pioreactor.pubsub import subscribe
 
 
 class WatchDog(BackgroundJob):
-    def __init__(self, unit, experiment):
+    def __init__(self, unit, experiment) -> None:
         super(WatchDog, self).__init__(
             job_name="watchdog", unit=unit, experiment=experiment
         )
 
         self.start_passive_listeners()
 
-    def watch_for_lost_state(self, msg):
+    def watch_for_lost_state(self, msg) -> None:
         if msg.payload.decode() == self.LOST:
 
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
@@ -56,11 +56,11 @@ class WatchDog(BackgroundJob):
                     self.logger.info(f"Update: {unit} is connected. All is well.")
                     return
 
-    def watch_for_new_experiment(self, msg):
+    def watch_for_new_experiment(self, msg) -> None:
         new_experiment_name = msg.payload.decode()
         self.logger.debug(f"New latest experiment in MQTT: {new_experiment_name}")
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.watch_for_lost_state,
             "pioreactor/+/+/monitor/$state",

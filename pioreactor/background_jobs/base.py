@@ -439,7 +439,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
 
         def wrap_callback(actual_callback) -> Callable:
-            def _callback(client, userdata, message):
+            def _callback(client, userdata, message: MQTTMessage):
                 if not allow_retained and message.retain:
                     return
                 try:
@@ -602,12 +602,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(state.capitalize() + ".")
 
     @staticmethod
-    def get_attr_from_topic(topic):
+    def get_attr_from_topic(topic) -> str:
         pieces = topic.split("/")
         assert len(pieces) == 6, "something is wrong"
         return pieces[4].lstrip("$")
 
-    def set_attr_from_message(self, message) -> None:
+    def set_attr_from_message(self, message: MQTTMessage) -> None:
         new_value = message.payload.decode()
         attr = self.get_attr_from_topic(message.topic)
 

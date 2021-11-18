@@ -10,7 +10,7 @@ from pioreactor.whoami import (
 from pioreactor.pubsub import publish, subscribe
 
 
-def test_check_job_states_in_monitor():
+def test_check_job_states_in_monitor() -> None:
     unit = get_unit_name()
     exp = UNIVERSAL_EXPERIMENT
 

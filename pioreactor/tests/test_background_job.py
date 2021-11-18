@@ -98,7 +98,7 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     bj.set_state(bj.DISCONNECTED)
 
 
-def test_error_in_subscribe_and_callback_is_logged():
+def test_error_in_subscribe_and_callback_is_logged() -> None:
     class TestJob(BackgroundJob):
         def __init__(self, *args, **kwargs):
             super(TestJob, self).__init__(*args, **kwargs)

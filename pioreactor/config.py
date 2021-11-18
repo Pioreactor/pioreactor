@@ -20,7 +20,7 @@ def __getattr__(attr):
         raise AttributeError
 
 
-def reverse_config_section(section):
+def reverse_config_section(section) -> dict[str, str]:
     """
     creates an inverted lookup from a config section. Useful to find LEDs and PWM.
     """
@@ -127,7 +127,7 @@ def get_config():
 
 
 @lru_cache(1)
-def get_leader_hostname():
+def get_leader_hostname() -> str:
     return get_config().get("network.topology", "leader_hostname")
 
 

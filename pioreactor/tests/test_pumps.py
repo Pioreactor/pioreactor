@@ -24,7 +24,7 @@ def setup_function():
         )
 
 
-def test_pump_io():
+def test_pump_io() -> None:
     add_media(ml=0.1, unit=unit, experiment=exp)
     add_alt_media(ml=0.1, unit=unit, experiment=exp)
     remove_waste(ml=0.1, unit=unit, experiment=exp)
@@ -34,7 +34,7 @@ def test_pump_io():
     remove_waste(duration=0.1, unit=unit, experiment=exp)
 
 
-def test_pump_io_doesnt_allow_negative():
+def test_pump_io_doesnt_allow_negative() -> None:
     with pytest.raises(AssertionError):
         add_media(ml=-1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
@@ -50,7 +50,7 @@ def test_pump_io_doesnt_allow_negative():
         remove_waste(duration=-1, unit=unit, experiment=exp)
 
 
-def test_pump_io_cant_set_both_duration_and_ml():
+def test_pump_io_cant_set_both_duration_and_ml() -> None:
     with pytest.raises(AssertionError):
         add_media(ml=1, duration=1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):

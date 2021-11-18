@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 import logging
 from logging import handlers, Logger
+from typing import Optional
+from json_log_formatter import JSONFormatter  # type: ignore
+from paho.mqtt.client import Client  # type: ignore
+
 from pioreactor.pubsub import create_client, publish_to_pioreactor_cloud
 from pioreactor.whoami import (
     get_unit_name,
@@ -11,7 +15,6 @@ from pioreactor.whoami import (
 )
 from pioreactor.config import config
 from pioreactor.utils.timing import current_utc_time
-from json_log_formatter import JSONFormatter  # type: ignore
 
 logging.raiseExceptions = False
 
@@ -39,8 +42,13 @@ class MQTTHandler(logging.Handler):
     """
 
     def __init__(
-        self, topic: str, client, qos: int = 2, retain: bool = False, **mqtt_kwargs
-    ):
+        self,
+        topic: str,
+        client: Client,
+        qos: int = 2,
+        retain: bool = False,
+        **mqtt_kwargs,
+    ) -> None:
         logging.Handler.__init__(self)
         self.topic = topic
         self.qos = qos
@@ -66,7 +74,7 @@ class MQTTHandler(logging.Handler):
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish(timeout=5)
 
-    def close(self):
+    def close(self) -> None:
         self.client.disconnect()
         self.client.loop_stop()
         super().close()
@@ -77,7 +85,7 @@ def create_logger(
     unit: str = None,
     experiment: str = None,
     source: str = "app",
-    pub_client=None,
+    pub_client: Optional[Client] = None,
     to_mqtt: bool = True,
 ) -> Logger:
     """

@@ -15,7 +15,7 @@ from pioreactor.utils import local_intermittent_storage
 
 
 LED_Channel = Literal["A", "B", "C", "D"]
-LED_CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
+ALL_LED_CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
 
 
 LED_LOCKED = b"1"
@@ -64,7 +64,7 @@ def _update_current_state(
 
     with local_intermittent_storage("leds") as led_cache:
         old_state = {
-            channel: float(led_cache.get(channel, 0)) for channel in LED_CHANNELS
+            channel: float(led_cache.get(channel, 0)) for channel in ALL_LED_CHANNELS
         }
 
         # update cache
@@ -72,7 +72,7 @@ def _update_current_state(
             led_cache[channel] = str(intensity)
 
         new_state = {
-            channel: float(led_cache.get(channel, 0)) for channel in LED_CHANNELS
+            channel: float(led_cache.get(channel, 0)) for channel in ALL_LED_CHANNELS
         }
 
         return new_state, old_state
@@ -148,8 +148,8 @@ def led_intensity(
                 0.0 <= intensity <= 100.0
             ), "intensity should be between 0 and 100, inclusive"
             assert (
-                channel in LED_CHANNELS
-            ), f"saw incorrect channel {channel}, not in {LED_CHANNELS}"
+                channel in ALL_LED_CHANNELS
+            ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
             intensity = float(intensity)
 
             dac = DAC43608()
@@ -211,7 +211,7 @@ def led_intensity(
 @click.command(name="led_intensity")
 @click.option(
     "--channel",
-    type=click.Choice(LED_CHANNELS, case_sensitive=False),
+    type=click.Choice(ALL_LED_CHANNELS, case_sensitive=False),
     multiple=True,
     required=True,
 )

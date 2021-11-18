@@ -6,11 +6,11 @@ import numpy as np
 from pioreactor.background_jobs.od_reading import ADCReader
 
 
-def pause():
+def pause() -> None:
     time.sleep(0.25)
 
 
-def test_sin_regression_exactly():
+def test_sin_regression_exactly() -> None:
 
     x = [i / 25 for i in range(25)]
     y = [10 + 2 * np.sin(60 * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
@@ -23,7 +23,7 @@ def test_sin_regression_exactly():
     assert np.abs(phi - 0) < 0.1
 
 
-def test_sin_regression_all_zeros_should_return_zeros():
+def test_sin_regression_all_zeros_should_return_zeros() -> None:
 
     adc_reader = ADCReader(channels=[])
 
@@ -34,7 +34,7 @@ def test_sin_regression_all_zeros_should_return_zeros():
     assert A == 0
 
 
-def test_sin_regression_constant_should_return_constant():
+def test_sin_regression_constant_should_return_constant() -> None:
 
     adc_reader = ADCReader(channels=[])
 
@@ -45,7 +45,7 @@ def test_sin_regression_constant_should_return_constant():
     assert A == 0.0
 
 
-def test_sin_regression_with_linear_change_should_return_close_to_mean():
+def test_sin_regression_with_linear_change_should_return_close_to_mean() -> None:
 
     adc_reader = ADCReader(channels=[])
 
@@ -57,7 +57,7 @@ def test_sin_regression_with_linear_change_should_return_close_to_mean():
     assert np.abs(C - np.mean(y)) < 0.001
 
 
-def test_sin_regression_with_slightly_lower_frequency():
+def test_sin_regression_with_slightly_lower_frequency() -> None:
     # https://electronics.stackexchange.com/questions/57878/how-precise-is-the-frequency-of-the-ac-electricity-network
     actual_freq = 59.5
 
@@ -70,7 +70,7 @@ def test_sin_regression_with_slightly_lower_frequency():
     assert np.abs(C - 10) < 0.1
 
 
-def test_sin_regression_with_slightly_higher_frequency_but_correct_freq_has_better_fit():
+def test_sin_regression_with_slightly_higher_frequency_but_correct_freq_has_better_fit() -> None:
     # https://electronics.stackexchange.com/questions/57878/how-precise-is-the-frequency-of-the-ac-electricity-network
     actual_freq = 60.5
 
@@ -86,7 +86,7 @@ def test_sin_regression_with_slightly_higher_frequency_but_correct_freq_has_bett
     assert aic_61 < aic_60  # lower is better
 
 
-def test_sin_regression_with_strong_penalizer():
+def test_sin_regression_with_strong_penalizer() -> None:
 
     adc_reader = ADCReader(channels=[])
 

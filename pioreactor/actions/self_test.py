@@ -21,14 +21,14 @@ from pioreactor.whoami import (
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.background_jobs.od_reading import (
     ADCReader,
-    PD_CHANNELS,
+    ALL_PD_CHANNELS,
     PD_Channel,
     IR_keyword,
 )
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
-from pioreactor.actions.led_intensity import led_intensity, LED_CHANNELS, LED_Channel
+from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS, LED_Channel
 from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
@@ -37,7 +37,7 @@ from pioreactor.config import config
 def test_pioreactor_hat_present(logger: Logger, unit: str, experiment: str) -> None:
     try:
         adc_reader = ADCReader(
-            channels=PD_CHANNELS,
+            channels=ALL_PD_CHANNELS,
             dynamic_gain=False,
             initial_gain=16,
             fake_data=is_testing_env(),
@@ -65,7 +65,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     results: dict[tuple[LED_Channel, PD_Channel], float] = {}
 
     adc_reader = ADCReader(
-        channels=PD_CHANNELS,
+        channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
         initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
         fake_data=is_testing_env(),
@@ -73,17 +73,17 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
-        LED_CHANNELS,
-        intensities=[0] * len(LED_CHANNELS),
+        ALL_LED_CHANNELS,
+        intensities=[0] * len(ALL_LED_CHANNELS),
         unit=unit,
         source_of_event="self_test",
         experiment=current_experiment_name,
         verbose=False,
     )
 
-    for led_channel in LED_CHANNELS:
+    for led_channel in ALL_LED_CHANNELS:
         varying_intensity_results: dict[PD_Channel, list[float]] = {
-            pd_channel: [] for pd_channel in PD_CHANNELS
+            pd_channel: [] for pd_channel in ALL_PD_CHANNELS
         }
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
@@ -101,14 +101,14 @@ def test_all_positive_correlations_between_pds_and_leds(
             readings2 = adc_reader.take_reading()
 
             # Add to accumulating list
-            for pd_channel in PD_CHANNELS:
+            for pd_channel in ALL_PD_CHANNELS:
                 varying_intensity_results[pd_channel].append(
                     0.5 * (readings1[pd_channel] + readings2[pd_channel])
                 )
 
         # compute the linear correlation between the intensities and observed PD measurements
 
-        for pd_channel in PD_CHANNELS:
+        for pd_channel in ALL_PD_CHANNELS:
             results[(led_channel, pd_channel)] = round(
                 correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
             )
@@ -162,7 +162,7 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
 
     adc_reader = ADCReader(
-        channels=PD_CHANNELS,
+        channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
         initial_gain=16,
         fake_data=is_testing_env(),
@@ -171,8 +171,8 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
     adc_reader.setup_adc()
 
     led_intensity(
-        LED_CHANNELS,
-        intensities=[0] * len(LED_CHANNELS),
+        ALL_LED_CHANNELS,
+        intensities=[0] * len(ALL_LED_CHANNELS),
         unit=unit,
         source_of_event="self_test",
         experiment=experiment,
@@ -181,7 +181,7 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
 
     readings = adc_reader.take_reading()
 
-    assert all([readings[pd_channel] < 0.005 for pd_channel in PD_CHANNELS]), readings
+    assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
 def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:

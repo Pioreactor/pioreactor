@@ -3,13 +3,14 @@
 from pioreactor.actions.led_intensity import (
     lock_leds_temporarily,
     led_intensity,
+    LED_Channel,
 )
 from pioreactor.utils import local_intermittent_storage
 
 
-def test_lock_will_prevent_led_from_updating():
+def test_lock_will_prevent_led_from_updating() -> None:
 
-    channel = "A"
+    channel: LED_Channel = "A"
 
     assert led_intensity(channels=channel, intensities=20)
 
@@ -17,9 +18,9 @@ def test_lock_will_prevent_led_from_updating():
         assert not led_intensity(channels=channel, intensities=10)
 
 
-def test_local_cache_is_updated():
+def test_local_cache_is_updated() -> None:
 
-    channel = "B"
+    channel: LED_Channel = "B"
     assert led_intensity(channels=channel, intensities=20)
 
     with local_intermittent_storage("leds") as cache:

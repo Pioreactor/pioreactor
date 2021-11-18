@@ -304,7 +304,9 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
-    def scale_raw_observations(self, observations) -> dict[PD_Channel, float]:
+    def scale_raw_observations(
+        self, observations: dict[PD_Channel, float]
+    ) -> dict[PD_Channel, float]:
         def scale_and_shift(obs, shift, scale):
             return (obs - shift) / (scale - shift)
 

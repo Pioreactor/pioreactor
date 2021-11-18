@@ -6,22 +6,23 @@ import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import current_utc_time
 
 
-def test_kalman_filter_entries():
+def test_kalman_filter_entries() -> None:
     config["storage"]["database"] = "test.sqlite"
     config["od_config"]["samples_per_second"] = "0.2"
 
     unit = "unit"
     exp = "exp"
 
-    def parse_kalman_filter_outputs(topic, payload):
+    def parse_kalman_filter_outputs(topic, payload) -> dict:
         metadata, _ = m2db.produce_metadata(topic)
         payload = json.loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": metadata.timestamp,
+            "timestamp": current_utc_time(),
             "state": json.dumps(payload["state"]),
             "covariance_matrix": json.dumps(payload["covariance_matrix"]),
         }

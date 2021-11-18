@@ -17,12 +17,14 @@ unit = get_unit_name()
 experiment = get_latest_experiment_name()
 
 
-def pause():
+def pause() -> None:
     # to avoid race conditions when updating state
     time.sleep(0.5)
 
 
-def create_od_raw_batched_json(channels=None, voltages=None, angles=None, timestamp=None):
+def create_od_raw_batched_json(
+    channels=None, voltages=None, angles=None, timestamp=None
+) -> str:
     """
     channel is a list, elements from {0, 1, 2, 3}
     raw_signal is a list
@@ -39,7 +41,7 @@ def create_od_raw_batched_json(channels=None, voltages=None, angles=None, timest
 
 class TestGrowthRateCalculating:
     @classmethod
-    def setup_class(cls):
+    def setup_class(cls) -> None:
         # clear the caches and MQTT
 
         with local_persistant_storage("od_blank") as cache:
@@ -60,7 +62,7 @@ class TestGrowthRateCalculating:
             retain=True,
         )
 
-    def test_subscribing(self):
+    def test_subscribing(self) -> None:
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1})
@@ -130,7 +132,7 @@ class TestGrowthRateCalculating:
         assert calc.state_ is not None
         calc.set_state(calc.DISCONNECTED)
 
-    def test_restart(self):
+    def test_restart(self) -> None:
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1, 2: 1})
@@ -205,7 +207,7 @@ class TestGrowthRateCalculating:
 
         calc2.set_state(calc2.DISCONNECTED)
 
-    def test_single_observation(self):
+    def test_single_observation(self) -> None:
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1})
@@ -234,7 +236,7 @@ class TestGrowthRateCalculating:
         assert True
         calc.set_state(calc.DISCONNECTED)
 
-    def test_scaling_works(self):
+    def test_scaling_works(self) -> None:
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
@@ -257,7 +259,7 @@ class TestGrowthRateCalculating:
 
         calc.set_state(calc.DISCONNECTED)
 
-    def test_shock_from_dosing_works(self):
+    def test_shock_from_dosing_works(self) -> None:
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
@@ -362,7 +364,7 @@ class TestGrowthRateCalculating:
         assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
         calc.set_state(calc.DISCONNECTED)
 
-    def test_end_to_end(self):
+    def test_end_to_end(self) -> None:
 
         exp = "experiment"
         unit = "unit"
@@ -370,7 +372,10 @@ class TestGrowthRateCalculating:
         config["od_config"]["samples_per_second"] = "0.2"
 
         start_od_reading(
-            *["135", "90", None, None],
+            "135",
+            "90",
+            None,
+            None,
             sampling_rate=interval,
             unit=unit,
             experiment=exp,
@@ -385,7 +390,7 @@ class TestGrowthRateCalculating:
         assert calc.ekf.state_[-2] != 1.0
         calc.set_state(calc.DISCONNECTED)
 
-    def test_od_blank_being_non_zero(self):
+    def test_od_blank_being_non_zero(self) -> None:
 
         with local_persistant_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
@@ -415,11 +420,12 @@ class TestGrowthRateCalculating:
         assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
         assert calc.od_blank == {"2": 0.4, "1": 0.25}
         results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
+        print(results)
         assert abs(results["2"] - 1.5) < 0.00001
         assert abs(results["1"] - 1.4) < 0.00001
         calc.set_state(calc.DISCONNECTED)
 
-    def test_od_blank_being_higher_than_observations(self):
+    def test_od_blank_being_higher_than_observations(self) -> None:
 
         with local_persistant_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
@@ -464,7 +470,7 @@ class TestGrowthRateCalculating:
         pause()
         calc.set_state(calc.DISCONNECTED)
 
-    def test_od_blank_being_empty(self):
+    def test_od_blank_being_empty(self) -> None:
 
         with local_persistant_storage("od_blank") as cache:
             if experiment in cache:
@@ -504,7 +510,7 @@ class TestGrowthRateCalculating:
         assert abs(results["1"] - 1.2) < 0.00001
         calc.set_state(calc.DISCONNECTED)
 
-    def test_observation_order_is_preserved_in_job(self):
+    def test_observation_order_is_preserved_in_job(self) -> None:
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 2, "2": 1})
@@ -529,7 +535,7 @@ class TestGrowthRateCalculating:
         assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {"2": 2.0, "1": 0.25}
         calc.set_state(calc.DISCONNECTED)
 
-    def test_zero_blank_and_zero_od_coming_in(self):
+    def test_zero_blank_and_zero_od_coming_in(self) -> None:
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0})

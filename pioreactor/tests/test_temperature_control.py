@@ -14,7 +14,7 @@ def pause(n=1):
     time.sleep(n)
 
 
-def test_pid_stable_automation():
+def test_pid_stable_automation() -> None:
     with temperature_control.TemperatureController(
         "pid_stable", target_temperature=50, unit=unit, experiment=experiment
     ) as algo:
@@ -28,7 +28,7 @@ def test_pid_stable_automation():
         algo.temperature_automation_job.target_temperature == 55
 
 
-def test_changing_temperature_algo_over_mqtt():
+def test_changing_temperature_algo_over_mqtt() -> None:
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
         None,
@@ -51,7 +51,7 @@ def test_changing_temperature_algo_over_mqtt():
         assert algo.temperature_automation_job.target_temperature == 20
 
 
-def test_changing_temperature_algo_over_mqtt_and_then_update_params():
+def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
         None,
@@ -80,7 +80,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params():
         assert algo.temperature_automation_job.duty_cycle == 30
 
 
-def test_heating_is_reduced_when_set_temp_is_exceeded():
+def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
 
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
@@ -96,7 +96,7 @@ def test_heating_is_reduced_when_set_temp_is_exceeded():
         assert 0 < t.heater_duty_cycle < 50
 
 
-def test_heating_stops_when_max_temp_is_exceeded():
+def test_heating_stops_when_max_temp_is_exceeded() -> None:
 
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
@@ -113,7 +113,7 @@ def test_heating_stops_when_max_temp_is_exceeded():
         assert t.heater_duty_cycle == 0
 
 
-def test_child_cant_update_heater_when_locked():
+def test_child_cant_update_heater_when_locked() -> None:
 
     t = temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment, eval_and_publish_immediately=False
@@ -128,7 +128,7 @@ def test_child_cant_update_heater_when_locked():
     t.set_state(t.DISCONNECTED)
 
 
-def test_constant_duty_cycle_init():
+def test_constant_duty_cycle_init() -> None:
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
         None,
@@ -143,7 +143,7 @@ def test_constant_duty_cycle_init():
         assert algo.heater_duty_cycle == 50
 
 
-def test_setting_pid_control_after_startup_will_start_some_heating():
+def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
 
     with temperature_control.TemperatureController(
@@ -160,7 +160,7 @@ def test_setting_pid_control_after_startup_will_start_some_heating():
         assert t.heater_duty_cycle > 0
 
 
-def test_duty_cycle_is_published_and_not_settable():
+def test_duty_cycle_is_published_and_not_settable() -> None:
 
     dc_msgs = []
 
