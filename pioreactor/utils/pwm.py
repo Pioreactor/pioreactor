@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 from contextlib import contextmanager
+from typing import Iterator
 from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
 from pioreactor.utils import local_intermittent_storage
@@ -59,7 +61,7 @@ class PWM:
     HARDWARE_PWM_AVAILABLE_PINS = {12, 13}
     HARDWARE_PWM_CHANNELS = {12: 0, 13: 1}
 
-    def __init__(self, pin: int, hz: float, always_use_software: bool = False):
+    def __init__(self, pin: int, hz: float, always_use_software: bool = False) -> None:
         self.logger = create_logger("PWM")
         self.pin = pin
         self.hz = hz
@@ -99,13 +101,13 @@ class PWM:
         )
 
     @property
-    def using_hardware(self):
+    def using_hardware(self) -> bool:
         try:
             return isinstance(self.pwm, HardwarePWM)
         except AttributeError:
             return False
 
-    def start(self, initial_duty_cycle: float):
+    def start(self, initial_duty_cycle: float) -> None:
         assert (
             0.0 <= initial_duty_cycle <= 100.0
         ), "dc should be between 0 and 100, inclusive."
@@ -115,10 +117,10 @@ class PWM:
 
         self.pwm.start(initial_duty_cycle)
 
-    def stop(self):
+    def stop(self) -> None:
         self.pwm.stop()
 
-    def change_duty_cycle(self, dc: float):
+    def change_duty_cycle(self, dc: float) -> None:
         assert 0 <= dc <= 100, "dc should be between 0 and 100, inclusive."
 
         with local_intermittent_storage("pwm_dc") as cache:
@@ -129,7 +131,7 @@ class PWM:
         else:
             self.pwm.ChangeDutyCycle(dc)  # type: ignore
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         self.stop()
         self.unlock()
 
@@ -162,24 +164,24 @@ class PWM:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
             return pwm_locks.get(str(self.pin)) == PWM_LOCKED
 
-    def lock(self):
+    def lock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
             pwm_locks[str(self.pin)] = PWM_LOCKED
 
-    def unlock(self):
+    def unlock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
             pwm_locks[str(self.pin)] = PWM_UNLOCKED
 
     @contextmanager
-    def lock_temporarily(self):
+    def lock_temporarily(self) -> Iterator[None]:
         try:
             self.lock()
             yield
         finally:
             self.unlock()
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         self.cleanup()
 
-    def __enter__(self):
+    def __enter__(self) -> PWM:
         return self

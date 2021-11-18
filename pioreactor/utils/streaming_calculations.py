@@ -21,7 +21,7 @@ class ExponentialMovingAverage:
             self.value = (1 - self.alpha) * new_value + self.alpha * self.value
         return self.value
 
-    def __call__(self):
+    def __call__(self) -> Optional[float]:
         return self.value
 
 
@@ -325,7 +325,7 @@ class CultureGrowthEKF:
         return J
 
     @staticmethod
-    def _is_positive_definite(A):
+    def _is_positive_definite(A) -> bool:
         import numpy as np
 
         if np.array_equal(A, A.T):
@@ -373,7 +373,7 @@ class PID:
         self.target_name = target_name
         self.job_name = job_name
 
-    def set_setpoint(self, new_setpoint):
+    def set_setpoint(self, new_setpoint) -> None:
         self.pid.setpoint = new_setpoint
 
     def update(self, input_, dt) -> float:

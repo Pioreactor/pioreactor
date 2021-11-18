@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-# math_helpers.py
 
 
-def simple_linear_regression(x, y):
+def simple_linear_regression(x, y) -> tuple[tuple[float, float], tuple[float, float]]:
     import numpy as np
 
     x = np.array(x)

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 import time, logging
 from contextlib import suppress
-from typing import Callable, Optional
+from typing import Callable, Optional, Generator
 from datetime import datetime, timezone
 from threading import Event, Thread
 from time import perf_counter
@@ -12,7 +13,7 @@ from contextlib import contextmanager
 
 
 @contextmanager
-def catchtime():
+def catchtime() -> Generator[Callable, None, None]:
     start = perf_counter()
     yield lambda: perf_counter() - start
 
@@ -22,7 +23,7 @@ def current_utc_time() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def brief_pause():
+def brief_pause() -> None:
     if is_testing_env():
         return
     else:
@@ -87,7 +88,7 @@ class RepeatedTimer:
         self.event = Event()
         self.thread = Thread(target=self._target, daemon=True)
 
-    def _target(self):
+    def _target(self) -> None:
         """
         This function runs in a thread.
 
@@ -106,7 +107,7 @@ class RepeatedTimer:
                 continue
             self._execute_function()
 
-    def _execute_function(self):
+    def _execute_function(self) -> None:
         try:
             self.function(*self.args, **self.kwargs)
         except Exception as e:
@@ -114,34 +115,34 @@ class RepeatedTimer:
             self.logger.error(e)
 
     @property
-    def _time(self):
+    def _time(self) -> float:
         return self.interval - ((time.time() - self.start_time) % self.interval)
 
-    def pause(self):
+    def pause(self) -> None:
         """
         Stop the target function from running. This does not pause the timing however,
         so when you unpause, it will pick up where it is suppose to be.
         """
         self.is_paused = True
 
-    def unpause(self):
+    def unpause(self) -> None:
         """
         See `pause`
         """
         self.is_paused = False
 
-    def cancel(self):
+    def cancel(self) -> None:
         self.event.set()
         with suppress(RuntimeError):
             # possible to happen if self.thread hasn't started yet,
             # so cancelling doesn't make sense.
             self.thread.join()
 
-    def start(self):
+    def start(self) -> RepeatedTimer:
         # this is idempotent
         with suppress(RuntimeError):
             self.thread.start()
         return self
 
-    def join(self):
+    def join(self) -> None:
         self.cancel()

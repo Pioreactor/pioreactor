@@ -225,7 +225,10 @@ class ADCReader(LoggerMixin):
 
             sys.exit(1)
 
-    def check_on_gain(self, value: float) -> None:
+    def check_on_gain(self, value: Optional[float]) -> None:
+        if value is None:
+            return
+
         for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
             if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
                 self.gain = gain
@@ -530,7 +533,12 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         self.blank_reading = batched_reading[self.channel]
 
     def __call__(self, od_signal: float) -> float:
-        return od_signal / self.led_output_ema()
+        led_output = self.led_output_ema()
+        if led_output is None:
+            return od_signal
+        else:
+            assert isinstance(led_output, float)
+            return od_signal / led_output
 
 
 class NullIrLedReferenceTracker(IrLedReferenceTracker):
