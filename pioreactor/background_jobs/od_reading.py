@@ -149,7 +149,7 @@ class ADCReader(LoggerMixin):
         fake_data: bool = False,
         dynamic_gain: bool = True,
         initial_gain=1,
-    ):
+    ) -> None:
         super().__init__()
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
@@ -161,7 +161,7 @@ class ADCReader(LoggerMixin):
             f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
         )
 
-    def setup_adc(self):
+    def setup_adc(self) -> ADCReader:
         """
         This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
 
@@ -186,7 +186,7 @@ class ADCReader(LoggerMixin):
 
         for channel in self.channels:
             self.analog_in[channel] = AnalogIn(
-                self.ads, channel - 1
+                self.ads, int(channel) - 1
             )  # subtract 1 because we use 1-indexing
 
         # check if using correct gain
@@ -236,7 +236,9 @@ class ADCReader(LoggerMixin):
     def set_ads_gain(self, gain) -> None:
         self.ads.gain = gain  # this assignment checks to see if the gain is allowed.
 
-    def sin_regression_with_known_freq(self, x, y, freq, prior_C=None, penalizer_C=None):
+    def sin_regression_with_known_freq(
+        self, x, y, freq, prior_C=None, penalizer_C=None
+    ) -> tuple[tuple[float, Optional[float], Optional[float]], float]:
         r"""
         Assumes a known frequency.
         Formula is
@@ -360,7 +362,7 @@ class ADCReader(LoggerMixin):
             8: 0.512,
             16: 0.256,
         }
-        max_signal = 0
+        max_signal = 0.0
 
         aggregated_signals: dict[PD_Channel, list[int]] = {
             channel: [] for channel in self.channels

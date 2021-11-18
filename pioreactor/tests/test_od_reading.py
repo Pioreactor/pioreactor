@@ -18,6 +18,8 @@ def test_sin_regression_exactly() -> None:
     adc_reader = ADCReader(channels=[])
 
     (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    assert isinstance(A, float)
+    assert isinstance(phi, float)
     assert np.abs(C - 10) < 0.1
     assert np.abs(A - 2) < 0.1
     assert np.abs(phi - 0) < 0.1
