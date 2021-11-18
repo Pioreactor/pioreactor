@@ -56,8 +56,8 @@ def remove_waste(
             cal["bias_"],
         )
 
-    assert isinstance(ml, float)
-    assert isinstance(duration, float)
+    assert isinstance(ml, (float, int))
+    assert isinstance(duration, (float, int))
     assert duration >= 0, "duration should be greater than 0"
 
     publish(

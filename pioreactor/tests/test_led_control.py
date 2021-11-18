@@ -43,7 +43,10 @@ def test_silent() -> None:
 
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     with local_intermittent_storage("led_locks") as cache:
+        cache["A"] = b"0"
         cache["B"] = b"0"
+        cache["C"] = b"0"
+        cache["D"] = b"0"
 
     ld = LEDAutomation(duration=1, unit=unit, experiment=experiment)
     pause()

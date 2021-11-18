@@ -49,6 +49,25 @@ JobState = NewType("JobState", str)
 
 
 class PublishableSetting(TypedDict, total=False):
+    """
+    In a job, the published_settings attribute is a list of dictionaries that have
+    the below schema.
+
+    datatype:
+        string: a string
+        float: a float
+        integer: an integer
+        json: this can have arbitrary data in it.
+        boolean: must be 0 or 1 (this is unlike the Homie convention)
+
+    unit (optional):
+        a string representing what the unit suffix is
+
+    settable:
+        a bool representing if the attribute can be changed over MQTT
+
+    """
+
     datatype: Literal["string", "float", "integer", "json", "boolean"]
     unit: str
     settable: bool
@@ -309,6 +328,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if not set(properties.keys()).issuperset(necessary_properies):
                 raise ValueError(f"Missing necessary property in setting {setting}.")
 
+            # correct syntax in setting name?
             if not all(ss.isalnum() for ss in setting.split("_")):
                 # only alphanumeric separated by _ is allowed.
                 raise ValueError(
@@ -611,12 +631,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         new_value = message.payload.decode()
         attr = self.get_attr_from_topic(message.topic)
 
-        if not (
-            (attr in self.published_settings)
-            and (self.published_settings[attr]["settable"])
-        ):
+        if attr not in self.published_settings:
+            self.logger.debug(f"Unable to set `{attr}` in {self.job_name}.")
+            return
+        elif not self.published_settings[attr]["settable"]:
             self.logger.debug(
-                f"Unable to set {attr} in {self.job_name}. {attr} is read-only."
+                f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only."
             )
             return
 

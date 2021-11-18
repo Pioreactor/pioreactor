@@ -359,41 +359,54 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
 
-    algo = DosingAutomation(
+    with DosingAutomation(
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
         unit=unit,
         experiment=experiment,
-    )
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07)
-    # there should be a log published with "Unable to set garbage in dosing_automation"
-    pause()
-    algo.set_state(algo.DISCONNECTED)
+    ):
+
+        logs = []
+
+        def append_logs(msg):
+            if "garbage" in msg.payload.decode():
+                logs.append(msg.payload)
+
+        pubsub.subscribe_and_callback(
+            append_logs, f"pioreactor/{unit}/{experiment}/logs/app"
+        )
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07
+        )
+        # there should be a log published with "Unable to set garbage in dosing_automation"
+        pause()
+
+        assert len(logs) > 0
 
 
 def test_pause_in_dosing_automation() -> None:
 
-    algo = DosingAutomation(
+    with DosingAutomation(
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
         unit=unit,
         experiment=experiment,
-    )
-    pause()
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "sleeping"
-    )
-    pause()
-    assert algo.state == "sleeping"
+    ) as algo:
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "sleeping"
+        )
+        pause()
+        assert algo.state == "sleeping"
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "ready"
-    )
-    pause()
-    assert algo.state == "ready"
-    algo.set_state(algo.DISCONNECTED)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "ready"
+        )
+        pause()
+        assert algo.state == "ready"
 
 
 def test_pause_in_dosing_control_also_pauses_automation() -> None:

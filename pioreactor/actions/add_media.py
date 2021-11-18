@@ -57,8 +57,8 @@ def add_media(
         ml = pump_duration_to_ml(duration, cal["duration_"], cal["bias_"])
         logger.info("Running pump continuously.")
 
-    assert isinstance(ml, float)
-    assert isinstance(duration, float)
+    assert isinstance(ml, (float, int))
+    assert isinstance(duration, (float, int))
     assert duration >= 0, "duration should be greater than 0"
 
     # publish this first, as downstream jobs need to know about it.

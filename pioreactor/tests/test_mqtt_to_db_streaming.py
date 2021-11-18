@@ -31,9 +31,17 @@ def test_kalman_filter_entries() -> None:
     connection = sqlite3.connect(config["storage"]["database"])
     cursor = connection.cursor()
 
-    sql_file = open("sql/create_tables.sql")
-    sql_as_string = sql_file.read()
-    cursor.executescript(sql_as_string)
+    cursor.executescript(
+        """
+CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
+    timestamp                TEXT NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    experiment               TEXT NOT NULL,
+    state                    TEXT NOT NULL,
+    covariance_matrix        TEXT NOT NULL
+);
+    """
+    )
     connection.commit()
 
     # turn on data collection
