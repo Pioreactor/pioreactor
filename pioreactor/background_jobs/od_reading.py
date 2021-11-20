@@ -95,7 +95,7 @@ from pioreactor.actions.led_intensity import (
     ALL_LED_CHANNELS,
     LED_Channel,  # type
     lock_leds_temporarily,
-    turn_off_leds_temporarily,
+    change_leds_intensities_temporarily,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
@@ -608,8 +608,9 @@ class ODReader(BackgroundJob):
         )
 
         # setup the ADC by turning off all LEDs that might cause problems.
-        with turn_off_leds_temporarily(
+        with change_leds_intensities_temporarily(
             ALL_LED_CHANNELS,
+            [0.0, 0.0, 0.0, 0.0],
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -653,8 +654,9 @@ class ODReader(BackgroundJob):
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
-        with turn_off_leds_temporarily(
+        with change_leds_intensities_temporarily(
             ALL_LED_CHANNELS,
+            [0.0, 0.0, 0.0, 0.0],
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,

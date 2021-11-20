@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import click
-from typing import Tuple, Dict, Optional, Union, Literal, Iterator, Generator
+from typing import Tuple, Dict, Optional, Union, Literal, Iterator
 from contextlib import contextmanager
 
 from paho.mqtt.client import Client  # type: ignore
@@ -23,16 +23,16 @@ LED_UNLOCKED = b"0"
 
 
 @contextmanager
-def turn_off_leds_temporarily(
-    channels: list[LED_Channel], **kwargs
-) -> Generator[dict[LED_Channel, float], None, None]:
+def change_leds_intensities_temporarily(
+    channels: list[LED_Channel], new_intensities: list[float], **kwargs
+) -> Iterator[None]:
     try:
         with local_intermittent_storage("leds") as cache:
             old_state = {c: float(cache.get(c, 0)) for c in channels}
 
-        led_intensity(channels, [0] * len(channels), **kwargs)
+        led_intensity(channels, new_intensities, **kwargs)
 
-        yield old_state
+        yield
     finally:
         led_intensity(list(old_state.keys()), list(old_state.values()), **kwargs)
 
