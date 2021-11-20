@@ -5,13 +5,16 @@ import signal
 from typing import Callable, Union, Any, Optional, NewType, TypedDict, Literal
 import threading
 import atexit
-import sys
 import time
 from json import dumps
 
 from paho.mqtt.client import Client, MQTTMessage  # type: ignore
 
-from pioreactor.utils import pio_jobs_running, local_intermittent_storage
+from pioreactor.utils import (
+    pio_jobs_running,
+    local_intermittent_storage,
+    add_signal_handler,
+)
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
 from pioreactor.logging import create_logger
@@ -487,14 +490,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
         def disconnect_gracefully(*args) -> None:
-            # ignore future keyboard interrupts
-            signal.signal(signal.SIGINT, lambda *args: None)
+            # ignore future keyboard interrupts. TODO: is this needed?
+            # signal.signal(signal.SIGINT, lambda *args: None)
             if self.state == self.DISCONNECTED:
                 return
             self.set_state(self.DISCONNECTED)
-            # after we've disconnected, we sys.exit out.
-            # should we pause here?
-            sys.exit()
 
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
@@ -502,10 +502,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
             atexit.register(disconnect_gracefully)
 
             # terminate command, ex: pkill
-            signal.signal(signal.SIGTERM, disconnect_gracefully)
+            add_signal_handler(signal.SIGTERM, disconnect_gracefully)
 
             # keyboard interrupt
-            signal.signal(signal.SIGINT, disconnect_gracefully)
+            add_signal_handler(signal.SIGINT, disconnect_gracefully)
 
             # NOHUP is not included here, as it prevents tools like nohup working: https://unix.stackexchange.com/a/261631
 

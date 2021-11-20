@@ -3,8 +3,8 @@ from dbm import ndbm
 import sys
 import signal
 from contextlib import contextmanager, suppress
+from typing import Generator, MutableMapping, Union, Callable
 from pioreactor.pubsub import publish, QOS
-from typing import Generator, MutableMapping, Union
 
 
 class DbmMapping(MutableMapping):
@@ -16,6 +16,46 @@ class DbmMapping(MutableMapping):
 
     def __setitem__(self, key: str, value: Union[str, bytes]) -> None:
         ...
+
+
+class callable_stack:
+    def __init__(self):
+        self.callables: list[Callable] = []
+
+    def append(self, function: Callable):
+        self.callables.append(function)
+
+    def __call__(self, *args):
+        for function in reversed(self.callables):
+            function()
+
+
+def add_signal_handler(signal_value, new_callback: Callable):
+    """
+    The current api of signal.signal is a stack of size 1, so if
+    we have multiple jobs started in the same python process, we
+    need them all to respect each others signal.
+    """
+    current_callback = signal.getsignal(signal_value)
+
+    if callable(current_callback):
+        if isinstance(current_callback, callable_stack):
+            # we've previously added something to the handler..
+            current_callback.append(new_callback)
+            signal.signal(signal_value, current_callback)
+        else:
+            # no stack yet, default callable was present. Don't forget to add new callback, too
+            stack = callable_stack()
+            stack.append(current_callback)
+            stack.append(new_callback)
+            signal.signal(signal_value, stack)
+    elif (current_callback is None) or (current_callback is signal.SIG_DFL):
+        # no stack yet.
+        stack = callable_stack()
+        stack.append(new_callback)
+        signal.signal(signal_value, stack)
+    else:
+        raise RuntimeError("Something is wrong.")
 
 
 class publish_ready_to_disconnected_state:
@@ -42,7 +82,7 @@ class publish_ready_to_disconnected_state:
         sys.exit()  # will trigger a exception, causing __exit__ to be called
 
     def __enter__(self):
-        signal.signal(signal.SIGTERM, self._handle_interrupt)
+        add_signal_handler(signal.SIGTERM, self._handle_interrupt)
 
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
