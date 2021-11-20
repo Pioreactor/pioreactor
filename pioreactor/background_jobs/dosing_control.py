@@ -118,7 +118,7 @@ class DosingController(BackgroundJob):
             self.clear_mqtt_cache()
 
 
-def run(automation=None, duration=None, skip_first_run=False, **kwargs):
+def start_dosing_control(automation=None, duration=None, skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -163,7 +163,7 @@ def click_dosing_control(ctx, automation, duration, skip_first_run):
     """
     Start a dosing automation
     """
-    dc = run(
+    dc = start_dosing_control(
         automation=automation,
         duration=duration,
         skip_first_run=skip_first_run,

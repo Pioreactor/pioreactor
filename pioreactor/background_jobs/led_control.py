@@ -78,7 +78,9 @@ class LEDController(BackgroundJob):
         self.clear_mqtt_cache()
 
 
-def run(automation: str, duration: float = None, skip_first_run=False, **kwargs):
+def start_led_control(
+    automation: str, duration: float = None, skip_first_run=False, **kwargs
+):
     try:
         return LEDController(
             automation,
@@ -119,7 +121,7 @@ def click_led_control(ctx, automation, duration, skip_first_run):
     """
     Start an LED automation
     """
-    lc = run(
+    lc = start_led_control(
         automation=automation,
         duration=duration,
         skip_first_run=skip_first_run,

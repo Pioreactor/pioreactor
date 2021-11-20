@@ -361,7 +361,7 @@ class TemperatureController(BackgroundJob):
         return temp
 
 
-def run(automation, **kwargs):
+def start_temperature_control(automation, **kwargs):
     return TemperatureController(
         automation,
         unit=get_unit_name(),
@@ -385,7 +385,7 @@ def click_temperature_control(ctx, automation):
     """
     Start a temperature automation.
     """
-    tc = run(
+    tc = start_temperature_control(
         automation=automation,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )

@@ -3,6 +3,7 @@
     to have the LED flash a specific error code.
  - fixed errors raised when not able to connect to leader's MQTT
  - improvements to error handling in monitor job.
+ - replaced `turn_off_leds_temporarily` with the more useful and more general `change_leds_intensities_temporarily`
 
 ### 21.11.1
  - a version cut to test building images
