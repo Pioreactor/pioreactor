@@ -26,6 +26,12 @@ LED_UNLOCKED = b"0"
 def change_leds_intensities_temporarily(
     channels: list[LED_Channel], new_intensities: list[float], **kwargs
 ) -> Iterator[None]:
+    """
+    Change the LED referenced in `channels` to some intensity `new_intensities`
+    inside the context block. Once the context block has left, change
+    back to the old intensities (even if the intensities were changed inside the block.)
+
+    """
     try:
         with local_intermittent_storage("leds") as cache:
             old_state = {c: float(cache.get(c, 0)) for c in channels}

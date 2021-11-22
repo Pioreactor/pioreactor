@@ -20,6 +20,7 @@ from pioreactor.utils import (
     publish_ready_to_disconnected_state,
     local_persistant_storage,
 )
+from pioreactor.utils.timing import current_utc_time
 
 
 def stirring_calibration():
@@ -99,7 +100,11 @@ def stirring_calibration():
 
         with local_persistant_storage(action_name) as cache:
             cache["linear_v1"] = json.dumps(
-                {"rpm_coef": rpm_coef, "intercept": intercept}
+                {
+                    "rpm_coef": rpm_coef,
+                    "intercept": intercept,
+                    "timestamp": current_utc_time(),
+                }
             )
 
 

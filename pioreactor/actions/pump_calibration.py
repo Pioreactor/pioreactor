@@ -12,6 +12,7 @@ from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.utils.math_helpers import simple_linear_regression
+from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import (
     get_unit_name,
     get_latest_experiment_name,
@@ -21,17 +22,32 @@ from pioreactor.logging import create_logger
 
 
 def which_pump_are_you_calibrating():
+    media_timestamp, missing_media = "", True
+    waste_timestamp, missing_waste = "", True
+    alt_media_timestamp, missing_alt_media = "", True
+
     with local_persistant_storage("pump_calibration") as cache:
         missing_media = "media_ml_calibration" not in cache
         missing_waste = "waste_ml_calibration" not in cache
         missing_alt_media = "alt_media_ml_calibration" not in cache
 
+        if not missing_media:
+            media_timestamp = json.loads(cache["media_ml_calibration"])["timestamp"][:10]
+
+        if not missing_waste:
+            waste_timestamp = json.loads(cache["waste_ml_calibration"])["timestamp"][:10]
+
+        if not missing_alt_media:
+            alt_media_timestamp = json.loads(cache["alt_media_ml_calibration"])[
+                "timestamp"
+            ][:10]
+
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
-1. Media{'       [missing calibration]' if missing_media else ''}
-2. Alt-media{'   [missing calibration]' if missing_alt_media else ''}
-3. Waste{'       [missing calibration]' if missing_waste else ''}
+1. Media       {'[missing calibration]' if missing_media else f'[last ran {media_timestamp}]'}
+2. Alt-media   {'[missing calibration]' if missing_alt_media else f'[last ran {alt_media_timestamp}]'}
+3. Waste       {'[missing calibration]' if missing_waste else f'[last ran {waste_timestamp}]'}
 """,
             fg="green",
         ),
@@ -40,10 +56,28 @@ def which_pump_are_you_calibrating():
     )
 
     if r == "1":
+        if not missing_media:
+            click.confirm(
+                click.style("Confirm over-writting existing calibration?", fg="green"),
+                abort=True,
+                prompt_suffix=" ",
+            )
         return ("media", add_media)
     elif r == "2":
+        if not missing_alt_media:
+            click.confirm(
+                click.style("Confirm over-writting existing calibration?", fg="green"),
+                abort=True,
+                prompt_suffix=" ",
+            )
         return ("alt_media", add_alt_media)
     elif r == "3":
+        if not missing_waste:
+            click.confirm(
+                click.style("Confirm over-writting existing calibration?", fg="green"),
+                abort=True,
+                prompt_suffix=" ",
+            )
         return ("waste", remove_waste)
 
 
@@ -114,6 +148,12 @@ def run_tests(execute_pump) -> tuple[list[float], list[float]]:
     durations_to_test = [0.5, 0.5, 1.0, 1.0, 1.5, 1.5, 2.0, 2.0]
     for duration in durations_to_test:
 
+        click.echo(
+            "We will run the pump for a set amount of time (in seconds), and you will measure how much liquid is expelled."
+        )
+        click.echo(
+            "You can either use an accurate scale, or a graduated cylinder (recall that 1g = 1ml)."
+        )
         while not click.confirm(click.style(f"Ready to test {duration}s?", fg="green")):
             pass
 
@@ -126,7 +166,7 @@ def run_tests(execute_pump) -> tuple[list[float], list[float]]:
         r = click.prompt(
             click.style("Enter amount of water expelled", fg="green"),
             type=click.FLOAT,
-            confirmation_prompt=click.style("Repeat for confirmation:", fg="green"),
+            confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
         )
         results.append(r)
         click.clear()
@@ -171,7 +211,13 @@ def pump_calibration() -> None:
         # save to cache
         with local_persistant_storage("pump_calibration") as cache:
             cache[f"{pump_name}_ml_calibration"] = json.dumps(
-                {"duration_": slope, "hz": hz, "dc": dc, "bias_": bias}
+                {
+                    "duration_": slope,
+                    "hz": hz,
+                    "dc": dc,
+                    "bias_": bias,
+                    "timestamp": current_utc_time(),
+                }
             )
 
         logger.debug(
