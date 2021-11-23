@@ -219,6 +219,8 @@ class TemperatureController(BackgroundJob):
             self.temperature_automation_job = self.automations[
                 algo_metadata["automation_name"]
             ](unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata)
+            self.temperature_automation = algo_metadata
+            self.temperature_automation_name = algo_metadata["automation_name"]
         except KeyError:
             self.logger.debug(
                 f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
@@ -230,9 +232,6 @@ class TemperatureController(BackgroundJob):
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
-        finally:
-            self.temperature_automation = algo_metadata
-            self.temperature_automation_name = algo_metadata["automation_name"]
 
     def _update_heater(self, new_duty_cycle: float):
         self.heater_duty_cycle = clamp(

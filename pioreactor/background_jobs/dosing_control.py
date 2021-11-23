@@ -90,6 +90,8 @@ class DosingController(BackgroundJob):
             self.dosing_automation_job = self.automations[
                 algo_metadata["automation_name"]
             ](unit=self.unit, experiment=self.experiment, **algo_metadata)
+            self.dosing_automation = algo_metadata
+            self.dosing_automation_name = self.dosing_automation["automation_name"]
         except KeyError:
             self.logger.debug(
                 f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
@@ -101,9 +103,6 @@ class DosingController(BackgroundJob):
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
-        finally:
-            self.dosing_automation = algo_metadata
-            self.dosing_automation_name = self.dosing_automation["automation_name"]
 
     def on_sleeping(self):
         if self.dosing_automation_job.state != self.SLEEPING:
