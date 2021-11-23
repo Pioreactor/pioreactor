@@ -229,7 +229,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # pub_client=self.pub_client,
         )
 
-        # check_for_duplicate_activity needs to come _before_ the pubsub client,
+        # check_for_duplicate_activity checks _before_ the pubsub client,
         # as they will set (and revoke) a new last will.
         # Ex: job X is running, but we try to rerun it, causing the latter job to abort, and
         # potentially firing the last_will
@@ -255,7 +255,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.set_state(self.INIT)
 
     def __post__init__(self) -> None:
-        # this function is called AFTER the subclasses __init__ finishes
+        # this function is called AFTER the subclass' __init__ finishes
         self.set_state(self.READY)
 
     def start_passive_listeners(self) -> None:
@@ -528,6 +528,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.state = self.READY
         self.log_state(self.state)
 
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
+            # __init__ might fail, and not clean up pio_jobs_running correctly.
+            # the catch is that there is a small window where two jobs can be started...
+            # TODO: a potential fix is to include a timestamp of when the value changed??
+            cache[self.job_name] = b"1"
+
         try:
             self.on_ready()
         except Exception as e:
@@ -709,13 +716,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._blocking_event.wait()
 
     def check_for_duplicate_activity(self) -> None:
-
         with local_intermittent_storage("pio_jobs_running") as cache:
             if cache.get(self.job_name, b"0") == b"1":
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
                 raise RuntimeError(f"{self.job_name} is already running. Exiting.")
-
-            cache[self.job_name] = b"1"
 
     def __setattr__(self, name: str, value) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)

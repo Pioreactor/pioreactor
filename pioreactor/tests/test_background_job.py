@@ -11,6 +11,7 @@ from pioreactor.whoami import (
 )
 from pioreactor.pubsub import publish, subscribe_and_callback
 from pioreactor.config import leader_hostname
+from pioreactor.utils import local_intermittent_storage
 
 
 def pause() -> None:
@@ -132,7 +133,7 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
 
 
 @pytest.mark.xfail
-def test_what_happens_when_an_error_occurs_in_init() -> None:
+def test_what_happens_when_an_error_occurs_in_init_with_no_catch() -> None:
     class TestJob(BackgroundJob):
         def __init__(self, unit, experiment):
             super(TestJob, self).__init__(
@@ -149,13 +150,11 @@ def test_what_happens_when_an_error_occurs_in_init() -> None:
     subscribe_and_callback(update_state, "pioreactor/unit/exp/testjob/$state")
 
     with pytest.raises(ZeroDivisionError):
-        bj = TestJob(unit="unit", experiment="exp")
+        with TestJob(unit="unit", experiment="exp"):
+            pass
 
     time.sleep(0.25)
-    assert state[-1] == "disconnected"
-
-    time.sleep(3)
-    bj.set_state(bj.DISCONNECTED)
+    assert state[-1] == "lost"
 
 
 def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect() -> None:
@@ -185,6 +184,9 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
 
     pause()
     assert state[-1] == "disconnected"
+
+    with local_intermittent_storage("pio_jobs_running") as cache:
+        assert cache["testjob"] == b"0"  # cleaned up correctly
 
 
 def test_state_transition_callbacks() -> None:

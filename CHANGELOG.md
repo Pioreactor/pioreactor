@@ -6,8 +6,8 @@
  - replaced `turn_off_leds_temporarily` with the more useful and more general `change_leds_intensities_temporarily`
  - UX improvements to the `pump_calibration` action
  - improving \*-Controller jobs:
-    - `*_automation` is now a dict attribute (json in MQTT)
-    - `*_automation_key` is a new published_setting, with string. This is what is read from the UI.
+    - `automation` is now a dict attribute (json in MQTT)
+    - `automation_name` is a new published_setting, with string. This is what is read from the UI.
     - CLI has a slightly changed API to pick the automation
   - `pio_jobs_running` renamed to `pio_processes_running`
 
