@@ -8,7 +8,7 @@ from pioreactor.config import config
 
 class Silent(LEDAutomation):
 
-    key = "silent"
+    automation_name = "silent"
 
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
@@ -24,7 +24,7 @@ class TrackOD(LEDAutomation):
 
     """
 
-    key = "track_od"
+    automation_name = "track_od"
 
     def __init__(self, max_od: float, **kwargs):
         super(TrackOD, self).__init__(**kwargs)
@@ -46,7 +46,7 @@ class TrackOD(LEDAutomation):
 
 class FlashUV(LEDAutomation):
 
-    key = "flash_uv"
+    automation_name = "flash_uv"
 
     def __init__(self, **kwargs):
         super(FlashUV, self).__init__(**kwargs)

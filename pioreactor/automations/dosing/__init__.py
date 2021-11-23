@@ -11,6 +11,7 @@ from .pid_morbidostat import PIDMorbidostat
 from .pid_turbidostat import PIDTurbidostat
 from .turbidostat import Turbidostat
 from .silent import Silent
+from .fed_batch import FedBatch
 
 
 __all__ = (
@@ -21,4 +22,5 @@ __all__ = (
     "PIDTurbidostat",
     "Turbidostat",
     "Silent",
+    "FedBatch",
 )

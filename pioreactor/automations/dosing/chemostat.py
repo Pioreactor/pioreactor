@@ -8,7 +8,7 @@ class Chemostat(DosingAutomation):
     Chemostat mode - try to keep [nutrient] constant.
     """
 
-    key = "chemostat"
+    automation_name = "chemostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
         "duration": {"datatype": "float", "settable": True, "unit": "min"},

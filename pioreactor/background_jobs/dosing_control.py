@@ -8,7 +8,7 @@ To change the automation over MQTT,
     pioreactor/<unit>/<experiment>/dosing_control/dosing_automation/set
 
 
-with payload a json object with required keyword argument(s). Specify the new automation with name `"automation_key"`.
+with payload a json object with required keyword argument(s). Specify the new automation with name `"automation_name"`.
 
 
 Using the CLI, specific automation values can be specified as additional options (note the underscore...) :
@@ -41,15 +41,15 @@ class DosingController(BackgroundJob):
 
     published_settings = {
         "dosing_automation": {"datatype": "json", "settable": True},
-        "dosing_automation_key": {"datatype": "string", "settable": False},
+        "dosing_automation_name": {"datatype": "string", "settable": False},
     }
 
-    def __init__(self, automation_key, unit=None, experiment=None, **kwargs):
+    def __init__(self, automation_name, unit=None, experiment=None, **kwargs):
         super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
 
-        self.dosing_automation = AutomationDict(automation_key=automation_key, **kwargs)
+        self.dosing_automation = AutomationDict(automation_name=automation_name, **kwargs)
 
         self.alt_media_calculator = AltMediaCalculator(
             unit=self.unit, experiment=self.experiment, parent=self
@@ -60,16 +60,16 @@ class DosingController(BackgroundJob):
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
 
         try:
-            automation_class = self.automations[self.dosing_automation["automation_key"]]
+            automation_class = self.automations[self.dosing_automation["automation_name"]]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.dosing_automation['automation_key']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {self.dosing_automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
         self.dosing_automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-        self.dosing_automation_key = self.dosing_automation["automation_key"]
+        self.dosing_automation_name = self.dosing_automation["automation_name"]
 
     def set_dosing_automation(self, new_dosing_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
@@ -88,14 +88,22 @@ class DosingController(BackgroundJob):
 
         try:
             self.dosing_automation_job = self.automations[
-                algo_metadata["automation_key"]
+                algo_metadata["automation_name"]
             ](unit=self.unit, experiment=self.experiment, **algo_metadata)
-            self.dosing_automation = algo_metadata
-            self.dosing_automation_key = self.dosing_automation["automation_key"]
-
+        except KeyError:
+            self.logger.debug(
+                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
+                exc_info=True,
+            )
+            self.logger.warning(
+                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}"
+            )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
+        finally:
+            self.dosing_automation = algo_metadata
+            self.dosing_automation_name = self.dosing_automation["automation_name"]
 
     def on_sleeping(self):
         if self.dosing_automation_job.state != self.SLEEPING:
@@ -114,8 +122,8 @@ class DosingController(BackgroundJob):
 
             for job in self.sub_jobs:
                 job.set_state(job.DISCONNECTED)
-
             self.dosing_automation_job.set_state(self.DISCONNECTED)
+
         except AttributeError:
             # if disconnect is called right after starting, dosing_automation_job isn't instantiated
             pass
@@ -123,7 +131,7 @@ class DosingController(BackgroundJob):
             self.clear_mqtt_cache()
 
 
-def start_dosing_control(automation=None, duration=None, skip_first_run=False, **kwargs):
+def start_dosing_control(automation_name, duration=None, skip_first_run=False, **kwargs):
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -133,7 +141,7 @@ def start_dosing_control(automation=None, duration=None, skip_first_run=False, *
         kwargs["unit"] = unit
         kwargs["experiment"] = experiment
         kwargs["skip_first_run"] = skip_first_run
-        return DosingController(automation, **kwargs)  # noqa: F841
+        return DosingController(automation_name, **kwargs)  # noqa: F841
 
     except Exception as e:
         logger = create_logger("dosing_automation")
@@ -147,7 +155,7 @@ def start_dosing_control(automation=None, duration=None, skip_first_run=False, *
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.option(
-    "--automation-key",
+    "--automation-name",
     default="silent",
     help="set the automation of the system: turbidostat, morbidostat, silent, etc.",
     show_default=True,
@@ -164,12 +172,12 @@ def start_dosing_control(automation=None, duration=None, skip_first_run=False, *
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_dosing_control(ctx, automation_key, duration, skip_first_run):
+def click_dosing_control(ctx, automation_name, duration, skip_first_run):
     """
     Start a dosing automation
     """
     dc = start_dosing_control(
-        automation_key=automation_key,
+        automation_name=automation_name,
         duration=duration,
         skip_first_run=skip_first_run,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},

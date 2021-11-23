@@ -11,8 +11,7 @@ class Turbidostat(DosingAutomation):
     This algo is very naive, and probably shouldn't be used.
     """
 
-    key = "turbidostat"
-
+    automation_name = "turbidostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_od": {"datatype": "float", "settable": True, "unit": "AU"},

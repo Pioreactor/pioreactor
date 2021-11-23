@@ -7,9 +7,9 @@ class AutomationDict(dict):
     """
 
     def __str__(self):
-        s = f"{self['automation_key']}("
+        s = f"{self['automation_name']}("
         for k, v in self.items():
-            if k == "automation_key":
+            if k == "automation_name":
                 continue
             s += f"{k}={v}, "
 

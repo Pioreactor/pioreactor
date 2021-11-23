@@ -12,8 +12,7 @@ class FedBatch(DosingAutomation):
     Useful for fed-batch automations
     """
 
-    key = "fed_batch"
-
+    automation_name = "fed_batch"
     published_settings = {
         "volume": {"datatype": "float", "unit": "mL", "settable": True},
     }

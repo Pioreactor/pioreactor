@@ -40,8 +40,8 @@ class TemperatureAutomation(BackgroundSubJob):
 
         # this registers all subclasses of TemperatureAutomation back to TemperatureController, so the subclass
         # can be invoked in TemperatureController.
-        if hasattr(cls, "key") and cls.key:
-            TemperatureController.automations[cls.key] = cls
+        if hasattr(cls, "automation_name") and cls.automation_name:
+            TemperatureController.automations[cls.automation_name] = cls
 
     def __init__(self, unit=None, experiment=None, parent=None, **kwargs):
         super(TemperatureAutomation, self).__init__(
@@ -202,4 +202,4 @@ class TemperatureAutomation(BackgroundSubJob):
 
 
 class TemperatureAutomationContrib(TemperatureAutomation):
-    key: str
+    automation_name: str

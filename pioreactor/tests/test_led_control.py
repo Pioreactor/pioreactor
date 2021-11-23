@@ -35,7 +35,7 @@ def test_silent() -> None:
         pause()
         pause()
         r = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/led_control/led_automation_key", timeout=1
+            f"pioreactor/{unit}/{experiment}/led_control/led_automation_name", timeout=1
         )
         assert r.payload.decode() == "silent"
 
@@ -46,21 +46,21 @@ def test_changing_automation_over_mqtt() -> None:
         pause()
         pause()
         r = pubsub.subscribe(
-            f"pioreactor/{unit}/{experiment}/led_control/led_automation_key", timeout=1
+            f"pioreactor/{unit}/{experiment}/led_control/led_automation_name", timeout=1
         )
         assert r.payload.decode() == "silent"
         pause()
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/led_control/led_automation/set",
-            '{"automation_key": "silent", "duration": "20"}',
+            '{"automation_name": "silent", "duration": "20"}',
         )
         pause()
         pause()
         pause()
         pause()
         pause()
-        assert ld.led_automation_key == "silent"
+        assert ld.led_automation_name == "silent"
         assert ld.led_automation["duration"] == "20"
 
 

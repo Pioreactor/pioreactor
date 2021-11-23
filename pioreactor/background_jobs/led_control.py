@@ -25,27 +25,27 @@ class LEDController(BackgroundJob):
 
     published_settings = {
         "led_automation": {"datatype": "json", "settable": True},
-        "led_automation_key": {"datatype": "string", "settable": False},
+        "led_automation_name": {"datatype": "string", "settable": False},
     }
 
-    def __init__(self, automation_key, unit: str, experiment: str, **kwargs):
+    def __init__(self, automation_name, unit: str, experiment: str, **kwargs):
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
 
-        self.led_automation = AutomationDict(automation_key=automation_key, **kwargs)
+        self.led_automation = AutomationDict(automation_name=automation_name, **kwargs)
 
         try:
-            automation_class = self.automations[self.led_automation["automation_key"]]
+            automation_class = self.automations[self.led_automation["automation_name"]]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.led_automation['automation_key']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {self.led_automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
         self.led_automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-        self.led_automation_key = self.led_automation["automation_key"]
+        self.led_automation_name = self.led_automation["automation_name"]
 
     def set_led_automation(self, new_led_automation_json: str):
         algo_metadata = AutomationDict(json.loads(new_led_automation_json))
@@ -58,15 +58,24 @@ class LEDController(BackgroundJob):
             self.set_led_automation(new_led_automation_json)
 
         try:
-            self.led_automation_job = self.automations[algo_metadata["automation_key"]](
+            self.led_automation_job = self.automations[algo_metadata["automation_name"]](
                 unit=self.unit, experiment=self.experiment, **algo_metadata
             )
-            self.led_automation = algo_metadata
-            self.led_automation_key = self.led_automation["automation_key"]
+        except KeyError:
+            self.logger.debug(
+                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
+                exc_info=True,
+            )
+            self.logger.warning(
+                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}"
+            )
 
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
+        finally:
+            self.led_automation = algo_metadata
+            self.led_automation_name = self.led_automation["automation_name"]
 
     def on_sleeping(self):
         if self.led_automation_job.state != self.SLEEPING:
@@ -85,11 +94,11 @@ class LEDController(BackgroundJob):
 
 
 def start_led_control(
-    automation: str, duration: float = None, skip_first_run=False, **kwargs
+    automation_name: str, duration: float = None, skip_first_run=False, **kwargs
 ):
     try:
         return LEDController(
-            automation,
+            automation_name=automation_name,
             unit=get_unit_name(),
             experiment=get_latest_experiment_name(),
             skip_first_run=skip_first_run,
@@ -109,7 +118,7 @@ def start_led_control(
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.option(
-    "--automation-key",
+    "--automation-name",
     default="silent",
     help="set the automation of the system: silent, etc.",
     show_default=True,
@@ -123,12 +132,12 @@ def start_led_control(
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_led_control(ctx, automation_key, duration, skip_first_run):
+def click_led_control(ctx, automation_name, duration, skip_first_run):
     """
     Start an LED automation
     """
     lc = start_led_control(
-        automation_key=automation_key,
+        automation_name=automation_name,
         duration=duration,
         skip_first_run=skip_first_run,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},

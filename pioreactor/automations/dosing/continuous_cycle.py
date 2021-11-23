@@ -21,7 +21,7 @@ class ContinuousCycle(DosingAutomation):
 
     """
 
-    key = "continuous_cycle"
+    automation_name = "continuous_cycle"
     published_settings = {
         "duty_cycle": {"datatype": "float", "unit": "%", "settable": True},
         "duration": {"datatype": "float", "settable": True, "unit": "min"},

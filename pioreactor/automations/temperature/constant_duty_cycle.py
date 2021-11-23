@@ -4,7 +4,7 @@ from pioreactor.automations.temperature.base import TemperatureAutomation
 
 class ConstantDutyCycle(TemperatureAutomation):
 
-    key = "constant_duty_cycle"
+    automation_name = "constant_duty_cycle"
     published_settings = {
         "duty_cycle": {"datatype": "float", "unit": "%", "settable": True}
     }

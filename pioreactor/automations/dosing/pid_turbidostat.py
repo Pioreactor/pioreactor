@@ -12,8 +12,7 @@ class PIDTurbidostat(DosingAutomation):
 
     """
 
-    key = "pid_turbidostat"
-
+    automation_name = "pid_turbidostat"
     published_settings = {
         "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
         "duration": {"datatype": "float", "settable": True, "unit": "min"},

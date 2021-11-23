@@ -27,7 +27,7 @@ class PIDStable(TemperatureAutomation):
 
     """
 
-    key = "pid_stable"
+    automation_name = "pid_stable"
     published_settings = {
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }

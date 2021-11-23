@@ -52,8 +52,8 @@ class DosingAutomation(BackgroundSubJob):
 
         # this registers all subclasses of DosingAutomation back to DosingController, so the subclass
         # can be invoked in DosingController.
-        if hasattr(cls, "key"):
-            DosingController.automations[cls.key] = cls
+        if hasattr(cls, "automation_name"):
+            DosingController.automations[cls.automation_name] = cls
 
     def __init__(
         self,
@@ -330,4 +330,4 @@ class DosingAutomation(BackgroundSubJob):
 
 
 class DosingAutomationContrib(DosingAutomation):
-    key: str
+    automation_name: str

@@ -14,7 +14,7 @@ class PIDMorbidostat(DosingAutomation):
     As defined in Zhong 2020
     """
 
-    key = "pid_morbidostat"
+    automation_name = "pid_morbidostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_od": {"datatype": "float", "settable": True, "unit": "AU"},

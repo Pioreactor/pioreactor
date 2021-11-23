@@ -49,8 +49,8 @@ class LEDAutomation(BackgroundSubJob):
 
         # this registers all subclasses of LEDAutomation back to LEDController, so the subclass
         # can be invoked in LEDController.
-        if hasattr(cls, "key"):
-            LEDController.automations[cls.key] = cls
+        if hasattr(cls, "automation_name"):
+            LEDController.automations[cls.automation_name] = cls
 
     def __init__(
         self,
@@ -273,4 +273,4 @@ class LEDAutomation(BackgroundSubJob):
 
 
 class LEDAutomationContrib(LEDAutomation):
-    key: str
+    automation_name: str
