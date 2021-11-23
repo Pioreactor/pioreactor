@@ -822,15 +822,15 @@ def test_changing_algo_over_mqtt_solo() -> None:
         unit=unit,
         experiment=experiment,
     )
-    assert algo.dosing_automation == "turbidostat"
+    assert algo.dosing_automation["automation_key"] == "turbidostat"
     assert isinstance(algo.dosing_automation_job, Turbidostat)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
-        '{"dosing_automation": "pid_morbidostat", "duration": 60, "target_od": 1.0, "target_growth_rate": 0.07}',
+        '{"automation_key": "pid_morbidostat", "duration": 60, "target_od": 1.0, "target_growth_rate": 0.07}',
     )
     time.sleep(8)
-    assert algo.dosing_automation == "pid_morbidostat"
+    assert algo.dosing_automation["automation_key"] == "pid_morbidostat"
     assert isinstance(algo.dosing_automation_job, PIDMorbidostat)
     assert algo.dosing_automation_job.target_growth_rate == 0.07
     algo.set_state(algo.DISCONNECTED)
@@ -846,15 +846,15 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
         unit=unit,
         experiment=experiment,
     )
-    assert algo.dosing_automation == "turbidostat"
+    assert algo.dosing_automation["automation_key"] == "turbidostat"
     assert isinstance(algo.dosing_automation_job, Turbidostat)
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
-        '{"dosing_automation": "pid_morbidostat", "duration": 60}',
+        '{"automation_key": "pid_morbidostat", "duration": 60}',
     )
     time.sleep(8)
-    assert algo.dosing_automation == "turbidostat"
+    assert algo.dosing_automation["automation_key"] == "turbidostat"
     assert isinstance(algo.dosing_automation_job, Turbidostat)
     assert algo.dosing_automation_job.target_od == 1.0
     algo.set_state(algo.DISCONNECTED)
@@ -885,11 +885,11 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
         unit=unit,
         experiment=experiment,
     )
-    assert algo.dosing_automation == "pid_turbidostat"
+    assert algo.dosing_automation["automation_key"] == "pid_turbidostat"
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
-        '{"dosing_automation": "turbidostat", "duration": 60, "target_od": 1.0, "volume": 1.0, "skip_first_run": 1}',
+        '{"automation_key": "turbidostat", "duration": 60, "target_od": 1.0, "volume": 1.0, "skip_first_run": 1}',
     )
     time.sleep(
         10
@@ -933,11 +933,12 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
         unit=unit,
         experiment=experiment,
     )
-    assert algo.dosing_automation == "pid_turbidostat"
+    assert algo.dosing_automation["automation_key"] == "pid_turbidostat"
+    assert algo.dosing_automation_key == "pid_turbidostat"
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
-        '{"dosing_automation": "pid_turbidostat", "duration": "60", "target_od": "1.0", "volume": "1.0"}',
+        '{"automation_key": "pid_turbidostat", "duration": "60", "target_od": "1.0", "volume": "1.0"}',
     )
     time.sleep(
         7
@@ -957,7 +958,7 @@ def test_disconnect_cleanly() -> None:
         volume=1.0,
         experiment=experiment,
     )
-    assert algo.dosing_automation == "turbidostat"
+    assert algo.dosing_automation["automation_key"] == "turbidostat"
     assert isinstance(algo.dosing_automation_job, Turbidostat)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"

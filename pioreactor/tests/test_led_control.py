@@ -20,25 +20,48 @@ def pause() -> None:
 
 
 def test_silent() -> None:
-    ld = LEDController("silent", duration=60, unit=unit, experiment=experiment)
-    pause()
-    pause()
-    pause()
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": "2010-01-01 12:00:00"}),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 1.0}',
-    )
-    pause()
-    pause()
-    r = pubsub.subscribe(
-        f"pioreactor/{unit}/{experiment}/led_control/led_automation", timeout=1
-    )
-    assert r.payload.decode() == "silent"
-    ld.set_state(ld.DISCONNECTED)
+    with LEDController("silent", duration=60, unit=unit, experiment=experiment):
+        pause()
+        pause()
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            json.dumps({"growth_rate": 0.01, "timestamp": "2010-01-01 12:00:00"}),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 1.0}',
+        )
+        pause()
+        pause()
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/led_control/led_automation_key", timeout=1
+        )
+        assert r.payload.decode() == "silent"
+
+
+def test_changing_automation_over_mqtt() -> None:
+    with LEDController("silent", duration=60, unit=unit, experiment=experiment) as ld:
+
+        pause()
+        pause()
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/led_control/led_automation_key", timeout=1
+        )
+        assert r.payload.decode() == "silent"
+        pause()
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/led_control/led_automation/set",
+            '{"automation_key": "silent", "duration": "20"}',
+        )
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        assert ld.led_automation_key == "silent"
+        assert ld.led_automation["duration"] == "20"
 
 
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
@@ -48,13 +71,13 @@ def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
         cache["C"] = b"0"
         cache["D"] = b"0"
 
-    ld = LEDAutomation(duration=1, unit=unit, experiment=experiment)
-    pause()
-    pause()
-    assert ld.set_led_intensity("B", 1)
+    with LEDAutomation(duration=1, unit=unit, experiment=experiment) as ld:
+        pause()
+        pause()
+        assert ld.set_led_intensity("B", 1)
 
-    # someone else locks channel B
-    with lock_leds_temporarily(["B"]):
-        assert not ld.set_led_intensity("B", 2)
+        # someone else locks channel B
+        with lock_leds_temporarily(["B"]):
+            assert not ld.set_led_intensity("B", 2)
 
-    assert ld.set_led_intensity("B", 3)
+        assert ld.set_led_intensity("B", 3)

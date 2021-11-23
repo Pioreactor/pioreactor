@@ -8,7 +8,7 @@ To change the automation over MQTT,
     pioreactor/<unit>/<experiment>/dosing_control/dosing_automation/set
 
 
-with payload a json object with required keyword argument(s). Specify the new automation with name `"dosing_automation"`.
+with payload a json object with required keyword argument(s). Specify the new automation with name `"automation_key"`.
 
 
 Using the CLI, specific automation values can be specified as additional options (note the underscore...) :
@@ -26,23 +26,30 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
 from pioreactor.background_jobs.subjobs.alt_media_calculator import AltMediaCalculator
 from pioreactor.background_jobs.subjobs.throughput_calculator import ThroughputCalculator
+from pioreactor.background_jobs.utils import AutomationDict
 
 
 class DosingController(BackgroundJob):
 
     # this is populated dynamically with subclasses of DosingAutomations in the form:
-    # {DosingAutomation.key: DosingAutomation ... }
+    # {
+    #    DosingAutomation1.key: DosingAutomation1,
+    #    ...
+    # }
     # this includes plugins
     automations = {}  # type: ignore
 
-    published_settings = {"dosing_automation": {"datatype": "string", "settable": True}}
+    published_settings = {
+        "dosing_automation": {"datatype": "json", "settable": True},
+        "dosing_automation_key": {"datatype": "string", "settable": False},
+    }
 
-    def __init__(self, dosing_automation, unit=None, experiment=None, **kwargs):
+    def __init__(self, automation_key, unit=None, experiment=None, **kwargs):
         super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
 
-        self.dosing_automation = dosing_automation
+        self.dosing_automation = AutomationDict(automation_key=automation_key, **kwargs)
 
         self.alt_media_calculator = AltMediaCalculator(
             unit=self.unit, experiment=self.experiment, parent=self
@@ -52,20 +59,17 @@ class DosingController(BackgroundJob):
         )
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
 
-        # this should be a subjob, but it doesn't really fit
-        # because if I append it to the list, it needs to be garbage collected manually
-        # when I switch automations.
-        # some better system of keep tracking of subjobs is needed.
         try:
-            automation_class = self.automations[self.dosing_automation]
+            automation_class = self.automations[self.dosing_automation["automation_key"]]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.dosing_automation}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {self.dosing_automation['automation_key']}. Available automations are {list(self.automations.keys())}"
             )
 
         self.dosing_automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
+        self.dosing_automation_key = self.dosing_automation["automation_key"]
 
     def set_dosing_automation(self, new_dosing_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
@@ -73,7 +77,7 @@ class DosingController(BackgroundJob):
         # self.dosing_automation_job.set_state("ready")
         # [ ] write tests
         # OR should just bail...
-        algo_init = json.loads(new_dosing_automation_json)
+        algo_metadata = AutomationDict(**json.loads(new_dosing_automation_json))
 
         try:
             self.dosing_automation_job.set_state("disconnected")
@@ -83,10 +87,11 @@ class DosingController(BackgroundJob):
             self.set_dosing_automation(new_dosing_automation_json)
 
         try:
-            self.dosing_automation_job = self.automations[algo_init["dosing_automation"]](
-                unit=self.unit, experiment=self.experiment, **algo_init
-            )
-            self.dosing_automation = algo_init["dosing_automation"]
+            self.dosing_automation_job = self.automations[
+                algo_metadata["automation_key"]
+            ](unit=self.unit, experiment=self.experiment, **algo_metadata)
+            self.dosing_automation = algo_metadata
+            self.dosing_automation_key = self.dosing_automation["automation_key"]
 
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -142,7 +147,7 @@ def start_dosing_control(automation=None, duration=None, skip_first_run=False, *
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.option(
-    "--automation",
+    "--automation-key",
     default="silent",
     help="set the automation of the system: turbidostat, morbidostat, silent, etc.",
     show_default=True,
@@ -159,12 +164,12 @@ def start_dosing_control(automation=None, duration=None, skip_first_run=False, *
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_dosing_control(ctx, automation, duration, skip_first_run):
+def click_dosing_control(ctx, automation_key, duration, skip_first_run):
     """
     Start a dosing automation
     """
     dc = start_dosing_control(
-        automation=automation,
+        automation_key=automation_key,
         duration=duration,
         skip_first_run=skip_first_run,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},

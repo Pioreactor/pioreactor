@@ -76,7 +76,7 @@ def get_plugins() -> dict[str, Plugin]:
 
     # The directory containing your modules needs to be on the search path.
     if is_testing_env():
-        MODULE_DIR = "example_scripts"
+        MODULE_DIR = "plugins_dev"
     else:
         MODULE_DIR = "/home/pi/.pioreactor/plugins"
 

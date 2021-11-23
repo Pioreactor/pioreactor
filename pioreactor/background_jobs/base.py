@@ -11,7 +11,6 @@ from json import dumps
 from paho.mqtt.client import Client, MQTTMessage  # type: ignore
 
 from pioreactor.utils import (
-    pio_jobs_running,
     local_intermittent_storage,
     add_signal_handler,
 )
@@ -208,6 +207,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # be published to MQTT and available settable attributes will be editable. Currently supported
     # attributes are
     # {'datatype', 'unit', 'settable'}
+    # See PublishableSetting type
     published_settings: dict[str, PublishableSetting] = dict()
 
     def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
@@ -229,11 +229,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # pub_client=self.pub_client,
         )
 
-        # check_for_duplicate_process needs to come _before_ the pubsub client,
+        # check_for_duplicate_activity needs to come _before_ the pubsub client,
         # as they will set (and revoke) a new last will.
         # Ex: job X is running, but we try to rerun it, causing the latter job to abort, and
         # potentially firing the last_will
-        self.check_for_duplicate_process()
+        self.check_for_duplicate_activity()
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
         # but this is critical to our usecase: listen for events, and fire a response (ex: state change)
@@ -248,7 +248,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self.set_up_exit_protocol()
         self.check_published_settings()
-        self.declare_settable_properties_to_broker()
+        self.publish_settings_to_broker()
         self.start_general_passive_listeners()
 
         # let's move to init, next thing that run is the subclasses __init__
@@ -575,7 +575,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
             client.disconnect()
 
-    def declare_settable_properties_to_broker(self) -> None:
+    def publish_settings_to_broker(self) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
@@ -649,9 +649,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         else:
             try:
-                # make sure to cast the input to the same value
+                # try to cast the input to the same value
                 setattr(self, attr, type(previous_value)(new_value))
             except TypeError:
+                self.logger.error(
+                    f"Unable to cast new value `{new_value}` from type of previous value, `{previous_value}`. They should be the same type!"
+                )
                 setattr(self, attr, new_value)
 
         units = self.published_settings[attr].get("unit")
@@ -705,16 +708,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         self._blocking_event.wait()
 
-    def check_for_duplicate_process(self) -> None:
+    def check_for_duplicate_activity(self) -> None:
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             if cache.get(self.job_name, b"0") == b"1":
-                # double check using psutils
-                if (
-                    sum([p == self.job_name for p in pio_jobs_running()]) > 1
-                ):  # this process counts as one - see if there is another.
-                    self.logger.error(f"{self.job_name} is already running. Exiting.")
-                    raise ValueError(f"{self.job_name} is already running. Exiting.")
+                self.logger.error(f"{self.job_name} is already running. Exiting.")
+                raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 
             cache[self.job_name] = b"1"
 

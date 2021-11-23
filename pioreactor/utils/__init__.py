@@ -180,17 +180,16 @@ def is_pio_job_running(*target_jobs: str) -> bool:
             if cache.get(job, b"0") == b"0":
                 continue
             else:
-                # double check with psutil
-                if job in pio_jobs_running():
-                    return True
+                return True
     return False
 
 
-def pio_jobs_running() -> list:
+def pio_processes_running() -> list:
     """
-    This returns a list of the current pioreactor jobs/actions running. Ex:
+    This returns a list of the current pioreactor processes running. Ex:
 
     > ["stirring", "air_bubbler", "stirring"]
+
 
     Notes
     -------

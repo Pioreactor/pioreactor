@@ -35,6 +35,7 @@ from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.hardware_mappings import PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp
+from pioreactor.background_jobs.utils import AutomationDict
 
 
 class TemperatureController(BackgroundJob):
@@ -68,7 +69,8 @@ class TemperatureController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "temperature_automation": {"datatype": "string", "settable": True},
+        "temperature_automation": {"datatype": "json", "settable": True},
+        "temperature_automation_key": {"datatype": "string", "settable": False},
         "temperature": {"datatype": "json", "settable": False, "unit": "℃"},
         "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
     }
@@ -76,7 +78,7 @@ class TemperatureController(BackgroundJob):
 
     def __init__(
         self,
-        temperature_automation: str,
+        automation_key: str,
         eval_and_publish_immediately: bool = True,
         unit: str = None,
         experiment: str = None,
@@ -126,18 +128,23 @@ class TemperatureController(BackgroundJob):
         )
         self.publish_temperature_timer.start()
 
-        self.temperature_automation = temperature_automation
+        self.temperature_automation = AutomationDict(
+            automation_key=automation_key, **kwargs
+        )
 
         try:
-            automation_class = self.automations[self.temperature_automation]
+            automation_class = self.automations[
+                self.temperature_automation["automation_key"]
+            ]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.temperature_automation}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {self.temperature_automation['automation_key']}. Available automations are {list(self.automations.keys())}"
             )
 
         self.temperature_automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, parent=self, **kwargs
         )
+        self.temperature_automation_key = self.temperature_automation["automation_key"]
 
     def turn_off_heater(self):
         self._update_heater(0)
@@ -196,8 +203,7 @@ class TemperatureController(BackgroundJob):
         # self.temperature_automation_job.set_state("init")
         # self.temperature_automation_job.set_state("ready")
         # OR should just bail...
-        algo_init = json.loads(new_temperature_automation_json)
-        new_automation = algo_init.pop("temperature_automation")
+        algo_metadata = AutomationDict(**json.loads(new_temperature_automation_json))
 
         try:
             self.temperature_automation_job.set_state("disconnected")
@@ -210,10 +216,11 @@ class TemperatureController(BackgroundJob):
         self._update_heater(0)
 
         try:
-            self.temperature_automation_job = self.automations[new_automation](
-                unit=self.unit, experiment=self.experiment, parent=self, **algo_init
-            )
-            self.temperature_automation = new_automation
+            self.temperature_automation_job = self.automations[
+                algo_metadata["automation_key"]
+            ](unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata)
+            self.temperature_automation = algo_metadata
+            self.temperature_automation_key = algo_metadata["automation_key"]
 
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -375,18 +382,18 @@ def start_temperature_control(automation, **kwargs):
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
 )
 @click.option(
-    "--automation",
+    "--automation-key",
     default="silent",
     help="set the automation of the system",
     show_default=True,
 )
 @click.pass_context
-def click_temperature_control(ctx, automation):
+def click_temperature_control(ctx, automation_key):
     """
     Start a temperature automation.
     """
     tc = start_temperature_control(
-        automation=automation,
+        automation_key=automation_key,
         **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
     tc.block_until_disconnected()
