@@ -24,8 +24,8 @@ class LEDController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "led_automation": {"datatype": "json", "settable": True},
-        "led_automation_name": {"datatype": "string", "settable": False},
+        "automation": {"datatype": "json", "settable": True},
+        "automation_name": {"datatype": "string", "settable": False},
     }
 
     def __init__(self, automation_name, unit: str, experiment: str, **kwargs):
@@ -33,36 +33,36 @@ class LEDController(BackgroundJob):
             job_name="led_control", unit=unit, experiment=experiment
         )
 
-        self.led_automation = AutomationDict(automation_name=automation_name, **kwargs)
+        self.automation = AutomationDict(automation_name=automation_name, **kwargs)
 
         try:
-            automation_class = self.automations[self.led_automation["automation_name"]]
+            automation_class = self.automations[self.automation["automation_name"]]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.led_automation['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
-        self.led_automation_job = automation_class(
+        self.automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-        self.led_automation_name = self.led_automation["automation_name"]
+        self.automation_name = self.automation["automation_name"]
 
-    def set_led_automation(self, new_led_automation_json: str):
+    def set_automation(self, new_led_automation_json: str):
         algo_metadata = AutomationDict(json.loads(new_led_automation_json))
 
         try:
-            self.led_automation_job.set_state("disconnected")
+            self.automation_job.set_state("disconnected")
         except AttributeError:
             # sometimes the user will change the job too fast before the job is created, let's protect against that.
             time.sleep(1)
-            self.set_led_automation(new_led_automation_json)
+            self.set_automation(new_led_automation_json)
 
         try:
-            self.led_automation_job = self.automations[algo_metadata["automation_name"]](
+            self.automation_job = self.automations[algo_metadata["automation_name"]](
                 unit=self.unit, experiment=self.experiment, **algo_metadata
             )
-            self.led_automation = algo_metadata
-            self.led_automation_name = self.led_automation["automation_name"]
+            self.automation = algo_metadata
+            self.automation_name = self.automation["automation_name"]
         except KeyError:
             self.logger.debug(
                 f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
@@ -77,17 +77,17 @@ class LEDController(BackgroundJob):
             self.logger.warning(f"Change failed because of {str(e)}")
 
     def on_sleeping(self):
-        if self.led_automation_job.state != self.SLEEPING:
-            self.led_automation_job.set_state(self.SLEEPING)
+        if self.automation_job.state != self.SLEEPING:
+            self.automation_job.set_state(self.SLEEPING)
 
     def on_ready(self):
         with suppress(AttributeError):
-            if self.led_automation_job.state != self.READY:
-                self.led_automation_job.set_state(self.READY)
+            if self.automation_job.state != self.READY:
+                self.automation_job.set_state(self.READY)
 
     def on_disconnected(self):
         with suppress(AttributeError):
-            self.led_automation_job.set_state(self.DISCONNECTED)
+            self.automation_job.set_state(self.DISCONNECTED)
 
         self.clear_mqtt_cache()
 

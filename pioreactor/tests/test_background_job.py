@@ -220,25 +220,24 @@ def test_state_transition_callbacks() -> None:
             self.called_on_init_to_ready = True
 
     unit, exp = get_unit_name(), get_latest_experiment_name()
-    tj = TestJob(unit, exp)
-    assert tj.called_on_init
-    assert tj.called_on_init_to_ready
-    assert tj.called_on_ready
-    publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.SLEEPING)
-    pause()
-    pause()
-    pause()
-    pause()
-    assert tj.called_on_ready_to_sleeping
-    assert tj.called_on_sleeping
+    with TestJob(unit, exp) as tj:
+        assert tj.called_on_init
+        assert tj.called_on_init_to_ready
+        assert tj.called_on_ready
+        publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.SLEEPING)
+        pause()
+        pause()
+        pause()
+        pause()
+        assert tj.called_on_ready_to_sleeping
+        assert tj.called_on_sleeping
 
-    publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.READY)
-    pause()
-    pause()
-    pause()
-    pause()
-    assert tj.called_on_sleeping_to_ready
-    tj.set_state(tj.DISCONNECTED)
+        publish(f"pioreactor/{unit}/{exp}/{tj.job_name}/$state/set", tj.READY)
+        pause()
+        pause()
+        pause()
+        pause()
+        assert tj.called_on_sleeping_to_ready
 
 
 def test_bad_key_in_published_settings() -> None:
@@ -307,7 +306,7 @@ def test_editing_readonly_attr_via_mqtt() -> None:
     warning_logs = []
 
     def collect_logs(msg):
-        if "read-only" in msg.payload.decode():
+        if "readonly" in msg.payload.decode():
             warning_logs.append(msg)
 
     subscribe_and_callback(

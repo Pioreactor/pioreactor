@@ -40,8 +40,8 @@ class DosingController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "dosing_automation": {"datatype": "json", "settable": True},
-        "dosing_automation_name": {"datatype": "string", "settable": False},
+        "automation": {"datatype": "json", "settable": True},
+        "automation_name": {"datatype": "string", "settable": False},
     }
 
     def __init__(self, automation_name, unit=None, experiment=None, **kwargs):
@@ -49,7 +49,7 @@ class DosingController(BackgroundJob):
             job_name="dosing_control", unit=unit, experiment=experiment
         )
 
-        self.dosing_automation = AutomationDict(automation_name=automation_name, **kwargs)
+        self.automation = AutomationDict(automation_name=automation_name, **kwargs)
 
         self.alt_media_calculator = AltMediaCalculator(
             unit=self.unit, experiment=self.experiment, parent=self
@@ -60,38 +60,39 @@ class DosingController(BackgroundJob):
         self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
 
         try:
-            automation_class = self.automations[self.dosing_automation["automation_name"]]
+            automation_class = self.automations[self.automation["automation_name"]]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.dosing_automation['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
-        self.dosing_automation_job = automation_class(
+        self.automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
-        self.dosing_automation_name = self.dosing_automation["automation_name"]
+        self.automation_name = self.automation["automation_name"]
 
-    def set_dosing_automation(self, new_dosing_automation_json):
+    def set_automation(self, new_dosing_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.dosing_automation_job.set_state("init")
         # self.dosing_automation_job.set_state("ready")
-        # [ ] write tests
+        # because the state in MQTT is wrong.
         # OR should just bail...
         algo_metadata = AutomationDict(**json.loads(new_dosing_automation_json))
 
         try:
-            self.dosing_automation_job.set_state("disconnected")
+            self.automation_job.set_state("disconnected")
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             time.sleep(1)
-            self.set_dosing_automation(new_dosing_automation_json)
+            self.set_automation(new_dosing_automation_json)
 
         try:
-            self.dosing_automation_job = self.automations[
-                algo_metadata["automation_name"]
-            ](unit=self.unit, experiment=self.experiment, **algo_metadata)
-            self.dosing_automation = algo_metadata
-            self.dosing_automation_name = self.dosing_automation["automation_name"]
+            klass = self.automations[algo_metadata["automation_name"]]
+            self.automation_job = klass(
+                unit=self.unit, experiment=self.experiment, **algo_metadata
+            )
+            self.automation = algo_metadata
+            self.automation_name = self.automation["automation_name"]
         except KeyError:
             self.logger.debug(
                 f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
@@ -105,13 +106,13 @@ class DosingController(BackgroundJob):
             self.logger.warning(f"Change failed because of {str(e)}")
 
     def on_sleeping(self):
-        if self.dosing_automation_job.state != self.SLEEPING:
-            self.dosing_automation_job.set_state(self.SLEEPING)
+        if self.automation_job.state != self.SLEEPING:
+            self.automation_job.set_state(self.SLEEPING)
 
     def on_ready(self):
         try:
-            if self.dosing_automation_job.state != self.READY:
-                self.dosing_automation_job.set_state(self.READY)
+            if self.automation_job.state != self.READY:
+                self.automation_job.set_state(self.READY)
         except AttributeError:
             # attribute error occurs on first init of _control
             pass
@@ -121,10 +122,10 @@ class DosingController(BackgroundJob):
 
             for job in self.sub_jobs:
                 job.set_state(job.DISCONNECTED)
-            self.dosing_automation_job.set_state(self.DISCONNECTED)
+            self.automation_job.set_state(self.DISCONNECTED)
 
         except AttributeError:
-            # if disconnect is called right after starting, dosing_automation_job isn't instantiated
+            # if disconnect is called right after starting, automation_job isn't instantiated
             pass
         finally:
             self.clear_mqtt_cache()

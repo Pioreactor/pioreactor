@@ -25,7 +25,7 @@ def test_pid_stable_automation() -> None:
         )
         pause(2)
 
-        algo.temperature_automation_job.target_temperature == 55
+        algo.automation_job.target_temperature == 55
 
 
 def test_changing_temperature_algo_over_mqtt() -> None:
@@ -38,17 +38,17 @@ def test_changing_temperature_algo_over_mqtt() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as algo:
-        assert algo.temperature_automation_name == "silent"
-        assert isinstance(algo.temperature_automation_job, Silent)
+        assert algo.automation_name == "silent"
+        assert isinstance(algo.automation_job, Silent)
 
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature_automation/set",
+            f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             '{"automation_name": "pid_stable", "target_temperature": 20}',
         )
         time.sleep(8)
-        assert algo.temperature_automation_name == "pid_stable"
-        assert isinstance(algo.temperature_automation_job, PIDStable)
-        assert algo.temperature_automation_job.target_temperature == 20
+        assert algo.automation_name == "pid_stable"
+        assert isinstance(algo.automation_job, PIDStable)
+        assert algo.automation_job.target_temperature == 20
 
 
 def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
@@ -61,23 +61,23 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as algo:
-        assert algo.temperature_automation_name == "silent"
-        assert isinstance(algo.temperature_automation_job, Silent)
+        assert algo.automation_name == "silent"
+        assert isinstance(algo.automation_job, Silent)
 
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature_automation/set",
+            f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             '{"automation_name": "constant_duty_cycle", "duty_cycle": 25}',
         )
         time.sleep(8)
-        assert algo.temperature_automation_name == "constant_duty_cycle"
-        assert isinstance(algo.temperature_automation_job, ConstantDutyCycle)
-        assert algo.temperature_automation_job.duty_cycle == 25
+        assert algo.automation_name == "constant_duty_cycle"
+        assert isinstance(algo.automation_job, ConstantDutyCycle)
+        assert algo.automation_job.duty_cycle == 25
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_automation/duty_cycle/set", 30
         )
         pause()
-        assert algo.temperature_automation_job.duty_cycle == 30
+        assert algo.automation_job.duty_cycle == 30
 
 
 def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
@@ -118,13 +118,13 @@ def test_child_cant_update_heater_when_locked() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment, eval_and_publish_immediately=False
     ) as t:
-        assert t.temperature_automation_job.update_heater(50)
+        assert t.automation_job.update_heater(50)
 
         with t.pwm.lock_temporarily():
-            assert not t.temperature_automation_job.update_heater(50)
+            assert not t.automation_job.update_heater(50)
             assert not t.update_heater(50)
 
-        assert t.temperature_automation_job.update_heater(50)
+        assert t.automation_job.update_heater(50)
 
 
 def test_constant_duty_cycle_init() -> None:
@@ -151,7 +151,7 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
         # change to PID stable
         assert t.heater_duty_cycle == 0
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature_automation/set",
+            f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             '{"automation_name": "pid_stable", "target_temperature": 35}',
         )
 
@@ -177,8 +177,8 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
         # change to PID stable
 
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature_automation/set",
-            '{"temperature_automation": "pid_stable", "target_temperature": 35}',
+            f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
+            '{"automation_name": "pid_stable", "target_temperature": 35}',
         )
 
         pause(3)

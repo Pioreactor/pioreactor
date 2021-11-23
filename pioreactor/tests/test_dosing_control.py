@@ -425,12 +425,12 @@ def test_pause_in_dosing_control_also_pauses_automation() -> None:
     )
     pause()
     assert algo.state == "sleeping"
-    assert algo.dosing_automation_job.state == "sleeping"
+    assert algo.automation_job.state == "sleeping"
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "ready")
     pause()
     assert algo.state == "ready"
-    assert algo.dosing_automation_job.state == "ready"
+    assert algo.automation_job.state == "ready"
     algo.set_state(algo.DISCONNECTED)
 
 
@@ -485,7 +485,7 @@ def test_throughput_calculator() -> None:
         '{"od_filtered": 1.0}',
     )
     pause()
-    algo.dosing_automation_job.run()
+    algo.automation_job.run()
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -496,7 +496,7 @@ def test_throughput_calculator() -> None:
         '{"od_filtered": 0.95}',
     )
     pause()
-    algo.dosing_automation_job.run()
+    algo.automation_job.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
 
@@ -509,7 +509,7 @@ def test_throughput_calculator() -> None:
         '{"od_filtered": 0.95}',
     )
     pause()
-    algo.dosing_automation_job.run()
+    algo.automation_job.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
 
@@ -522,7 +522,7 @@ def test_throughput_calculator() -> None:
         '{"od_filtered": 0.95}',
     )
     pause()
-    algo.dosing_automation_job.run()
+    algo.automation_job.run()
     assert algo.throughput_calculator.media_throughput > 0
     assert algo.throughput_calculator.alt_media_throughput > 0
     algo.set_state(algo.DISCONNECTED)
@@ -606,26 +606,24 @@ def test_execute_io_action() -> None:
         retain=True,
     )
     ca = DosingController("silent", unit=unit, experiment=experiment)
-    ca.dosing_automation_job.execute_io_action(
+    ca.automation_job.execute_io_action(
         media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35
     )
     pause()
     assert ca.throughput_calculator.media_throughput == 0.65
     assert ca.throughput_calculator.alt_media_throughput == 0.35
 
-    ca.dosing_automation_job.execute_io_action(
-        media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3
-    )
+    ca.automation_job.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
     pause()
     assert ca.throughput_calculator.media_throughput == 0.80
     assert ca.throughput_calculator.alt_media_throughput == 0.50
 
-    ca.dosing_automation_job.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
+    ca.automation_job.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 0.50
 
-    ca.dosing_automation_job.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
+    ca.automation_job.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
     pause()
     assert ca.throughput_calculator.media_throughput == 1.80
     assert ca.throughput_calculator.alt_media_throughput == 1.50
@@ -651,9 +649,7 @@ def test_execute_io_action2() -> None:
     )
 
     ca = DosingController("silent", unit=unit, experiment=experiment)
-    ca.dosing_automation_job.execute_io_action(
-        media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26
-    )
+    ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     pause()
     assert ca.throughput_calculator.media_throughput == 1.25
     assert ca.throughput_calculator.alt_media_throughput == 0.01
@@ -784,80 +780,79 @@ def test_duration_and_timer() -> None:
 
 
 def test_changing_duration_over_mqtt() -> None:
-    algo = PIDMorbidostat(
+    with PIDMorbidostat(
         target_od=1.0,
         target_growth_rate=0.01,
         duration=5 / 60,
         unit=unit,
         experiment=experiment,
-    )
-    assert algo.latest_event is None
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.08}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 0.5}',
-    )
-    time.sleep(10)
+    ) as algo:
+        assert algo.latest_event is None
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.08}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 0.5}',
+        )
+        time.sleep(10)
 
-    assert isinstance(algo.latest_event, events.NoEvent)
+        assert isinstance(algo.latest_event, events.NoEvent)
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set", 60 / 60
-    )
-    time.sleep(10)
-    assert algo.run_thread.interval == 60
-    algo.set_state(algo.DISCONNECTED)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set", 60 / 60
+        )
+        time.sleep(10)
+        assert algo.run_thread.interval == 60
 
 
 def test_changing_algo_over_mqtt_solo() -> None:
 
-    algo = DosingController(
+    with DosingController(
         "turbidostat",
         target_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
         experiment=experiment,
-    )
-    assert algo.dosing_automation["automation_name"] == "turbidostat"
-    assert isinstance(algo.dosing_automation_job, Turbidostat)
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
-        '{"automation_name": "pid_morbidostat", "duration": 60, "target_od": 1.0, "target_growth_rate": 0.07}',
-    )
-    time.sleep(8)
-    assert algo.dosing_automation["automation_name"] == "pid_morbidostat"
-    assert isinstance(algo.dosing_automation_job, PIDMorbidostat)
-    assert algo.dosing_automation_job.target_growth_rate == 0.07
-    algo.set_state(algo.DISCONNECTED)
+    ) as algo:
+        assert algo.automation["automation_name"] == "turbidostat"
+        assert isinstance(algo.automation_job, Turbidostat)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_control/automation/set",
+            '{"automation_name": "pid_morbidostat", "duration": 60, "target_od": 1.0, "target_growth_rate": 0.07}',
+        )
+        time.sleep(8)
+        assert algo.automation["automation_name"] == "pid_morbidostat"
+        assert isinstance(algo.automation_job, PIDMorbidostat)
+        assert algo.automation_job.target_growth_rate == 0.07
 
 
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
 
-    algo = DosingController(
+    with DosingController(
         "turbidostat",
         target_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
         experiment=experiment,
-    )
-    assert algo.dosing_automation["automation_name"] == "turbidostat"
-    assert isinstance(algo.dosing_automation_job, Turbidostat)
-    pause()
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
-        '{"automation_name": "pid_morbidostat", "duration": 60}',
-    )
-    time.sleep(8)
-    assert algo.dosing_automation["automation_name"] == "turbidostat"
-    assert isinstance(algo.dosing_automation_job, Turbidostat)
-    assert algo.dosing_automation_job.target_od == 1.0
-    algo.set_state(algo.DISCONNECTED)
+    ) as algo:
+        assert algo.automation["automation_name"] == "turbidostat"
+        assert isinstance(algo.automation_job, Turbidostat)
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_control/automation/set",
+            '{"automation_name": "pid_morbidostat", "duration": 60}',
+        )
+        time.sleep(10)
+        assert algo.automation["automation_name"] == "turbidostat"
+        assert isinstance(algo.automation_job, Turbidostat)
+        assert algo.automation_job.target_od == 1.0
+        pause()
+        pause()
+        pause()
 
 
 def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
@@ -885,16 +880,16 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
         unit=unit,
         experiment=experiment,
     )
-    assert algo.dosing_automation["automation_name"] == "pid_turbidostat"
+    assert algo.automation["automation_name"] == "pid_turbidostat"
     pause()
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
+        f"pioreactor/{unit}/{experiment}/dosing_control/automation/set",
         '{"automation_name": "turbidostat", "duration": 60, "target_od": 1.0, "volume": 1.0, "skip_first_run": 1}',
     )
     time.sleep(
         10
     )  # need to wait for all jobs to disconnect correctly and threads to join.
-    assert isinstance(algo.dosing_automation_job, Turbidostat)
+    assert isinstance(algo.automation_job, Turbidostat)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -907,14 +902,14 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
     pause()
 
     # note that we manually run, as we have skipped the first run in the json
-    algo.dosing_automation_job.run()
+    algo.automation_job.run()
     time.sleep(5)
     assert algo.throughput_calculator.media_throughput == 1.0
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_od/set", 1.5)
     pause()
     pause()
-    assert algo.dosing_automation_job.target_od == 1.5
+    assert algo.automation_job.target_od == 1.5
     algo.set_state(algo.DISCONNECTED)
 
 
@@ -933,18 +928,18 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
         unit=unit,
         experiment=experiment,
     )
-    assert algo.dosing_automation["automation_name"] == "pid_turbidostat"
-    assert algo.dosing_automation_name == "pid_turbidostat"
+    assert algo.automation["automation_name"] == "pid_turbidostat"
+    assert algo.automation_name == "pid_turbidostat"
     pause()
     pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_control/dosing_automation/set",
+        f"pioreactor/{unit}/{experiment}/dosing_control/automation/set",
         '{"automation_name": "pid_turbidostat", "duration": "60", "target_od": "1.0", "volume": "1.0"}',
     )
     time.sleep(
         7
     )  # need to wait for all jobs to disconnect correctly and threads to join.
-    assert isinstance(algo.dosing_automation_job, PIDTurbidostat)
-    assert algo.dosing_automation_job.target_od == 1.0
+    assert isinstance(algo.automation_job, PIDTurbidostat)
+    assert algo.automation_job.target_od == 1.0
     algo.set_state(algo.DISCONNECTED)
 
 
@@ -958,8 +953,8 @@ def test_disconnect_cleanly() -> None:
         volume=1.0,
         experiment=experiment,
     )
-    assert algo.dosing_automation["automation_name"] == "turbidostat"
-    assert isinstance(algo.dosing_automation_job, Turbidostat)
+    assert algo.automation["automation_name"] == "turbidostat"
+    assert isinstance(algo.automation_job, Turbidostat)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
     )

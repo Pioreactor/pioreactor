@@ -69,8 +69,8 @@ class TemperatureController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "temperature_automation": {"datatype": "json", "settable": True},
-        "temperature_automation_name": {"datatype": "string", "settable": False},
+        "automation": {"datatype": "json", "settable": True},
+        "automation_name": {"datatype": "string", "settable": False},
         "temperature": {"datatype": "json", "settable": False, "unit": "℃"},
         "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
     }
@@ -128,23 +128,19 @@ class TemperatureController(BackgroundJob):
         )
         self.publish_temperature_timer.start()
 
-        self.temperature_automation = AutomationDict(
-            automation_name=automation_name, **kwargs
-        )
+        self.automation = AutomationDict(automation_name=automation_name, **kwargs)
 
         try:
-            automation_class = self.automations[
-                self.temperature_automation["automation_name"]
-            ]
+            automation_class = self.automations[self.automation["automation_name"]]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.temperature_automation['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
-        self.temperature_automation_job = automation_class(
+        self.automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, parent=self, **kwargs
         )
-        self.temperature_automation_name = self.temperature_automation["automation_name"]
+        self.automation_name = self.automation["automation_name"]
 
     def turn_off_heater(self):
         self._update_heater(0)
@@ -198,29 +194,29 @@ class TemperatureController(BackgroundJob):
 
     ##### internal and private methods ########
 
-    def set_temperature_automation(self, new_temperature_automation_json):
+    def set_automation(self, new_temperature_automation_json):
         # TODO: this needs a better rollback. Ex: in except, something like
-        # self.temperature_automation_job.set_state("init")
-        # self.temperature_automation_job.set_state("ready")
+        # self.automation_job.set_state("init")
+        # self.automation_job.set_state("ready")
         # OR should just bail...
         algo_metadata = AutomationDict(**json.loads(new_temperature_automation_json))
 
         try:
-            self.temperature_automation_job.set_state("disconnected")
+            self.automation_job.set_state("disconnected")
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             time.sleep(1)
-            self.set_temperature_automation(new_temperature_automation_json)
+            self.set_automation(new_temperature_automation_json)
 
         # reset heater back to 0.
         self._update_heater(0)
 
         try:
-            self.temperature_automation_job = self.automations[
-                algo_metadata["automation_name"]
-            ](unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata)
-            self.temperature_automation = algo_metadata
-            self.temperature_automation_name = algo_metadata["automation_name"]
+            self.automation_job = self.automations[algo_metadata["automation_name"]](
+                unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata
+            )
+            self.automation = algo_metadata
+            self.automation_name = algo_metadata["automation_name"]
         except KeyError:
             self.logger.debug(
                 f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
@@ -265,14 +261,14 @@ class TemperatureController(BackgroundJob):
             self._update_heater(self.heater_duty_cycle * 0.90)
 
     def on_sleeping(self):
-        self.temperature_automation_job.set_state(self.SLEEPING)
+        self.automation_job.set_state(self.SLEEPING)
 
     def on_sleeping_to_ready(self):
-        self.temperature_automation_job.set_state(self.READY)
+        self.automation_job.set_state(self.READY)
 
     def on_disconnected(self):
         try:
-            self.temperature_automation_job.set_state(self.DISCONNECTED)
+            self.automation_job.set_state(self.DISCONNECTED)
         except AttributeError:
             # if disconnect is called right after starting, temperature_automation_job isn't instantiated
             pass
