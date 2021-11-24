@@ -49,7 +49,7 @@ def stirring_calibration():
         if config_initial_duty_cycle < 50:
             dcs = list(range(20, 45, 4)) + list(range(43, 20, -4))
         else:
-            dcs = list(range(90, 60, 4)) + list(range(60, 90, -4))
+            dcs = list(range(90, 60, -4)) + list(range(60, 90, 4))
 
         measured_rpms = []
 
