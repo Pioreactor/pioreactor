@@ -8,7 +8,7 @@ import click
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.background_jobs.monitor import ErrorCode
 from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
 from pioreactor.utils.pwm import PWM
@@ -79,7 +79,7 @@ class RpmCalculator:
         self.cleanup()
 
 
-class RpmFromFrequency(RpmCalculator):
+class RpmFromFrequency(LoggerMixin, RpmCalculator):
     """
     Averages the duration between rises in an N second window. This is more accurate (but less robust)
     than RpmFromCount
@@ -87,14 +87,19 @@ class RpmFromFrequency(RpmCalculator):
 
     _running_sum = 0
     _running_count = 0
+    _running_max = 0
+    _running_min = 100
     _start_time = None
 
     def callback(self, *args):
         obs_time = perf_counter()
 
         if self._start_time is not None:
-            self._running_sum += obs_time - self._start_time
+            delta = obs_time - self._start_time
+            self._running_sum += delta
             self._running_count += 1
+            self._running_max = max(self._running_max, delta)
+            self._running_min = min(self._running_min, delta)
 
         self._start_time = obs_time
 
@@ -102,6 +107,8 @@ class RpmFromFrequency(RpmCalculator):
 
         self._running_sum = 0
         self._running_count = 0
+        self._running_max = 0
+        self._running_min = 100
         self._start_time = None
 
         self.turn_on_collection()
@@ -111,6 +118,25 @@ class RpmFromFrequency(RpmCalculator):
         if self._running_sum == 0:
             return 0
         else:
+            # we should be able to detect if we are missing pings, as they would be a near integer
+            # of the average of "okay" values.
+            #    measured Δ time vs index
+            #    |
+            #  Δ |
+            #    |      x      x
+            #    |xxxxxxxxxxxxxxxxxxxx
+            #     --------------------|
+            #           index
+            #
+            # however, we need the array, but we only record the running counts/sums
+            # solution: running max and running min.
+            # False positives are when the duty cycle significantly changes however...
+
+            if self._running_max > 1.75 * self._running_min:
+                self.logger.debug(
+                    f"RpmCalculator is possible skipping some signal: {self._running_max=}, {self._running_min=}."
+                )
+
             return self._running_count * 60 / self._running_sum
 
 

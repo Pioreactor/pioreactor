@@ -48,11 +48,11 @@ def stirring_calibration():
         # we go up and down to exercise any hysteresis in the system
         if config_initial_duty_cycle < 50:
             dcs = (
-                list(range(20, 45, 5)) + list(range(45, 20, -5)) + list(range(22, 47, 5))
+                list(range(25, 50, 5)) + list(range(50, 25, -5)) + list(range(22, 47, 5))
             )
         else:
             dcs = (
-                list(range(90, 60, -5)) + list(range(60, 90, 5)) + list(range(88, 58, -5))
+                list(range(85, 40, -5)) + list(range(39, 85, 5)) + list(range(88, 58, -5))
             )
 
         measured_rpms = []
@@ -69,7 +69,7 @@ def stirring_calibration():
             time.sleep(8)
             n_samples = len(dcs)
 
-            for count, dc in enumerate(dcs):
+            for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
                 time.sleep(8)
                 rpm = rpm_calc(4)
@@ -83,7 +83,7 @@ def stirring_calibration():
                 logger.debug(f"Progress: {count/n_samples:.0%}")
 
         publish_to_pioreactor_cloud(action_name, json=dict(zip(dcs, measured_rpms)))
-        logger.debug(dict(zip(dcs, measured_rpms)))
+        logger.debug(list(zip(dcs, measured_rpms)))
 
         # drop any 0 in RPM, too little DC
         try:
