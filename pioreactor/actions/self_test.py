@@ -107,6 +107,7 @@ def test_all_positive_correlations_between_pds_and_leds(
                 )
 
         # compute the linear correlation between the intensities and observed PD measurements
+        print(varying_intensity_results)
 
         for pd_channel in ALL_PD_CHANNELS:
             results[(led_channel, pd_channel)] = round(
