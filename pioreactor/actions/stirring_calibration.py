@@ -14,7 +14,7 @@ from pioreactor.whoami import (
     get_latest_testing_experiment_name,
 )
 from pioreactor.logging import create_logger
-
+from pioreactor.config import config
 from pioreactor.utils import (
     is_pio_job_running,
     publish_ready_to_disconnected_state,
@@ -41,7 +41,15 @@ def stirring_calibration():
             return
 
         # we go up and down to exercise any hysteresis in the system
-        dcs = list(range(25, 45, 4)) + list(range(43, 25, -4))
+        # seed with initial_duty_cycle
+        config_initial_duty_cycle = round(
+            config.getfloat("stirring", "initial_duty_cycle")
+        )
+
+        if config_initial_duty_cycle < 50:
+            dcs = list(range(20, 45, 4)) + list(range(43, 20, -4))
+        else:
+            dcs = list(range(90, 60, 4)) + list(range(60, 90, -4))
 
         measured_rpms = []
 
