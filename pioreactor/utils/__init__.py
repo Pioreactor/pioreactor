@@ -55,7 +55,7 @@ def append_signal_handler(signal_value, new_callback: Callable):
         stack.append(new_callback)
         signal.signal(signal_value, stack)
     else:
-        raise RuntimeError("Something is wrong.")
+        raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
 
 
 class publish_ready_to_disconnected_state:
