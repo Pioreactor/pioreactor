@@ -30,7 +30,7 @@ class callable_stack:
             function()
 
 
-def add_signal_handler(signal_value, new_callback: Callable):
+def append_signal_handler(signal_value, new_callback: Callable):
     """
     The current api of signal.signal is a stack of size 1, so if
     we have multiple jobs started in the same python process, we
@@ -82,7 +82,7 @@ class publish_ready_to_disconnected_state:
         sys.exit()  # will trigger a exception, causing __exit__ to be called
 
     def __enter__(self):
-        add_signal_handler(signal.SIGTERM, self._handle_interrupt)
+        append_signal_handler(signal.SIGTERM, self._handle_interrupt)
 
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",

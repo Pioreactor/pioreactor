@@ -12,7 +12,7 @@ from paho.mqtt.client import Client, MQTTMessage  # type: ignore
 
 from pioreactor.utils import (
     local_intermittent_storage,
-    add_signal_handler,
+    append_signal_handler,
 )
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
@@ -502,10 +502,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
             atexit.register(disconnect_gracefully)
 
             # terminate command, ex: pkill
-            add_signal_handler(signal.SIGTERM, disconnect_gracefully)
+            append_signal_handler(signal.SIGTERM, disconnect_gracefully)
 
             # keyboard interrupt
-            add_signal_handler(signal.SIGINT, disconnect_gracefully)
+            append_signal_handler(signal.SIGINT, disconnect_gracefully)
 
             # NOHUP is not included here, as it prevents tools like nohup working: https://unix.stackexchange.com/a/261631
 
