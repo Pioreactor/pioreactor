@@ -231,7 +231,7 @@ class Stirrer(BackgroundJob):
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
                 # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
-                return lambda rpm: self.duty_cycle - 0.9 * (
+                return lambda rpm: self.duty_cycle - 0.85 * (
                     self.duty_cycle - (coef * rpm + intercept)
                 )
             else:
@@ -272,8 +272,8 @@ class Stirrer(BackgroundJob):
             self.logger.warning("Stirring RPM is 0 - has it failed?")
 
         if self._measured_rpm is not None:
-            # use a simple EMA, 0.05 chosen arbitrarily, but should be a function of delta time.
-            self._measured_rpm = 0.05 * self._measured_rpm + 0.95 * recent_rpm
+            # use a simple EMA, alpha chosen arbitrarily, but should be a function of delta time.
+            self._measured_rpm = 0.025 * self._measured_rpm + 0.975 * recent_rpm
         else:
             self._measured_rpm = recent_rpm
 

@@ -40,16 +40,20 @@ def stirring_calibration():
             )
             return
 
-        # we go up and down to exercise any hysteresis in the system
         # seed with initial_duty_cycle
         config_initial_duty_cycle = round(
             config.getfloat("stirring", "initial_duty_cycle")
         )
 
+        # we go up and down to exercise any hysteresis in the system
         if config_initial_duty_cycle < 50:
-            dcs = list(range(20, 45, 4)) + list(range(43, 20, -4))
+            dcs = (
+                list(range(20, 45, 5)) + list(range(45, 20, -5)) + list(range(22, 47, 5))
+            )
         else:
-            dcs = list(range(90, 60, -4)) + list(range(60, 90, 4))
+            dcs = (
+                list(range(90, 60, -5)) + list(range(60, 90, 5)) + list(range(88, 58, -5))
+            )
 
         measured_rpms = []
 
@@ -69,7 +73,6 @@ def stirring_calibration():
                 st.set_duty_cycle(dc)
                 time.sleep(8)
                 rpm = rpm_calc(4)
-                print(dc, rpm)
                 measured_rpms.append(rpm)
 
                 # log progress
@@ -92,7 +95,10 @@ def stirring_calibration():
 
         # since in practice, we want a look up from RPM -> required DC, we
         # set x=measure_rpms, y=dcs
-        (rpm_coef, _), (intercept, _) = simple_linear_regression(measured_rpms, dcs)
+        (rpm_coef, rpm_coef_std), (intercept, intercept_std) = simple_linear_regression(
+            measured_rpms, dcs
+        )
+        logger.debug(f"{rpm_coef=}, {rpm_coef_std=}, {intercept=}, {intercept_std=}")
 
         if rpm_coef <= 0:
             logger.warning(
