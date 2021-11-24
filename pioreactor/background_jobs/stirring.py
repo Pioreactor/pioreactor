@@ -100,6 +100,7 @@ class RpmFromFrequency(LoggerMixin, RpmCalculator):
             self._running_count += 1
             self._running_max = max(self._running_max, delta)
             self._running_min = min(self._running_min, delta)
+            print(delta)
 
         self._start_time = obs_time
 
@@ -132,10 +133,10 @@ class RpmFromFrequency(LoggerMixin, RpmCalculator):
             # solution: running max and running min.
             # False positives are when the duty cycle significantly changes however...
 
-            if self._running_max > 1.75 * self._running_min:
-                self.logger.debug(
-                    f"RpmCalculator is possible skipping some signal: {self._running_max=}, {self._running_min=}."
-                )
+            # if self._running_max > 1.75 * self._running_min:
+            #     self.logger.debug(
+            #         f"RpmCalculator is possible skipping some signal: {self._running_max=}, {self._running_min=}."
+            #     )
 
             return self._running_count * 60 / self._running_sum
 
