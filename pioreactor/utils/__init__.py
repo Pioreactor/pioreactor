@@ -49,7 +49,11 @@ def append_signal_handler(signal_value, new_callback: Callable):
             stack.append(current_callback)
             stack.append(new_callback)
             signal.signal(signal_value, stack)
-    elif (current_callback is None) or (current_callback is signal.SIG_DFL):
+    elif (
+        (current_callback is None)
+        or (current_callback is signal.SIG_DFL)
+        or (current_callback is signal.SIG_IGN)
+    ):
         # no stack yet.
         stack = callable_stack()
         stack.append(new_callback)
