@@ -203,7 +203,7 @@ def update(ui: bool, app: bool) -> None:
         """
         # for now, let's just update to master to make my life easier
         latest_release_version = "master"
-        command = "sudo pip3 --upgrade --force-reinstall install https://github.com/pioreactor/pioreactor/archive/master.zip"
+        command = "sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/master.zip"
         p = subprocess.run(
             command,
             shell=True,
