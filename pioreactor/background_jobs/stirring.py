@@ -253,8 +253,8 @@ class Stirrer(BackgroundJob):
 
             if "linear_v1" in cache:
                 parameters = json.loads(cache["linear_v1"])
-                coef = parameters.pop("rpm_coef")
-                intercept = parameters.pop("intercept")
+                coef = parameters["rpm_coef"]
+                intercept = parameters["intercept"]
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
                 # equivalent to a weighted average: 0.1 * current + 0.9 * predicted

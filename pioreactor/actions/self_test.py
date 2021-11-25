@@ -219,11 +219,11 @@ def test_positive_correlation_between_temp_and_heating(
 def test_positive_correlation_between_rpm_and_stirring(
     logger: Logger, unit: str, experiment: str
 ) -> None:
-    dcs = list(range(85, 50, -5))
+    dcs = list(range(80, 40, -5))
     measured_rpms = []
 
     with stirring.Stirrer(
-        target_rpm=400, unit=unit, experiment=experiment, rpm_calculator=None
+        target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
 
         st.duty_cycle = dcs[0]
@@ -240,7 +240,7 @@ def test_positive_correlation_between_rpm_and_stirring(
         logger.debug(
             f"Correlation between stirring RPM and duty cycle: {measured_correlation}"
         )
-        logger.debug(f"{(dcs, measured_rpms)}")
+        logger.debug(f"{dcs=}, {measured_rpms=}")
         assert measured_correlation > 0.9, (dcs, measured_rpms)
 
 
