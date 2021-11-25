@@ -240,7 +240,8 @@ class Stirrer(BackgroundJob):
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
-            poll_for_seconds=3,
+            run_after=5,
+            poll_for_seconds=4,  # technically should be a function of the RPM: lower RPM, longer to get sufficient data.
         )
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
