@@ -7,7 +7,7 @@ Functions with prefix `test_` are ran, and an Exception thrown means the test fa
 Outputs from each test go into MQTT, and return to the command line.
 """
 
-import time, sys
+import time, sys, json
 from logging import Logger
 from json import dumps
 from typing import cast
@@ -29,7 +29,11 @@ from pioreactor.utils.math_helpers import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
 from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS, LED_Channel
-from pioreactor.utils import is_pio_job_running, publish_ready_to_disconnected_state
+from pioreactor.utils import (
+    is_pio_job_running,
+    publish_ready_to_disconnected_state,
+    local_persistant_storage,
+)
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
 
@@ -219,22 +223,38 @@ def test_positive_correlation_between_temp_and_heating(
 def test_positive_correlation_between_rpm_and_stirring(
     logger: Logger, unit: str, experiment: str
 ) -> None:
-    dcs = list(range(80, 40, -5))
+
+    with local_persistant_storage("stirring_calibration") as cache:
+
+        if "linear_v1" in cache:
+            parameters = json.loads(cache["linear_v1"])
+            coef = parameters["rpm_coef"]
+            intercept = parameters["intercept"]
+
+            initial_dc = coef * 700 + intercept
+
+        else:
+            initial_dc = config.getfloat("stirring", "initial_duty_cycle")
+
+    dcs = []
     measured_rpms = []
+    n_samples = 8
 
     with stirring.Stirrer(
         target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
 
-        st.duty_cycle = dcs[0]
-
+        st.duty_cycle = initial_dc
         st.start_stirring()
         time.sleep(1)
 
-        for dc in dcs:
+        for i in range(n_samples):
+            dc = initial_dc * (1 - i / n_samples) + i / n_samples * (initial_dc / 2)
+
             st.set_duty_cycle(dc)
             time.sleep(1)
             measured_rpms.append(rpm_calc(4))
+            dcs.append(dc)
 
         measured_correlation = round(correlation(dcs, measured_rpms), 2)
         logger.debug(
