@@ -8,7 +8,7 @@ import click
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.monitor import ErrorCode
 from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
 from pioreactor.utils.pwm import PWM
@@ -79,7 +79,7 @@ class RpmCalculator:
         self.cleanup()
 
 
-class RpmFromFrequency(LoggerMixin, RpmCalculator):
+class RpmFromFrequency(RpmCalculator):
     """
     Averages the duration between rises in an N second window. This is more accurate (but less robust)
     than RpmFromCount
@@ -87,31 +87,30 @@ class RpmFromFrequency(LoggerMixin, RpmCalculator):
 
     _running_sum = 0
     _running_count = 0
-    _running_max = 0
-    _running_min = 100
     _start_time = None
+    _is_first_delta = True
 
     def callback(self, *args):
         obs_time = perf_counter()
 
         if self._start_time is not None:
-            delta = obs_time - self._start_time
-            self._running_sum += delta
-            self._running_count += 1
-            self._running_max = max(self._running_max, delta)
-            self._running_min = min(self._running_min, delta)
-            print(delta)
+            if not self._is_first_delta:
+                self._running_sum += obs_time - self._start_time
+                self._running_count += 1
+            else:
+                self._is_first_delta = False
 
         self._start_time = obs_time
 
-    def __call__(self, seconds_to_observe: float) -> float:
-
+    def clear_aggregates(self):
         self._running_sum = 0
         self._running_count = 0
-        self._running_max = 0
-        self._running_min = 100
         self._start_time = None
+        self._is_first_delta = True
 
+    def __call__(self, seconds_to_observe: float) -> float:
+
+        self.clear_aggregates()
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
