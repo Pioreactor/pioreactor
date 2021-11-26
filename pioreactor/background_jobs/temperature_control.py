@@ -397,6 +397,9 @@ def click_temperature_control(ctx, automation_name):
     """
     tc = start_temperature_control(
         automation_name=automation_name,
-        **{ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
+        **{
+            ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1]
+            for i in range(0, len(ctx.args), 2)
+        },
     )
     tc.block_until_disconnected()

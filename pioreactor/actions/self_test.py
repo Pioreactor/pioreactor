@@ -239,6 +239,8 @@ def test_positive_correlation_between_rpm_and_stirring(
     dcs = []
     measured_rpms = []
     n_samples = 8
+    start = initial_dc
+    end = initial_dc / 2
 
     with stirring.Stirrer(
         target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
@@ -249,7 +251,7 @@ def test_positive_correlation_between_rpm_and_stirring(
         time.sleep(1)
 
         for i in range(n_samples):
-            dc = initial_dc * (1 - i / n_samples) + i / n_samples * (initial_dc / 2)
+            dc = start * (1 - i / n_samples) + (i / n_samples) * end
 
             st.set_duty_cycle(dc)
             time.sleep(1)
