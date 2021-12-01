@@ -278,13 +278,11 @@ def click_self_test(k):
     experiment = get_latest_experiment_name()
     logger = create_logger("self_test", unit=unit, experiment=experiment)
 
-    with publish_ready_to_disconnected_state(
-        unit, get_latest_testing_experiment_name(), "self_test"
-    ):
+    with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
 
-        if is_pio_job_running("od_reading", "temperature_control", "stirring"):
+        if is_pio_job_running("od_reading", "temperature_automation", "stirring"):
             logger.error(
-                "Make sure OD Reading, Temperature Control, and Stirring are off before running a self test. Exiting."
+                "Make sure Optical Density, Temperature Automation, and Stirring are off before running a self test. Exiting."
             )
             return 1
 

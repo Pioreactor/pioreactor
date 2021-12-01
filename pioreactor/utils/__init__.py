@@ -181,10 +181,9 @@ def is_pio_job_running(*target_jobs: str) -> bool:
     """
     with local_intermittent_storage("pio_jobs_running") as cache:
         for job in target_jobs:
-            if cache.get(job, b"0") == b"0":
-                continue
-            else:
+            if cache.get(job, b"0") != b"0":
                 return True
+
     return False
 
 

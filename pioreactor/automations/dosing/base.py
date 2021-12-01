@@ -119,11 +119,13 @@ class DosingAutomation(BackgroundSubJob):
         else:
             try:
                 event = self.execute()
-                self.logger.info(str(event))
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
                 event = events.ErrorOccurred()
+
+        if event:
+            self.logger.info(str(event))
 
         self.latest_event = event
         return event
