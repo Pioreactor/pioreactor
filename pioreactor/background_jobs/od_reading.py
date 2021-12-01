@@ -394,7 +394,7 @@ class ADCReader(LoggerMixin):
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
                             + 0.80 / (self.oversampling_count - 1)
-                            + 0.0025
+                            + 0.001
                             * (
                                 (counter * 0.618034) % 1
                             ),  # this is to artificially spread out the samples, so that we observe less aliasing. That constant is phi.
@@ -427,6 +427,7 @@ class ADCReader(LoggerMixin):
                     / 32767
                 )
 
+                # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_, 0)
 
                 # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
@@ -524,6 +525,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
 
+        # TODO: this can be negative...
         self.led_output_ema.update(
             (ir_output_reading - self.blank_reading)
             / (self.initial_led_output - self.blank_reading)

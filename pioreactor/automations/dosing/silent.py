@@ -17,4 +17,4 @@ class Silent(DosingAutomation):
         super(Silent, self).__init__(**kwargs)
 
     def execute(self) -> events.Event:
-        return events.NoEvent("never execute dosing events in Silent mode")
+        return events.NoEvent("never execute dosing events in Silent.")

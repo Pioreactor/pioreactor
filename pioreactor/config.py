@@ -42,6 +42,35 @@ def reverse_config_section(section) -> dict[str, str]:
     return reversed_section
 
 
+class ConfigParserMod(configparser.ConfigParser):
+
+    # https://stackoverflow.com/a/19359720/1895939
+    optionxform = str  # type: ignore
+    BOOLEAN_STATES = {
+        **{k: False for k in ["0", "false", "no", "off"]},
+        **{k: True for k in ["1", "yes", "true", "on"]},
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, allow_no_value=True, **kwargs)
+
+    def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
+        try:
+            return super().get(section, option, *args, **kwargs)
+        except configparser.NoSectionError:
+            from pioreactor.logging import create_logger
+
+            create_logger("read config").error(f"No section: '{section}.{option}'")
+            raise
+
+    def getint(self, section: str, option: str, fallback=None, **kwargs) -> Optional[int]:  # type: ignore
+        value = self.get(section, option, fallback=fallback, **kwargs)
+        if value:
+            return int(value)
+        else:
+            return None
+
+
 @lru_cache(1)
 def get_config():
     """
@@ -72,25 +101,7 @@ def get_config():
 
 
     """
-    # allow_no_value is true because we don't want to break reading config files if the user forgets something / makes a mistake.
-    config = configparser.ConfigParser(allow_no_value=True)
-
-    # https://stackoverflow.com/a/19359720/1895939
-    config.optionxform = str
-
-    def safe_getint(section: str, option: str, fallback=None, **kwargs) -> Optional[int]:
-        value = config.get(section, option, fallback=fallback, **kwargs)
-        if value:
-            return int(value)
-        else:
-            return None
-
-    config.getint = safe_getint
-
-    config.BOOLEAN_STATES = {
-        **{k: False for k in ["0", "false", "no", "off"]},
-        **{k: True for k in ["1", "yes", "true", "on"]},
-    }
+    config = ConfigParserMod()
 
     if is_testing_env():
         global_config_path = "./config.dev.ini"
