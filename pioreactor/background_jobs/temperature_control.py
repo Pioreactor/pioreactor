@@ -18,8 +18,8 @@ algorithm is below, housed in TemperatureController
 
 To change the automation over MQTT,
 
-topic: `pioreactor/<unit>/<experiment>/temperture_control/temperature_automation/set`
-message: a json object with required keyword argument. Specify the new automation with name `"temperature_automation"`.
+topic: `pioreactor/<unit>/<experiment>/temperture_control/automation/set`
+message: a json object with required keyword argument. Specify the new automation with name `"automation_name"`.
 
 """
 from __future__ import annotations

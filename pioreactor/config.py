@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+from typing import Optional
 import configparser
 import os
 from functools import lru_cache
@@ -77,7 +78,7 @@ def get_config():
     # https://stackoverflow.com/a/19359720/1895939
     config.optionxform = str
 
-    def safe_getint(section, option, fallback=None, **kwargs):
+    def safe_getint(section: str, option: str, fallback=None, **kwargs) -> Optional[int]:
         value = config.get(section, option, fallback=fallback, **kwargs)
         if value:
             return int(value)

@@ -4,8 +4,8 @@ Continuously monitor the bioreactor and perform LED actions. This is the core of
 
 To change the automation over MQTT,
 
-topic: `pioreactor/<unit>/<experiment>/led_control/led_automation/set`
-message: a json object with required keyword argument. Specify the new automation with name `"led_automation"`.
+topic: `pioreactor/<unit>/<experiment>/led_control/automation/set`
+message: a json object with required keyword argument. Specify the new automation with name `"automation_name"`.
 """
 import time
 import json

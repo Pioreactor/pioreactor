@@ -1,4 +1,5 @@
 ### Upcoming
+ - `pid_stable` automation renamed to `stable`
  - jobs can now publish to `pioreactor/<unit>/+/monitor/flicker_led_with_error_code/<error code>`
     to have the LED flash a specific error code.
  - fixed errors raised when not able to connect to leader's MQTT

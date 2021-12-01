@@ -5,7 +5,7 @@ Continuously monitor the bioreactor and take action. This is the core of the dos
 
 To change the automation over MQTT,
 
-    pioreactor/<unit>/<experiment>/dosing_control/dosing_automation/set
+    pioreactor/<unit>/<experiment>/dosing_control/automation/set
 
 
 with payload a json object with required keyword argument(s). Specify the new automation with name `"automation_name"`.
@@ -13,7 +13,7 @@ with payload a json object with required keyword argument(s). Specify the new au
 
 Using the CLI, specific automation values can be specified as additional options (note the underscore...) :
 
-    > pio run dosing_control --automation turbidostat --volume 1.0 --target_od 3.0
+    > pio run dosing_control --automation-name turbidostat --volume 1.0 --target_od 3.0
 
 
 """

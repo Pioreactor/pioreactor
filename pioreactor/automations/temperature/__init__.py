@@ -3,7 +3,7 @@
 
 from .silent import Silent
 from .constant_duty_cycle import ConstantDutyCycle
-from .pid_stable import PIDStable
+from .stable import Stable
 
 
-__all__ = ("Silent", "ConstantDutyCycle", "PIDStable")
+__all__ = ("Silent", "ConstantDutyCycle", "Stable")

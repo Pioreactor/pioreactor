@@ -21,27 +21,27 @@ class DEMA:
         return self.value
 
 
-class PIDStable(TemperatureAutomation):
+class Stable(TemperatureAutomation):
     """
     Uses a PID controller to change the DC% to match a target temperature.
 
     """
 
-    automation_name = "pid_stable"
+    automation_name = "stable"
     published_settings = {
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }
     first_update = True
 
     def __init__(self, target_temperature, **kwargs):
-        super(PIDStable, self).__init__(**kwargs)
+        super(Stable, self).__init__(**kwargs)
         assert target_temperature is not None, "target_temperature must be set"
         self.target_temperature = float(target_temperature)
 
         self.pid = PID(
-            Kp=config.getfloat("temperature_automation.pid_stable", "Kp"),
-            Ki=config.getfloat("temperature_automation.pid_stable", "Ki"),
-            Kd=config.getfloat("temperature_automation.pid_stable", "Kd"),
+            Kp=config.getfloat("temperature_automation.stable", "Kp"),
+            Ki=config.getfloat("temperature_automation.stable", "Ki"),
+            Kd=config.getfloat("temperature_automation.stable", "Kd"),
             setpoint=self.target_temperature,
             unit=self.unit,
             experiment=self.experiment,

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import time
 from pioreactor.background_jobs import temperature_control
-from pioreactor.automations.temperature import Silent, PIDStable, ConstantDutyCycle
+from pioreactor.automations.temperature import Silent, Stable, ConstantDutyCycle
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
 
@@ -14,9 +14,9 @@ def pause(n=1):
     time.sleep(n)
 
 
-def test_pid_stable_automation() -> None:
+def test_stable_automation() -> None:
     with temperature_control.TemperatureController(
-        "pid_stable", target_temperature=50, unit=unit, experiment=experiment
+        "stable", target_temperature=50, unit=unit, experiment=experiment
     ) as algo:
         pause(2)
         pubsub.publish(
@@ -43,11 +43,11 @@ def test_changing_temperature_algo_over_mqtt() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "pid_stable", "target_temperature": 20}',
+            '{"automation_name": "stable", "target_temperature": 20}',
         )
         time.sleep(8)
-        assert algo.automation_name == "pid_stable"
-        assert isinstance(algo.automation_job, PIDStable)
+        assert algo.automation_name == "stable"
+        assert isinstance(algo.automation_job, Stable)
         assert algo.automation_job.target_temperature == 20
 
 
@@ -152,7 +152,7 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
         assert t.heater_duty_cycle == 0
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "pid_stable", "target_temperature": 35}',
+            '{"automation_name": "stable", "target_temperature": 35}',
         )
 
         pause(3)
@@ -178,7 +178,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "pid_stable", "target_temperature": 35}',
+            '{"automation_name": "stable", "target_temperature": 35}',
         )
 
         pause(3)

@@ -86,7 +86,7 @@ class PWM:
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
 
-            if self.hz > 5000:
+            if self.hz > 2000:
                 self.logger.warning(
                     "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
                 )
