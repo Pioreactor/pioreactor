@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from typing import Optional
 import configparser
 import os
 from functools import lru_cache
@@ -21,27 +20,6 @@ def __getattr__(attr):
         raise AttributeError
 
 
-def reverse_config_section(section) -> dict[str, str]:
-    """
-    creates an inverted lookup from a config section. Useful to find LEDs and PWM.
-    """
-    section_without_empties = {k: v for k, v in section.items() if v != ""}
-    reversed_section = {v: k for k, v in section_without_empties.items()}
-
-    if len(reversed_section) != len(section_without_empties):
-
-        values = list(section.values())
-        dups = set([x for x in values if values.count(x) > 1])
-
-        # can't use logger, as the logger module uses config.py...
-        # TODO: I could use paho to publish to log topic in localhost mosquitto?
-        print(
-            f"WARNING Duplicate values, `{next(iter(dups))}`, found in section `{section.name}`. This may lead to unexpected behavior. Please give unique names."
-        )
-
-    return reversed_section
-
-
 class ConfigParserMod(configparser.ConfigParser):
 
     # https://stackoverflow.com/a/19359720/1895939
@@ -54,21 +32,41 @@ class ConfigParserMod(configparser.ConfigParser):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, allow_no_value=True, **kwargs)
 
+    def invert_section(self, section: str) -> dict[str, str]:
+        """
+        creates an inverted lookup from a config section. Useful to find LEDs and PWM.
+        """
+        section_without_empties = {k: v for k, v in self[section].items() if v != ""}
+        reversed_section = {v: k for k, v in section_without_empties.items()}
+
+        if len(reversed_section) != len(section_without_empties):
+
+            values = list(self[section].values())
+            dups = set([x for x in values if values.count(x) > 1])
+
+            # can't use logger, as the logger module uses config.py...
+            # TODO: I could use paho to publish to log topic in localhost mosquitto?
+            print(
+                f"WARNING Duplicate values, `{next(iter(dups))}`, found in section `{section}`. This may lead to unexpected behavior. Please give unique names."
+            )
+
+        return reversed_section
+
     def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
         try:
             return super().get(section, option, *args, **kwargs)
         except configparser.NoSectionError:
             from pioreactor.logging import create_logger
 
-            create_logger("read config").error(f"No section: '{section}.{option}'")
-            raise
+            create_logger("read config").error(
+                f"""No section in configuration: '{section}.{option}'. Are you missing the following in your config?
 
-    def getint(self, section: str, option: str, fallback=None, **kwargs) -> Optional[int]:  # type: ignore
-        value = self.get(section, option, fallback=fallback, **kwargs)
-        if value:
-            return int(value)
-        else:
-            return None
+[{section}]
+{option}=some value
+
+"""
+            )
+            raise
 
 
 @lru_cache(1)
@@ -132,8 +130,10 @@ def get_config():
         raise e
 
     # some helpful additions - see docs above
-    config["leds_reverse"] = reverse_config_section(config["leds"])
-    config["PWM_reverse"] = reverse_config_section(config["PWM"])
+    if "leds" in config:
+        config["leds_reverse"] = config.invert_section("leds")
+    if "PWM" in config:
+        config["PWM_reverse"] = config.invert_section("PWM")
 
     return config
 
