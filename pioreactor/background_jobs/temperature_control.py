@@ -179,7 +179,10 @@ class TemperatureController(BackgroundJob):
         Read the current temperature from our sensor, in Celsius
         """
         try:
-            pcb_temp = self.tmp_driver.get_temperature()
+            # check temp is fast, let's do it twice to reduce variance.
+            pcb_temp = 0.5 * (
+                self.tmp_driver.get_temperature() + self.tmp_driver.get_temperature()
+            )
         except OSError:
             # could not find temp driver on i2c
             self.logger.error(
@@ -311,20 +314,24 @@ class TemperatureController(BackgroundJob):
             N_sample_points = 17
             time_between_samples = 10
 
-            feature_vector = {}
-            # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
+            features = {}
+            features["prev_temp"] = (
+                self.temperature["temperature"] if self.temperature else None
+            )
+            features["previous_heater_dc"] = previous_heater_dc
+            time_series_of_temp = []
 
             for i in range(N_sample_points):
-                feature_vector[
-                    f"{time_between_samples * i}s"
-                ] = self.read_external_temperature()
+                time_series_of_temp.append(self.read_external_temperature())
                 time.sleep(time_between_samples)
 
                 if self.state != self.READY:
                     # if our state changes in this loop, exit.
                     return
 
-            self.logger.debug(feature_vector)
+            features["time_series_of_temp"] = time_series_of_temp
+
+            self.logger.debug(features)
 
             # update heater first, before publishing the temperature. Why? A downstream process
             # might listen for the updating temperature, and update the heater (pid_stable),
@@ -333,7 +340,7 @@ class TemperatureController(BackgroundJob):
             self._update_heater(previous_heater_dc)
 
         try:
-            approximated_temperature = self.approximate_temperature(feature_vector)
+            approximated_temperature = self.approximate_temperature(features)
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
@@ -343,32 +350,77 @@ class TemperatureController(BackgroundJob):
             "timestamp": current_utc_time(),
         }
 
-    def approximate_temperature(self, feature_vector: dict) -> float:
-        # check if we are using silent, if so, we can short this and return single value?
+    def approximate_temperature(self, features: dict[str, Any]) -> float:
+        """
+        models
 
-        # some heuristic for now:
-        from math import exp
+            temp = b * exp(p * t) + c * exp(q * t) + ROOM_TEMP
 
-        prev_temp = 1_000_000
-        for i, temp in enumerate(feature_vector.values()):
-            if i > 0:
-                delta_threshold = 0.15 + 0.2 / (1 + exp(-0.15 * (temp - 35)))
-                if abs(prev_temp - temp) < delta_threshold:
+        Reference
+        -------------
+        https://www.scribd.com/doc/14674814/Regressions-et-equations-integrales
+        page 71 - 72
 
-                    # take a moving average with previous temperature, if available
-                    # 0.05 was arbitrary
-                    if self.temperature:
-                        return (
-                            0.05 * self.temperature["temperature"]
-                            + 0.95 * (temp + prev_temp) / 2
-                        )
-                    else:
-                        return (temp + prev_temp) / 2
+        """
 
-            prev_temp = temp
+        if features["previous_heater_dc"] == 0:
+            return features["time_series_of_temp"][-1]
 
-        self.logger.warning("Ran out of samples!")
-        return temp
+        import numpy as np
+        from numpy import exp
+
+        ROOM_TEMP = 22
+
+        times_series = features["time_series_of_temp"]
+
+        n = len(times_series)
+        y = np.array(times_series) - ROOM_TEMP
+        x = np.arange(n)  # scaled by factor of 1/10 seconds
+
+        S = np.zeros(n)
+        SS = np.zeros(n)
+        for i in range(1, n):
+            S[i] = S[i - 1] + 0.5 * (y[i - 1] + y[i]) * (x[i] - x[i - 1])
+            SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
+
+        # first regression
+        M1 = np.array(
+            [
+                [(SS ** 2).sum(), (SS * S).sum(), (SS * x).sum(), (SS).sum()],
+                [(SS * S).sum(), (S ** 2).sum(), (S * x).sum(), (S).sum()],
+                [(SS * x).sum(), (S * x).sum(), (x ** 2).sum(), (x).sum()],
+                [(SS).sum(), (S).sum(), (x).sum(), n],
+            ]
+        )
+        Y1 = np.array([(y * SS).sum(), (y * S).sum(), (y * x).sum(), y.sum()])
+
+        A, B, _, __ = np.linalg.solve(M1, Y1)
+
+        p = 0.5 * (B + np.sqrt(B ** 2 + 4 * A))
+        q = 0.5 * (B - np.sqrt(B ** 2 + 4 * A))
+
+        # second regression
+        M2 = np.array(
+            [
+                [exp(2 * p * x).sum(), exp((p + q) * x).sum()],
+                [exp((q + p) * x).sum(), exp(2 * q * x).sum()],
+            ]
+        )
+        Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
+
+        b, c = np.linalg.solve(M2, Y2)
+
+        if abs(p) < abs(q):
+            # since the regression can have identifiable problems, we use
+            # our domain knowledge to choose the pair that has the lower heat transfer coefficient.
+            alpha, beta = b, p
+        else:
+            alpha, beta = c, q
+
+        temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
+        temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
+
+        return 0.5 * (temp_at_start_of_obs + temp_at_end_of_obs)
 
 
 def start_temperature_control(automation_name: str, **kwargs):

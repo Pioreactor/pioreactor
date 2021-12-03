@@ -276,7 +276,7 @@ class ADCReader(LoggerMixin):
 
         Reference
         ------------
-        https://scikit-guess.readthedocs.io/en/latest/appendices/reei/translation.html#further-optimizations-based-on-estimates-of-a-and-rho
+        https://scikit-guess.readthedocs.io/en/latest/appendices/references.html#concept
 
 
         """
