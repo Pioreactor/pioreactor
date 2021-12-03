@@ -1,4 +1,4 @@
-### Upcoming
+### 21.12.0
  - `pid_stable` automation renamed to `stable`
  - jobs can now publish to `pioreactor/<unit>/+/monitor/flicker_led_with_error_code/<error code>`
     to have the LED flash a specific error code.

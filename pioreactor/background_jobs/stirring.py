@@ -258,7 +258,7 @@ class Stirrer(BackgroundJob):
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
                 # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
-                return lambda rpm: self.duty_cycle - 0.85 * (
+                return lambda rpm: self.duty_cycle - 0.90 * (
                     self.duty_cycle - (coef * rpm + intercept)
                 )
             else:
@@ -321,7 +321,6 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(0)
 
     def on_ready_to_sleeping(self) -> None:
-        self._previous_duty_cycle = self.duty_cycle
         self.rpm_check_repeated_thread.pause()
         self.stop_stirring()
 
@@ -331,6 +330,7 @@ class Stirrer(BackgroundJob):
         self.start_stirring()
 
     def set_duty_cycle(self, value) -> None:
+        self._previous_duty_cycle = self.duty_cycle
         self.duty_cycle = clamp(0, round(float(value), 5), 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
