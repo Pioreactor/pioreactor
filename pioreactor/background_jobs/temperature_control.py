@@ -421,6 +421,8 @@ class TemperatureController(BackgroundJob):
         else:
             alpha, beta = c, q
 
+        self.logger.debug(f"{b=}, {c=}, {p=} , {q=}")
+
         temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
         temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
 
