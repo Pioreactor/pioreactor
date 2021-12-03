@@ -239,7 +239,7 @@ def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
     import numpy as np
 
     features = {
-        "previous_heater_dc": 17,
+        "previous_heater_dc": 14.5,
         "time_series_of_temp": list(
             22
             + 10 * np.exp(-0.008 * np.arange(0, 17))
@@ -251,6 +251,24 @@ def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
         "silent", unit=unit, experiment=experiment
     ) as t:
         assert (32 * np.exp(-0.008 * 17)) < t.approximate_temperature(features) < 32
+
+
+def test_temperature_approximation_even_if_very_large_heat_source() -> None:
+    import numpy as np
+
+    features = {
+        "previous_heater_dc": 14.5,
+        "time_series_of_temp": list(
+            22
+            + 3 * np.exp(-0.008 * np.arange(0, 17))
+            + 20 * np.exp(-0.28 * np.arange(0, 17))
+        ),
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert (24 * np.exp(-0.008 * 17)) < t.approximate_temperature(features) < 25
 
 
 def test_temperature_approximation_if_dc_is_nil() -> None:
