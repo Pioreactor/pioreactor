@@ -311,7 +311,7 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
-            N_sample_points = 17
+            N_sample_points = 15
             time_between_samples = 10
 
             features = {}
@@ -360,6 +360,10 @@ class TemperatureController(BackgroundJob):
         -------------
         https://www.scribd.com/doc/14674814/Regressions-et-equations-integrales
         page 71 - 72
+
+
+        It's possible that we can determine if the vial is in using the heat loss coefficient. Quick look:
+        when the vial is in, heat coefficient is ~ -0.008, when not in, coefficient is ~ -0.028.
 
         """
 

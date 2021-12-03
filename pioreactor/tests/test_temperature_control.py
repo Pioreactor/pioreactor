@@ -225,6 +225,68 @@ def test_temperature_approximation1() -> None:
         assert 32.0 <= t.approximate_temperature(features) <= 33.4
 
 
+def test_temperature_approximation2() -> None:
+
+    features = {
+        "previous_heater_dc": 17,
+        "time_series_of_temp": [
+            44.8125,
+            43.8125,
+            43.0,
+            42.25,
+            41.5625,
+            40.875,
+            40.3125,
+            39.75,
+            39.1875,
+            38.6875,
+            38.25,
+            37.8125,
+            37.375,
+            37.0,
+            36.625,
+            36.25,
+            35.9375,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert 38 <= t.approximate_temperature(features) <= 39
+
+
+def test_temperature_approximation3() -> None:
+
+    features = {
+        "previous_heater_dc": 17,
+        "time_series_of_temp": [
+            49.875,
+            47.5,
+            45.8125,
+            44.375,
+            43.1875,
+            42.0625,
+            41.125,
+            40.3125,
+            39.5625,
+            38.875,
+            38.1875,
+            37.625,
+            37.125,
+            36.625,
+            36.1875,
+            35.8125,
+            35.4375,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert 38 <= t.approximate_temperature(features) <= 39
+
+
 def test_temperature_approximation_if_constant() -> None:
 
     features = {"previous_heater_dc": 17, "time_series_of_temp": 15 * [32.0]}
