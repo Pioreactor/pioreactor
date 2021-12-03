@@ -192,3 +192,72 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
         pause(1)
 
     assert len(dc_msgs) > 0
+
+
+def test_temperature_approximation1() -> None:
+
+    features = {
+        "previous_heater_dc": 17,
+        "time_series_of_temp": [
+            37.8125,
+            36.625,
+            35.6875,
+            35.0,
+            34.5,
+            34.0625,
+            33.6875,
+            33.4375,
+            33.1875,
+            33.0,
+            32.875,
+            32.6875,
+            32.5625,
+            32.4375,
+            32.375,
+            32.25,
+            32.1875,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert 32.0 <= t.approximate_temperature(features) <= 33.4
+
+
+def test_temperature_approximation_if_constant() -> None:
+
+    features = {"previous_heater_dc": 17, "time_series_of_temp": 15 * [32.0]}
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert 32.0 == t.approximate_temperature(features)
+
+
+def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
+    import numpy as np
+
+    features = {
+        "previous_heater_dc": 17,
+        "time_series_of_temp": list(
+            22
+            + 10 * np.exp(-0.008 * np.arange(0, 17))
+            + 0.5 * np.exp(-0.28 * np.arange(0, 17))
+        ),
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert (32 * np.exp(-0.008 * 17)) < t.approximate_temperature(features) < 32
+
+
+def test_temperature_approximation_if_dc_is_nil() -> None:
+
+    features = {"previous_heater_dc": 0, "time_series_of_temp": [37.8125, 32.1875]}
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert t.approximate_temperature(features) == 32.1875
