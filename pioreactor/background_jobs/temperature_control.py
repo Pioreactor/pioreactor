@@ -121,7 +121,7 @@ class TemperatureController(BackgroundJob):
         }
 
         self.publish_temperature_timer = RepeatedTimer(
-            10 * 60,
+            9 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
             run_after=60,
@@ -234,7 +234,7 @@ class TemperatureController(BackgroundJob):
 
     def _update_heater(self, new_duty_cycle: float):
         self.heater_duty_cycle = clamp(
-            0, round(float(new_duty_cycle), 5), 50
+            0, round(float(new_duty_cycle), 5), 60
         )  # TODO: update upperbound with better constant later.
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
@@ -311,8 +311,9 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
-            N_sample_points = 15
-            time_between_samples = 10
+            # we pause heating for N_sample_points * time_between_samples seconds
+            N_sample_points = 30
+            time_between_samples = 5
 
             features = {}
             features["prev_temp"] = (
