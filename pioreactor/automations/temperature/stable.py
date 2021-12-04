@@ -83,3 +83,8 @@ class Stable(TemperatureAutomation):
         target_temperature = clamp(0, float(value), 50)
         self.target_temperature = target_temperature
         self.pid.set_setpoint(self.target_temperature)
+
+        output = self.pid.update(
+            self.latest_temperature, dt=1
+        )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
+        self.update_heater_with_delta(output)

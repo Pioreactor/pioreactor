@@ -19,13 +19,23 @@ def test_stable_automation() -> None:
         "stable", target_temperature=50, unit=unit, experiment=experiment
     ) as algo:
         pause(2)
+
+        # 55 is too high - clamps to 50
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-            '{"temperature": 55, "timestamp": "2020-01-01"}',
+            f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set",
+            55,
         )
         pause(2)
 
-        algo.automation_job.target_temperature == 55
+        assert algo.automation_job.target_temperature == 50
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set",
+            35,
+        )
+        pause(2)
+
+        assert algo.automation_job.target_temperature == 35
 
 
 def test_changing_temperature_algo_over_mqtt() -> None:
@@ -284,17 +294,17 @@ def test_temperature_approximation3() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as t:
-        assert 38 <= t.approximate_temperature(features) <= 39
+        assert 39 <= t.approximate_temperature(features) <= 40
 
 
 def test_temperature_approximation_if_constant() -> None:
 
-    features = {"previous_heater_dc": 17, "time_series_of_temp": 15 * [32.0]}
+    features = {"previous_heater_dc": 17, "time_series_of_temp": 30 * [32.0]}
 
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as t:
-        assert 32.0 == t.approximate_temperature(features)
+        assert abs(32.0 - t.approximate_temperature(features)) < 0.01
 
 
 def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:

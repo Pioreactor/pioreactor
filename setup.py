@@ -15,8 +15,6 @@ CORE_REQUIREMENTS = [
     # tech debt - this needed to be in the core
     # leader requirement
     "sqlite3worker @ https://github.com/pioreactor/sqlite3worker/archive/master.zip#egg=sqlite3worker-0.0.1",
-    # worker requirement
-    "simple-pid @ https://github.com/pioreactor/simple-pid/archive/master.zip#egg=simple-pid-0.0.1",
 ]
 
 
@@ -31,6 +29,7 @@ WORKER_REQUIREMENTS = [
     "DAC43608>=0.2.6",
     "TMP1075>=0.2.0",
     "rpi-hardware-pwm>=0.1.3",
+    "simple-pid",
 ]
 
 setup(

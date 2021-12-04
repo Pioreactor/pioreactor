@@ -311,7 +311,7 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
-            # we pause heating for N_sample_points * time_between_samples seconds
+            # we pause heating for (N_sample_points * time_between_samples) seconds
             N_sample_points = 30
             time_between_samples = 5
 
@@ -320,8 +320,8 @@ class TemperatureController(BackgroundJob):
                 self.temperature["temperature"] if self.temperature else None
             )
             features["previous_heater_dc"] = previous_heater_dc
-            time_series_of_temp = []
 
+            time_series_of_temp = []
             for i in range(N_sample_points):
                 time_series_of_temp.append(self.read_external_temperature())
                 time.sleep(time_between_samples)
@@ -374,7 +374,7 @@ class TemperatureController(BackgroundJob):
         import numpy as np
         from numpy import exp
 
-        ROOM_TEMP = 22
+        ROOM_TEMP = 10.0
 
         times_series = features["time_series_of_temp"]
 
@@ -399,7 +399,7 @@ class TemperatureController(BackgroundJob):
         )
         Y1 = np.array([(y * SS).sum(), (y * S).sum(), (y * x).sum(), y.sum()])
 
-        A, B, _, __ = np.linalg.solve(M1, Y1)
+        A, B, _, _ = np.linalg.solve(M1, Y1)
 
         p = 0.5 * (B + np.sqrt(B ** 2 + 4 * A))
         q = 0.5 * (B - np.sqrt(B ** 2 + 4 * A))
@@ -427,7 +427,9 @@ class TemperatureController(BackgroundJob):
         temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
         temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
 
-        return 0.5 * (temp_at_start_of_obs + temp_at_end_of_obs)
+        # it's weighted because I trust the predicted temperature at the start of observation more
+        # than the predicted temperature at the end.
+        return 2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs
 
 
 def start_temperature_control(automation_name: str, **kwargs):
