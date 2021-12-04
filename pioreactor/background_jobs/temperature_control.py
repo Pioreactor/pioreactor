@@ -10,9 +10,9 @@ The same PCB is used for heating the vial - so how do we remove the effect of PC
 algorithm is below, housed in TemperatureController
 
     1. Turn on heating, the amount controlled by the TemperatureController.heater_duty_cycle.
-    2. Every 10 minutes, we trigger a sequence:
+    2. Every N minutes, we trigger a sequence:
         1. Turn off heating completely (a lock is introduced so other jobs can't change this)
-        2. Every 10 seconds, record the temperature on the PCB.
+        2. Every M seconds, record the temperature on the PCB.
         3. Use the series of PCB temperatures to infer the temperature of vial.
 
 
@@ -62,9 +62,9 @@ class TemperatureController(BackgroundJob):
         evaluate and publish the temperature once the class is created (in the background)
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 56.0
-    MAX_TEMP_TO_DISABLE_HEATING = 58.0
-    MAX_TEMP_TO_SHUTDOWN = 60.0  # PLA glass transition temp
+    MAX_TEMP_TO_REDUCE_HEATING = 60.0
+    MAX_TEMP_TO_DISABLE_HEATING = 62.0
+    MAX_TEMP_TO_SHUTDOWN = 64.0  # PLA glass transition temp
 
     automations = {}  # type: ignore
 
@@ -234,7 +234,7 @@ class TemperatureController(BackgroundJob):
 
     def _update_heater(self, new_duty_cycle: float):
         self.heater_duty_cycle = clamp(
-            0, round(float(new_duty_cycle), 5), 60
+            0, round(float(new_duty_cycle), 5), 80
         )  # TODO: update upperbound with better constant later.
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
@@ -427,7 +427,7 @@ class TemperatureController(BackgroundJob):
         temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
         temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
 
-        # it's weighted because I trust the predicted temperature at the start of observation more
+        # the recent estimate weighted because I trust the predicted temperature at the start of observation more
         # than the predicted temperature at the end.
         return 2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs
 
