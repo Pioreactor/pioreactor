@@ -26,14 +26,17 @@ def test_sin_regression_exactly() -> None:
 
 
 def test_sin_regression_all_zeros_should_return_zeros() -> None:
+    import numpy as np
 
-    adc_reader = ADCReader(channels=[])
+    with np.errstate(all="raise"):
+        adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
-        [i / 25 for i in range(25)], [0] * 25, 60
-    )
-    assert C == 0
-    assert A == 0
+        (C, A, phi), AIC = adc_reader.sin_regression_with_known_freq(
+            [i / 25 for i in range(25)], [0] * 25, 60
+        )
+        assert C == 0
+        assert A == 0
+        assert np.isinf(AIC)
 
 
 def test_sin_regression_constant_should_return_constant() -> None:

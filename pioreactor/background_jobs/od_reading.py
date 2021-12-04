@@ -84,6 +84,7 @@ from __future__ import annotations
 from typing import Optional, Literal, cast
 from time import time, sleep
 import click
+import math
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
@@ -103,7 +104,7 @@ from pioreactor.pubsub import QOS
 PD_Channel = Literal[
     "1", "2", "3", "4"
 ]  # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless. str suggest symbols, which they are.
-ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2", "3", "4"]
+ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2"]
 
 REF_keyword = "REF"
 IR_keyword = "IR"
@@ -327,12 +328,17 @@ class ADCReader(LoggerMixin):
         y_model = C + b * np.sin(freq * tau * x) + c * np.cos(freq * tau * x)
         SSE = np.sum((y - y_model) ** 2)
 
-        AIC = (
-            n * np.log(SSE / n) + 2 * 3
-        )  # TODO: this can raise an error RuntimeWarning: divide by zero encountered in log
+        if SSE > 0:
+            AIC = n * np.log(SSE / n) + 2 * 3
+        else:
+            AIC = math.inf
 
-        A = np.sqrt(b ** 2 + c ** 2)
-        phi = np.arcsin(c / np.sqrt(b ** 2 + c ** 2))
+        if np.sqrt(b ** 2 + c ** 2) <= 0:
+            A = 0
+            phi = 0
+        else:
+            A = np.sqrt(b ** 2 + c ** 2)
+            phi = np.arcsin(c / np.sqrt(b ** 2 + c ** 2))
 
         return (C, A, phi), AIC
 
@@ -525,7 +531,13 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
 
-        # TODO: this can be negative...
+        if (self.initial_led_output - self.blank_reading) < 0.01:
+            self.logger.warning(
+                "Reference photodiode producing very small values. Is the reference photodiode and the IR LED connected?"
+            )
+            return
+
+        # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
         self.led_output_ema.update(
             (ir_output_reading - self.blank_reading)
             / (self.initial_led_output - self.blank_reading)
