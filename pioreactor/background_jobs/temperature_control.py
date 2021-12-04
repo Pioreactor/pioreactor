@@ -121,7 +121,7 @@ class TemperatureController(BackgroundJob):
         }
 
         self.publish_temperature_timer = RepeatedTimer(
-            9 * 60,
+            8 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
             run_after=60,
@@ -234,7 +234,7 @@ class TemperatureController(BackgroundJob):
 
     def _update_heater(self, new_duty_cycle: float):
         self.heater_duty_cycle = clamp(
-            0, round(float(new_duty_cycle), 5), 80
+            0, round(float(new_duty_cycle), 5), 100
         )  # TODO: update upperbound with better constant later.
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 

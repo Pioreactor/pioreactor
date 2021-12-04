@@ -479,6 +479,9 @@ class ADCReader(LoggerMixin):
 
 
 class IrLedReferenceTracker(LoggerMixin):
+
+    _logger_name = "IR LED ref"
+
     def __init__(self):
         super().__init__()
 
