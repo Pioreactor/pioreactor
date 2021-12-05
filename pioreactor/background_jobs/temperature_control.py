@@ -234,7 +234,7 @@ class TemperatureController(BackgroundJob):
 
     def _update_heater(self, new_duty_cycle: float):
         self.heater_duty_cycle = clamp(
-            0, round(float(new_duty_cycle), 5), 75
+            0, round(float(new_duty_cycle), 5), 85
         )  # TODO: update upperbound with better constant later.
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
