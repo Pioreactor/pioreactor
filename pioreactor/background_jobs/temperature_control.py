@@ -142,7 +142,7 @@ class TemperatureController(BackgroundJob):
         )
         self.automation_name = self.automation["automation_name"]
 
-    def turn_off_heater(self):
+    def turn_off_heater(self) -> None:
         self._update_heater(0)
         self.pwm.stop()
         self.pwm.cleanup()
@@ -151,7 +151,7 @@ class TemperatureController(BackgroundJob):
         self._update_heater(0)
         self.pwm.stop()
 
-    def update_heater(self, new_duty_cycle: float):
+    def update_heater(self, new_duty_cycle: float) -> bool:
         """
         Update heater's duty cycle. This function checks for the PWM lock, and will not
         update if the PWM is locked.
@@ -165,7 +165,7 @@ class TemperatureController(BackgroundJob):
         else:
             return False
 
-    def update_heater_with_delta(self, delta_duty_cycle: float):
+    def update_heater_with_delta(self, delta_duty_cycle: float) -> bool:
         """
         Update heater's duty cycle by `delta_duty_cycle` amount. This function checks for the PWM lock, and will not
         update if the PWM is locked.
@@ -174,7 +174,7 @@ class TemperatureController(BackgroundJob):
         """
         return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
 
-    def read_external_temperature(self):
+    def read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
         """
@@ -197,7 +197,7 @@ class TemperatureController(BackgroundJob):
 
     ##### internal and private methods ########
 
-    def set_automation(self, new_temperature_automation_json):
+    def set_automation(self, new_temperature_automation_json) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
@@ -232,13 +232,13 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
-    def _update_heater(self, new_duty_cycle: float):
+    def _update_heater(self, new_duty_cycle: float) -> None:
         self.heater_duty_cycle = clamp(
             0, round(float(new_duty_cycle), 5), 85
         )  # TODO: update upperbound with better constant later.
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
-    def _check_if_exceeds_max_temp(self, temp: float):
+    def _check_if_exceeds_max_temp(self, temp: float) -> None:
 
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
@@ -291,14 +291,14 @@ class TemperatureController(BackgroundJob):
 
         self.clear_mqtt_cache()
 
-    def setup_pwm(self):
-        hertz = 1  # previously: 25000k is above human hearing (20 - 20k hz), however, this requires a hardware PWM.
+    def setup_pwm(self) -> PWM:
+        hertz = 2
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(0)
         return pwm
 
-    def evaluate_and_publish_temperature(self):
+    def evaluate_and_publish_temperature(self) -> None:
         """
         1. lock PWM and turn off heater
         2. start recording temperatures from the sensor
@@ -432,7 +432,7 @@ class TemperatureController(BackgroundJob):
         return 2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs
 
 
-def start_temperature_control(automation_name: str, **kwargs):
+def start_temperature_control(automation_name: str, **kwargs) -> TemperatureController:
     return TemperatureController(
         automation_name=automation_name,
         unit=get_unit_name(),
