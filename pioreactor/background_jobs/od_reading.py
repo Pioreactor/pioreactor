@@ -320,7 +320,7 @@ class ADCReader(LoggerMixin):
         try:
             C, b, c = np.linalg.solve(M, Y)
         except np.linalg.LinAlgError:
-            self.logger.error("Error in regression:")
+            self.logger.error("Error in regression.")
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return (y.mean(), None, None), 0

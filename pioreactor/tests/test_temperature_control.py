@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import time
+import time, threading
 from pioreactor.background_jobs import temperature_control
 from pioreactor.automations.temperature import Silent, Stable, ConstantDutyCycle
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
@@ -351,3 +351,42 @@ def test_temperature_approximation_if_dc_is_nil() -> None:
         "silent", unit=unit, experiment=experiment
     ) as t:
         assert t.approximate_temperature(features) == 32.1875
+
+
+def test_temperature_control_and_stables_relationship():
+
+    with temperature_control.TemperatureController(
+        "stable", unit=unit, experiment=experiment, target_temperature=30
+    ) as tc:
+        tc.publish_temperature_timer.pause()  # pause this for now. we will manually run evaluate_and_publish_temperature
+
+        assert tc.heater_duty_cycle > 0
+        initial_dc = tc.heater_duty_cycle
+
+        stable_automation = tc.automation_job
+        # suppose we want to update target_temperature...
+        stable_automation.set_target_temperature(35)
+        pause()
+
+        # should have changed the dc immediately.
+        assert tc.heater_duty_cycle != initial_dc
+        assert tc.heater_duty_cycle > 0
+        pause()
+
+        # run evaluate_and_publish_temperature, this locks the PWM from anyone updating it directly.
+        thread = threading.Thread(target=tc.evaluate_and_publish_temperature, daemon=True)
+        thread.start()
+        pause()
+
+        assert tc.heater_duty_cycle == 0
+        pause()
+
+        # suppose we want to update target_temperature...
+        stable_automation.set_target_temperature(40)
+        pause()
+
+        # should still be 0!
+        assert tc.heater_duty_cycle == 0
+        pause()
+
+        thread.join()

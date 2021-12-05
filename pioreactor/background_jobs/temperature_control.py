@@ -306,9 +306,10 @@ class TemperatureController(BackgroundJob):
         4. assign temp to publish to .../temperature
         5. return heater to previous DC value and unlock heater
         """
+        assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
         with self.pwm.lock_temporarily():
 
-            previous_heater_dc = self.heater_duty_cycle
+            self._previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
             # we pause heating for (N_sample_points * time_between_samples) seconds
@@ -319,7 +320,7 @@ class TemperatureController(BackgroundJob):
             features["prev_temp"] = (
                 self.temperature["temperature"] if self.temperature else None
             )
-            features["previous_heater_dc"] = previous_heater_dc
+            features["previous_heater_dc"] = self._previous_heater_dc
 
             time_series_of_temp = []
             for i in range(N_sample_points):
@@ -338,7 +339,7 @@ class TemperatureController(BackgroundJob):
             # might listen for the updating temperature, and update the heater (pid_stable),
             # and if we update here too late, we may overwrite their changes.
             # We also want to remove the lock first, so close this context early.
-            self._update_heater(previous_heater_dc)
+            self._update_heater(self._previous_heater_dc)
 
         try:
             approximated_temperature = self.approximate_temperature(features)
@@ -374,7 +375,7 @@ class TemperatureController(BackgroundJob):
         import numpy as np
         from numpy import exp
 
-        ROOM_TEMP = 10.0
+        ROOM_TEMP = 10.0  # ??
 
         times_series = features["time_series_of_temp"]
 
@@ -399,7 +400,20 @@ class TemperatureController(BackgroundJob):
         )
         Y1 = np.array([(y * SS).sum(), (y * S).sum(), (y * x).sum(), y.sum()])
 
-        A, B, _, _ = np.linalg.solve(M1, Y1)
+        try:
+            A, B, _, _ = np.linalg.solve(M1, Y1)
+        except np.linalg.LinAlgError:
+            self.logger.error("Error in first regression.")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            return features["prev_temp"]
+
+        if (B ** 2 + 4 * A) < 0:
+            # something when wrong in the data collection - the data doesn't look enough like a sum of two expos
+            self.logger.error(f"Error in regression: {(B ** 2 + 4 * A)=} < 0")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            return features["prev_temp"]
 
         p = 0.5 * (B + np.sqrt(B ** 2 + 4 * A))
         q = 0.5 * (B - np.sqrt(B ** 2 + 4 * A))
@@ -413,7 +427,13 @@ class TemperatureController(BackgroundJob):
         )
         Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
 
-        b, c = np.linalg.solve(M2, Y2)
+        try:
+            b, c = np.linalg.solve(M2, Y2)
+        except np.linalg.LinAlgError:
+            self.logger.error("Error in second regression")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            return features["prev_temp"]
 
         if abs(p) < abs(q):
             # since the regression can have identifiable problems, we use
