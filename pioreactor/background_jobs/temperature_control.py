@@ -309,7 +309,7 @@ class TemperatureController(BackgroundJob):
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
         with self.pwm.lock_temporarily():
 
-            self._previous_heater_dc = self.heater_duty_cycle
+            previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
             # we pause heating for (N_sample_points * time_between_samples) seconds
@@ -320,7 +320,7 @@ class TemperatureController(BackgroundJob):
             features["prev_temp"] = (
                 self.temperature["temperature"] if self.temperature else None
             )
-            features["previous_heater_dc"] = self._previous_heater_dc
+            features["previous_heater_dc"] = previous_heater_dc
 
             time_series_of_temp = []
             for i in range(N_sample_points):
@@ -339,7 +339,7 @@ class TemperatureController(BackgroundJob):
             # might listen for the updating temperature, and update the heater (pid_stable),
             # and if we update here too late, we may overwrite their changes.
             # We also want to remove the lock first, so close this context early.
-            self._update_heater(self._previous_heater_dc)
+            self._update_heater(previous_heater_dc)
 
         try:
             approximated_temperature = self.approximate_temperature(features)

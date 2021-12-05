@@ -29,7 +29,7 @@ WORKER_REQUIREMENTS = [
     "DAC43608>=0.2.6",
     "TMP1075>=0.2.0",
     "rpi-hardware-pwm>=0.1.3",
-    "simple-pid",
+    "simple-pid>=1.0.1",
 ]
 
 setup(
