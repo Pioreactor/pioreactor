@@ -510,7 +510,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # keyboard interrupt
             append_signal_handler(signal.SIGINT, disconnect_gracefully)
 
-            # NOHUP is not included here, as it prevents tools like nohup working: https://unix.stackexchange.com/a/261631
+            # ssh closes
+            append_signal_handler(signal.SIGHUP, disconnect_gracefully)
 
         self._blocking_event = threading.Event()
 
