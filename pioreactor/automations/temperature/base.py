@@ -53,7 +53,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
         self.start_passive_listeners()
 
-    def update_heater(self, new_duty_cycle: float):
+    def update_heater(self, new_duty_cycle: float) -> None:
         """
         Update heater's duty cycle. This function checks for a lock on the PWM, and will not
         update if the PWM is locked.
@@ -62,7 +62,10 @@ class TemperatureAutomation(BackgroundSubJob):
         """
         return self.temperature_control_parent.update_heater(new_duty_cycle)
 
-    def update_heater_with_delta(self, delta_duty_cycle: float):
+    def is_heater_pwm_locked(self) -> bool:
+        return self.temperature_control_parent.pwm.is_locked()
+
+    def update_heater_with_delta(self, delta_duty_cycle: float) -> None:
         """
         Update heater's duty cycle. This function checks for a lock on the PWM, and will not
         update if the PWM is locked.

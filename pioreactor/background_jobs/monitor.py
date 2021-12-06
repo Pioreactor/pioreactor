@@ -14,6 +14,7 @@ from pioreactor.whoami import (
     is_testing_env,
     get_latest_experiment_name,
     am_I_leader,
+    am_I_active_worker,
 )
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
@@ -65,7 +66,7 @@ class Monitor(BackgroundJob):
         # problems detected, we may want to block and not let the job continue.
         self.self_checks()
         self.self_check_thread = RepeatedTimer(
-            12 * 60 * 60,
+            8 * 60 * 60,
             self.self_checks,
             job_name=self.job_name,
             run_immediately=False,
@@ -101,9 +102,39 @@ class Monitor(BackgroundJob):
             # report on last database backup, if leader
             self.check_for_last_backup()
 
+        if am_I_active_worker():
+            # check the PCB temperature
+            self.check_heater_pcb_temperature()
+
         if not am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
+
+    def check_heater_pcb_temperature(self) -> None:
+        """
+        Originally from #220
+
+        """
+        from TMP1075 import TMP1075
+
+        try:
+            tmp_driver = TMP1075()
+        except ValueError:
+            # No PCB detected using i2c - fine to exit.
+            return
+
+        observed_tmp = tmp_driver.get_temperature()
+
+        if observed_tmp >= 62:
+            # something is wrong - temperature_control should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
+            # we're going to just shutdown to be safe.
+            from subprocess import call
+
+            self.logger.error(
+                "Detected an extremely high temperature on the heating PCB - shutting down for safety."
+            )
+
+            call("sudo shutdown --poweroff", shell=True)
 
     def check_for_mqtt_connection_to_leader(self) -> None:
         while (not self.pub_client.is_connected()) or (

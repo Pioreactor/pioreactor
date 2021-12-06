@@ -276,7 +276,7 @@ class ADCReader(LoggerMixin):
 
         Reference
         ------------
-        https://scikit-guess.readthedocs.io/en/latest/appendices/reei/translation.html#further-optimizations-based-on-estimates-of-a-and-rho
+        https://scikit-guess.readthedocs.io/en/latest/appendices/references.html#concept
 
 
         """
@@ -320,7 +320,7 @@ class ADCReader(LoggerMixin):
         try:
             C, b, c = np.linalg.solve(M, Y)
         except np.linalg.LinAlgError:
-            self.logger.error("Error in regression:")
+            self.logger.error("Error in regression.")
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return (y.mean(), None, None), 0
@@ -479,6 +479,9 @@ class ADCReader(LoggerMixin):
 
 
 class IrLedReferenceTracker(LoggerMixin):
+
+    _logger_name = "IR LED ref"
+
     def __init__(self):
         super().__init__()
 

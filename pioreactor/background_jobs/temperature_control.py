@@ -10,9 +10,9 @@ The same PCB is used for heating the vial - so how do we remove the effect of PC
 algorithm is below, housed in TemperatureController
 
     1. Turn on heating, the amount controlled by the TemperatureController.heater_duty_cycle.
-    2. Every 10 minutes, we trigger a sequence:
+    2. Every N minutes, we trigger a sequence:
         1. Turn off heating completely (a lock is introduced so other jobs can't change this)
-        2. Every 10 seconds, record the temperature on the PCB.
+        2. Every M seconds, record the temperature on the PCB.
         3. Use the series of PCB temperatures to infer the temperature of vial.
 
 
@@ -62,9 +62,9 @@ class TemperatureController(BackgroundJob):
         evaluate and publish the temperature once the class is created (in the background)
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 56.0
-    MAX_TEMP_TO_DISABLE_HEATING = 58.0
-    MAX_TEMP_TO_SHUTDOWN = 60.0  # PLA glass transition temp
+    MAX_TEMP_TO_REDUCE_HEATING = 60.0
+    MAX_TEMP_TO_DISABLE_HEATING = 62.0
+    MAX_TEMP_TO_SHUTDOWN = 64.0  # PLA glass transition temp
 
     automations = {}  # type: ignore
 
@@ -121,7 +121,7 @@ class TemperatureController(BackgroundJob):
         }
 
         self.publish_temperature_timer = RepeatedTimer(
-            10 * 60,
+            5 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
             run_after=60,
@@ -142,7 +142,7 @@ class TemperatureController(BackgroundJob):
         )
         self.automation_name = self.automation["automation_name"]
 
-    def turn_off_heater(self):
+    def turn_off_heater(self) -> None:
         self._update_heater(0)
         self.pwm.stop()
         self.pwm.cleanup()
@@ -151,7 +151,7 @@ class TemperatureController(BackgroundJob):
         self._update_heater(0)
         self.pwm.stop()
 
-    def update_heater(self, new_duty_cycle: float):
+    def update_heater(self, new_duty_cycle: float) -> bool:
         """
         Update heater's duty cycle. This function checks for the PWM lock, and will not
         update if the PWM is locked.
@@ -165,7 +165,7 @@ class TemperatureController(BackgroundJob):
         else:
             return False
 
-    def update_heater_with_delta(self, delta_duty_cycle: float):
+    def update_heater_with_delta(self, delta_duty_cycle: float) -> bool:
         """
         Update heater's duty cycle by `delta_duty_cycle` amount. This function checks for the PWM lock, and will not
         update if the PWM is locked.
@@ -174,12 +174,15 @@ class TemperatureController(BackgroundJob):
         """
         return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
 
-    def read_external_temperature(self):
+    def read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
         """
         try:
-            pcb_temp = self.tmp_driver.get_temperature()
+            # check temp is fast, let's do it twice to reduce variance.
+            pcb_temp = 0.5 * (
+                self.tmp_driver.get_temperature() + self.tmp_driver.get_temperature()
+            )
         except OSError:
             # could not find temp driver on i2c
             self.logger.error(
@@ -194,7 +197,7 @@ class TemperatureController(BackgroundJob):
 
     ##### internal and private methods ########
 
-    def set_automation(self, new_temperature_automation_json):
+    def set_automation(self, new_temperature_automation_json) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
@@ -229,13 +232,13 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
-    def _update_heater(self, new_duty_cycle: float):
+    def _update_heater(self, new_duty_cycle: float) -> None:
         self.heater_duty_cycle = clamp(
-            0, round(float(new_duty_cycle), 5), 50
+            0, round(float(new_duty_cycle), 5), 85
         )  # TODO: update upperbound with better constant later.
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
-    def _check_if_exceeds_max_temp(self, temp: float):
+    def _check_if_exceeds_max_temp(self, temp: float) -> None:
 
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
@@ -288,14 +291,14 @@ class TemperatureController(BackgroundJob):
 
         self.clear_mqtt_cache()
 
-    def setup_pwm(self):
-        hertz = 1  # previously: 25000k is above human hearing (20 - 20k hz), however, this requires a hardware PWM.
+    def setup_pwm(self) -> PWM:
+        hertz = 2
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(0)
         return pwm
 
-    def evaluate_and_publish_temperature(self):
+    def evaluate_and_publish_temperature(self) -> None:
         """
         1. lock PWM and turn off heater
         2. start recording temperatures from the sensor
@@ -303,28 +306,34 @@ class TemperatureController(BackgroundJob):
         4. assign temp to publish to .../temperature
         5. return heater to previous DC value and unlock heater
         """
+        assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
         with self.pwm.lock_temporarily():
 
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
 
-            N_sample_points = 17
-            time_between_samples = 10
+            # we pause heating for (N_sample_points * time_between_samples) seconds
+            N_sample_points = 30
+            time_between_samples = 5
 
-            feature_vector = {}
-            # feature_vector['prev_temp'] = self.temperature['temperature'] if self.temperature else 25
+            features = {}
+            features["prev_temp"] = (
+                self.temperature["temperature"] if self.temperature else None
+            )
+            features["previous_heater_dc"] = previous_heater_dc
 
+            time_series_of_temp = []
             for i in range(N_sample_points):
-                feature_vector[
-                    f"{time_between_samples * i}s"
-                ] = self.read_external_temperature()
+                time_series_of_temp.append(self.read_external_temperature())
                 time.sleep(time_between_samples)
 
                 if self.state != self.READY:
                     # if our state changes in this loop, exit.
                     return
 
-            self.logger.debug(feature_vector)
+            features["time_series_of_temp"] = time_series_of_temp
+
+            self.logger.debug(features)
 
             # update heater first, before publishing the temperature. Why? A downstream process
             # might listen for the updating temperature, and update the heater (pid_stable),
@@ -333,7 +342,7 @@ class TemperatureController(BackgroundJob):
             self._update_heater(previous_heater_dc)
 
         try:
-            approximated_temperature = self.approximate_temperature(feature_vector)
+            approximated_temperature = self.approximate_temperature(features)
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
@@ -343,35 +352,107 @@ class TemperatureController(BackgroundJob):
             "timestamp": current_utc_time(),
         }
 
-    def approximate_temperature(self, feature_vector: dict) -> float:
-        # check if we are using silent, if so, we can short this and return single value?
+    def approximate_temperature(self, features: dict[str, Any]) -> float:
+        """
+        models
 
-        # some heuristic for now:
-        from math import exp
+            temp = b * exp(p * t) + c * exp(q * t) + ROOM_TEMP
 
-        prev_temp = 1_000_000
-        for i, temp in enumerate(feature_vector.values()):
-            if i > 0:
-                delta_threshold = 0.15 + 0.2 / (1 + exp(-0.15 * (temp - 35)))
-                if abs(prev_temp - temp) < delta_threshold:
-
-                    # take a moving average with previous temperature, if available
-                    # 0.05 was arbitrary
-                    if self.temperature:
-                        return (
-                            0.05 * self.temperature["temperature"]
-                            + 0.95 * (temp + prev_temp) / 2
-                        )
-                    else:
-                        return (temp + prev_temp) / 2
-
-            prev_temp = temp
-
-        self.logger.warning("Ran out of samples!")
-        return temp
+        Reference
+        -------------
+        https://www.scribd.com/doc/14674814/Regressions-et-equations-integrales
+        page 71 - 72
 
 
-def start_temperature_control(automation_name: str, **kwargs):
+        It's possible that we can determine if the vial is in using the heat loss coefficient. Quick look:
+        when the vial is in, heat coefficient is ~ -0.008, when not in, coefficient is ~ -0.028.
+
+        """
+
+        if features["previous_heater_dc"] == 0:
+            return features["time_series_of_temp"][-1]
+
+        import numpy as np
+        from numpy import exp
+
+        ROOM_TEMP = 10.0  # ??
+
+        times_series = features["time_series_of_temp"]
+
+        n = len(times_series)
+        y = np.array(times_series) - ROOM_TEMP
+        x = np.arange(n)  # scaled by factor of 1/10 seconds
+
+        S = np.zeros(n)
+        SS = np.zeros(n)
+        for i in range(1, n):
+            S[i] = S[i - 1] + 0.5 * (y[i - 1] + y[i]) * (x[i] - x[i - 1])
+            SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
+
+        # first regression
+        M1 = np.array(
+            [
+                [(SS ** 2).sum(), (SS * S).sum(), (SS * x).sum(), (SS).sum()],
+                [(SS * S).sum(), (S ** 2).sum(), (S * x).sum(), (S).sum()],
+                [(SS * x).sum(), (S * x).sum(), (x ** 2).sum(), (x).sum()],
+                [(SS).sum(), (S).sum(), (x).sum(), n],
+            ]
+        )
+        Y1 = np.array([(y * SS).sum(), (y * S).sum(), (y * x).sum(), y.sum()])
+
+        try:
+            A, B, _, _ = np.linalg.solve(M1, Y1)
+        except np.linalg.LinAlgError:
+            self.logger.error("Error in first regression.")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            return features["prev_temp"]
+
+        if (B ** 2 + 4 * A) < 0:
+            # something when wrong in the data collection - the data doesn't look enough like a sum of two expos
+            self.logger.error(f"Error in regression: {(B ** 2 + 4 * A)=} < 0")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            return features["prev_temp"]
+
+        p = 0.5 * (B + np.sqrt(B ** 2 + 4 * A))
+        q = 0.5 * (B - np.sqrt(B ** 2 + 4 * A))
+
+        # second regression
+        M2 = np.array(
+            [
+                [exp(2 * p * x).sum(), exp((p + q) * x).sum()],
+                [exp((q + p) * x).sum(), exp(2 * q * x).sum()],
+            ]
+        )
+        Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
+
+        try:
+            b, c = np.linalg.solve(M2, Y2)
+        except np.linalg.LinAlgError:
+            self.logger.error("Error in second regression")
+            self.logger.debug(f"x={x}")
+            self.logger.debug(f"y={y}")
+            return features["prev_temp"]
+
+        if abs(p) < abs(q):
+            # since the regression can have identifiable problems, we use
+            # our domain knowledge to choose the pair that has the lower heat transfer coefficient.
+            alpha, beta = b, p
+        else:
+            alpha, beta = c, q
+
+        self.logger.debug(f"{b=}, {c=}, {p=} , {q=}")
+
+        temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
+        temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
+
+        # the recent estimate weighted because I trust the predicted temperature at the start of observation more
+        # than the predicted temperature at the end.
+        return 2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs
+
+
+def start_temperature_control(automation_name: str, **kwargs) -> TemperatureController:
     return TemperatureController(
         automation_name=automation_name,
         unit=get_unit_name(),

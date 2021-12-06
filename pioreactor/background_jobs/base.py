@@ -35,9 +35,12 @@ def format_with_optional_units(value: Any, units: Optional[str]) -> str:
 
 
 class LoggerMixin:
+
+    _logger_name: Optional[str] = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.logger = create_logger(name=self.__class__.__name__)
+        self.logger = create_logger(name=self._logger_name or self.__class__.__name__)
 
 
 class PostInitCaller(type):
@@ -689,6 +692,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         for attr in self.published_settings:
             if attr == "state":
                 continue
+
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
                 None,
