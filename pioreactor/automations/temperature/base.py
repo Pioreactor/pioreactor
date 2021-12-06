@@ -49,6 +49,11 @@ class TemperatureAutomation(BackgroundSubJob):
         )
         self.logger.info(f"Starting {self.__class__.__name__} automation.")
 
+        if parent is None:
+            self.logger.warning(
+                "Temperature automations run with using TemperatureController have unexpected behaviour."
+            )
+
         self.temperature_control_parent = parent
 
         self.start_passive_listeners()
