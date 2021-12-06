@@ -328,12 +328,12 @@ class ADCReader(LoggerMixin):
         y_model = C + b * np.sin(freq * tau * x) + c * np.cos(freq * tau * x)
         SSE = np.sum((y - y_model) ** 2)
 
-        if SSE > 0:
+        if SSE > 1e-20:
             AIC = n * np.log(SSE / n) + 2 * 3
         else:
             AIC = math.inf
 
-        if np.sqrt(b ** 2 + c ** 2) <= 0:
+        if np.sqrt(b ** 2 + c ** 2) <= 1e-20:
             A = 0
             phi = 0
         else:

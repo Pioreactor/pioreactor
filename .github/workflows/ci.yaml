@@ -30,9 +30,13 @@ jobs:
         with:
           version: '1.6'
 
-      - name: Create dot_piorector folder
+      - name: Create dot_pioreactor folder
         run: |
            mkdir -p .pioreactor/storage
 
       - name: Run tests
         run: pytest pioreactor/tests/
+        env:
+          TESTING: 1
+          BLINKA_FORCECHIP: BCM2XXX
+          BLINKA_FORCEBOARD: 9020e0

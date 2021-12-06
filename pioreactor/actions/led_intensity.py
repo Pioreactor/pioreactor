@@ -142,15 +142,27 @@ def led_intensity(
 
     channels, intensities = _list(channels), _list(intensities)
 
-    for channel, intensity in zip(channels, intensities):
+    if len(channels) != len(intensities):
+        raise RuntimeError("channels must be the same length as intensities")
 
+    # any locked channels?
+    for channel in channels:
         if is_locked(channel):
             updated_successfully = False
             logger.warning(
                 f"Unable to update channel {channel} due to a lock on it. Please try again."
             )
-            continue
 
+    # remove locked channels:
+    try:
+        channels, intensities = zip(  # type: ignore
+            *[(c, i) for c, i in zip(channels, intensities) if not is_locked(c)]
+        )
+    except ValueError:
+        # if the only channel being updated is locked, the resulting error is a ValueError: not enough values to unpack (expected 2, got 0)
+        return updated_successfully
+
+    for channel, intensity in zip(channels, intensities):
         try:
             assert (
                 0.0 <= intensity <= 100.0
