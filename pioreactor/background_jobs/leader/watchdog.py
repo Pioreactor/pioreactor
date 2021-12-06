@@ -58,7 +58,10 @@ class WatchDog(BackgroundJob):
 
     def watch_for_new_experiment(self, msg) -> None:
         new_experiment_name = msg.payload.decode()
-        self.logger.debug(f"New latest experiment in MQTT: {new_experiment_name}")
+        self.logger.debug(
+            f"New latest experiment detected in MQTT: {new_experiment_name}"
+        )
+        self.logger.info(f"New experiment created: {new_experiment_name}")
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
