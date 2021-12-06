@@ -25,5 +25,10 @@ jobs:
           pip install -e .
           pip install -r requirements/requirements_dev.txt
 
+      - name: Mosquitto MQTT Broker in GitHub Actions
+        uses: Namoshek/mosquitto-github-action@v1
+        with:
+          version: '1.6'
+
       - name: Run tests
         run: pytest pioreactor/tests/
