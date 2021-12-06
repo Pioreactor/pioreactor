@@ -30,5 +30,9 @@ jobs:
         with:
           version: '1.6'
 
+      - name: Create dot_piorector folder
+        run: |
+           mkdir -p .pioreactor/storage
+
       - name: Run tests
         run: pytest pioreactor/tests/
