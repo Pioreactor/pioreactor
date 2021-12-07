@@ -124,12 +124,12 @@ def local_intermittent_storage(
 
     Notes
     -------
-    What happens in the following case?
+    Opening the same cache in a context manager are tricky, and should be avoided. The general rule is:
 
-    > with local_intermittent_storage('test') as cache1:
-    >     with local_intermittent_storage('test') as cache2:
-    >       cache1['A'] = str(1)
-    >       cache2['A'] = str(0)
+    1. Outer-scoped caches can't access keys created by inner scope caches.
+    2. The latest value given to a key, regardless of which scoped cache, is the one that is finally written.
+
+    See tests in test_utils.py for examples.
 
     """
     try:

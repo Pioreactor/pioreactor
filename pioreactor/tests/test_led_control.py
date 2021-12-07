@@ -74,13 +74,8 @@ def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     with LEDAutomation(duration=1, unit=unit, experiment=experiment) as ld:
         pause()
         pause()
-        with local_intermittent_storage("led_locks") as cache:
-            print(cache["A"])
-            print(cache["B"])
-            print(cache["C"])
-            print(cache["D"])
 
-            assert ld.set_led_intensity("B", 1)
+        assert ld.set_led_intensity("B", 1)
 
         # someone else locks channel B
         with lock_leds_temporarily(["B"]):

@@ -242,7 +242,7 @@ class DosingAutomation(BackgroundSubJob):
         # check most stale time
         if (time.time() - self.most_stale_time) > 5 * 60:
             raise ValueError(
-                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+                f"readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?. Last reading occurred at {self.most_stale_time}, current time is {time.time()}."
             )
 
         return cast(float, self._latest_growth_rate)
@@ -261,7 +261,7 @@ class DosingAutomation(BackgroundSubJob):
         # check most stale time
         if (time.time() - self.most_stale_time) > 5 * 60:
             raise ValueError(
-                "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
+                f"readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?. Last reading occurred at {self.most_stale_time}, current time is {time.time()}."
             )
 
         return cast(float, self._latest_od)
