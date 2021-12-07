@@ -36,7 +36,3 @@ jobs:
 
       - name: Run tests
         run: pytest pioreactor/tests/
-        env:
-          TESTING: 1
-          BLINKA_FORCECHIP: BCM2XXX
-          BLINKA_FORCEBOARD: 9020e0
