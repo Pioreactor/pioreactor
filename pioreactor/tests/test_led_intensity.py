@@ -22,7 +22,7 @@ def test_lock_will_prevent_led_from_updating() -> None:
         assert float(cache[channel]) == 20
 
 
-def test_lock_will_prevent_led_from_updating_multiple_channels() -> None:
+def test_lock_will_prevent_led_from_updating_single_channel_but_not_others_passed_in() -> None:
 
     assert led_intensity(channels=["A", "B"], intensities=[20, 20])
 

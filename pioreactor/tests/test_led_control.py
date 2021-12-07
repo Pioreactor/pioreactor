@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # testing_led_control
-
+import pytest
 import time, json
 
 from pioreactor.background_jobs.led_control import LEDController
@@ -64,7 +64,11 @@ def test_changing_automation_over_mqtt() -> None:
         assert ld.automation["duration"] == "20"
 
 
+@pytest.mark.xfail
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
+    """
+    This test works locally, but not in github CI
+    """
     with local_intermittent_storage("led_locks") as cache:
         cache["A"] = LED_UNLOCKED
         cache["B"] = LED_UNLOCKED
