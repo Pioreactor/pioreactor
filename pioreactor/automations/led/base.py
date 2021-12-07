@@ -12,7 +12,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.led_control import LEDController
-from pioreactor.actions.led_intensity import led_intensity, LED_Channel, is_locked
+from pioreactor.actions.led_intensity import led_intensity, LED_Channel
 from pioreactor.automations import events
 from pioreactor.utils import is_pio_job_running
 
@@ -146,16 +146,17 @@ class LEDAutomation(BackgroundSubJob):
 
         """
         for _ in range(12):
-            if not is_locked(channel):
+            success = led_intensity(
+                channel,
+                intensity,
+                unit=self.unit,
+                experiment=self.experiment,
+                pubsub_client=self.pub_client,
+                source_of_event=self.job_name,
+            )
+
+            if success:
                 self.edited_channels.add(channel)
-                led_intensity(
-                    channel,
-                    intensity,
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    pubsub_client=self.pub_client,
-                    source_of_event=self.job_name,
-                )
                 return True
 
             time.sleep(0.1)

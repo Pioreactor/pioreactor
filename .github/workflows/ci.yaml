@@ -35,4 +35,4 @@ jobs:
            mkdir -p .pioreactor/storage
 
       - name: Run tests
-        run: pytest pioreactor/tests/
+        run: pytest pioreactor/tests/ -vv
