@@ -115,7 +115,10 @@ class Monitor(BackgroundJob):
         Originally from #220
 
         """
-        from TMP1075 import TMP1075
+        if is_testing_env():
+            from pioreactor.utils.mock import MockTMP1075 as TMP1075
+        else:
+            from TMP1075 import TMP1075  # type: ignore
 
         try:
             tmp_driver = TMP1075()

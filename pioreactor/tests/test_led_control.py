@@ -7,7 +7,7 @@ from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.automations.led.base import LEDAutomation
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
-from pioreactor.actions.led_intensity import lock_leds_temporarily
+from pioreactor.actions.led_intensity import lock_leds_temporarily, LED_UNLOCKED
 from pioreactor.utils import local_intermittent_storage
 
 unit = get_unit_name()
@@ -66,15 +66,21 @@ def test_changing_automation_over_mqtt() -> None:
 
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     with local_intermittent_storage("led_locks") as cache:
-        cache["A"] = b"0"
-        cache["B"] = b"0"
-        cache["C"] = b"0"
-        cache["D"] = b"0"
+        cache["A"] = LED_UNLOCKED
+        cache["B"] = LED_UNLOCKED
+        cache["C"] = LED_UNLOCKED
+        cache["D"] = LED_UNLOCKED
 
     with LEDAutomation(duration=1, unit=unit, experiment=experiment) as ld:
         pause()
         pause()
-        assert ld.set_led_intensity("B", 1)
+        with local_intermittent_storage("led_locks") as cache:
+            print(cache["A"])
+            print(cache["B"])
+            print(cache["C"])
+            print(cache["D"])
+
+            assert ld.set_led_intensity("B", 1)
 
         # someone else locks channel B
         with lock_leds_temporarily(["B"]):

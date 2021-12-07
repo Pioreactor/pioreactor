@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from paho.mqtt.client import Client  # type: ignore
 
 from pioreactor.pubsub import create_client, QOS
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils import local_intermittent_storage
@@ -131,9 +131,9 @@ def led_intensity(
     """
     logger = create_logger("led_intensity", experiment=experiment, unit=unit)
     updated_successfully = True
-    try:
+    if not is_testing_env():
         from DAC43608 import DAC43608
-    except NotImplementedError:
+    else:
         logger.debug("DAC43608 not available; using MockDAC43608")
         from pioreactor.utils.mock import MockDAC43608 as DAC43608  # type: ignore
 

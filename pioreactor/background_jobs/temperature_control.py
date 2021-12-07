@@ -28,7 +28,7 @@ from typing import Optional, Any
 
 import click
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
@@ -88,11 +88,11 @@ class TemperatureController(BackgroundJob):
             job_name="temperature_control", unit=unit, experiment=experiment
         )
 
-        try:
-            from TMP1075 import TMP1075
-        except (NotImplementedError, ModuleNotFoundError):
+        if is_testing_env():
             self.logger.info("TMP1075 not available; using MockTMP1075")
-            from pioreactor.utils.mock import MockTMP1075 as TMP1075  # type: ignore
+            from pioreactor.utils.mock import MockTMP1075 as TMP1075
+        else:
+            from TMP1075 import TMP1075  # type: ignore
 
         try:
             self.tmp_driver = TMP1075()
