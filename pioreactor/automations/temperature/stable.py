@@ -52,6 +52,9 @@ class Stable(TemperatureAutomation):
         # self.pid.pid.add_derivative_hook(DEMA(0.60))
 
     def execute(self):
+        while not hasattr(self, "pid"):
+            pass
+
         output = self.pid.update(
             self.latest_temperature, dt=1
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
