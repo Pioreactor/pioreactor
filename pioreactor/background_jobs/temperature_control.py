@@ -121,7 +121,7 @@ class TemperatureController(BackgroundJob):
         }
 
         self.publish_temperature_timer = RepeatedTimer(
-            5 * 60,
+            4 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
             run_after=60,
