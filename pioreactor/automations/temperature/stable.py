@@ -65,7 +65,7 @@ class Stable(TemperatureAutomation):
                 self.update_heater(0)
             else:
                 self.update_heater(
-                    delta_t * 3.5
+                    delta_t * 2.5
                 )  # TODO: provide a better linear estimate here, also will fail if using an external PSU
             return  # we'll update with the PID on the next loop.
 
