@@ -31,7 +31,6 @@ class Stable(TemperatureAutomation):
     published_settings = {
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }
-    first_update = True
 
     def __init__(self, target_temperature, **kwargs):
         super(Stable, self).__init__(**kwargs)
@@ -53,22 +52,6 @@ class Stable(TemperatureAutomation):
         # self.pid.pid.add_derivative_hook(DEMA(0.60))
 
     def execute(self):
-        # this runs every time a new temperature reading comes in, including a retained temperature
-        if self.first_update:
-            self.first_update = False
-            # this is the first run of execute. Let's do something
-            # smart and look at the delta between the latest_temperature and target_temperature
-            # to set a reasonable initial value.
-            delta_t = self.target_temperature - self.latest_temperature
-            if delta_t <= 0:
-                # turn off heater, to drop the temp
-                self.update_heater(0)
-            else:
-                self.update_heater(
-                    delta_t * 3.5
-                )  # TODO: provide a better linear estimate here, also will fail if using an external PSU
-            return  # we'll update with the PID on the next loop.
-
         output = self.pid.update(
             self.latest_temperature, dt=1
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
