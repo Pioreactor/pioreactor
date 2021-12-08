@@ -72,7 +72,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def update_heater_with_delta(self, delta_duty_cycle: float) -> None:
         """
-        Update heater's duty cycle. This function checks for a lock on the PWM, and will not
+        Update heater's duty cycle by value `delta_duty_cycle`. This function checks for a lock on the PWM, and will not
         update if the PWM is locked.
 
         Returns true if the update was made (eg: no lock), else returns false
