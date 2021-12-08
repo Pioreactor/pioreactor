@@ -492,17 +492,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-        def disconnect_gracefully(*args) -> None:
-            # ignore future keyboard interrupts. TODO: is this needed?
-            # signal.signal(signal.SIGINT, lambda *args: None)
+        def disconnect_gracefully(signal_code, *args) -> None:
             if self.state == self.DISCONNECTED:
                 return
+            self.logger.debug(f"Exiting from g{signal.strsignal(signal_code)}.")
             self.set_state(self.DISCONNECTED)
 
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
-            atexit.register(disconnect_gracefully)
+            atexit.register(disconnect_gracefully, ("Exit Python",))
 
             # terminate command, ex: pkill
             append_signal_handler(signal.SIGTERM, disconnect_gracefully)

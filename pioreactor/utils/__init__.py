@@ -27,7 +27,7 @@ class callable_stack:
 
     def __call__(self, *args):
         for function in reversed(self.callables):
-            function()
+            function(*args)
 
 
 def append_signal_handler(signal_value, new_callback: Callable):
