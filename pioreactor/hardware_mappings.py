@@ -16,7 +16,7 @@ PCB_LED_PIN = 23
 PCB_BUTTON_PIN = 24
 
 # hall sensor
-HALL_SENSOR_PIN = 15  # TODO: 25
+HALL_SENSOR_PIN = 25
 
 # I2C GPIO pins
 SDA = 2
