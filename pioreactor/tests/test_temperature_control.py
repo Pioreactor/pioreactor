@@ -360,6 +360,8 @@ def test_temperature_control_and_stables_relationship():
     ) as tc:
         tc.publish_temperature_timer.pause()  # pause this for now. we will manually run evaluate_and_publish_temperature
 
+        pause()
+        pause()
         assert tc.heater_duty_cycle > 0
         initial_dc = tc.heater_duty_cycle
 

@@ -134,10 +134,11 @@ class Monitor(BackgroundJob):
             from subprocess import call
 
             self.logger.error(
-                "Detected an extremely high temperature on the heating PCB - shutting down for safety."
+                f"Detected an extremely high temperature, {observed_tmp} ℃ on the heating PCB - shutting down for safety."
             )
 
             call("sudo shutdown --poweroff", shell=True)
+        self.logger.debug(f"Heating PCB temperature at {observed_tmp} ℃.")
 
     def check_for_mqtt_connection_to_leader(self) -> None:
         while (not self.pub_client.is_connected()) or (

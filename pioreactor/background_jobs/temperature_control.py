@@ -115,11 +115,6 @@ class TemperatureController(BackgroundJob):
         )
         self.read_external_temperature_timer.start()
 
-        self.temperature = {
-            "temperature": self.read_external_temperature(),
-            "timestamp": current_utc_time(),
-        }
-
         self.publish_temperature_timer = RepeatedTimer(
             4 * 60,
             self.evaluate_and_publish_temperature,
@@ -141,6 +136,11 @@ class TemperatureController(BackgroundJob):
             unit=self.unit, experiment=self.experiment, parent=self, **kwargs
         )
         self.automation_name = self.automation["automation_name"]
+
+        self.temperature = {
+            "temperature": self.read_external_temperature(),
+            "timestamp": current_utc_time(),
+        }
 
     def turn_off_heater(self) -> None:
         self._update_heater(0)
