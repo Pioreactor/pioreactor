@@ -495,7 +495,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
         def disconnect_gracefully(signal_code, *args) -> None:
             if self.state == self.DISCONNECTED:
                 return
-            self.logger.debug(f"Exiting from signal {signal.strsignal(signal_code)}.")
+
+            if isinstance(signal_code, int):
+                self.logger.debug(
+                    f"Exiting caused by signal {signal.strsignal(signal_code)}."
+                )
+            elif isinstance(signal_code, str):
+                self.logger.debug(f"Exiting caused by {signal_code}.")
+
             self.set_state(self.DISCONNECTED)
 
             if signal_code == signal.SIGTERM:
@@ -506,7 +513,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
-            atexit.register(disconnect_gracefully, ("Exit Python",))
+            atexit.register(disconnect_gracefully, "Python atexit")
 
             # terminate command, ex: pkill
             append_signal_handler(signal.SIGTERM, disconnect_gracefully)

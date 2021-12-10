@@ -22,6 +22,7 @@ HALL_SENSOR_PIN = 25
 # Heater PWM
 HEATER_PWM_TO_PIN = 5
 
+
 # I2C GPIO pins
 SDA = 2
 SCL = 3

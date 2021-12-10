@@ -96,8 +96,9 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
         "silent", unit=unit, experiment=experiment
     ) as t:
         t.tmp_driver.get_temperature = lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1
-
+        pause()
         t._update_heater(50)
+        pause()
         assert t.heater_duty_cycle == 50
         pause()
         t.read_external_temperature()
