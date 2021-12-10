@@ -26,8 +26,6 @@ from pioreactor.utils.timing import current_utc_time
 def od_blank(
     od_angle_channel1,
     od_angle_channel2,
-    od_angle_channel3,
-    od_angle_channel4,
     n_samples: int = 30,
 ):
     """
@@ -78,8 +76,6 @@ def od_blank(
         start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
-            od_angle_channel3,
-            od_angle_channel4,
             sampling_rate=sampling_rate,
             unit=unit,
             experiment=testing_experiment,
@@ -154,8 +150,6 @@ def od_blank(
             to_share["ir_intensity"] = config["od_config"]["ir_intensity"]
             to_share["od_angle_channel1"] = od_angle_channel1
             to_share["od_angle_channel2"] = od_angle_channel2
-            to_share["od_angle_channel3"] = od_angle_channel3
-            to_share["od_angle_channel4"] = od_angle_channel4
             pubsub.publish_to_pioreactor_cloud("od_blank_mean", json=to_share)
 
         logger.debug(f"measured mean: {means}")
@@ -182,28 +176,12 @@ def od_blank(
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
 @click.option(
-    "--od-angle-channel3",
-    default=config.get("od_config.photodiode_channel", "3", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 3, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
-    "--od-angle-channel4",
-    default=config.get("od_config.photodiode_channel", "4", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 4, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
     "--n-samples",
     default=30,
     show_default=True,
     help="Number of samples",
 )
-def click_od_blank(
-    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4, n_samples
-):
+def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples):
     """
     Compute statistics about the blank OD time series
     """
@@ -211,8 +189,6 @@ def click_od_blank(
         od_blank(
             od_angle_channel1,
             od_angle_channel2,
-            od_angle_channel3,
-            od_angle_channel4,
             n_samples=n_samples,
         )
     )

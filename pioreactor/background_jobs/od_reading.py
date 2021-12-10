@@ -100,9 +100,10 @@ from pioreactor.actions.led_intensity import (
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
+from pioreactor.version import hardware_version_info
 
 PD_Channel = Literal[
-    "1", "2", "3", "4"
+    "1", "2"
 ]  # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless. str suggest symbols, which they are.
 ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2"]
 
@@ -132,17 +133,26 @@ class ADCReader(LoggerMixin):
     """
 
     DATA_RATE: int = 128
-    ADS_GAIN_THRESHOLDS = {
-        2 / 3: (4.096, 6.144),  # 1 bit = 3mV, for 16bit ADC
-        1: (2.048, 4.096),  # 1 bit = 2mV
-        2: (1.024, 2.048),  # 1 bit = 1mV
-        4: (0.512, 1.024),  # 1 bit = 0.5mV
-        8: (0.256, 0.512),  # 1 bit = 0.25mV
-        16: (-1, 0.256),  # 1 bit = 0.125mV
+    ADS1X15_GAIN_THRESHOLDS = {
+        2 / 3: (4.096, 6.144),
+        1: (2.048, 4.096),
+        2: (1.024, 2.048),
+        4: (0.512, 1.024),
+        8: (0.256, 0.512),
+        16: (-1, 0.256),
     }
+
+    ADS1X15_PGA_RANGE = {
+        2 / 3: 6.144,
+        1: 4.096,
+        2: 2.048,
+        4: 1.024,
+        8: 0.512,
+        16: 0.256,
+    }
+
     oversampling_count: int = 25
-    batched_readings: dict[PD_Channel, float] = {}
-    _counter: int = 0
+    readings_completed: int = 0
 
     def __init__(
         self,
@@ -157,6 +167,7 @@ class ADCReader(LoggerMixin):
         self.gain = initial_gain
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
+        self.batched_readings: dict[PD_Channel, float] = {}
 
         self.logger.debug(
             f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
@@ -170,25 +181,24 @@ class ADCReader(LoggerMixin):
         See ODReader for an example.
         """
 
-        import adafruit_ads1x15.ads1115 as ADS  # type: ignore
-
         if self.fake_data:
             from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C
         else:
             from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
             from busio import I2C  # type: ignore
 
-        # we may change the gain dynamically later.
-        # TODO: update this to ADS1015 / dynamically choose
-        self.ads = ADS.ADS1115(I2C(SCL, SDA), data_rate=self.DATA_RATE)
-        self.set_ads_gain(self.gain)
+        if hardware_version_info == (0, 0):
+            from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
+        else:
+            from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
+        self.ads = ADS(I2C(SCL, SDA), data_rate=self.DATA_RATE, gain=self.gain)
         self.analog_in: dict[PD_Channel, AnalogIn] = {}
 
         for channel in self.channels:
             self.analog_in[channel] = AnalogIn(
                 self.ads, int(channel) - 1
-            )  # subtract 1 because we use 1-indexing
+            )  # subtract 1 because we use 1-indexing for PD numbers, but library wants 0 indexing
 
         # check if using correct gain
         # this may need to be adjusted for higher rates of data collection
@@ -230,7 +240,7 @@ class ADCReader(LoggerMixin):
         if value is None:
             return
 
-        for gain, (lb, ub) in self.ADS_GAIN_THRESHOLDS.items():
+        for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
             if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
                 self.gain = gain
                 self.set_ads_gain(self.gain)
@@ -342,6 +352,14 @@ class ADCReader(LoggerMixin):
 
         return (C, A, phi), AIC
 
+    def from_voltage_to_raw(self, v):
+        # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
+        return v * 32767 / self.ADS1X15_PGA_RANGE[self.ads.gain]
+
+    def from_raw_to_voltage(self, raw):
+        # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
+        return raw / 32767 * self.ADS1X15_PGA_RANGE[self.ads.gain]
+
     def take_reading(self) -> dict[PD_Channel, float]:
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
@@ -350,28 +368,14 @@ class ADCReader(LoggerMixin):
         ---------
         readings: dict
             a dict with specified channels (as ints) and their reading
-            Ex: {1: 0.10240, 2: 0.1023459}
+            Ex: {"1": 0.10240, "2": 0.1023459}
 
 
         """
         if not self._setup_complete:
             raise ValueError("Must call setup_adc() first.")
 
-        # in case some other process is also using the ADC chip and changes the gain, we want
-        # to always confirm our settings before take a snapshot.
-        self.set_ads_gain(self.gain)
-
-        self._counter += 1
-
-        _ADS1X15_PGA_RANGE = {  # TODO: delete when ads1015 is in.
-            2 / 3: 6.144,
-            1: 4.096,
-            2: 2.048,
-            4: 1.024,
-            8: 0.512,
-            16: 0.256,
-        }
-        max_signal = 0.0
+        max_signal = -1.0
 
         aggregated_signals: dict[PD_Channel, list[int]] = {
             channel: [] for channel in self.channels
@@ -380,20 +384,17 @@ class ADCReader(LoggerMixin):
             channel: [] for channel in self.channels
         }
 
+        # in case some other process is also using the ADC chip and changes the gain, we want
+        # to always confirm our settings before take a reading.
+        self.set_ads_gain(self.gain)
+
         try:
             with catchtime() as time_since_start:
                 for counter in range(self.oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
                         for channel, ai in self.analog_in.items():
                             timestamps[channel].append(time_since_start())
-                            # raw_signal_ = ai.voltage
-
-                            # TODO: delete when ADS1015 is in
-                            value1115 = ai.value  # int between 0 and 32767
-                            value1015 = (
-                                value1115 >> 4
-                            ) << 4  # int between 0 and 2047, and then blow it back up to int between 0 and 32767
-                            aggregated_signals[channel].append(value1015)
+                            aggregated_signals[channel].append(ai.value)
 
                     sleep(
                         max(
@@ -416,21 +417,15 @@ class ADCReader(LoggerMixin):
                     timestamps[channel],
                     aggregated_signals[channel],
                     60,  # TODO - this should be empirically determined.
-                    prior_C=(
-                        self.batched_readings[channel]
-                        * 32767
-                        / _ADS1X15_PGA_RANGE[self.ads.gain]
-                    )
+                    prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
                     penalizer_C=0.5,  # TODO: this penalizer should scale with absolute value of reading, number of samples, and duration between readings...
                 )
 
                 # convert to voltage
-                best_estimate_of_signal_ = (
-                    best_estimate_of_signal_  # TODO: delete when ADS1015 is in.
-                    * _ADS1X15_PGA_RANGE[self.ads.gain]
-                    / 32767
+                best_estimate_of_signal_ = self.from_raw_to_voltage(
+                    best_estimate_of_signal_
                 )
 
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
@@ -440,7 +435,7 @@ class ADCReader(LoggerMixin):
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
                 if (
-                    (self._counter % 2 == 0)
+                    (self.readings_completed % 2 == 0)
                     and (best_estimate_of_signal_ >= 2.75)
                     and not self.fake_data
                 ):
@@ -456,13 +451,14 @@ class ADCReader(LoggerMixin):
             self.batched_readings = batched_estimates_
 
             # the max signal should determine the ADS1x15's gain
-            if self.dynamic_gain:
-                self.max_signal_moving_average.update(max_signal)
+            self.max_signal_moving_average.update(max_signal)
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
-            if self.dynamic_gain and self._counter % 5 == 1:
+            if self.dynamic_gain and self.readings_completed % 5 == 1:
                 self.check_on_gain(self.max_signal_moving_average())
+
+            self.readings_completed += 1
 
             return batched_estimates_
 
@@ -771,23 +767,17 @@ class ODReader(BackgroundJob):
         return self.ir_led_reference_tracker(od_signal)
 
 
-def find_ir_led_reference(
-    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
-) -> Optional[PD_Channel]:
+def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[PD_Channel]:
     if od_angle_channel1 == REF_keyword:
         return "1"
     elif od_angle_channel2 == REF_keyword:
         return "2"
-    elif od_angle_channel3 == REF_keyword:
-        return "3"
-    elif od_angle_channel4 == REF_keyword:
-        return "4"
     else:
         return None
 
 
 def create_channel_angle_map(
-    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
+    od_angle_channel1, od_angle_channel2
 ) -> dict[PD_Channel, str]:
     # Inputs are either None, or a string like "135", "90,45", "REF", ...
     # Example return dict: {"1": "90,135", "2": "45,135", "4":"90"}
@@ -799,20 +789,12 @@ def create_channel_angle_map(
     if od_angle_channel2 and od_angle_channel2 != REF_keyword:
         channel_angle_map["2"] = od_angle_channel2
 
-    if od_angle_channel3 and od_angle_channel3 != REF_keyword:
-        channel_angle_map["3"] = od_angle_channel3
-
-    if od_angle_channel4 and od_angle_channel4 != REF_keyword:
-        channel_angle_map["4"] = od_angle_channel4
-
     return channel_angle_map
 
 
 def start_od_reading(
     od_angle_channel1: Optional[str] = None,
     od_angle_channel2: Optional[str] = None,
-    od_angle_channel3: Optional[str] = None,
-    od_angle_channel4: Optional[str] = None,
     sampling_rate: float = 1 / config.getfloat("od_config", "samples_per_second"),
     fake_data: bool = False,
     unit: Optional[str] = None,
@@ -822,12 +804,8 @@ def start_od_reading(
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 
-    ir_led_reference_channel = find_ir_led_reference(
-        od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
-    )
-    channel_angle_map = create_channel_angle_map(
-        od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4
-    )
+    ir_led_reference_channel = find_ir_led_reference(od_angle_channel1, od_angle_channel2)
+    channel_angle_map = create_channel_angle_map(od_angle_channel1, od_angle_channel2)
 
     channels = list(channel_angle_map.keys())
 
@@ -868,32 +846,14 @@ def start_od_reading(
     show_default=True,
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
-@click.option(
-    "--od-angle-channel3",
-    default=config.get("od_config.photodiode_channel", "3", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 3, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
-    "--od-angle-channel4",
-    default=config.get("od_config.photodiode_channel", "4", fallback=None),
-    type=click.STRING,
-    show_default=True,
-    help="specify the angle(s) between the IR LED(s) and the PD in channel 4, separated by commas. Don't specify if channel is empty.",
-)
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
-def click_od_reading(
-    od_angle_channel1, od_angle_channel2, od_angle_channel3, od_angle_channel4, fake_data
-):
+def click_od_reading(od_angle_channel1, od_angle_channel2, fake_data):
     """
     Start the optical density reading job
     """
     od = start_od_reading(
         od_angle_channel1,
         od_angle_channel2,
-        od_angle_channel3,
-        od_angle_channel4,
         fake_data=fake_data or is_testing_env(),
     )
     od.block_until_disconnected()
