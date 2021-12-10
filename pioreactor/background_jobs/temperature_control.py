@@ -19,7 +19,7 @@ algorithm is below, housed in TemperatureController
 To change the automation over MQTT,
 
 topic: `pioreactor/<unit>/<experiment>/temperture_control/automation/set`
-message: a json object with required keyword argument. Specify the new automation with name `"automation_name"`.
+message: a json object with required keyword arguments. Specify the new automation with key `"automation_name"`.
 
 """
 from __future__ import annotations
@@ -63,7 +63,7 @@ class TemperatureController(BackgroundJob):
 
     MAX_TEMP_TO_REDUCE_HEATING = 60.0
     MAX_TEMP_TO_DISABLE_HEATING = 62.0
-    MAX_TEMP_TO_SHUTDOWN = 64.0  # PLA glass transition temp
+    MAX_TEMP_TO_SHUTDOWN = 64.0  # ~PLA glass transition temp
 
     automations = {}  # type: ignore
 

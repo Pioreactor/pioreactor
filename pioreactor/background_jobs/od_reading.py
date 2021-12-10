@@ -368,20 +368,14 @@ class ADCReader(LoggerMixin):
         ---------
         readings: dict
             a dict with specified channels (as ints) and their reading
-            Ex: {1: 0.10240, 2: 0.1023459}
+            Ex: {"1": 0.10240, "2": 0.1023459}
 
 
         """
         if not self._setup_complete:
             raise ValueError("Must call setup_adc() first.")
 
-        # in case some other process is also using the ADC chip and changes the gain, we want
-        # to always confirm our settings before take a snapshot.
-        self.set_ads_gain(self.gain)
-
-        self.readings_completed += 1
-
-        max_signal = 0.0
+        max_signal = -1.0
 
         aggregated_signals: dict[PD_Channel, list[int]] = {
             channel: [] for channel in self.channels
@@ -389,6 +383,10 @@ class ADCReader(LoggerMixin):
         timestamps: dict[PD_Channel, list[float]] = {
             channel: [] for channel in self.channels
         }
+
+        # in case some other process is also using the ADC chip and changes the gain, we want
+        # to always confirm our settings before take a reading.
+        self.set_ads_gain(self.gain)
 
         try:
             with catchtime() as time_since_start:
@@ -453,13 +451,14 @@ class ADCReader(LoggerMixin):
             self.batched_readings = batched_estimates_
 
             # the max signal should determine the ADS1x15's gain
-            if self.dynamic_gain:
-                self.max_signal_moving_average.update(max_signal)
+            self.max_signal_moving_average.update(max_signal)
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
             if self.dynamic_gain and self.readings_completed % 5 == 1:
                 self.check_on_gain(self.max_signal_moving_average())
+
+            self.readings_completed += 1
 
             return batched_estimates_
 
