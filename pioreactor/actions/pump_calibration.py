@@ -83,11 +83,6 @@ def which_pump_are_you_calibrating():
 
 def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
     # set up...
-    # clear previous calibration in cache
-    with local_persistant_storage("pump_calibration") as cache:
-        cache[f"{pump_name}_ml_calibration"] = json.dumps(
-            {"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0}
-        )
 
     click.clear()
     click.echo()
@@ -111,6 +106,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
             source_of_event="pump_calibration",
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
+            calibration={"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0},
         )
     except KeyboardInterrupt:
         pass
@@ -140,7 +136,9 @@ def choose_settings() -> tuple[float, float]:
     return hz, dc
 
 
-def run_tests(execute_pump) -> tuple[list[float], list[float]]:
+def run_tests(
+    execute_pump: Callable, hz: float, dc: float
+) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
     click.echo("Beginning tests.")
@@ -162,6 +160,7 @@ def run_tests(execute_pump) -> tuple[list[float], list[float]]:
             source_of_event="pump_calibration",
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
+            calibration={"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0},
         )
         r = click.prompt(
             click.style("Enter amount of water expelled", fg="green"),
@@ -192,7 +191,7 @@ def pump_calibration() -> None:
         hz, dc = choose_settings()
 
         setup(pump_name, execute_pump, hz, dc)
-        durations, volumes = run_tests(execute_pump)
+        durations, volumes = run_tests(execute_pump, hz, dc)
 
         (slope, std_slope), (bias, std_bias) = simple_linear_regression(
             durations, volumes

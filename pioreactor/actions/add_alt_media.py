@@ -22,6 +22,7 @@ def add_alt_media(
     source_of_event: Optional[str] = None,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
+    calibration: Optional[dict] = None,
 ) -> float:
     logger = create_logger("add_alt_media")
 
@@ -29,12 +30,13 @@ def add_alt_media(
     assert (ml is not None) or (duration is not None), "either ml or duration must be set"
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
-    try:
-        with local_persistant_storage("pump_calibration") as cache:
-            cal = loads(cache["alt_media_ml_calibration"])
-    except KeyError:
-        logger.error("Calibration not defined. Run pump calibration first.")
-        return 0.0
+    if calibration is None:
+        try:
+            with local_persistant_storage("pump_calibration") as cache:
+                calibration = loads(cache["alt_media_ml_calibration"])
+        except KeyError:
+            logger.error("Calibration not defined. Run pump calibration first.")
+            return 0.0
 
     try:
         ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "alt_media")]
@@ -47,15 +49,15 @@ def add_alt_media(
         assert ml >= 0, "ml should be >= than 0"
         duration = pump_ml_to_duration(
             ml,
-            cal["duration_"],
-            cal["bias_"],
+            calibration["duration_"],
+            calibration["bias_"],
         )
     elif duration is not None:
         user_submitted_ml = False
         ml = pump_duration_to_ml(
             duration,
-            cal["duration_"],
-            cal["bias_"],
+            calibration["duration_"],
+            calibration["bias_"],
         )
 
     assert isinstance(ml, (float, int))
@@ -81,11 +83,11 @@ def add_alt_media(
         logger.info(f"add alt media: {round(duration,2)}s")
 
     try:
-        pwm = PWM(ALT_MEDIA_PIN, cal["hz"])
+        pwm = PWM(ALT_MEDIA_PIN, calibration["hz"])
         pwm.lock()
 
         with catchtime() as delta_time:
-            pwm.start(cal["dc"])
+            pwm.start(calibration["dc"])
 
         time.sleep(duration - delta_time())
 

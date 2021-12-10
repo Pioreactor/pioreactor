@@ -28,7 +28,12 @@ from typing import Optional, Any
 
 import click
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.whoami import (
+    get_unit_name,
+    get_latest_experiment_name,
+    is_testing_env,
+    is_hat_present,
+)
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.hardware_mappings import PWM_TO_PIN, HEATER_PWM_TO_PIN
@@ -86,6 +91,10 @@ class TemperatureController(BackgroundJob):
         super(TemperatureController, self).__init__(
             job_name="temperature_control", unit=unit, experiment=experiment
         )
+
+        if not is_hat_present():
+            self.set_state(self.DISCONNECTED)
+            raise ValueError("Pioreactor HAT must be present.")
 
         if is_testing_env():
             self.logger.info("TMP1075 not available; using MockTMP1075")

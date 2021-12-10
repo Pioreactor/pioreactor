@@ -24,18 +24,20 @@ def remove_waste(
     source_of_event: Optional[str] = None,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
+    calibration: Optional[dict] = None,
 ) -> float:
     logger = create_logger("remove_waste")
 
     assert (ml is not None) or (duration is not None), "either ml or duration must be set"
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
-    try:
-        with local_persistant_storage("pump_calibration") as cache:
-            cal = loads(cache["waste_ml_calibration"])
-    except KeyError:
-        logger.error("Calibration not defined. Run pump calibration first.")
-        return 0.0
+    if calibration is None:
+        try:
+            with local_persistant_storage("pump_calibration") as cache:
+                calibration = loads(cache["waste_ml_calibration"])
+        except KeyError:
+            logger.error("Calibration not defined. Run pump calibration first.")
+            return 0.0
 
     # TODO: move these into general functions that all pumps can use.
     try:
@@ -47,13 +49,13 @@ def remove_waste(
     if ml is not None:
         assert ml >= 0, "ml should be greater than 0"
         user_submitted_ml = True
-        duration = pump_ml_to_duration(ml, cal["duration_"], cal["bias_"])
+        duration = pump_ml_to_duration(ml, calibration["duration_"], calibration["bias_"])
     elif duration is not None:
         user_submitted_ml = False
         ml = pump_duration_to_ml(
             duration,
-            cal["duration_"],
-            cal["bias_"],
+            calibration["duration_"],
+            calibration["bias_"],
         )
 
     assert isinstance(ml, (float, int))
@@ -80,10 +82,10 @@ def remove_waste(
 
     try:
 
-        pwm = PWM(WASTE_PIN, cal["hz"])
+        pwm = PWM(WASTE_PIN, calibration["hz"])
         pwm.lock()
 
-        pwm.start(cal["dc"])
+        pwm.start(calibration["dc"])
         time.sleep(duration)
 
     except Exception as e:
