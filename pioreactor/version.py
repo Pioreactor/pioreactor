@@ -6,6 +6,7 @@ __version__ = "21.12.0"
 
 
 def _get_hardware_version():
+    # check version in /proc/device-tree/hat/
     return (0, 0)
 
 

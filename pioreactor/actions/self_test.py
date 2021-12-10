@@ -2,7 +2,7 @@
 """
 This action performs internal hardware & software tests of the system to confirm things work as expected.
 
-Functions with prefix `test_` are ran, and an Exception thrown means the test failed.
+Functions with prefix `test_` are ran, and any exception thrown means the test failed.
 
 Outputs from each test go into MQTT, and return to the command line.
 """

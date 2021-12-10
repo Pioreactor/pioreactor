@@ -2,11 +2,12 @@
 
 from time import sleep, perf_counter
 from typing import Optional, Callable
+from contextlib import suppress
 import json
 import click
 
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_hat_present
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.monitor import ErrorCode
@@ -212,6 +213,11 @@ class Stirrer(BackgroundJob):
             job_name="stirring", unit=unit, experiment=experiment
         )
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
+
+        if not is_hat_present():
+            self.set_state(self.DISCONNECTED)
+            raise ValueError("Pioreactor HAT must be present.")
+
         self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
 
         self.pwm = PWM(self.pwm_pin, hertz)
@@ -266,12 +272,16 @@ class Stirrer(BackgroundJob):
 
     def on_disconnected(self) -> None:
 
-        self.rpm_check_repeated_thread.cancel()
-        self.stop_stirring()
-        self.pwm.cleanup()
+        with suppress(AttributeError):
+            self.rpm_check_repeated_thread.cancel()
 
-        if self.rpm_calculator:
-            self.rpm_calculator.cleanup()
+        with suppress(AttributeError):
+            self.stop_stirring()
+            self.pwm.cleanup()
+
+        with suppress(AttributeError):
+            if self.rpm_calculator:
+                self.rpm_calculator.cleanup()
 
         self.clear_mqtt_cache()
 

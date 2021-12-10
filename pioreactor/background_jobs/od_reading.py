@@ -87,7 +87,12 @@ import click
 import math
 
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
+from pioreactor.whoami import (
+    get_unit_name,
+    get_latest_experiment_name,
+    is_testing_env,
+    is_hat_present,
+)
 from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
 from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
@@ -602,6 +607,10 @@ class ODReader(BackgroundJob):
         super(ODReader, self).__init__(
             job_name="od_reading", unit=unit, experiment=experiment
         )
+
+        if not is_hat_present():
+            self.set_state(self.DISCONNECTED)
+            raise ValueError("Pioreactor HAT must be present.")
 
         self.adc_reader = adc_reader
         self.channel_angle_map = channel_angle_map

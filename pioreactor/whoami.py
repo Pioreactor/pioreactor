@@ -2,10 +2,23 @@
 import sys
 import os
 from functools import lru_cache
+from pioreactor.version import hardware_version_info
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
+
+
+def is_hat_present() -> bool:
+    # TODO
+    if is_testing_env():
+        return True
+
+    if hardware_version_info == (0, 0):
+        return True
+    else:
+        # to be replaced with a check to /proc/device-tree/hat/
+        return True
 
 
 def get_latest_testing_experiment_name() -> str:
@@ -90,7 +103,7 @@ def get_rpi_machine() -> str:
 if is_testing_env():
     import fake_rpi  # type: ignore
 
-    # fake_rpi.toggle_print(False)
+    fake_rpi.toggle_print(False)
     sys.modules["RPi"] = fake_rpi.RPi  # Fake RPi
     sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
 

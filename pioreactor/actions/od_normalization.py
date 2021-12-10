@@ -13,10 +13,6 @@ and
 
   pioreactor/{unit}/{experiment}/od_normalization/variance
 
-
-
-
-
 """
 import json
 from collections import defaultdict
@@ -147,7 +143,7 @@ def od_normalization(unit=None, experiment=None, n_samples=35):
 )
 def click_od_normalization(n_samples):
     """
-    Compute statistics about the OD timeseries
+    Compute statistics about the OD time series
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
