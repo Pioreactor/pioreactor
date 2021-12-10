@@ -103,7 +103,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.version import hardware_version_diff
 
 PD_Channel = Literal[
-    "1", "2", "3", "4"
+    "1", "2"
 ]  # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless. str suggest symbols, which they are.
 ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2"]
 
@@ -152,8 +152,7 @@ class ADCReader(LoggerMixin):
     }
 
     oversampling_count: int = 25
-    batched_readings: dict[PD_Channel, float] = {}
-    _counter: int = 0
+    readings_completed: int = 0
 
     def __init__(
         self,
@@ -168,6 +167,7 @@ class ADCReader(LoggerMixin):
         self.gain = initial_gain
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
+        self.batched_readings: dict[PD_Channel, float] = {}
 
         self.logger.debug(
             f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
@@ -381,7 +381,7 @@ class ADCReader(LoggerMixin):
         # to always confirm our settings before take a snapshot.
         self.set_ads_gain(self.gain)
 
-        self._counter += 1
+        self.readings_completed += 1
 
         max_signal = 0.0
 
@@ -439,7 +439,7 @@ class ADCReader(LoggerMixin):
                 # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
                 # This is not for culture density saturation (different, harder problem)
                 if (
-                    (self._counter % 2 == 0)
+                    (self.readings_completed % 2 == 0)
                     and (best_estimate_of_signal_ >= 2.75)
                     and not self.fake_data
                 ):
@@ -460,7 +460,7 @@ class ADCReader(LoggerMixin):
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
-            if self.dynamic_gain and self._counter % 5 == 1:
+            if self.dynamic_gain and self.readings_completed % 5 == 1:
                 self.check_on_gain(self.max_signal_moving_average())
 
             return batched_estimates_
