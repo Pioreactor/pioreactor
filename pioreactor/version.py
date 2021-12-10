@@ -10,3 +10,4 @@ def _get_hardware_version():
 
 
 hardware_version_info = _get_hardware_version()
+software_version_info = tuple(int(c) for c in __version__.split(","))
