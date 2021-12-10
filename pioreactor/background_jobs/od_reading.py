@@ -100,7 +100,7 @@ from pioreactor.actions.led_intensity import (
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
-from pioreactor.version import hardware_version_diff
+from pioreactor.version import hardware_version_info
 
 PD_Channel = Literal[
     "1", "2"
@@ -187,12 +187,10 @@ class ADCReader(LoggerMixin):
             from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
             from busio import I2C  # type: ignore
 
-        if hardware_version_diff["ads1x15_version"] == "1":
+        if hardware_version_info == (0, 0):
             from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
-        elif hardware_version_diff["ads1x15_version"] == "0":
-            from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
         else:
-            raise ValueError(f"{hardware_version_diff['ads1x15_version']=} not allowed.")
+            from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
         self.ads = ADS(I2C(SCL, SDA), data_rate=self.DATA_RATE, gain=self.gain)
         self.analog_in: dict[PD_Channel, AnalogIn] = {}

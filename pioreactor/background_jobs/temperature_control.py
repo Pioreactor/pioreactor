@@ -30,9 +30,8 @@ import click
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.config import config
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
-from pioreactor.hardware_mappings import PWM_TO_PIN
+from pioreactor.hardware_mappings import PWM_TO_PIN, HEATER_PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp
 from pioreactor.background_jobs.utils import AutomationDict
@@ -293,7 +292,7 @@ class TemperatureController(BackgroundJob):
 
     def setup_pwm(self) -> PWM:
         hertz = 2
-        pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
+        pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
         pwm = PWM(pin, hertz)
         pwm.start(0)
         return pwm
