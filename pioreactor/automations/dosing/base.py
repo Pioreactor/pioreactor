@@ -57,10 +57,10 @@ class DosingAutomation(BackgroundSubJob):
 
     def __init__(
         self,
-        unit=None,
-        experiment=None,
+        unit: str,
+        experiment: str,
         duration: Optional[float] = None,
-        skip_first_run=False,
+        skip_first_run: bool = False,
         **kwargs,
     ):
         super(DosingAutomation, self).__init__(
@@ -73,6 +73,12 @@ class DosingAutomation(BackgroundSubJob):
         self.start_passive_listeners()
 
     def set_duration(self, duration):
+        """
+        TODO: what's the correct logic when changing from duration N and duration M?
+        For example, N=20, and it's been 5 minutes since the last run (or initialization).
+         - I change to M=30, I suppose I should wait M-5 minutes
+
+        """
         if duration:
             self.duration = float(duration)
 
