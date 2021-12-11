@@ -374,8 +374,6 @@ class TestGrowthRateCalculating:
         start_od_reading(
             "135",
             "90",
-            None,
-            None,
             sampling_rate=interval,
             unit=unit,
             experiment=exp,
