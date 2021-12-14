@@ -10,15 +10,12 @@ NO_EXPERIMENT = "$no_experiment_present"
 
 
 def is_hat_present() -> bool:
-    # TODO
     if is_testing_env():
         return True
-
-    if hardware_version_info == (0, 0):
+    elif hardware_version_info == (0, 1):
         return True
     else:
-        # to be replaced with a check to /proc/device-tree/hat/
-        return True
+        return os.path.exists("/proc/device-tree/hat/")
 
 
 def get_latest_testing_experiment_name() -> str:

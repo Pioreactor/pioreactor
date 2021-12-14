@@ -25,7 +25,7 @@ from pioreactor.hardware_mappings import (
 )
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
-from pioreactor.version import __version__
+from pioreactor.version import software_version_info, hardware_version_info
 
 
 class ErrorCode(IntEnum):
@@ -56,7 +56,13 @@ class Monitor(BackgroundJob):
     def __init__(self, unit, experiment) -> None:
         super().__init__(job_name="monitor", unit=unit, experiment=experiment)
 
-        self.logger.debug(f"PioreactorApp version: {__version__}")
+        def to_version(info: tuple[int, ...]) -> str:
+            return ".".join((str(x) for x in info))
+
+        self.logger.debug(
+            f"Pioreactor software version: {to_version(software_version_info)}"
+        )
+        self.logger.debug(f"Pioreactor HAT version: {to_version(hardware_version_info)}")
 
         # set up GPIO for accessing the button and changing the LED
         self.setup_GPIO()
