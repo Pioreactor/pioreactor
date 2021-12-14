@@ -47,8 +47,6 @@ class TemperatureAutomation(BackgroundSubJob):
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
-        self.logger.info(f"Starting {self.__class__.__name__} automation.")
-
         if parent is None:
             self.logger.warning(
                 "Temperature automations run with using TemperatureController have unexpected behaviour."
@@ -200,12 +198,13 @@ class TemperatureAutomation(BackgroundSubJob):
         self.subscribe_and_callback(
             self._set_temperature,
             f"pioreactor/{self.unit}/{self.experiment}/temperature_control/temperature",
-            allow_retained=True,
+            allow_retained=False,  # only use fresh data from Temp Control.
         )
 
         self.subscribe_and_callback(
             self._set_OD,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
+            allow_retained=False,
         )
 
 

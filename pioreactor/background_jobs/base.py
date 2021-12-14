@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Union, Any, Optional, NewType, TypedDict, Literal
+from typing import Callable, Any, Optional, NewType, TypedDict, Literal
 import threading
 import atexit
 import time
@@ -411,7 +411,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             return
 
     def publish(
-        self, topic: str, payload: Union[str, bytes, int, float, dict, None], **kwargs
+        self, topic: str, payload: str | bytes | int | float | dict | None, **kwargs
     ) -> None:
         """
         Publish payload to topic.
@@ -445,7 +445,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def subscribe_and_callback(
         self,
         callback: Callable[[MQTTMessage], None],
-        subscriptions: Union[list[str], str],
+        subscriptions: list[str] | str,
         allow_retained: bool = True,
         qos: int = 0,
     ) -> None:
@@ -567,8 +567,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(e, exc_info=True)
 
     def lost(self) -> None:
-        self.state = self.LOST
-        self.log_state(self.state)
+        # TODO: what should happen when a running job recieves a lost signal? When does it ever
+        # receive a lost signal?
+        # 1. Monitor can send a lost signal if `check_against_processes_running` triggers.
+        # I think it makes sense to ignore it?
+
+        # self.state = self.LOST
+        # self.log_state(self.state)
+        pass
 
     def disconnected(self) -> None:
         # set state to disconnect

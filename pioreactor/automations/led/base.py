@@ -4,7 +4,7 @@ import time
 import json
 from threading import Thread
 from contextlib import suppress
-from typing import Optional, Union, cast
+from typing import Optional, cast
 
 
 from pioreactor.pubsub import QOS
@@ -42,7 +42,7 @@ class LEDAutomation(BackgroundSubJob):
     latest_event: Optional[events.Event] = None
 
     duration: float
-    run_thread: Union[RepeatedTimer, Thread]
+    run_thread: RepeatedTimer | Thread
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

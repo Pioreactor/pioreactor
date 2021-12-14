@@ -25,13 +25,15 @@ def setup_function():
 
 
 def test_pump_io() -> None:
-    add_media(ml=0.1, unit=unit, experiment=exp)
-    add_alt_media(ml=0.1, unit=unit, experiment=exp)
-    remove_waste(ml=0.1, unit=unit, experiment=exp)
+    ml = 0.1
+    assert ml == add_media(ml=ml, unit=unit, experiment=exp)
+    assert ml == add_alt_media(ml=ml, unit=unit, experiment=exp)
+    assert ml == remove_waste(ml=ml, unit=unit, experiment=exp)
 
-    add_media(duration=0.1, unit=unit, experiment=exp)
-    add_alt_media(duration=0.1, unit=unit, experiment=exp)
-    remove_waste(duration=0.1, unit=unit, experiment=exp)
+    ml = 1.0
+    assert ml == add_media(duration=ml, unit=unit, experiment=exp)
+    assert ml == add_alt_media(duration=ml, unit=unit, experiment=exp)
+    assert ml == remove_waste(duration=ml, unit=unit, experiment=exp)
 
 
 def test_pump_io_doesnt_allow_negative() -> None:

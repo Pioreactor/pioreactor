@@ -66,7 +66,6 @@ class DosingAutomation(BackgroundSubJob):
         super(DosingAutomation, self).__init__(
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
-        self.logger.info(f"Starting {self.__class__.__name__} dosing automation.")
         self.skip_first_run = skip_first_run
 
         self.set_duration(duration)

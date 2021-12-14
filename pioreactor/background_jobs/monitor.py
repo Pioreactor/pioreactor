@@ -23,7 +23,7 @@ from pioreactor.hardware_mappings import (
     PCB_LED_PIN as LED_PIN,
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
-from pioreactor.utils import pio_processes_running, local_persistant_storage
+from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.version import __version__
 
@@ -173,12 +173,11 @@ class Monitor(BackgroundJob):
         See answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
         """
         latest_exp = get_latest_experiment_name()
-        whats_running = pio_processes_running()
 
         def check_against_processes_running(msg) -> None:
             job = msg.topic.split("/")[3]
             if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
-                job not in whats_running
+                not is_pio_job_running(job)
             ):
                 self.publish(
                     f"pioreactor/{self.unit}/{latest_exp}/{job}/$state",

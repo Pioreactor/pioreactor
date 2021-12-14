@@ -140,6 +140,7 @@ class TemperatureController(BackgroundJob):
                 f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
+        self.logger.info(f"Starting {self.automation}.")
         self.automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, parent=self, **kwargs
         )
@@ -223,11 +224,13 @@ class TemperatureController(BackgroundJob):
         self._update_heater(0)
 
         try:
+            self.logger.info(f"Starting {algo_metadata}.")
             self.automation_job = self.automations[algo_metadata["automation_name"]](
                 unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata
             )
             self.automation = algo_metadata
             self.automation_name = algo_metadata["automation_name"]
+
         except KeyError:
             self.logger.debug(
                 f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",

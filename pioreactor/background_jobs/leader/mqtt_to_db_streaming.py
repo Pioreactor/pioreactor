@@ -5,7 +5,7 @@ This job runs on the leader
 from __future__ import annotations
 
 from json import dumps, loads
-from typing import Callable, Union, Optional
+from typing import Callable, Optional
 from dataclasses import dataclass
 import click
 
@@ -24,7 +24,7 @@ class MetaData:
 @dataclass
 class TopicToParserToTable:
     topic: str
-    parser: Callable[[str, Union[bytes, bytearray]], Optional[dict]]
+    parser: Callable[[str, bytes | bytearray], Optional[dict]]
     table: str
 
 
@@ -73,7 +73,7 @@ class MqttToDBStreamer(BackgroundJob):
         self.sqliteworker.close()  # close the db safely
 
     def create_on_message_callback(
-        self, parser: Callable[[str, Union[bytes, bytearray]], Optional[dict]], table: str
+        self, parser: Callable[[str, bytes | bytearray], Optional[dict]], table: str
     ):
         def _callback(message):
             # TODO: filter testing experiments here?

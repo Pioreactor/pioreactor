@@ -42,6 +42,7 @@ class LEDController(BackgroundJob):
                 f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
+        self.logger.info(f"Starting {self.automation}.")
         self.automation_job = automation_class(
             unit=self.unit, experiment=self.experiment, **kwargs
         )
@@ -58,7 +59,9 @@ class LEDController(BackgroundJob):
             self.set_automation(new_led_automation_json)
 
         try:
-            self.automation_job = self.automations[algo_metadata["automation_name"]](
+            klass = self.automations[algo_metadata["automation_name"]]
+            self.logger.info(f"Starting {algo_metadata}.")
+            self.automation_job = klass(
                 unit=self.unit, experiment=self.experiment, **algo_metadata
             )
             self.automation = algo_metadata

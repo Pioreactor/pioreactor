@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import click
-from typing import Tuple, Dict, Optional, Union, Literal, Iterator
+from typing import Tuple, Dict, Optional, Literal, Iterator
 from contextlib import contextmanager
 
 from paho.mqtt.client import Client  # type: ignore
@@ -86,7 +86,7 @@ def _update_current_state(
         return new_state, old_state
 
 
-def _list(x: Union[list, float, str]) -> list:
+def _list(x: list | float | str) -> list:
     if isinstance(x, list):
         return x
     else:
@@ -94,8 +94,8 @@ def _list(x: Union[list, float, str]) -> list:
 
 
 def led_intensity(
-    channels: Union[LED_Channel, list[LED_Channel]],
-    intensities: Union[float, list[float]],
+    channels: LED_Channel | list[LED_Channel],
+    intensities: float | list[float],
     source_of_event: Optional[str] = None,
     verbose: bool = True,
     pubsub_client: Optional[Client] = None,
