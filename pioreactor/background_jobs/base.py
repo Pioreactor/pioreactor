@@ -15,7 +15,7 @@ from pioreactor.utils import (
     append_signal_handler,
 )
 from pioreactor.pubsub import QOS, create_client
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid, is_testing_env
 from pioreactor.logging import create_logger
 
 
@@ -741,7 +741,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def check_for_duplicate_activity(self) -> None:
         with local_intermittent_storage("pio_jobs_running") as cache:
-            if cache.get(self.job_name, b"0") == b"1":
+            if not is_testing_env() and (cache.get(self.job_name, b"0") == b"1"):
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
                 raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 

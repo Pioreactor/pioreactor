@@ -84,7 +84,7 @@ class publish_ready_to_disconnected_state:
         self.experiment = experiment
         self.name = name
 
-    def _handle_interrupt(self):
+    def _handle_interrupt(self, *args):
         sys.exit()  # will trigger a exception, causing __exit__ to be called
 
     def __enter__(self):

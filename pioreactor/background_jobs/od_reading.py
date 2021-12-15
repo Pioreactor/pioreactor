@@ -192,7 +192,7 @@ class ADCReader(LoggerMixin):
             from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
             from busio import I2C  # type: ignore
 
-        if hardware_version_info == (0, 1):
+        if hardware_version_info[0] == 0 and hardware_version_info[1] <= 2:
             from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
         else:
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
