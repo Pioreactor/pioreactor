@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Any, Optional, NewType, TypedDict, Literal
+from typing import Callable, Any, Optional, TypedDict, Literal
 import threading
 import atexit
 import time
@@ -50,7 +50,7 @@ class PostInitCaller(type):
         return obj
 
 
-JobState = NewType("JobState", str)
+JobState = Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 
 class PublishableSetting(TypedDict, total=False):
@@ -196,11 +196,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
     """
 
     # Homie lifecycle (normally per device (i.e. an rpi) but we are using it for "nodes", in Homie parlance)
-    INIT = JobState("init")
-    READY = JobState("ready")
-    DISCONNECTED = JobState("disconnected")
-    SLEEPING = JobState("sleeping")
-    LOST = JobState("lost")
+    INIT: JobState = "init"
+    READY: JobState = "ready"
+    DISCONNECTED: JobState = "disconnected"
+    SLEEPING: JobState = "sleeping"
+    LOST: JobState = "lost"
     LIFECYCLE_STATES: set[JobState] = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
 
     # initial state is disconnected
@@ -528,7 +528,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def init(self) -> None:
         self.state = self.INIT
-        self.log_state(self.state)
 
         try:
             # we delay the specific on_init until after we have done our important protocols.
@@ -539,9 +538,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.set_state(self.DISCONNECTED)
             raise e
 
+        self.log_state(self.state)
+
     def ready(self) -> None:
         self.state = self.READY
-        self.log_state(self.state)
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
@@ -556,15 +556,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
 
+        self.log_state(self.state)
+
     def sleeping(self) -> None:
         self.state = self.SLEEPING
-        self.log_state(self.state)
 
         try:
             self.on_sleeping()
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
+
+        self.log_state(self.state)
 
     def lost(self) -> None:
         # TODO: what should happen when a running job recieves a lost signal? When does it ever
@@ -593,11 +596,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
 
-        self.log_state(self.state)
-
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache[self.job_name] = b"0"
 
+        self.log_state(self.state)
         # this HAS to happen last, because this contains our publishing client
         for client in self.pubsub_clients:
             client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
