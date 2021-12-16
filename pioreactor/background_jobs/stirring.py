@@ -38,7 +38,7 @@ class RpmCalculator:
 
     hall_sensor_pin = HALL_SENSOR_PIN
 
-    def __init__(self):
+    def __init__(self) -> None:
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
 
         import RPi.GPIO as GPIO  # type: ignore
@@ -54,23 +54,23 @@ class RpmCalculator:
         )
         self.turn_off_collection()
 
-    def turn_off_collection(self):
+    def turn_off_collection(self) -> None:
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
 
-    def turn_on_collection(self):
+    def turn_on_collection(self) -> None:
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         self.GPIO.cleanup(self.hall_sensor_pin)
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
 
     def __call__(self, seconds_to_observe: float) -> float:
         return 0
 
-    def callback(self, *args):
+    def callback(self, *args) -> None:
         pass
 
-    def sleep_for(self, seconds):
+    def sleep_for(self, seconds) -> None:
         sleep(seconds)
 
     def __enter__(self):
@@ -91,7 +91,7 @@ class RpmFromFrequency(RpmCalculator):
     _start_time = None
     _is_first_delta = True
 
-    def callback(self, *args):
+    def callback(self, *args) -> None:
         obs_time = perf_counter()
 
         if self._start_time is not None:
@@ -103,7 +103,7 @@ class RpmFromFrequency(RpmCalculator):
 
         self._start_time = obs_time
 
-    def clear_aggregates(self):
+    def clear_aggregates(self) -> None:
         self._running_sum = 0
         self._running_count = 0
         self._start_time = None
@@ -148,7 +148,7 @@ class RpmFromCount(RpmCalculator):
 
     _rpm_counter = 0
 
-    def callback(self, *args):
+    def callback(self, *args) -> None:
         self._rpm_counter = self._rpm_counter + 1
 
     def __call__(self, seconds_to_observe: float) -> float:
