@@ -81,7 +81,7 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 
 """
 from __future__ import annotations
-from typing import Optional, Literal, cast
+from typing import Optional, cast
 from time import time, sleep
 import click
 import math
@@ -99,17 +99,14 @@ from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.actions.led_intensity import (
     led_intensity as change_led_intensity,
     ALL_LED_CHANNELS,
-    LED_Channel,  # type
     lock_leds_temporarily,
     change_leds_intensities_temporarily,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
 from pioreactor.version import hardware_version_info
+from pioreactor.types import PD_Channel, LED_Channel
 
-PD_Channel = Literal[
-    "1", "2"
-]  # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless. str suggest symbols, which they are.
 ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2"]
 
 REF_keyword = "REF"

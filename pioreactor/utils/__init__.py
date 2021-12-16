@@ -5,8 +5,9 @@ from dbm import ndbm
 import sys
 import signal
 from contextlib import contextmanager, suppress
-from typing import Generator, MutableMapping, Callable
+from typing import Generator, Callable
 from pioreactor.pubsub import publish, QOS
+from pioreactor.types import DbmMapping
 
 
 class callable_stack:
@@ -51,17 +52,6 @@ def append_signal_handler(signal_value, new_callback: Callable):
         signal.signal(signal_value, stack)
     else:
         raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
-
-
-class DbmMapping(MutableMapping):
-    def __getitem__(self, key: str) -> bytes:
-        """
-        Internally, dbm will convert all values to bytes
-        """
-        ...
-
-    def __setitem__(self, key: str, value: str | bytes) -> None:
-        ...
 
 
 class publish_ready_to_disconnected_state:

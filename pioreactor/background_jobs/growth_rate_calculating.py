@@ -40,12 +40,12 @@ import click
 
 from pioreactor.actions.od_normalization import od_normalization
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.od_reading import PD_Channel
 from pioreactor.config import config
 from pioreactor.pubsub import QOS, subscribe
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
+from pioreactor.types import PD_Channel
 
 
 class GrowthRateCalculator(BackgroundJob):

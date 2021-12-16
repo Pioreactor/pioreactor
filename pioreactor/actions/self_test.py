@@ -22,13 +22,12 @@ from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.background_jobs.od_reading import (
     ADCReader,
     ALL_PD_CHANNELS,
-    PD_Channel,
     IR_keyword,
 )
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.pubsub import publish
 from pioreactor.logging import create_logger
-from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS, LED_Channel
+from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 from pioreactor.utils import (
     is_pio_job_running,
     publish_ready_to_disconnected_state,
@@ -36,6 +35,7 @@ from pioreactor.utils import (
 )
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
+from pioreactor.types import PD_Channel, LED_Channel
 
 
 def test_pioreactor_hat_present(logger: Logger, unit: str, experiment: str) -> None:

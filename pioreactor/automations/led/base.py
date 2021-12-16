@@ -12,9 +12,10 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
 from pioreactor.background_jobs.led_control import LEDController
-from pioreactor.actions.led_intensity import led_intensity, LED_Channel
+from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations import events
 from pioreactor.utils import is_pio_job_running
+from pioreactor.types import LED_Channel
 
 
 class LEDAutomation(BackgroundSubJob):

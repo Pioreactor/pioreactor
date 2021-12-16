@@ -5,7 +5,6 @@ from pioreactor.version import hardware_version_info
 
 # All GPIO pins below are BCM numbered
 
-
 PWM_TO_PIN: dict[PWM_Channel, GPIO_Pin] = {
     # map between PCB labels and GPIO pins
     1: 6 if hardware_version_info == (0, 1) else 17,

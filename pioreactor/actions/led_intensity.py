@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import click
-from typing import Tuple, Dict, Optional, Literal, Iterator
+from typing import Optional, Iterator
 from contextlib import contextmanager
 
 from paho.mqtt.client import Client  # type: ignore
@@ -12,9 +12,8 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_test
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.types import LED_Channel
 
-
-LED_Channel = Literal["A", "B", "C", "D"]
 ALL_LED_CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
 
 
@@ -64,7 +63,7 @@ def is_locked(channel: LED_Channel) -> bool:
 def _update_current_state(
     channels: list[LED_Channel],
     intensities: list[float],
-) -> Tuple[Dict[LED_Channel, float], Dict[LED_Channel, float]]:
+) -> tuple[dict[LED_Channel, float], dict[LED_Channel, float]]:
     """
     Previously this used MQTT, but network latency could really cause trouble.
     Eventually I should try to modify the UI to not even need this `state` variable,
