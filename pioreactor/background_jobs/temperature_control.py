@@ -37,6 +37,7 @@ from pioreactor.whoami import (
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.hardware_mappings import PWM_TO_PIN, HEATER_PWM_TO_PIN
+from pioreactor.config import config
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp
 from pioreactor.background_jobs.utils import AutomationDict
@@ -305,6 +306,7 @@ class TemperatureController(BackgroundJob):
     def setup_pwm(self) -> PWM:
         hertz = 2
         pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
+        pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(0)
         return pwm

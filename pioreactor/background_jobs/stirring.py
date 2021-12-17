@@ -218,9 +218,8 @@ class Stirrer(BackgroundJob):
             self.set_state(self.DISCONNECTED)
             raise ValueError("Pioreactor HAT must be present.")
 
-        self.pwm_pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
-
-        self.pwm = PWM(self.pwm_pin, hertz)
+        pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
+        self.pwm = PWM(pin, hertz)
         self.pwm.lock()
 
         self.rpm_calculator = rpm_calculator
