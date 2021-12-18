@@ -304,7 +304,7 @@ class TemperatureController(BackgroundJob):
         self.clear_mqtt_cache()
 
     def setup_pwm(self) -> PWM:
-        hertz = 0.5
+        hertz = 0.1
         pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
