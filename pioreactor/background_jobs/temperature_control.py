@@ -304,7 +304,7 @@ class TemperatureController(BackgroundJob):
         self.clear_mqtt_cache()
 
     def setup_pwm(self) -> PWM:
-        hertz = 2
+        hertz = 0.5
         pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
@@ -316,7 +316,7 @@ class TemperatureController(BackgroundJob):
         1. lock PWM and turn off heater
         2. start recording temperatures from the sensor
         3. After collected M samples, pass to a model to approx temp
-        4. assign temp to publish to .../temperature
+        4. assign temp to publish to ../temperature
         5. return heater to previous DC value and unlock heater
         """
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"

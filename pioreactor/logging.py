@@ -4,6 +4,7 @@ from logging import handlers, Logger
 from typing import Optional
 from json_log_formatter import JSONFormatter  # type: ignore
 from paho.mqtt.client import Client  # type: ignore
+import colorlog
 
 from pioreactor.pubsub import create_client, publish_to_pioreactor_cloud
 from pioreactor.whoami import (
@@ -133,14 +134,20 @@ def create_logger(
             datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
     )
-
-    # define a Handler which writes INFO messages or higher to the sys.stderr
+    # define a Handler which writes to the sys.stderr
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(
-        logging.Formatter(
-            "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
+        colorlog.ColoredFormatter(
+            "%(log_color)s %(asctime)s %(levelname)-8s [%(name)s] %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
+            log_colors={
+                "DEBUG": "cyan",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "red,bg_white",
+            },
         )
     )
 
