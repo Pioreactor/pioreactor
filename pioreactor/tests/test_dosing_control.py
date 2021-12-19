@@ -717,7 +717,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
         cache["alt_media_ml_calibration"] = '{"duration_" : 1.0}'
 
 
-def test_execute_io_action_outputs_will_shortcut_if_lost() -> None:
+def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     # regression test
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
@@ -736,7 +736,7 @@ def test_execute_io_action_outputs_will_shortcut_if_lost() -> None:
     )
 
     ca = DosingAutomation(unit=unit, experiment=experiment)
-    ca.set_state(ca.LOST)
+    ca.set_state(ca.DISCONNECTED)
     result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     assert result[0] == 0.0
     assert result[1] == 0.0

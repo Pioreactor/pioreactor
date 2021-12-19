@@ -119,7 +119,6 @@ class Monitor(BackgroundJob):
     def check_heater_pcb_temperature(self) -> None:
         """
         Originally from #220
-
         """
         if is_testing_env():
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
@@ -381,14 +380,11 @@ class Monitor(BackgroundJob):
 
         self.currently_flickering = True
 
-        for _ in range(3):
-            for _ in range(error_code):
-                self.led_on()
-                sleep(0.3)
-                self.led_off()
-                sleep(0.3)
-
-            sleep(3)
+        for _ in range(error_code):
+            self.led_on()
+            sleep(0.3)
+            self.led_off()
+            sleep(0.3)
 
         self.currently_flickering = False
 

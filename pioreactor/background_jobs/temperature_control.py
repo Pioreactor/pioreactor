@@ -39,7 +39,6 @@ from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor.hardware_mappings import PWM_TO_PIN, HEATER_PWM_TO_PIN
 from pioreactor.config import config
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils import clamp
 from pioreactor.background_jobs.utils import AutomationDict
 
 
@@ -245,9 +244,7 @@ class TemperatureController(BackgroundJob):
             self.logger.warning(f"Change failed because of {str(e)}")
 
     def _update_heater(self, new_duty_cycle: float) -> None:
-        self.heater_duty_cycle = clamp(
-            0, round(float(new_duty_cycle), 5), 85
-        )  # TODO: update upperbound with better constant later.
+        self.heater_duty_cycle = round(float(new_duty_cycle), 5)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
     def _check_if_exceeds_max_temp(self, temp: float) -> None:
@@ -304,7 +301,7 @@ class TemperatureController(BackgroundJob):
         self.clear_mqtt_cache()
 
     def setup_pwm(self) -> PWM:
-        hertz = 0.1
+        hertz = 1
         pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)

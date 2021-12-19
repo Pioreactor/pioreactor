@@ -141,7 +141,7 @@ class DosingAutomation(BackgroundSubJob):
 
     def wait_until_not_sleeping(self):
         while self.state == self.SLEEPING:
-            time.sleep(5)
+            brief_pause()
         return True
 
     def execute_io_action(
