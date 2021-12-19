@@ -83,14 +83,12 @@ class TemperatureController(BackgroundJob):
     def __init__(
         self,
         automation_name: str,
+        unit: str,
+        experiment: str,
         eval_and_publish_immediately: bool = True,
-        unit: str = None,
-        experiment: str = None,
         **kwargs,
-    ):
-        super(TemperatureController, self).__init__(
-            job_name="temperature_control", unit=unit, experiment=experiment
-        )
+    ) -> None:
+        super().__init__(job_name="temperature_control", unit=unit, experiment=experiment)
 
         if not is_hat_present():
             self.set_state(self.DISCONNECTED)
