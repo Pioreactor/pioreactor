@@ -64,11 +64,12 @@ class TemperatureController(BackgroundJob):
     ------------
     eval_and_publish_immediately: bool, default True
         evaluate and publish the temperature once the class is created (in the background)
+        TODO: do I need this still?
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 60.0
+    MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 62.0
-    MAX_TEMP_TO_SHUTDOWN = 64.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_SHUTDOWN = 64.0
 
     automations = {}  # type: ignore
 

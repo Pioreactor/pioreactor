@@ -157,16 +157,11 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
 
     with temperature_control.TemperatureController(
-        "silent", unit=unit, experiment=experiment
+        "stable", unit=unit, experiment=experiment, target_temperature=35
     ) as t:
-        # change to PID stable
-        assert t.heater_duty_cycle == 0
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "stable", "target_temperature": 35}',
-        )
 
         pause(3)
+        assert t.automation_job.state == "ready"
         assert t.heater_duty_cycle > 0
 
 

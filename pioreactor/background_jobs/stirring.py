@@ -207,7 +207,7 @@ class Stirrer(BackgroundJob):
         unit: str,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator],
-        hertz=67,
+        hertz: float = 67,
     ) -> None:
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
