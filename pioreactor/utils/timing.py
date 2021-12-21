@@ -83,7 +83,11 @@ class RepeatedTimer:
             job_name or "RepeatedTimer"
         )  # TODO: I don't think this works as expected.
         self.is_paused = False
-        self.run_after = run_after or 0
+        if run_after is not None:
+            assert run_after >= 0, "run_after should be non-negative."
+            self.run_after = run_after
+        else:
+            self.run_after = 0
         self.run_immediately = run_immediately
         self.event = Event()
         self.thread = Thread(target=self._target, daemon=True)

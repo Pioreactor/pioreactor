@@ -69,7 +69,7 @@ class MockAnalogIn:
             self.gr / 60 / 60 / config.getfloat("od_config", "samples_per_second")
         )
         self._counter += 1
-        return self.state + random.normalvariate(0, sigma=self.state * 0.01)
+        return self.state + random.normalvariate(0, sigma=self.state * 0.001)
 
     @property
     def value(self):

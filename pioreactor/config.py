@@ -55,11 +55,11 @@ class ConfigParserMod(configparser.ConfigParser):
     def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
         try:
             return super().get(section, option, *args, **kwargs)
-        except configparser.NoSectionError:
+        except (configparser.NoSectionError, configparser.NoOptionError):
             from pioreactor.logging import create_logger
 
             create_logger("read config").error(
-                f"""No section in configuration: '{section}.{option}'. Are you missing the following in your config?
+                f"""No found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
 {option}=some value

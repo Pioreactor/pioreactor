@@ -41,11 +41,12 @@ class DosingAutomation(BackgroundSubJob):
     _latest_od: Optional[float] = None
     previous_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
-    latest_od_timestamp: float = 0
-    latest_growth_rate_timestamp: float = 0
+    latest_od_at: float = 0
+    latest_growth_rate_at: float = 0
     latest_event: Optional[events.Event] = None
     latest_settings_started_at: str = current_utc_time()
     latest_settings_ended_at: Optional[str] = None
+    last_run_at: Optional[float] = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -72,24 +73,33 @@ class DosingAutomation(BackgroundSubJob):
         self.start_passive_listeners()
 
     def set_duration(self, duration):
-        """
-        TODO: what's the correct logic when changing from duration N and duration M?
-        For example, N=20, and it's been 5 minutes since the last run (or initialization).
-         - I change to M=30, I suppose I should wait M-5 minutes
-
-        """
         if duration:
             self.duration = float(duration)
 
             with suppress(AttributeError):
                 self.run_thread.cancel()
 
+            if self.last_run_at:
+                # what's the correct logic when changing from duration N and duration M?
+                # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.
+                # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
+                run_after = max(
+                    0, (self.duration * 60) - (time.time() - self.last_run_at)
+                )
+            else:
+                # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
+                # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
+                run_after = 2
+
             self.run_thread = RepeatedTimer(
                 self.duration * 60,
                 self.run,
                 job_name=self.job_name,
-                run_immediately=(not self.skip_first_run),
+                run_immediately=(not self.skip_first_run)
+                or (self.last_run_at is not None),
+                run_after=run_after,
             ).start()
+
         else:
             self.duration = None
             self.run_thread = Thread(target=self.run, daemon=True)
@@ -133,6 +143,7 @@ class DosingAutomation(BackgroundSubJob):
             self.logger.info(str(event))
 
         self.latest_event = event
+        self.last_run_at = time.time()
         return event
 
     def execute(self) -> events.Event:
@@ -231,7 +242,7 @@ class DosingAutomation(BackgroundSubJob):
 
     @property
     def most_stale_time(self) -> float:
-        return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
+        return min(self.latest_od_at, self.latest_growth_rate_at)
 
     @property
     def latest_growth_rate(self) -> float:
@@ -296,12 +307,12 @@ class DosingAutomation(BackgroundSubJob):
     def _set_growth_rate(self, message):
         self.previous_growth_rate = self._latest_growth_rate
         self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
-        self.latest_growth_rate_timestamp = time.time()
+        self.latest_growth_rate_at = time.time()
 
     def _set_OD(self, message):
         self.previous_od = self._latest_od
         self._latest_od = float(json.loads(message.payload)["od_filtered"])
-        self.latest_od_timestamp = time.time()
+        self.latest_od_at = time.time()
 
     def _send_details_to_mqtt(self):
         self.publish(

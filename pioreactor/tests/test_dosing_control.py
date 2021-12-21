@@ -445,10 +445,10 @@ def test_old_readings_will_not_execute_io() -> None:
     algo._latest_growth_rate = 1
     algo._latest_od = 1
 
-    algo.latest_od_timestamp = time.time() - 10 * 60
-    algo.latest_growth_rate_timestamp = time.time() - 4 * 60
+    algo.latest_od_at = time.time() - 10 * 60
+    algo.latest_growth_rate_at = time.time() - 4 * 60
 
-    assert algo.most_stale_time == algo.latest_od_timestamp
+    assert algo.most_stale_time == algo.latest_od_at
 
     assert isinstance(algo.run(), events.NoEvent)
     algo.set_state(algo.DISCONNECTED)
@@ -801,10 +801,41 @@ def test_changing_duration_over_mqtt() -> None:
         assert isinstance(algo.latest_event, events.NoEvent)
 
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set", 60 / 60
+            f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set",
+            1,  # in minutes
         )
         time.sleep(10)
-        assert algo.run_thread.interval == 60
+        assert algo.run_thread.interval == 60  # in seconds
+
+
+def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
+    with PIDMorbidostat(
+        target_od=1.0,
+        target_growth_rate=0.01,
+        duration=10 / 60,
+        unit=unit,
+        experiment=experiment,
+    ) as algo:
+        assert algo.latest_event is None
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.08}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 0.5}',
+        )
+        time.sleep(15)
+
+        assert isinstance(algo.latest_event, events.NoEvent)
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/duration/set",
+            15 / 60,  # in minutes
+        )
+        time.sleep(5)
+        assert algo.run_thread.interval == 15  # in seconds
+        assert algo.run_thread.run_after > 0
 
 
 def test_changing_algo_over_mqtt_solo() -> None:

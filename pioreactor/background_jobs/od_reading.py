@@ -354,11 +354,11 @@ class ADCReader(LoggerMixin):
 
         return (C, A, phi), AIC
 
-    def from_voltage_to_raw(self, v):
+    def from_voltage_to_raw(self, voltage: float) -> int:
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
-        return v * 32767 / self.ADS1X15_PGA_RANGE[self.ads.gain]
+        return cast(int, voltage * 32767 / self.ADS1X15_PGA_RANGE[self.ads.gain])
 
-    def from_raw_to_voltage(self, raw):
+    def from_raw_to_voltage(self, raw) -> float:
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
         return raw / 32767 * self.ADS1X15_PGA_RANGE[self.ads.gain]
 
