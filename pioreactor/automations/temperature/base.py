@@ -35,6 +35,8 @@ class TemperatureAutomation(BackgroundSubJob):
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
 
+    automation_name: str
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
@@ -43,7 +45,9 @@ class TemperatureAutomation(BackgroundSubJob):
         if hasattr(cls, "automation_name") and cls.automation_name:
             TemperatureController.automations[cls.automation_name] = cls
 
-    def __init__(self, unit=None, experiment=None, parent=None, **kwargs):
+    def __init__(
+        self, unit: str, experiment: str, parent: TemperatureController, **kwargs
+    ) -> None:
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
@@ -56,7 +60,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
         self.start_passive_listeners()
 
-    def update_heater(self, new_duty_cycle: float) -> None:
+    def update_heater(self, new_duty_cycle: float) -> bool:
         """
         Update heater's duty cycle. This function checks for a lock on the PWM, and will not
         update if the PWM is locked.
@@ -68,7 +72,7 @@ class TemperatureAutomation(BackgroundSubJob):
     def is_heater_pwm_locked(self) -> bool:
         return self.temperature_control_parent.pwm.is_locked()
 
-    def update_heater_with_delta(self, delta_duty_cycle: float) -> None:
+    def update_heater_with_delta(self, delta_duty_cycle: float) -> bool:
         """
         Update heater's duty cycle by value `delta_duty_cycle`. This function checks for a lock on the PWM, and will not
         update if the PWM is locked.
@@ -175,7 +179,7 @@ class TemperatureAutomation(BackgroundSubJob):
                     "experiment": self.experiment,
                     "started_at": self.latest_settings_started_at,
                     "ended_at": self.latest_settings_ended_at,
-                    "automation": self.__class__.__name__,
+                    "automation": self.automation_name,
                     "settings": json.dumps(
                         {
                             attr: getattr(self, attr, None)
@@ -188,7 +192,7 @@ class TemperatureAutomation(BackgroundSubJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self._set_growth_rate,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",

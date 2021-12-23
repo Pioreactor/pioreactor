@@ -521,13 +521,13 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     initial_led_output: Optional[float] = None
     blank_reading: float = 0.0
 
-    def __init__(self, channel: PD_Channel):
+    def __init__(self, channel: PD_Channel) -> None:
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.55)
         self.channel = channel
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
-    def update(self, batched_reading: dict[PD_Channel, float]):
+    def update(self, batched_reading: dict[PD_Channel, float]) -> None:
         ir_output_reading = batched_reading[self.channel]
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
@@ -544,7 +544,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             / (self.initial_led_output - self.blank_reading)
         )
 
-    def set_blank(self, batched_reading: dict[PD_Channel, float]):
+    def set_blank(self, batched_reading: dict[PD_Channel, float]) -> None:
         self.blank_reading = batched_reading[self.channel]
 
     def __call__(self, od_signal: float) -> float:
@@ -557,7 +557,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
 
 
 class NullIrLedReferenceTracker(IrLedReferenceTracker):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.logger.debug("Not using any IR LED reference.")
 

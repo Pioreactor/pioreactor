@@ -44,7 +44,9 @@ class DosingController(BackgroundJob):
         "automation_name": {"datatype": "string", "settable": False},
     }
 
-    def __init__(self, automation_name, unit=None, experiment=None, **kwargs):
+    def __init__(
+        self, automation_name: str, unit: str, experiment: str, **kwargs
+    ) -> None:
         super(DosingController, self).__init__(
             job_name="dosing_control", unit=unit, experiment=experiment
         )
@@ -170,7 +172,7 @@ def start_dosing_control(automation_name, duration=None, skip_first_run=False, *
 )
 @click.option(
     "--skip-first-run",
-    is_flag=True,
+    type=click.IntRange(min=0, max=1),
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
@@ -181,7 +183,7 @@ def click_dosing_control(ctx, automation_name, duration, skip_first_run):
     dc = start_dosing_control(
         automation_name=automation_name,
         duration=duration,
-        skip_first_run=skip_first_run,
+        skip_first_run=bool(skip_first_run),
         **{
             ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1]
             for i in range(0, len(ctx.args), 2)

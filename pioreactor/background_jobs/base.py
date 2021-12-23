@@ -17,6 +17,7 @@ from pioreactor.utils import (
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid, is_testing_env
 from pioreactor.logging import create_logger
+from pioreactor.types import JobState
 
 
 def format_with_optional_units(value: Any, units: Optional[str]) -> str:
@@ -48,9 +49,6 @@ class PostInitCaller(type):
         obj = type.__call__(cls, *args, **kwargs)
         obj.__post__init__()
         return obj
-
-
-JobState = Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 
 class PublishableSetting(TypedDict, total=False):

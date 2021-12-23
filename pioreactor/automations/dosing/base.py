@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import annotations
 import time
 import json
 from threading import Thread
@@ -46,7 +46,10 @@ class DosingAutomation(BackgroundSubJob):
     latest_event: Optional[events.Event] = None
     latest_settings_started_at: str = current_utc_time()
     latest_settings_ended_at: Optional[str] = None
-    last_run_at: Optional[float] = None
+    lastest_run_at: Optional[float] = None
+    automation_name: str
+    run_thread: RepeatedTimer | Thread
+    duration: float | None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -63,7 +66,7 @@ class DosingAutomation(BackgroundSubJob):
         duration: Optional[float] = None,
         skip_first_run: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         super(DosingAutomation, self).__init__(
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
@@ -72,19 +75,19 @@ class DosingAutomation(BackgroundSubJob):
         self.set_duration(duration)
         self.start_passive_listeners()
 
-    def set_duration(self, duration):
+    def set_duration(self, duration: Optional[float]) -> None:
         if duration:
             self.duration = float(duration)
 
             with suppress(AttributeError):
-                self.run_thread.cancel()
+                self.run_thread.cancel()  # type: ignore
 
-            if self.last_run_at:
+            if self.lastest_run_at:
                 # what's the correct logic when changing from duration N and duration M?
                 # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.
                 # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
                 run_after = max(
-                    0, (self.duration * 60) - (time.time() - self.last_run_at)
+                    0, (self.duration * 60) - (time.time() - self.lastest_run_at)
                 )
             else:
                 # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
@@ -96,7 +99,7 @@ class DosingAutomation(BackgroundSubJob):
                 self.run,
                 job_name=self.job_name,
                 run_immediately=(not self.skip_first_run)
-                or (self.last_run_at is not None),
+                or (self.lastest_run_at is not None),
                 run_after=run_after,
             ).start()
 
@@ -105,11 +108,13 @@ class DosingAutomation(BackgroundSubJob):
             self.run_thread = Thread(target=self.run, daemon=True)
             self.run_thread.start()
 
-    def run(self):
+    def run(self) -> Optional[events.Event]:
+        event: events.Event
+
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
-            return
+            return None
 
         elif self.state != self.READY:
             # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
@@ -122,7 +127,7 @@ class DosingAutomation(BackgroundSubJob):
                     )
                     break
                 elif self.state == self.DISCONNECTED:
-                    return
+                    return None
 
                 sleep_for = 5
                 time.sleep(sleep_for)
@@ -143,14 +148,14 @@ class DosingAutomation(BackgroundSubJob):
             self.logger.info(str(event))
 
         self.latest_event = event
-        self.last_run_at = time.time()
+        self.lastest_run_at = time.time()
         return event
 
     def execute(self) -> events.Event:
         # should be defined in subclass
         return events.NoEvent()
 
-    def wait_until_not_sleeping(self):
+    def wait_until_not_sleeping(self) -> bool:
         while self.state == self.SLEEPING:
             brief_pause()
         return True
@@ -186,7 +191,7 @@ class DosingAutomation(BackgroundSubJob):
                 waste_ml=alt_media_ml + media_ml / 2,
             )
         else:
-            source_of_event = f"{self.job_name}:{self.__class__.__name__}"
+            source_of_event = f"{self.job_name}:{self.automation_name}"
 
             if (
                 media_ml > 0
@@ -284,7 +289,7 @@ class DosingAutomation(BackgroundSubJob):
 
     ########## Private & internal methods
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         self.latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
@@ -304,17 +309,17 @@ class DosingAutomation(BackgroundSubJob):
             self.latest_settings_started_at = current_utc_time()
             self.latest_settings_ended_at = None
 
-    def _set_growth_rate(self, message):
+    def _set_growth_rate(self, message) -> None:
         self.previous_growth_rate = self._latest_growth_rate
         self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
         self.latest_growth_rate_at = time.time()
 
-    def _set_OD(self, message):
+    def _set_OD(self, message) -> None:
         self.previous_od = self._latest_od
         self._latest_od = float(json.loads(message.payload)["od_filtered"])
         self.latest_od_at = time.time()
 
-    def _send_details_to_mqtt(self):
+    def _send_details_to_mqtt(self) -> None:
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/dosing_automation_settings",
             json.dumps(
@@ -323,7 +328,7 @@ class DosingAutomation(BackgroundSubJob):
                     "experiment": self.experiment,
                     "started_at": self.latest_settings_started_at,
                     "ended_at": self.latest_settings_ended_at,
-                    "automation": self.__class__.__name__,
+                    "automation": self.automation_name,
                     "settings": json.dumps(
                         {
                             attr: getattr(self, attr, None)
@@ -336,7 +341,7 @@ class DosingAutomation(BackgroundSubJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self._set_OD,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",

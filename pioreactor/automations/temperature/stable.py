@@ -15,7 +15,7 @@ class Stable(TemperatureAutomation):
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }
 
-    def __init__(self, target_temperature, **kwargs):
+    def __init__(self, target_temperature: float, **kwargs) -> None:
         super(Stable, self).__init__(**kwargs)
         assert target_temperature is not None, "target_temperature must be set"
         self.target_temperature = float(target_temperature)
@@ -31,7 +31,7 @@ class Stable(TemperatureAutomation):
             target_name="temperature",
         )
 
-    def execute(self):
+    def execute(self) -> None:
         while not hasattr(self, "pid"):
             # sometimes when initializing, this execute can run before the sublasses __init__ is resolved.
             pass
@@ -43,7 +43,7 @@ class Stable(TemperatureAutomation):
         self.logger.debug(f"delta={output}")
         return
 
-    def set_target_temperature(self, value):
+    def set_target_temperature(self, value) -> None:
         if float(value) > 50:
             self.logger.warning("Values over 50℃ are not supported. Setting to 50℃.")
 

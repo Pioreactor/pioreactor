@@ -9,13 +9,13 @@ class ConstantDutyCycle(TemperatureAutomation):
         "duty_cycle": {"datatype": "float", "unit": "%", "settable": True}
     }
 
-    def __init__(self, duty_cycle, **kwargs):
+    def __init__(self, duty_cycle, **kwargs) -> None:
         super(ConstantDutyCycle, self).__init__(**kwargs)
         self.set_duty_cycle(duty_cycle)
 
-    def set_duty_cycle(self, dc):
+    def set_duty_cycle(self, dc) -> None:
         self.duty_cycle = float(dc)
         self.update_heater(dc)
 
-    def execute(self):
+    def execute(self) -> None:
         self.update_heater(self.duty_cycle)

@@ -38,12 +38,12 @@ class LEDAutomation(BackgroundSubJob):
     latest_growth_rate_at: float = 0
     latest_settings_started_at: str = current_utc_time()
     latest_settings_ended_at: Optional[str] = None
-    published_settings = {"duration": {"datatype": "float", "settable": True}}
     edited_channels: set[LED_Channel] = set()
     latest_event: Optional[events.Event] = None
-    last_run_at: Optional[float] = None
+    lastest_run_at: Optional[float] = None
+    published_settings = {"duration": {"datatype": "float", "settable": True}}
 
-    duration: float
+    automation_name: str
     run_thread: RepeatedTimer | Thread
 
     def __init_subclass__(cls, **kwargs):
@@ -71,16 +71,16 @@ class LEDAutomation(BackgroundSubJob):
         self.set_duration(duration)
         self.start_passive_listeners()
 
-        self.logger.info(f"Starting {self.__class__.__name__} LED automation.")
+        self.logger.info(f"Starting {self.automation_name} LED automation.")
 
     def set_duration(self, duration: float) -> None:
         self.duration = float(duration)
 
-        if self.last_run_at:
+        if self.lastest_run_at:
             # what's the correct logic when changing from duration N and duration M?
             # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.
             # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
-            run_after = max(0, (self.duration * 60) - (time.time() - self.last_run_at))
+            run_after = max(0, (self.duration * 60) - (time.time() - self.lastest_run_at))
         else:
             # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
             # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
@@ -90,7 +90,8 @@ class LEDAutomation(BackgroundSubJob):
             self.duration * 60,  # RepeatedTimer uses seconds
             self.run,
             job_name=self.job_name,
-            run_immediately=(not self.skip_first_run) or (self.last_run_at is not None),
+            run_immediately=(not self.skip_first_run)
+            or (self.lastest_run_at is not None),
             run_after=run_after,
         ).start()
 
@@ -130,7 +131,7 @@ class LEDAutomation(BackgroundSubJob):
             self.logger.info(str(event))
 
         self.latest_event = event
-        self.last_run_at = time.time()
+        self.lastest_run_at = time.time()
         return event
 
     def execute(self) -> events.Event:
@@ -258,7 +259,7 @@ class LEDAutomation(BackgroundSubJob):
                     "experiment": self.experiment,
                     "started_at": self.latest_settings_started_at,
                     "ended_at": self.latest_settings_ended_at,
-                    "automation": self.__class__.__name__,
+                    "automation": self.automation_name,
                     "settings": json.dumps(
                         {
                             attr: getattr(self, attr, None)

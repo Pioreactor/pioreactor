@@ -363,7 +363,12 @@ class Stirrer(BackgroundJob):
             sleep(0.25)
 
 
-def start_stirring(target_rpm=0, unit=None, experiment=None, ignore_rpm=False) -> Stirrer:
+def start_stirring(
+    target_rpm=0,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    ignore_rpm=False,
+) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 

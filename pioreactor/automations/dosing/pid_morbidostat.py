@@ -52,6 +52,7 @@ class PIDMorbidostat(DosingAutomation):
                 "Ignoring volume parameter; volume set by target growth rate and duration."
             )
 
+        assert isinstance(self.duration, float)
         self.volume = round(
             self.target_growth_rate * VIAL_VOLUME * (self.duration / 60), 4
         )
@@ -62,6 +63,7 @@ class PIDMorbidostat(DosingAutomation):
                 f"latest OD less than OD to start diluting, {self.min_od:.2f}"
             )
         else:
+            assert isinstance(self.duration, float)
             fraction_of_alt_media_to_add = self.pid.update(
                 self.latest_growth_rate, dt=self.duration / 60
             )  # duration is measured in hours, not seconds (as simple_pid would want)

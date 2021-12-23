@@ -25,7 +25,7 @@ class FedBatch(DosingAutomation):
     def execute(self):
         vol = add_media(
             ml=self.volume,
-            source_of_event=f"{self.job_name}:{self.__class__.__name__}",
+            source_of_event=f"{self.job_name}:{self.automation_name}",
             unit=self.unit,
             experiment=self.experiment,
         )

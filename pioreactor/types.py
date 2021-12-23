@@ -15,6 +15,9 @@ class DbmMapping(MutableMapping):
         ...
 
 
+JobState = Literal["init", "ready", "sleeping", "disconnected", "lost"]
+
+
 LED_Channel = Literal["A", "B", "C", "D"]
 
 PD_Channel = Literal[

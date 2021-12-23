@@ -28,7 +28,9 @@ class LEDController(BackgroundJob):
         "automation_name": {"datatype": "string", "settable": False},
     }
 
-    def __init__(self, automation_name, unit: str, experiment: str, **kwargs):
+    def __init__(
+        self, automation_name: str, unit: str, experiment: str, **kwargs
+    ) -> None:
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
@@ -130,7 +132,7 @@ def start_led_control(
 )
 @click.option(
     "--skip-first-run",
-    is_flag=True,
+    type=click.IntRange(min=0, max=1),
     help="Normally algo will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
@@ -141,7 +143,7 @@ def click_led_control(ctx, automation_name, duration, skip_first_run):
     lc = start_led_control(
         automation_name=automation_name,
         duration=duration,
-        skip_first_run=skip_first_run,
+        skip_first_run=bool(skip_first_run),
         **{
             ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1]
             for i in range(0, len(ctx.args), 2)

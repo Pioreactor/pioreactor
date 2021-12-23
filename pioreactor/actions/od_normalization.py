@@ -34,7 +34,7 @@ from pioreactor.utils.math_helpers import (
 )
 
 
-def od_normalization(unit=None, experiment=None, n_samples=35):
+def od_normalization(unit: str, experiment: str, n_samples=35):
     from statistics import mean, variance
 
     action_name = "od_normalization"

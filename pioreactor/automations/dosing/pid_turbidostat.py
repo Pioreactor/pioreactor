@@ -50,6 +50,8 @@ class PIDTurbidostat(DosingAutomation):
             )
         else:
 
+            assert isinstance(self.duration, float)
+
             if self.volume_to_cycle is None:
                 self.volume_to_cycle = (
                     14
