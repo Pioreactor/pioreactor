@@ -69,8 +69,8 @@ class PWM:
         self.hz = hz
 
         if self.is_locked():
-            self.logger.warning(
-                f"PWM-{self.pin} is currently locked but a task is trying to use it."
+            self.logger.debug(
+                f"PWM-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
             )
 
         gpio_helpers.set_gpio_availability(
