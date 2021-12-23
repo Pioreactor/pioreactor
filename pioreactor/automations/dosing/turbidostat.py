@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.automations import events
+from pioreactor.utils import local_persistant_storage
 
 
 class Turbidostat(DosingAutomation):
@@ -20,6 +21,13 @@ class Turbidostat(DosingAutomation):
 
     def __init__(self, target_od=None, volume=None, **kwargs):
         super(Turbidostat, self).__init__(**kwargs)
+
+        with local_persistant_storage("pump_calibration") as cache:
+            if "media_ml_calibration" not in cache:
+                raise RuntimeError("Media pump calibration must be performed first.")
+            elif "waste_ml_calibration" not in cache:
+                raise RuntimeError("Waste pump calibration must be performed first.")
+
         self.target_od = float(target_od)
         self.volume = float(volume)
 

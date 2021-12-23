@@ -4,6 +4,7 @@ from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.automations import events
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.config import config
+from pioreactor.utils import local_persistant_storage
 
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
@@ -26,6 +27,14 @@ class PIDMorbidostat(DosingAutomation):
         super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
+
+        with local_persistant_storage("pump_calibration") as cache:
+            if "media_ml_calibration" not in cache:
+                raise RuntimeError("Media pump calibration must be performed first.")
+            elif "waste_ml_calibration" not in cache:
+                raise RuntimeError("Waste pump calibration must be performed first.")
+            elif "alt_media_ml_calibration" not in cache:
+                raise RuntimeError("Alt-Media pump calibration must be performed first.")
 
         self.set_target_growth_rate(target_growth_rate)
         self.target_od = float(target_od)
