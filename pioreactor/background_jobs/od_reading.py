@@ -785,8 +785,8 @@ def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[PD_C
 def create_channel_angle_map(
     od_angle_channel1, od_angle_channel2
 ) -> dict[PD_Channel, str]:
-    # Inputs are either None, or a string like "135", "90,45", "REF", ...
-    # Example return dict: {"1": "90,135", "2": "45,135", "4":"90"}
+    # Inputs are either None, or a string like "135", "90", "REF", ...
+    # Example return dict: {"1": "90", "2": "45"}
     channel_angle_map: dict[PD_Channel, str] = {}
 
     if od_angle_channel1 and od_angle_channel1 != REF_keyword:

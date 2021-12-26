@@ -134,12 +134,18 @@ def mqtt_to_db_streaming():
     def parse_od(topic, payload):
         metadata, split_topic = produce_metadata(topic)
         payload = loads(payload)
+
+        try:
+            angle = int(payload["angle"])
+        except TypeError:
+            angle = -1
+
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": payload["timestamp"],
             "od_reading_v": payload["voltage"],
-            "angle": payload["angle"],
+            "angle": angle,
             "channel": split_topic[-1],
         }
 

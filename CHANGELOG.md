@@ -1,3 +1,13 @@
+### Upcoming
+ - improved temperature-recording frequency (10m to 4m)
+ - removed the PWM's DC maximum on the heating output.
+ - New `pioreactor.version.hardware_verion` which reads from the HAT's EEPROM which version
+   of board is being used.
+ - removed PD channels 3 & 4.
+ - `angle` column in `od_readings_raw` table in database is now an integer.
+
+
+
 ### 21.12.0
  - `pid_stable` automation renamed to `stable`
  - jobs can now publish to `pioreactor/<unit>/+/monitor/flicker_led_with_error_code/<error code>`

@@ -64,14 +64,22 @@ class DosingController(BackgroundJob):
         try:
             automation_class = self.automations[self.automation["automation_name"]]
         except KeyError:
+            self.set_state(self.DISCONNECTED)
             raise KeyError(
                 f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
             )
 
         self.logger.info(f"Starting {self.automation}.")
-        self.automation_job = automation_class(
-            unit=self.unit, experiment=self.experiment, **kwargs
-        )
+
+        try:
+            self.automation_job = automation_class(
+                unit=self.unit, experiment=self.experiment, **kwargs
+            )
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
+            self.set_state(self.DISCONNECTED)
+            raise e
         self.automation_name = self.automation["automation_name"]
 
     def set_automation(self, new_dosing_automation_json):

@@ -140,9 +140,15 @@ class TemperatureController(BackgroundJob):
             )
 
         self.logger.info(f"Starting {self.automation}.")
-        self.automation_job = automation_class(
-            unit=self.unit, experiment=self.experiment, parent=self, **kwargs
-        )
+        try:
+            self.automation_job = automation_class(
+                unit=self.unit, experiment=self.experiment, **kwargs
+            )
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
+            self.set_state(self.DISCONNECTED)
+            raise e
         self.automation_name = self.automation["automation_name"]
 
         self.temperature = {

@@ -143,14 +143,14 @@ def run_tests(
     click.echo()
     click.echo("Beginning tests.")
     results = []
-    durations_to_test = [0.5, 0.5, 1.0, 1.0, 1.5, 1.5, 2.0, 2.0]
+    durations_to_test = [0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5]
     for duration in durations_to_test:
 
         click.echo(
             "We will run the pump for a set amount of time (in seconds), and you will measure how much liquid is expelled."
         )
         click.echo(
-            "You can either use an accurate scale, or a graduated cylinder (recall that 1g = 1ml)."
+            "You can either use an accurate weighing scale, or a graduated cylinder (recall that 1g = 1ml)."
         )
         while not click.confirm(click.style(f"Ready to test {duration}s?", fg="green")):
             pass

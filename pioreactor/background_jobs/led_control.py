@@ -9,9 +9,10 @@ message: a json object with required keyword argument. Specify the new automatio
 """
 import time
 import json
+from contextlib import suppress
 
 import click
-from contextlib import suppress
+
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
@@ -45,9 +46,15 @@ class LEDController(BackgroundJob):
             )
 
         self.logger.info(f"Starting {self.automation}.")
-        self.automation_job = automation_class(
-            unit=self.unit, experiment=self.experiment, **kwargs
-        )
+        try:
+            self.automation_job = automation_class(
+                unit=self.unit, experiment=self.experiment, **kwargs
+            )
+        except Exception as e:
+            self.logger.error(e)
+            self.logger.debug(e, exc_info=True)
+            self.set_state(self.DISCONNECTED)
+            raise e
         self.automation_name = self.automation["automation_name"]
 
     def set_automation(self, new_led_automation_json: str):
