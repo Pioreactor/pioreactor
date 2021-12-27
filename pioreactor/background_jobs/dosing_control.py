@@ -82,7 +82,7 @@ class DosingController(BackgroundJob):
             raise e
         self.automation_name = self.automation["automation_name"]
 
-    def set_automation(self, new_dosing_automation_json):
+    def set_automation(self, new_dosing_automation_json) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.dosing_automation_job.set_state("init")
         # self.dosing_automation_job.set_state("ready")
@@ -117,11 +117,11 @@ class DosingController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
-    def on_sleeping(self):
+    def on_sleeping(self) -> None:
         if self.automation_job.state != self.SLEEPING:
             self.automation_job.set_state(self.SLEEPING)
 
-    def on_ready(self):
+    def on_ready(self) -> None:
         try:
             if self.automation_job.state != self.READY:
                 self.automation_job.set_state(self.READY)
@@ -129,7 +129,7 @@ class DosingController(BackgroundJob):
             # attribute error occurs on first init of _control
             pass
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         try:
 
             for job in self.sub_jobs:
@@ -143,7 +143,9 @@ class DosingController(BackgroundJob):
             self.clear_mqtt_cache()
 
 
-def start_dosing_control(automation_name, duration=None, skip_first_run=False, **kwargs):
+def start_dosing_control(
+    automation_name, duration=None, skip_first_run=False, **kwargs
+) -> DosingController:
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 

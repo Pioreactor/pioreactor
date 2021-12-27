@@ -487,7 +487,7 @@ def start_temperature_control(automation_name: str, **kwargs) -> TemperatureCont
     show_default=True,
 )
 @click.pass_context
-def click_temperature_control(ctx, automation_name):
+def click_temperature_control(ctx, automation_name) -> None:
     """
     Start a temperature automation.
     """

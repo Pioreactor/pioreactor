@@ -57,7 +57,7 @@ class LEDController(BackgroundJob):
             raise e
         self.automation_name = self.automation["automation_name"]
 
-    def set_automation(self, new_led_automation_json: str):
+    def set_automation(self, new_led_automation_json: str) -> None:
         algo_metadata = AutomationDict(json.loads(new_led_automation_json))
 
         try:
@@ -88,16 +88,16 @@ class LEDController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
-    def on_sleeping(self):
+    def on_sleeping(self) -> None:
         if self.automation_job.state != self.SLEEPING:
             self.automation_job.set_state(self.SLEEPING)
 
-    def on_ready(self):
+    def on_ready(self) -> None:
         with suppress(AttributeError):
             if self.automation_job.state != self.READY:
                 self.automation_job.set_state(self.READY)
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         with suppress(AttributeError):
             self.automation_job.set_state(self.DISCONNECTED)
 
@@ -106,7 +106,7 @@ class LEDController(BackgroundJob):
 
 def start_led_control(
     automation_name: str, duration: float = None, skip_first_run=False, **kwargs
-):
+) -> LEDController:
     try:
         return LEDController(
             automation_name=automation_name,

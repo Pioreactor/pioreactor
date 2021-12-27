@@ -134,7 +134,7 @@ class LEDAutomation(BackgroundSubJob):
         self.lastest_run_at = time.time()
         return event
 
-    def execute(self) -> events.Event:
+    def execute(self) -> Optional[events.Event]:
         pass
 
     @property

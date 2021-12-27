@@ -109,7 +109,7 @@ class DosingAutomation(BackgroundSubJob):
             self.run_thread.start()
 
     def run(self) -> Optional[events.Event]:
-        event: events.Event
+        event: Optional[events.Event]
 
         if self.state == self.DISCONNECTED:
             # NOOP
@@ -151,7 +151,7 @@ class DosingAutomation(BackgroundSubJob):
         self.lastest_run_at = time.time()
         return event
 
-    def execute(self) -> events.Event:
+    def execute(self) -> Optional[events.Event]:
         # should be defined in subclass
         return events.NoEvent()
 
