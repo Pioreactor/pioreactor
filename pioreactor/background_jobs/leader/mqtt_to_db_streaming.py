@@ -46,11 +46,15 @@ class MqttToDBStreamer(BackgroundJob):
 
     topics_to_tables_from_plugins: list[TopicToParserToTableContrib] = []
 
-    def __init__(self, topics_to_tables, **kwargs):
+    def __init__(
+        self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
+    ):
 
         from sqlite3worker import Sqlite3Worker
 
-        super(MqttToDBStreamer, self).__init__(job_name="mqtt_to_db_streaming", **kwargs)
+        super().__init__(
+            job_name="mqtt_to_db_streaming", experiment=experiment, unit=unit
+        )
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["database"], max_queue_size=250, raise_on_error=False
         )
@@ -69,13 +73,13 @@ class MqttToDBStreamer(BackgroundJob):
 
         self.initialize_callbacks(topics_and_callbacks)
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         self.sqliteworker.close()  # close the db safely
 
     def create_on_message_callback(
         self, parser: Callable[[str, bytes | bytearray], Optional[dict]], table: str
-    ):
-        def _callback(message):
+    ) -> Callable:
+        def _callback(message) -> None:
             # TODO: filter testing experiments here?
             try:
                 new_row = parser(message.topic, message.payload)
@@ -84,25 +88,25 @@ class MqttToDBStreamer(BackgroundJob):
                 self.logger.debug(
                     f"message.payload that caused error: `{message.payload}`"
                 )
-                return
+                return None
 
             if new_row is None:
                 # parsers can return None to exit out.
-                return
+                return None
 
             cols_placeholder = ", ".join(new_row.keys())
             values_placeholder = ", ".join([":" + c for c in new_row.keys()])
             SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
             try:
-                self.sqliteworker.execute(SQL, new_row)
+                self.sqliteworker.execute(SQL, new_row)  # type: ignore
             except Exception as e:
                 self.logger.error(e)
                 self.logger.debug(f"SQL that caused error: `{SQL}`")
-                return
+                return None
 
         return _callback
 
-    def initialize_callbacks(self, topics_and_callbacks: list[dict]):
+    def initialize_callbacks(self, topics_and_callbacks: list[dict]) -> None:
         for topic_and_callback in topics_and_callbacks:
             self.subscribe_and_callback(
                 topic_and_callback["callback"],
@@ -121,13 +125,13 @@ def produce_metadata(topic: str) -> tuple[MetaData, list[str]]:
     )
 
 
-def mqtt_to_db_streaming():
+def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     ###################
     # parsers
     ###################
     # - must return a dictionary with the column names (order isn't important)
-    # - `produce_metadata` is a helper function, see defintion.
+    # - `produce_metadata` is a helper function, see definition.
     # - parsers can return None as well, to skip adding the message to the database.
     #
 
@@ -347,5 +351,5 @@ def click_mqtt_to_db_streaming():
 
     os.nice(1)
 
-    job = mqtt_to_db_streaming()
+    job = start_mqtt_to_db_streaming()
     job.block_until_disconnected()
