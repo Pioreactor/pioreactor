@@ -100,11 +100,13 @@ class RepeatedTimer:
         and then every N seconds after that, we run func.
 
         """
-        self.event.wait(self.run_after)
-
-        self.start_time = time.time()
-        if self.run_immediately:
-            self._execute_function()
+        if not self.event.wait(self.run_after):
+            self.start_time = time.time()
+            if self.run_immediately:
+                self._execute_function()
+        else:
+            # thread exited early
+            return
 
         while not self.event.wait(self._time):
             if self.is_paused:
