@@ -40,9 +40,7 @@ def get_latest_experiment_name() -> str:
         from pioreactor.logging import create_logger
 
         logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT)
-        logger.info(
-            "No experiment running, exiting. Try creating a new experiment first."
-        )
+        logger.info("No experiment running. Try creating a new experiment first.")
         return NO_EXPERIMENT
 
 

@@ -150,7 +150,7 @@ def run_tests(
             "We will run the pump for a set amount of time (in seconds), and you will measure how much liquid is expelled."
         )
         click.echo(
-            "You can either use an accurate weighing scale, or a graduated cylinder (recall that 1g = 1ml)."
+            "You can either use an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
         )
         while not click.confirm(click.style(f"Ready to test {duration}s?", fg="green")):
             pass

@@ -95,7 +95,7 @@ class TemperatureAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise ValueError(
+                raise RuntimeError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
@@ -114,7 +114,7 @@ class TemperatureAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise ValueError(
+                raise RuntimeError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 

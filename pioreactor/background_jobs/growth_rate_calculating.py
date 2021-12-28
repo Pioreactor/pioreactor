@@ -189,7 +189,7 @@ class GrowthRateCalculator(BackgroundJob):
         if self.ignore_cache:
             if not is_pio_job_running("od_reading"):
                 self.logger.error("OD reading should be running. Stopping.")
-                raise ValueError("OD reading should be running. Stopping.")
+                raise RuntimeError("OD reading should be running. Stopping.")
 
             self.logger.info(
                 "Computing OD normalization metrics. This may take a few minutes"

@@ -40,7 +40,7 @@ class LEDAutomation(BackgroundSubJob):
     latest_settings_ended_at: Optional[str] = None
     edited_channels: set[LED_Channel] = set()
     latest_event: Optional[events.Event] = None
-    lastest_run_at: Optional[float] = None
+    latest_run_at: Optional[float] = None
     published_settings = {"duration": {"datatype": "float", "settable": True}}
 
     automation_name: str
@@ -76,11 +76,11 @@ class LEDAutomation(BackgroundSubJob):
     def set_duration(self, duration: float) -> None:
         self.duration = float(duration)
 
-        if self.lastest_run_at:
+        if self.latest_run_at:
             # what's the correct logic when changing from duration N and duration M?
             # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.
             # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
-            run_after = max(0, (self.duration * 60) - (time.time() - self.lastest_run_at))
+            run_after = max(0, (self.duration * 60) - (time.time() - self.latest_run_at))
         else:
             # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
             # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
@@ -90,8 +90,7 @@ class LEDAutomation(BackgroundSubJob):
             self.duration * 60,  # RepeatedTimer uses seconds
             self.run,
             job_name=self.job_name,
-            run_immediately=(not self.skip_first_run)
-            or (self.lastest_run_at is not None),
+            run_immediately=(not self.skip_first_run) or (self.latest_run_at is not None),
             run_after=run_after,
         ).start()
 
@@ -131,7 +130,7 @@ class LEDAutomation(BackgroundSubJob):
             self.logger.info(str(event))
 
         self.latest_event = event
-        self.lastest_run_at = time.time()
+        self.latest_run_at = time.time()
         return event
 
     def execute(self) -> Optional[events.Event]:
@@ -200,7 +199,7 @@ class LEDAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise ValueError(
+                raise RuntimeError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
@@ -219,7 +218,7 @@ class LEDAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise ValueError(
+                raise RuntimeError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 

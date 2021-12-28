@@ -49,7 +49,7 @@ def od_normalization(unit: str, experiment: str, n_samples=35):
             and not is_testing_env()
         ):
             logger.error(" OD Reading should be running. Run OD Reading first. Exiting.")
-            raise ValueError(
+            raise RuntimeError(
                 "OD Reading should be running. Run OD Reading first. Exiting."
             )
 
