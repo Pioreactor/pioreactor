@@ -47,9 +47,9 @@ class DosingAutomation(BackgroundSubJob):
     latest_settings_started_at: str = current_utc_time()
     latest_settings_ended_at: Optional[str] = None
     latest_run_at: Optional[float] = None
-    automation_name: str
     run_thread: RepeatedTimer | Thread
     duration: float | None
+    automation_name = "dosing_automation_base"  # is overwritten in subclasses
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

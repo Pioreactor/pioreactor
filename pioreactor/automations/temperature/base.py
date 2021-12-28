@@ -34,8 +34,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     latest_settings_started_at = current_utc_time()
     latest_settings_ended_at = None
-
-    automation_name: str
+    automation_name = "temperature_automation_base"  # is overwritten in subclasses
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

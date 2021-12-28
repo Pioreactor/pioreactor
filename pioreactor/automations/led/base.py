@@ -42,8 +42,8 @@ class LEDAutomation(BackgroundSubJob):
     latest_event: Optional[events.Event] = None
     latest_run_at: Optional[float] = None
     published_settings = {"duration": {"datatype": "float", "settable": True}}
+    automation_name = "led_automation_base"  # is overwritten in subclasses
 
-    automation_name: str
     run_thread: RepeatedTimer | Thread
 
     def __init_subclass__(cls, **kwargs):

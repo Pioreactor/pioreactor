@@ -9,7 +9,7 @@ class Morbidostat(DosingAutomation):
     of the chemical is diluted slowly over time, allowing the microbes to recover.
     """
 
-    key = "morbidostat"
+    automation_name = "morbidostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
