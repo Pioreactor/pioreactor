@@ -142,7 +142,7 @@ class TemperatureController(BackgroundJob):
         self.logger.info(f"Starting {self.automation}.")
         try:
             self.automation_job = automation_class(
-                unit=self.unit, experiment=self.experiment, **kwargs
+                unit=self.unit, experiment=self.experiment, parent=self, **kwargs
             )
         except Exception as e:
             self.logger.error(e)
