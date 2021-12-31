@@ -36,6 +36,7 @@ class Plugin:
     description: str
     version: str
     homepage: str
+    author: str
     source: str
 
 
@@ -58,6 +59,7 @@ def get_plugins() -> dict[str, Plugin]:
                 md["Summary"],
                 md["Version"],
                 md["Home-page"],
+                md["Author"],
                 "entry_points",
             )
         except Exception as e:
@@ -68,11 +70,12 @@ def get_plugins() -> dict[str, Plugin]:
     # The below code will load it into Python, and treat it like any other plugin.
     # The authors can add metadata to their file with the following variables at the
     # highest level in the file:
-    # __name__
-    # __summary__
-    # __version__
-    # __homepage__
-    BLANK = "UNKNOWN"
+    # __plugin_name__
+    # __plugin_author__
+    # __plugin_summary__
+    # __plugin_version__
+    # __plugin_homepage__
+    BLANK = "Unknown"
 
     # The directory containing your modules needs to be on the search path.
     if is_testing_env():
@@ -95,6 +98,7 @@ def get_plugins() -> dict[str, Plugin]:
             getattr(module, "__plugin_summary__", BLANK),
             getattr(module, "__plugin_version__", BLANK),
             getattr(module, "__plugin_homepage__", BLANK),
+            getattr(module, "__plugin_author__", BLANK),
             "plugins_folder",
         )
 

@@ -50,10 +50,6 @@ class TemperatureAutomation(BackgroundSubJob):
         super(TemperatureAutomation, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
-        if parent is None:
-            self.logger.warning(
-                "Temperature automations run with using TemperatureController have unexpected behaviour."
-            )
 
         self.temperature_control_parent = parent
 
