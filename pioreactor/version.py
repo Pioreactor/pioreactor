@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-__version__ = "21.12.0"
+__version__ = "21.1.0"
 
 
 def _get_hardware_version():
