@@ -67,6 +67,13 @@ class GrowthRateCalculator(BackgroundJob):
         )
         self.initial_acc = 0
 
+    @property
+    def state_(self):
+        return self.ekf.state_
+
+    def on_ready(self):
+        # this is here since the below is long running, and if kept in the init(), there is a large window where
+        # two growth_rate_calculating jobs can be started. See comment in .ready() in base.py.
         (
             self.initial_growth_rate,
             self.initial_od,
@@ -77,10 +84,6 @@ class GrowthRateCalculator(BackgroundJob):
 
         self.ekf = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
-
-    @property
-    def state_(self):
-        return self.ekf.state_
 
     def on_sleeping_to_ready(self):
         # when the job sleeps, we expect a "big" jump in OD due to a few things:

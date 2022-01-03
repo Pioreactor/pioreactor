@@ -77,7 +77,6 @@ class MockAnalogIn:
 
     @property
     def value(self):
-        print(self.gr)
         return round(self.voltage * 2 ** 17)
 
 

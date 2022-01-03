@@ -540,11 +540,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def ready(self) -> None:
         self.state = self.READY
-
         with local_intermittent_storage("pio_jobs_running") as cache:
             # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
             # __init__ might fail, and not clean up pio_jobs_running correctly.
-            # the catch is that there is a small window where two jobs can be started...
+            # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
             # TODO: a potential fix is to include a timestamp of when the value changed??
             cache[self.job_name] = b"1"
 
