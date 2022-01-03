@@ -40,7 +40,7 @@ class MockAnalogIn:
         )
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00025 + 0.00005 * random.random()
-        self.lag = 8 * 60 * 60 - 2 * 60 * 60 * random.random()
+        self.lag = 2.1 * 60 * 60 - 2 * 60 * 60 * random.random()
 
     def react_to_dosing(self, message):
 
