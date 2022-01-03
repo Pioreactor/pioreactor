@@ -22,7 +22,7 @@ class MockI2C:
 
 
 class MockAnalogIn:
-    INIT_STATE = 0.1
+    INIT_STATE = 0.01
     state = INIT_STATE
     _counter = 0
 
@@ -40,7 +40,7 @@ class MockAnalogIn:
         )
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00025 + 0.00005 * random.random()
-        self.lag = 8 * 60 * 60 - 120 * random.random()
+        self.lag = 8 * 60 * 60 - 2 * 60 * 60 * random.random()
 
     def react_to_dosing(self, message):
 
@@ -72,7 +72,7 @@ class MockAnalogIn:
             / config.getfloat("od_config", "samples_per_second")
             / 25  # divide by 25 from oversampling_count
         )
-        self._counter += 1
+        self._counter += 1 / 25.0  # divide by 25 from oversampling_count
         return self.state + random.normalvariate(0, sigma=self.state * 0.001)
 
     @property
