@@ -94,6 +94,7 @@ from pioreactor.whoami import (
     is_hat_present,
 )
 from pioreactor.config import config
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
 from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
 from pioreactor.actions.led_intensity import (
@@ -101,6 +102,7 @@ from pioreactor.actions.led_intensity import (
     ALL_LED_CHANNELS,
     lock_leds_temporarily,
     change_leds_intensities_temporarily,
+    LED_UNLOCKED,
 )
 from pioreactor.hardware_mappings import SCL, SDA
 from pioreactor.pubsub import QOS
@@ -224,6 +226,10 @@ class ADCReader(LoggerMixin):
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
 
+            with local_intermittent_storage("led_locks") as cache:
+                for c in ALL_LED_CHANNELS:
+                    cache[c] = LED_UNLOCKED
+
             # turn off all LEDs that might be causing problems
             # however, ODReader may turn on the IR LED again.
             change_led_intensity(
@@ -234,6 +240,7 @@ class ADCReader(LoggerMixin):
             )
 
             # kill ourselves - this will hopefully kill ODReader.
+            # TODO: it doesn't?
             import sys
 
             sys.exit(1)
@@ -521,10 +528,11 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     initial_led_output: Optional[float] = None
     blank_reading: float = 0.0
 
-    def __init__(self, channel: PD_Channel) -> None:
+    def __init__(self, channel: PD_Channel, fake_data=False) -> None:
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.55)
         self.channel = channel
+        self.fake_data = fake_data
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
     def update(self, batched_reading: dict[PD_Channel, float]) -> None:
@@ -532,7 +540,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
 
-        if (self.initial_led_output - self.blank_reading) < 0.01:
+        if ((self.initial_led_output - self.blank_reading) < 0.01) and not self.fake_data:
             self.logger.warning(
                 "Reference photodiode producing very small values. Is the reference photodiode and the IR LED connected?"
             )
@@ -549,7 +557,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
 
     def __call__(self, od_signal: float) -> float:
         led_output = self.led_output_ema()
-        if led_output is None:
+        if (led_output is None) or self.fake_data:
             return od_signal
         else:
             assert isinstance(led_output, float)
@@ -818,7 +826,7 @@ def start_od_reading(
     ir_led_reference_tracker: IrLedReferenceTracker
     if ir_led_reference_channel is not None:
         ir_led_reference_tracker = PhotodiodeIrLedReferenceTracker(
-            ir_led_reference_channel
+            ir_led_reference_channel, fake_data=fake_data
         )
         channels.append(ir_led_reference_channel)
     else:

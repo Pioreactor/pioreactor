@@ -33,7 +33,7 @@ class MockAnalogIn:
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
 
         # subscribe to dosing events
-        assert channel in [0, 1, 2, 3], "channel must be in 0, 1, 2, 3"
+        assert channel in [0, 1], "channel must be in 0, 1"
         subscribe_and_callback(
             self.react_to_dosing,
             f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
@@ -66,13 +66,18 @@ class MockAnalogIn:
             self._counter / config.getfloat("od_config", "samples_per_second")
         )
         self.state *= np.exp(
-            self.gr / 60 / 60 / config.getfloat("od_config", "samples_per_second")
+            self.gr
+            / 60
+            / 60
+            / config.getfloat("od_config", "samples_per_second")
+            / 25  # divide by 25 from oversampling_count
         )
         self._counter += 1
         return self.state + random.normalvariate(0, sigma=self.state * 0.001)
 
     @property
     def value(self):
+        print(self.gr)
         return round(self.voltage * 2 ** 17)
 
 

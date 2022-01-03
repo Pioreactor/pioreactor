@@ -139,7 +139,7 @@ def create_logger(
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(
         colorlog.ColoredFormatter(
-            "%(log_color)s %(asctime)s %(levelname)-8s [%(name)s] %(message)s",
+            "%(log_color)s%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
             log_colors={
                 "DEBUG": "cyan",

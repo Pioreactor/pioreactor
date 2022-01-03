@@ -1,4 +1,4 @@
-### Upcoming
+### 22.1.0
  - improved temperature-recording frequency (10m to 4m)
  - removed the PWM's DC maximum on the heating output.
  - New `pioreactor.version.hardware_verion` which reads from the HAT's EEPROM which version
