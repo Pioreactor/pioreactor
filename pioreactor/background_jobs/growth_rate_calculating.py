@@ -71,7 +71,7 @@ class GrowthRateCalculator(BackgroundJob):
     def state_(self):
         return self.ekf.state_
 
-    def on_ready(self):
+    def on_init_to_ready(self):
         # this is here since the below is long running, and if kept in the init(), there is a large window where
         # two growth_rate_calculating jobs can be started. See comment in .ready() in base.py.
         (
@@ -184,9 +184,7 @@ class GrowthRateCalculator(BackgroundJob):
             with local_persistant_storage("od_normalization_variance") as cache:
                 del cache[self.experiment]
 
-            raise ZeroDivisionError(
-                "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?"
-            )
+            raise
 
     def get_precomputed_values(self):
         if self.ignore_cache:

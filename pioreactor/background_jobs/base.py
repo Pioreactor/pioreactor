@@ -544,6 +544,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
             # __init__ might fail, and not clean up pio_jobs_running correctly.
             # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
+            # sol for authors: move the long-running parts to the on_init_to_ready function.
             # TODO: a potential fix is to include a timestamp of when the value changed??
             cache[self.job_name] = b"1"
 
@@ -638,6 +639,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             return
 
         if hasattr(self, f"on_{self.state}_to_{new_state}"):
+            # TODO: should this be in a try/except?
             getattr(self, f"on_{self.state}_to_{new_state}")()
 
         getattr(self, new_state)()
