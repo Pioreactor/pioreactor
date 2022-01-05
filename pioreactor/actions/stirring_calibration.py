@@ -138,7 +138,8 @@ def click_stirring_calibration(min_dc, max_dc):
             min_dc, max_dc = 25, 50
         else:
             min_dc, max_dc = 45, 90
-
+    elif (max_dc is not None) and (min_dc is not None):
+        pass
     else:
         raise ValueError("min_dc and max_dc must both be set.")
 
