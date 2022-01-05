@@ -116,12 +116,12 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
 @click.option(
     "--min-dc",
     help="value between 0 and 100",
-    type=click.FloatRange(0, 100),
+    type=click.IntRange(0, 100),
 )
 @click.option(
     "--max-dc",
     help="value between 0 and 100",
-    type=click.FloatRange(0, 100),
+    type=click.IntRange(0, 100),
 )
 @click.command(name="stirring_calibration")
 def click_stirring_calibration(min_dc, max_dc):
@@ -139,7 +139,7 @@ def click_stirring_calibration(min_dc, max_dc):
         else:
             min_dc, max_dc = 45, 90
     elif (max_dc is not None) and (min_dc is not None):
-        pass
+        assert min_dc < max_dc, "min_dc >= max_dc"
     else:
         raise ValueError("min_dc and max_dc must both be set.")
 
