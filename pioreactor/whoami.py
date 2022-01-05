@@ -81,10 +81,13 @@ def am_I_active_worker() -> bool:
     return get_unit_name() in get_active_workers_in_inventory()
 
 
+@lru_cache(maxsize=1)
 def get_uuid() -> str:
     from uuid import getnode
+    from hashlib import md5
 
-    return str(getnode())
+    id_ = str(getnode())  # MAC address of a network interface
+    return md5(id_.encode()).hexdigest()
 
 
 def get_rpi_machine() -> str:

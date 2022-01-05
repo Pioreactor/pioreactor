@@ -23,7 +23,7 @@ from pioreactor.utils import (
 from pioreactor.utils.timing import current_utc_time
 
 
-def stirring_calibration():
+def stirring_calibration(min_dc: int, max_dc: int) -> None:
 
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
@@ -40,22 +40,12 @@ def stirring_calibration():
             )
             return
 
-        # seed with initial_duty_cycle
-        config_initial_duty_cycle = round(
-            config.getfloat("stirring", "initial_duty_cycle")
-        )
-
-        # we go up and down to exercise any hysteresis in the system
-        if config_initial_duty_cycle < 50:
-            dcs = (
-                list(range(25, 50, 5)) + list(range(50, 25, -5)) + list(range(22, 47, 5))
-            )
-        else:
-            dcs = (
-                list(range(85, 40, -5)) + list(range(39, 85, 5)) + list(range(88, 58, -5))
-            )
-
         measured_rpms = []
+        dcs = (
+            list(range(max_dc, min_dc, -3))
+            + list(range(min_dc, max_dc, 4))
+            + list(range(max_dc, min_dc, -5))
+        )
 
         with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
             target_rpm=0,
@@ -122,9 +112,33 @@ def stirring_calibration():
             )
 
 
+@click.option(
+    "--min-dc",
+    help="value between 0 and 100",
+    type=click.FloatRange(0, 100),
+)
+@click.option(
+    "--max-dc",
+    help="value between 0 and 100",
+    type=click.FloatRange(0, 100),
+)
 @click.command(name="stirring_calibration")
-def click_stirring_calibration():
+def click_stirring_calibration(min_dc, max_dc):
     """
     (Optional) Generate a lookup between stirring and voltage
     """
-    stirring_calibration()
+
+    if max_dc is None and min_dc is None:
+        # seed with initial_duty_cycle
+        config_initial_duty_cycle = round(
+            config.getfloat("stirring", "initial_duty_cycle")
+        )
+        if config_initial_duty_cycle < 50:
+            min_dc, max_dc = 25, 50
+        else:
+            min_dc, max_dc = 45, 90
+
+    else:
+        raise ValueError("min_dc and max_dc must both be set.")
+
+    stirring_calibration(min_dc, max_dc)

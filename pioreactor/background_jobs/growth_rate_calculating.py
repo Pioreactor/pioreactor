@@ -73,7 +73,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def on_init_to_ready(self):
         # this is here since the below is long running, and if kept in the init(), there is a large window where
-        # two growth_rate_calculating jobs can be started. See comment in .ready() in base.py.
+        # two growth_rate_calculating jobs can be started.
         (
             self.initial_growth_rate,
             self.initial_od,
@@ -362,7 +362,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
         else:
             # TODO: EKF values can be nans...
-            # TODO: these can be published_settings
+            # TODO: these can be published_settings with settable=False.
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
                 {"growth_rate": self.state_[1], "timestamp": payload["timestamp"]},
