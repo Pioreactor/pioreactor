@@ -64,6 +64,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
                 time.sleep(8)
                 rpm = rpm_calc(4)
                 measured_rpms.append(rpm)
+                logger.debug("Detected 0 RPM...")
 
                 # log progress
                 publish(
