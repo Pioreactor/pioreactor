@@ -236,6 +236,8 @@ class ADCReader(LoggerMixin):
                 channels=ALL_LED_CHANNELS,
                 intensities=[0] * len(ALL_LED_CHANNELS),
                 source_of_event="ADCReader",
+                unit=get_unit_name(),
+                experiment=get_latest_experiment_name(),
                 verbose=True,
             )
 

@@ -95,11 +95,11 @@ def _list(x: list | float | str) -> list:
 def led_intensity(
     channels: LED_Channel | list[LED_Channel],
     intensities: float | list[float],
-    source_of_event: Optional[str] = None,
+    unit: str,
+    experiment: str,
     verbose: bool = True,
+    source_of_event: Optional[str] = None,
     pubsub_client: Optional[Client] = None,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
 ) -> bool:
     """
 
