@@ -503,7 +503,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             self.set_state(self.DISCONNECTED)
 
-            if signal_code == signal.SIGTERM:
+            if (signal_code == signal.SIGTERM) or (signal_code == signal.SIGHUP):
                 import sys
 
                 sys.exit()
@@ -521,6 +521,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # ssh closes
             append_signal_handler(signal.SIGHUP, disconnect_gracefully)
+            # add a "ignore all future SIGUPs" onto the top of the stack.
+            append_signal_handler(
+                signal.SIGHUP, lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN)
+            )
 
         self._blocking_event = threading.Event()
 
