@@ -41,6 +41,8 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             return
 
         measured_rpms = []
+
+        # go up and down to observe any hystersis.
         dcs = (
             list(range(max_dc, min_dc, -3))
             + list(range(min_dc, max_dc, 4))
@@ -64,7 +66,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
                 time.sleep(8)
                 rpm = rpm_calc(4)
                 measured_rpms.append(rpm)
-                logger.debug(f"Detected {rpm} RPM @ dc={dc}%")
+                logger.debug(f"Detected {rpm=} RPM @ {dc=}%")
 
                 # log progress
                 publish(
@@ -134,10 +136,7 @@ def click_stirring_calibration(min_dc, max_dc):
         config_initial_duty_cycle = round(
             config.getfloat("stirring", "initial_duty_cycle")
         )
-        if config_initial_duty_cycle < 50:
-            min_dc, max_dc = 25, 50
-        else:
-            min_dc, max_dc = 45, 90
+        min_dc, max_dc = config_initial_duty_cycle - 10, config_initial_duty_cycle + 10
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"
     else:
