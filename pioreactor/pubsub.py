@@ -144,12 +144,22 @@ def subscribe(
 
                 userdata["messages"] = message
                 client.disconnect()
+
+                if userdata["lock"]:
+                    userdata["lock"].release()
+
                 return
+
+            if timeout:
+                lock = threading.Lock()
+            else:
+                lock = None
 
             topics = [topics] if isinstance(topics, str) else topics
             userdata = {
                 "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
                 "messages": None,
+                "lock": lock,
             }
 
             client = Client(userdata=userdata)
@@ -157,10 +167,14 @@ def subscribe(
             client.on_message = on_message
             client.connect(leader_hostname)
 
-            if timeout:
-                threading.Timer(timeout, lambda: client.disconnect()).start()
-
-            client.loop_forever()
+            if timeout is None:
+                client.loop_forever()
+            else:
+                lock.acquire()
+                client.loop_start()
+                lock.acquire(timeout=timeout)
+                client.loop_stop()
+                client.disconnect()
 
             return userdata["messages"]
 
