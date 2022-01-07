@@ -518,6 +518,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             # keyboard interrupt
             append_signal_handler(signal.SIGINT, disconnect_gracefully)
+            # add a "ignore all future SIGINTs" onto the top of the stack.
+            append_signal_handler(
+                signal.SIGINT, lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN)
+            )
 
             # ssh closes
             append_signal_handler(signal.SIGHUP, disconnect_gracefully)
@@ -599,7 +603,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(e, exc_info=True)
 
         with local_intermittent_storage("pio_jobs_running") as cache:
-            cache[self.job_name] = b"0"
+            del cache[self.job_name]
 
         self.log_state(self.state)
         # this HAS to happen last, because this contains our publishing client
