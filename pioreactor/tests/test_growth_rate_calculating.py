@@ -56,11 +56,13 @@ class TestGrowthRateCalculating:
             if experiment in cache:
                 del cache[experiment]
 
-        publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            None,
-            retain=True,
-        )
+        with local_persistant_storage("growth_rate") as cache:
+            if experiment in cache:
+                del cache[experiment]
+
+        with local_persistant_storage("od_filtered") as cache:
+            if experiment in cache:
+                del cache[experiment]
 
     def test_subscribing(self) -> None:
 
@@ -70,6 +72,9 @@ class TestGrowthRateCalculating:
         with local_persistant_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1})
 
+        with local_persistant_storage("growth_rate") as cache:
+            cache[experiment] = str(1.0)
+
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
@@ -77,11 +82,7 @@ class TestGrowthRateCalculating:
             ),
             retain=True,
         )
-        publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 1.0, "timestamp": "2010-01-01 12:00:00"}),
-            retain=True,
-        )
+
         calc = GrowthRateCalculator(unit=unit, experiment=experiment)
         pause()
         assert calc.initial_growth_rate == 1.0
@@ -516,6 +517,9 @@ class TestGrowthRateCalculating:
         with local_persistant_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({"1": 1, "2": 1})
 
+        with local_persistant_storage("growth_rate") as cache:
+            cache[experiment] = str(1.0)
+
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
@@ -523,11 +527,7 @@ class TestGrowthRateCalculating:
             ),
             retain=True,
         )
-        publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 1.0, "timestamp": "2010-01-01 12:00:00"}),
-            retain=True,
-        )
+
         calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
         assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {"2": 2.0, "1": 0.25}

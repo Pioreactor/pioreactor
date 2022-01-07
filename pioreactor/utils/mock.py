@@ -39,8 +39,8 @@ class MockAnalogIn:
             f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
         )
         self.max_gr = 0.25 + 0.1 * random.random()
-        self.scale_factor = 0.00025 + 0.00005 * random.random()
-        self.lag = 2.1 * 60 * 60 - 2 * 60 * 60 * random.random()
+        self.scale_factor = 0.00035 + 0.00005 * random.random()
+        self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
 
     def react_to_dosing(self, message):
 
@@ -53,8 +53,19 @@ class MockAnalogIn:
     def growth_rate(self, duration_as_seconds):
         import numpy as np
 
-        return self.max_gr / (
-            1 + np.exp(-self.scale_factor * (duration_as_seconds - self.lag))
+        return (
+            self.max_gr
+            / (1 + np.exp(-self.scale_factor * (duration_as_seconds - self.lag)))
+            * (
+                1
+                - 1
+                / (
+                    1
+                    + np.exp(
+                        -self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag)
+                    )
+                )
+            )
         )
 
     @property

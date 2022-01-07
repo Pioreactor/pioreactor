@@ -49,6 +49,12 @@ from pioreactor.types import PD_Channel
 
 
 class GrowthRateCalculator(BackgroundJob):
+
+    published_settings = {
+        "growth_rate": {"datatype": "json", "settable": False, "unit": "h⁻¹"},
+        "od_filtered": {"datatype": "json", "settable": False},
+    }
+
     def __init__(
         self,
         unit,
@@ -204,8 +210,8 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             od_normalization_factors = self.get_od_normalization_from_cache()
             od_variances = self.get_od_variances_from_cache()
-            initial_growth_rate = self.get_growth_rate_from_broker()
-            initial_od = self.get_previous_od_from_broker()
+            initial_growth_rate = self.get_growth_rate_from_cache()
+            initial_od = self.get_previous_od_from_cache()
 
         od_blank = self.get_od_blank_from_cache()
 
@@ -236,25 +242,13 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             return defaultdict(lambda: 0)
 
-    def get_growth_rate_from_broker(self) -> float:
-        message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
-            timeout=1.5,
-        )
-        if message:
-            return float(json.loads(message.payload)["growth_rate"])
-        else:
-            return 0.0
+    def get_growth_rate_from_cache(self) -> float:
+        with local_persistant_storage("growth_rate") as cache:
+            return float(cache.get(self.experiment, 0.0))
 
-    def get_previous_od_from_broker(self) -> float:
-        message = subscribe(
-            f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/od_filtered",
-            timeout=1.5,
-        )
-        if message:
-            return float(json.loads(message.payload)["od_filtered"])
-        else:
-            return 1.0
+    def get_previous_od_from_cache(self) -> float:
+        with local_persistant_storage("od_filtered") as cache:
+            return float(cache.get(self.experiment, 1.0))
 
     def get_od_normalization_from_cache(self) -> dict[PD_Channel, float]:
         # we check if the broker has variance/mean stats
@@ -361,14 +355,26 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
         else:
+
             # TODO: EKF values can be nans...
-            # TODO: these can be published_settings with settable=False.
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/growth_rate",
-                {"growth_rate": self.state_[1], "timestamp": payload["timestamp"]},
-                retain=True,
-                qos=QOS.EXACTLY_ONCE,
-            )
+
+            latest_od_filtered, latest_growth_rate = self.state_[0], self.state_[1]
+
+            self.growth_rate = {
+                "growth_rate": latest_growth_rate,
+                "timestamp": payload["timestamp"],
+            }
+
+            self.od_filtered = {
+                "od_filtered": latest_od_filtered,
+                "timestamp": payload["timestamp"],
+            }
+
+            with local_persistant_storage("growth_rate") as cache:
+                cache[self.experiment] = str(latest_growth_rate)
+
+            with local_persistant_storage("od_filtered") as cache:
+                cache[self.experiment] = str(latest_od_filtered)
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
@@ -380,16 +386,6 @@ class GrowthRateCalculator(BackgroundJob):
                     "timestamp": payload["timestamp"],
                 },
                 qos=QOS.EXACTLY_ONCE,
-            )
-
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_filtered",
-                {
-                    "od_filtered": self.state_[0],
-                    "timestamp": payload["timestamp"],
-                },
-                qos=QOS.EXACTLY_ONCE,
-                retain=True,
             )
 
     @staticmethod
