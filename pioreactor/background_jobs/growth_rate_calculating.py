@@ -77,7 +77,7 @@ class GrowthRateCalculator(BackgroundJob):
     def state_(self):
         return self.ekf.state_
 
-    def on_init_to_ready(self):
+    def on_init_to_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where
         # two growth_rate_calculating jobs can be started.
         (
@@ -91,7 +91,7 @@ class GrowthRateCalculator(BackgroundJob):
         self.ekf = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()
 
-    def on_sleeping_to_ready(self):
+    def on_sleeping_to_ready(self) -> None:
         # when the job sleeps, we expect a "big" jump in OD due to a few things:
         # 1. The delay between sleeping and resuming can causing a change in OD (as OD will keep changing)
         # 2. The user picks up the vial for inspection, places it back, but this causes an OD shift
@@ -266,7 +266,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.info("Finished calculating OD normalization metrics.")
             return means
 
-    def get_od_variances_from_cache(self):
+    def get_od_variances_from_cache(self) -> dict[PD_Channel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_variance") as cache:
             result = cache.get(self.experiment, None)
@@ -283,7 +283,7 @@ class GrowthRateCalculator(BackgroundJob):
 
             return variances
 
-    def update_ekf_variance_after_event(self, minutes, factor):
+    def update_ekf_variance_after_event(self, minutes: float, factor: float) -> None:
         if is_testing_env():
             msg = subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval",
@@ -321,7 +321,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         return v
 
-    def update_state_from_observation(self, message):
+    def update_state_from_observation(self, message) -> None:
 
         if self.state != self.READY:
             return
