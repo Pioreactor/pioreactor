@@ -163,12 +163,14 @@ def view_cache(cache: str) -> None:
     from pioreactor.utils import local_intermittent_storage, local_persistant_storage
 
     # is it a temp cache?
-    if os.path.isfile(f"/tmp/{cache}.db"):
+    if os.path.isfile(f"/tmp/{cache}.db") or os.path.isfile(f"/tmp/{cache}.pag"):
         with local_intermittent_storage(cache) as c:
             for key in sorted(c.keys()):
                 click.echo(f"{key.decode()} = {c[key].decode()}")
 
-    elif os.path.isfile(f".pioreactor/storage/{cache}.db"):
+    elif os.path.isfile(f".pioreactor/storage/{cache}.db") or os.path.isfile(
+        f".pioreactor/storage/{cache}.pag"
+    ):
         with local_persistant_storage(cache) as c:
             for key in sorted(c.keys()):
                 click.echo(f"{key.decode()} = {c[key].decode()}")
