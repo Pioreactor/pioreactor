@@ -647,6 +647,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(f"saw {new_state}: not a valid state")
             return
 
+        if new_state == self.state:
+            return
+
         getattr(self, f"on_{self.state}_to_{new_state}")()
         getattr(self, new_state)()
 
