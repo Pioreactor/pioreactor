@@ -44,12 +44,12 @@ def add_media(
     assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     if calibration is None:
-        try:
-            with local_persistant_storage("pump_calibration") as cache:
+        with local_persistant_storage("pump_calibration") as cache:
+            try:
                 calibration = loads(cache["media_ml_calibration"])
-        except KeyError:
-            logger.error("Calibration not defined. Run pump calibration first.")
-            return 0.0
+            except KeyError:
+                logger.error("Calibration not defined. Run pump calibration first.")
+                return 0.0
 
     try:
         MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
