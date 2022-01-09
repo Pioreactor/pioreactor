@@ -57,8 +57,8 @@ class GrowthRateCalculator(BackgroundJob):
 
     def __init__(
         self,
-        unit,
-        experiment,
+        unit: str,
+        experiment: str,
         ignore_cache: bool = False,
     ):
 
@@ -71,7 +71,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_config", "samples_per_second")
         )
-        self.initial_acc = 0
 
     @property
     def state_(self):
@@ -86,6 +85,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.od_normalization_factors,
             self.od_variances,
             self.od_blank,
+            self.inital_acc,
         ) = self.get_precomputed_values()
 
         self.ekf = self.initialize_extended_kalman_filter()
@@ -213,6 +213,7 @@ class GrowthRateCalculator(BackgroundJob):
             initial_growth_rate = self.get_growth_rate_from_cache()
             initial_od = self.get_previous_od_from_cache()
 
+        initial_acc = 0
         od_blank = self.get_od_blank_from_cache()
 
         # what happens if od_blank is near / less than od_normalization_factors?
@@ -231,6 +232,7 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization_factors,
             od_variances,
             od_blank,
+            initial_acc,
         )
 
     def get_od_blank_from_cache(self) -> dict[PD_Channel, float]:
