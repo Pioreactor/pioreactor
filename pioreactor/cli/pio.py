@@ -142,7 +142,7 @@ def run_always():
 
 @pio.command(name="version", short_help="print the Pioreactor software version")
 @click.option("--verbose", "-v", is_flag=True, help="show more system information")
-def version(verbose):
+def version(verbose) -> None:
 
     if verbose:
         import platform
@@ -164,27 +164,27 @@ def view_cache(cache: str) -> None:
 
     # is it a temp cache?
     if os.path.isfile(f"/tmp/{cache}.db") or os.path.isfile(f"/tmp/{cache}.pag"):
-        with local_intermittent_storage(cache) as c:
-            for key in sorted(c.keys()):
-                click.echo(f"{key.decode()} = {c[key].decode()}")
-
+        cacher = local_intermittent_storage
     elif os.path.isfile(f".pioreactor/storage/{cache}.db") or os.path.isfile(
         f".pioreactor/storage/{cache}.pag"
     ):
-        with local_persistant_storage(cache) as c:
-            for key in sorted(c.keys()):
-                click.echo(f"{key.decode()} = {c[key].decode()}")
+        cacher = local_persistant_storage
     else:
         click.echo(f"cache {cache} not found.")
+        return
+
+    with cacher(cache) as c:
+        for key in sorted(c.keys()):
+            click.echo(f"{key.decode()} = {c[key].decode()}")
 
 
 @pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
 @click.option("--ui", is_flag=True, help="update the PioreactorUI to latest")
 @click.option("--app", is_flag=True, help="update the Pioreactor to latest")
-def update(ui: bool, app: bool) -> None:
+@click.option("--dev", is_flag=True, help="update to the latest development code")
+def update(ui: bool, app: bool, dev: bool) -> None:
     import subprocess
-
-    # import requests
+    import requests
 
     logger = create_logger(
         "update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
@@ -194,18 +194,19 @@ def update(ui: bool, app: bool) -> None:
         click.echo("Nothing to do. Specify either --app or --ui.")
 
     if app:
-        """
-        latest_release_metadata = requests.get(
-            "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
-        ).json()
-        latest_release_version = latest_release_metadata["name"]
-        url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{latest_release_version}/pioreactor-{latest_release_version}-py3-none-any.whl"
 
-        command = f'sudo pip3 install "pioreactor @ {url_to_get_whl}"'
-        """
-        # for now, let's just update to master to make my life easier
-        latest_release_version = "master"
-        command = "sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/master.zip"
+        if not dev:
+            latest_release_metadata = requests.get(
+                "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
+            ).json()
+            latest_release_version = latest_release_metadata["name"]
+            url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{latest_release_version}/pioreactor-{latest_release_version}-py3-none-any.whl"
+
+            command = f'sudo pip3 install "pioreactor @ {url_to_get_whl}"'
+        else:
+            latest_release_version = "master"
+            command = "sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/master.zip"
+
         p = subprocess.run(
             command,
             shell=True,
@@ -297,12 +298,12 @@ if am_I_leader():
         help="instead of looking for raspberrypi.local on the network, look for the IP address.",
         default="",
     )
-    def add_pioreactor(new_name: str, ip: str) -> None:
+    def add_pioreactor(new_name: str) -> None:
         """
         Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
 
         """
-        # TODO: move this to it's own file
+        # TODO: move this to its own file
         import socket
         import subprocess
 
@@ -318,11 +319,7 @@ if am_I_leader():
         while not networking.is_hostname_on_network(new_name):
             checks += 1
             try:
-                if ip:
-                    socket.gethostbyaddr(ip)
-                else:
-                    socket.gethostbyname(new_name)
-
+                socket.gethostbyname(new_name)
             except socket.gaierror:
                 sleep(3)
                 click.echo(f"`{new_name}` not found on network - checking again.")
@@ -334,8 +331,8 @@ if am_I_leader():
 
         res = subprocess.call(
             [
-                "bash /usr/local/bin//add_new_pioreactor_worker_from_leader.sh %s %s"
-                % (new_name, ip)
+                "bash /usr/local/bin//add_new_pioreactor_worker_from_leader.sh %s"
+                % (new_name)
             ],
             shell=True,
         )
