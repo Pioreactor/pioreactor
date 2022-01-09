@@ -139,8 +139,6 @@ class DosingController(BackgroundJob):
         except AttributeError:
             # if disconnect is called right after starting, automation_job isn't instantiated
             pass
-        finally:
-            self.clear_mqtt_cache()
 
 
 def start_dosing_control(

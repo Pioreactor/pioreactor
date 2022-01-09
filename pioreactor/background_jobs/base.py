@@ -599,6 +599,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
 
+        # remove attrs from MQTT
+        self.clear_mqtt_cache()
+
         with local_intermittent_storage("pio_jobs_running") as cache:
             if self.job_name in cache:
                 del cache[self.job_name]

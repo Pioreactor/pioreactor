@@ -190,8 +190,6 @@ class LEDAutomation(BackgroundSubJob):
         for channel in self.edited_channels:
             led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
 
-        self.clear_mqtt_cache()
-
     @property
     def latest_growth_rate(self) -> float:
         # check if None

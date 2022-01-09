@@ -130,8 +130,6 @@ class TemperatureAutomation(BackgroundSubJob):
         for job in self.sub_jobs:
             job.set_state(self.DISCONNECTED)
 
-        self.clear_mqtt_cache()
-
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
         if name in self.published_settings and name != "state":

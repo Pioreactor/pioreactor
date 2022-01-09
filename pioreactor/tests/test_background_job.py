@@ -186,7 +186,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
     assert state[-1] == "disconnected"
 
     with local_intermittent_storage("pio_jobs_running") as cache:
-        assert cache["testjob"] == b"0"  # cleaned up correctly
+        assert "testjob" not in cache
 
 
 def test_state_transition_callbacks() -> None:

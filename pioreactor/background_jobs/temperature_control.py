@@ -316,8 +316,6 @@ class TemperatureController(BackgroundJob):
         except AttributeError:
             pass
 
-        self.clear_mqtt_cache()
-
     def setup_pwm(self) -> PWM:
         hertz = 1
         pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]

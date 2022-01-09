@@ -101,8 +101,6 @@ class LEDController(BackgroundJob):
         with suppress(AttributeError):
             self.automation_job.set_state(self.DISCONNECTED)
 
-        self.clear_mqtt_cache()
-
 
 def start_led_control(
     automation_name: str, duration: float = None, skip_first_run=False, **kwargs

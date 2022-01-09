@@ -746,7 +746,6 @@ class ODReader(BackgroundJob):
             self.record_from_adc_timer.cancel()
         except Exception:
             pass
-        self.clear_mqtt_cache()
 
     def publish_batch(
         self, batched_ads_readings: dict[PD_Channel, float], timestamp: str

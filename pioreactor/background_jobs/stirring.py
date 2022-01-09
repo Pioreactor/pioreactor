@@ -282,8 +282,6 @@ class Stirrer(BackgroundJob):
             if self.rpm_calculator:
                 self.rpm_calculator.cleanup()
 
-        self.clear_mqtt_cache()
-
     def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
         sleep(0.25)
