@@ -10,18 +10,87 @@ from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.pubsub import QOS
-from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.timing import RepeatedTimer, brief_pause, current_utc_time
 from pioreactor.automations import events
-from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
+from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.dosing_control import DosingController
+from pioreactor.config import config
+from pioreactor.types import PublishableSetting
+
+
+class ThroughputCalculator:
+    """
+    Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
+    has been spent, so that triggers can be set up to replace media stock.
+
+    """
+
+    def update(
+        self, message, current_media_volume: float, current_alt_media_volume: float
+    ) -> tuple[float, float]:
+        payload = json.loads(message.payload)
+        volume, event = float(payload["volume_change"]), payload["event"]
+        if event == "add_media":
+            current_media_volume += volume
+        elif event == "add_alt_media":
+            current_alt_media_volume += volume
+        elif event == "remove_waste":
+            pass
+        else:
+            raise ValueError("Unknown event type")
+
+        return (current_media_volume, current_alt_media_volume)
+
+
+class AltMediaCalculator:
+    """
+    Computes the fraction of the vial that is from the alt-media vs the regular media.
+    """
+
+    vial_volume = config.getfloat("bioreactor", "volume_ml")
+
+    def update(self, message, current_alt_media_fraction) -> float:
+        payload = json.loads(message.payload)
+        volume, event = float(payload["volume_change"]), payload["event"]
+        if event == "add_media":
+            return self.update_alt_media_fraction(current_alt_media_fraction, volume, 0)
+        elif event == "add_alt_media":
+            return self.update_alt_media_fraction(current_alt_media_fraction, 0, volume)
+        elif event == "remove_waste":
+            return current_alt_media_fraction
+        else:
+            raise ValueError("Unknown event type")
+
+    def update_alt_media_fraction(
+        self,
+        current_alt_media_fraction: float,
+        media_delta: float,
+        alt_media_delta: float,
+    ) -> float:
+
+        total_delta = media_delta + alt_media_delta
+
+        # current mL
+        alt_media_ml = self.vial_volume * current_alt_media_fraction
+        media_ml = self.vial_volume * (1 - current_alt_media_fraction)
+
+        # remove
+        alt_media_ml = alt_media_ml * (1 - total_delta / self.vial_volume)
+        media_ml = media_ml * (1 - total_delta / self.vial_volume)
+
+        # add (alt) media
+        alt_media_ml = alt_media_ml + alt_media_delta
+        media_ml = media_ml + media_delta
+
+        return alt_media_ml / self.vial_volume
 
 
 class SummableList(list):
-    def __add__(self, other):
+    def __add__(self, other) -> SummableList:
         return SummableList([s + o for (s, o) in zip(self, other)])
 
-    def __iadd__(self, other):
+    def __iadd__(self, other) -> SummableList:
         return self + other
 
 
@@ -37,19 +106,31 @@ class DosingAutomation(BackgroundSubJob):
 
     """
 
+    automation_name = "dosing_automation_base"  # is overwritten in subclasses
+    published_settings: dict[str, PublishableSetting] = {}
+
     _latest_growth_rate: Optional[float] = None
     _latest_od: Optional[float] = None
     previous_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
-    latest_od_at: float = 0
-    latest_growth_rate_at: float = 0
+
     latest_event: Optional[events.Event] = None
-    latest_settings_started_at: str = current_utc_time()
-    latest_settings_ended_at: Optional[str] = None
-    latest_run_at: Optional[float] = None
+    _latest_settings_started_at: str = current_utc_time()
+    _latest_settings_ended_at: Optional[str] = None
+    _latest_run_at: Optional[float] = None
     run_thread: RepeatedTimer | Thread
     duration: float | None
-    automation_name = "dosing_automation_base"  # is overwritten in subclasses
+
+    # dosing metrics that are available, and published to MQTT
+    alt_media_fraction: float = (
+        0  # fraction of the vial that is alt-media (vs regular media).
+    )
+    media_throughput: float = 0  # amount of media that has been expelled
+    alt_media_throughput: float = 0  # amount of alt-media that has been expelled
+
+    # next two are seconds-since-unix-epoch
+    latest_od_at: float = 0
+    latest_growth_rate_at: float = 0
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -72,6 +153,9 @@ class DosingAutomation(BackgroundSubJob):
         )
         self.skip_first_run = skip_first_run
 
+        self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator()
+        self._volume_throughput_calculator = self._init_volume_throughput_calculator()
+
         self.set_duration(duration)
         self.start_passive_listeners()
 
@@ -82,12 +166,12 @@ class DosingAutomation(BackgroundSubJob):
             with suppress(AttributeError):
                 self.run_thread.cancel()  # type: ignore
 
-            if self.latest_run_at:
+            if self._latest_run_at:
                 # what's the correct logic when changing from duration N and duration M?
                 # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.
                 # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
                 run_after = max(
-                    0, (self.duration * 60) - (time.time() - self.latest_run_at)
+                    0, (self.duration * 60) - (time.time() - self._latest_run_at)
                 )
             else:
                 # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
@@ -99,7 +183,7 @@ class DosingAutomation(BackgroundSubJob):
                 self.run,
                 job_name=self.job_name,
                 run_immediately=(not self.skip_first_run)
-                or (self.latest_run_at is not None),
+                or (self._latest_run_at is not None),
                 run_after=run_after,
             ).start()
 
@@ -148,7 +232,7 @@ class DosingAutomation(BackgroundSubJob):
             self.logger.info(str(event))
 
         self.latest_event = event
-        self.latest_run_at = time.time()
+        self._latest_run_at = time.time()
         return event
 
     def execute(self) -> Optional[events.Event]:
@@ -290,7 +374,7 @@ class DosingAutomation(BackgroundSubJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self.latest_settings_ended_at = current_utc_time()
+        self._latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
         with suppress(AttributeError):
@@ -301,11 +385,14 @@ class DosingAutomation(BackgroundSubJob):
 
     def __setattr__(self, name, value) -> None:
         super(DosingAutomation, self).__setattr__(name, value)
-        if name in self.published_settings and name != "state":
-            self.latest_settings_ended_at = current_utc_time()
+        if name in self.published_settings and name not in [
+            "state",
+            "alt_media_fraction",
+        ]:
+            self._latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
-            self.latest_settings_started_at = current_utc_time()
-            self.latest_settings_ended_at = None
+            self._latest_settings_started_at = current_utc_time()
+            self._latest_settings_ended_at = None
 
     def _set_growth_rate(self, message) -> None:
         self.previous_growth_rate = self._latest_growth_rate
@@ -324,8 +411,8 @@ class DosingAutomation(BackgroundSubJob):
                 {
                     "pioreactor_unit": self.unit,
                     "experiment": self.experiment,
-                    "started_at": self.latest_settings_started_at,
-                    "ended_at": self.latest_settings_ended_at,
+                    "started_at": self._latest_settings_started_at,
+                    "ended_at": self._latest_settings_ended_at,
                     "automation": self.automation_name,
                     "settings": json.dumps(
                         {
@@ -339,6 +426,64 @@ class DosingAutomation(BackgroundSubJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
+    def _update_dosing_metrics(self, message) -> None:
+
+        self._update_alt_media_fraction(message)
+        self._update_throughput(message)
+
+    def _update_alt_media_fraction(self, message) -> None:
+        self.alt_media_fraction = self._alt_media_fraction_calculator.update(
+            message, self.alt_media_fraction
+        )
+        # add to cache
+        with local_persistant_storage("alt_media_fraction") as cache:
+            cache[self.experiment] = str(self.alt_media_fraction)
+
+    def _update_throughput(self, message) -> None:
+        (
+            self.media_throughput,
+            self.alt_media_throughput,
+        ) = self._volume_throughput_calculator.update(
+            message, self.media_throughput, self.alt_media_throughput
+        )
+
+        # add to cache
+        with local_persistant_storage("alt_media_throughput") as cache:
+            cache[self.experiment] = str(self.alt_media_throughput)
+
+        with local_persistant_storage("media_throughput") as cache:
+            cache[self.experiment] = str(self.media_throughput)
+
+    def _init_alt_media_fraction_calculator(self) -> AltMediaCalculator:
+        self.published_settings["alt_media_fraction"] = {
+            "datatype": "float",
+            "settable": True,
+        }
+
+        with local_persistant_storage("alt_media_fraction") as cache:
+            self.alt_media_fraction = float(cache.get(self.experiment, 0.0))
+            return AltMediaCalculator()
+
+    def _init_volume_throughput_calculator(self) -> ThroughputCalculator:
+        self.published_settings["alt_media_throughput"] = {
+            "datatype": "float",
+            "settable": True,
+            "unit": "mL",
+        }
+        self.published_settings["media_throughput"] = {
+            "datatype": "float",
+            "settable": True,
+            "unit": "mL",
+        }
+
+        with local_persistant_storage("alt_media_throughput") as cache:
+            self.alt_media_throughput = float(cache.get(self.experiment, 0.0))
+
+        with local_persistant_storage("media_throughput") as cache:
+            self.media_throughput = float(cache.get(self.experiment, 0.0))
+
+        return ThroughputCalculator()
+
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self._set_OD,
@@ -347,6 +492,10 @@ class DosingAutomation(BackgroundSubJob):
         self.subscribe_and_callback(
             self._set_growth_rate,
             f"pioreactor/{self.unit}/{self.experiment}/growth_rate_calculating/growth_rate",
+        )
+        self.subscribe_and_callback(
+            self._update_dosing_metrics,
+            f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
         )
 
 

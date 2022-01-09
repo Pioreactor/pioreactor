@@ -5,7 +5,7 @@ import time
 from typing import Optional, cast
 from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import current_utc_time
-from pioreactor.background_jobs.subjobs.base import BackgroundSubJob
+from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.utils import is_pio_job_running
 
@@ -32,8 +32,8 @@ class TemperatureAutomation(BackgroundSubJob):
     latest_temperature = None
     previous_temperature = None
 
-    latest_settings_started_at = current_utc_time()
-    latest_settings_ended_at = None
+    _latest_settings_started_at = current_utc_time()
+    _latest_settings_ended_at = None
     automation_name = "temperature_automation_base"  # is overwritten in subclasses
 
     def __init_subclass__(cls, **kwargs):
@@ -124,7 +124,7 @@ class TemperatureAutomation(BackgroundSubJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self.latest_settings_ended_at = current_utc_time()
+        self._latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
         for job in self.sub_jobs:
@@ -133,9 +133,9 @@ class TemperatureAutomation(BackgroundSubJob):
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
         if name in self.published_settings and name != "state":
-            self.latest_settings_ended_at = current_utc_time()
+            self._latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
-            self.latest_settings_started_at, self.latest_settings_ended_at = (
+            self._latest_settings_started_at, self._latest_settings_ended_at = (
                 current_utc_time(),
                 None,
             )
@@ -170,8 +170,8 @@ class TemperatureAutomation(BackgroundSubJob):
                 {
                     "pioreactor_unit": self.unit,
                     "experiment": self.experiment,
-                    "started_at": self.latest_settings_started_at,
-                    "ended_at": self.latest_settings_ended_at,
+                    "started_at": self._latest_settings_started_at,
+                    "ended_at": self._latest_settings_ended_at,
                     "automation": self.automation_name,
                     "settings": json.dumps(
                         {

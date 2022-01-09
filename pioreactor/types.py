@@ -1,7 +1,32 @@
 # -*- coding: utf-8 -*-
 # types
 from __future__ import annotations
-from typing import Literal, MutableMapping
+from typing import Literal, MutableMapping, TypedDict
+
+
+class PublishableSetting(TypedDict, total=False):
+    """
+    In a job, the published_settings attribute is a list of dictionaries that have
+    the below schema.
+
+    datatype:
+        string: a string
+        float: a float
+        integer: an integer
+        json: this can have arbitrary data in it.
+        boolean: must be 0 or 1 (this is unlike the Homie convention)
+
+    unit (optional):
+        a string representing what the unit suffix is
+
+    settable:
+        a bool representing if the attribute can be changed over MQTT
+
+    """
+
+    datatype: Literal["string", "float", "integer", "json", "boolean"]
+    unit: str
+    settable: bool
 
 
 class DbmMapping(MutableMapping):

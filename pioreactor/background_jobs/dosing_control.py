@@ -24,8 +24,6 @@ import click
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
-from pioreactor.background_jobs.subjobs.alt_media_calculator import AltMediaCalculator
-from pioreactor.background_jobs.subjobs.throughput_calculator import ThroughputCalculator
 from pioreactor.background_jobs.utils import AutomationDict
 
 
@@ -52,14 +50,6 @@ class DosingController(BackgroundJob):
         )
 
         self.automation = AutomationDict(automation_name=automation_name, **kwargs)
-
-        self.alt_media_calculator = AltMediaCalculator(
-            unit=self.unit, experiment=self.experiment, parent=self
-        )
-        self.throughput_calculator = ThroughputCalculator(
-            unit=self.unit, experiment=self.experiment, parent=self
-        )
-        self.sub_jobs = [self.alt_media_calculator, self.throughput_calculator]
 
         try:
             automation_class = self.automations[self.automation["automation_name"]]
@@ -131,11 +121,7 @@ class DosingController(BackgroundJob):
 
     def on_disconnected(self) -> None:
         try:
-
-            for job in self.sub_jobs:
-                job.set_state(job.DISCONNECTED)
             self.automation_job.set_state(self.DISCONNECTED)
-
         except AttributeError:
             # if disconnect is called right after starting, automation_job isn't instantiated
             pass

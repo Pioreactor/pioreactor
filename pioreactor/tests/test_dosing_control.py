@@ -455,16 +455,14 @@ def test_old_readings_will_not_execute_io() -> None:
 
 
 def test_throughput_calculator() -> None:
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        0,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        0,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = "0.0"
 
     algo = DosingController(
         "pid_morbidostat",
@@ -474,7 +472,7 @@ def test_throughput_calculator() -> None:
         unit=unit,
         experiment=experiment,
     )
-    assert algo.throughput_calculator.media_throughput == 0
+    assert algo.automation_job.media_throughput == 0
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -497,8 +495,8 @@ def test_throughput_calculator() -> None:
     )
     pause()
     algo.automation_job.run()
-    assert algo.throughput_calculator.media_throughput > 0
-    assert algo.throughput_calculator.alt_media_throughput > 0
+    assert algo.automation_job.media_throughput > 0
+    assert algo.automation_job.alt_media_throughput > 0
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -510,8 +508,8 @@ def test_throughput_calculator() -> None:
     )
     pause()
     algo.automation_job.run()
-    assert algo.throughput_calculator.media_throughput > 0
-    assert algo.throughput_calculator.alt_media_throughput > 0
+    assert algo.automation_job.media_throughput > 0
+    assert algo.automation_job.alt_media_throughput > 0
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -523,156 +521,129 @@ def test_throughput_calculator() -> None:
     )
     pause()
     algo.automation_job.run()
-    assert algo.throughput_calculator.media_throughput > 0
-    assert algo.throughput_calculator.alt_media_throughput > 0
+    assert algo.automation_job.media_throughput > 0
+    assert algo.automation_job.alt_media_throughput > 0
     algo.set_state(algo.DISCONNECTED)
 
 
 def test_throughput_calculator_restart() -> None:
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        1.0,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        1.5,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = str(1.0)
 
-    algo = DosingController(
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = str(1.5)
+
+    with DosingController(
         "turbidostat",
         target_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
         experiment=experiment,
-    )
-    pause()
-    assert algo.throughput_calculator.media_throughput == 1.0
-    assert algo.throughput_calculator.alt_media_throughput == 1.5
-    algo.set_state(algo.DISCONNECTED)
+    ) as algo:
+        pause()
+        assert algo.automation_job.media_throughput == 1.0
+        assert algo.automation_job.alt_media_throughput == 1.5
 
 
 def test_throughput_calculator_manual_set() -> None:
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        1.0,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        1.5,
-        retain=True,
-    )
-    pause()
-    algo = DosingController(
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = str(1.0)
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = str(1.5)
+
+    with DosingController(
         "turbidostat",
         target_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
         experiment=experiment,
-    )
-    pause()
-    assert algo.throughput_calculator.media_throughput == 1.0
-    assert algo.throughput_calculator.alt_media_throughput == 1.5
+    ) as algo:
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput/set",
-        0,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput/set", 0
-    )
-    pause()
-    pause()
-    assert algo.throughput_calculator.media_throughput == 0
-    assert algo.throughput_calculator.alt_media_throughput == 0
-    algo.set_state(algo.DISCONNECTED)
+        pause()
+        assert algo.automation_job.media_throughput == 1.0
+        assert algo.automation_job.alt_media_throughput == 1.5
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput/set",
+            0,
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput/set", 0
+        )
+        pause()
+        pause()
+        assert algo.automation_job.media_throughput == 0
+        assert algo.automation_job.alt_media_throughput == 0
 
 
 def test_execute_io_action() -> None:
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        None,
-        retain=True,
-    )
-    ca = DosingController("silent", unit=unit, experiment=experiment)
-    ca.automation_job.execute_io_action(
-        media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35
-    )
-    pause()
-    assert ca.throughput_calculator.media_throughput == 0.65
-    assert ca.throughput_calculator.alt_media_throughput == 0.35
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
 
-    ca.automation_job.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
-    pause()
-    assert ca.throughput_calculator.media_throughput == 0.80
-    assert ca.throughput_calculator.alt_media_throughput == 0.50
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = "0.0"
 
-    ca.automation_job.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
-    pause()
-    assert ca.throughput_calculator.media_throughput == 1.80
-    assert ca.throughput_calculator.alt_media_throughput == 0.50
+    with DosingController("silent", unit=unit, experiment=experiment) as ca:
+        ca.automation_job.execute_io_action(
+            media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35
+        )
+        pause()
+        assert ca.automation_job.media_throughput == 0.65
+        assert ca.automation_job.alt_media_throughput == 0.35
 
-    ca.automation_job.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
-    pause()
-    assert ca.throughput_calculator.media_throughput == 1.80
-    assert ca.throughput_calculator.alt_media_throughput == 1.50
-    ca.set_state(ca.DISCONNECTED)
+        ca.automation_job.execute_io_action(
+            media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3
+        )
+        pause()
+        assert ca.automation_job.media_throughput == 0.80
+        assert ca.automation_job.alt_media_throughput == 0.50
+
+        ca.automation_job.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
+        pause()
+        assert ca.automation_job.media_throughput == 1.80
+        assert ca.automation_job.alt_media_throughput == 0.50
+
+        ca.automation_job.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
+        pause()
+        assert ca.automation_job.media_throughput == 1.80
+        assert ca.automation_job.alt_media_throughput == 1.50
 
 
 def test_execute_io_action2() -> None:
-    # regression test
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        None,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
 
-    ca = DosingController("silent", unit=unit, experiment=experiment)
-    ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
-    pause()
-    assert ca.throughput_calculator.media_throughput == 1.25
-    assert ca.throughput_calculator.alt_media_throughput == 0.01
-    ca.set_state(ca.DISCONNECTED)
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = "0.0"
+
+    with DosingController("silent", unit=unit, experiment=experiment) as ca:
+        ca.automation_job.execute_io_action(
+            media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26
+        )
+        pause()
+        assert ca.automation_job.media_throughput == 1.25
+        assert ca.automation_job.alt_media_throughput == 0.01
+        assert abs(ca.automation_job.alt_media_fraction - 0.0007142) < 0.000001
 
 
 def test_execute_io_action_outputs1() -> None:
     # regression test
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        None,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = "0.0"
 
     ca = DosingAutomation(unit=unit, experiment=experiment)
     result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
@@ -684,21 +655,14 @@ def test_execute_io_action_outputs1() -> None:
 
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
     # regression test
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        None,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = "0.0"
 
     with local_persistant_storage("pump_calibration") as cache:
         del cache["media_ml_calibration"]
@@ -719,21 +683,14 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
 
 def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     # regression test
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        None,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = "0.0"
 
     ca = DosingAutomation(unit=unit, experiment=experiment)
     ca.set_state(ca.DISCONNECTED)
@@ -886,21 +843,14 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
 
 
 def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/alt_media_throughput",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/alt_media_calculating/alt_media_fraction",
-        None,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = "0.0"
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = "0.0"
 
     algo = DosingController(
         "pid_turbidostat",
@@ -934,7 +884,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
     # note that we manually run, as we have skipped the first run in the json
     algo.automation_job.run()
     time.sleep(5)
-    assert algo.throughput_calculator.media_throughput == 1.0
+    assert algo.automation_job.media_throughput == 1.0
 
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_od/set", 1.5)
     pause()
@@ -944,11 +894,8 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
 
 
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/throughput_calculator/media_throughput",
-        None,
-        retain=True,
-    )
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = "0.0"
 
     algo = DosingController(
         "pid_turbidostat",

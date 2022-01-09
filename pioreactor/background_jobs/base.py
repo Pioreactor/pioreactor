@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Any, Optional, TypedDict, Literal
+from typing import Callable, Any, Optional
 import threading
 import atexit
 import time
@@ -17,7 +17,7 @@ from pioreactor.utils import (
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid, is_testing_env
 from pioreactor.logging import create_logger
-from pioreactor.types import JobState
+from pioreactor.types import JobState, PublishableSetting
 
 
 def format_with_optional_units(value: Any, units: Optional[str]) -> str:
@@ -49,31 +49,6 @@ class PostInitCaller(type):
         obj = type.__call__(cls, *args, **kwargs)
         obj.__post__init__()
         return obj
-
-
-class PublishableSetting(TypedDict, total=False):
-    """
-    In a job, the published_settings attribute is a list of dictionaries that have
-    the below schema.
-
-    datatype:
-        string: a string
-        float: a float
-        integer: an integer
-        json: this can have arbitrary data in it.
-        boolean: must be 0 or 1 (this is unlike the Homie convention)
-
-    unit (optional):
-        a string representing what the unit suffix is
-
-    settable:
-        a bool representing if the attribute can be changed over MQTT
-
-    """
-
-    datatype: Literal["string", "float", "integer", "json", "boolean"]
-    unit: str
-    settable: bool
 
 
 class _BackgroundJob(metaclass=PostInitCaller):
@@ -209,7 +184,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # attributes are
     # {'datatype', 'unit', 'settable'}
     # See PublishableSetting type
-    published_settings: dict[str, PublishableSetting] = dict()
+    published_settings: dict[
+        str, PublishableSetting
+    ] = (
+        dict()
+    )  # TODO: turn this into a class, so it can be updated in subclasses and we still get the right metadata published.
 
     def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
 
