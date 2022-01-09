@@ -127,9 +127,6 @@ class TemperatureAutomation(BackgroundSubJob):
         self._latest_settings_ended_at = current_utc_time()
         self._send_details_to_mqtt()
 
-        for job in self.sub_jobs:
-            job.set_state(self.DISCONNECTED)
-
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomation, self).__setattr__(name, value)
         if name in self.published_settings and name != "state":

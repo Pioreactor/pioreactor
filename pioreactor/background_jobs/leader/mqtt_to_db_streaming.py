@@ -306,7 +306,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "temperature_readings",
         ),
         TopicToParserToTable(
-            "pioreactor/+/+/alt_media_calculating/alt_media_fraction",
+            "pioreactor/+/+/dosing_automation/alt_media_fraction",
             parse_alt_media_fraction,
             "alt_media_fraction",
         ),

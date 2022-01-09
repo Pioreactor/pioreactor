@@ -380,14 +380,13 @@ class DosingAutomation(BackgroundSubJob):
         with suppress(AttributeError):
             self.run_thread.join()
 
-        for job in self.sub_jobs:
-            job.set_state("disconnected")
-
     def __setattr__(self, name, value) -> None:
         super(DosingAutomation, self).__setattr__(name, value)
         if name in self.published_settings and name not in [
             "state",
             "alt_media_fraction",
+            "media_throughput",
+            "alt_media_throughput",
         ]:
             self._latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
@@ -469,11 +468,13 @@ class DosingAutomation(BackgroundSubJob):
             "datatype": "float",
             "settable": True,
             "unit": "mL",
+            "persist": True,
         }
         self.published_settings["media_throughput"] = {
             "datatype": "float",
             "settable": True,
             "unit": "mL",
+            "persist": True,
         }
 
         with local_persistant_storage("alt_media_throughput") as cache:

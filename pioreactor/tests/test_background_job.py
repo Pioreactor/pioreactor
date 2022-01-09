@@ -9,7 +9,7 @@ from pioreactor.whoami import (
     get_latest_experiment_name,
     UNIVERSAL_EXPERIMENT,
 )
-from pioreactor.pubsub import publish, subscribe_and_callback
+from pioreactor.pubsub import publish, subscribe_and_callback, subscribe
 from pioreactor.config import leader_hostname
 from pioreactor.utils import local_intermittent_storage
 
@@ -326,3 +326,39 @@ def test_editing_readonly_attr_via_mqtt() -> None:
         pause()
 
     assert len(warning_logs) > 0
+
+
+def test_persist_in_published_settings() -> None:
+    class TestJob(BackgroundJob):
+
+        published_settings = {
+            "persist_this": {"datatype": "float", "settable": True, "persist": True},
+            "dont_persist_this": {
+                "datatype": "float",
+                "settable": True,
+            },
+        }
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.persist_this = "persist_this"
+            self.dont_persist_this = "dont_persist_this"
+
+    with TestJob(
+        job_name="test_job", unit=get_unit_name(), experiment=get_latest_experiment_name()
+    ):
+        pause()
+        pause()
+
+    pause()
+    msg = subscribe(
+        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/test_job/persist_this",
+        timeout=2,
+    )
+    assert msg.payload.decode() == "persist_this"
+
+    msg = subscribe(
+        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/test_job/dont_persist_this",
+        timeout=2,
+    )
+    assert msg is None

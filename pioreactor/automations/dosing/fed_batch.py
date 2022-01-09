@@ -32,4 +32,4 @@ class FedBatch(DosingAutomation):
         if vol != self.volume:
             self.logger.warning("under-dosed!")
 
-        return events.AddMediaEvent(f"Added {vol}mL")
+        return events.AddMediaEvent(f"Added {vol} mL")

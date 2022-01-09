@@ -22,11 +22,15 @@ class PublishableSetting(TypedDict, total=False):
     settable:
         a bool representing if the attribute can be changed over MQTT
 
+    persist (optional):
+        a bool representing if the attr should be cleared when the job cleans up. Default False.
+
     """
 
     datatype: Literal["string", "float", "integer", "json", "boolean"]
     unit: str
     settable: bool
+    persist: bool
 
 
 class DbmMapping(MutableMapping):

@@ -189,9 +189,6 @@ class LEDAutomation(BackgroundSubJob):
         with suppress(AttributeError):
             self.run_thread.join()
 
-        for job in self.sub_jobs:
-            job.set_state(job.DISCONNECTED)
-
         for channel in self.edited_channels:
             led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
 

@@ -182,21 +182,21 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
     # attributes are
-    # {'datatype', 'unit', 'settable'}
+    # {'datatype', 'unit', 'settable', 'persist'}
     # See PublishableSetting type
-    published_settings: dict[
-        str, PublishableSetting
-    ] = (
-        dict()
-    )  # TODO: turn this into a class, so it can be updated in subclasses and we still get the right metadata published.
+    # TODO: turn this into a class, so it can be updated in subclasses and we still get the right metadata published.
+    published_settings: dict[str, PublishableSetting] = dict()
 
     def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
 
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
-        self.sub_jobs: list[_BackgroundJob] = []
-        self.published_settings["state"] = {"datatype": "string", "settable": True}
+        self.published_settings["state"] = {
+            "datatype": "string",
+            "settable": True,
+            "persist": True,
+        }
 
         self.logger = create_logger(
             self.job_name,
@@ -299,7 +299,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def check_published_settings(self) -> None:
         necessary_properies = set(["datatype", "settable"])
-        optional_properties = set(["unit"])
+        optional_properties = set(["unit", "persist"])
         all_properties = optional_properties.union(necessary_properies)
         for setting, properties in self.published_settings.items():
             # look for extra properties
@@ -314,7 +314,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if not all(ss.isalnum() for ss in setting.split("_")):
                 # only alphanumeric separated by _ is allowed.
                 raise ValueError(
-                    f"setting {setting} has bad characters - must be alphanumeric, and only seperated by underscore."
+                    f"setting {setting} has bad characters - must be alphanumeric, and only separated by underscore."
                 )
 
     def create_pub_client(self) -> Client:
@@ -696,18 +696,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def clear_mqtt_cache(self) -> None:
         """
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        This does NOT clear the state however.
+        Use "persist" to keep it from clearing.
         """
-        for attr in self.published_settings:
-            if attr == "state":
-                continue
-
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                None,
-                retain=True,
-                qos=QOS.EXACTLY_ONCE,
-            )
+        for attr, metadata_on_attr in self.published_settings.items():
+            if not metadata_on_attr.get("persist", False):
+                self.publish(
+                    f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
+                    None,
+                    retain=True,
+                    qos=QOS.EXACTLY_ONCE,
+                )
 
     def block_until_disconnected(self) -> None:
         """
