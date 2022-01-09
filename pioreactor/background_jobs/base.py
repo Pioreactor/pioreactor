@@ -245,7 +245,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # we want to give the sub_client (has the will msg) as much time as possible to disconnect.
         self.pub_client = self.create_pub_client()
         self.sub_client = self.create_sub_client()
-        self.pubsub_clients = [self.sub_client, self.pub_client]
 
         self.set_up_exit_protocol()
         self.check_published_settings()
@@ -462,7 +461,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             see pioreactor.pubsub.QOS
         """
 
-        def wrap_callback(actual_callback) -> Callable:
+        def wrap_callback(actual_callback: Callable) -> Callable:
             def _callback(client, userdata, message: MQTTMessage):
                 if not allow_retained and message.retain:
                     return
@@ -490,20 +489,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-        def disconnect_gracefully(signal_code, *args) -> None:
+        def disconnect_gracefully(reason, *args) -> None:
             if self.state == self.DISCONNECTED:
                 return
 
-            if isinstance(signal_code, int):
-                self.logger.debug(
-                    f"Exiting caused by signal {signal.strsignal(signal_code)}."
-                )
-            elif isinstance(signal_code, str):
-                self.logger.debug(f"Exiting caused by {signal_code}.")
+            if isinstance(reason, int):
+                self.logger.debug(f"Exiting caused by signal {signal.strsignal(reason)}.")
+            elif isinstance(reason, str):
+                self.logger.debug(f"Exiting caused by {reason}.")
 
             self.set_state(self.DISCONNECTED)
 
-            if (signal_code == signal.SIGTERM) or (signal_code == signal.SIGHUP):
+            if (reason == signal.SIGTERM) or (reason == signal.SIGHUP):
                 import sys
 
                 sys.exit()
@@ -606,10 +603,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             del cache[self.job_name]
 
         self.log_state(self.state)
+
+        self.sub_client.loop_stop()
+        self.sub_client.disconnect()
+
         # this HAS to happen last, because this contains our publishing client
-        for client in self.pubsub_clients:
-            client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-            client.disconnect()
+        self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+        self.pub_client.disconnect()
 
     def publish_settings_to_broker(self) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
@@ -646,10 +646,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(f"saw {new_state}: not a valid state")
             return
 
-        if hasattr(self, f"on_{self.state}_to_{new_state}"):
-            # TODO: should this be in a try/except?
-            getattr(self, f"on_{self.state}_to_{new_state}")()
-
+        getattr(self, f"on_{self.state}_to_{new_state}")()
         getattr(self, new_state)()
 
     def log_state(self, state: JobState) -> None:
@@ -661,7 +658,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
     @staticmethod
     def get_attr_from_topic(topic) -> str:
         pieces = topic.split("/")
-        assert len(pieces) == 6, "something is wrong"
         return pieces[4].lstrip("$")
 
     def set_attr_from_message(self, message: MQTTMessage) -> None:
@@ -714,7 +710,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def clear_mqtt_cache(self) -> None:
         """
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
-        This does NOTE clear the state however.
+        This does NOT clear the state however.
         """
         for attr in self.published_settings:
             if attr == "state":
