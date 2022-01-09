@@ -105,9 +105,10 @@ from pioreactor.actions.led_intensity import (
     LED_UNLOCKED,
 )
 from pioreactor.hardware_mappings import SCL, SDA
-from pioreactor.pubsub import QOS
+from pioreactor.pubsub import QOS, publish
 from pioreactor.version import hardware_version_info
 from pioreactor.types import PD_Channel, LED_Channel
+from pioreactor.error_codes import ErrorCode
 
 ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2"]
 
@@ -226,6 +227,13 @@ class ADCReader(LoggerMixin):
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
 
+            unit, exp = get_unit_name(), get_latest_experiment_name()
+
+            publish(
+                f"pioreactor/{unit}/{exp}/monitor/flicker_led_with_error_code",
+                ErrorCode.ADC_INPUT_TOO_HIGH.value,
+            )
+
             with local_intermittent_storage("led_locks") as cache:
                 for c in ALL_LED_CHANNELS:
                     cache[c] = LED_UNLOCKED
@@ -236,8 +244,8 @@ class ADCReader(LoggerMixin):
                 channels=ALL_LED_CHANNELS,
                 intensities=[0] * len(ALL_LED_CHANNELS),
                 source_of_event="ADCReader",
-                unit=get_unit_name(),
-                experiment=get_latest_experiment_name(),
+                unit=unit,
+                experiment=exp,
                 verbose=True,
             )
 
@@ -452,6 +460,10 @@ class ADCReader(LoggerMixin):
                 ):
                     self.logger.warning(
                         f"ADC channel {channel} is recording a very high voltage, {round(best_estimate_of_signal_, 2)}V. It's recommended to keep it less than 3.3V."
+                    )
+                    publish(
+                        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/monitor/flicker_led_with_error_code",
+                        ErrorCode.ADC_INPUT_TOO_HIGH.value,
                     )
 
                 # check if more than 3V, and shut down to prevent damage to ADC.

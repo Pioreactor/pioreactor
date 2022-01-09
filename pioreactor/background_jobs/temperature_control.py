@@ -40,6 +40,7 @@ from pioreactor.hardware_mappings import PWM_TO_PIN, HEATER_PWM_TO_PIN
 from pioreactor.config import config
 from pioreactor.utils.pwm import PWM
 from pioreactor.background_jobs.utils import AutomationDict
+from pioreactor.error_codes import ErrorCode
 
 
 class TemperatureController(BackgroundJob):
@@ -264,6 +265,12 @@ class TemperatureController(BackgroundJob):
             call("sudo shutdown --poweroff", shell=True)
 
         elif temp > self.MAX_TEMP_TO_DISABLE_HEATING:
+
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
+                ErrorCode.PCB_TEMPERATURE_TOO_HIGH.value,
+            )
+
             self.logger.warning(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
             )
@@ -271,11 +278,17 @@ class TemperatureController(BackgroundJob):
             self._update_heater(0)
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
+
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
+                ErrorCode.PCB_TEMPERATURE_TOO_HIGH.value,
+            )
+
             self.logger.debug(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self._update_heater(self.heater_duty_cycle * 0.90)
+            self._update_heater(self.heater_duty_cycle * 0.9)
 
     def on_sleeping(self):
         self.automation_job.set_state(self.SLEEPING)

@@ -10,7 +10,7 @@ import click
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_hat_present
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.monitor import ErrorCode
+from pioreactor.error_codes import ErrorCode
 from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp, local_persistant_storage

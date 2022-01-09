@@ -1,0 +1,12 @@
+# -*- coding: utf-8 -*-
+
+from enum import IntEnum
+
+
+class ErrorCode(IntEnum):
+
+    MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE = 2
+    DISK_IS_ALMOST_FULL_ERROR_CODE = 3
+    STIRRING_FAILED_ERROR_CODE = 4
+    ADC_INPUT_TOO_HIGH = 5
+    PCB_TEMPERATURE_TOO_HIGH = 6

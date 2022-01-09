@@ -2,7 +2,6 @@
 from time import sleep
 from json import dumps, loads
 from datetime import datetime
-from enum import IntEnum
 
 import click
 from paho.mqtt.client import MQTTMessage  # type: ignore
@@ -26,13 +25,7 @@ from pioreactor.hardware_mappings import (
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.version import software_version_info, hardware_version_info
-
-
-class ErrorCode(IntEnum):
-
-    MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE = 2
-    DISK_IS_ALMOST_FULL_ERROR_CODE = 3
-    STIRRING_FAILED_ERROR_CODE = 4
+from pioreactor.error_codes import ErrorCode
 
 
 class Monitor(BackgroundJob):
@@ -307,8 +300,8 @@ class Monitor(BackgroundJob):
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
         cpu_usage_percent = round(
-            psutil.cpu_percent()
-        )  # TODO: this is a noisy process, and we should average it over a small window.
+            (psutil.cpu_percent() + psutil.cpu_percent() + psutil.cpu_percent()) / 3
+        )  # this is a noisy process, and we average it over a small window.
         available_memory_percent = round(
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
@@ -382,9 +375,9 @@ class Monitor(BackgroundJob):
 
         for _ in range(error_code):
             self.led_on()
-            sleep(0.3)
+            sleep(0.2)
             self.led_off()
-            sleep(0.3)
+            sleep(0.2)
 
         self.currently_flickering = False
 
