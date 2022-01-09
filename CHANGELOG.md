@@ -1,3 +1,8 @@
+### Upcoming
+ - Added more error codes for the ADC and temperature
+ - Reduce chance of running multiple growth_rate_calculating jobs
+
+
 ### 22.1.0
  - improved temperature-recording frequency (10m to 4m)
  - removed the PWM's DC maximum on the heating output.

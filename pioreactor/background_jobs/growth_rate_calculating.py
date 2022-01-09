@@ -85,7 +85,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.od_normalization_factors,
             self.od_variances,
             self.od_blank,
-            self.inital_acc,
+            self.initial_acc,
         ) = self.get_precomputed_values()
 
         self.ekf = self.initialize_extended_kalman_filter()

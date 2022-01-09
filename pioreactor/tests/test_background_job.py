@@ -41,7 +41,7 @@ def test_states() -> None:
 
     publish(f"pioreactor/{unit}/{exp}/job/$state/set", "disconnected")
     pause()
-    bj.set_state(bj.DISCONNECTED)
+    assert bj.state == bj.DISCONNECTED
 
 
 @pytest.mark.skip(reason="hangs")

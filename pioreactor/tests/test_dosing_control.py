@@ -741,7 +741,6 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     assert result[0] == 0.0
     assert result[1] == 0.0
     assert result[2] == 0.0
-    ca.set_state(ca.DISCONNECTED)
 
 
 def test_duration_and_timer() -> None:
@@ -990,7 +989,7 @@ def test_disconnect_cleanly() -> None:
         f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
     )
     time.sleep(10)
-    algo.set_state(algo.DISCONNECTED)
+    assert algo.state == algo.DISCONNECTED
 
 
 def test_custom_class_will_register_and_run() -> None:

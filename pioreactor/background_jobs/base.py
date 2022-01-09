@@ -600,7 +600,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(e, exc_info=True)
 
         with local_intermittent_storage("pio_jobs_running") as cache:
-            del cache[self.job_name]
+            if self.job_name in cache:
+                del cache[self.job_name]
 
         self.log_state(self.state)
 
