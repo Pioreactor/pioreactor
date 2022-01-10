@@ -11,7 +11,10 @@ from pioreactor.config import config
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
-from pioreactor.utils.math_helpers import simple_linear_regression
+from pioreactor.utils.math_helpers import (
+    simple_linear_regression,
+    simple_linear_regression_with_forced_nil_intercept,
+)
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import (
     get_unit_name,
@@ -148,22 +151,24 @@ def run_tests(
     results = []
     durations_to_test = [
         min_duration,
-        min_duration * 1.05,
         min_duration * 1.1,
-        min_duration * 1.15,
+        min_duration * 1.2,
+        min_duration * 1.3,
     ] + [max_duration * 0.85, max_duration * 0.90, max_duration * 0.95, max_duration]
     for i, duration in enumerate(durations_to_test):
         if i > 0:
             click.echo("Remove the water from the container")
 
         click.echo(
-            "We will run the pump for a set amount of time (in seconds), and you will measure how much liquid is expelled."
+            "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
         )
         click.echo(
             "You can either use a container on top of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
         )
         click.echo("Place the outflow tube into the container (or graduated cylinder).")
-        while not click.confirm(click.style(f"Ready to test {duration}s?", fg="green")):
+        while not click.confirm(
+            click.style(f"Ready to test {duration:.2f}s?", fg="green")
+        ):
             pass
 
         execute_pump(
@@ -231,7 +236,17 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             )
 
         logger.debug(
-            f"slope={slope:0.3f} ± {std_slope:0.2f}, bias={bias:0.3f} ± {std_bias:0.2f}"
+            f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}"
+        )
+        (slope2, std_slope2), (
+            bias2,
+            std_bias2,
+        ) = simple_linear_regression_with_forced_nil_intercept(durations, volumes)
+        logger.debug(
+            f"slope={slope2:0.2f} ± {std_slope2:0.2f}, bias={bias2:0.2f} ± {std_bias2:0.2f}"
+        )
+        logger.debug(
+            f"Calibration is best for volumes between {(slope * min_duration + bias):0.1f}mL to {(slope * max_duration + bias):0.1f}mL, but will be okay for slightly outside this range too."
         )
         logger.info("Finished pump calibration.")
 

@@ -26,6 +26,28 @@ def simple_linear_regression(x, y) -> tuple[tuple[float, float], tuple[float, fl
     return (slope, std_error_slope), (bias, std_error_bias)
 
 
+def simple_linear_regression_with_forced_nil_intercept(
+    x, y
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    import numpy as np
+
+    x = np.array(x)
+    y = np.array(y)
+
+    n = x.shape[0]
+    assert n > 2, "not enough data points for linear regression"
+
+    sum_xy = np.sum(x * y)
+    sum_xx = np.sum(x * x)
+
+    slope = sum_xy / sum_xx
+
+    residuals_sq = np.sum((y - slope * x) ** 2)
+    std_error_slope = np.sqrt(residuals_sq / (n - 1) / np.sum(x ** 2))
+
+    return (slope, std_error_slope), (0, 0.0)
+
+
 def residuals_of_simple_linear_regression(x, y):
     import numpy as np
 
