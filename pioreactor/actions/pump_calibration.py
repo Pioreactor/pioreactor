@@ -87,14 +87,17 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
     click.clear()
     click.echo()
     click.echo("We need to prime the pump by filling the tubes completely with water.")
-    click.echo("Connecting the tubes to the pump, and fill a container with water.")
+    click.echo("1. Fill a container with water.")
+    click.echo("2. Place free ends of the tube into the water.")
     click.echo(
-        "Place free ends of the tube into the water. Make sure the pump's power is connected to "
+        "Make sure the pump's power is connected to "
         + click.style(f"PWM channel {config.get('PWM_reverse', pump_name)}.", bold=True)
     )
     click.echo("We'll run the pumps continuously until the tubes are filled.")
     click.echo(
-        click.style("Press CTRL+C when the tubes are fully filled with water.", bold=True)
+        click.style(
+            "3. Press CTRL+C when the tubes are fully filled with water.", bold=True
+        )
     )
 
     while not click.confirm(click.style("Ready?", fg="green")):
@@ -137,21 +140,22 @@ def choose_settings() -> tuple[float, float]:
 
 
 def run_tests(
-    execute_pump: Callable, hz: float, dc: float
+    execute_pump: Callable, hz: float, dc: float, min_duration: float, max_duration: float
 ) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
     click.echo("Beginning tests.")
     results = []
-    durations_to_test = [0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5]
+    durations_to_test = [min_duration] * 4 + [max_duration] * 4
     for duration in durations_to_test:
 
         click.echo(
             "We will run the pump for a set amount of time (in seconds), and you will measure how much liquid is expelled."
         )
         click.echo(
-            "You can either use an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
+            "You can either use a container ont op of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
         )
+        click.echo("Place the exit tube into the container (or graduated cylinder).")
         while not click.confirm(click.style(f"Ready to test {duration}s?", fg="green")):
             pass
 
@@ -174,7 +178,7 @@ def run_tests(
     return durations_to_test, results
 
 
-def pump_calibration() -> None:
+def pump_calibration(min_duration: float, max_duration: float) -> None:
 
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -191,7 +195,7 @@ def pump_calibration() -> None:
         hz, dc = choose_settings()
 
         setup(pump_name, execute_pump, hz, dc)
-        durations, volumes = run_tests(execute_pump, hz, dc)
+        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration)
 
         (slope, std_slope), (bias, std_bias) = simple_linear_regression(
             durations, volumes
@@ -225,6 +229,20 @@ def pump_calibration() -> None:
         logger.info("Finished pump calibration.")
 
 
+@click.option(
+    "--min-duration",
+)
+@click.option(
+    "--max-duration",
+)
 @click.command(name="pump_calibration")
-def click_pump_calibration():
-    pump_calibration()
+def click_pump_calibration(min_duration, max_duration):
+
+    if max_duration is None and min_duration is None:
+        min_duration, max_duration = 0.75, 1.5
+    elif (max_duration is not None) and (min_duration is not None):
+        assert min_duration < max_duration, "min_duration >= max_duration"
+    else:
+        raise ValueError("min_duration and max_duration must both be set.")
+
+    pump_calibration(min_duration, max_duration)

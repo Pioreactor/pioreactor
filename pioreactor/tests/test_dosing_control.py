@@ -990,13 +990,14 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
 
 
 def test_changing_duty_cycle_over_mqtt() -> None:
-    algo = ContinuousCycle(unit=unit, experiment=experiment)
+    with ContinuousCycle(unit=unit, experiment=experiment) as algo:
 
-    assert algo.duty_cycle == 100
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/duty_cycle/set", 50)
-    pause()
-    assert algo.duty_cycle == 50
-    algo.set_state(algo.DISCONNECTED)
+        assert algo.duty_cycle == 100
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/duty_cycle/set", 50
+        )
+        pause()
+        assert algo.duty_cycle == 50
 
 
 def test_AltMediaCalculator() -> None:
