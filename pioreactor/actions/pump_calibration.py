@@ -146,8 +146,15 @@ def run_tests(
     click.echo()
     click.echo("Beginning tests.")
     results = []
-    durations_to_test = [min_duration] * 4 + [max_duration] * 4
-    for duration in durations_to_test:
+    durations_to_test = [
+        min_duration,
+        min_duration * 1.05,
+        min_duration * 1.1,
+        min_duration * 1.15,
+    ] + [max_duration * 0.85, max_duration * 0.90, max_duration * 0.95, max_duration]
+    for i, duration in enumerate(durations_to_test):
+        if i > 0:
+            click.echo("Remove the water from the container")
 
         click.echo(
             "We will run the pump for a set amount of time (in seconds), and you will measure how much liquid is expelled."
