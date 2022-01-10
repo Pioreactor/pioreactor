@@ -153,9 +153,9 @@ def run_tests(
             "We will run the pump for a set amount of time (in seconds), and you will measure how much liquid is expelled."
         )
         click.echo(
-            "You can either use a container ont op of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
+            "You can either use a container on top of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
         )
-        click.echo("Place the exit tube into the container (or graduated cylinder).")
+        click.echo("Place the outflow tube into the container (or graduated cylinder).")
         while not click.confirm(click.style(f"Ready to test {duration}s?", fg="green")):
             pass
 
@@ -229,12 +229,8 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         logger.info("Finished pump calibration.")
 
 
-@click.option(
-    "--min-duration",
-)
-@click.option(
-    "--max-duration",
-)
+@click.option("--min-duration", type=float)
+@click.option("--max-duration", type=float)
 @click.command(name="pump_calibration")
 def click_pump_calibration(min_duration, max_duration):
 
