@@ -31,7 +31,7 @@ class DosingController(BackgroundJob):
 
     # this is populated dynamically with subclasses of DosingAutomations in the form:
     # {
-    #    DosingAutomation1.key: DosingAutomation1,
+    #    DosingAutomation1.automation_name: DosingAutomation1,
     #    ...
     # }
     # this includes plugins

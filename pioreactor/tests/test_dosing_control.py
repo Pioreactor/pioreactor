@@ -10,6 +10,7 @@ from pioreactor.automations.dosing.turbidostat import Turbidostat
 
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.automations import DosingAutomation
+from pioreactor.automations.dosing.base import AltMediaCalculator
 from pioreactor.automations import events
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor import pubsub
@@ -996,3 +997,17 @@ def test_changing_duty_cycle_over_mqtt() -> None:
     pause()
     assert algo.duty_cycle == 50
     algo.set_state(algo.DISCONNECTED)
+
+
+def test_AltMediaCalculator() -> None:
+
+    ac = AltMediaCalculator()
+
+    data = {"volume_change": 1.0, "event": "add_media"}
+    assert 0.0 == ac.update(data, 0.0)
+
+    data = {"volume_change": 1.0, "event": "add_alt_media"}
+    assert 1 / 14.0 == 0.07142857142857142 == ac.update(data, 0.0)
+
+    data = {"volume_change": 1.0, "event": "add_alt_media"}
+    assert 0.13775510204081634 == ac.update(data, 1 / 14.0) < 2 / 14.0

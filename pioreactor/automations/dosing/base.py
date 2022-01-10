@@ -27,9 +27,8 @@ class ThroughputCalculator:
     """
 
     def update(
-        self, message, current_media_volume: float, current_alt_media_volume: float
+        self, payload: dict, current_media_volume: float, current_alt_media_volume: float
     ) -> tuple[float, float]:
-        payload = json.loads(message.payload)
         volume, event = float(payload["volume_change"]), payload["event"]
         if event == "add_media":
             current_media_volume += volume
@@ -50,8 +49,7 @@ class AltMediaCalculator:
 
     vial_volume = config.getfloat("bioreactor", "volume_ml")
 
-    def update(self, message, current_alt_media_fraction) -> float:
-        payload = json.loads(message.payload)
+    def update(self, payload: dict, current_alt_media_fraction) -> float:
         volume, event = float(payload["volume_change"]), payload["event"]
         if event == "add_media":
             return self.update_alt_media_fraction(current_alt_media_fraction, volume, 0)
@@ -156,7 +154,11 @@ class DosingAutomation(BackgroundSubJob):
         self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator()
         self._volume_throughput_calculator = self._init_volume_throughput_calculator()
 
+        # we republish metadata to broker since we edited it above - this is techdebt
+        self.publish_settings_to_broker()
+
         self.set_duration(duration)
+
         self.start_passive_listeners()
 
     def set_duration(self, duration: Optional[float]) -> None:
@@ -417,7 +419,13 @@ class DosingAutomation(BackgroundSubJob):
                         {
                             attr: getattr(self, attr, None)
                             for attr in self.published_settings
-                            if attr != "state"
+                            if attr
+                            not in [
+                                "state",
+                                "alt_media_fraction",
+                                "media_throughput",
+                                "alt_media_throughput",
+                            ]
                         }
                     ),
                 }
@@ -432,18 +440,19 @@ class DosingAutomation(BackgroundSubJob):
 
     def _update_alt_media_fraction(self, message) -> None:
         self.alt_media_fraction = self._alt_media_fraction_calculator.update(
-            message, self.alt_media_fraction
+            json.loads(message.payload), self.alt_media_fraction
         )
         # add to cache
         with local_persistant_storage("alt_media_fraction") as cache:
             cache[self.experiment] = str(self.alt_media_fraction)
 
     def _update_throughput(self, message) -> None:
+        payload = json.loads(message.payload)
         (
             self.media_throughput,
             self.alt_media_throughput,
         ) = self._volume_throughput_calculator.update(
-            message, self.media_throughput, self.alt_media_throughput
+            payload, self.media_throughput, self.alt_media_throughput
         )
 
         # add to cache

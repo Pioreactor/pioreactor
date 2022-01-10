@@ -184,7 +184,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # attributes are
     # {'datatype', 'unit', 'settable', 'persist'}
     # See PublishableSetting type
-    # TODO: turn this into a class, so it can be updated in subclasses and we still get the right metadata published.
+    # TODO: turn this into a data structure dict-like thingie, so it can be updated in subclasses and we still get the right metadata published.
     published_settings: dict[str, PublishableSetting] = dict()
 
     def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
