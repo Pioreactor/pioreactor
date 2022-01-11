@@ -4,6 +4,7 @@ import time
 from json import loads, dumps
 from configparser import NoOptionError
 from typing import Optional
+import signal
 import click
 
 from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
@@ -14,7 +15,7 @@ from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time, catchtime
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import local_persistant_storage, append_signal_handler
 
 
 def add_media(
@@ -86,6 +87,7 @@ def add_media(
         f"pioreactor/{unit}/{experiment}/dosing_events", json_output, qos=QOS.EXACTLY_ONCE
     )
 
+    print(signal.getsignal(signal.SIGTERM))
     try:
 
         pwm = PWM(MEDIA_PIN, calibration["hz"])
@@ -104,7 +106,8 @@ def add_media(
                     qos=QOS.EXACTLY_ONCE,
                 )
                 time.sleep(duration)
-
+    except SystemExit:
+        pass
     except Exception as e:
         logger.debug(e, exc_info=True)
         logger.error(e)
@@ -132,6 +135,11 @@ def click_add_media(ml, duration, continuously, source_of_event):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
+
+    def raise_error(*args):
+        raise SystemExit()
+
+    append_signal_handler(signal.SIGTERM, raise_error)
 
     return add_media(
         ml=ml,

@@ -430,12 +430,12 @@ class Monitor(BackgroundJob):
         # The payload provided is a json dict of options for the command line invocation of the job.
         self.subscribe_and_callback(
             self.run_job_on_machine,
-            f"pioreactor/{self.unit}/{UNIVERSAL_EXPERIMENT}/run/+",
+            f"pioreactor/{self.unit}/+/run/+",
         )
 
         self.subscribe_and_callback(
             self.run_job_on_machine,
-            f"pioreactor/{UNIVERSAL_IDENTIFIER}/{UNIVERSAL_EXPERIMENT}/run/+",
+            f"pioreactor/{UNIVERSAL_IDENTIFIER}/+/run/+",
         )
 
 

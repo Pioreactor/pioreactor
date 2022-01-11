@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import time
+from typing import Optional
 from contextlib import suppress
 from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.automations import events
-from pioreactor.hardware_mappings import PWM_TO_PIN
+from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.utils.pwm import PWM
 from pioreactor.config import config
 from pioreactor.utils import clamp
@@ -24,24 +25,23 @@ class ContinuousCycle(DosingAutomation):
     automation_name = "continuous_cycle"
     published_settings = {
         "duty_cycle": {"datatype": "float", "unit": "%", "settable": True},
-        "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, duty_cycle: int = 100, hz: int = 100, **kwargs):
+    def __init__(self, duty_cycle: float = 100, hz: int = 150, **kwargs) -> None:
         super(ContinuousCycle, self).__init__(**kwargs)
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "media")]
         self.pwm = PWM(pin, hz)
         self.duty_cycle = duty_cycle
 
-    def set_duty_cycle(self, new_dc):
+    def set_duty_cycle(self, new_dc: float) -> None:
         self.duty_cycle = clamp(0, float(new_dc), 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
-    def run(self):
+    def run(self) -> Optional[events.Event]:
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
-            return
+            return None
 
         elif self.state != self.READY:
             time.sleep(5)
@@ -53,19 +53,19 @@ class ContinuousCycle(DosingAutomation):
             self.latest_event = event
             return event
 
-    def on_sleeping(self):
+    def on_sleeping(self) -> None:
         self.pwm.stop()
 
-    def on_sleeping_to_ready(self):
+    def on_sleeping_to_ready(self) -> None:
         self.pwm.start(self.duty_cycle)
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         with suppress(AttributeError):
             self.pwm.cleanup()
 
-        super(ContinuousCycle, self).on_disconnect()
+        super(ContinuousCycle, self).on_disconnected()
 
-    def execute(self):
+    def execute(self) -> events.Event:
         self.pwm.start(self.duty_cycle)
         return events.RunningContinuously(
             f"Running pump on channel {config.getint('PWM_reverse', 'media')} continuously"

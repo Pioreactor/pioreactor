@@ -489,7 +489,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if threading.current_thread() is threading.main_thread():
             atexit.register(disconnect_gracefully, "Python atexit")
 
-            # terminate command, ex: pkill
+            # terminate command, ex: pkill, kill
             append_signal_handler(signal.SIGTERM, disconnect_gracefully)
 
             # keyboard interrupt

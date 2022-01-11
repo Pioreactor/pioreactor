@@ -9,7 +9,7 @@ else:
     from busio import I2C  # type: ignore
 
 
-from adafruit_bus_device.i2c_device import I2CDevice
+from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
 
 from pioreactor.types import GPIO_Pin, PWM_Channel
 from pioreactor.version import hardware_version_info
@@ -47,7 +47,7 @@ DAC = hex(73)  # 0x49
 TEMP = hex(79)  # 0x4f
 
 
-def is_HAT_present():
+def is_HAT_present() -> bool:
     with I2C(SCL, SDA) as i2c:
         try:
             I2CDevice(i2c, ADC, probe=True)
@@ -56,7 +56,7 @@ def is_HAT_present():
             return False
 
 
-def is_heating_pcb_present():
+def is_heating_pcb_present() -> bool:
     with I2C(SCL, SDA) as i2c:
         try:
             I2CDevice(i2c, TEMP, probe=True)
