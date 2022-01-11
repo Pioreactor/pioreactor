@@ -12,7 +12,6 @@ from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.utils.math_helpers import (
-    simple_linear_regression,
     simple_linear_regression_with_forced_nil_intercept,
 )
 from pioreactor.utils.timing import current_utc_time
@@ -61,7 +60,7 @@ def which_pump_are_you_calibrating():
     if r == "1":
         if not missing_media:
             click.confirm(
-                click.style("Confirm over-writting existing calibration?", fg="green"),
+                click.style("Confirm over-writing existing calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -69,7 +68,7 @@ def which_pump_are_you_calibrating():
     elif r == "2":
         if not missing_alt_media:
             click.confirm(
-                click.style("Confirm over-writting existing calibration?", fg="green"),
+                click.style("Confirm over-writing existing calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -77,7 +76,7 @@ def which_pump_are_you_calibrating():
     elif r == "3":
         if not missing_waste:
             click.confirm(
-                click.style("Confirm over-writting existing calibration?", fg="green"),
+                click.style("Confirm over-writing existing calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -127,15 +126,15 @@ def choose_settings() -> tuple[float, float]:
     click.clear()
     click.echo()
     hz = click.prompt(
-        click.style("Enter frequency of PWM. [enter] for default 100hz", fg="green"),
+        click.style("Enter frequency of PWM. [enter] for default 150 hz", fg="green"),
         type=click.FloatRange(0, 10000),
-        default=100,
+        default=150,
         show_default=False,
     )
     dc = click.prompt(
-        click.style("Enter duty cycle percent. [enter] for default 66%", fg="green"),
+        click.style("Enter duty cycle percent. [enter] for default 90%", fg="green"),
         type=click.FloatRange(0, 100),
-        default=66,
+        default=90,
         show_default=False,
     )
 
@@ -209,9 +208,10 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         setup(pump_name, execute_pump, hz, dc)
         durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration)
 
-        (slope, std_slope), (bias, std_bias) = simple_linear_regression(
-            durations, volumes
-        )
+        (slope, std_slope), (
+            bias,
+            std_bias,
+        ) = simple_linear_regression_with_forced_nil_intercept(durations, volumes)
 
         # check parameters for problems
         if slope < 0:
@@ -238,13 +238,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         logger.debug(
             f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}"
         )
-        (slope2, std_slope2), (
-            bias2,
-            std_bias2,
-        ) = simple_linear_regression_with_forced_nil_intercept(durations, volumes)
-        logger.debug(
-            f"slope={slope2:0.2f} ± {std_slope2:0.2f}, bias={bias2:0.2f} ± {std_bias2:0.2f}"
-        )
+
         logger.debug(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.1f}mL to {(slope * max_duration + bias):0.1f}mL, but will be okay for slightly outside this range too."
         )
