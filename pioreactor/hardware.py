@@ -50,7 +50,7 @@ TEMP = 0x4F  # hex(79)
 def is_HAT_present() -> bool:
     with I2C(SCL, SDA) as i2c:
         try:
-            I2CDevice(i2c, ADC, probe=True)
+            I2CDevice(i2c, DAC, probe=True)  # DAC, so we don't interfere with the ADC.
             return True
         except ValueError:
             return False

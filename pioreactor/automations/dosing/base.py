@@ -203,21 +203,16 @@ class DosingAutomation(BackgroundSubJob):
             return None
 
         elif self.state != self.READY:
-            # solution: wait 25% of duration. If we are still waiting, exit and we will try again next duration.
+            # wait a minute, and if not unpaused, just move on.
             time_waited = 0
+            sleep_for = 5
+
             while self.state != self.READY:
-
-                if self.duration and time_waited > (self.duration * 60 * 0.25):
-                    event = events.NoEvent(
-                        "Waited too long on sensor data. Skipping this run."
-                    )
-                    break
-                elif self.state == self.DISCONNECTED:
-                    return None
-
-                sleep_for = 5
                 time.sleep(sleep_for)
                 time_waited += sleep_for
+
+                if time_waited > 60:
+                    return None
 
             else:
                 return self.run()

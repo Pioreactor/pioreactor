@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from pioreactor.automations.dosing.base import DosingAutomation
-from pioreactor.automations import events
 
 
 class Silent(DosingAutomation):
@@ -16,5 +15,5 @@ class Silent(DosingAutomation):
     def __init__(self, **kwargs):
         super(Silent, self).__init__(**kwargs)
 
-    def execute(self) -> events.Event:
-        return events.NoEvent("never execute dosing events in Silent.")
+    def execute(self) -> None:
+        return
