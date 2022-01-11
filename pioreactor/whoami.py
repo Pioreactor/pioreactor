@@ -2,20 +2,10 @@
 import sys
 import os
 from functools import lru_cache
-from pioreactor.version import hardware_version_info
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
-
-
-def is_hat_present() -> bool:
-    if is_testing_env():
-        return True
-    elif hardware_version_info == (0, 1):
-        return True
-    else:
-        return os.path.exists("/proc/device-tree/hat/")
 
 
 def get_latest_testing_experiment_name() -> str:

@@ -20,6 +20,12 @@ class MockI2C:
     def unlock(self, *args, **kwargs):
         pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
 
 class MockAnalogIn:
     INIT_STATE = 0.01

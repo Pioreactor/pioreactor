@@ -7,11 +7,16 @@ import json
 import click
 
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_hat_present
+from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.error_codes import ErrorCode
-from pioreactor.hardware_mappings import PWM_TO_PIN, HALL_SENSOR_PIN
+from pioreactor.hardware import (
+    PWM_TO_PIN,
+    HALL_SENSOR_PIN,
+    is_heating_pcb_present,
+    is_HAT_present,
+)
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils import clamp, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
@@ -214,9 +219,13 @@ class Stirrer(BackgroundJob):
         )
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
 
-        if not is_hat_present():
+        if not is_HAT_present():
             self.set_state(self.DISCONNECTED)
-            raise ValueError("Pioreactor HAT must be present.")
+            raise IOError("Pioreactor HAT must be present.")
+
+        if (rpm_calculator is not None) and not is_heating_pcb_present():
+            self.set_state(self.DISCONNECTED)
+            raise IOError("Heating PCB must be present to measure RPM.")
 
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
         self.pwm = PWM(pin, hertz)

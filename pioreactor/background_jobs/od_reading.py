@@ -91,7 +91,6 @@ from pioreactor.whoami import (
     get_unit_name,
     get_latest_experiment_name,
     is_testing_env,
-    is_hat_present,
 )
 from pioreactor.config import config
 from pioreactor.utils import local_intermittent_storage
@@ -104,7 +103,7 @@ from pioreactor.actions.led_intensity import (
     change_leds_intensities_temporarily,
     LED_UNLOCKED,
 )
-from pioreactor.hardware_mappings import SCL, SDA
+from pioreactor.hardware import SCL, SDA, is_HAT_present
 from pioreactor.pubsub import QOS, publish
 from pioreactor.version import hardware_version_info
 from pioreactor.types import PD_Channel, LED_Channel
@@ -174,9 +173,8 @@ class ADCReader(LoggerMixin):
         self.channels = channels
         self.batched_readings: dict[PD_Channel, float] = {}
 
-        self.logger.debug(
-            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
-        )
+        if not is_HAT_present():
+            raise IOError("Pioreactor HAT must be present.")
 
     def setup_adc(self) -> ADCReader:
         """
@@ -219,6 +217,9 @@ class ADCReader(LoggerMixin):
             self.check_on_gain(max_signal)
 
         self._setup_complete = True
+        self.logger.debug(
+            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
+        )
         return self
 
     def check_on_max(self, value: float) -> None:
@@ -627,10 +628,6 @@ class ODReader(BackgroundJob):
             job_name="od_reading", unit=unit, experiment=experiment
         )
 
-        if not is_hat_present():
-            self.set_state(self.DISCONNECTED)
-            raise ValueError("Pioreactor HAT must be present.")
-
         self.adc_reader = adc_reader
         self.channel_angle_map = channel_angle_map
         self.interval = interval
@@ -643,6 +640,10 @@ class ODReader(BackgroundJob):
         self.non_ir_led_channels: list[LED_Channel] = [
             ch for ch in ALL_LED_CHANNELS if ch != self.ir_channel
         ]
+
+        if not is_HAT_present():
+            self.set_state(self.DISCONNECTED)
+            raise IOError("Pioreactor HAT must be present.")
 
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."

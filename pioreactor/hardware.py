@@ -1,5 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
+from pioreactor.whoami import is_testing_env
+
+if is_testing_env():
+    from pioreactor.utils.mock import MockI2C as I2C
+else:
+    from busio import I2C  # type: ignore
+
+
+from adafruit_bus_device.i2c_device import I2CDevice
+
 from pioreactor.types import GPIO_Pin, PWM_Channel
 from pioreactor.version import hardware_version_info
 
@@ -34,3 +45,21 @@ SCL: GPIO_Pin = 3
 ADC = hex(72)  # 0x48
 DAC = hex(73)  # 0x49
 TEMP = hex(79)  # 0x4f
+
+
+def is_HAT_present():
+    with I2C(SCL, SDA) as i2c:
+        try:
+            I2CDevice(i2c, ADC, probe=True)
+            return True
+        except ValueError:
+            return False
+
+
+def is_heating_pcb_present():
+    with I2C(SCL, SDA) as i2c:
+        try:
+            I2CDevice(i2c, TEMP, probe=True)
+            return True
+        except ValueError:
+            return False

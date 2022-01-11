@@ -76,7 +76,7 @@ def blink() -> None:
 
         GPIO.setmode(GPIO.BCM)
 
-        from pioreactor.hardware_mappings import PCB_LED_PIN as LED_PIN
+        from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 
         def led_on():
             GPIO.output(LED_PIN, GPIO.HIGH)

@@ -36,21 +36,11 @@ from pioreactor.utils import (
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
 from pioreactor.types import PD_Channel, LED_Channel
+from pioreactor.hardware import is_HAT_present, is_heating_pcb_present
 
 
 def test_pioreactor_hat_present(logger: Logger, unit: str, experiment: str) -> None:
-    try:
-        adc_reader = ADCReader(
-            channels=ALL_PD_CHANNELS,
-            dynamic_gain=False,
-            initial_gain=16,
-            fake_data=is_testing_env(),
-        )
-        adc_reader.setup_adc()
-    except (AssertionError, OSError):
-        assert False
-    else:
-        assert True
+    assert is_HAT_present()
 
 
 def test_all_positive_correlations_between_pds_and_leds(
@@ -188,13 +178,7 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
 
 
 def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
-    try:
-        with TemperatureController("silent", unit=unit, experiment=experiment):
-            ...
-    except IOError:
-        assert False
-    else:
-        assert True
+    assert is_heating_pcb_present()
 
 
 def test_positive_correlation_between_temp_and_heating(

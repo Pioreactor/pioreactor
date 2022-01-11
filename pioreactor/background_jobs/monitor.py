@@ -18,7 +18,7 @@ from pioreactor.whoami import (
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.pubsub import QOS
-from pioreactor.hardware_mappings import (
+from pioreactor.hardware import (
     PCB_LED_PIN as LED_PIN,
     PCB_BUTTON_PIN as BUTTON_PIN,
 )
