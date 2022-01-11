@@ -42,9 +42,9 @@ SCL: GPIO_Pin = 3
 
 
 # I2C channels used
-ADC = hex(72)  # 0x48
-DAC = hex(73)  # 0x49
-TEMP = hex(79)  # 0x4f
+ADC = 0x48  # hex(72)
+DAC = 0x49  # hex(73)
+TEMP = 0x4F  # hex(79)
 
 
 def is_HAT_present() -> bool:

@@ -63,6 +63,8 @@ def add_alt_media(
     assert isinstance(ml, (float, int))
     assert isinstance(duration, (float, int))
     assert duration >= 0, "duration should be greater than 0"
+    if duration == 0.0:
+        return 0.0
 
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
@@ -89,7 +91,7 @@ def add_alt_media(
         with catchtime() as delta_time:
             pwm.start(calibration["dc"])
 
-        time.sleep(duration - delta_time())
+        time.sleep(max(0, duration - delta_time()))
 
     except Exception as e:
         logger.debug("Add alt media failed", exc_info=True)

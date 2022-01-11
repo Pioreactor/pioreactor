@@ -97,7 +97,7 @@ def add_media(
         with catchtime() as delta_time:
             pwm.start(calibration["dc"])
 
-        time.sleep(duration - delta_time())
+        time.sleep(max(0, duration - delta_time()))
 
         if continuously:
             while True:

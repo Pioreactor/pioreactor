@@ -7,15 +7,18 @@ from typing import Optional
 
 import click
 
-from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
+from pioreactor.utils import (
+    pump_ml_to_duration,
+    pump_duration_to_ml,
+    local_persistant_storage,
+)
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import current_utc_time
-from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import current_utc_time, catchtime
 
 
 def remove_waste(
@@ -61,6 +64,8 @@ def remove_waste(
     assert isinstance(ml, (float, int))
     assert isinstance(duration, (float, int))
     assert duration >= 0, "duration should be greater than 0"
+    if duration == 0:
+        return 0.0
 
     publish(
         f"pioreactor/{unit}/{experiment}/dosing_events",
@@ -85,8 +90,10 @@ def remove_waste(
         pwm = PWM(WASTE_PIN, calibration["hz"])
         pwm.lock()
 
-        pwm.start(calibration["dc"])
-        time.sleep(duration)
+        with catchtime() as delta_time:
+            pwm.start(calibration["dc"])
+
+        time.sleep(max(0, duration - delta_time()))
 
     except Exception as e:
         logger.debug("Remove waste failed", exc_info=True)
