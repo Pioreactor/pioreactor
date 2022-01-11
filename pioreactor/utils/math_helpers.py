@@ -43,7 +43,7 @@ def simple_linear_regression_with_forced_nil_intercept(
     slope = sum_xy / sum_xx
 
     residuals_sq = np.sum((y - slope * x) ** 2)
-    std_error_slope = np.sqrt(residuals_sq / (n - 1) / np.sum(x ** 2))
+    std_error_slope = np.sqrt(residuals_sq / (n - 1) / sum_xx)
 
     return (slope, std_error_slope), (0, 0.0)
 

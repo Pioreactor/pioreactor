@@ -73,6 +73,8 @@ def add_media(
     assert isinstance(ml, (float, int))
     assert isinstance(duration, (float, int))
     assert duration >= 0, "duration should be greater than 0"
+    if duration == 0:
+        return 0.0
 
     # publish this first, as downstream jobs need to know about it.
     json_output = dumps(
@@ -87,7 +89,6 @@ def add_media(
         f"pioreactor/{unit}/{experiment}/dosing_events", json_output, qos=QOS.EXACTLY_ONCE
     )
 
-    print(signal.getsignal(signal.SIGTERM))
     try:
 
         pwm = PWM(MEDIA_PIN, calibration["hz"])
