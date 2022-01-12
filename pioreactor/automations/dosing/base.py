@@ -17,6 +17,7 @@ from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.config import config
 from pioreactor.types import PublishableSetting
+from pioreactor import exc
 
 
 class ThroughputCalculator:
@@ -337,13 +338,13 @@ class DosingAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise RuntimeError(
+                raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
         # check most stale time
         if (time.time() - self.most_stale_time) > 5 * 60:
-            raise ValueError(
+            raise exc.JobRequiredError(
                 f"readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?. Last reading occurred at {self.most_stale_time}, current time is {time.time()}."
             )
 
@@ -356,13 +357,13 @@ class DosingAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise RuntimeError(
+                raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
         # check most stale time
         if (time.time() - self.most_stale_time) > 5 * 60:
-            raise ValueError(
+            raise exc.JobRequiredError(
                 f"readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?. Last reading occurred at {self.most_stale_time}, current time is {time.time()}."
             )
 

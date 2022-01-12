@@ -12,7 +12,7 @@ def _get_hardware_version():
             text = f.read().rstrip("\x00")
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
-        # no eeprom? Probably the first dev boards, or testing env?
+        # no eeprom? Probably the first dev boards, or testing env, or EEPROM not written.
         return (0, 1)
 
 

@@ -22,6 +22,7 @@ from pioreactor.utils import clamp, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils.timing import RepeatedTimer, current_utc_time
+from pioreactor import exc
 
 
 class RpmCalculator:
@@ -221,11 +222,11 @@ class Stirrer(BackgroundJob):
 
         if not is_HAT_present():
             self.set_state(self.DISCONNECTED)
-            raise IOError("Pioreactor HAT must be present.")
+            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         if (rpm_calculator is not None) and not is_heating_pcb_present():
             self.set_state(self.DISCONNECTED)
-            raise IOError("Heating PCB must be present to measure RPM.")
+            raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
 
         pin = PWM_TO_PIN[config.getint("PWM_reverse", "stirring")]
         self.pwm = PWM(pin, hertz)

@@ -142,7 +142,7 @@ def led_intensity(
     channels, intensities = _list(channels), _list(intensities)
 
     if len(channels) != len(intensities):
-        raise RuntimeError("channels must be the same length as intensities")
+        raise ValueError("channels must be the same length as intensities")
 
     # any locked channels?
     for channel in channels:

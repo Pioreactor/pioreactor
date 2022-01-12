@@ -55,10 +55,10 @@ def test_error_is_thrown_if_lengths_are_wrong() -> None:
     unit = get_unit_name()
     exp = get_latest_experiment_name()
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         led_intensity(channels=["A", "B"], intensities=[20], unit=unit, experiment=exp)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         led_intensity(channels=["A", "B"], intensities=20, unit=unit, experiment=exp)
 
     assert led_intensity(channels=["A"], intensities=20, unit=unit, experiment=exp)

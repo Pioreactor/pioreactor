@@ -16,6 +16,7 @@ from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations import events
 from pioreactor.utils import is_pio_job_running
 from pioreactor.types import LED_Channel
+from pioreactor import exc
 
 
 class LEDAutomation(BackgroundSubJob):
@@ -199,13 +200,13 @@ class LEDAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise RuntimeError(
+                raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
         # check most stale time
         if (time.time() - self.most_stale_time) > 5 * 60:
-            raise ValueError(
+            raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
 
@@ -218,13 +219,13 @@ class LEDAutomation(BackgroundSubJob):
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise RuntimeError(
+                raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be running."
                 )
 
         # check most stale time
         if (time.time() - self.most_stale_time) > 5 * 60:
-            raise ValueError(
+            raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
 

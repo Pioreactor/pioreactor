@@ -45,6 +45,7 @@ from pioreactor.config import config
 from pioreactor.utils.pwm import PWM
 from pioreactor.background_jobs.utils import AutomationDict
 from pioreactor.error_codes import ErrorCode
+from pioreactor import exc
 
 
 class TemperatureController(BackgroundJob):
@@ -98,11 +99,11 @@ class TemperatureController(BackgroundJob):
 
         if not is_HAT_present():
             self.set_state(self.DISCONNECTED)
-            raise IOError("Pioreactor HAT must be present.")
+            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         if not is_heating_pcb_present():
             self.set_state(self.DISCONNECTED)
-            raise IOError(
+            raise exc.HardwareNotFoundError(
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
 
@@ -201,7 +202,7 @@ class TemperatureController(BackgroundJob):
             self.logger.error(
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
-            raise IOError(
+            raise exc.HardwareNotFoundError(
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
 

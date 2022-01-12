@@ -113,6 +113,12 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
                     "timestamp": current_utc_time(),
                 }
             )
+            cache["stirring_calibration_data"] = json.dumps(
+                {
+                    "timestamp": current_utc_time(),
+                    "data": {"dcs": dcs, "measured_rpms": measured_rpms},
+                }
+            )
 
 
 @click.option(

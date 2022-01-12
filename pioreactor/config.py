@@ -108,7 +108,7 @@ def get_config():
         global_config_path = "/home/pi/.pioreactor/config.ini"
         local_config_path = "/home/pi/.pioreactor/unit_config.ini"
         if not os.path.isfile(global_config_path):
-            raise ValueError(
+            raise FileNotFoundError(
                 "/home/pi/.pioreactor/config.ini is missing from this Pioreactor. Has it completed initializing?"
             )
 

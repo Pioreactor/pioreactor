@@ -108,6 +108,7 @@ from pioreactor.pubsub import QOS, publish
 from pioreactor.version import hardware_version_info
 from pioreactor.types import PD_Channel, LED_Channel
 from pioreactor.error_codes import ErrorCode
+from pioreactor import exc
 
 ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2"]
 
@@ -174,7 +175,7 @@ class ADCReader(LoggerMixin):
         self.batched_readings: dict[PD_Channel, float] = {}
 
         if not is_HAT_present():
-            raise IOError("Pioreactor HAT must be present.")
+            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
     def setup_adc(self) -> ADCReader:
         """
@@ -643,7 +644,7 @@ class ODReader(BackgroundJob):
 
         if not is_HAT_present():
             self.set_state(self.DISCONNECTED)
-            raise IOError("Pioreactor HAT must be present.")
+            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         self.logger.debug(
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
@@ -685,7 +686,7 @@ class ODReader(BackgroundJob):
         A=IR
             """
             )
-            raise KeyError()
+            raise KeyError("`IR` value not found in section.")
 
     def record_and_publish_from_adc(self) -> None:
 
@@ -730,7 +731,7 @@ class ODReader(BackgroundJob):
             verbose=False,
         )
         if not r:
-            raise ValueError("IR LED could not be started. Stopping OD reading.")
+            raise OSError("IR LED could not be started. Stopping OD reading.")
 
         return
 

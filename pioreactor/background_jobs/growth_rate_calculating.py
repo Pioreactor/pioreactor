@@ -46,6 +46,7 @@ from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
 from pioreactor.types import PD_Channel
+from pioreactor import exc
 
 
 class GrowthRateCalculator(BackgroundJob):
@@ -196,7 +197,7 @@ class GrowthRateCalculator(BackgroundJob):
         if self.ignore_cache:
             if not is_pio_job_running("od_reading"):
                 self.logger.error("OD reading should be running. Stopping.")
-                raise RuntimeError("OD reading should be running. Stopping.")
+                raise exc.JobRequiredError("OD reading should be running. Stopping.")
 
             self.logger.info(
                 "Computing OD normalization metrics. This may take a few minutes"

@@ -32,6 +32,7 @@ from pioreactor.utils.math_helpers import (
     correlation,
     residuals_of_simple_linear_regression,
 )
+from pioreactor import exc
 
 
 def od_normalization(unit: str, experiment: str, n_samples=35):
@@ -49,7 +50,7 @@ def od_normalization(unit: str, experiment: str, n_samples=35):
             and not is_testing_env()
         ):
             logger.error(" OD Reading should be running. Run OD Reading first. Exiting.")
-            raise RuntimeError(
+            raise exc.JobRequiredError(
                 "OD Reading should be running. Run OD Reading first. Exiting."
             )
 
