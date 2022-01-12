@@ -2,7 +2,7 @@
 from __future__ import annotations
 import json
 import click
-from typing import Optional, Iterator
+from typing import Optional, Iterator, Any
 from contextlib import contextmanager
 
 from paho.mqtt.client import Client  # type: ignore
@@ -33,7 +33,7 @@ def change_leds_intensities_temporarily(
     """
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: float(cache.get(c, 0)) for c in channels}
+            old_state = {c: float(cache.get(c, 0.0)) for c in channels}
 
         led_intensity(channels, new_intensities, **kwargs)
 
@@ -55,7 +55,7 @@ def lock_leds_temporarily(channels: list[LED_Channel]) -> Iterator[None]:
                 cache[c] = LED_UNLOCKED
 
 
-def is_locked(channel: LED_Channel) -> bool:
+def is_led_channel_locked(channel: LED_Channel) -> bool:
     with local_intermittent_storage("led_locks") as cache:
         return cache.get(channel, LED_UNLOCKED) == LED_LOCKED
 
@@ -71,7 +71,7 @@ def _update_current_state(
 
     with local_intermittent_storage("leds") as led_cache:
         old_state = {
-            channel: float(led_cache.get(channel, 0)) for channel in ALL_LED_CHANNELS
+            channel: float(led_cache.get(channel, 0.0)) for channel in ALL_LED_CHANNELS
         }
 
         # update cache
@@ -79,13 +79,13 @@ def _update_current_state(
             led_cache[channel] = str(intensity)
 
         new_state = {
-            channel: float(led_cache.get(channel, 0)) for channel in ALL_LED_CHANNELS
+            channel: float(led_cache.get(channel, 0.0)) for channel in ALL_LED_CHANNELS
         }
 
         return new_state, old_state
 
 
-def _list(x: list | float | str) -> list:
+def _list(x: Any) -> list:
     if isinstance(x, list):
         return x
     else:
@@ -146,7 +146,7 @@ def led_intensity(
 
     # any locked channels?
     for channel in channels:
-        if is_locked(channel):
+        if is_led_channel_locked(channel):
             updated_successfully = False
             logger.warning(
                 f"Unable to update channel {channel} due to a lock on it. Please try again."
@@ -155,7 +155,11 @@ def led_intensity(
     # remove locked channels:
     try:
         channels, intensities = zip(  # type: ignore
-            *[(c, i) for c, i in zip(channels, intensities) if not is_locked(c)]
+            *[
+                (c, i)
+                for c, i in zip(channels, intensities)
+                if not is_led_channel_locked(c)
+            ]
         )
     except ValueError:
         # if the only channel being updated is locked, the resulting error is a ValueError: not enough values to unpack (expected 2, got 0)

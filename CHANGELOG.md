@@ -1,6 +1,11 @@
 ### Upcoming
  - Added more error codes for the ADC and temperature
  - Reduce chance of running multiple growth_rate_calculating jobs
+ - Custom exceptions thrown in the Python software.
+ - New checks for HAT being present, and Heating PCB being present, before a job is run (if required in the job).
+ - QOL improvements to stirring calibration
+ - Calibrations now store the data locally, alongside the calibration results, in the local storage.
+ -
 
 
 ### 22.1.0

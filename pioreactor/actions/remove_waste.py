@@ -4,6 +4,7 @@ import time
 from json import loads, dumps
 from configparser import NoOptionError
 from typing import Optional
+import signal
 
 import click
 
@@ -11,6 +12,7 @@ from pioreactor.utils import (
     pump_ml_to_duration,
     pump_duration_to_ml,
     local_persistant_storage,
+    append_signal_handler,
 )
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -94,7 +96,8 @@ def remove_waste(
             pwm.start(calibration["dc"])
 
         time.sleep(max(0, duration - delta_time()))
-
+    except SystemExit:
+        pass
     except Exception as e:
         logger.debug("Remove waste failed", exc_info=True)
         logger.error(e)
@@ -119,5 +122,10 @@ def click_remove_waste(ml, duration, source_of_event):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
+
+    def raise_error(*args):
+        raise SystemExit()
+
+    append_signal_handler(signal.SIGTERM, raise_error)
 
     return remove_waste(ml, duration, source_of_event, unit, experiment)

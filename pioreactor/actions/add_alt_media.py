@@ -3,9 +3,15 @@ import time
 from json import loads, dumps
 from configparser import NoOptionError
 from typing import Optional
+import signal
 import click
 
-from pioreactor.utils import pump_ml_to_duration, pump_duration_to_ml
+from pioreactor.utils import (
+    pump_ml_to_duration,
+    pump_duration_to_ml,
+    append_signal_handler,
+    local_persistant_storage,
+)
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
 from pioreactor.pubsub import publish, QOS
@@ -13,7 +19,6 @@ from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time, catchtime
-from pioreactor.utils import local_persistant_storage
 
 
 def add_alt_media(
@@ -92,7 +97,8 @@ def add_alt_media(
             pwm.start(calibration["dc"])
 
         time.sleep(max(0, duration - delta_time()))
-
+    except SystemExit:
+        pass
     except Exception as e:
         logger.debug("Add alt media failed", exc_info=True)
         logger.error(e)
@@ -117,5 +123,10 @@ def click_add_alt_media(ml, duration, source_of_event):
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
+
+    def raise_error(*args):
+        raise SystemExit()
+
+    append_signal_handler(signal.SIGTERM, raise_error)
 
     return add_alt_media(ml, duration, source_of_event, unit=unit, experiment=experiment)
