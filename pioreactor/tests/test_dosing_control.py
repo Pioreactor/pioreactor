@@ -40,30 +40,29 @@ def setup_function() -> None:
 
 
 def test_silent_automation() -> None:
-    algo = Silent(volume=None, duration=60, unit=unit, experiment=experiment)
-    pause()
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.01}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 1.0}',
-    )
-    pause()
-    assert isinstance(algo.run(), events.NoEvent)
+    with Silent(volume=None, duration=60, unit=unit, experiment=experiment) as algo:
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.01}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 1.0}',
+        )
+        pause()
+        assert algo.run() is None
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        '{"growth_rate": 0.02}',
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        '{"od_filtered": 1.1}',
-    )
-    pause()
-    assert isinstance(algo.run(), events.NoEvent)
-    algo.set_state(algo.DISCONNECTED)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            '{"growth_rate": 0.02}',
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            '{"od_filtered": 1.1}',
+        )
+        pause()
+        assert algo.run() is None
 
 
 def test_turbidostat_automation() -> None:

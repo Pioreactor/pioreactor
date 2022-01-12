@@ -234,6 +234,12 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                     "timestamp": current_utc_time(),
                 }
             )
+            cache[f"{pump_name}_calibration_data"] = json.dumps(
+                {
+                    "timestamp": current_utc_time(),
+                    "data": {"durations": durations, "volumes": volumes},
+                }
+            )
 
         logger.debug(
             f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}"

@@ -99,7 +99,7 @@ def pios():
     """
     Command each of the worker Pioreactors with the `pios` command.
 
-    See full documentation here: https://github.com/Pioreactor/pioreactor/wiki/Command-line-interface#leader-commands
+    See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface#leader-only-commands-to-control-workers
 
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """

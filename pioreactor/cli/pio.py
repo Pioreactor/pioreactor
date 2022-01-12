@@ -34,13 +34,14 @@ import pioreactor.utils.networking as networking
 def pio() -> None:
     """
     Execute commands on this Pioreactor.
-    See full documentation here: https://pioreactor.com/pages/Command-line-interface
+    See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
 
 
 @pio.command(name="logs", short_help="show recent logs")
-def logs() -> None:
+@click.option("-n", type=int, default=100)
+def logs(n) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
@@ -57,7 +58,7 @@ def logs() -> None:
             f"{time.strftime('%Y-%m-%dT%H:%M:%S%z', time.localtime())} [{payload['task']}] {payload['level']} {payload['message']}"
         )
 
-    click.echo(tail("-n", 100, config["logging"]["log_file"]))
+    click.echo(tail("-n", n, config["logging"]["log_file"]))
 
     subscribe_and_callback(cb, f"pioreactor/{get_unit_name()}/+/logs/+")
 
@@ -345,7 +346,7 @@ if am_I_leader():
     def cluster_status() -> None:
 
         click.secho(
-            f"{'Unit name':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
+            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
             bold=True,
         )
         for hostname, inventory_status in config["network.inventory"].items():
