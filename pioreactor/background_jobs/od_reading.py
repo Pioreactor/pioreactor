@@ -158,6 +158,7 @@ class ADCReader(LoggerMixin):
 
     oversampling_count: int = 25
     readings_completed: int = 0
+    most_appropriate_AC_hz: Optional[float] = None
 
     def __init__(
         self,
@@ -350,11 +351,11 @@ class ADCReader(LoggerMixin):
 
         try:
             C, b, c = np.linalg.solve(M, Y)
-        except np.linalg.LinAlgError:
-            self.logger.error("Error in regression.")
-            self.logger.debug(f"x={x}")
-            self.logger.debug(f"y={y}")
-            return (y_.mean(), None, None), 0
+        except np.linalg.LinAlgError as e:
+            self.logger.error(f"Error in regression. {e}")
+            self.logger.debug(f"{x=}")
+            self.logger.debug(f"{y=}")
+            return (y_.mean(), None, None), float("inf")
 
         y_model = C + b * np.sin(freq * tau * x_) + c * np.cos(freq * tau * x_)
         SSE = np.sum((y_ - y_model) ** 2)
@@ -430,6 +431,12 @@ class ADCReader(LoggerMixin):
                     )
 
             batched_estimates_: dict[PD_Channel, float] = {}
+
+            if self.most_appropriate_AC_hz is None:
+                self.most_appropriate_AC_hz = self.determine_most_appropriate_AC_hz(
+                    timestamps, aggregated_signals
+                )
+
             for channel in self.channels:
                 (
                     best_estimate_of_signal_,
@@ -437,7 +444,7 @@ class ADCReader(LoggerMixin):
                 ), _ = self.sin_regression_with_known_freq(
                     timestamps[channel],
                     aggregated_signals[channel],
-                    60,  # TODO - this should be empirically determined.
+                    self.most_appropriate_AC_hz,
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
@@ -497,6 +504,28 @@ class ADCReader(LoggerMixin):
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
             raise e
+
+    def determine_most_appropriate_AC_hz(
+        self,
+        timestamps: dict[PD_Channel, list[float]],
+        aggregated_signals: dict[PD_Channel, list[int]],
+    ) -> float:
+        FREQS_TO_TRY = [60.0, 50.0]
+
+        first_channel = self.channels[0]
+        argmin_freq = None
+        min_AIC = float("inf")
+
+        for freq in FREQS_TO_TRY:
+            _, AIC = self.sin_regression_with_known_freq(
+                timestamps[first_channel], aggregated_signals[first_channel], freq=freq
+            )
+            if AIC < min_AIC:
+                min_AIC = AIC
+                argmin_freq = freq
+
+        assert argmin_freq is not None
+        return argmin_freq
 
 
 class IrLedReferenceTracker(LoggerMixin):

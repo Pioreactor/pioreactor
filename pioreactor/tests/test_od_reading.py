@@ -12,12 +12,13 @@ def pause() -> None:
 
 def test_sin_regression_exactly() -> None:
 
+    freq = 60
     x = [i / 25 for i in range(25)]
-    y = [10 + 2 * np.sin(60 * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
+    y = [10 + 2 * np.sin(freq * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, freq)
     assert isinstance(A, float)
     assert isinstance(phi, float)
     assert np.abs(C - 10) < 0.1
@@ -99,3 +100,42 @@ def test_sin_regression_with_strong_penalizer() -> None:
         [i / 25 for i in range(25)], [100] * 25, 60, prior_C=125, penalizer_C=1_000_000
     )
     assert abs(C - 125) < 0.01
+
+
+def test_ADC_picks_to_correct_freq() -> None:
+
+    actual_freq = 50.0
+
+    x = [i / 25 + 0.005 * np.random.randn() for i in range(25)]
+    y = [10 + np.sin(actual_freq * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
+
+    adc_reader = ADCReader(channels=["1"])
+
+    best_freq = adc_reader.determine_most_appropriate_AC_hz({"1": x}, {"1": y})
+    assert best_freq == actual_freq
+
+    actual_freq = 60.0
+
+    x = [i / 25 + 0.005 * np.random.randn() for i in range(25)]
+    y = [2 + np.sin(actual_freq * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
+
+    adc_reader = ADCReader(channels=["1"])
+
+    best_freq = adc_reader.determine_most_appropriate_AC_hz({"1": x}, {"1": y})
+    assert best_freq == actual_freq
+
+
+def test_ADC_picks_to_correct_freq_even_if_slight_noise_in_freq() -> None:
+
+    actual_freq = 50.0
+
+    x = [i / 25 + 0.005 * np.random.randn() for i in range(25)]
+    y = [
+        10 + np.sin((actual_freq + 0.2) * 2 * np.pi * _x) + 0.1 * np.random.randn()
+        for _x in x
+    ]
+
+    adc_reader = ADCReader(channels=["1"])
+
+    best_freq = adc_reader.determine_most_appropriate_AC_hz({"1": x}, {"1": y})
+    assert best_freq == actual_freq

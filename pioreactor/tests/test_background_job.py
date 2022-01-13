@@ -363,5 +363,4 @@ def test_persist_in_published_settings() -> None:
         f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/test_job/dont_persist_this",
         timeout=2,
     )
-    assert msg is not None
     assert msg is None
