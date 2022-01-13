@@ -18,11 +18,11 @@ from pioreactor.version import hardware_version_info
 
 PWM_TO_PIN: dict[PWM_Channel, GPIO_Pin] = {
     # map between PCB labels and GPIO pins
-    1: 6 if hardware_version_info == (0, 1) else 17,
-    2: 13,  # hardware PWM1 available
-    3: 16,
-    4: 12,  # hardware PWM0 available
-    5: 18,  # dedicated to heater
+    "1": 6 if hardware_version_info == (0, 1) else 17,
+    "2": 13,  # hardware PWM1 available
+    "3": 16,
+    "4": 12,  # hardware PWM0 available
+    "5": 18,  # dedicated to heater
 }
 
 # led and button GPIO pins
@@ -33,7 +33,7 @@ PCB_BUTTON_PIN: GPIO_Pin = 24
 HALL_SENSOR_PIN: GPIO_Pin = 25
 
 # Heater PWM
-HEATER_PWM_TO_PIN: PWM_Channel = 5
+HEATER_PWM_TO_PIN: PWM_Channel = "5"
 
 
 # I2C GPIO pins

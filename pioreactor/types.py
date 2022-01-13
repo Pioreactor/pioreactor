@@ -60,11 +60,11 @@ JobState = Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 LED_Channel = Literal["A", "B", "C", "D"]
 
-PD_Channel = Literal[
-    "1", "2"
-]  # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless. str suggest symbols, which they are.
+# these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless.
+# str suggest symbols, which they are.
+PD_Channel = Literal["1", "2"]
+PWM_Channel = Literal["1", "2", "3", "4", "5"]
 
-PWM_Channel = Literal[1, 2, 3, 4, 5]
 
 # All GPIO pins below are BCM numbered
 GPIO_Pin = Literal[

@@ -44,7 +44,7 @@ def add_alt_media(
                 return 0.0
 
     try:
-        ALT_MEDIA_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "alt_media")]
+        ALT_MEDIA_PIN = PWM_TO_PIN[config.get("PWM_reverse", "alt_media")]
     except NoOptionError:
         logger.error(f"Add `alt_media` to `PWM` section to config_{unit}.ini.")
         return 0

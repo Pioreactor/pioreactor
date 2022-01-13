@@ -318,7 +318,7 @@ class TemperatureController(BackgroundJob):
     def setup_pwm(self) -> PWM:
         hertz = 1
         pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
-        pin = PWM_TO_PIN[config.getint("PWM_reverse", "heating")]
+        pin = PWM_TO_PIN[config.get("PWM_reverse", "heating")]
         pwm = PWM(pin, hertz)
         pwm.start(0)
         return pwm

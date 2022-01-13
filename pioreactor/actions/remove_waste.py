@@ -46,7 +46,7 @@ def remove_waste(
 
     # TODO: move these into general functions that all pumps can use.
     try:
-        WASTE_PIN = PWM_TO_PIN[config.getint("PWM_reverse", "waste")]
+        WASTE_PIN = PWM_TO_PIN[config.get("PWM_reverse", "waste")]
     except NoOptionError:
         logger.error(f"Add `waste` to `PWM` section to config_{unit}.ini.")
         return 0.0
