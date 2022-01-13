@@ -25,6 +25,20 @@ def test_sin_regression_exactly() -> None:
     assert np.abs(A - 2) < 0.1
     assert np.abs(phi - 0) < 0.1
 
+    freq = 50
+    # interestingly, if I used i/25, I get a matrix inversion problem, likely because 25 | 50. This shows the importance of adding a small jitter.
+    x = [(i / 25 + 0.001 * (i * 0.618034) % 1) for i in range(25)]
+    y = [10 + 2 * np.sin(freq * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
+
+    adc_reader = ADCReader(channels=[])
+
+    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, freq)
+    assert isinstance(A, float)
+    assert isinstance(phi, float)
+    assert np.abs(C - 10) < 0.1
+    assert np.abs(A - 2) < 0.1
+    assert np.abs(phi - 0) < 0.1
+
 
 def test_sin_regression_all_zeros_should_return_zeros() -> None:
     import numpy as np

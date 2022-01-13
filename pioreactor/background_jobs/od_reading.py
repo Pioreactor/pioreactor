@@ -426,7 +426,7 @@ class ADCReader(LoggerMixin):
                             + 0.001
                             * (
                                 (counter * 0.618034) % 1
-                            ),  # this is to artificially spread out the samples, so that we observe less aliasing. That constant is phi.
+                            ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
                         )
                     )
 
@@ -496,6 +496,7 @@ class ADCReader(LoggerMixin):
 
         except OSError as e:
             # just skip, not sure why this happens when add_media or remove_waste are called.
+            # TODO: does this still happen?
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
             raise e
