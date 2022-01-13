@@ -7,12 +7,15 @@ from __future__ import annotations
 from json import dumps, loads
 from typing import Callable, Optional
 from dataclasses import dataclass
+
 import click
 
 from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
+from pioreactor.types import MQTTMessagePayload
+from pioreactor.types import MQTTMessage
 
 
 @dataclass
@@ -24,31 +27,17 @@ class MetaData:
 @dataclass
 class TopicToParserToTable:
     topic: str
-    parser: Callable[[str, bytes | bytearray], Optional[dict]]
+    parser: Callable[[str, MQTTMessagePayload], Optional[dict]]
     table: str
-
-
-class TopicToParserToTableContrib(TopicToParserToTable):
-    """
-    plugins subclass this.
-    parser (callable) must accept (topic: str, payload: str)
-
-    TODO: untested
-    """
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # TODO: this can first check the db to make sure the requested table is defined.
-        MqttToDBStreamer.topics_to_tables_from_plugins.append(cls)
 
 
 class MqttToDBStreamer(BackgroundJob):
 
-    topics_to_tables_from_plugins: list[TopicToParserToTableContrib] = []
+    topics_to_tables_from_plugins: list[TopicToParserToTable] = []
 
     def __init__(
         self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
-    ):
+    ) -> None:
 
         from sqlite3worker import Sqlite3Worker
 
@@ -77,22 +66,22 @@ class MqttToDBStreamer(BackgroundJob):
         self.sqliteworker.close()  # close the db safely
 
     def create_on_message_callback(
-        self, parser: Callable[[str, bytes | bytearray], Optional[dict]], table: str
+        self, parser: Callable[[str, MQTTMessagePayload], Optional[dict]], table: str
     ) -> Callable:
-        def _callback(message) -> None:
+        def _callback(message: MQTTMessage) -> None:
             # TODO: filter testing experiments here?
             try:
                 new_row = parser(message.topic, message.payload)
             except Exception as e:
                 self.logger.error(e)
                 self.logger.debug(
-                    f"message.payload that caused error: `{message.payload}`"
+                    f"message.payload that caused error: `{message.payload.decode()}`"
                 )
-                return None
+                return
 
             if new_row is None:
                 # parsers can return None to exit out.
-                return None
+                return
 
             cols_placeholder = ", ".join(new_row.keys())
             values_placeholder = ", ".join([":" + c for c in new_row.keys()])
@@ -102,7 +91,7 @@ class MqttToDBStreamer(BackgroundJob):
             except Exception as e:
                 self.logger.error(e)
                 self.logger.debug(f"SQL that caused error: `{SQL}`")
-                return None
+                return
 
         return _callback
 
@@ -135,151 +124,157 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     # - parsers can return None as well, to skip adding the message to the database.
     #
 
-    def parse_od(topic, payload):
+    def parse_od(topic: str, payload) -> dict:
         metadata, split_topic = produce_metadata(topic)
-        payload = loads(payload)
+        payload_dict = loads(payload)
 
         try:
-            angle = int(payload["angle"])
+            angle = int(payload_dict["angle"])
         except TypeError:
             angle = -1
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "od_reading_v": payload["voltage"],
+            "timestamp": payload_dict["timestamp"],
+            "od_reading_v": payload_dict["voltage"],
             "angle": angle,
             "channel": split_topic[-1],
         }
 
-    def parse_od_filtered(topic, payload):
+    def parse_od_filtered(topic: str, payload: MQTTMessagePayload) -> dict:
         metadata, split_topic = produce_metadata(topic)
-        payload = loads(payload)
+        payload_dict = loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "normalized_od_reading": payload["od_filtered"],
+            "timestamp": payload_dict["timestamp"],
+            "normalized_od_reading": payload_dict["od_filtered"],
         }
 
-    def parse_od_blank(topic, payload):
+    def parse_od_blank(
+        topic: str, payload: Optional[MQTTMessagePayload]
+    ) -> Optional[dict]:
         metadata, split_topic = produce_metadata(topic)
         if payload is None:
             return None
-        payload = loads(payload)
+        payload_dict = loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "od_reading_v": payload["od_reading_v"],
+            "timestamp": payload_dict["timestamp"],
+            "od_reading_v": payload_dict["od_reading_v"],
             "channel": split_topic[-1],
         }
 
-    def parse_dosing_events(topic, payload):
-        payload = loads(payload)
+    def parse_dosing_events(topic: str, payload: MQTTMessagePayload) -> dict:
+        payload_dict = loads(payload)
         metadata, _ = produce_metadata(topic)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "volume_change_ml": payload["volume_change"],
-            "event": payload["event"],
-            "source_of_event": payload["source_of_event"],
+            "timestamp": payload_dict["timestamp"],
+            "volume_change_ml": payload_dict["volume_change"],
+            "event": payload_dict["event"],
+            "source_of_event": payload_dict["source_of_event"],
         }
 
-    def parse_led_events(topic, payload):
-        payload = loads(payload)
+    def parse_led_events(topic: str, payload: MQTTMessagePayload) -> dict:
+        payload_dict = loads(payload)
         metadata, _ = produce_metadata(topic)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "channel": payload["channel"],
-            "intensity": payload["intensity"],
-            "source_of_event": payload["source_of_event"],
+            "timestamp": payload_dict["timestamp"],
+            "channel": payload_dict["channel"],
+            "intensity": payload_dict["intensity"],
+            "source_of_event": payload_dict["source_of_event"],
         }
 
-    def parse_growth_rate(topic, payload):
+    def parse_growth_rate(topic: str, payload: MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
-        payload = loads(payload)
+        payload_dict = loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "rate": float(payload["growth_rate"]),
+            "timestamp": payload_dict["timestamp"],
+            "rate": float(payload_dict["growth_rate"]),
         }
 
-    def parse_temperature(topic, payload):
+    def parse_temperature(
+        topic: str, payload: Optional[MQTTMessagePayload]
+    ) -> Optional[dict]:
         metadata, _ = produce_metadata(topic)
 
-        if not payload:
+        if payload is None:
             return None
 
-        payload = loads(payload)
+        payload_dict = loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "temperature_c": float(payload["temperature"]),
+            "timestamp": payload_dict["timestamp"],
+            "temperature_c": float(payload_dict["temperature"]),
         }
 
-    def parse_alt_media_fraction(topic, payload):
+    def parse_alt_media_fraction(topic: str, payload: MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
-        payload = loads(payload)
+        payload_dict = loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "alt_media_fraction": float(payload["alt_media_fraction"]),
+            "timestamp": payload_dict["timestamp"],
+            "alt_media_fraction": float(payload_dict["alt_media_fraction"]),
         }
 
-    def parse_logs(topic, payload):
+    def parse_logs(topic: str, payload: MQTTMessagePayload) -> dict:
         metadata, split_topic = produce_metadata(topic)
-        payload = loads(payload)
+        payload_dict = loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "message": payload["message"],
-            "task": payload["task"],
-            "level": payload["level"],
+            "timestamp": payload_dict["timestamp"],
+            "message": payload_dict["message"],
+            "task": payload_dict["task"],
+            "level": payload_dict["level"],
             "source": split_topic[-1],  # should be app, ui, etc.
         }
 
-    def parse_kalman_filter_outputs(topic, payload):
+    def parse_kalman_filter_outputs(topic: str, payload: MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
-        payload = loads(payload)
+        payload_dict = loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "state": dumps(payload["state"]),
-            "covariance_matrix": dumps(payload["covariance_matrix"]),
+            "timestamp": payload_dict["timestamp"],
+            "state": dumps(payload_dict["state"]),
+            "covariance_matrix": dumps(payload_dict["covariance_matrix"]),
         }
 
-    def parse_automation_settings(topic, payload):
-        payload = loads(payload.decode())
-        return payload
+    def parse_automation_settings(topic: str, payload: MQTTMessagePayload) -> dict:
+        payload_dict = loads(payload)
+        return payload_dict
 
-    def parse_stirring_rates(topic, payload):
-        if not payload:
+    def parse_stirring_rates(
+        topic: str, payload: Optional[MQTTMessagePayload]
+    ) -> Optional[dict]:
+        if payload is None:
             return None
 
         metadata, _ = produce_metadata(topic)
-        payload = loads(payload)
+        payload_dict = loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload["timestamp"],
-            "measured_rpm": payload["rpm"],
+            "timestamp": payload_dict["timestamp"],
+            "measured_rpm": payload_dict["rpm"],
         }
 
     topics_to_tables = [

@@ -51,15 +51,17 @@ def is_HAT_present() -> bool:
     with I2C(SCL, SDA) as i2c:
         try:
             I2CDevice(i2c, DAC, probe=True)  # DAC, so we don't interfere with the ADC.
-            return True
+            present = True
         except ValueError:
-            return False
+            present = False
+    return present
 
 
 def is_heating_pcb_present() -> bool:
     with I2C(SCL, SDA) as i2c:
         try:
             I2CDevice(i2c, TEMP, probe=True)
-            return True
+            present = True
         except ValueError:
-            return False
+            present = False
+    return present

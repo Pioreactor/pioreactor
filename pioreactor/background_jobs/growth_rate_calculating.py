@@ -45,15 +45,20 @@ from pioreactor.pubsub import QOS, subscribe
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
-from pioreactor.types import PD_Channel
+from pioreactor.types import PD_Channel, MQTTMessage
 from pioreactor import exc
 
 
 class GrowthRateCalculator(BackgroundJob):
 
     published_settings = {
-        "growth_rate": {"datatype": "json", "settable": False, "unit": "h⁻¹"},
-        "od_filtered": {"datatype": "json", "settable": False},
+        "growth_rate": {
+            "datatype": "json",
+            "settable": False,
+            "unit": "h⁻¹",
+            "persist": True,
+        },
+        "od_filtered": {"datatype": "json", "settable": False, "persist": True},
     }
 
     def __init__(
@@ -74,7 +79,7 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
     @property
-    def state_(self):
+    def state_(self):  # typing: ignore
         return self.ekf.state_
 
     def on_init_to_ready(self) -> None:
@@ -101,7 +106,7 @@ class GrowthRateCalculator(BackgroundJob):
         # so to "fix" this, we will treat it like a dilution event, and modify the variances
         self.update_ekf_variance_after_event(minutes=0.5, factor=5e2)
 
-    def initialize_extended_kalman_filter(self):
+    def initialize_extended_kalman_filter(self) -> CultureGrowthEKF:
         import numpy as np
 
         initial_state = np.array(
@@ -144,7 +149,7 @@ class GrowthRateCalculator(BackgroundJob):
             observation_noise_covariance,
         )
 
-    def create_obs_noise_covariance(self):
+    def create_obs_noise_covariance(self):  # typing: ignore
         """
         Our sensor measurements have initial variance V, but in our KF, we scale them their
         initial mean, M. Hence the observed variance of the _normalized_ measurements is
@@ -193,7 +198,7 @@ class GrowthRateCalculator(BackgroundJob):
 
             raise
 
-    def get_precomputed_values(self):
+    def get_precomputed_values(self) -> tuple:
         if self.ignore_cache:
             if not is_pio_job_running("od_reading"):
                 self.logger.error("OD reading should be running. Stopping.")
@@ -400,13 +405,13 @@ class GrowthRateCalculator(BackgroundJob):
 
         return [np.format_float_scientific(x, precision=2) for x in np_list]
 
-    def response_to_dosing_event(self, message):
+    def response_to_dosing_event(self, message: MQTTMessage) -> None:
         # here we can add custom logic to handle dosing events.
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
         self.update_ekf_variance_after_event(minutes=1, factor=2500)
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         # process incoming data
         self.subscribe_and_callback(
             self.update_state_from_observation,

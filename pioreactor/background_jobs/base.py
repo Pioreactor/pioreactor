@@ -8,7 +8,7 @@ import atexit
 import time
 from json import dumps
 
-from paho.mqtt.client import Client, MQTTMessage  # type: ignore
+from paho.mqtt.client import Client  # type: ignore
 
 from pioreactor.utils import (
     local_intermittent_storage,
@@ -17,7 +17,7 @@ from pioreactor.utils import (
 from pioreactor.pubsub import QOS, create_client
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid, is_testing_env
 from pioreactor.logging import create_logger
-from pioreactor.types import JobState, PublishableSetting
+from pioreactor.types import JobState, PublishableSetting, MQTTMessage
 
 
 def format_with_optional_units(value: Any, units: Optional[str]) -> str:
@@ -338,7 +338,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.start_general_passive_listeners()
             self.start_passive_listeners()
 
-        def on_disconnect(client, userdata, rc) -> None:
+        def on_disconnect(client, userdata, rc: int) -> None:
             self.on_mqtt_disconnect(rc)
 
         # we give the last_will to this sub client because when it reconnects, it
@@ -468,7 +468,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-        def disconnect_gracefully(reason, *args) -> None:
+        def disconnect_gracefully(reason: int | str, *args) -> None:
             if self.state == self.DISCONNECTED:
                 return
 
@@ -642,7 +642,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(state.capitalize() + ".")
 
     @staticmethod
-    def get_attr_from_topic(topic) -> str:
+    def get_attr_from_topic(topic: str) -> str:
         pieces = topic.split("/")
         return pieces[4].lstrip("$")
 
@@ -732,7 +732,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
                 raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 
-    def __setattr__(self, name: str, value) -> None:
+    def __setattr__(self, name: str, value: Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
         if name in self.published_settings:
             self.publish_attr(name)

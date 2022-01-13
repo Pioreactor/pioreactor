@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# exc.py
 
 
 class HardwareNotFoundError(OSError):
@@ -10,5 +9,5 @@ class HardwareNotFoundError(OSError):
 
 class JobRequiredError(Exception):
     """
-    A hardware device is missing.
+    A job should be running, but isn't found.
     """

@@ -4,11 +4,12 @@ import threading
 import time
 from enum import IntEnum
 from contextlib import suppress
-from typing import Callable
+from typing import Callable, Optional, Any
 
-from paho.mqtt.client import Client, MQTTMessage  # type: ignore
+from paho.mqtt.client import Client  # type: ignore
 from paho.mqtt import publish as mqtt_publish  # type: ignore
 
+from pioreactor.types import MQTTMessage
 from pioreactor.config import leader_hostname
 
 
@@ -120,7 +121,7 @@ def subscribe(
     timeout=None,
     allow_retained=True,
     **mqtt_kwargs,
-):
+) -> Optional[MQTTMessage]:
     """
     Modeled closely after the paho version, this also includes some try/excepts and
     a timeout. Note that this _does_ disconnect after receiving a single message.
@@ -134,11 +135,13 @@ def subscribe(
     for retry_count in range(retries):
         try:
 
+            lock: Optional[threading.Lock]
+
             def on_connect(client, userdata, flags, rc):
                 client.subscribe(userdata["topics"])
                 return
 
-            def on_message(client, userdata, message):
+            def on_message(client, userdata, message: MQTTMessage):
                 if not allow_retained and message.retain:
                     return
 
@@ -156,7 +159,7 @@ def subscribe(
                 lock = None
 
             topics = [topics] if isinstance(topics, str) else topics
-            userdata = {
+            userdata: dict[str, Any] = {
                 "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
                 "messages": None,
                 "lock": lock,
@@ -170,6 +173,7 @@ def subscribe(
             if timeout is None:
                 client.loop_forever()
             else:
+                assert lock is not None
                 lock.acquire()
                 client.loop_start()
                 lock.acquire(timeout=timeout)

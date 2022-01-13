@@ -23,7 +23,7 @@ LED_UNLOCKED = b"0"
 
 @contextmanager
 def change_leds_intensities_temporarily(
-    channels: list[LED_Channel], new_intensities: list[float], **kwargs
+    channels: list[LED_Channel], new_intensities: list[float], **kwargs: Any
 ) -> Iterator[None]:
     """
     Change the LED referenced in `channels` to some intensity `new_intensities`
@@ -251,7 +251,12 @@ def led_intensity(
     help="whom is calling this function (for logging purposes)",
 )
 @click.option("--no-log", is_flag=True, help="Add to log")
-def click_led_intensity(channel, intensity, source_of_event, no_log):
+def click_led_intensity(
+    channel: LED_Channel | list[LED_Channel],
+    intensity: int,
+    source_of_event: str,
+    no_log: bool,
+) -> bool:
     """
     Modify the intensity of LED channel(s)
     """
@@ -259,7 +264,7 @@ def click_led_intensity(channel, intensity, source_of_event, no_log):
     experiment = get_latest_experiment_name()
 
     status = led_intensity(
-        channels=list(channel),
+        channels=_list(channel),
         intensities=[intensity] * len(channel),
         source_of_event=source_of_event,
         unit=unit,

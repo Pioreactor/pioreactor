@@ -80,7 +80,9 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
 
         # drop any 0 in RPM, too little DC
         try:
-            dcs, measured_rpms = zip(*filter(lambda d: d[1] > 0, zip(dcs, measured_rpms)))
+            filtered_dcs, filtered_measured_rpms = zip(
+                *filter(lambda d: d[1] > 0, zip(dcs, measured_rpms))
+            )
         except ValueError:
             # the above can fail if all measured rpms are 0
             logger.error("No RPMs were measured. Is the stirring spinning?")
@@ -89,7 +91,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
         # since in practice, we want a look up from RPM -> required DC, we
         # set x=measure_rpms, y=dcs
         (rpm_coef, rpm_coef_std), (intercept, intercept_std) = simple_linear_regression(
-            measured_rpms, dcs
+            filtered_measured_rpms, filtered_dcs
         )
         logger.debug(f"{rpm_coef=}, {rpm_coef_std=}, {intercept=}, {intercept_std=}")
 
@@ -132,7 +134,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
     type=click.IntRange(0, 100),
 )
 @click.command(name="stirring_calibration")
-def click_stirring_calibration(min_dc, max_dc):
+def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
     """
     (Optional) Generate a lookup between stirring and voltage
     """

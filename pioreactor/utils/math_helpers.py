@@ -1,64 +1,69 @@
 # -*- coding: utf-8 -*-
+from typing import Iterable
 
 
-def simple_linear_regression(x, y) -> tuple[tuple[float, float], tuple[float, float]]:
+def simple_linear_regression(
+    x: Iterable, y: Iterable
+) -> tuple[tuple[float, float], tuple[float, float]]:
     import numpy as np
 
-    x = np.array(x)
-    y = np.array(y)
+    x_ = np.array(x)
+    y_ = np.array(y)
 
-    n = x.shape[0]
+    n = x_.shape[0]
     assert n > 2, "not enough data points for linear regression"
 
-    sum_x = np.sum(x)
-    sum_xx = np.sum(x * x)
+    sum_x = np.sum(x_)
+    sum_xx = np.sum(x_ * x_)
+    sum_xy = np.sum(x_ * y_)
+    sum_y = np.sum(y_)
 
-    slope = (n * np.sum(x * y) - sum_x * np.sum(y)) / (n * sum_xx - sum_x ** 2)
-    bias = y.mean() - slope * x.mean()
+    slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x ** 2)
+    bias = y_.mean() - slope * x_.mean()
 
-    residuals_sq = ((y - (slope * x + bias)) ** 2).sum()
-    std_error_slope = np.sqrt(residuals_sq / (n - 2) / (np.sum((x - x.mean()) ** 2)))
+    residuals_sq = ((y_ - (slope * x_ + bias)) ** 2).sum()
+    std_error_slope = np.sqrt(residuals_sq / (n - 2) / (np.sum((x_ - x_.mean()) ** 2)))
 
     std_error_bias = np.sqrt(
-        residuals_sq / (n - 2) / n * sum_xx / (np.sum((x - x.mean()) ** 2))
+        residuals_sq / (n - 2) / n * sum_xx / (np.sum((x_ - x_.mean()) ** 2))
     )
 
     return (slope, std_error_slope), (bias, std_error_bias)
 
 
 def simple_linear_regression_with_forced_nil_intercept(
-    x, y
+    x: Iterable, y: Iterable
 ) -> tuple[tuple[float, float], tuple[float, float]]:
     import numpy as np
 
-    x = np.array(x)
-    y = np.array(y)
+    x_ = np.array(x)
+    y_ = np.array(y)
 
-    n = x.shape[0]
+    n = x_.shape[0]
     assert n > 2, "not enough data points for linear regression"
 
-    sum_xy = np.sum(x * y)
-    sum_xx = np.sum(x * x)
+    sum_xy = np.sum(x_ * y_)
+    sum_xx = np.sum(x_ * x_)
 
     slope = sum_xy / sum_xx
 
-    residuals_sq = np.sum((y - slope * x) ** 2)
+    residuals_sq = np.sum((y_ - slope * x_) ** 2)
     std_error_slope = np.sqrt(residuals_sq / (n - 1) / sum_xx)
 
     return (slope, std_error_slope), (0, 0.0)
 
 
-def residuals_of_simple_linear_regression(x, y):
+def residuals_of_simple_linear_regression(x: Iterable, y: Iterable):
     import numpy as np
 
-    x = np.array(x)
-    y = np.array(y)
+    x_ = np.array(x)
+    y_ = np.array(y)
 
-    (slope, _), (bias, _) = simple_linear_regression(x, y)
-    return y - (slope * x + bias)
+    (slope, _), (bias, _) = simple_linear_regression(x_, y_)
+    return y_ - (slope * x_ + bias)
 
 
-def correlation(x, y) -> float:
+def correlation(x: Iterable, y: Iterable) -> float:
     from statistics import stdev, mean
 
     mean_x, std_x = mean(x), stdev(x)

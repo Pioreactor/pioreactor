@@ -41,7 +41,7 @@ def pio() -> None:
 
 @pio.command(name="logs", short_help="show recent logs")
 @click.option("-n", type=int, default=100)
-def logs(n) -> None:
+def logs(n: int) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
@@ -50,7 +50,7 @@ def logs(n) -> None:
     import time
     from signal import pause
 
-    def cb(msg):
+    def cb(msg) -> None:
         payload = loads(msg.payload.decode())
 
         # time module is used below because it is the same that the logging module uses: https://docs.python.org/3/library/logging.html#logging.Formatter.formatTime
@@ -79,10 +79,10 @@ def blink() -> None:
 
         from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 
-        def led_on():
+        def led_on() -> None:
             GPIO.output(LED_PIN, GPIO.HIGH)
 
-        def led_off():
+        def led_off() -> None:
             GPIO.output(LED_PIN, GPIO.LOW)
 
         with temporarily_set_gpio_unavailable(LED_PIN):
@@ -109,19 +109,18 @@ def blink() -> None:
 @pio.command(name="kill", short_help="kill job(s)")
 @click.argument("job", nargs=-1)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(job, all_jobs: bool) -> None:
+def kill(job: str, all_jobs: bool) -> None:
     """
     stop a job by sending a SIGTERM to it.
     """
 
     from sh import pkill  # type: ignore
 
-    def safe_pkill(*args):
+    def safe_pkill(*args: str) -> None:
         try:
             pkill(*args)
-            return 0
         except Exception:
-            return 1
+            pass
 
     if all_jobs:
         safe_pkill("-f", "pio run ")
@@ -132,18 +131,18 @@ def kill(job, all_jobs: bool) -> None:
 
 
 @pio.group(short_help="run a job")
-def run():
+def run() -> None:
     pass
 
 
 @pio.group(name="run-always", short_help="run a long-lived job")
-def run_always():
+def run_always() -> None:
     pass
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")
 @click.option("--verbose", "-v", is_flag=True, help="show more system information")
-def version(verbose) -> None:
+def version(verbose: bool) -> None:
 
     if verbose:
         import platform
@@ -287,7 +286,7 @@ if am_I_leader():
 
     @pio.command(short_help="tail MQTT")
     @click.option("--topic", "-t", default="pioreactor/#")
-    def mqtt(topic) -> None:
+    def mqtt(topic: str) -> None:
         import os
 
         os.system(f"""mosquitto_sub -v -t '{topic}' -F "%I %t %p" """)

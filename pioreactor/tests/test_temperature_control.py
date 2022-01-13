@@ -9,7 +9,7 @@ unit = get_unit_name()
 experiment = get_latest_experiment_name()
 
 
-def pause(n=1):
+def pause(n=1) -> None:
     # to avoid race conditions when updating state
     time.sleep(n)
 
@@ -169,7 +169,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
     dc_msgs = []
 
-    def collect(msg):
+    def collect(msg) -> None:
         dc_msgs.append(msg.payload)
 
     pubsub.subscribe_and_callback(

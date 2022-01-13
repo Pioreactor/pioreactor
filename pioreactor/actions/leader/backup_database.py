@@ -14,7 +14,7 @@ from pioreactor.utils import (
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 
 
-def backup_database(output_file: str):
+def backup_database(output_file: str) -> None:
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
@@ -39,7 +39,7 @@ def backup_database(output_file: str):
             logger.warning("Won't run if OD Reading is running. Exiting")
             return
 
-        def progress(status, remaining, total):
+        def progress(status: int, remaining: int, total: int) -> None:
             logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
             logger.debug(f"Writing to local backup {output_file}.")
 
@@ -94,7 +94,7 @@ def backup_database(output_file: str):
 
 @click.command(name="backup_database")
 @click.option("--output", default="/home/pi/.pioreactor/storage/pioreactor.sqlite.backup")
-def click_backup_database(output):
+def click_backup_database(output: str) -> None:
     """
     (leader only) Backup db to workers.
     """

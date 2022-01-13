@@ -19,7 +19,7 @@ class PIDTurbidostat(DosingAutomation):
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, target_od=None, **kwargs):
+    def __init__(self, target_od: float, **kwargs) -> None:
         super(PIDTurbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
 
@@ -57,9 +57,7 @@ class PIDTurbidostat(DosingAutomation):
                 f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}"
             )
         else:
-
-            assert isinstance(self.duration, float)
-
+            assert self.duration is not None
             if self.volume_to_cycle is None:
                 self.volume_to_cycle = (
                     14
@@ -70,6 +68,8 @@ class PIDTurbidostat(DosingAutomation):
                     )
                     / self.latest_od
                 )
+
+            assert isinstance(self.volume_to_cycle, float)
 
             pid_output = self.pid.update(self.latest_od, dt=self.duration)
             self.volume_to_cycle = max(0, self.volume_to_cycle + pid_output)
@@ -85,10 +85,10 @@ class PIDTurbidostat(DosingAutomation):
                 )
 
     @property
-    def min_od(self):
+    def min_od(self) -> float:
         return 0.75 * self.target_od
 
-    def set_target_od(self, value):
+    def set_target_od(self, value: float) -> None:
         self.target_od = float(value)
         with suppress(AttributeError):
             # may not be defined yet...

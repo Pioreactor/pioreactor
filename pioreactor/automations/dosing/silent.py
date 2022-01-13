@@ -12,7 +12,7 @@ class Silent(DosingAutomation):
         "duration": {"datatype": "float", "settable": True, "unit": "min"}
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super(Silent, self).__init__(**kwargs)
 
     def execute(self) -> None:

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import time, json
+from typing import Any
 
 from pioreactor.automations.dosing.morbidostat import Morbidostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
@@ -948,11 +949,11 @@ def test_custom_class_will_register_and_run() -> None:
             "duration": {"datatype": "float", "settable": True, "unit": "min"},
         }
 
-        def __init__(self, target_od, **kwargs):
+        def __init__(self, target_od: float, **kwargs: Any) -> None:
             super(NaiveTurbidostat, self).__init__(**kwargs)
             self.target_od = target_od
 
-        def execute(self):
+        def execute(self) -> None:
             if self.latest_od > self.target_od:
                 self.execute_io_action(media_ml=1.0, waste_ml=1.0)
 

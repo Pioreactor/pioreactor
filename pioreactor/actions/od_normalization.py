@@ -16,6 +16,7 @@ and
 """
 import json
 from collections import defaultdict
+from typing import Generator
 
 import click
 
@@ -33,9 +34,12 @@ from pioreactor.utils.math_helpers import (
     residuals_of_simple_linear_regression,
 )
 from pioreactor import exc
+from pioreactor.types import PD_Channel
 
 
-def od_normalization(unit: str, experiment: str, n_samples=35):
+def od_normalization(
+    unit: str, experiment: str, n_samples: int = 35
+) -> tuple[dict[PD_Channel, float], dict[PD_Channel, float]]:
     from statistics import mean, variance
 
     action_name = "od_normalization"
@@ -55,84 +59,81 @@ def od_normalization(unit: str, experiment: str, n_samples=35):
             )
 
         # TODO: write tests for this
-        def yield_from_mqtt():
+        def yield_from_mqtt() -> Generator[dict, None, None]:
             while True:
                 msg = pubsub.subscribe(
                     f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
                     allow_retained=False,
                 )
+                if msg is None:
+                    continue
+
                 yield json.loads(msg.payload)
 
         signal = yield_from_mqtt()
         readings = defaultdict(list)
 
-        try:
+        for count, batched_reading in enumerate(signal, start=1):
+            for (sensor, reading) in batched_reading["od_raw"].items():
+                readings[sensor].append(reading["voltage"])
 
-            for count, batched_reading in enumerate(signal, start=1):
-                for (sensor, reading) in batched_reading["od_raw"].items():
-                    readings[sensor].append(reading["voltage"])
+            pubsub.publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
+                count // n_samples * 100,
+            )
+            logger.debug(f"Progress: {count/n_samples:.0%}")
+            if count == n_samples:
+                break
 
-                pubsub.publish(
-                    f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                    count // n_samples * 100,
+        variances = {}
+        means = {}
+        autocorrelations = {}  # lag 1
+
+        for sensor, od_reading_series in readings.items():
+            variances[sensor] = variance(
+                residuals_of_simple_linear_regression(
+                    list(range(n_samples)), od_reading_series
                 )
-                logger.debug(f"Progress: {count/n_samples:.0%}")
-                if count == n_samples:
-                    break
+            )  # see issue #206
+            means[sensor] = mean(od_reading_series)
+            autocorrelations[sensor] = correlation(
+                od_reading_series[:-1], od_reading_series[1:]
+            )
 
-            variances = {}
-            means = {}
-            autocorrelations = {}  # lag 1
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps(means)
 
-            for sensor, od_reading_series in readings.items():
-                variances[sensor] = variance(
-                    residuals_of_simple_linear_regression(
-                        list(range(n_samples)), od_reading_series
-                    )
-                )  # see issue #206
-                means[sensor] = mean(od_reading_series)
-                autocorrelations[sensor] = correlation(
-                    od_reading_series[:-1], od_reading_series[1:]
-                )
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps(variances)
 
-            with local_persistant_storage("od_normalization_mean") as cache:
-                cache[experiment] = json.dumps(means)
+        logger.debug(f"measured mean: {means}")
+        logger.debug(f"measured variances: {variances}")
+        logger.debug(f"measured autocorrelations: {autocorrelations}")
+        logger.debug("OD normalization finished.")
 
-            with local_persistant_storage("od_normalization_variance") as cache:
-                cache[experiment] = json.dumps(variances)
+        if config.getboolean(
+            "data_sharing_with_pioreactor",
+            "send_od_statistics_to_Pioreactor",
+            fallback=False,
+        ):
 
-            logger.debug(f"measured mean: {means}")
-            logger.debug(f"measured variances: {variances}")
-            logger.debug(f"measured autocorrelations: {autocorrelations}")
-            logger.debug("OD normalization finished.")
+            add_on = {
+                "ir_intensity": config["od_config"]["ir_intensity"],
+            }
 
-            if config.getboolean(
-                "data_sharing_with_pioreactor",
-                "send_od_statistics_to_Pioreactor",
-                fallback=False,
-            ):
+            pubsub.publish_to_pioreactor_cloud(
+                "od_normalization_variance",
+                json={
+                    **variances,
+                    **add_on,
+                },  # TODO: this syntax changed in a recent python version...
+            )
+            pubsub.publish_to_pioreactor_cloud(
+                "od_normalization_mean",
+                json={**means, **add_on},
+            )
 
-                add_on = {
-                    "ir_intensity": config["od_config"]["ir_intensity"],
-                }
-
-                pubsub.publish_to_pioreactor_cloud(
-                    "od_normalization_variance",
-                    json={
-                        **variances,
-                        **add_on,
-                    },  # TODO: this syntax changed in a recent python version...
-                )
-                pubsub.publish_to_pioreactor_cloud(
-                    "od_normalization_mean",
-                    json={**means, **add_on},
-                )
-
-            return means, variances
-
-        except Exception as e:
-            logger.debug(e, exc_info=True)
-            logger.error(f"{str(e)}")
+        return means, variances
 
 
 @click.command(name="od_normalization")

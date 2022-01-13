@@ -19,7 +19,7 @@ class Turbidostat(DosingAutomation):
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, target_od=None, volume=None, **kwargs):
+    def __init__(self, target_od: float, volume: float, **kwargs) -> None:
         super(Turbidostat, self).__init__(**kwargs)
 
         with local_persistant_storage("pump_calibration") as cache:

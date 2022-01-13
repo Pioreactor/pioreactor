@@ -1,7 +1,18 @@
 # -*- coding: utf-8 -*-
 # types
 from __future__ import annotations
-from typing import Literal, MutableMapping, TypedDict
+from typing import Literal, MutableMapping, TypedDict, Union
+
+
+MQTTMessagePayload = Union[bytes, bytearray]
+
+
+class MQTTMessage:
+    payload: MQTTMessagePayload
+    topic: str
+    qos: Literal[0, 1, 2]
+    retain: bool
+    mid: int
 
 
 class PublishableSetting(TypedDict, total=False):

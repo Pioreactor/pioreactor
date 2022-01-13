@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import annotations
 from time import sleep, perf_counter
 from typing import Optional, Callable
 from contextlib import suppress
@@ -79,10 +79,10 @@ class RpmCalculator:
     def sleep_for(self, seconds) -> None:
         sleep(seconds)
 
-    def __enter__(self):
+    def __enter__(self) -> RpmCalculator:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         self.cleanup()
 
 
@@ -346,17 +346,17 @@ class Stirrer(BackgroundJob):
         self.rpm_check_repeated_thread.unpause()
         self.start_stirring()
 
-    def set_duty_cycle(self, value) -> None:
+    def set_duty_cycle(self, value: float) -> None:
         self._previous_duty_cycle = self.duty_cycle
         self.duty_cycle = clamp(0, round(float(value), 5), 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
-    def set_target_rpm(self, value) -> None:
+    def set_target_rpm(self, value: float) -> None:
         self.target_rpm = float(value)
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 
-    def block_until_rpm_is_close_to_target(self, abs_tolerance: float = 15):
+    def block_until_rpm_is_close_to_target(self, abs_tolerance: float = 15) -> None:
         """
         This function blocks until the stirring is "close enough" to the target RPM.
 

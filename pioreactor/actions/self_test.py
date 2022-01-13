@@ -250,7 +250,7 @@ def test_positive_correlation_between_rpm_and_stirring(
 
 @click.command(name="self_test")
 @click.option("-k", help="see pytest's k argument", type=str)
-def click_self_test(k):
+def click_self_test(k: str) -> int:
     """
     Test the input/output in the Pioreactor
     """

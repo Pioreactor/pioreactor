@@ -42,7 +42,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
         # this registers all subclasses of TemperatureAutomation back to TemperatureController, so the subclass
         # can be invoked in TemperatureController.
-        if hasattr(cls, "automation_name") and cls.automation_name:
+        if hasattr(cls, "automation_name") and cls.automation_name is not None:
             TemperatureController.automations[cls.automation_name] = cls
 
     def __init__(

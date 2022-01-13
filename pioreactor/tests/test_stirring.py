@@ -15,7 +15,7 @@ unit = get_unit_name()
 exp = get_latest_experiment_name()
 
 
-def pause():
+def pause() -> None:
     # to avoid race conditions
     time.sleep(0.5)
 
@@ -76,6 +76,7 @@ def test_publish_target_rpm() -> None:
 
         pause()
         message = subscribe(f"pioreactor/{unit}/{exp}/stirring/target_rpm")
+        assert message is not None
         assert float(message.payload) == 500
 
 
@@ -91,6 +92,7 @@ def test_publish_measured_rpm() -> None:
         pause()
 
         message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm")
+        assert message is not None
         assert json.loads(message.payload)["rpm"] == 0
 
 

@@ -10,7 +10,7 @@ class Silent(LEDAutomation):
 
     automation_name = "silent"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super(Silent, self).__init__(**kwargs)
 
     def execute(self) -> events.Event:
@@ -26,7 +26,7 @@ class TrackOD(LEDAutomation):
 
     automation_name = "track_od"
 
-    def __init__(self, max_od: float, **kwargs):
+    def __init__(self, max_od: float, **kwargs) -> None:
         super(TrackOD, self).__init__(**kwargs)
         assert max_od is not None, "max_od should be set"
         self.max_od = max_od
@@ -48,7 +48,7 @@ class FlashUV(LEDAutomation):
 
     automation_name = "flash_uv"
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         super(FlashUV, self).__init__(**kwargs)
         self.uv_led = config.get("leds_reverse", "uv")
         self.set_led_intensity(self.uv_led, 0)

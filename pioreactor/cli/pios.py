@@ -24,20 +24,20 @@ from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 
 
-def universal_identifier_to_all_active_workers(units) -> tuple[str]:
+def universal_identifier_to_all_active_workers(units: tuple[str, ...]) -> tuple[str, ...]:
     if units == (UNIVERSAL_IDENTIFIER,):
         units = get_active_workers_in_inventory()
     return units
 
 
-def add_leader(list_of_units):
+def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
     leader = get_leader_hostname()
-    if leader not in list_of_units:
-        list_of_units.append(leader)
-    return list_of_units
+    if leader not in units:
+        units = units + (leader,)
+    return units
 
 
-def save_config_files_to_db(units, shared: bool, specific: bool):
+def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool) -> None:
     import sqlite3
 
     conn = sqlite3.connect(config["storage"]["database"])
@@ -59,7 +59,7 @@ def save_config_files_to_db(units, shared: bool, specific: bool):
     conn.close()
 
 
-def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool):
+def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool) -> None:
     """
     Moves
 
@@ -95,7 +95,7 @@ def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool):
 
 
 @click.group()
-def pios():
+def pios() -> None:
     """
     Command each of the worker Pioreactors with the `pios` command.
 
@@ -124,7 +124,7 @@ def pios():
     type=click.STRING,
     help="specify a Pioreactor name, default is all active units",
 )
-def update(units):
+def update(units: tuple[str, ...]) -> None:
     """
     Pulls and installs the latest code
     """
@@ -172,7 +172,7 @@ def update(units):
     type=click.STRING,
     help="specify a Pioreactor name, default is all active units",
 )
-def install_plugin(plugin, units):
+def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
     """
     Installs a plugin to worker and leader
     """
@@ -219,7 +219,7 @@ def install_plugin(plugin, units):
     type=click.STRING,
     help="specify a Pioreactor name, default is all active units",
 )
-def uninstall_plugin(plugin, units):
+def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
     """
     Uninstalls a plugin from worker and leader
     """
@@ -276,7 +276,7 @@ def uninstall_plugin(plugin, units):
     is_flag=True,
     help="sync the worker specific config.ini(s)",
 )
-def sync_configs(units, shared, specific):
+def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
     """
     Deploys the shared config.ini and worker specific config.inis to the workers.
 
@@ -292,7 +292,7 @@ def sync_configs(units, shared, specific):
     if not shared and not specific:
         shared = specific = True
 
-    def _thread_function(unit):
+    def _thread_function(unit: str) -> bool:
         logger.debug(f"Syncing configs on {unit}...")
         try:
             with paramiko.SSHClient() as client:
@@ -329,7 +329,7 @@ def sync_configs(units, shared, specific):
 )
 @click.option("--all-jobs", is_flag=True, help="kill all worker jobs")
 @click.option("-y", is_flag=True, help="skip asking for confirmation")
-def kill(job, units, all_jobs, y):
+def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
     """
     Send a SIGTERM signal to JOB. JOB can be any Pioreactor job name, like "stirring".
     Example:
@@ -403,7 +403,7 @@ def kill(job, units, all_jobs, y):
 )
 @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
 @click.pass_context
-def run(ctx, job, units, y):
+def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
     """
     Run a job on all, or specific, workers. Ex:
 
@@ -439,7 +439,7 @@ def run(ctx, job, units, y):
         if confirm != "Y":
             return
 
-    def _thread_function(unit):
+    def _thread_function(unit: str) -> bool:
         click.echo(f"Executing `{core_command}` on {unit}.")
         try:
             ssh(unit, command)
@@ -474,7 +474,7 @@ def run(ctx, job, units, y):
     help="specify a hostname, default is all active units",
 )
 @click.pass_context
-def update_settings(ctx, job, units):
+def update_settings(ctx, job: str, units: tuple[str, ...]) -> None:
     """
     pios update-settings stirring --duty_cycle 10
 
@@ -491,7 +491,7 @@ def update_settings(ctx, job, units):
 
     from pioreactor.pubsub import publish
 
-    def _thread_function(unit):
+    def _thread_function(unit: str) -> bool:
         for (setting, value) in extra_args.items():
             publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
         return True

@@ -172,7 +172,7 @@ class Monitor(BackgroundJob):
         """
         latest_exp = get_latest_experiment_name()
 
-        def check_against_processes_running(msg) -> None:
+        def check_against_processes_running(msg: MQTTMessage) -> None:
             job = msg.topic.split("/")[3]
             if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
                 not is_pio_job_running(job)
@@ -275,10 +275,10 @@ class Monitor(BackgroundJob):
             )
             return ". ".join(hr_status)
 
-        def currently_throttling(status) -> int:
+        def currently_throttling(status: int) -> int:
             return (status & 0x2) or (status & 0x1) or (status & 0x4)
 
-        def non_ignorable_status(status) -> int:
+        def non_ignorable_status(status: int) -> int:
             return (status & 0x1) or (status & 0x4)
 
         if is_testing_env():
@@ -440,7 +440,7 @@ class Monitor(BackgroundJob):
 
 
 @click.command(name="monitor")
-def click_monitor():
+def click_monitor() -> None:
     """
     Monitor and report metadata on the unit.
     """

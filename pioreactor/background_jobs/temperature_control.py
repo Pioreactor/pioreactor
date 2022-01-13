@@ -289,13 +289,13 @@ class TemperatureController(BackgroundJob):
 
             self._update_heater(self.heater_duty_cycle * 0.9)
 
-    def on_sleeping(self):
+    def on_sleeping(self) -> None:
         self.automation_job.set_state(self.SLEEPING)
 
-    def on_sleeping_to_ready(self):
+    def on_sleeping_to_ready(self) -> None:
         self.automation_job.set_state(self.READY)
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         try:
             self.automation_job.set_state(self.DISCONNECTED)
         except AttributeError:
@@ -497,7 +497,7 @@ def start_temperature_control(automation_name: str, **kwargs) -> TemperatureCont
     show_default=True,
 )
 @click.pass_context
-def click_temperature_control(ctx, automation_name) -> None:
+def click_temperature_control(ctx, automation_name: str) -> None:
     """
     Start a temperature automation.
     """

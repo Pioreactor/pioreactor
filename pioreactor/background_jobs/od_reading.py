@@ -164,7 +164,7 @@ class ADCReader(LoggerMixin):
         channels: list[PD_Channel],
         fake_data: bool = False,
         dynamic_gain: bool = True,
-        initial_gain=1,
+        initial_gain: float = 1,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
@@ -207,7 +207,7 @@ class ADCReader(LoggerMixin):
         # check if using correct gain
         # this may need to be adjusted for higher rates of data collection
         if self.dynamic_gain:
-            max_signal = 0
+            max_signal = 0.0
             # we will instantiate and sweep through to set the gain
             for ai in self.analog_in.values():
 
@@ -272,7 +272,7 @@ class ADCReader(LoggerMixin):
         self.ads.gain = gain  # this assignment checks to see if the gain is allowed.
 
     def sin_regression_with_known_freq(
-        self, x, y, freq, prior_C=None, penalizer_C=None
+        self, x: list, y: list, freq: float, prior_C=None, penalizer_C=None
     ) -> tuple[tuple[float, Optional[float], Optional[float]], float]:
         r"""
         Assumes a known frequency.
@@ -314,13 +314,13 @@ class ADCReader(LoggerMixin):
         import numpy as np
 
         assert len(x) == len(y), "shape mismatch"
-        x = np.asarray(x)
-        y = np.asarray(y)
-        n = x.shape[0]
+        x_ = np.asarray(x)
+        y_ = np.asarray(y)
+        n = x_.shape[0]
 
         tau = 2 * np.pi
-        sin_x = np.sin(freq * tau * x)
-        cos_x = np.cos(freq * tau * x)
+        sin_x = np.sin(freq * tau * x_)
+        cos_x = np.cos(freq * tau * x_)
 
         sum_sin = sin_x.sum()
         sum_cos = cos_x.sum()
@@ -328,9 +328,9 @@ class ADCReader(LoggerMixin):
         sum_cos2 = (cos_x ** 2).sum()
         sum_cossin = (cos_x * sin_x).sum()
 
-        sum_y = y.sum()
-        sum_ysin = (y * sin_x).sum()
-        sum_ycos = (y * cos_x).sum()
+        sum_y = y_.sum()
+        sum_ysin = (y_ * sin_x).sum()
+        sum_ycos = (y_ * cos_x).sum()
 
         rhs_penalty_term = 0
         lhs_penalty_term = 0
@@ -354,10 +354,10 @@ class ADCReader(LoggerMixin):
             self.logger.error("Error in regression.")
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
-            return (y.mean(), None, None), 0
+            return (y_.mean(), None, None), 0
 
-        y_model = C + b * np.sin(freq * tau * x) + c * np.cos(freq * tau * x)
-        SSE = np.sum((y - y_model) ** 2)
+        y_model = C + b * np.sin(freq * tau * x_) + c * np.cos(freq * tau * x_)
+        SSE = np.sum((y_ - y_model) ** 2)
 
         if SSE > 1e-20:
             AIC = n * np.log(SSE / n) + 2 * 3
@@ -377,7 +377,7 @@ class ADCReader(LoggerMixin):
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
         return cast(int, voltage * 32767 / self.ADS1X15_PGA_RANGE[self.ads.gain])
 
-    def from_raw_to_voltage(self, raw) -> float:
+    def from_raw_to_voltage(self, raw: float | int) -> float:
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
         return raw / 32767 * self.ADS1X15_PGA_RANGE[self.ads.gain]
 
@@ -503,13 +503,13 @@ class IrLedReferenceTracker(LoggerMixin):
 
     _logger_name = "IR LED ref"
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-    def update(self, batched_reading: dict[PD_Channel, float]):
+    def update(self, batched_reading: dict[PD_Channel, float]) -> None:
         pass
 
-    def set_blank(self, batched_reading: dict[PD_Channel, float]):
+    def set_blank(self, batched_reading: dict[PD_Channel, float]) -> None:
         pass
 
     def __call__(self, od_signal: float) -> float:
@@ -544,7 +544,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     initial_led_output: Optional[float] = None
     blank_reading: float = 0.0
 
-    def __init__(self, channel: PD_Channel, fake_data=False) -> None:
+    def __init__(self, channel: PD_Channel, fake_data: bool = False) -> None:
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.55)
         self.channel = channel

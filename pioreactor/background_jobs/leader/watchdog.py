@@ -33,9 +33,13 @@ class WatchDog(BackgroundJob):
             )
             time.sleep(25)
 
-            current_state = subscribe(
+            msg = subscribe(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
-            ).payload.decode()
+            )
+            if msg is None:
+                return
+
+            current_state = msg.payload.decode()
 
             if current_state == self.LOST:
                 # failed, let's confirm to user
@@ -48,9 +52,11 @@ class WatchDog(BackgroundJob):
             # continue to pull the latest state to see if anything has changed.
             while True:
                 time.sleep(2.5 * 60)
-                current_state = subscribe(
+                msg = subscribe(
                     f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
-                ).payload.decode()
+                )
+                assert msg is not None
+                current_state = msg.payload.decode()
 
                 if current_state != self.LOST:
                     self.logger.info(f"Update: {unit} is connected. All is well.")

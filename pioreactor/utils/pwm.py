@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 from contextlib import contextmanager
-from typing import Iterator
+from typing import Iterator, Any
 from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
 from pioreactor.utils import local_intermittent_storage
@@ -182,7 +182,7 @@ class PWM:
         finally:
             self.unlock()
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: Any) -> None:
         self.cleanup()
 
     def __enter__(self) -> PWM:

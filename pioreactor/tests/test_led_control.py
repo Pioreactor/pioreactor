@@ -37,6 +37,7 @@ def test_silent() -> None:
         r = pubsub.subscribe(
             f"pioreactor/{unit}/{experiment}/led_control/automation_name", timeout=1
         )
+        assert r is not None
         assert r.payload.decode() == "silent"
 
 
@@ -48,6 +49,7 @@ def test_changing_automation_over_mqtt() -> None:
         r = pubsub.subscribe(
             f"pioreactor/{unit}/{experiment}/led_control/automation_name", timeout=1
         )
+        assert r is not None
         assert r.payload.decode() == "silent"
         pause()
         pause()

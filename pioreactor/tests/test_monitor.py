@@ -24,7 +24,8 @@ def test_check_job_states_in_monitor() -> None:
     with Monitor(unit=unit, experiment=exp):
 
         time.sleep(10)
-        value = subscribe(
+        message = subscribe(
             f"pioreactor/{unit}/{get_latest_experiment_name()}/od_reading/$state"
         )
-        assert value.payload.decode() == "lost"
+        assert message is not None
+        assert message.payload.decode() == "lost"
