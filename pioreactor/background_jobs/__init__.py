@@ -1,10 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# needed to import to "load" the automation subclasses,
-# and hence the *-controller will register them.
-from pioreactor.automations import *  # noqa: F401,F403
-
-
 from pioreactor.background_jobs import growth_rate_calculating
 from pioreactor.background_jobs import dosing_control
 from pioreactor.background_jobs import led_control

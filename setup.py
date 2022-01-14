@@ -11,7 +11,6 @@ CORE_REQUIREMENTS = [
     "sh>=1.14.0",
     "JSON-log-formatter>=0.4.0",
     "requests>=2.0.0",
-    "rpi_hardware_pwm>=0.1.3",
     "colorlog>=6.6.0",
     # tech debt - this needed to be in the core
     # leader requirement
@@ -29,7 +28,7 @@ WORKER_REQUIREMENTS = [
     "adafruit-circuitpython-ads1x15>=2.2.8",
     "DAC43608>=0.2.6",
     "TMP1075>=0.2.0",
-    "rpi-hardware-pwm>=0.1.3",
+    "rpi-hardware-pwm>=0.1.4",
     "simple-pid>=1.0.1",
 ]
 

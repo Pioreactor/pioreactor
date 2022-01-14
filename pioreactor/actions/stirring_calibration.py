@@ -136,7 +136,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
 @click.command(name="stirring_calibration")
 def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
     """
-    (Optional) Generate a lookup between stirring and voltage
+    Generate a lookup between stirring and voltage
     """
 
     if max_dc is None and min_dc is None:

@@ -255,6 +255,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
 @click.option("--max-duration", type=float)
 @click.command(name="pump_calibration")
 def click_pump_calibration(min_duration, max_duration):
+    """
+    Calibrate a pump
+    """
 
     if max_duration is None and min_duration is None:
         min_duration, max_duration = 0.75, 1.5
