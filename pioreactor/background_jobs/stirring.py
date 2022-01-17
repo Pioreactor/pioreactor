@@ -4,8 +4,8 @@ from time import sleep, perf_counter
 from typing import Optional, Callable
 from contextlib import suppress
 import json
-import click
 
+import click
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
@@ -28,7 +28,6 @@ from pioreactor import exc
 class RpmCalculator:
     """
     Super class for determining how to calculate the RPM from the hall sensor.
-
 
     We do some funky things with RPi.GPIO here.
 
@@ -372,7 +371,7 @@ class Stirrer(BackgroundJob):
 
 
 def start_stirring(
-    target_rpm=0,
+    target_rpm: float = 0.0,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     ignore_rpm=False,

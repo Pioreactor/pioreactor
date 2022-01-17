@@ -557,8 +557,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # 1. Monitor can send a lost signal if `check_against_processes_running` triggers.
         # I think it makes sense to ignore it?
 
-        # self.state = self.LOST
-        # self.log_state(self.state)
+        self.state = self.LOST
+        self.log_state(self.state)
         pass
 
     def disconnected(self) -> None:
@@ -632,7 +632,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if new_state == self.state:
             return
 
-        getattr(self, f"on_{self.state}_to_{new_state}")()
+        if hasattr(self, f"on_{self.state}_to_{new_state}"):
+            getattr(self, f"on_{self.state}_to_{new_state}")()
         getattr(self, new_state)()
 
     def log_state(self, state: JobState) -> None:

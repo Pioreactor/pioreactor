@@ -146,6 +146,7 @@ class Monitor(BackgroundJob):
                 "Not able to connect MQTT clients to leader. Is the leader in config.ini correct?"
             )  # remember, this doesn't get published to leader...
 
+            self.set_state(self.LOST)
             self.flicker_led_with_error_code(
                 ErrorCode.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE.value
             )
@@ -378,6 +379,8 @@ class Monitor(BackgroundJob):
             sleep(0.2)
             self.led_off()
             sleep(0.2)
+
+        sleep(5)
 
         self.currently_flickering = False
 
