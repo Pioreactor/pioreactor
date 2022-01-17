@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 # types
 from __future__ import annotations
-from typing import Literal, MutableMapping, TypedDict, Union
-
+from typing import Literal, MutableMapping, TypedDict, Union, Any
 
 MQTTMessagePayload = Union[bytes, bytearray]
 
@@ -52,6 +51,9 @@ class DbmMapping(MutableMapping):
         ...
 
     def __setitem__(self, key: str, value: str | bytes) -> None:
+        ...
+
+    def get(self, key: str, default: Any = None) -> Any:
         ...
 
 

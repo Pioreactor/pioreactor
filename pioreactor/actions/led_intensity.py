@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import json
+from json import dumps
 import click
 from typing import Optional, Iterator, Any
 from contextlib import contextmanager
@@ -19,6 +19,15 @@ ALL_LED_CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
 
 LED_LOCKED = b"1"
 LED_UNLOCKED = b"0"
+
+
+def _list(x) -> list:
+    if isinstance(x, list):
+        return x
+    elif isinstance(x, tuple):
+        return list(x)
+    else:
+        return [x]
 
 
 @contextmanager
@@ -83,15 +92,6 @@ def _update_current_state(
         }
 
         return new_state, old_state
-
-
-def _list(x: Any) -> list:
-    if isinstance(x, list):
-        return x
-    elif isinstance(x, tuple):
-        return list(x)
-    else:
-        return [x]
 
 
 def led_intensity(
@@ -205,7 +205,7 @@ def led_intensity(
 
     pubsub_client.publish(
         f"pioreactor/{unit}/{experiment}/leds/intensity",
-        json.dumps(new_state),
+        dumps(new_state),
         qos=QOS.AT_MOST_ONCE,
         retain=True,
     )
@@ -221,7 +221,7 @@ def led_intensity(
 
             pubsub_client.publish(
                 f"pioreactor/{unit}/{experiment}/led_events",
-                json.dumps(event),
+                dumps(event),
                 qos=QOS.AT_MOST_ONCE,
                 retain=False,
             )
