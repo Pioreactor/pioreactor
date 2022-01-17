@@ -98,17 +98,19 @@ class TemperatureController(BackgroundJob):
         super().__init__(job_name="temperature_control", unit=unit, experiment=experiment)
 
         if not is_HAT_present():
+            self.logger.error("Pioreactor HAT must be present.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         if not is_heating_pcb_present():
+            self.logger.error("Heating PCB must be attached to Pioreactor HAT")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError(
-                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
+                "Heating PCB must be attached to Pioreactor HAT"
             )
 
         if is_testing_env():
-            self.logger.info("TMP1075 not available; using MockTMP1075")
+            self.logger.debug("TMP1075 not available; using MockTMP1075")
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
             from TMP1075 import TMP1075  # type: ignore
