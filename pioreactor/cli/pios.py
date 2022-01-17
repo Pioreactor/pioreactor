@@ -124,7 +124,8 @@ def pios() -> None:
     type=click.STRING,
     help="specify a Pioreactor name, default is all active units",
 )
-def update(units: tuple[str, ...]) -> None:
+@click.option("--dev", is_flag=True, help="update to the latest development code")
+def update(units: tuple[str, ...], dev: bool) -> None:
     """
     Pulls and installs the latest code
     """
@@ -134,7 +135,10 @@ def update(units: tuple[str, ...]) -> None:
         "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
-    command = "pio update --app"
+    if dev:
+        command = "pio update --app --dev"
+    else:
+        command = "pio update --app"
 
     def _thread_function(unit):
         logger.debug(f"Executing `{command}` on {unit}...")
