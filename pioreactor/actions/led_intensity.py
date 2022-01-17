@@ -88,7 +88,7 @@ def _update_current_state(
 def _list(x: Any) -> list:
     if isinstance(x, list):
         return x
-    if isinstance(x, tuple):
+    elif isinstance(x, tuple):
         return list(x)
     else:
         return [x]
