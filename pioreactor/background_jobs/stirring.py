@@ -220,10 +220,12 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
 
         if not is_HAT_present():
+            self.logger.error("Pioreactor HAT must be present.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         if (rpm_calculator is not None) and not is_heating_pcb_present():
+            self.logger.error("Heating PCB must be present to measure RPM.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
 

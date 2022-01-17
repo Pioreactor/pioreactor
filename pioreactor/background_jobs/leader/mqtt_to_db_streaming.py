@@ -75,7 +75,7 @@ class MqttToDBStreamer(BackgroundJob):
             except Exception as e:
                 self.logger.error(e)
                 self.logger.debug(
-                    f"message.payload that caused error: `{message.payload.decode()}`"
+                    f"Error in {parser.__name__}. message.payload that caused error: `{message.payload.decode()}`"
                 )
                 return
 
@@ -157,7 +157,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         topic: str, payload: Optional[MQTTMessagePayload]
     ) -> Optional[dict]:
         metadata, split_topic = produce_metadata(topic)
-        if payload is None:
+        if not payload:
             return None
         payload_dict = loads(payload)
         return {
@@ -210,7 +210,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     ) -> Optional[dict]:
         metadata, _ = produce_metadata(topic)
 
-        if payload is None:
+        if not payload:
             return None
 
         payload_dict = loads(payload)
@@ -264,7 +264,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     def parse_stirring_rates(
         topic: str, payload: Optional[MQTTMessagePayload]
     ) -> Optional[dict]:
-        if payload is None:
+        if not payload:
             return None
 
         metadata, _ = produce_metadata(topic)
