@@ -31,7 +31,7 @@ def backup_database(output_file: str) -> None:
     unit = get_unit_name()
     experiment = UNIVERSAL_EXPERIMENT
 
-    with publish_ready_to_disconnected_state("backup_database", unit, experiment):
+    with publish_ready_to_disconnected_state(unit, experiment, "backup_database"):
 
         logger = create_logger("backup_database", experiment=experiment, unit=unit)
 

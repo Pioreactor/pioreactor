@@ -23,7 +23,8 @@ message: a json object with required keyword arguments. Specify the new automati
 
 """
 from __future__ import annotations
-import json, time
+from json import loads
+from time import sleep
 from typing import Optional, Any
 
 import click
@@ -218,13 +219,13 @@ class TemperatureController(BackgroundJob):
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
         # OR should just bail...
-        algo_metadata = AutomationDict(**json.loads(new_temperature_automation_json))
+        algo_metadata = AutomationDict(**loads(new_temperature_automation_json))
 
         try:
             self.automation_job.set_state("disconnected")
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
-            time.sleep(1)
+            sleep(1)
             self.set_automation(new_temperature_automation_json)
 
         # reset heater back to 0.
@@ -352,7 +353,7 @@ class TemperatureController(BackgroundJob):
             time_series_of_temp = []
             for i in range(N_sample_points):
                 time_series_of_temp.append(self.read_external_temperature())
-                time.sleep(time_between_samples)
+                sleep(time_between_samples)
 
                 if self.state != self.READY:
                     # if our state changes in this loop, exit.

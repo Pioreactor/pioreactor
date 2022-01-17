@@ -187,7 +187,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # TODO: turn this into a data structure dict-like thingie, so it can be updated in subclasses and we still get the right metadata published.
     published_settings: dict[str, PublishableSetting] = dict()
 
+    # these are used elsewhere in our software
+    DISALLOWED_JOB_NAMES = ["run", "dosing_events", "led", "leds"]
+
     def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
+        if job_name in self.DISALLOWED_JOB_NAMES:
+            raise ValueError("job name not allowed")
 
         self.job_name = job_name
         self.experiment = experiment
