@@ -88,6 +88,8 @@ def _update_current_state(
 def _list(x: Any) -> list:
     if isinstance(x, list):
         return x
+    if isinstance(x, tuple):
+        return list(x)
     else:
         return [x]
 
@@ -252,7 +254,7 @@ def led_intensity(
 )
 @click.option("--no-log", is_flag=True, help="Add to log")
 def click_led_intensity(
-    channel: LED_Channel | list[LED_Channel],
+    channel: LED_Channel | tuple[LED_Channel, ...],
     intensity: int,
     source_of_event: str,
     no_log: bool,
