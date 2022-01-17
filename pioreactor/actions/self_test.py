@@ -7,9 +7,9 @@ Functions with prefix `test_` are ran, and any exception thrown means the test f
 Outputs from each test go into MQTT, and return to the command line.
 """
 
-import time, sys, json
+from time import sleep
 from logging import Logger
-from json import dumps
+from json import dumps, loads
 from typing import cast
 import click
 from pioreactor.whoami import (
@@ -191,7 +191,7 @@ def test_positive_correlation_between_temp_and_heating(
         logger.debug("Varying heating.")
         for dc in dcs:
             tc._update_heater(dc)
-            time.sleep(0.75)
+            sleep(0.75)
             measured_pcb_temps.append(tc.read_external_temperature())
 
         tc._update_heater(0)
@@ -209,7 +209,7 @@ def test_positive_correlation_between_rpm_and_stirring(
     with local_persistant_storage("stirring_calibration") as cache:
 
         if "linear_v1" in cache:
-            parameters = json.loads(cache["linear_v1"])
+            parameters = loads(cache["linear_v1"])
             coef = parameters["rpm_coef"]
             intercept = parameters["intercept"]
 
@@ -230,13 +230,13 @@ def test_positive_correlation_between_rpm_and_stirring(
 
         st.duty_cycle = initial_dc
         st.start_stirring()
-        time.sleep(1)
+        sleep(1)
 
         for i in range(n_samples):
             dc = start * (1 - i / n_samples) + (i / n_samples) * end
 
             st.set_duty_cycle(dc)
-            time.sleep(1)
+            sleep(1)
             measured_rpms.append(rpm_calc(4))
             dcs.append(dc)
 
@@ -254,6 +254,7 @@ def click_self_test(k: str) -> int:
     """
     Test the input/output in the Pioreactor
     """
+    import sys
 
     unit = get_unit_name()
     testing_experiment = get_latest_testing_experiment_name()
