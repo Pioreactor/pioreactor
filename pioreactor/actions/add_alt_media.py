@@ -22,12 +22,12 @@ from pioreactor.utils.timing import current_utc_time, catchtime
 
 
 def add_alt_media(
+    unit: str,
+    experiment: str,
     ml: Optional[float] = None,
     duration: Optional[float] = None,
-    source_of_event: Optional[str] = None,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
     calibration: Optional[dict] = None,
+    source_of_event: Optional[str] = None,
 ) -> float:
     logger = create_logger("add_alt_media")
 

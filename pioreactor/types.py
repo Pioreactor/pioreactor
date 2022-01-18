@@ -1,9 +1,20 @@
 # -*- coding: utf-8 -*-
 # types
 from __future__ import annotations
-from typing import Literal, MutableMapping, TypedDict, Union, Any
+from typing import Literal, MutableMapping, TypedDict, Union, Any, Protocol
 
 MQTTMessagePayload = Union[bytes, bytearray]
+
+
+class DosingProgram(Protocol):
+    """
+    Should return a non-negative float representing (approx) how much liquid was moved, in ml.
+    """
+
+    def __call__(
+        self, ml: float, unit: str, experiment: str, source_of_event: str
+    ) -> float:
+        ...
 
 
 class MQTTMessage:
@@ -44,16 +55,16 @@ class PublishableSetting(TypedDict, total=False):
 
 
 class DbmMapping(MutableMapping):
-    def __getitem__(self, key: str) -> bytes:
+    def __getitem__(self, key: str | bytes) -> bytes:
         """
         Internally, dbm will convert all values to bytes
         """
         ...
 
-    def __setitem__(self, key: str, value: str | bytes) -> None:
+    def __setitem__(self, key: str | bytes, value: str | bytes) -> None:
         ...
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str | bytes, default: Any = None) -> Any:
         ...
 
 

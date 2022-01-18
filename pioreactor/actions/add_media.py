@@ -23,13 +23,13 @@ from pioreactor.utils.timing import current_utc_time, catchtime
 
 
 def add_media(
+    unit: str,
+    experiment: str,
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    continuously: bool = False,
     calibration: Optional[dict] = None,
+    continuously: bool = False,
 ) -> float:
     """
 

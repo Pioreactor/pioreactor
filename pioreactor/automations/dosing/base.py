@@ -5,6 +5,7 @@ import json
 from threading import Thread
 from typing import Optional, cast
 from contextlib import suppress
+from functools import partial
 
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
@@ -16,7 +17,7 @@ from pioreactor.automations import events
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.config import config
-from pioreactor.types import PublishableSetting
+from pioreactor.types import PublishableSetting, DosingProgram
 from pioreactor import exc
 
 
@@ -119,6 +120,18 @@ class DosingAutomation(BackgroundSubJob):
     _latest_run_at: Optional[float] = None
     run_thread: RepeatedTimer | Thread
     duration: float | None
+
+    # overwrite to use your own dosing programs.
+    # interface must look like types.DosingProgram
+    add_media_to_bioreactor: DosingProgram = partial(
+        add_media, duration=None, calibration=None, continuously=False
+    )
+    remove_waste_from_bioreactor: DosingProgram = partial(
+        remove_waste, duration=None, calibration=None
+    )
+    add_alt_media_to_bioreactor: DosingProgram = partial(
+        add_alt_media, duration=None, calibration=None
+    )
 
     # dosing metrics that are available, and published to MQTT
     alt_media_fraction: float = (
@@ -280,7 +293,7 @@ class DosingAutomation(BackgroundSubJob):
                 and (self.state in [self.READY, self.SLEEPING])
                 and self.wait_until_not_sleeping()
             ):
-                media_moved = add_media(
+                media_moved = self.add_media_to_bioreactor(
                     ml=media_ml,
                     source_of_event=source_of_event,
                     unit=self.unit,
@@ -294,7 +307,7 @@ class DosingAutomation(BackgroundSubJob):
                 and (self.state in [self.READY, self.SLEEPING])
                 and self.wait_until_not_sleeping()
             ):  # always check that we are still in a valid state, as state can change between pump runs.
-                alt_media_moved = add_alt_media(
+                alt_media_moved = self.add_alt_media_to_bioreactor(
                     ml=alt_media_ml,
                     source_of_event=source_of_event,
                     unit=self.unit,
@@ -309,7 +322,7 @@ class DosingAutomation(BackgroundSubJob):
                 and (self.state in [self.READY, self.SLEEPING])
                 and self.wait_until_not_sleeping()
             ):
-                waste_moved = remove_waste(
+                waste_moved = self.remove_waste_from_bioreactor(
                     ml=waste_ml,
                     source_of_event=source_of_event,
                     unit=self.unit,
@@ -317,8 +330,8 @@ class DosingAutomation(BackgroundSubJob):
                 )
                 volumes_moved[2] += waste_moved
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
-                remove_waste(
-                    duration=2,
+                self.remove_waste_from_bioreactor(
+                    ml=waste_ml * 2,
                     source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
