@@ -6,7 +6,7 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.logging import create_logger
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import gpio_helpers
-from pioreactor.types import GPIO_Pin
+from pioreactor.types import GpioPin
 
 if is_testing_env():
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
@@ -59,10 +59,10 @@ class PWM:
     >
     """
 
-    HARDWARE_PWM_CHANNELS: dict[GPIO_Pin, int] = {12: 0, 13: 1}
+    HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
 
     def __init__(
-        self, pin: GPIO_Pin, hz: float, always_use_software: bool = False
+        self, pin: GpioPin, hz: float, always_use_software: bool = False
     ) -> None:
         self.logger = create_logger("PWM")
         self.pin = pin

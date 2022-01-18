@@ -45,7 +45,7 @@ from pioreactor.pubsub import QOS, subscribe
 from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
-from pioreactor.types import PD_Channel, MQTTMessage
+from pioreactor.types import PdChannel, MQTTMessage
 from pioreactor import exc
 
 
@@ -241,7 +241,7 @@ class GrowthRateCalculator(BackgroundJob):
             initial_acc,
         )
 
-    def get_od_blank_from_cache(self) -> dict[PD_Channel, float]:
+    def get_od_blank_from_cache(self) -> dict[PdChannel, float]:
         with local_persistant_storage("od_blank") as cache:
             result = cache.get(self.experiment, None)
 
@@ -258,7 +258,7 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("od_filtered") as cache:
             return float(cache.get(self.experiment, 1.0))
 
-    def get_od_normalization_from_cache(self) -> dict[PD_Channel, float]:
+    def get_od_normalization_from_cache(self) -> dict[PdChannel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_mean") as cache:
             result = cache.get(self.experiment, None)
@@ -274,7 +274,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.info("Finished calculating OD normalization metrics.")
             return means
 
-    def get_od_variances_from_cache(self) -> dict[PD_Channel, float]:
+    def get_od_variances_from_cache(self) -> dict[PdChannel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_variance") as cache:
             result = cache.get(self.experiment, None)
@@ -308,8 +308,8 @@ class GrowthRateCalculator(BackgroundJob):
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
     def scale_raw_observations(
-        self, observations: dict[PD_Channel, float]
-    ) -> dict[PD_Channel, float]:
+        self, observations: dict[PdChannel, float]
+    ) -> dict[PdChannel, float]:
         def scale_and_shift(obs, shift, scale):
             return (obs - shift) / (scale - shift)
 
@@ -437,7 +437,7 @@ class GrowthRateCalculator(BackgroundJob):
         # removed for now, because it was messing with the new dynamic stirring
 
     @staticmethod
-    def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[PD_Channel, float]:
+    def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[PdChannel, float]:
         """
         Inputs looks like
         {

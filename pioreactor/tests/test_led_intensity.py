@@ -4,7 +4,7 @@ import pytest
 from pioreactor.actions.led_intensity import (
     lock_leds_temporarily,
     led_intensity,
-    LED_Channel,
+    LedChannel,
 )
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.utils import local_intermittent_storage
@@ -12,7 +12,7 @@ from pioreactor.utils import local_intermittent_storage
 
 def test_lock_will_prevent_led_from_updating() -> None:
 
-    channel: LED_Channel = "A"
+    channel: LedChannel = "A"
 
     unit = get_unit_name()
     exp = get_latest_experiment_name()
@@ -66,7 +66,7 @@ def test_error_is_thrown_if_lengths_are_wrong() -> None:
 
 def test_local_cache_is_updated() -> None:
 
-    channel: LED_Channel = "B"
+    channel: LedChannel = "B"
 
     unit = get_unit_name()
     exp = get_latest_experiment_name()

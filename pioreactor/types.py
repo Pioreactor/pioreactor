@@ -3,8 +3,6 @@
 from __future__ import annotations
 from typing import Literal, MutableMapping, TypedDict, Union, Any, Protocol
 
-MQTTMessagePayload = Union[bytes, bytearray]
-
 
 class DosingProgram(Protocol):
     """
@@ -15,6 +13,9 @@ class DosingProgram(Protocol):
         self, ml: float, unit: str, experiment: str, source_of_event: str
     ) -> float:
         ...
+
+
+MQTTMessagePayload = Union[bytes, bytearray]
 
 
 class MQTTMessage:
@@ -71,16 +72,16 @@ class DbmMapping(MutableMapping):
 JobState = Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 
-LED_Channel = Literal["A", "B", "C", "D"]
+LedChannel = Literal["A", "B", "C", "D"]
 
 # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless.
 # str suggest symbols, which they are.
-PD_Channel = Literal["1", "2"]
-PWM_Channel = Literal["1", "2", "3", "4", "5"]
+PdChannel = Literal["1", "2"]
+PwmChannel = Literal["1", "2", "3", "4", "5"]
 
 
 # All GPIO pins below are BCM numbered
-GPIO_Pin = Literal[
+GpioPin = Literal[
     2,
     3,
     4,

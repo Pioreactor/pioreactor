@@ -34,12 +34,12 @@ from pioreactor.utils.math_helpers import (
     residuals_of_simple_linear_regression,
 )
 from pioreactor import exc
-from pioreactor.types import PD_Channel
+from pioreactor.types import PdChannel
 
 
 def od_normalization(
     unit: str, experiment: str, n_samples: int = 35
-) -> tuple[dict[PD_Channel, float], dict[PD_Channel, float]]:
+) -> tuple[dict[PdChannel, float], dict[PdChannel, float]]:
     from statistics import mean, variance
 
     action_name = "od_normalization"

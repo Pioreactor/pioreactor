@@ -35,7 +35,7 @@ from pioreactor.utils import (
 )
 from pioreactor.background_jobs import stirring
 from pioreactor.config import config
-from pioreactor.types import PD_Channel, LED_Channel
+from pioreactor.types import PdChannel, LedChannel
 from pioreactor.hardware import is_HAT_present, is_heating_pcb_present
 
 
@@ -56,7 +56,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         range(10, 50, 5)
     )  # better to err on the side of MORE samples than less - it's only a few extra seconds...
     current_experiment_name = get_latest_experiment_name()
-    results: dict[tuple[LED_Channel, PD_Channel], float] = {}
+    results: dict[tuple[LedChannel, PdChannel], float] = {}
 
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS,
@@ -76,7 +76,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     )
 
     for led_channel in ALL_LED_CHANNELS:
-        varying_intensity_results: dict[PD_Channel, list[float]] = {
+        varying_intensity_results: dict[PdChannel, list[float]] = {
             pd_channel: [] for pd_channel in ALL_PD_CHANNELS
         }
         for intensity in INTENSITIES:
@@ -137,10 +137,10 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     # we require that the IR photodiodes defined in the config have a
     # correlation with the IR led
-    pd_channels_to_test: list[PD_Channel] = []
+    pd_channels_to_test: list[PdChannel] = []
     for (channel, angle_or_ref) in config["od_config.photodiode_channel"].items():
         if angle_or_ref != "":
-            channel = cast(PD_Channel, channel)
+            channel = cast(PdChannel, channel)
             pd_channels_to_test.append(channel)
 
     ir_led_channel = config["leds_reverse"][IR_keyword]

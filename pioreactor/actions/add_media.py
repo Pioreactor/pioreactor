@@ -35,7 +35,6 @@ def add_media(
 
     Parameters
     ------------
-
     calibration:
         specify a calibration for the dosing. Should be a dict
         with fields "duration_", "hz_", "dc", and "bias_"
@@ -134,7 +133,12 @@ def add_media(
     type=str,
     help="who is calling this function - data goes into database and MQTT",
 )
-def click_add_media(ml, duration, continuously, source_of_event):
+def click_add_media(
+    ml: Optional[float],
+    duration: Optional[float],
+    continuously: bool,
+    source_of_event: Optional[str],
+):
     """
     Add media to unit
     """

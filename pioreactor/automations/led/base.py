@@ -15,7 +15,7 @@ from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations import events
 from pioreactor.utils import is_pio_job_running
-from pioreactor.types import LED_Channel
+from pioreactor.types import LedChannel
 from pioreactor import exc
 
 
@@ -72,7 +72,7 @@ class LEDAutomation(BackgroundSubJob):
         )
 
         self.skip_first_run = skip_first_run
-        self.edited_channels: set[LED_Channel] = set()
+        self.edited_channels: set[LedChannel] = set()
 
         self.set_duration(duration)
         self.start_passive_listeners()
@@ -146,7 +146,7 @@ class LEDAutomation(BackgroundSubJob):
     def most_stale_time(self) -> float:
         return min(self.latest_od_at, self.latest_growth_rate_at)
 
-    def set_led_intensity(self, channel: LED_Channel, intensity: float) -> bool:
+    def set_led_intensity(self, channel: LedChannel, intensity: float) -> bool:
         """
         This first checks the lock on the LED channel, and will wait a few seconds for it to clear,
         and error out if it waits too long.

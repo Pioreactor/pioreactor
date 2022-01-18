@@ -167,9 +167,9 @@ def is_pio_job_running(*target_jobs: str) -> bool:
     pass in jobs to check if they are running
     ex:
 
-    > res = is_pio_job_running("od_reading")
+    > result = is_pio_job_running("od_reading")
 
-    > res = is_pio_job_running("od_reading", "stirring")
+    > result = is_pio_job_running("od_reading", "stirring")
     """
     with local_intermittent_storage("pio_jobs_running") as cache:
         for job in target_jobs:

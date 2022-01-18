@@ -12,9 +12,9 @@ from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_test
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.types import LED_Channel
+from pioreactor.types import LedChannel
 
-ALL_LED_CHANNELS: list[LED_Channel] = ["A", "B", "C", "D"]
+ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
 
 
 LED_LOCKED = b"1"
@@ -32,7 +32,7 @@ def _list(x) -> list:
 
 @contextmanager
 def change_leds_intensities_temporarily(
-    channels: list[LED_Channel], new_intensities: list[float], **kwargs: Any
+    channels: list[LedChannel], new_intensities: list[float], **kwargs: Any
 ) -> Iterator[None]:
     """
     Change the LED referenced in `channels` to some intensity `new_intensities`
@@ -52,7 +52,7 @@ def change_leds_intensities_temporarily(
 
 
 @contextmanager
-def lock_leds_temporarily(channels: list[LED_Channel]) -> Iterator[None]:
+def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
     try:
         with local_intermittent_storage("led_locks") as cache:
             for c in channels:
@@ -64,15 +64,15 @@ def lock_leds_temporarily(channels: list[LED_Channel]) -> Iterator[None]:
                 cache[c] = LED_UNLOCKED
 
 
-def is_led_channel_locked(channel: LED_Channel) -> bool:
+def is_led_channel_locked(channel: LedChannel) -> bool:
     with local_intermittent_storage("led_locks") as cache:
         return cache.get(channel, LED_UNLOCKED) == LED_LOCKED
 
 
 def _update_current_state(
-    channels: list[LED_Channel],
+    channels: list[LedChannel],
     intensities: list[float],
-) -> tuple[dict[LED_Channel, float], dict[LED_Channel, float]]:
+) -> tuple[dict[LedChannel, float], dict[LedChannel, float]]:
     """
     Previously this used MQTT, but network latency could really cause trouble.
     Eventually I should try to modify the UI to not even need this `state` variable,
@@ -95,7 +95,7 @@ def _update_current_state(
 
 
 def led_intensity(
-    channels: LED_Channel | list[LED_Channel],
+    channels: LedChannel | list[LedChannel],
     intensities: float | list[float],
     unit: str,
     experiment: str,
@@ -254,7 +254,7 @@ def led_intensity(
 )
 @click.option("--no-log", is_flag=True, help="Add to log")
 def click_led_intensity(
-    channel: LED_Channel | tuple[LED_Channel, ...],
+    channel: LedChannel | tuple[LedChannel, ...],
     intensity: int,
     source_of_event: str,
     no_log: bool,

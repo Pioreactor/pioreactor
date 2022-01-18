@@ -106,11 +106,11 @@ from pioreactor.actions.led_intensity import (
 from pioreactor.hardware import SCL, SDA, is_HAT_present
 from pioreactor.pubsub import QOS, publish
 from pioreactor.version import hardware_version_info
-from pioreactor.types import PD_Channel, LED_Channel
+from pioreactor.types import PdChannel, LedChannel
 from pioreactor.error_codes import ErrorCode
 from pioreactor import exc
 
-ALL_PD_CHANNELS: list[PD_Channel] = ["1", "2"]
+ALL_PD_CHANNELS: list[PdChannel] = ["1", "2"]
 
 REF_keyword = "REF"
 IR_keyword = "IR"
@@ -162,7 +162,7 @@ class ADCReader(LoggerMixin):
 
     def __init__(
         self,
-        channels: list[PD_Channel],
+        channels: list[PdChannel],
         fake_data: bool = False,
         dynamic_gain: bool = True,
         initial_gain: float = 1,
@@ -173,7 +173,7 @@ class ADCReader(LoggerMixin):
         self.gain = initial_gain
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
-        self.batched_readings: dict[PD_Channel, float] = {}
+        self.batched_readings: dict[PdChannel, float] = {}
 
         if not is_HAT_present():
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
@@ -198,7 +198,7 @@ class ADCReader(LoggerMixin):
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
         self.ads = ADS(I2C(SCL, SDA), data_rate=self.DATA_RATE, gain=self.gain)
-        self.analog_in: dict[PD_Channel, AnalogIn] = {}
+        self.analog_in: dict[PdChannel, AnalogIn] = {}
 
         for channel in self.channels:
             self.analog_in[channel] = AnalogIn(
@@ -382,7 +382,7 @@ class ADCReader(LoggerMixin):
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
         return raw / 32767 * self.ADS1X15_PGA_RANGE[self.ads.gain]
 
-    def take_reading(self) -> dict[PD_Channel, float]:
+    def take_reading(self) -> dict[PdChannel, float]:
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
 
@@ -399,10 +399,10 @@ class ADCReader(LoggerMixin):
 
         max_signal = -1.0
 
-        aggregated_signals: dict[PD_Channel, list[int]] = {
+        aggregated_signals: dict[PdChannel, list[int]] = {
             channel: [] for channel in self.channels
         }
-        timestamps: dict[PD_Channel, list[float]] = {
+        timestamps: dict[PdChannel, list[float]] = {
             channel: [] for channel in self.channels
         }
 
@@ -430,7 +430,7 @@ class ADCReader(LoggerMixin):
                         )
                     )
 
-            batched_estimates_: dict[PD_Channel, float] = {}
+            batched_estimates_: dict[PdChannel, float] = {}
 
             if self.most_appropriate_AC_hz is None:
                 self.most_appropriate_AC_hz = self.determine_most_appropriate_AC_hz(
@@ -508,8 +508,8 @@ class ADCReader(LoggerMixin):
 
     def determine_most_appropriate_AC_hz(
         self,
-        timestamps: dict[PD_Channel, list[float]],
-        aggregated_signals: dict[PD_Channel, list[int]],
+        timestamps: dict[PdChannel, list[float]],
+        aggregated_signals: dict[PdChannel, list[int]],
     ) -> float:
         FREQS_TO_TRY = [60.0, 50.0]
 
@@ -536,10 +536,10 @@ class IrLedReferenceTracker(LoggerMixin):
     def __init__(self) -> None:
         super().__init__()
 
-    def update(self, batched_reading: dict[PD_Channel, float]) -> None:
+    def update(self, batched_reading: dict[PdChannel, float]) -> None:
         pass
 
-    def set_blank(self, batched_reading: dict[PD_Channel, float]) -> None:
+    def set_blank(self, batched_reading: dict[PdChannel, float]) -> None:
         pass
 
     def __call__(self, od_signal: float) -> float:
@@ -574,14 +574,14 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     initial_led_output: Optional[float] = None
     blank_reading: float = 0.0
 
-    def __init__(self, channel: PD_Channel, fake_data: bool = False) -> None:
+    def __init__(self, channel: PdChannel, fake_data: bool = False) -> None:
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.55)
         self.channel = channel
         self.fake_data = fake_data
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
-    def update(self, batched_reading: dict[PD_Channel, float]) -> None:
+    def update(self, batched_reading: dict[PdChannel, float]) -> None:
         ir_output_reading = batched_reading[self.channel]
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
@@ -598,7 +598,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             / (self.initial_led_output - self.blank_reading)
         )
 
-    def set_blank(self, batched_reading: dict[PD_Channel, float]) -> None:
+    def set_blank(self, batched_reading: dict[PdChannel, float]) -> None:
         self.blank_reading = batched_reading[self.channel]
 
     def __call__(self, od_signal: float) -> float:
@@ -644,11 +644,11 @@ class ODReader(BackgroundJob):
         "led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "interval": {"datatype": "float", "settable": False, "unit": "s"},
     }
-    latest_reading: dict[PD_Channel, float]
+    latest_reading: dict[PdChannel, float]
 
     def __init__(
         self,
-        channel_angle_map: dict[PD_Channel, str],
+        channel_angle_map: dict[PdChannel, str],
         interval: float,
         adc_reader: ADCReader,
         ir_led_reference_tracker: IrLedReferenceTracker,
@@ -667,8 +667,8 @@ class ODReader(BackgroundJob):
         self.first_od_obs_time: Optional[float] = None
 
         self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
-        self.ir_channel: LED_Channel = self.get_ir_channel_from_configuration()
-        self.non_ir_led_channels: list[LED_Channel] = [
+        self.ir_channel: LedChannel = self.get_ir_channel_from_configuration()
+        self.non_ir_led_channels: list[LedChannel] = [
             ch for ch in ALL_LED_CHANNELS if ch != self.ir_channel
         ]
 
@@ -706,9 +706,9 @@ class ODReader(BackgroundJob):
             run_immediately=True,
         ).start()
 
-    def get_ir_channel_from_configuration(self) -> LED_Channel:
+    def get_ir_channel_from_configuration(self) -> LedChannel:
         try:
-            return cast(LED_Channel, config.get("leds_reverse", IR_keyword))
+            return cast(LedChannel, config.get("leds_reverse", IR_keyword))
         except Exception:
             self.logger.error(
                 """`leds` section must contain `IR` value. Ex:
@@ -780,7 +780,7 @@ class ODReader(BackgroundJob):
             pass
 
     def publish_batch(
-        self, batched_ads_readings: dict[PD_Channel, float], timestamp: str
+        self, batched_ads_readings: dict[PdChannel, float], timestamp: str
     ) -> None:
         if self.state != self.READY:
             return
@@ -803,7 +803,7 @@ class ODReader(BackgroundJob):
         )
 
     def publish_single(
-        self, batched_ads_readings: dict[PD_Channel, float], timestamp: str
+        self, batched_ads_readings: dict[PdChannel, float], timestamp: str
     ) -> None:
         if self.state != self.READY:
             return
@@ -826,7 +826,7 @@ class ODReader(BackgroundJob):
         return self.ir_led_reference_tracker(od_signal)
 
 
-def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[PD_Channel]:
+def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[PdChannel]:
     if od_angle_channel1 == REF_keyword:
         return "1"
     elif od_angle_channel2 == REF_keyword:
@@ -837,10 +837,10 @@ def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[PD_C
 
 def create_channel_angle_map(
     od_angle_channel1, od_angle_channel2
-) -> dict[PD_Channel, str]:
+) -> dict[PdChannel, str]:
     # Inputs are either None, or a string like "135", "90", "REF", ...
     # Example return dict: {"1": "90", "2": "45"}
-    channel_angle_map: dict[PD_Channel, str] = {}
+    channel_angle_map: dict[PdChannel, str] = {}
 
     if od_angle_channel1 and od_angle_channel1 != REF_keyword:
         channel_angle_map["1"] = od_angle_channel1
