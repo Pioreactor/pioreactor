@@ -248,6 +248,7 @@ class Stirrer(BackgroundJob):
             experiment=self.experiment,
             job_name=self.job_name,
             target_name="rpm",
+            bounds=(-20, 20),  # avoid whiplashing
         )
 
         # set up thread to periodically check the rpm

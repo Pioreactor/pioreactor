@@ -526,6 +526,7 @@ class ADCReader(LoggerMixin):
                 argmin_freq = freq
 
         assert argmin_freq is not None
+        self.logger.debug(f"AC hz estimate: {argmin_freq}")
         return argmin_freq
 
 
