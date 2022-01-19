@@ -11,20 +11,20 @@ from pioreactor.types import DbmMapping
 
 
 class callable_stack:
-    def __init__(self):
+    def __init__(self) -> None:
         self.callables: list[Callable] = []
 
-    def append(self, function: Callable):
+    def append(self, function: Callable) -> None:
         self.callables.append(function)
 
-    def __call__(self, *args):
+    def __call__(self, *args) -> None:
         for function in reversed(self.callables):
             function(*args)
 
 
-def append_signal_handler(signal_value, new_callback: Callable):
+def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) -> None:
     """
-    The current api of signal.signal is a stack of size 1, so if
+    The current api of signal.signal is a global stack of size 1, so if
     we have multiple jobs started in the same python process, we
     need them all to respect each others signal.
     """
@@ -41,15 +41,12 @@ def append_signal_handler(signal_value, new_callback: Callable):
             stack.append(current_callback)
             stack.append(new_callback)
             signal.signal(signal_value, stack)
-    elif (
-        (current_callback is None)
-        or (current_callback is signal.SIG_DFL)
-        or (current_callback is signal.SIG_IGN)
-    ):
+    elif (current_callback is signal.SIG_DFL) or (current_callback is signal.SIG_IGN):
         # no stack yet.
-        stack = callable_stack()
         stack.append(new_callback)
         signal.signal(signal_value, stack)
+    elif current_callback is None:
+        signal.signal(signal_value, callable_stack())
     else:
         raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
 
@@ -69,15 +66,15 @@ class publish_ready_to_disconnected_state:
 
     """
 
-    def __init__(self, unit: str, experiment: str, name: str):
+    def __init__(self, unit: str, experiment: str, name: str) -> None:
         self.unit = unit
         self.experiment = experiment
         self.name = name
 
-    def _handle_interrupt(self, *args):
+    def _handle_interrupt(self, *args) -> None:
         sys.exit()  # will trigger a exception, causing __exit__ to be called
 
-    def __enter__(self):
+    def __enter__(self) -> publish_ready_to_disconnected_state:
         append_signal_handler(signal.SIGTERM, self._handle_interrupt)
 
         publish(
@@ -89,7 +86,7 @@ class publish_ready_to_disconnected_state:
 
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             "disconnected",
