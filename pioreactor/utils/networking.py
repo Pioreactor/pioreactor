@@ -30,12 +30,6 @@ def is_reachable(hostname: str) -> bool:
     return False
 
 
-def is_allowable_hostname(hostname: str) -> bool:
-    import re
-
-    return True if re.match(r"^[0-9a-zA-Z\-]+$", hostname) is not None else False
-
-
 def get_ip() -> str:
     # psutil.net_if_addrs()?
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

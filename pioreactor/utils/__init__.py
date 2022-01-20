@@ -43,6 +43,7 @@ def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) 
             signal.signal(signal_value, stack)
     elif (current_callback is signal.SIG_DFL) or (current_callback is signal.SIG_IGN):
         # no stack yet.
+        stack = callable_stack()
         stack.append(new_callback)
         signal.signal(signal_value, stack)
     elif current_callback is None:
@@ -221,20 +222,3 @@ def pump_duration_to_ml(duration: float, duration_: float = 0, bias_: float = 0)
     duration_ : the coefficient from calibration
     """
     return duration * duration_ + bias_
-
-
-def get_ip4_addr() -> str:
-    import socket
-
-    # from https://github.com/Matthias-Wandel/pi_blink_ip
-    # get_ip() from https://stackoverflow.com/questions/166506/finding-local-ip-addresses-using-pythons-stdlib
-    # gets the primary IP address.
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("10.255.255.255", 1))  # doesn't even have to be reachable
-        IP = s.getsockname()[0]
-    except Exception:
-        IP = "127.0.0.1"
-    finally:
-        s.close()
-    return IP

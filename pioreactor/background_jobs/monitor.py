@@ -26,6 +26,7 @@ from pioreactor.utils import is_pio_job_running, local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
 from pioreactor.version import software_version_info, hardware_version_info
 from pioreactor.error_codes import ErrorCode
+from pioreactor.utils.networking import get_ip
 
 
 class Monitor(BackgroundJob):
@@ -90,7 +91,16 @@ class Monitor(BackgroundJob):
             BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up
         )
 
+    def check_for_network(self) -> None:
+        while get_ip() == "127.0.0.1":
+            # no wifi connection? Sound the alarm.
+            self.logger.error("Unable to connect to network...")
+            self.flicker_led_with_error_code(ErrorCode.NO_NETWORK_CONNECTION.value)
+
     def self_checks(self) -> None:
+        # check active network connection
+        self.check_for_network()
+
         # watch for undervoltage problems
         self.check_for_power_problems()
 
@@ -376,9 +386,9 @@ class Monitor(BackgroundJob):
 
         for _ in range(error_code):
             self.led_on()
-            sleep(0.2)
+            sleep(0.3)
             self.led_off()
-            sleep(0.2)
+            sleep(0.3)
 
         sleep(5)
 
