@@ -164,6 +164,7 @@ class ADCReader(LoggerMixin):
         self,
         channels: list[PdChannel],
         fake_data: bool = False,
+        interval: float = 1.0,
         dynamic_gain: bool = True,
         initial_gain: float = 1,
     ) -> None:
@@ -174,6 +175,7 @@ class ADCReader(LoggerMixin):
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
         self.batched_readings: dict[PdChannel, float] = {}
+        self.interval = interval
 
         if not is_HAT_present():
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
@@ -273,7 +275,12 @@ class ADCReader(LoggerMixin):
         self.ads.gain = gain  # this assignment checks to see if the gain is allowed.
 
     def sin_regression_with_known_freq(
-        self, x: list, y: list, freq: float, prior_C=None, penalizer_C=None
+        self,
+        x: list,
+        y: list,
+        freq: float,
+        prior_C: float = None,
+        penalizer_C: float = None,
     ) -> tuple[tuple[float, Optional[float], Optional[float]], float]:
         r"""
         Assumes a known frequency.
@@ -333,8 +340,8 @@ class ADCReader(LoggerMixin):
         sum_ysin = (y_ * sin_x).sum()
         sum_ycos = (y_ * cos_x).sum()
 
-        rhs_penalty_term = 0
-        lhs_penalty_term = 0
+        rhs_penalty_term = 0.0
+        lhs_penalty_term = 0.0
 
         if prior_C and penalizer_C:
             rhs_penalty_term = penalizer_C * prior_C
@@ -448,7 +455,10 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=0.5,  # TODO: this penalizer should scale with absolute value of reading, number of samples, and duration between readings...
+                    penalizer_C=(75.0 / self.oversampling_count / self.interval)
+                    if self.interval
+                    else None
+                    # arbitrary, but should scale with number of samples, and duration between samples
                 )
 
                 # convert to voltage
@@ -884,8 +894,7 @@ def start_od_reading(
         unit=unit,
         experiment=experiment,
         adc_reader=ADCReader(
-            channels=channels,
-            fake_data=fake_data,
+            channels=channels, fake_data=fake_data, interval=sampling_rate
         ),
         ir_led_reference_tracker=ir_led_reference_tracker,
     )
