@@ -392,7 +392,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             return
 
     def publish(
-        self, topic: str, payload: str | bytes | int | float | dict | None, **kwargs
+        self,
+        topic: str,
+        payload: str | bytes | int | float | dict | None,
+        qos: int = 0,
+        **kwargs,
     ) -> None:
         """
         Publish payload to topic.

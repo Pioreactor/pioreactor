@@ -677,8 +677,8 @@ class ODReader(BackgroundJob):
 
         self.first_od_obs_time: Optional[float] = None
 
-        self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
         self.ir_channel: LedChannel = self.get_ir_channel_from_configuration()
+        self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
         self.non_ir_led_channels: list[LedChannel] = [
             ch for ch in ALL_LED_CHANNELS if ch != self.ir_channel
         ]
@@ -691,7 +691,7 @@ class ODReader(BackgroundJob):
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
         )
 
-        # setup the ADC by turning off all LEDs that might cause problems.
+        # setup the ADC and IrLedReference by turning off all LEDs.
         with change_leds_intensities_temporarily(
             ALL_LED_CHANNELS,
             [0.0, 0.0, 0.0, 0.0],
@@ -705,11 +705,13 @@ class ODReader(BackgroundJob):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
-                self.adc_reader.setup_adc()
+                self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
+                self.stop_ir_led()
 
-        # get blank values, this slightly improves the accuracy of the IR LED output tracker,
-        # see that class's docs.
-        self.ir_led_reference_tracker.set_blank(self.adc_reader.take_reading())
+                # get blank values of reference PD.
+                # This slightly improves the accuracy of the IR LED output tracker,
+                # See that class's docs.
+                self.ir_led_reference_tracker.set_blank(self.adc_reader.take_reading())
 
         self.record_from_adc_timer = RepeatedTimer(
             self.interval,
@@ -775,6 +777,17 @@ class ODReader(BackgroundJob):
             raise OSError("IR LED could not be started. Stopping OD reading.")
 
         return
+
+    def stop_ir_led(self) -> None:
+        change_led_intensity(
+            channels=self.ir_channel,
+            intensities=0.0,
+            unit=self.unit,
+            experiment=self.experiment,
+            source_of_event=self.job_name,
+            pubsub_client=self.pub_client,
+            verbose=False,
+        )
 
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
