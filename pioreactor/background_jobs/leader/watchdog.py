@@ -6,23 +6,24 @@ import click
 from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.pubsub import subscribe
+from pioreactor.types import MQTTMessage
 
 
 class WatchDog(BackgroundJob):
-    def __init__(self, unit, experiment) -> None:
+    def __init__(self, unit: str, experiment: str) -> None:
         super(WatchDog, self).__init__(
             job_name="watchdog", unit=unit, experiment=experiment
         )
 
         self.start_passive_listeners()
 
-    def watch_for_lost_state(self, msg) -> None:
-        if msg.payload.decode() == self.LOST:
+    def watch_for_lost_state(self, state_message: MQTTMessage) -> None:
+        if state_message.payload.decode() == self.LOST:
 
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
 
             # let's try pinging the unit a few times first:
-            unit = msg.topic.split("/")[1]
+            unit = state_message.topic.split("/")[1]
 
             self.logger.warning(
                 f"{unit} seems to be lost. Trying to re-establish connection..."
@@ -62,7 +63,7 @@ class WatchDog(BackgroundJob):
                     self.logger.info(f"Update: {unit} is connected. All is well.")
                     return
 
-    def watch_for_new_experiment(self, msg) -> None:
+    def watch_for_new_experiment(self, msg: MQTTMessage) -> None:
         new_experiment_name = msg.payload.decode()
         self.logger.debug(
             f"New latest experiment detected in MQTT: {new_experiment_name}"

@@ -10,22 +10,22 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 
 
-def exists_table(cursor, table_name_to_check):
+def exists_table(cursor, table_name_to_check: str) -> bool:
     query = "SELECT 1 FROM sqlite_master WHERE type='table' and name = ?"
     return cursor.execute(query, (table_name_to_check,)).fetchone() is not None
 
 
-def get_column_names(cursor, table_name):
+def get_column_names(cursor, table_name: str) -> list[str]:
     query = "PRAGMA table_info(%s)" % table_name
     return [row[1] for row in cursor.execute(query).fetchall()]
 
 
-def filter_to_timestamp_columns(column_names):
+def filter_to_timestamp_columns(column_names: list[str]) -> list[str]:
     # We use a standard here: `timestamp` or ends in `_at`
     return [c for c in column_names if (c == "timestamp") or c.endswith("_at")]
 
 
-def generate_timestamp_to_localtimestamp_clause(cursor, table_name):
+def generate_timestamp_to_localtimestamp_clause(cursor, table_name: str) -> str:
     # TODO: this assumes a timestamp column exists?
     columns = get_column_names(cursor, table_name)
     timestamp_columns = filter_to_timestamp_columns(columns)
@@ -38,7 +38,7 @@ def generate_timestamp_to_localtimestamp_clause(cursor, table_name):
     return clause
 
 
-def export_experiment_data(experiment: str, output: str, tables: list):
+def export_experiment_data(experiment: str, output: str, tables: list) -> None:
     """
     Set an experiment, else it defaults to the entire table.
 

@@ -9,6 +9,7 @@ message: a json object with required keyword argument. Specify the new automatio
 """
 import time
 import json
+from typing import Optional
 from contextlib import suppress
 
 import click
@@ -103,13 +104,18 @@ class LEDController(BackgroundJob):
 
 
 def start_led_control(
-    automation_name: str, duration: float = None, skip_first_run=False, **kwargs
+    automation_name: str,
+    duration: Optional[float] = None,
+    skip_first_run=False,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    **kwargs,
 ) -> LEDController:
     try:
         return LEDController(
             automation_name=automation_name,
-            unit=get_unit_name(),
-            experiment=get_latest_experiment_name(),
+            unit=unit or get_unit_name(),
+            experiment=experiment or get_latest_experiment_name(),
             skip_first_run=skip_first_run,
             duration=duration,
             **kwargs,

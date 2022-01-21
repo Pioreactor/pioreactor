@@ -210,7 +210,7 @@ class ADCReader(LoggerMixin):
         # check if using correct gain
         # this may need to be adjusted for higher rates of data collection
         if self.dynamic_gain:
-            max_signal = 0.0
+            max_signal = -1.0
             # we will instantiate and sweep through to set the gain
             for ai in self.analog_in.values():
 
@@ -234,11 +234,6 @@ class ADCReader(LoggerMixin):
 
             unit, exp = get_unit_name(), get_latest_experiment_name()
 
-            publish(
-                f"pioreactor/{unit}/{exp}/monitor/flicker_led_with_error_code",
-                ErrorCode.ADC_INPUT_TOO_HIGH.value,
-            )
-
             with local_intermittent_storage("led_locks") as cache:
                 for c in ALL_LED_CHANNELS:
                     cache[c] = LED_UNLOCKED
@@ -254,6 +249,10 @@ class ADCReader(LoggerMixin):
                 verbose=True,
             )
 
+            publish(
+                f"pioreactor/{unit}/{exp}/monitor/flicker_led_with_error_code",
+                ErrorCode.ADC_INPUT_TOO_HIGH.value,
+            )
             # kill ourselves - this will hopefully kill ODReader.
             # TODO: it doesn't?
             import sys
@@ -504,13 +503,6 @@ class ADCReader(LoggerMixin):
 
             return batched_estimates_
 
-        except OSError as e:
-            # just skip, not sure why this happens when add_media or remove_waste are called.
-            # TODO: does this still happen?
-            self.logger.debug(e, exc_info=True)
-            self.logger.error(e)
-            raise e
-
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
@@ -585,23 +577,17 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     initial_led_output: Optional[float] = None
     blank_reading: float = 0.0
 
-    def __init__(self, channel: PdChannel, fake_data: bool = False) -> None:
+    def __init__(self, channel: PdChannel, ignore_blank: bool = False) -> None:
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(0.55)
         self.channel = channel
-        self.fake_data = fake_data
+        self.ignore_blank = ignore_blank
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
     def update(self, batched_reading: dict[PdChannel, float]) -> None:
         ir_output_reading = batched_reading[self.channel]
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
-
-        if ((self.initial_led_output - self.blank_reading) < 0.01) and not self.fake_data:
-            self.logger.warning(
-                "Reference photodiode producing very small values. Is the reference photodiode and the IR LED connected?"
-            )
-            return
 
         # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
         self.led_output_ema.update(
@@ -610,11 +596,15 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         )
 
     def set_blank(self, batched_reading: dict[PdChannel, float]) -> None:
-        self.blank_reading = batched_reading[self.channel]
+        if self.ignore_blank:
+            return
+        else:
+            self.blank_reading = batched_reading[self.channel]
+            return
 
     def __call__(self, od_signal: float) -> float:
         led_output = self.led_output_ema()
-        if (led_output is None) or self.fake_data:
+        if led_output is None:
             return od_signal
         else:
             assert isinstance(led_output, float)
@@ -895,7 +885,7 @@ def start_od_reading(
     ir_led_reference_tracker: IrLedReferenceTracker
     if ir_led_reference_channel is not None:
         ir_led_reference_tracker = PhotodiodeIrLedReferenceTracker(
-            ir_led_reference_channel, fake_data=fake_data
+            ir_led_reference_channel, ignore_blank=fake_data
         )
         channels.append(ir_led_reference_channel)
     else:

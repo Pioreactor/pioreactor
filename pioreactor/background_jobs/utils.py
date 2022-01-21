@@ -7,7 +7,7 @@ class AutomationDict(dict):
     A sublass for pretty printing
     """
 
-    def __str__(self):
+    def __str__(self) -> str:
         s = f"{self['automation_name']}("
         for k, v in self.items():
             if k == "automation_name":
@@ -18,5 +18,5 @@ class AutomationDict(dict):
         s += ")"
         return s
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self)

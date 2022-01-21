@@ -74,7 +74,7 @@ class RepeatedTimer:
         run_after: Optional[float] = None,
         *args,
         **kwargs
-    ):
+    ) -> None:
         self.interval = interval
         self.function = function
         self.args = args

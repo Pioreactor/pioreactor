@@ -115,11 +115,11 @@ def publish_multiple(
 
 
 def subscribe(
-    topics,
+    topics: str | list[str],
     hostname=leader_hostname,
-    retries=10,
-    timeout=None,
-    allow_retained=True,
+    retries: int = 10,
+    timeout: Optional[float] = None,
+    allow_retained: bool = True,
     **mqtt_kwargs,
 ) -> Optional[MQTTMessage]:
     """
@@ -201,11 +201,11 @@ def subscribe(
 
 def subscribe_and_callback(
     callback: Callable[[MQTTMessage], None],
-    topics,
-    hostname=leader_hostname,
-    last_will=None,
-    job_name=None,
-    allow_retained=True,
+    topics: str | list[str],
+    hostname: str = leader_hostname,
+    last_will: dict = None,
+    job_name: str = None,
+    allow_retained: bool = True,
     **mqtt_kwargs,
 ) -> Client:
     """
@@ -227,11 +227,11 @@ def subscribe_and_callback(
         callback
     ), "callback should be callable - do you need to change the order of arguments?"
 
-    def on_connect(client, userdata, flags, rc):
+    def on_connect(client: Client, userdata: dict, *args):
         client.subscribe(userdata["topics"])
 
-    def wrap_callback(actual_callback):
-        def _callback(client, userdata, message):
+    def wrap_callback(actual_callback: Callable) -> Callable:
+        def _callback(client: Client, userdata: dict, message):
             try:
 
                 if not allow_retained and message.retain:
@@ -264,7 +264,7 @@ def subscribe_and_callback(
     client.connect(leader_hostname, **mqtt_kwargs)
     client.loop_start()
 
-    def stop_and_disconnect():
+    def stop_and_disconnect() -> None:
         client.loop_stop()
         client.disconnect()
 

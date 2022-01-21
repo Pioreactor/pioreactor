@@ -5,7 +5,7 @@ from __future__ import annotations
 __version__ = "22.1.0"
 
 
-def _get_hardware_version():
+def _get_hardware_version() -> tuple[int, int]:
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/product_ver", "r") as f:

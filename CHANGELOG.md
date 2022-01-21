@@ -1,11 +1,16 @@
 ### Upcoming
- - Added more error codes for the ADC and temperature
+ - Added more error codes for the ADC, network issues, and high temperature
  - Reduce chance of running multiple growth_rate_calculating jobs
  - Custom exceptions thrown in the Python software.
  - New checks for HAT being present, and Heating PCB being present, before a job is run (if required in the job).
  - QOL improvements to stirring calibration
  - Calibrations now store the data locally, alongside the calibration results, in the local storage.
- -
+ - New API in `DosingController` to add custom pumps
+ - Some `job_name`s are disallowed to avoid MQTT conflicts
+ - ADCReader now will estimate the local AC hertz to get a better OD reading signal.
+ - Custom Python exceptions were introduced.
+ - `pioreactor.hardware_mappings` is renamed to `pioreactor.hardware`
+ - New `is_HAT_present` and `is_heating_pcb_present` functions
 
 
 ### 22.1.0

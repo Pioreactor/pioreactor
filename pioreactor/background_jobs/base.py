@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import signal
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, TypeVar
 import threading
 import atexit
 import time
@@ -19,6 +19,8 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid, is_testing_env
 from pioreactor.logging import create_logger
 from pioreactor.types import JobState, PublishableSetting, MQTTMessage
 
+T = TypeVar("T")
+
 
 def format_with_optional_units(value: Any, units: Optional[str]) -> str:
     """
@@ -28,8 +30,7 @@ def format_with_optional_units(value: Any, units: Optional[str]) -> str:
     """
     if units is None:
         return f"{value}"
-
-    if units == "%":
+    elif units == "%":
         return f"{value}{units}"
     else:
         return f"{value} {units}"
@@ -449,10 +450,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
             see pioreactor.pubsub.QOS
         """
 
-        def wrap_callback(actual_callback: Callable) -> Callable:
-            def _callback(client, userdata, message: MQTTMessage):
+        def wrap_callback(
+            actual_callback: Callable[..., T]
+        ) -> Callable[..., Optional[T]]:
+            def _callback(client, userdata, message: MQTTMessage) -> Optional[T]:
                 if not allow_retained and message.retain:
-                    return
+                    return None
                 try:
                     return actual_callback(message)
                 except Exception as e:

@@ -7,7 +7,7 @@ from functools import lru_cache
 from pioreactor.whoami import is_testing_env
 
 
-def __getattr__(attr):
+def __getattr__(attr):  # type: ignore
     """
     This dynamically creates the module level variables, so if
     we don't call them, they are never created, saving time - mostly in the CLI.
@@ -140,7 +140,7 @@ def get_config():
 
 @lru_cache(1)
 def get_leader_hostname() -> str:
-    return get_config().get("network.topology", "leader_hostname")
+    return get_config().get("network.topology", "leader_hostname", fallback="localhost")
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:

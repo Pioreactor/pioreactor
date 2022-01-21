@@ -21,7 +21,7 @@ class Event:
         return " ".join(map(lambda s: s.lower(), split))
 
     @staticmethod
-    def split_on_uppercase(s) -> list[str]:
+    def split_on_uppercase(s: str) -> list[str]:
         return list(filter(None, re.split("([A-Z][^A-Z]*)", s)))
 
 

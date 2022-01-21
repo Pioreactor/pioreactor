@@ -140,7 +140,7 @@ def update(units: tuple[str, ...], dev: bool) -> None:
     else:
         command = "pio update --app"
 
-    def _thread_function(unit):
+    def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
 
@@ -188,7 +188,7 @@ def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
 
     command = f"pio install-plugin {plugin}"
 
-    def _thread_function(unit):
+    def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
             with paramiko.SSHClient() as client:
@@ -235,7 +235,7 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
 
     command = f"pio uninstall-plugin {plugin}"
 
-    def _thread_function(unit):
+    def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
 
@@ -368,7 +368,7 @@ def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
         "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
-    def _thread_function(unit):
+    def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}.")
         try:
             ssh(unit, command)

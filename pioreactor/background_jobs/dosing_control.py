@@ -20,6 +20,7 @@ Using the CLI, specific automation values can be specified as additional options
 import time
 import json
 import click
+from typing import Optional
 
 from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
@@ -72,7 +73,7 @@ class DosingController(BackgroundJob):
             raise e
         self.automation_name = self.automation["automation_name"]
 
-    def set_automation(self, new_dosing_automation_json) -> None:
+    def set_automation(self, new_dosing_automation_json: str) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.dosing_automation_job.set_state("init")
         # self.dosing_automation_job.set_state("ready")
@@ -128,10 +129,15 @@ class DosingController(BackgroundJob):
 
 
 def start_dosing_control(
-    automation_name, duration=None, skip_first_run=False, **kwargs
+    automation_name: str,
+    duration: Optional[float] = None,
+    skip_first_run: bool = False,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    **kwargs,
 ) -> DosingController:
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    unit = unit or get_unit_name()
+    experiment = experiment or get_latest_experiment_name()
 
     try:
 
