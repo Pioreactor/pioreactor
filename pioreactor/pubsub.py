@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import socket
 import threading
 import time
-from enum import IntEnum
 from contextlib import suppress
-from typing import Callable, Optional, Any
+from enum import IntEnum
+from typing import Any
+from typing import Callable
+from typing import Optional
 
-from paho.mqtt.client import Client  # type: ignore
 from paho.mqtt import publish as mqtt_publish  # type: ignore
+from paho.mqtt.client import Client  # type: ignore
 
-from pioreactor.types import MQTTMessage
 from pioreactor.config import leader_hostname
+from pioreactor.types import MQTTMessage
 
 
 class QOS(IntEnum):
