@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 import configparser
 import os
 from functools import lru_cache
@@ -109,7 +110,7 @@ def get_config():
         local_config_path = "/home/pi/.pioreactor/unit_config.ini"
         if not os.path.isfile(global_config_path):
             raise FileNotFoundError(
-                "/home/pi/.pioreactor/config.ini is missing from this Pioreactor. Has it completed initializing?"
+                "/home/pi/.pioreactor/config.ini is missing from this Pioreactor. Has it completed initializing? Does it need to connect to a leader?"
             )
 
     config_files = [global_config_path, local_config_path]

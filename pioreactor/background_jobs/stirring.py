@@ -1,28 +1,33 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from time import sleep, perf_counter
-from typing import Optional, Callable
-from contextlib import suppress
+
 import json
+from contextlib import suppress
+from time import perf_counter
+from time import sleep
+from typing import Callable
+from typing import Optional
 
 import click
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
-from pioreactor.config import config
-from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.error_codes import ErrorCode
-from pioreactor.hardware import (
-    PWM_TO_PIN,
-    HALL_SENSOR_PIN,
-    is_heating_pcb_present,
-    is_HAT_present,
-)
-from pioreactor.utils.pwm import PWM
-from pioreactor.utils import clamp, local_persistant_storage
-from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
-from pioreactor.utils.streaming_calculations import PID
-from pioreactor.utils.timing import RepeatedTimer, current_utc_time
 from pioreactor import exc
+from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.config import config
+from pioreactor.error_codes import ErrorCode
+from pioreactor.hardware import HALL_SENSOR_PIN
+from pioreactor.hardware import is_HAT_present
+from pioreactor.hardware import is_heating_pcb_present
+from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.utils import clamp
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.gpio_helpers import GPIO_states
+from pioreactor.utils.gpio_helpers import set_gpio_availability
+from pioreactor.utils.pwm import PWM
+from pioreactor.utils.streaming_calculations import PID
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 class RpmCalculator:
@@ -218,13 +223,14 @@ class Stirrer(BackgroundJob):
             job_name="stirring", unit=unit, experiment=experiment
         )
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
+        self.rpm_calculator = rpm_calculator
 
         if not is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
-        if (rpm_calculator is not None) and not is_heating_pcb_present():
+        if (self.rpm_calculator is not None) and not is_heating_pcb_present():
             self.logger.error("Heating PCB must be present to measure RPM.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
@@ -233,7 +239,6 @@ class Stirrer(BackgroundJob):
         self.pwm = PWM(pin, hertz)
         self.pwm.lock()
 
-        self.rpm_calculator = rpm_calculator
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
         self.target_rpm = target_rpm
         self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)

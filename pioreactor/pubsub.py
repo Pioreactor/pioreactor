@@ -11,7 +11,8 @@ from typing import Callable
 from typing import Optional
 
 from paho.mqtt import publish as mqtt_publish  # type: ignore
-from paho.mqtt.client import Client  # type: ignore
+from paho.mqtt.client import Client
+from paho.mqtt.client import connack_string
 
 from pioreactor.config import leader_hostname
 from pioreactor.types import MQTTMessage
@@ -25,8 +26,8 @@ class QOS(IntEnum):
 
 def create_client(
     hostname: str = leader_hostname,
-    last_will=None,
-    client_id=None,
+    last_will: Optional[dict] = None,
+    client_id: Optional[str] = None,
     keepalive=60,
     max_retries=3,
 ) -> Client:
@@ -34,12 +35,12 @@ def create_client(
     Create a MQTT client and connect to a host.
     """
 
-    def on_connect(client, userdata, flags, rc, properties=None):
+    def on_connect(client: Client, userdata, flags, rc: int, properties=None):
         if rc > 1:
             from pioreactor.logging import create_logger
 
             logger = create_logger("pubsub.create_client", to_mqtt=False)
-            logger.error(f"Connection failed with error code {rc}.")
+            logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
     client = Client(client_id=client_id)
     client.on_connect = on_connect

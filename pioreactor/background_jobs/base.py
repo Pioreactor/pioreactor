@@ -1,23 +1,29 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import signal
-from typing import Callable, Any, Optional, TypeVar
-import threading
 import atexit
+import signal
+import threading
 import time
 from json import dumps
+from typing import Any
+from typing import Callable
+from typing import Optional
+from typing import TypeVar
 
-from paho.mqtt.client import Client  # type: ignore
+from paho.mqtt import client as mqtt
 
-from pioreactor.utils import (
-    local_intermittent_storage,
-    append_signal_handler,
-)
-from pioreactor.pubsub import QOS, create_client
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER, get_uuid, is_testing_env
 from pioreactor.logging import create_logger
-from pioreactor.types import JobState, PublishableSetting, MQTTMessage
+from pioreactor.pubsub import create_client
+from pioreactor.pubsub import QOS
+from pioreactor.types import JobState
+from pioreactor.types import MQTTMessage
+from pioreactor.types import PublishableSetting
+from pioreactor.utils import append_signal_handler
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.whoami import get_uuid
+from pioreactor.whoami import is_testing_env
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 T = TypeVar("T")
 
@@ -323,7 +329,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     f"setting {setting} has bad characters - must be alphanumeric, and only separated by underscore."
                 )
 
-    def create_pub_client(self) -> Client:
+    def create_pub_client(self) -> mqtt.Client:
         # see note above as to why we split pub and sub.
         client = create_client(
             client_id=f"{self.unit}-pub-{self.job_name}-{get_uuid()}-{id(self)}"
@@ -331,21 +337,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         return client
 
-    def create_sub_client(self) -> Client:
+    def create_sub_client(self) -> mqtt.Client:
         # see note above as to why we split pub and sub.
 
         # the client will try to automatically reconnect if something bad happens
         # when we reconnect to the broker, we want to republish our state
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
-        def reconnect_protocol(client, userdata, flags, rc, properties=None):
+        def reconnect_protocol(
+            client: mqtt.Client, userdata, flags, rc: int, properties=None
+        ):
             self.logger.debug("Reconnected to MQTT broker.")
             self.publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()
 
         def on_disconnect(client, userdata, rc: int) -> None:
-            self.on_mqtt_disconnect(rc)
+            self.on_mqtt_disconnect(client, rc)
 
         # we give the last_will to this sub client because when it reconnects, it
         # will republish state.
@@ -375,22 +383,26 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client.on_disconnect = on_disconnect
         return client
 
-    def on_mqtt_disconnect(self, rc: int) -> None:
-        if (
-            rc == 0
-        ):  # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
+    def on_mqtt_disconnect(self, client, rc: int) -> None:
+        if rc == mqtt.MQTT_ERR_SUCCESS:
+            # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
 
             # MQTT is the last thing to disconnect, so once this is done,
             # we "set" the internal event, which will cause any event.waits to finishing blocking.
             self._blocking_event.set()
-
-        else:
-            # we won't exit, but the client object will try to reconnect
-            # Error codes are below, but don't always align
-            # https://github.com/eclipse/paho.mqtt.python/blob/42f0b13001cb39aee97c2b60a3b4807314dfcb4d/src/paho/mqtt/client.py#L147
-            self.logger.debug(f"Disconnected from MQTT with rc {rc}.")
             return
+
+        # we won't exit, but the client object will try to reconnect
+        # Error codes are below, but don't always align
+        # https://github.com/eclipse/paho.mqtt.python/blob/42f0b13001cb39aee97c2b60a3b4807314dfcb4d/src/paho/mqtt/client.py#L147
+        elif rc == mqtt.MQTT_ERR_KEEPALIVE:
+            self.logger.error(
+                "Lost contact with MQTT server. Is the leader Pioreactor still online?"
+            )
+
+        self.logger.error(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
+        return
 
     def publish(
         self,

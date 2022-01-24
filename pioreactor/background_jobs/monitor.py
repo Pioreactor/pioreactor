@@ -1,32 +1,34 @@
 # -*- coding: utf-8 -*-
-from time import sleep
-from json import dumps, loads
+from __future__ import annotations
+
 from datetime import datetime
+from json import dumps
+from json import loads
+from time import sleep
 
 import click
 from paho.mqtt.client import MQTTMessage  # type: ignore
 
-from pioreactor.whoami import (
-    get_unit_name,
-    UNIVERSAL_EXPERIMENT,
-    UNIVERSAL_IDENTIFIER,
-    is_testing_env,
-    get_latest_experiment_name,
-    am_I_leader,
-    am_I_active_worker,
-)
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.pubsub import QOS
-from pioreactor.hardware import (
-    PCB_LED_PIN as LED_PIN,
-    PCB_BUTTON_PIN as BUTTON_PIN,
-)
-from pioreactor.utils import is_pio_job_running, local_persistant_storage
-from pioreactor.utils.gpio_helpers import GPIO_states, set_gpio_availability
-from pioreactor.version import software_version_info, hardware_version_info
 from pioreactor.error_codes import ErrorCode
+from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
+from pioreactor.hardware import PCB_LED_PIN as LED_PIN
+from pioreactor.pubsub import QOS
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.gpio_helpers import GPIO_states
+from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
+from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.version import hardware_version_info
+from pioreactor.version import software_version_info
+from pioreactor.whoami import am_I_active_worker
+from pioreactor.whoami import am_I_leader
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 class Monitor(BackgroundJob):
