@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import time
+
 import pytest
+
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.leader.watchdog import WatchDog
 from pioreactor.background_jobs.monitor import Monitor
-from pioreactor.whoami import (
-    get_unit_name,
-    get_latest_experiment_name,
-    UNIVERSAL_EXPERIMENT,
-)
-from pioreactor.pubsub import publish, subscribe_and_callback, subscribe
 from pioreactor.config import leader_hostname
-from pioreactor.utils import local_intermittent_storage
+from pioreactor.pubsub import publish
+from pioreactor.pubsub import subscribe
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def pause() -> None:
@@ -364,3 +368,25 @@ def test_persist_in_published_settings() -> None:
         timeout=2,
     )
     assert msg is None
+
+
+def test_sys_exit_does_exit() -> None:
+    class AllIDoIsExit:
+        def exit(self):
+            import sys
+
+            sys.exit()
+
+    class TestJob(BackgroundJob):
+        def __init__(self, *args, **kwargs) -> None:
+            super(TestJob, self).__init__(*args, **kwargs)
+            self.all_i_do_is_exit = AllIDoIsExit()
+
+        def call_all_i_do_is_exit(self):
+            self.all_i_do_is_exit.exit()
+
+    with pytest.raises(SystemExit):
+        with TestJob(
+            unit=get_unit_name(), experiment=get_latest_experiment_name(), job_name="job"
+        ) as t:
+            t.call_all_i_do_is_exit()

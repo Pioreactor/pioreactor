@@ -81,34 +81,41 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 
 """
 from __future__ import annotations
-from typing import Optional, cast
-from time import time, sleep
-import click
-import math
 
-from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
-from pioreactor.whoami import (
-    get_unit_name,
-    get_latest_experiment_name,
-    is_testing_env,
-)
-from pioreactor.config import config
-from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils.timing import RepeatedTimer, current_utc_time, catchtime
-from pioreactor.background_jobs.base import BackgroundJob, LoggerMixin
-from pioreactor.actions.led_intensity import (
-    led_intensity as change_led_intensity,
-    ALL_LED_CHANNELS,
-    lock_leds_temporarily,
-    change_leds_intensities_temporarily,
-    LED_UNLOCKED,
-)
-from pioreactor.hardware import SCL, SDA, is_HAT_present
-from pioreactor.pubsub import QOS, publish
-from pioreactor.version import hardware_version_info
-from pioreactor.types import PdChannel, LedChannel
-from pioreactor.error_codes import ErrorCode
+import math
+from time import sleep
+from time import time
+from typing import cast
+from typing import Optional
+
+import click
+
 from pioreactor import exc
+from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
+from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
+from pioreactor.actions.led_intensity import led_intensity as change_led_intensity
+from pioreactor.actions.led_intensity import LED_UNLOCKED
+from pioreactor.actions.led_intensity import lock_leds_temporarily
+from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import LoggerMixin
+from pioreactor.config import config
+from pioreactor.error_codes import ErrorCode
+from pioreactor.hardware import is_HAT_present
+from pioreactor.hardware import SCL
+from pioreactor.hardware import SDA
+from pioreactor.pubsub import publish
+from pioreactor.pubsub import QOS
+from pioreactor.types import LedChannel
+from pioreactor.types import PdChannel
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
+from pioreactor.utils.timing import catchtime
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.version import hardware_version_info
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 ALL_PD_CHANNELS: list[PdChannel] = ["1", "2"]
 
@@ -120,9 +127,8 @@ class ADCReader(LoggerMixin):
     """
     Notes
     ------
-    It's currently highly specific to the ADS1x15 family - a future code
-    release may turn ADCReader into an abstract class, and classes like ADS1015Reader
-    as subclasses.
+    It's currently highly specific to the ADS1x15 family AND it's connection to ODReader.
+    It's not advisable to use this class for other use cases - best to develop your own.
 
     Parameters
     ------------
@@ -254,10 +260,11 @@ class ADCReader(LoggerMixin):
                 ErrorCode.ADC_INPUT_TOO_HIGH.value,
             )
             # kill ourselves - this will hopefully kill ODReader.
-            # TODO: it doesn't?
-            import sys
+            # we have to send a signal since this is often called in a thread (RepeatedTimer)
+            import os
+            import signal
 
-            sys.exit(1)
+            os.kill(os.getpid(), signal.SIGTERM)
 
     def check_on_gain(self, value: Optional[float]) -> None:
         if value is None:
@@ -496,7 +503,7 @@ class ADCReader(LoggerMixin):
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
-            if self.dynamic_gain and self.readings_completed % 5 == 1:
+            if self.dynamic_gain and self.readings_completed % 2 == 1:
                 self.check_on_gain(self.max_signal_moving_average())
 
             self.readings_completed += 1
