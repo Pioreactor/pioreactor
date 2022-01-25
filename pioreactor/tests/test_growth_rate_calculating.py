@@ -46,6 +46,9 @@ class TestGrowthRateCalculating:
         # clear the caches and MQTT
         experiment = get_latest_experiment_name()
 
+        config["od_config.photodiode_channel"]["1"] = "90"
+        config["od_config.photodiode_channel"]["2"] = None
+
         with local_persistant_storage("od_blank") as cache:
             if experiment in cache:
                 del cache[experiment]
@@ -140,6 +143,10 @@ class TestGrowthRateCalculating:
     def test_restart(self) -> None:
         unit = get_unit_name()
         experiment = get_latest_experiment_name()
+
+        config["od_config.photodiode_channel"]["1"] = "90"
+        config["od_config.photodiode_channel"]["2"] = "135"
+        config["od_config.photodiode_channel"]["3"] = "90"
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1, 2: 1})
@@ -379,6 +386,9 @@ class TestGrowthRateCalculating:
 
     def test_end_to_end(self) -> None:
 
+        config["od_config.photodiode_channel"]["1"] = "90"
+        config["od_config.photodiode_channel"]["2"] = "135"
+
         unit = get_unit_name()
         experiment = get_latest_experiment_name()
 
@@ -443,9 +453,9 @@ class TestGrowthRateCalculating:
         thread = RepeatedTimer(0.025, Mock180ODReadings()).start()
 
         with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
-            time.sleep(3500)
+            time.sleep(35)
 
-            assert calc.ekf.state_[2] > 0
+            assert calc.ekf.state_[1] > 0
 
         thread.cancel()
 
