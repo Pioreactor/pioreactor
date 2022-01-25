@@ -5,30 +5,25 @@ import atexit
 import signal
 import threading
 import time
+import typing as t
 from json import dumps
-from typing import Any
-from typing import Callable
-from typing import Optional
-from typing import TypeVar
 
-from paho.mqtt import client as mqtt
+from paho.mqtt import client as mqtt  # type: ignore
 
+from pioreactor import types as pt
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
-from pioreactor.types import JobState
-from pioreactor.types import MQTTMessage
-from pioreactor.types import PublishableSetting
 from pioreactor.utils import append_signal_handler
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_uuid
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
-T = TypeVar("T")
+T = t.TypeVar("T")
 
 
-def format_with_optional_units(value: Any, units: Optional[str]) -> str:
+def format_with_optional_units(value: t.Any, units: t.Optional[str]) -> str:
     """
     Ex:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
@@ -44,7 +39,7 @@ def format_with_optional_units(value: Any, units: Optional[str]) -> str:
 
 class LoggerMixin:
 
-    _logger_name: Optional[str] = None
+    _logger_name: t.Optional[str] = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -176,23 +171,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
     """
 
     # Homie lifecycle (normally per device (i.e. an rpi) but we are using it for "nodes", in Homie parlance)
-    INIT: JobState = "init"
-    READY: JobState = "ready"
-    DISCONNECTED: JobState = "disconnected"
-    SLEEPING: JobState = "sleeping"
-    LOST: JobState = "lost"
-    LIFECYCLE_STATES: set[JobState] = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
+    INIT: pt.JobState = "init"
+    READY: pt.JobState = "ready"
+    DISCONNECTED: pt.JobState = "disconnected"
+    SLEEPING: pt.JobState = "sleeping"
+    LOST: pt.JobState = "lost"
+    LIFECYCLE_STATES: set[pt.JobState] = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
 
     # initial state is disconnected
-    state: JobState = DISCONNECTED
+    state: pt.JobState = DISCONNECTED
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
     # attributes are
     # {'datatype', 'unit', 'settable', 'persist'}
-    # See PublishableSetting type
+    # See pt.PublishableSetting type
     # TODO: turn this into a data structure dict-like thingie, so it can be updated in subclasses and we still get the right metadata published.
-    published_settings: dict[str, PublishableSetting] = dict()
+    published_settings: dict[str, pt.PublishableSetting] = dict()
 
     # these are used elsewhere in our software
     DISALLOWED_JOB_NAMES = ["run", "dosing_events", "led", "leds"]
@@ -442,7 +437,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def subscribe_and_callback(
         self,
-        callback: Callable[[MQTTMessage], None],
+        callback: t.Callable[[pt.MQTTMessage], None],
         subscriptions: list[str] | str,
         allow_retained: bool = True,
         qos: int = 0,
@@ -463,9 +458,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
 
         def wrap_callback(
-            actual_callback: Callable[..., T]
-        ) -> Callable[..., Optional[T]]:
-            def _callback(client, userdata, message: MQTTMessage) -> Optional[T]:
+            actual_callback: t.Callable[..., T]
+        ) -> t.Callable[..., t.Optional[T]]:
+            def _callback(client, userdata, message: pt.MQTTMessage) -> t.Optional[T]:
                 if not allow_retained and message.retain:
                     return None
                 try:
@@ -648,7 +643,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     retain=True,
                 )
 
-    def set_state(self, new_state: JobState) -> None:
+    def set_state(self, new_state: pt.JobState) -> None:
         if new_state not in self.LIFECYCLE_STATES:
             self.logger.error(f"saw {new_state}: not a valid state")
             return
@@ -660,7 +655,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             getattr(self, f"on_{self.state}_to_{new_state}")()
         getattr(self, new_state)()
 
-    def log_state(self, state: JobState) -> None:
+    def log_state(self, state: pt.JobState) -> None:
         if state == self.READY or state == self.DISCONNECTED:
             self.logger.info(state.capitalize() + ".")
         else:
@@ -671,7 +666,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         pieces = topic.split("/")
         return pieces[4].lstrip("$")
 
-    def set_attr_from_message(self, message: MQTTMessage) -> None:
+    def set_attr_from_message(self, message: pt.MQTTMessage) -> None:
         new_value = message.payload.decode()
         attr = self.get_attr_from_topic(message.topic)
 
@@ -757,7 +752,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
                 raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 
-    def __setattr__(self, name: str, value: Any) -> None:
+    def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
         if name in self.published_settings:
             self.publish_attr(name)

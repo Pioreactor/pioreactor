@@ -11,8 +11,8 @@ from typing import Callable
 from typing import Optional
 
 from paho.mqtt import publish as mqtt_publish  # type: ignore
-from paho.mqtt.client import Client
-from paho.mqtt.client import connack_string
+from paho.mqtt.client import Client  # type: ignore
+from paho.mqtt.client import connack_string  # type: ignore
 
 from pioreactor.config import leader_hostname
 from pioreactor.types import MQTTMessage

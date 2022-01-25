@@ -9,8 +9,8 @@ from time import sleep
 import click
 from paho.mqtt.client import MQTTMessage  # type: ignore
 
+from pioreactor import error_codes
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.error_codes import ErrorCode
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.pubsub import QOS
@@ -39,7 +39,7 @@ class Monitor(BackgroundJob):
      2. Controls the LED / Button interaction
      3. Correction after a restart
      4. Check database backup if leader
-     5. Use the LED blinks to report error codes to the user, see ErrorCode class
+     5. Use the LED blinks to report error codes to the user, see error_codes module
         can also be invoked with the MQTT topic:
          pioreactor/{unit}/+/monitor/flicker_led_with_error_code   error_code as message
      6. Listens to MQTT for job to start, on the topic
@@ -97,7 +97,7 @@ class Monitor(BackgroundJob):
         while get_ip() == "127.0.0.1":
             # no wifi connection? Sound the alarm.
             self.logger.error("Unable to connect to network...")
-            self.flicker_led_with_error_code(ErrorCode.NO_NETWORK_CONNECTION.value)
+            self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
 
     def self_checks(self) -> None:
         # check active network connection
@@ -160,7 +160,7 @@ class Monitor(BackgroundJob):
 
             self.set_state(self.LOST)
             self.flicker_led_with_error_code(
-                ErrorCode.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE.value
+                error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE
             )
 
     def check_for_last_backup(self) -> None:
@@ -327,9 +327,7 @@ class Monitor(BackgroundJob):
         else:
             # TODO: add documentation to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
-            self.flicker_led_with_error_code(
-                ErrorCode.DISK_IS_ALMOST_FULL_ERROR_CODE.value
-            )
+            self.flicker_led_with_error_code(error_codes.DISK_IS_ALMOST_FULL_ERROR_CODE)
 
         if cpu_usage_percent <= 75:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")

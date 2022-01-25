@@ -23,30 +23,29 @@ message: a json object with required keyword arguments. Specify the new automati
 
 """
 from __future__ import annotations
+
 from json import loads
 from time import sleep
-from typing import Optional, Any
+from typing import Any
+from typing import Optional
 
 import click
 
-from pioreactor.whoami import (
-    get_unit_name,
-    get_latest_experiment_name,
-    is_testing_env,
-)
-from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.utils.timing import RepeatedTimer, current_utc_time
-from pioreactor.hardware import (
-    PWM_TO_PIN,
-    HEATER_PWM_TO_PIN,
-    is_heating_pcb_present,
-    is_HAT_present,
-)
-from pioreactor.config import config
-from pioreactor.utils.pwm import PWM
-from pioreactor.background_jobs.utils import AutomationDict
-from pioreactor.error_codes import ErrorCode
+from pioreactor import error_codes
 from pioreactor import exc
+from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.utils import AutomationDict
+from pioreactor.config import config
+from pioreactor.hardware import HEATER_PWM_TO_PIN
+from pioreactor.hardware import is_HAT_present
+from pioreactor.hardware import is_heating_pcb_present
+from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.utils.pwm import PWM
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 class TemperatureController(BackgroundJob):
@@ -270,7 +269,7 @@ class TemperatureController(BackgroundJob):
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
-                ErrorCode.PCB_TEMPERATURE_TOO_HIGH.value,
+                error_codes.PCB_TEMPERATURE_TOO_HIGH,
             )
 
             self.logger.warning(
@@ -283,7 +282,7 @@ class TemperatureController(BackgroundJob):
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
-                ErrorCode.PCB_TEMPERATURE_TOO_HIGH.value,
+                error_codes.PCB_TEMPERATURE_TOO_HIGH,
             )
 
             self.logger.debug(

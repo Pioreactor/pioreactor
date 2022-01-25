@@ -10,14 +10,11 @@ from typing import Optional
 
 import click
 
+from pioreactor import error_codes
 from pioreactor import exc
+from pioreactor import hardware
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
-from pioreactor.error_codes import ErrorCode
-from pioreactor.hardware import HALL_SENSOR_PIN
-from pioreactor.hardware import is_HAT_present
-from pioreactor.hardware import is_heating_pcb_present
-from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.utils import clamp
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states
@@ -46,7 +43,7 @@ class RpmCalculator:
 
     """
 
-    hall_sensor_pin = HALL_SENSOR_PIN
+    hall_sensor_pin = hardware.HALL_SENSOR_PIN
 
     def __init__(self) -> None:
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
@@ -225,17 +222,17 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
         self.rpm_calculator = rpm_calculator
 
-        if not is_HAT_present():
+        if not hardware.is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
-        if (self.rpm_calculator is not None) and not is_heating_pcb_present():
+        if (self.rpm_calculator is not None) and not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be present to measure RPM.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
 
-        pin = PWM_TO_PIN[config.get("PWM_reverse", "stirring")]
+        pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "stirring")]
         self.pwm = PWM(pin, hertz)
         self.pwm.lock()
 
@@ -318,7 +315,7 @@ class Stirrer(BackgroundJob):
             # TODO: attempt to restart stirring
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
-                ErrorCode.STIRRING_FAILED_ERROR_CODE.value,
+                error_codes.STIRRING_FAILED_ERROR_CODE,
             )
             self.logger.warning("Stirring RPM is 0 - has it failed?")
 

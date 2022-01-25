@@ -11,6 +11,7 @@
  - Custom Python exceptions were introduced.
  - `pioreactor.hardware_mappings` is renamed to `pioreactor.hardware`
  - New `is_HAT_present` and `is_heating_pcb_present` functions
+ - ErrorCodes is gone - use global variables in error_codes
 
 
 ### 22.1.0

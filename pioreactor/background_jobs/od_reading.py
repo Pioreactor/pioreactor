@@ -90,7 +90,9 @@ from typing import Optional
 
 import click
 
+from pioreactor import error_codes
 from pioreactor import exc
+from pioreactor import hardware
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import led_intensity as change_led_intensity
@@ -99,10 +101,6 @@ from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
-from pioreactor.error_codes import ErrorCode
-from pioreactor.hardware import is_HAT_present
-from pioreactor.hardware import SCL
-from pioreactor.hardware import SDA
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel
@@ -183,7 +181,7 @@ class ADCReader(LoggerMixin):
         self.batched_readings: dict[PdChannel, float] = {}
         self.interval = interval
 
-        if not is_HAT_present():
+        if not hardware.is_HAT_present():
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
     def setup_adc(self) -> ADCReader:
@@ -205,7 +203,9 @@ class ADCReader(LoggerMixin):
         else:
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
-        self.ads = ADS(I2C(SCL, SDA), data_rate=self.DATA_RATE, gain=self.gain)
+        self.ads = ADS(
+            I2C(hardware.SCL, hardware.SDA), data_rate=self.DATA_RATE, gain=self.gain
+        )
         self.analog_in: dict[PdChannel, AnalogIn] = {}
 
         for channel in self.channels:
@@ -257,7 +257,7 @@ class ADCReader(LoggerMixin):
 
             publish(
                 f"pioreactor/{unit}/{exp}/monitor/flicker_led_with_error_code",
-                ErrorCode.ADC_INPUT_TOO_HIGH.value,
+                error_codes.ADC_INPUT_TOO_HIGH,
             )
             # kill ourselves - this will hopefully kill ODReader.
             # we have to send a signal since this is often called in a thread (RepeatedTimer)
@@ -488,7 +488,7 @@ class ADCReader(LoggerMixin):
                     )
                     publish(
                         f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/monitor/flicker_led_with_error_code",
-                        ErrorCode.ADC_INPUT_TOO_HIGH.value,
+                        error_codes.ADC_INPUT_TOO_HIGH,
                     )
 
                 # check if more than 3V, and shut down to prevent damage to ADC.
@@ -680,7 +680,7 @@ class ODReader(BackgroundJob):
             ch for ch in ALL_LED_CHANNELS if ch != self.ir_channel
         ]
 
-        if not is_HAT_present():
+        if not hardware.is_HAT_present():
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
