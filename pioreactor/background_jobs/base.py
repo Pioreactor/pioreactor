@@ -23,7 +23,9 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 T = t.TypeVar("T")
 
 
-def format_with_optional_units(value: t.Any, units: t.Optional[str]) -> str:
+def format_with_optional_units(
+    value: pt.PublishableSettingDataType, units: t.Optional[str]
+) -> str:
     """
     Ex:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
@@ -402,7 +404,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def publish(
         self,
         topic: str,
-        payload: str | bytes | int | float | dict | None,
+        payload: pt.PublishableSettingDataType | dict | None,
         qos: int = 0,
         **kwargs,
     ) -> None:

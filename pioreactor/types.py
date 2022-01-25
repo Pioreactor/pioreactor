@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 # types
 from __future__ import annotations
-from typing import Literal, MutableMapping, TypedDict, Union, Any, Protocol
+
+from typing import Any
+from typing import Literal
+from typing import MutableMapping
+from typing import Protocol
+from typing import TypedDict
+from typing import Union
 
 
 class DosingProgram(Protocol):
@@ -24,6 +30,9 @@ class MQTTMessage:
     qos: Literal[0, 1, 2]
     retain: bool
     mid: int
+
+
+PublishableSettingDataType = Union[str, float, int, bool]
 
 
 class PublishableSetting(TypedDict, total=False):

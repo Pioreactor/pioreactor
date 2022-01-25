@@ -233,7 +233,7 @@ class ADCReader(LoggerMixin):
         return self
 
     def check_on_max(self, value: float) -> None:
-        if value > 3.1:
+        if value > 3.2:
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
