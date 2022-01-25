@@ -36,7 +36,6 @@ a serialized json like:
         }
       },
       "timestamp": "2021-06-06T15:08:12.081153"
-      "ir_led_output": 0.01
     }
 
 
@@ -228,11 +227,12 @@ class ADCReader(LoggerMixin):
 
         self._setup_complete = True
         self.logger.debug(
-            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}."
+            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}, with gain {self.gain}."
         )
         return self
 
     def check_on_max(self, value: float) -> None:
+
         if value > 3.2:
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
@@ -265,19 +265,33 @@ class ADCReader(LoggerMixin):
             import signal
 
             os.kill(os.getpid(), signal.SIGTERM)
+            return
+
+        elif value > 3.1:
+            self.logger.warning(
+                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.3V."
+            )
+            publish(
+                f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/monitor/flicker_led_with_error_code",
+                error_codes.ADC_INPUT_TOO_HIGH,
+            )
+            return
 
     def check_on_gain(self, value: Optional[float]) -> None:
         if value is None:
             return
 
         for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
-            if (0.925 * lb <= value < 0.925 * ub) and (self.ads.gain != gain):
+            if (0.925 * lb <= value < 0.925 * ub) and (self.gain != gain):
                 self.gain = gain
-                self.set_ads_gain(self.gain)
+                self.set_ads_gain(gain)
                 self.logger.debug(f"ADC gain updated to {self.gain}.")
                 break
 
     def set_ads_gain(self, gain) -> None:
+        # this isn't _always_ equal to self.gain, ex: if another process is using the ADC to measure fluor.,
+        # then they might use a different gain value. However, on take_reading, we always set it back to the
+        # ADCReader's gain.
         self.ads.gain = gain  # this assignment checks to see if the gain is allowed.
 
     def sin_regression_with_known_freq(
@@ -389,11 +403,11 @@ class ADCReader(LoggerMixin):
 
     def from_voltage_to_raw(self, voltage: float) -> int:
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
-        return cast(int, voltage * 32767 / self.ADS1X15_PGA_RANGE[self.ads.gain])
+        return cast(int, voltage * 32767 / self.ADS1X15_PGA_RANGE[self.gain])
 
     def from_raw_to_voltage(self, raw: float | int) -> float:
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
-        return raw / 32767 * self.ADS1X15_PGA_RANGE[self.ads.gain]
+        return raw / 32767 * self.ADS1X15_PGA_RANGE[self.gain]
 
     def take_reading(self) -> dict[PdChannel, float]:
         """
@@ -475,22 +489,6 @@ class ADCReader(LoggerMixin):
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_, 0)
 
-                # since we don't show the user the raw voltage values, they may miss that they are near saturation of the op-amp (and could
-                # also damage the ADC). We'll alert the user if the voltage gets higher than V, which is well above anything normal.
-                # This is not for culture density saturation (different, harder problem)
-                if (
-                    (self.readings_completed % 2 == 0)
-                    and (best_estimate_of_signal_ >= 2.75)
-                    and not self.fake_data
-                ):
-                    self.logger.warning(
-                        f"ADC channel {channel} is recording a very high voltage, {round(best_estimate_of_signal_, 2)}V. It's recommended to keep it less than 3.3V."
-                    )
-                    publish(
-                        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/monitor/flicker_led_with_error_code",
-                        error_codes.ADC_INPUT_TOO_HIGH,
-                    )
-
                 # check if more than 3V, and shut down to prevent damage to ADC.
                 # we use max_signal to modify the PGA, too
                 max_signal = max(max_signal, best_estimate_of_signal_)
@@ -503,7 +501,7 @@ class ADCReader(LoggerMixin):
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
-            if self.dynamic_gain and self.readings_completed % 2 == 1:
+            if self.dynamic_gain and self.readings_completed % 5 == 1:
                 self.check_on_gain(self.max_signal_moving_average())
 
             self.readings_completed += 1

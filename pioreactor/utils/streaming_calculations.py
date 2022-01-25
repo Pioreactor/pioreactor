@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from json import dumps
-from typing import Optional
 from threading import Timer
+from typing import Optional
+
 from pioreactor.pubsub import publish
 
 
@@ -37,22 +40,21 @@ class CultureGrowthEKF:
     Note that we normalized the raw sensor measurements by their initial values, so initially they
     "hover" around 1.0.
 
-    m_{1,t} = g1(OD_{t-1}) + noise   # noise here includes temperature changes, EM noise,
+    m_{1,t} = g1(OD_{t-1}) + noise   # noise here includes temperature noise, EM noise, stirring noise
     m_{2,t} = g2(OD_{t-1}) + noise
 
     OD_t = OD_{t-1} * exp(r_{t-1} * Δt) + noise
     r_t = r_{t-1} + a_{t-1} * Δt + noise
     a_t = a_{t-1} + noise
 
-    # g1 and g2 are generic functions. Often they are the identity function, but if using a 180deg sensor
-    # then it would be the inverse function.
-    # they could also be functions that model saturation...
-
+    # g1 and g2 are generic functions. Often they are the identity functions in OD,
+    # but if using a 180deg sensor then it would be the inverse function, like exp(-OD)
+    # they could also be functions that model saturation.
 
     Let X = [OD, r, a]
 
     f([OD, r, a], Δt) = [OD * exp(r Δt), r + a Δt, a]
-    h([OD, r, a], Δt) = [OD, OD]   # recall: this is a function of the number of sensors
+    h([OD, r, a], Δt) = [g1(OD), g2(OD)]   # recall: this is a function of the number of sensor, here we are using two sensors.
 
     jac(f) = [
         [exp(r Δt),  OD * exp(r Δt) * Δt,  0],
@@ -61,8 +63,9 @@ class CultureGrowthEKF:
     ]
 
     jac(h) = [
+        [1, 0, 0],  # because d(identity)/dOD = 1, d(identity)/dr = 0, d(identity)/da = 0,
         [1, 0, 0],
-        [1, 0, 0]
+        ...
     ]
 
     ```
@@ -132,6 +135,7 @@ class CultureGrowthEKF:
         initial_covariance,
         process_noise_covariance,
         observation_noise_covariance,
+        angles: list[str],
     ):
         import numpy as np
 
@@ -142,7 +146,7 @@ class CultureGrowthEKF:
             initial_state.shape[0]
             == initial_covariance.shape[0]
             == initial_covariance.shape[1]
-        ), f"Shapes are not correct,{initial_state.shape[0]}, {initial_covariance.shape[0]}, {initial_covariance.shape[1]}"
+        ), f"Shapes are not correct,{initial_state.shape[0]=}, {initial_covariance.shape[0]=}, {initial_covariance.shape[1]=}"
         assert process_noise_covariance.shape == initial_covariance.shape
         assert self._is_positive_definite(process_noise_covariance)
         assert self._is_positive_definite(initial_covariance)
@@ -154,17 +158,12 @@ class CultureGrowthEKF:
         self.covariance_ = initial_covariance
         self.n_sensors = observation_noise_covariance.shape[0]
         self.n_states = initial_state.shape[0]
+        self.angles = angles
 
         self._currently_scaling_covariance = False
         self._currently_scaling_process_covariance = False
         self._scale_covariance_timer = None
         self._covariance_pre_scale = None
-
-    def predict(self, dt):
-        return (
-            self._predict_state(self.state_, self.covariance_, dt),
-            self._predict_covariance(self.state_, self.covariance_, dt),
-        )
 
     def update(self, observation, dt):
         import numpy as np
@@ -172,23 +171,35 @@ class CultureGrowthEKF:
         observation = np.asarray(observation)
         assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
 
-        state_prediction, covariance_prediction = self.predict(dt)
-        residual_state = observation - state_prediction[:-2]
-        H = self._jacobian_observation()
+        # Predict
+        state_prediction = self.update_state_from_old_state(self.state_, dt)
+        covariance_prediction = self.update_covariance_from_old_covariance(
+            self.state_, self.covariance_, dt
+        )
+
+        # Update
+        ### innovation
+        residual_state = observation - self.update_observations_from_state(
+            state_prediction
+        )
+        H = self._J_update_observations_from_state(state_prediction)
         residual_covariance = (
             # see Scaling note above for why we multiple by state_[0]
             H @ covariance_prediction @ H.T
             + self.state_[0] * self.observation_noise_covariance
         )
 
+        ### optimal gain
         kalman_gain_ = np.linalg.solve(
             residual_covariance.T, (H @ covariance_prediction.T)
         ).T
+
+        ### update estimates
         self.state_ = state_prediction + kalman_gain_ @ residual_state
         self.covariance_ = (
             np.eye(self.n_states) - kalman_gain_ @ H
         ) @ covariance_prediction
-        return
+        return self.state_
 
     def scale_OD_variance_for_next_n_seconds(self, factor, seconds):
         """
@@ -247,8 +258,10 @@ class CultureGrowthEKF:
         forward_scale_covariance()
         forward_scale_process_covariance()
 
-    def _predict_state(self, state, covariance, dt):
+    def update_state_from_old_state(self, state, dt):
         """
+        Denoted "f" in literature, x_{k} = f(x_{k-1})
+
         state = [OD, r, a]
 
         OD_t = OD_{t-1} * exp(r_{t-1} * Δt)
@@ -261,13 +274,58 @@ class CultureGrowthEKF:
         od, rate, acc = state
         return np.array([od * np.exp(rate * dt), rate + acc * dt, acc])
 
-    def _predict_covariance(self, state, covariance, dt):
-        jacobian = self._jacobian_process(state, dt)
+    def _J_update_observations_from_state(self, state_prediction):
+        """
+        Jacobian of observations model, encoded as update_observations_from_state
+
+        measurement model is:
+
+        m_{1,t} = g1(OD_{t-1})
+        m_{2,t} = g2(OD_{t-1})
+        ...
+
+        gi are generic functions. Often they are the identity function, but if using a 180deg sensor
+        then it would be the inverse function. One day it could model saturation, too.
+
+        jac(h) = [
+            [1, 0, 0],
+            [1, 0, 0],
+            ...
+        ]
+
+        """
+        import numpy as np
+
+        od = state_prediction[0]
+        J = np.zeros((self.n_sensors, 3))
+        for i in range(self.n_sensors):
+            angle = self.angles[i]
+            J[i, 0] = 1.0 if (angle != "180") else -np.exp(-(od - 1))
+        return J
+
+    def update_covariance_from_old_covariance(self, state, covariance, dt):
+        jacobian = self._J_update_state_from_old_state(state, dt)
         return jacobian @ covariance @ jacobian.T + self.process_noise_covariance
 
-    def _jacobian_process(self, state, dt):
+    def update_observations_from_state(self, state_predictions):
         """
-        The prediction process is
+        "h" in the literature, z_k = h(x_k).
+
+        Return shape is (n_sensors,)
+        """
+        import numpy as np
+
+        obs = np.zeros((self.n_sensors,))
+        od = state_predictions[0]
+
+        for i in range(self.n_sensors):
+            angle = self.angles[i]
+            obs[i] = od if (angle != "180") else np.exp(-(od - 1))
+        return obs
+
+    def _J_update_state_from_old_state(self, state, dt):
+        """
+        The prediction process is (encoded in update_state_from_old_state)
 
             state = [OD, r, a]
 
@@ -297,31 +355,6 @@ class CultureGrowthEKF:
         J[0, 1] = od * np.exp(rate * dt) * dt
         J[1, 2] = dt
 
-        return J
-
-    def _jacobian_observation(self):
-        """
-        measurement model is:
-
-        m_{1,t} = g1(OD_{t-1})
-        m_{2,t} = g2(OD_{t-1})
-        ...
-
-        gi are generic functions. Often they are the identity function, but if using a 180deg sensor
-        then it would be the inverse function. One day it could model saturation, too.
-
-        jac(h) = [
-            [1, 0, 0],
-            [1, 0, 0],
-            ...
-        ]
-
-        """
-        import numpy as np
-
-        n = self.n_sensors
-        J = np.zeros((n, 3))
-        J[:, 0] = 1
         return J
 
     @staticmethod

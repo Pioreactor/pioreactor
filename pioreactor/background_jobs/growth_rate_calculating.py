@@ -32,21 +32,27 @@ with payload
 
 """
 from __future__ import annotations
+
 import json
 from collections import defaultdict
 from datetime import datetime
 
 import click
 
+from pioreactor import exc
 from pioreactor.actions.od_normalization import od_normalization
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
-from pioreactor.pubsub import QOS, subscribe
-from pioreactor.utils import is_pio_job_running, local_persistant_storage
+from pioreactor.pubsub import QOS
+from pioreactor.pubsub import subscribe
+from pioreactor.types import MQTTMessage
+from pioreactor.types import PdChannel
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
-from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
-from pioreactor.types import PdChannel, MQTTMessage
-from pioreactor import exc
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 class GrowthRateCalculator(BackgroundJob):
@@ -77,10 +83,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_config", "samples_per_second")
         )
-
-    @property
-    def state_(self):  # typing: ignore
-        return self.ekf.state_
 
     def on_init_to_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where
@@ -142,11 +144,20 @@ class GrowthRateCalculator(BackgroundJob):
             f"Observation noise covariance matrix:\n{str(observation_noise_covariance)}"
         )
 
+        angles = [
+            angle
+            for (_, angle) in config["od_config.photodiode_channel"].items()
+            if angle in ["45", "90", "135", "180"]
+        ]
+
+        self.logger.debug(f"{angles=}")
+
         return CultureGrowthEKF(
             initial_state,
             initial_covariance,
             process_noise_covariance,
             observation_noise_covariance,
+            angles=angles,
         )
 
     def create_obs_noise_covariance(self):  # typing: ignore
@@ -358,15 +369,16 @@ class GrowthRateCalculator(BackgroundJob):
             self.time_of_previous_observation = time_of_current_observation
 
         try:
-            self.ekf.update(list(scaled_observations.values()), dt)
+            updated_state = self.ekf.update(list(scaled_observations.values()), dt)
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
+            return
         else:
 
             # TODO: EKF values can be nans...
 
-            latest_od_filtered, latest_growth_rate = self.state_[0], self.state_[1]
+            latest_od_filtered, latest_growth_rate = updated_state[0], updated_state[1]
 
             self.growth_rate = {
                 "growth_rate": latest_growth_rate,
@@ -387,7 +399,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
                 {
-                    "state": self.format_list(self.state_.tolist()),
+                    "state": self.format_list(updated_state.tolist()),
                     "covariance_matrix": [
                         self.format_list(x) for x in self.ekf.covariance_.tolist()
                     ],
@@ -434,17 +446,15 @@ class GrowthRateCalculator(BackgroundJob):
         #     qos=QOS.EXACTLY_ONCE,
         #     allow_retained=False,
         # )
-        # removed for now, because it was messing with the new dynamic stirring
 
     @staticmethod
     def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[PdChannel, float]:
         """
         Inputs looks like
         {
-            0: {"voltage": 0.13, "angle": "135,45"},
-            1: {"voltage": 0.03, "angle": "90,135"}
+            0: {"voltage": 0.13, "angle": "135"},
+            1: {"voltage": 0.03, "angle": "90"}
         }
-
         """
         return {
             channel: float(raw_od_readings[channel]["voltage"])

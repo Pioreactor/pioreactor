@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import json
 import time
-import pytest
+
 import numpy as np
+import pytest
 from numpy.testing import assert_array_equal
 
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
-from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.pubsub import publish
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.config import config
+from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
-
-unit = get_unit_name()
-experiment = get_latest_experiment_name()
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 def pause() -> None:
@@ -43,6 +44,7 @@ class TestGrowthRateCalculating:
     @classmethod
     def setup_class(cls) -> None:
         # clear the caches and MQTT
+        experiment = get_latest_experiment_name()
 
         with local_persistant_storage("od_blank") as cache:
             if experiment in cache:
@@ -65,6 +67,8 @@ class TestGrowthRateCalculating:
                 del cache[experiment]
 
     def test_subscribing(self) -> None:
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1})
@@ -130,10 +134,12 @@ class TestGrowthRateCalculating:
 
         pause()
 
-        assert calc.state_ is not None
+        assert calc.ekf.state_ is not None
         calc.set_state(calc.DISCONNECTED)
 
     def test_restart(self) -> None:
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1, 2: 1, 2: 1})
@@ -199,7 +205,7 @@ class TestGrowthRateCalculating:
         )
         pause()
 
-        assert calc1.state_[-1] != 0
+        assert calc1.ekf.state_[-1] != 0
         calc1.set_state(calc1.DISCONNECTED)
 
         calc2 = GrowthRateCalculator(unit=unit, experiment=experiment)
@@ -209,6 +215,8 @@ class TestGrowthRateCalculating:
         calc2.set_state(calc2.DISCONNECTED)
 
     def test_single_observation(self) -> None:
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({1: 1})
@@ -238,6 +246,8 @@ class TestGrowthRateCalculating:
         calc.set_state(calc.DISCONNECTED)
 
     def test_scaling_works(self) -> None:
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
@@ -261,6 +271,8 @@ class TestGrowthRateCalculating:
         calc.set_state(calc.DISCONNECTED)
 
     def test_shock_from_dosing_works(self) -> None:
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
@@ -367,30 +379,79 @@ class TestGrowthRateCalculating:
 
     def test_end_to_end(self) -> None:
 
-        exp = "experiment"
-        unit = "unit"
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
+
         interval = 0.1
         config["od_config"]["samples_per_second"] = "0.2"
 
-        start_od_reading(
+        od = start_od_reading(
             "135",
             "90",
             sampling_rate=interval,
             unit=unit,
-            experiment=exp,
+            experiment=experiment,
             fake_data=True,
         )
 
-        start_stirring(target_rpm=500, unit=unit, experiment=exp)
+        st = start_stirring(target_rpm=500, unit=unit, experiment=experiment)
 
-        calc = GrowthRateCalculator(unit=unit, experiment=exp)
+        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
 
         time.sleep(35)
         assert calc.ekf.state_[-2] != 1.0
         calc.set_state(calc.DISCONNECTED)
+        st.set_state(st.DISCONNECTED)
+        od.set_state(od.DISCONNECTED)
+
+    def test_180_angle(self) -> None:
+        import json
+        import numpy as np
+        from pioreactor.utils.timing import RepeatedTimer
+
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
+        config["od_config"]["samples_per_second"] = "0.2"
+        config["od_config.photodiode_channel"]["1"] = "180"
+        config["od_config.photodiode_channel"]["2"] = None
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"1": 3.3})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"1": 8.2e-02})
+
+        class Mock180ODReadings:
+
+            growth_rate = 0.04
+            od_reading = 1.0
+
+            def __call__(self):
+                self.od_reading *= np.exp(self.growth_rate / 60 / 60 / 0.20)
+
+                voltage = 3.3 * np.exp(-(self.od_reading - 1))
+                payload = {
+                    "od_raw": {"1": {"voltage": voltage, "angle": "180"}},
+                    "timestamp": "2021-06-06T15:08:12.081153",
+                }
+
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+                    json.dumps(payload),
+                )
+
+        thread = RepeatedTimer(0.025, Mock180ODReadings()).start()
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            time.sleep(3500)
+
+            assert calc.ekf.state_[2] > 0
+
+        thread.cancel()
 
     def test_od_blank_being_non_zero(self) -> None:
-
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
         with local_persistant_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
 
@@ -425,7 +486,8 @@ class TestGrowthRateCalculating:
         calc.set_state(calc.DISCONNECTED)
 
     def test_od_blank_being_higher_than_observations(self) -> None:
-
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
         with local_persistant_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0.25, "2": 0.4})
 
@@ -470,7 +532,8 @@ class TestGrowthRateCalculating:
         calc.set_state(calc.DISCONNECTED)
 
     def test_od_blank_being_empty(self) -> None:
-
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
         with local_persistant_storage("od_blank") as cache:
             if experiment in cache:
                 del cache[experiment]
@@ -510,7 +573,8 @@ class TestGrowthRateCalculating:
         calc.set_state(calc.DISCONNECTED)
 
     def test_observation_order_is_preserved_in_job(self) -> None:
-
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 2, "2": 1})
 
@@ -534,7 +598,8 @@ class TestGrowthRateCalculating:
         calc.set_state(calc.DISCONNECTED)
 
     def test_zero_blank_and_zero_od_coming_in(self) -> None:
-
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
