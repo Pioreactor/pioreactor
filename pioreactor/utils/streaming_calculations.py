@@ -118,6 +118,36 @@ class CultureGrowthEKF:
     idea above to the observation variance, R. A 0.1 jump is not unexpected, but in the tails, => 2std = 0.1 => 1std = 0.05 => ....
 
 
+    Note on 180°
+    -------------
+    The measurement model for 180 is obs_t = exp(-(od_t - 1)), which comes from the beer lambert model:
+
+      T = T_0 / 10**A
+
+    T_0, in our model, is equal to the initial average signal from growth_rate_calculating,
+
+      T_t = 10**{A_0} / 10**A_t = 10**{-(A_t - A_0)}
+
+    Absorbance, A, is proportional to the optical density (in a certain range)
+
+      T_t = 10**{-k(od_t - od_0)}
+
+    10 is silly, so we use e.
+
+      T_t = exp{-k(od_t - od_0)}
+
+    The factor of of k just scales the deviations from the blank, and this can be incorporated into the Kalman Filter parameters
+
+      T_t = exp{-(od_t - od_0)}
+
+    Note the transformation that is often used with transmission:
+
+      -log(T_t) = od_t - od_0
+
+      Note: in our model, od_0 = 1.
+
+
+
     Useful Resources
     -------------------
     - https://dsp.stackexchange.com/questions/2347/how-to-understand-kalman-gain-intuitively

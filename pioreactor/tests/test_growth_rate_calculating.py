@@ -421,7 +421,8 @@ class TestGrowthRateCalculating:
 
         unit = get_unit_name()
         experiment = get_latest_experiment_name()
-        config["od_config"]["samples_per_second"] = "0.2"
+        samples_per_second = 0.2
+        config["od_config"]["samples_per_second"] = str(samples_per_second)
         config["od_config.photodiode_channel"]["1"] = "180"
         config["od_config.photodiode_channel"]["2"] = None
 
@@ -433,15 +434,60 @@ class TestGrowthRateCalculating:
 
         class Mock180ODReadings:
 
-            growth_rate = 0.04
+            growth_rate = 0.1
             od_reading = 1.0
 
             def __call__(self):
-                self.od_reading *= np.exp(self.growth_rate / 60 / 60 / 0.20)
+                self.od_reading *= np.exp(self.growth_rate / 60 / 60 / samples_per_second)
 
                 voltage = 3.3 * np.exp(-(self.od_reading - 1))
                 payload = {
                     "od_raw": {"1": {"voltage": voltage, "angle": "180"}},
+                    "timestamp": "2021-06-06T15:08:12.081153",
+                }
+
+                publish(
+                    f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+                    json.dumps(payload),
+                )
+
+        thread = RepeatedTimer(0.025, Mock180ODReadings()).start()
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            time.sleep(35)
+
+            assert calc.ekf.state_[1] > 0
+            thread.cancel()
+
+    def test_90_angle(self) -> None:
+        import json
+        import numpy as np
+        from pioreactor.utils.timing import RepeatedTimer
+
+        unit = get_unit_name()
+        experiment = get_latest_experiment_name()
+        samples_per_second = 0.2
+        config["od_config"]["samples_per_second"] = str(samples_per_second)
+        config["od_config.photodiode_channel"]["1"] = "90"
+        config["od_config.photodiode_channel"]["2"] = None
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"1": 0.1})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"1": 8.2e-02})
+
+        class Mock180ODReadings:
+
+            growth_rate = 0.1
+            od_reading = 1.0
+
+            def __call__(self):
+                self.od_reading *= np.exp(self.growth_rate / 60 / 60 / samples_per_second)
+
+                voltage = 0.1 * self.od_reading
+                payload = {
+                    "od_raw": {"1": {"voltage": voltage, "angle": "90"}},
                     "timestamp": "2021-06-06T15:08:12.081153",
                 }
 
