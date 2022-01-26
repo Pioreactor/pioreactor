@@ -32,21 +32,26 @@ with payload
 
 """
 from __future__ import annotations
+
 import json
 from collections import defaultdict
 from datetime import datetime
 
 import click
 
+from pioreactor import exc
+from pioreactor import types as pt
 from pioreactor.actions.od_normalization import od_normalization
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
-from pioreactor.pubsub import QOS, subscribe
-from pioreactor.utils import is_pio_job_running, local_persistant_storage
+from pioreactor.pubsub import QOS
+from pioreactor.pubsub import subscribe
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
-from pioreactor.whoami import get_latest_experiment_name, get_unit_name, is_testing_env
-from pioreactor.types import PdChannel, MQTTMessage
-from pioreactor import exc
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 class GrowthRateCalculator(BackgroundJob):
@@ -77,10 +82,6 @@ class GrowthRateCalculator(BackgroundJob):
         self.expected_dt = 1 / (
             60 * 60 * config.getfloat("od_config", "samples_per_second")
         )
-
-    @property
-    def state_(self):  # typing: ignore
-        return self.ekf.state_
 
     def on_init_to_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where
@@ -142,11 +143,20 @@ class GrowthRateCalculator(BackgroundJob):
             f"Observation noise covariance matrix:\n{str(observation_noise_covariance)}"
         )
 
+        angles = [
+            angle
+            for (_, angle) in config["od_config.photodiode_channel"].items()
+            if angle in ["45", "90", "135", "180"]
+        ]
+
+        self.logger.debug(f"{angles=}")
+
         return CultureGrowthEKF(
             initial_state,
             initial_covariance,
             process_noise_covariance,
             observation_noise_covariance,
+            angles,
         )
 
     def create_obs_noise_covariance(self):  # typing: ignore
@@ -241,7 +251,7 @@ class GrowthRateCalculator(BackgroundJob):
             initial_acc,
         )
 
-    def get_od_blank_from_cache(self) -> dict[PdChannel, float]:
+    def get_od_blank_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistant_storage("od_blank") as cache:
             result = cache.get(self.experiment, None)
 
@@ -258,7 +268,7 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("od_filtered") as cache:
             return float(cache.get(self.experiment, 1.0))
 
-    def get_od_normalization_from_cache(self) -> dict[PdChannel, float]:
+    def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_mean") as cache:
             result = cache.get(self.experiment, None)
@@ -274,7 +284,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.info("Finished calculating OD normalization metrics.")
             return means
 
-    def get_od_variances_from_cache(self) -> dict[PdChannel, float]:
+    def get_od_variances_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_variance") as cache:
             result = cache.get(self.experiment, None)
@@ -308,8 +318,8 @@ class GrowthRateCalculator(BackgroundJob):
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
     def scale_raw_observations(
-        self, observations: dict[PdChannel, float]
-    ) -> dict[PdChannel, float]:
+        self, observations: dict[pt.PdChannel, float]
+    ) -> dict[pt.PdChannel, float]:
         def scale_and_shift(obs, shift, scale):
             return (obs - shift) / (scale - shift)
 
@@ -358,15 +368,16 @@ class GrowthRateCalculator(BackgroundJob):
             self.time_of_previous_observation = time_of_current_observation
 
         try:
-            self.ekf.update(list(scaled_observations.values()), dt)
+            updated_state = self.ekf.update(list(scaled_observations.values()), dt)
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
+            return
         else:
 
             # TODO: EKF values can be nans...
 
-            latest_od_filtered, latest_growth_rate = self.state_[0], self.state_[1]
+            latest_od_filtered, latest_growth_rate = updated_state[0], updated_state[1]
 
             self.growth_rate = {
                 "growth_rate": latest_growth_rate,
@@ -387,7 +398,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
                 {
-                    "state": self.format_list(self.state_.tolist()),
+                    "state": self.format_list(updated_state.tolist()),
                     "covariance_matrix": [
                         self.format_list(x) for x in self.ekf.covariance_.tolist()
                     ],
@@ -405,7 +416,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         return [np.format_float_scientific(x, precision=2) for x in np_list]
 
-    def response_to_dosing_event(self, message: MQTTMessage) -> None:
+    def response_to_dosing_event(self, message: pt.MQTTMessage) -> None:
         # here we can add custom logic to handle dosing events.
 
         # an improvement to this: the variance factor is proportional to the amount exchanged.
@@ -434,17 +445,15 @@ class GrowthRateCalculator(BackgroundJob):
         #     qos=QOS.EXACTLY_ONCE,
         #     allow_retained=False,
         # )
-        # removed for now, because it was messing with the new dynamic stirring
 
     @staticmethod
-    def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[PdChannel, float]:
+    def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[pt.PdChannel, float]:
         """
         Inputs looks like
         {
-            0: {"voltage": 0.13, "angle": "135,45"},
-            1: {"voltage": 0.03, "angle": "90,135"}
+            0: {"voltage": 0.13, "angle": "135"},
+            1: {"voltage": 0.03, "angle": "90"}
         }
-
         """
         return {
             channel: float(raw_od_readings[channel]["voltage"])

@@ -87,6 +87,7 @@ LedChannel = Literal["A", "B", "C", "D"]
 # str suggest symbols, which they are.
 PdChannel = Literal["1", "2"]
 PwmChannel = Literal["1", "2", "3", "4", "5"]
+PdAngle = Literal["45", "90", "135", "180", "REF"]
 
 
 # All GPIO pins below are BCM numbered

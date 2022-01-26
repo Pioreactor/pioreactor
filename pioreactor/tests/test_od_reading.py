@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 # test_od_reading.py
+from __future__ import annotations
 
 import time
+
 import numpy as np
+import pytest
+
 from pioreactor.background_jobs.od_reading import ADCReader
+from pioreactor.background_jobs.od_reading import start_od_reading
 
 
 def pause() -> None:
@@ -153,3 +158,19 @@ def test_ADC_picks_to_correct_freq_even_if_slight_noise_in_freq() -> None:
 
     best_freq = adc_reader.determine_most_appropriate_AC_hz({"1": x}, {"1": y})
     assert best_freq == actual_freq
+
+
+def test_error_thrown_if_wrong_angle() -> None:
+    with pytest.raises(ValueError):
+        start_od_reading("100", "135", fake_data=True)  # type: ignore
+
+    with pytest.raises(ValueError):
+        start_od_reading("100", None, fake_data=True)  # type: ignore
+
+    with pytest.raises(ValueError):
+        start_od_reading("135", "99", fake_data=True)  # type: ignore
+
+    with pytest.raises(ValueError):
+        start_od_reading("100", "REF", fake_data=True)  # type: ignore
+
+    start_od_reading("135", "90", fake_data=True)
