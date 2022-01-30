@@ -4,7 +4,6 @@ from __future__ import annotations
 import socket
 import threading
 import time
-from contextlib import suppress
 from enum import IntEnum
 from typing import Any
 from typing import Callable
@@ -301,8 +300,7 @@ def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None):
     json: (optional) json data to send in the body.
 
     """
-    from requests import exceptions, post
-
+    from pioreactor.mureq import post
     from pioreactor.whoami import get_uuid, is_testing_env
     from pioreactor.utils.timing import current_utc_time
 
@@ -313,11 +311,13 @@ def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None):
         json["rpi_uuid"] = get_uuid()
         json["timestamp"] = current_utc_time()
 
-    with suppress(exceptions.RequestException):
-        headers = {"Content-type": "application/json", "Accept": "text/plain"}
+    headers = {"Content-type": "application/json", "Accept": "text/plain"}
+    try:
         post(
             f"https://cloud.pioreactor.com/{endpoint}",
             data=data,
             json=json,
             headers=headers,
         )
+    except Exception:
+        pass

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
-from setuptools import setup, find_packages
+from __future__ import annotations
+
+from setuptools import find_packages
+from setuptools import setup
 
 exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exec"))
 
@@ -10,7 +13,6 @@ CORE_REQUIREMENTS = [
     "psutil>=5.8.0",
     "sh>=1.14.0",
     "JSON-log-formatter>=0.4.0",
-    "requests>=2.0.0",
     "colorlog>=6.6.0",
     # tech debt - this needed to be in the core
     # leader requirement

@@ -6,28 +6,32 @@ cmd line interface for running individual pioreactor units (including leader)
 > pio run od_reading --od-angle-channel 135,0
 > pio log
 """
-import sys
+from __future__ import annotations
+
 import socket
+import sys
 from time import sleep
 
 import click
+
 import pioreactor
-from pioreactor.whoami import (
-    am_I_leader,
-    am_I_active_worker,
-    get_unit_name,
-    UNIVERSAL_EXPERIMENT,
-    get_rpi_machine,
-)
-from pioreactor.config import config, get_leader_hostname
-from pioreactor import background_jobs as jobs
-from pioreactor import actions
-from pioreactor import plugin_management
-from pioreactor.logging import create_logger
-from pioreactor.pubsub import subscribe_and_callback, subscribe, publish
-from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
-from pioreactor.utils import local_intermittent_storage
 import pioreactor.utils.networking as networking
+from pioreactor import actions
+from pioreactor import background_jobs as jobs
+from pioreactor import plugin_management
+from pioreactor.config import config
+from pioreactor.config import get_leader_hostname
+from pioreactor.logging import create_logger
+from pioreactor.pubsub import publish
+from pioreactor.pubsub import subscribe
+from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
+from pioreactor.whoami import am_I_active_worker
+from pioreactor.whoami import am_I_leader
+from pioreactor.whoami import get_rpi_machine
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 @click.group()
@@ -184,7 +188,8 @@ def view_cache(cache: str) -> None:
 @click.option("--dev", is_flag=True, help="update to the latest development code")
 def update(ui: bool, app: bool, dev: bool) -> None:
     import subprocess
-    import requests
+    from json import loads
+    from pioreactor.mureq import get
 
     logger = create_logger(
         "update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
@@ -196,9 +201,9 @@ def update(ui: bool, app: bool, dev: bool) -> None:
     if app:
 
         if not dev:
-            latest_release_metadata = requests.get(
-                "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
-            ).json()
+            latest_release_metadata = loads(
+                get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
+            )
             latest_release_version = latest_release_metadata["name"]
             url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{latest_release_version}/pioreactor-{latest_release_version}-py3-none-any.whl"
 

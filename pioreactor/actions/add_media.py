@@ -1,25 +1,29 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
-import time
-from json import loads, dumps
-from configparser import NoOptionError
-from typing import Optional
 import signal
+import time
+from configparser import NoOptionError
+from json import dumps
+from json import loads
+from typing import Optional
+
 import click
 
-from pioreactor.utils import (
-    pump_ml_to_duration,
-    pump_duration_to_ml,
-    local_persistant_storage,
-    append_signal_handler,
-)
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.config import config
-from pioreactor.pubsub import publish, QOS
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import publish
+from pioreactor.pubsub import QOS
+from pioreactor.utils import append_signal_handler
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import pump_duration_to_ml
+from pioreactor.utils import pump_ml_to_duration
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import current_utc_time, catchtime
+from pioreactor.utils.timing import catchtime
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 def add_media(
@@ -37,7 +41,7 @@ def add_media(
     ------------
     calibration:
         specify a calibration for the dosing. Should be a dict
-        with fields "duration_", "hz_", "dc", and "bias_"
+        with fields "duration_", "hz", "dc", and "bias_"
 
     """
     logger = create_logger("add_media")
