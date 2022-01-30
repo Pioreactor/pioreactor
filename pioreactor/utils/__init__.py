@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from dbm import ndbm
-import sys
 import signal
-from contextlib import contextmanager, suppress
-from typing import Generator, Callable
-from pioreactor.pubsub import publish, QOS
-from pioreactor.types import DbmMapping
+import sys
+from contextlib import contextmanager
+from contextlib import suppress
+from dbm import ndbm
+from typing import Callable
+from typing import Generator
+
+from pioreactor import types as pt
+from pioreactor.pubsub import publish
+from pioreactor.pubsub import QOS
+from pioreactor.pubsub import subscribe_and_callback
 
 
 class callable_stack:
@@ -56,6 +61,8 @@ class publish_ready_to_disconnected_state:
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test.
 
+    You can use MQTT "/$state/set" tools to disconnect it.
+
     Example
     ----------
 
@@ -71,12 +78,14 @@ class publish_ready_to_disconnected_state:
         self.unit = unit
         self.experiment = experiment
         self.name = name
+        self.start_passive_listeners()
 
-    def _handle_interrupt(self, *args) -> None:
+    def _exit(self, *args) -> None:
         sys.exit()  # will trigger a exception, causing __exit__ to be called
 
     def __enter__(self) -> publish_ready_to_disconnected_state:
-        append_signal_handler(signal.SIGTERM, self._handle_interrupt)
+        append_signal_handler(signal.SIGTERM, self._exit)
+        append_signal_handler(signal.SIGINT, self._exit)
 
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
@@ -88,6 +97,9 @@ class publish_ready_to_disconnected_state:
         return self
 
     def __exit__(self, *args) -> None:
+        self.client.loop_stop()
+        self.client.disconnect()
+
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             "disconnected",
@@ -96,11 +108,24 @@ class publish_ready_to_disconnected_state:
         )
         return
 
+    def exit_from_mqtt(self, message: pt.MQTTMessage):
+        if message.payload.decode() == "disconnected":
+            # use a signal since this function runs in a thread.
+            import os
+
+            os.kill(os.getpid(), signal.SIGTERM)
+
+    def start_passive_listeners(self):
+        self.client = subscribe_and_callback(
+            self.exit_from_mqtt,
+            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
+        )
+
 
 @contextmanager
 def local_intermittent_storage(
     cache_name: str,
-) -> Generator[DbmMapping, None, None]:
+) -> Generator[pt.DbmMapping, None, None]:
     """
 
     The cache is deleted upon a Raspberry Pi restart!
@@ -132,7 +157,7 @@ def local_intermittent_storage(
 @contextmanager
 def local_persistant_storage(
     cache_name: str,
-) -> Generator[DbmMapping, None, None]:
+) -> Generator[pt.DbmMapping, None, None]:
     """
     Values stored in this storage will stay around between RPi restarts, and until overwritten
     or deleted.

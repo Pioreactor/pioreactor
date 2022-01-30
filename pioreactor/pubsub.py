@@ -268,10 +268,6 @@ def subscribe_and_callback(
     client.connect(leader_hostname, **mqtt_kwargs)
     client.loop_start()
 
-    def stop_and_disconnect() -> None:
-        client.loop_stop()
-        client.disconnect()
-
     return client
 
 
