@@ -84,8 +84,12 @@ class publish_ready_to_disconnected_state:
         sys.exit()  # will trigger a exception, causing __exit__ to be called
 
     def __enter__(self) -> publish_ready_to_disconnected_state:
-        append_signal_handler(signal.SIGTERM, self._exit)
-        append_signal_handler(signal.SIGINT, self._exit)
+        try:
+            # this only works on the main thread.
+            append_signal_handler(signal.SIGTERM, self._exit)
+            append_signal_handler(signal.SIGINT, self._exit)
+        except ValueError:
+            pass
 
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
