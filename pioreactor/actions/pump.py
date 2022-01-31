@@ -125,13 +125,12 @@ def pump(
             exit_event.wait(max(0, duration - delta_time()))
 
             if continuously:
-                while True:
+                while not exit_event.wait(duration):
                     publish(
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         json_output,
                         qos=QOS.EXACTLY_ONCE,
                     )
-                    exit_event.wait(duration)
 
         except SystemExit:
             # a SigInt, SigKill occurred

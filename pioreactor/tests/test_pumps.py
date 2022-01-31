@@ -96,7 +96,41 @@ def test_pump_will_disconnect_via_mqtt() -> None:
     pause()
     publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", "disconnected")
     pause()
+    pause()
+
+    pause()
 
     resulting_ml = t.join()
 
     assert resulting_ml < expected_ml
+
+
+def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
+    class ThreadWithReturnValue(threading.Thread):
+        def __init__(self, *init_args, **init_kwargs):
+            threading.Thread.__init__(self, *init_args, **init_kwargs)
+            self._return = None
+
+        def run(self):
+            self._return = self._target(*self._args, **self._kwargs)
+
+        def join(self):
+            threading.Thread.join(self)
+            return self._return
+
+    t = ThreadWithReturnValue(
+        target=add_media, args=(unit, exp), kwargs={"continuously": True}, daemon=True
+    )
+    t.start()
+
+    pause()
+    pause()
+    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", "disconnected")
+    pause()
+    pause()
+
+    pause()
+
+    resulting_ml = t.join()
+
+    assert resulting_ml > 0
