@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 import pytest
 
@@ -14,6 +15,10 @@ from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
 exp = get_latest_experiment_name()
+
+
+def pause(n=1):
+    time.sleep(n)
 
 
 def setup_function():

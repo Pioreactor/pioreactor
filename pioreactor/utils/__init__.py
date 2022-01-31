@@ -12,8 +12,6 @@ from typing import Generator
 from pioreactor import types as pt
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
-from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 class callable_stack:
@@ -75,11 +73,12 @@ class publish_ready_to_disconnected_state:
 
     """
 
+    end = False
+
     def __init__(self, unit: str, experiment: str, name: str) -> None:
         self.unit = unit
         self.experiment = experiment
         self.name = name
-        self.start_passive_listeners()
 
     def _exit(self, *args) -> None:
         sys.exit()  # will trigger a exception, causing __exit__ to be called
@@ -102,8 +101,6 @@ class publish_ready_to_disconnected_state:
         return self
 
     def __exit__(self, *args) -> None:
-        self.client.loop_stop()
-        self.client.disconnect()
 
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
@@ -112,22 +109,6 @@ class publish_ready_to_disconnected_state:
             retain=True,
         )
         return
-
-    def exit_from_mqtt(self, message: pt.MQTTMessage):
-        if message.payload.decode() == "disconnected":
-            # use a signal since this function runs in a thread.
-            import os
-
-            os.kill(os.getpid(), signal.SIGTERM)
-
-    def start_passive_listeners(self):
-        self.client = subscribe_and_callback(
-            self.exit_from_mqtt,
-            [
-                f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
-                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.name}/$state/set",
-            ],
-        )
 
 
 @contextmanager

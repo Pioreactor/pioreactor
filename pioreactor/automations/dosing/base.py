@@ -1,24 +1,30 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import time
+
 import json
-from threading import Thread
-from typing import Optional, cast
+import time
 from contextlib import suppress
 from functools import partial
+from threading import Thread
+from typing import cast
+from typing import Optional
 
+from pioreactor import exc
+from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
-from pioreactor.actions.add_alt_media import add_alt_media
-from pioreactor.pubsub import QOS
-from pioreactor.utils import is_pio_job_running, local_persistant_storage
-from pioreactor.utils.timing import RepeatedTimer, brief_pause, current_utc_time
 from pioreactor.automations import events
-from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.dosing_control import DosingController
+from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.config import config
-from pioreactor.types import PublishableSetting, DosingProgram
-from pioreactor import exc
+from pioreactor.pubsub import QOS
+from pioreactor.types import DosingProgram
+from pioreactor.types import PublishableSetting
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import brief_pause
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import RepeatedTimer
 
 
 class ThroughputCalculator:
@@ -32,11 +38,11 @@ class ThroughputCalculator:
         self, payload: dict, current_media_volume: float, current_alt_media_volume: float
     ) -> tuple[float, float]:
         volume, event = float(payload["volume_change"]), payload["event"]
-        if event == "add_media":
+        if event == "media_pump":
             current_media_volume += volume
-        elif event == "add_alt_media":
+        elif event == "alt_media_pump":
             current_alt_media_volume += volume
-        elif event == "remove_waste":
+        elif event == "waste_pump":
             pass
         else:
             raise ValueError("Unknown event type")
@@ -53,11 +59,11 @@ class AltMediaCalculator:
 
     def update(self, payload: dict, current_alt_media_fraction) -> float:
         volume, event = float(payload["volume_change"]), payload["event"]
-        if event == "add_media":
+        if event == "media_pump":
             return self.update_alt_media_fraction(current_alt_media_fraction, volume, 0)
-        elif event == "add_alt_media":
+        elif event == "alt_media_pump":
             return self.update_alt_media_fraction(current_alt_media_fraction, 0, volume)
-        elif event == "remove_waste":
+        elif event == "waste_pump":
             return current_alt_media_fraction
         else:
             raise ValueError("Unknown event type")

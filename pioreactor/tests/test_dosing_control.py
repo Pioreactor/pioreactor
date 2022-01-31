@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
-import time, json
+from __future__ import annotations
+
+import json
+import time
 from typing import Any
 
+from pioreactor import pubsub
+from pioreactor.automations import DosingAutomation
+from pioreactor.automations import events
+from pioreactor.automations.dosing.base import AltMediaCalculator
+from pioreactor.automations.dosing.continuous_cycle import ContinuousCycle
 from pioreactor.automations.dosing.morbidostat import Morbidostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.pid_turbidostat import PIDTurbidostat
-from pioreactor.automations.dosing.continuous_cycle import ContinuousCycle
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
-
 from pioreactor.background_jobs.dosing_control import DosingController
-from pioreactor.automations import DosingAutomation
-from pioreactor.automations.dosing.base import AltMediaCalculator
-from pioreactor.automations import events
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
-from pioreactor import pubsub
 from pioreactor.utils import local_persistant_storage
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 unit = get_unit_name()
@@ -1004,11 +1007,11 @@ def test_AltMediaCalculator() -> None:
 
     ac = AltMediaCalculator()
 
-    data = {"volume_change": 1.0, "event": "add_media"}
+    data = {"volume_change": 1.0, "event": "media_pump"}
     assert 0.0 == ac.update(data, 0.0)
 
-    data = {"volume_change": 1.0, "event": "add_alt_media"}
+    data = {"volume_change": 1.0, "event": "alt_media_pump"}
     assert 1 / 14.0 == 0.07142857142857142 == ac.update(data, 0.0)
 
-    data = {"volume_change": 1.0, "event": "add_alt_media"}
+    data = {"volume_change": 1.0, "event": "alt_media_pump"}
     assert 0.13775510204081634 == ac.update(data, 1 / 14.0) < 2 / 14.0

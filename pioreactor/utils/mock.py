@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 # mock pieces for testing
 from __future__ import annotations
-from typing import Any
-from json import loads
-from pioreactor.config import config
-from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.whoami import am_I_active_worker, is_testing_env
+
 import random
+from typing import Any
+
+from pioreactor.config import config
+from pioreactor.whoami import am_I_active_worker
+from pioreactor.whoami import is_testing_env
 
 
 class MockI2C:
@@ -35,28 +36,15 @@ class MockAnalogIn:
     _counter = 0.0
 
     def __init__(self, ads, channel, **kwargs) -> None:
-        from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 
         # import pandas as pd
         # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
 
         # subscribe to dosing events
         assert channel in [0, 1], "channel must be in 0, 1"
-        subscribe_and_callback(
-            self.react_to_dosing,
-            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/dosing_events",
-        )
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
-
-    def react_to_dosing(self, message) -> None:
-
-        payload = loads(message.payload)
-
-        if payload["event"] not in ["add_media", "add_alt_media"]:
-            return
-        self.state = self.state * (1 - (payload["volume_change"] / 14))
 
     def growth_rate(self, duration_as_seconds: int) -> float:
         import numpy as np
@@ -96,7 +84,7 @@ class MockAnalogIn:
 
     @property
     def value(self) -> int:
-        return round(self.voltage * 2 ** 17)
+        return round(self.voltage * 2**17)
 
 
 class MockDAC43608:
