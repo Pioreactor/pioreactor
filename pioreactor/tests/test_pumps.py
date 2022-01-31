@@ -94,7 +94,7 @@ def test_pump_will_disconnect_via_mqtt() -> None:
 
     pause()
     pause()
-    publish(f"pioreactor/{unit}/{exp}/media_pump/$state/set", "disconnected")
+    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", "disconnected")
     pause()
 
     resulting_ml = t.join()

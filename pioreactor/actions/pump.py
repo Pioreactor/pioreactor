@@ -44,7 +44,11 @@ def pump(
 
 
     """
-    action_name = f"{pump_name}_pump"
+    action_name = {
+        "media": "add_media",
+        "alt_media": "add_alt_media",
+        "waste": "remove_waste",
+    }[pump_name]
     logger = create_logger(action_name)
     with utils.publish_ready_to_disconnected_state(
         unit, experiment, action_name

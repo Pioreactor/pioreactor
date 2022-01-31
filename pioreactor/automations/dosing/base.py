@@ -38,11 +38,11 @@ class ThroughputCalculator:
         self, payload: dict, current_media_volume: float, current_alt_media_volume: float
     ) -> tuple[float, float]:
         volume, event = float(payload["volume_change"]), payload["event"]
-        if event == "media_pump":
+        if event == "add_media":
             current_media_volume += volume
-        elif event == "alt_media_pump":
+        elif event == "add_alt_media":
             current_alt_media_volume += volume
-        elif event == "waste_pump":
+        elif event == "remove_waste":
             pass
         else:
             raise ValueError("Unknown event type")
@@ -59,11 +59,11 @@ class AltMediaCalculator:
 
     def update(self, payload: dict, current_alt_media_fraction) -> float:
         volume, event = float(payload["volume_change"]), payload["event"]
-        if event == "media_pump":
+        if event == "add_media":
             return self.update_alt_media_fraction(current_alt_media_fraction, volume, 0)
-        elif event == "alt_media_pump":
+        elif event == "add_alt_media":
             return self.update_alt_media_fraction(current_alt_media_fraction, 0, volume)
-        elif event == "waste_pump":
+        elif event == "remove_waste":
             return current_alt_media_fraction
         else:
             raise ValueError("Unknown event type")

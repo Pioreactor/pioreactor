@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import time
-from typing import Optional
 from contextlib import suppress
-from pioreactor.automations.dosing.base import DosingAutomation
+from typing import Optional
+
 from pioreactor.automations import events
-from pioreactor.hardware import PWM_TO_PIN
-from pioreactor.utils.pwm import PWM
+from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.config import config
+from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.utils import clamp
+from pioreactor.utils.pwm import PWM
 
 
 class ContinuousCycle(DosingAutomation):
@@ -27,7 +30,7 @@ class ContinuousCycle(DosingAutomation):
         "duty_cycle": {"datatype": "float", "unit": "%", "settable": True},
     }
 
-    def __init__(self, duty_cycle: float = 100, hz: int = 150, **kwargs) -> None:
+    def __init__(self, duty_cycle: float = 100.0, hz: float = 150.0, **kwargs) -> None:
         super(ContinuousCycle, self).__init__(**kwargs)
         pin = PWM_TO_PIN[config.get("PWM_reverse", "media")]
         self.pwm = PWM(pin, hz)

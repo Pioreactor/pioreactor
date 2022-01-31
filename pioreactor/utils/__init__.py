@@ -13,6 +13,7 @@ from pioreactor import types as pt
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -136,6 +137,8 @@ class publish_ready_to_disconnected_state:
             [
                 f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
                 f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.name}/$state/set",
+                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
+                f"pioreactor/{self.unit}/{UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
             ],
         )
 

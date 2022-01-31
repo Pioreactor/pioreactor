@@ -36,17 +36,30 @@ def remove_waste(
 @click.command(name="remove_waste")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
+@click.option("--continuously", is_flag=True, help="continuously run until stopped.")
 @click.option(
     "--source-of-event",
     default="CLI",
     type=str,
     help="who is calling this function - for logging",
 )
-def click_remove_waste(ml, duration, source_of_event):
+def click_remove_waste(
+    ml: Optional[float],
+    duration: Optional[float],
+    continuously: bool,
+    source_of_event: Optional[str],
+):
     """
     Remove waste/media from unit
     """
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    return remove_waste(unit, experiment, ml, duration, source_of_event)
+    return remove_waste(
+        ml=ml,
+        duration=duration,
+        continuously=continuously,
+        source_of_event=source_of_event,
+        unit=unit,
+        experiment=experiment,
+    )

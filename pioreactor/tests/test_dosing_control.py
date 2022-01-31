@@ -1007,11 +1007,11 @@ def test_AltMediaCalculator() -> None:
 
     ac = AltMediaCalculator()
 
-    data = {"volume_change": 1.0, "event": "media_pump"}
+    data = {"volume_change": 1.0, "event": "add_media"}
     assert 0.0 == ac.update(data, 0.0)
 
-    data = {"volume_change": 1.0, "event": "alt_media_pump"}
+    data = {"volume_change": 1.0, "event": "add_alt_media"}
     assert 1 / 14.0 == 0.07142857142857142 == ac.update(data, 0.0)
 
-    data = {"volume_change": 1.0, "event": "alt_media_pump"}
+    data = {"volume_change": 1.0, "event": "add_alt_media"}
     assert 0.13775510204081634 == ac.update(data, 1 / 14.0) < 2 / 14.0

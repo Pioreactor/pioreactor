@@ -126,7 +126,7 @@ class TestGrowthRateCalculating:
         )
         publish(
             f"pioreactor/{unit}/{experiment}/dosing_events",
-            '{"volume_change": "1.5", "event": "media_pump", "source_of_event": "test"}',
+            '{"volume_change": "1.5", "event": "add_media", "source_of_event": "test"}',
         )
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
@@ -327,7 +327,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/dosing_events",
             json.dumps(
-                {"source_of_event": "algo", "event": "media_pump", "volume_change": 1.0}
+                {"source_of_event": "algo", "event": "add_media", "volume_change": 1.0}
             ),
         )
         pause()
@@ -358,7 +358,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/dosing_events",
             json.dumps(
-                {"source_of_event": "algo", "event": "media_pump", "volume_change": 1.0}
+                {"source_of_event": "algo", "event": "add_media", "volume_change": 1.0}
             ),
         )
         pause()
