@@ -13,6 +13,7 @@ from pioreactor import types as pt
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 class callable_stack:
@@ -122,7 +123,10 @@ class publish_ready_to_disconnected_state:
     def start_passive_listeners(self):
         self.client = subscribe_and_callback(
             self.exit_from_mqtt,
-            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
+            [
+                f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
+                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.name}/$state/set",
+            ],
         )
 
 
