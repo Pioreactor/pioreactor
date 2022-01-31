@@ -46,7 +46,9 @@ def pump(
     """
     action_name = f"{pump_name}_pump"
     logger = create_logger(action_name)
-    with utils.publish_ready_to_disconnected_state(unit, experiment, action_name):
+    with utils.publish_ready_to_disconnected_state(
+        unit, experiment, action_name
+    ) as exit_event:
         assert (
             (ml is not None) or (duration is not None) or continuously
         ), "either ml or duration must be set"
@@ -114,9 +116,9 @@ def pump(
 
             with catchtime() as delta_time:
                 pwm.start(calibration["dc"])
-                start_time = time.time()
+                pump_start_time = time.time()
 
-            time.sleep(max(0, duration - delta_time()))
+            exit_event.wait(max(0, duration - delta_time()))
 
             if continuously:
                 while True:
@@ -125,24 +127,26 @@ def pump(
                         json_output,
                         qos=QOS.EXACTLY_ONCE,
                     )
-                    time.sleep(duration)
+                    exit_event.wait(duration)
+
         except SystemExit:
-            shortened_duration = time.time() - start_time
-            ml = utils.pump_duration_to_ml(
-                shortened_duration, calibration["duration_"], calibration["bias_"]
-            )
+            # a SigInt, SigKill occurred
+            pass
         except Exception as e:
+            # some other unexpected error
             logger.debug(e, exc_info=True)
             logger.error(e)
-
-            shortened_duration = time.time() - start_time
-            ml = utils.pump_duration_to_ml(
-                shortened_duration, calibration["duration_"], calibration["bias_"]
-            )
 
         finally:
             pwm.stop()
             pwm.cleanup()
             if continuously:
                 logger.info("Stopping pump.")
+
+            if exit_event.is_set():
+                # ended early for some reason
+                shortened_duration = time.time() - pump_start_time
+                ml = utils.pump_duration_to_ml(
+                    shortened_duration, calibration["duration_"], calibration["bias_"]
+                )
         return ml

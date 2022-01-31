@@ -2,16 +2,18 @@
 from __future__ import annotations
 
 import signal
-import sys
 from contextlib import contextmanager
 from contextlib import suppress
 from dbm import ndbm
+from threading import Event
 from typing import Callable
 from typing import Generator
 
 from pioreactor import types as pt
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
+from pioreactor.pubsub import subscribe_and_callback
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 class callable_stack:
@@ -71,19 +73,30 @@ class publish_ready_to_disconnected_state:
     > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
 
 
-    """
+    If the program is required to know if it's kill, publish_ready_to_disconnected_state returns an event (see pump.py code)
 
-    end = False
+    > with publish_ready_to_disconnected_state(unit, experiment, "self_test") as exit_event:
+    >    do_work()
+    >    exit_event.wait(60)
+    >    if exit_event.is_set():
+    >       bail!
+    >
+
+
+
+    """
 
     def __init__(self, unit: str, experiment: str, name: str) -> None:
         self.unit = unit
         self.experiment = experiment
         self.name = name
+        self.exit_event = Event()
+        self.start_passive_listeners()
 
     def _exit(self, *args) -> None:
-        sys.exit()  # will trigger a exception, causing __exit__ to be called
+        self.exit_event.set()
 
-    def __enter__(self) -> publish_ready_to_disconnected_state:
+    def __enter__(self) -> Event:
         try:
             # this only works on the main thread.
             append_signal_handler(signal.SIGTERM, self._exit)
@@ -98,9 +111,11 @@ class publish_ready_to_disconnected_state:
             retain=True,
         )
 
-        return self
+        return self.exit_event
 
     def __exit__(self, *args) -> None:
+        self.client.loop_stop()
+        self.client.disconnect()
 
         publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
@@ -109,6 +124,20 @@ class publish_ready_to_disconnected_state:
             retain=True,
         )
         return
+
+    def exit_from_mqtt(self, message: pt.MQTTMessage):
+        if message.payload.decode() == "disconnected":
+            # use a signal since this function runs in a thread.
+            self._exit()
+
+    def start_passive_listeners(self):
+        self.client = subscribe_and_callback(
+            self.exit_from_mqtt,
+            [
+                f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
+                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.name}/$state/set",
+            ],
+        )
 
 
 @contextmanager
