@@ -202,7 +202,9 @@ def update(ui: bool, app: bool, dev: bool) -> None:
 
         if not dev:
             latest_release_metadata = loads(
-                get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest")
+                get(
+                    "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
+                ).body
             )
             latest_release_version = latest_release_metadata["name"]
             url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{latest_release_version}/pioreactor-{latest_release_version}-py3-none-any.whl"

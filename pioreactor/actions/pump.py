@@ -144,7 +144,7 @@ def pump(
             pwm.stop()
             pwm.cleanup()
             if continuously:
-                logger.info("Stopping pump.")
+                logger.info(f"Stopping {pump_name} pump.")
 
             if exit_event.is_set():
                 # ended early for some reason

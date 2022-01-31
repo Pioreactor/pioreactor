@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import Iterator, Any
-from pioreactor.whoami import is_testing_env
+from typing import Any
+from typing import Iterator
+
 from pioreactor.logging import create_logger
-from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils import gpio_helpers
 from pioreactor.types import GpioPin
+from pioreactor.utils import gpio_helpers
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.whoami import is_testing_env
 
 if is_testing_env():
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
@@ -70,7 +73,7 @@ class PWM:
 
         if self.is_locked():
             self.logger.debug(
-                f"GPIO{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
+                f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
             )
 
         gpio_helpers.set_gpio_availability(
