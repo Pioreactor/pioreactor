@@ -10,11 +10,10 @@ from typing import Callable
 from typing import Generator
 
 from pioreactor import types as pt
+from pioreactor import whoami
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 class callable_stack:
@@ -138,9 +137,9 @@ class publish_ready_to_disconnected_state:
             self.exit_from_mqtt,
             [
                 f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
-                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.name}/$state/set",
-                f"pioreactor/{UNIVERSAL_IDENTIFIER}/{UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
-                f"pioreactor/{self.unit}/{UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{self.experiment}/{self.name}/$state/set",
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
+                f"pioreactor/{self.unit}/{whoami.UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
             ],
             client=self.client,
         )
