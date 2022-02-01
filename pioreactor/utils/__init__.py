@@ -10,7 +10,7 @@ from typing import Callable
 from typing import Generator
 
 from pioreactor import types as pt
-from pioreactor.pubsub import publish
+from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -74,15 +74,16 @@ class publish_ready_to_disconnected_state:
     > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
 
 
-    If the program is required to know if it's kill, publish_ready_to_disconnected_state returns an event (see pump.py code)
+    If the program is required to know if it's kill, publish_ready_to_disconnected_state contains an event (see pump.py code)
 
-    > with publish_ready_to_disconnected_state(unit, experiment, "self_test") as exit_event:
+    > with publish_ready_to_disconnected_state(unit, experiment, "self_test") as state:
     >    do_work()
-    >    exit_event.wait(60)
-    >    if exit_event.is_set():
+    >    state.exit_event.wait(60)
+    >    if state.exit_event.is_set():
     >       bail!
     >
 
+    TODO: just create a client in the __init__, and use that throughout.
 
 
     """
@@ -92,12 +93,13 @@ class publish_ready_to_disconnected_state:
         self.experiment = experiment
         self.name = name
         self.exit_event = Event()
+        self.client = create_client()
         self.start_passive_listeners()
 
     def _exit(self, *args) -> None:
         self.exit_event.set()
 
-    def __enter__(self) -> Event:
+    def __enter__(self) -> publish_ready_to_disconnected_state:
         try:
             # this only works on the main thread.
             append_signal_handler(signal.SIGTERM, self._exit)
@@ -105,34 +107,34 @@ class publish_ready_to_disconnected_state:
         except ValueError:
             pass
 
-        publish(
+        self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             "ready",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
 
-        return self.exit_event
+        return self
 
     def __exit__(self, *args) -> None:
-        self.client.loop_stop()
-        self.client.disconnect()
-
-        publish(
+        self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             "disconnected",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
+
+        self.client.loop_stop()
+        self.client.disconnect()
+
         return
 
-    def exit_from_mqtt(self, message: pt.MQTTMessage):
+    def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if message.payload.decode() == "disconnected":
-            # use a signal since this function runs in a thread.
             self._exit()
 
     def start_passive_listeners(self):
-        self.client = subscribe_and_callback(
+        subscribe_and_callback(
             self.exit_from_mqtt,
             [
                 f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state/set",
@@ -140,6 +142,7 @@ class publish_ready_to_disconnected_state:
                 f"pioreactor/{UNIVERSAL_IDENTIFIER}/{UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
                 f"pioreactor/{self.unit}/{UNIVERSAL_EXPERIMENT}/{self.name}/$state/set",
             ],
+            client=self.client,
         )
 
 

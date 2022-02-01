@@ -52,7 +52,7 @@ def pump(
     logger = create_logger(action_name)
     with utils.publish_ready_to_disconnected_state(
         unit, experiment, action_name
-    ) as exit_event:
+    ) as state:
         assert (
             (ml is not None) or (duration is not None) or continuously
         ), "either ml or duration must be set"
@@ -122,10 +122,10 @@ def pump(
                 pwm.start(calibration["dc"])
                 pump_start_time = time.time()
 
-            exit_event.wait(max(0, duration - delta_time()))
+            state.exit_event.wait(max(0, duration - delta_time()))
 
             if continuously:
-                while not exit_event.wait(duration):
+                while not state.exit_event.wait(duration):
                     publish(
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         json_output,
@@ -146,7 +146,7 @@ def pump(
             if continuously:
                 logger.info(f"Stopping {pump_name} pump.")
 
-            if exit_event.is_set():
+            if state.exit_event.is_set():
                 # ended early for some reason
                 shortened_duration = time.time() - pump_start_time
                 ml = utils.pump_duration_to_ml(

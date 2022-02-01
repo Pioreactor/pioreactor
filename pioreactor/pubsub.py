@@ -210,6 +210,7 @@ def subscribe_and_callback(
     last_will: dict = None,
     job_name: str = None,
     allow_retained: bool = True,
+    client: Client = None,
     **mqtt_kwargs,
 ) -> Client:
     """
@@ -258,7 +259,12 @@ def subscribe_and_callback(
         "job_name": job_name,
     }
 
-    client = Client(userdata=userdata)
+    if client is None:
+        client = Client(userdata=userdata)
+    else:
+        # user provided a client
+        client.user_data_set(userdata)
+
     client.on_connect = on_connect
     client.on_message = wrap_callback(callback)
 
