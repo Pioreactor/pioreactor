@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
 import subprocess
-import click
 from shlex import quote
+
+import click
+
 from pioreactor.logging import create_logger
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -13,7 +16,7 @@ def install_plugin(name_of_plugin, url=None):
     result = subprocess.run(
         [
             "bash",
-            "/usr/local/bin//install_pioreactor_plugin.sh",
+            "/usr/local/bin/install_pioreactor_plugin.sh",
             quote(name_of_plugin),
             url or "",
         ],

@@ -6,37 +6,38 @@ Functions with prefix `test_` are ran, and any exception thrown means the test f
 
 Outputs from each test go into MQTT, and return to the command line.
 """
+from __future__ import annotations
 
-from time import sleep
+from json import dumps
+from json import loads
 from logging import Logger
-from json import dumps, loads
+from time import sleep
 from typing import cast
+
 import click
-from pioreactor.whoami import (
-    get_unit_name,
-    get_latest_testing_experiment_name,
-    get_latest_experiment_name,
-    is_testing_env,
-)
-from pioreactor.background_jobs.temperature_control import TemperatureController
-from pioreactor.background_jobs.od_reading import (
-    ADCReader,
-    ALL_PD_CHANNELS,
-    IR_keyword,
-)
-from pioreactor.utils.math_helpers import correlation
-from pioreactor.pubsub import publish
-from pioreactor.logging import create_logger
-from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
-from pioreactor.utils import (
-    is_pio_job_running,
-    publish_ready_to_disconnected_state,
-    local_persistant_storage,
-)
+
+from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
+from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.background_jobs import stirring
+from pioreactor.background_jobs.od_reading import ADCReader
+from pioreactor.background_jobs.od_reading import ALL_PD_CHANNELS
+from pioreactor.background_jobs.od_reading import IR_keyword
+from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.config import config
-from pioreactor.types import PdChannel, LedChannel
-from pioreactor.hardware import is_HAT_present, is_heating_pcb_present
+from pioreactor.hardware import is_HAT_present
+from pioreactor.hardware import is_heating_pcb_present
+from pioreactor.logging import create_logger
+from pioreactor.pubsub import publish
+from pioreactor.types import LedChannel
+from pioreactor.types import PdChannel
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils.math_helpers import correlation
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 def test_pioreactor_hat_present(logger: Logger, unit: str, experiment: str) -> None:
@@ -184,6 +185,8 @@ def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
 def test_positive_correlation_between_temp_and_heating(
     logger: Logger, unit: str, experiment: str
 ) -> None:
+    assert is_heating_pcb_present()
+
     with TemperatureController("silent", unit=unit, experiment=experiment) as tc:
 
         measured_pcb_temps = []
@@ -205,6 +208,7 @@ def test_positive_correlation_between_temp_and_heating(
 def test_positive_correlation_between_rpm_and_stirring(
     logger: Logger, unit: str, experiment: str
 ) -> None:
+    assert is_heating_pcb_present()
 
     with local_persistant_storage("stirring_calibration") as cache:
 
