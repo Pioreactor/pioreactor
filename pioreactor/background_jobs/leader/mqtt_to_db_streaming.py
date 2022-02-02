@@ -4,18 +4,22 @@ This job runs on the leader
 """
 from __future__ import annotations
 
-from json import dumps, loads
-from typing import Callable, Optional
 from dataclasses import dataclass
+from json import dumps
+from json import loads
+from typing import Callable
+from typing import Optional
 
 import click
 
-from pioreactor.pubsub import QOS
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.config import config
-from pioreactor.types import MQTTMessagePayload
+from pioreactor.pubsub import QOS
 from pioreactor.types import MQTTMessage
+from pioreactor.types import MQTTMessagePayload
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 @dataclass
@@ -224,13 +228,13 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_alt_media_fraction(topic: str, payload: MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
-        payload_dict = loads(payload)
+        payload = loads(payload)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "alt_media_fraction": float(payload_dict["alt_media_fraction"]),
+            "timestamp": current_utc_time(),
+            "alt_media_fraction": float(payload),
         }
 
     def parse_logs(topic: str, payload: MQTTMessagePayload) -> dict:

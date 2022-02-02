@@ -300,11 +300,6 @@ if am_I_leader():
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("new_name")
-    @click.option(
-        "--ip",
-        help="instead of looking for raspberrypi.local on the network, look for the IP address.",
-        default="",
-    )
     def add_pioreactor(new_name: str) -> None:
         """
         Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
