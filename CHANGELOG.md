@@ -1,4 +1,4 @@
-### Upcoming
+### 22.2.0
  - Added more error codes for the ADC, network issues, and high temperature
  - Reduce chance of running multiple growth_rate_calculating jobs
  - Custom exceptions thrown in the Python software.
@@ -13,6 +13,8 @@
  - New `is_HAT_present` and `is_heating_pcb_present` functions
  - ErrorCodes is gone - use global variables in error_codes
  - Adding logic for 180° sensor to growth_rate_calculating
+ - Pumps now have a state broadcast to MQTT, and thus can be "disconnected" over MQTT.
+ - Improved the response time of stopping pumps from the web UI.
 
 
 ### 22.1.0
