@@ -4,23 +4,25 @@ maps DC -> RPM, and PID will correct any disturbances
 This should be run with a vial in, with a stirbar. Water is fine.
 
 """
-import time, click, json
-from pioreactor.pubsub import publish_to_pioreactor_cloud, publish
+from __future__ import annotations
+
+import json
+import time
+
+import click
 
 from pioreactor.background_jobs import stirring
-from pioreactor.utils.math_helpers import simple_linear_regression
-from pioreactor.whoami import (
-    get_unit_name,
-    get_latest_testing_experiment_name,
-)
-from pioreactor.logging import create_logger
 from pioreactor.config import config
-from pioreactor.utils import (
-    is_pio_job_running,
-    publish_ready_to_disconnected_state,
-    local_persistant_storage,
-)
+from pioreactor.logging import create_logger
+from pioreactor.pubsub import publish
+from pioreactor.pubsub import publish_to_pioreactor_cloud
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 def stirring_calibration(min_dc: int, max_dc: int) -> None:
@@ -56,7 +58,9 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             rpm_calculator=None,
         ) as st:
 
-            st.duty_cycle = dcs[0]
+            st.duty_cycle = (
+                min_dc  # we start with a somewhat low value, s.t. the stir bar is caught.
+            )
             st.start_stirring()
             time.sleep(8)
             n_samples = len(dcs)
