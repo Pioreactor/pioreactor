@@ -265,7 +265,7 @@ class Stirrer(BackgroundJob):
 
     def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
-            # if we can't track RPM, no point in adjusting DC
+            # if we can't track RPM, no point in adjusting DC, use what is in config.ini
             return lambda rpm: self.duty_cycle
 
         with local_persistant_storage("stirring_calibration") as cache:
@@ -274,6 +274,11 @@ class Stirrer(BackgroundJob):
                 parameters = json.loads(cache["linear_v1"])
                 coef = parameters["rpm_coef"]
                 intercept = parameters["intercept"]
+
+                # since we have calibration data, and the initial_duty_cycle could be
+                # far off, giving the below equation a bad "first step". We set it here.
+                self.duty_cycle = coef * self.target_rpm + intercept
+
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
                 # equivalent to a weighted average: 0.1 * current + 0.9 * predicted
@@ -298,7 +303,7 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
-        sleep(0.25)
+        sleep(0.15)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.75)
         self.rpm_check_repeated_thread.start()  # .start is idempotent
