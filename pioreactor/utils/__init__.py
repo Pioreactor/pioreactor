@@ -204,7 +204,7 @@ def local_persistant_storage(
         cache.close()
 
 
-def clamp(minimum: float, x: float, maximum: float) -> float:
+def clamp(minimum: float | int, x: float | int, maximum: float | int) -> float:
     return max(minimum, min(x, maximum))
 
 

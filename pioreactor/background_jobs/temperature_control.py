@@ -40,6 +40,7 @@ from pioreactor.hardware import HEATER_PWM_TO_PIN
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.utils import clamp
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import RepeatedTimer
@@ -176,7 +177,7 @@ class TemperatureController(BackgroundJob):
         """
 
         if not self.pwm.is_locked():
-            self._update_heater(new_duty_cycle)
+            self._update_heater(clamp(0.0, new_duty_cycle, 100.0))
             return True
         else:
             return False
@@ -188,7 +189,9 @@ class TemperatureController(BackgroundJob):
 
         Returns true if the update was made (eg: no lock), else returns false
         """
-        return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
+        return self.update_heater(
+            clamp(0, self.heater_duty_cycle + delta_duty_cycle, 100)
+        )
 
     def read_external_temperature(self) -> float:
         """
@@ -320,7 +323,7 @@ class TemperatureController(BackgroundJob):
     def setup_pwm(self) -> PWM:
         hertz = 1
         pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
-        pin = PWM_TO_PIN[config.get("PWM_reverse", "heating")]
+        pin = PWM_TO_PIN[config.get("PWM_reverse", "heating")]  # TODO: remove this.
         pwm = PWM(pin, hertz)
         pwm.start(0)
         return pwm
@@ -419,9 +422,9 @@ class TemperatureController(BackgroundJob):
         # first regression
         M1 = np.array(
             [
-                [(SS ** 2).sum(), (SS * S).sum(), (SS * x).sum(), (SS).sum()],
-                [(SS * S).sum(), (S ** 2).sum(), (S * x).sum(), (S).sum()],
-                [(SS * x).sum(), (S * x).sum(), (x ** 2).sum(), (x).sum()],
+                [(SS**2).sum(), (SS * S).sum(), (SS * x).sum(), (SS).sum()],
+                [(SS * S).sum(), (S**2).sum(), (S * x).sum(), (S).sum()],
+                [(SS * x).sum(), (S * x).sum(), (x**2).sum(), (x).sum()],
                 [(SS).sum(), (S).sum(), (x).sum(), n],
             ]
         )
@@ -435,15 +438,15 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
 
-        if (B ** 2 + 4 * A) < 0:
+        if (B**2 + 4 * A) < 0:
             # something when wrong in the data collection - the data doesn't look enough like a sum of two expos
             self.logger.error(f"Error in regression: {(B ** 2 + 4 * A)=} < 0")
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
 
-        p = 0.5 * (B + np.sqrt(B ** 2 + 4 * A))
-        q = 0.5 * (B - np.sqrt(B ** 2 + 4 * A))
+        p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
+        q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
 
         # second regression
         M2 = np.array(
@@ -479,11 +482,16 @@ class TemperatureController(BackgroundJob):
         return 2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs
 
 
-def start_temperature_control(automation_name: str, **kwargs) -> TemperatureController:
+def start_temperature_control(
+    automation_name: str,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    **kwargs,
+) -> TemperatureController:
     return TemperatureController(
         automation_name=automation_name,
-        unit=get_unit_name(),
-        experiment=get_latest_experiment_name(),
+        unit=unit or get_unit_name(),
+        experiment=experiment or get_latest_experiment_name(),
         **kwargs,
     )
 

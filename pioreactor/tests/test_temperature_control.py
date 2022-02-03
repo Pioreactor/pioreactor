@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
-import time, threading
-from pioreactor.background_jobs import temperature_control
-from pioreactor.automations.temperature import Silent, Stable, ConstantDutyCycle
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+from __future__ import annotations
+
+import threading
+import time
+
 from pioreactor import pubsub
+from pioreactor.automations.temperature import ConstantDutyCycle
+from pioreactor.automations.temperature import Silent
+from pioreactor.automations.temperature import Stable
+from pioreactor.background_jobs import temperature_control
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
 experiment = get_latest_experiment_name()
@@ -105,6 +112,17 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
         pause()
 
         assert 0 < t.heater_duty_cycle < 50
+
+
+def test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
+
+    with temperature_control.TemperatureController(
+        "stable", unit=unit, experiment=experiment, target_temperature=20
+    ) as t:
+
+        pause(3)
+        assert t.automation_job.state == "ready"
+        assert t.heater_duty_cycle == 0
 
 
 def test_heating_stops_when_max_temp_is_exceeded() -> None:
