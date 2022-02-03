@@ -236,8 +236,8 @@ class Stirrer(BackgroundJob):
         self.pwm = PWM(pin, hertz)
         self.pwm.lock()
 
-        self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
         self.target_rpm = target_rpm
+        self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup(self.target_rpm)
         self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
         # set up PID
@@ -263,7 +263,7 @@ class Stirrer(BackgroundJob):
             poll_for_seconds=4,  # technically should be a function of the RPM: lower RPM, longer to get sufficient data.
         )
 
-    def initialize_rpm_to_dc_lookup(self) -> Callable:
+    def initialize_rpm_to_dc_lookup(self, target_rpm: float) -> Callable:
         if self.rpm_calculator is None:
             # if we can't track RPM, no point in adjusting DC, use what is in config.ini
             return lambda rpm: self.duty_cycle
@@ -277,7 +277,7 @@ class Stirrer(BackgroundJob):
 
                 # since we have calibration data, and the initial_duty_cycle could be
                 # far off, giving the below equation a bad "first step". We set it here.
-                self.duty_cycle = coef * self.target_rpm + intercept
+                self.duty_cycle = coef * target_rpm + intercept
 
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
