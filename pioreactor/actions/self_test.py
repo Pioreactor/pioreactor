@@ -97,15 +97,16 @@ def test_all_positive_correlations_between_pds_and_leds(
 
             # Add to accumulating list
             for pd_channel in ALL_PD_CHANNELS:
-                varying_intensity_results[pd_channel].append(
-                    0.5 * (readings1[pd_channel] + readings2[pd_channel])
-                )
+                reading = 0.5 * (readings1[pd_channel] + readings2[pd_channel])
+                varying_intensity_results[pd_channel].append(reading)
 
         # compute the linear correlation between the intensities and observed PD measurements
         for pd_channel in ALL_PD_CHANNELS:
-            results[(led_channel, pd_channel)] = round(
+            measured_correlation = round(
                 correlation(INTENSITIES, varying_intensity_results[pd_channel]), 2
             )
+            results[(led_channel, pd_channel)] = measured_correlation
+            logger.debug(f"Corr({led_channel}, {pd_channel}) = {measured_correlation}")
 
         # set back to 0
         led_intensity(
