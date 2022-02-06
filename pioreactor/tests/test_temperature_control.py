@@ -130,7 +130,7 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as t:
-        # monkey path the driver
+        # monkey patch the driver
         t.tmp_driver.get_temperature = lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1
 
         t._update_heater(50)
@@ -140,6 +140,7 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
         pause()
 
         assert t.heater_duty_cycle == 0
+        assert t.automation_name == "silent"
 
 
 def test_child_cant_update_heater_when_locked() -> None:

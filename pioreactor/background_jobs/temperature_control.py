@@ -24,6 +24,7 @@ message: a json object with required keyword arguments. Specify the new automati
 """
 from __future__ import annotations
 
+from json import dumps
 from json import loads
 from time import sleep
 from typing import Any
@@ -74,7 +75,7 @@ class TemperatureController(BackgroundJob):
         TODO: do I need this still?
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_REDUCE_HEATING = 59.0  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 62.0
     MAX_TEMP_TO_SHUTDOWN = 64.0
 
@@ -121,7 +122,7 @@ class TemperatureController(BackgroundJob):
 
         self.tmp_driver = TMP1075()
         self.read_external_temperature_timer = RepeatedTimer(
-            45, self.read_external_temperature, run_immediately=False
+            30, self.read_external_temperature, run_immediately=False
         )
         self.read_external_temperature_timer.start()
 
@@ -276,10 +277,11 @@ class TemperatureController(BackgroundJob):
             )
 
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to Silent. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
+            self.set_automation(dumps({"automation_name": "silent"}))
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 

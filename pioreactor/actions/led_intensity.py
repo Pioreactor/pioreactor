@@ -1,18 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from json import dumps
-import click
-from typing import Optional, Iterator, Any
-from contextlib import contextmanager
 
+from contextlib import contextmanager
+from json import dumps
+from typing import Any
+from typing import Iterator
+from typing import Optional
+
+import click
 from paho.mqtt.client import Client  # type: ignore
 
-from pioreactor.pubsub import create_client, QOS
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
 from pioreactor.logging import create_logger
-from pioreactor.utils.timing import current_utc_time
-from pioreactor.utils import local_intermittent_storage
+from pioreactor.pubsub import create_client
+from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
 
@@ -158,7 +164,7 @@ def led_intensity(
     try:
         channels, intensities = zip(  # type: ignore
             *[
-                (c, i)
+                (c, float(i))
                 for c, i in zip(channels, intensities)
                 if not is_led_channel_locked(c)
             ]
@@ -175,13 +181,12 @@ def led_intensity(
             assert (
                 channel in ALL_LED_CHANNELS
             ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
-            intensity = float(intensity)
 
             dac = DAC43608()
             dac.power_up(getattr(dac, channel))
             dac.set_intensity_to(getattr(dac, channel), intensity / 100.0)
 
-            if intensity == 0:
+            if intensity == 0.0:
                 # setting to 0 doesn't fully remove the current, there is some residual current. We turn off
                 # the channel to guarantee no output.
                 dac.power_down(getattr(dac, channel))
