@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
-import time, json
-from pioreactor.background_jobs.stirring import (
-    start_stirring,
-    Stirrer,
-    RpmCalculator,
-    RpmFromFrequency,
-)
+import json
+import time
+
+from pioreactor.background_jobs.stirring import RpmCalculator
+from pioreactor.background_jobs.stirring import RpmFromFrequency
+from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.background_jobs.stirring import Stirrer
+from pioreactor.pubsub import publish
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
-from pioreactor.pubsub import publish, subscribe
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
 exp = get_latest_experiment_name()
@@ -108,14 +111,8 @@ def test_stirring_with_lookup_linear_v1() -> None:
         cache["linear_v1"] = json.dumps({"rpm_coef": 0.1, "intercept": 20})
 
     target_rpm = 500
-    current_dc = Stirrer.duty_cycle
     with Stirrer(target_rpm, unit, exp, rpm_calculator=FakeRpmCalculator()) as st:  # type: ignore
         st.start_stirring()
-
-        assert st.duty_cycle == current_dc - 0.9 * (current_dc - (0.1 * target_rpm + 20))
-
-        pause()
-        pause()
 
         current_dc = st.duty_cycle
         target_rpm = 600

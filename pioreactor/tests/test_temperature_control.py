@@ -128,7 +128,10 @@ def test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature
 def test_heating_stops_when_max_temp_is_exceeded() -> None:
 
     with temperature_control.TemperatureController(
-        "silent", unit=unit, experiment=experiment
+        "stable",
+        unit=unit,
+        experiment=experiment,
+        target_temperature=25,
     ) as t:
         # monkey patch the driver
         t.tmp_driver.get_temperature = lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1
