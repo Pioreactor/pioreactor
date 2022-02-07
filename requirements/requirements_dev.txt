@@ -2,4 +2,5 @@
 -r requirements_worker.txt
 -r requirements_leader.txt
 pytest
+pytest-timeout
 fake-rpi
