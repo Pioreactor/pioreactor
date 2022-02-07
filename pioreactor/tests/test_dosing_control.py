@@ -17,12 +17,10 @@ from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.utils import local_persistant_storage
-from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
 
 unit = get_unit_name()
-experiment = get_latest_experiment_name()
 
 
 def pause() -> None:
@@ -44,6 +42,7 @@ def setup_function() -> None:
 
 
 def test_silent_automation() -> None:
+    experiment = "test_silent_automation"
     with Silent(volume=None, duration=60, unit=unit, experiment=experiment) as algo:
         pause()
         pubsub.publish(
@@ -70,6 +69,7 @@ def test_silent_automation() -> None:
 
 
 def test_turbidostat_automation() -> None:
+    experiment = "test_turbidostat_automation"
     target_od = 1.0
     with Turbidostat(
         target_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
@@ -121,7 +121,7 @@ def test_turbidostat_automation() -> None:
 
 
 def test_pid_turbidostat_automation() -> None:
-
+    experiment = "test_pid_turbidostat_automation"
     target_od = 2.4
     with PIDTurbidostat(
         target_od=target_od, duration=20, unit=unit, experiment=experiment
@@ -153,6 +153,7 @@ def test_pid_turbidostat_automation() -> None:
 
 
 def test_morbidostat_automation() -> None:
+    experiment = "test_morbidostat_automation"
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
         None,
@@ -238,6 +239,7 @@ def test_morbidostat_automation() -> None:
 
 
 def test_pid_morbidostat_automation() -> None:
+    experiment = "test_pid_morbidostat_automation"
     target_growth_rate = 0.09
     algo = PIDMorbidostat(
         target_od=1.0,
@@ -291,7 +293,7 @@ def test_pid_morbidostat_automation() -> None:
 
 
 def test_changing_morbidostat_parameters_over_mqtt() -> None:
-
+    experiment = "test_changing_morbidostat_parameters_over_mqtt"
     target_growth_rate = 0.05
     algo = PIDMorbidostat(
         target_growth_rate=target_growth_rate,
@@ -314,7 +316,7 @@ def test_changing_morbidostat_parameters_over_mqtt() -> None:
 
 
 def test_changing_turbidostat_params_over_mqtt() -> None:
-
+    experiment = "test_changing_turbidostat_params_over_mqtt"
     og_volume = 0.5
     og_target_od = 1.0
     algo = Turbidostat(
@@ -362,7 +364,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
-
+    experiment = "test_changing_parameters_over_mqtt_with_unknown_parameter"
     with DosingAutomation(
         target_growth_rate=0.05,
         target_od=1.0,
@@ -391,7 +393,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
 
 
 def test_pause_in_dosing_automation() -> None:
-
+    experiment = "test_pause_in_dosing_automation"
     with DosingAutomation(
         target_growth_rate=0.05,
         target_od=1.0,
@@ -414,7 +416,7 @@ def test_pause_in_dosing_automation() -> None:
 
 
 def test_pause_in_dosing_control_also_pauses_automation() -> None:
-
+    experiment = "test_pause_in_dosing_control_also_pauses_automation"
     algo = DosingController(
         "turbidostat",
         target_od=1.0,
@@ -439,6 +441,7 @@ def test_pause_in_dosing_control_also_pauses_automation() -> None:
 
 
 def test_old_readings_will_not_execute_io() -> None:
+    experiment = "test_old_readings_will_not_execute_io"
     algo = DosingAutomation(
         target_growth_rate=0.05,
         target_od=1.0,
@@ -459,6 +462,7 @@ def test_old_readings_will_not_execute_io() -> None:
 
 
 def test_throughput_calculator() -> None:
+    experiment = "test_throughput_calculator"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -531,7 +535,7 @@ def test_throughput_calculator() -> None:
 
 
 def test_throughput_calculator_restart() -> None:
-
+    experiment = "test_throughput_calculator_restart"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = str(1.0)
 
@@ -552,7 +556,7 @@ def test_throughput_calculator_restart() -> None:
 
 
 def test_throughput_calculator_manual_set() -> None:
-
+    experiment = "test_throughput_calculator_manual_set"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = str(1.0)
 
@@ -586,6 +590,7 @@ def test_throughput_calculator_manual_set() -> None:
 
 
 def test_execute_io_action() -> None:
+    experiment = "test_execute_io_action"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -619,6 +624,7 @@ def test_execute_io_action() -> None:
 
 
 def test_execute_io_action2() -> None:
+    experiment = "test_execute_io_action2"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -640,6 +646,7 @@ def test_execute_io_action2() -> None:
 
 def test_execute_io_action_outputs1() -> None:
     # regression test
+    experiment = "test_execute_io_action_outputs1"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -659,6 +666,9 @@ def test_execute_io_action_outputs1() -> None:
 
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
     # regression test
+    experiment = (
+        "test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined"
+    )
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -687,6 +697,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
 
 def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     # regression test
+    experiment = "test_execute_io_action_outputs_will_shortcut_if_disconnected"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -705,6 +716,7 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
 
 
 def test_duration_and_timer() -> None:
+    experiment = "test_duration_and_timer"
     algo = PIDMorbidostat(
         target_od=1.0,
         target_growth_rate=0.01,
@@ -740,6 +752,7 @@ def test_duration_and_timer() -> None:
 
 
 def test_changing_duration_over_mqtt() -> None:
+    experiment = "test_changing_duration_over_mqtt"
     with PIDMorbidostat(
         target_od=1.0,
         target_growth_rate=0.01,
@@ -769,6 +782,7 @@ def test_changing_duration_over_mqtt() -> None:
 
 
 def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
+    experiment = "test_changing_duration_over_mqtt_will_start_next_run_earlier"
     with PIDMorbidostat(
         target_od=1.0,
         target_growth_rate=0.01,
@@ -799,7 +813,7 @@ def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
 
 
 def test_changing_algo_over_mqtt_solo() -> None:
-
+    experiment = "test_changing_algo_over_mqtt_solo"
     with DosingController(
         "turbidostat",
         target_od=1.0,
@@ -821,7 +835,7 @@ def test_changing_algo_over_mqtt_solo() -> None:
 
 
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
-
+    experiment = "test_changing_algo_over_mqtt_when_it_fails_will_rollback"
     with DosingController(
         "turbidostat",
         target_od=1.0,
@@ -847,6 +861,7 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
 
 
 def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
+    experiment = "test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -898,6 +913,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
 
 
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
+    experiment = "test_changing_algo_over_mqtt_with_wrong_type_is_okay"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -925,7 +941,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
 
 
 def test_disconnect_cleanly() -> None:
-
+    experiment = "test_disconnect_cleanly"
     algo = DosingController(
         "turbidostat",
         target_od=1.0,
@@ -944,6 +960,8 @@ def test_disconnect_cleanly() -> None:
 
 
 def test_custom_class_will_register_and_run() -> None:
+    experiment = "test_custom_class_will_register_and_run"
+
     class NaiveTurbidostat(DosingAutomation):
 
         automation_name = "naive_turbidostat"
@@ -965,13 +983,13 @@ def test_custom_class_will_register_and_run() -> None:
         target_od=2.0,
         duration=10,
         unit=get_unit_name(),
-        experiment=get_latest_experiment_name(),
+        experiment=experiment,
     )
     algo.set_state(algo.DISCONNECTED)
 
 
 def test_what_happens_when_no_od_data_is_coming_in() -> None:
-
+    experiment = "test_what_happens_when_no_od_data_is_coming_in"
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
         None,
@@ -993,6 +1011,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
 
 
 def test_changing_duty_cycle_over_mqtt() -> None:
+    experiment = "test_changing_duty_cycle_over_mqtt"
     with ContinuousCycle(unit=unit, experiment=experiment) as algo:
 
         assert algo.duty_cycle == 100
@@ -1004,7 +1023,6 @@ def test_changing_duty_cycle_over_mqtt() -> None:
 
 
 def test_AltMediaCalculator() -> None:
-
     ac = AltMediaCalculator()
 
     data = {"volume_change": 1.0, "event": "add_media"}
