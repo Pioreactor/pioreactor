@@ -33,7 +33,7 @@ class ContinuousCycle(DosingAutomation):
     def __init__(self, duty_cycle: float = 100.0, hz: float = 150.0, **kwargs) -> None:
         super(ContinuousCycle, self).__init__(**kwargs)
         pin = PWM_TO_PIN[config.get("PWM_reverse", "media")]
-        self.pwm = PWM(pin, hz)
+        self.pwm = PWM(pin, hz, unit=self.unit, experiment=self.experiment)
         self.duty_cycle = duty_cycle
 
     def set_duty_cycle(self, new_dc: float) -> None:

@@ -81,12 +81,13 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
     ) as algo:
         assert algo.automation_name == "silent"
         assert isinstance(algo.automation_job, Silent)
-
+        pause()
+        pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             '{"automation_name": "constant_duty_cycle", "duty_cycle": 25}',
         )
-        time.sleep(8)
+        time.sleep(15)
         assert algo.automation_name == "constant_duty_cycle"
         assert isinstance(algo.automation_job, ConstantDutyCycle)
         assert algo.automation_job.duty_cycle == 25

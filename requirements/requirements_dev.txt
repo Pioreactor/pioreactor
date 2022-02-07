@@ -3,4 +3,5 @@
 -r requirements_leader.txt
 pytest
 pytest-timeout
+pytest-random-order
 fake-rpi

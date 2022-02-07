@@ -55,4 +55,4 @@ jobs:
            EOT
 
       - name: Run tests
-        run: pytest pioreactor/tests/ -vv --timeout 600
+        run: pytest pioreactor/tests/ -vv --timeout 600 --random-order

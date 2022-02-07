@@ -233,7 +233,7 @@ class Stirrer(BackgroundJob):
             raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
 
         pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "stirring")]
-        self.pwm = PWM(pin, hertz)
+        self.pwm = PWM(pin, hertz, unit=unit, experiment=experiment)
         self.pwm.lock()
 
         self.target_rpm = target_rpm

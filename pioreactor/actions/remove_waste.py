@@ -19,7 +19,6 @@ def remove_waste(
     calibration: Optional[dict] = None,
     continuously: bool = False,
 ) -> float:
-
     pump_name = "waste"
     return pump(
         unit,
