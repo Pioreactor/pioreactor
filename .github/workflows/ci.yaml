@@ -53,4 +53,4 @@ jobs:
            EOT
 
       - name: Run tests
-        run: pytest pioreactor/tests/ -vv
+        run: pytest pioreactor/tests/test_pumpsg -vv
