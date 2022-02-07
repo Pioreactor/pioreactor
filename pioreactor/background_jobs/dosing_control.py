@@ -17,15 +17,19 @@ Using the CLI, specific automation values can be specified as additional options
 
 
 """
-import time
+from __future__ import annotations
+
 import json
-import click
+import time
 from typing import Optional
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+import click
+
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.logging import create_logger
 from pioreactor.background_jobs.utils import AutomationDict
+from pioreactor.logging import create_logger
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 class DosingController(BackgroundJob):
@@ -46,9 +50,7 @@ class DosingController(BackgroundJob):
     def __init__(
         self, automation_name: str, unit: str, experiment: str, **kwargs
     ) -> None:
-        super(DosingController, self).__init__(
-            job_name="dosing_control", unit=unit, experiment=experiment
-        )
+        super().__init__(job_name="dosing_control", unit=unit, experiment=experiment)
 
         self.automation = AutomationDict(automation_name=automation_name, **kwargs)
 

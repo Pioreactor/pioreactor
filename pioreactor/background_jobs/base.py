@@ -767,6 +767,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
 
 class BackgroundJob(_BackgroundJob):
+    """
+    Native jobs should inherit from this class.
+    """
+
     def __init__(self, job_name: str, experiment: str, unit: str) -> None:
         super().__init__(
             job_name=job_name, source="app", experiment=experiment, unit=unit
@@ -775,7 +779,7 @@ class BackgroundJob(_BackgroundJob):
 
 class BackgroundJobContrib(_BackgroundJob):
     """
-    Plugins should inherit from this class.
+    Plugin jobs should inherit from this class.
     """
 
     def __init__(

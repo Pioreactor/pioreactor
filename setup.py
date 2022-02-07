@@ -26,7 +26,7 @@ LEADER_REQUIREMENTS = [
 
 
 WORKER_REQUIREMENTS = [
-    "RPi.GPIO>=0.7.0",
+    "RPi.GPIO>=0.7.1",
     "adafruit-circuitpython-ads1x15>=2.2.8",
     "DAC43608>=0.2.6",
     "TMP1075>=0.2.0",

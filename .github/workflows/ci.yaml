@@ -34,5 +34,23 @@ jobs:
         run: |
            mkdir -p .pioreactor/storage
 
+      - name: Create plugin folder and seed it
+        run: |
+           mkdir -p plugins_dev
+           cat <<EOT >> plugins_dev/example_plugin.py
+           import click
+           from pioreactor.background_jobs.base import BackgroundJob
+
+           class ExamplePlugin(BackgroundJob):
+
+              def __init__(self):
+                  super().__init__(unit="test", experiment="test", job_name="example_plugin")
+
+
+           @click.command(name="example_plugin")
+           def click_example_plugin():
+              job = ExamplePlugin()
+           EOT
+
       - name: Run tests
-        run: pytest pioreactor/tests/ -vv
+        run: pytest pioreactor/tests/test_cli.py -vv

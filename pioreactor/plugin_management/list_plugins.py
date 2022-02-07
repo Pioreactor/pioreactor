@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from json import dumps
+
 import click
 
 
@@ -9,8 +12,8 @@ def click_list_plugins(json) -> None:
     from pioreactor.plugin_management import get_plugins
 
     if not json:
-        for plugin in get_plugins().keys():
-            click.echo(plugin)
+        for plugin, metadata in get_plugins().items():
+            click.echo(f"{plugin}=={metadata.version}")
 
     else:
         click.echo(
