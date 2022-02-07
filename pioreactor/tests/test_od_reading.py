@@ -162,15 +162,18 @@ def test_ADC_picks_to_correct_freq_even_if_slight_noise_in_freq() -> None:
 
 def test_error_thrown_if_wrong_angle() -> None:
     with pytest.raises(ValueError):
-        start_od_reading("100", "135", fake_data=True)  # type: ignore
+        start_od_reading("100", "135", fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading("100", None, fake_data=True)  # type: ignore
+        start_od_reading("100", None, fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading("135", "99", fake_data=True)  # type: ignore
+        start_od_reading("135", "99", fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
     with pytest.raises(ValueError):
-        start_od_reading("100", "REF", fake_data=True)  # type: ignore
+        start_od_reading("100", "REF", fake_data=True, experiment="test_error_thrown_if_wrong_angle")  # type: ignore
 
-    start_od_reading("135", "90", fake_data=True)
+    st = start_od_reading(
+        "135", "90", fake_data=True, experiment="test_error_thrown_if_wrong_angle"
+    )
+    st.set_state(st.DISCONNECTED)
