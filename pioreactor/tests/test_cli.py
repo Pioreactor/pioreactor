@@ -23,5 +23,4 @@ def test_plugin_is_available():
 
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "example_plugin"])
-    print(result.output)
     assert result.exit_code == 0
