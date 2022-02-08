@@ -75,8 +75,8 @@ class TemperatureController(BackgroundJob):
         TODO: do I need this still?
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 59.0  # ~PLA glass transition temp
-    MAX_TEMP_TO_DISABLE_HEATING = 62.0
+    MAX_TEMP_TO_REDUCE_HEATING = 58.0
+    MAX_TEMP_TO_DISABLE_HEATING = 62.0  # ~PLA glass transition temp
     MAX_TEMP_TO_SHUTDOWN = 64.0
 
     automations = {}  # type: ignore
@@ -124,17 +124,15 @@ class TemperatureController(BackgroundJob):
         self.read_external_temperature_timer = RepeatedTimer(
             37,
             self.read_external_temperature_and_check_temp,
-            run_immediately=False,  # seconds should be coprime to seconds in publish_temperature_timer
-        )
-        self.read_external_temperature_timer.start()
+            run_immediately=False,
+        ).start()
 
         self.publish_temperature_timer = RepeatedTimer(
             4 * 60,
             self.evaluate_and_publish_temperature,
             run_immediately=eval_and_publish_immediately,
             run_after=60,
-        )
-        self.publish_temperature_timer.start()
+        ).start()
 
         self.automation = AutomationDict(automation_name=automation_name, **kwargs)
 
@@ -180,7 +178,7 @@ class TemperatureController(BackgroundJob):
         """
 
         if not self.pwm.is_locked():
-            self._update_heater(clamp(0.0, new_duty_cycle, 95.0))
+            self._update_heater(clamp(0.0, new_duty_cycle, 90.0))
             return True
         else:
             return False

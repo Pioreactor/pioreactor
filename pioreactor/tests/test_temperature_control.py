@@ -420,3 +420,21 @@ def test_temperature_control_and_stables_relationship():
         pause()
 
         thread.join()  # this takes a while
+
+
+def test_coprime():
+    # seconds in read_external_temperature_timer should be coprime to seconds in publish_temperature_timer
+    # so that they don't collide often
+    from math import gcd as bltin_gcd
+
+    def coprime2(a, b):
+        return bltin_gcd(a, b) == 1
+
+    experiment = "test_coprime"
+    with temperature_control.TemperatureController(
+        "stable", unit=unit, experiment=experiment, target_temperature=30
+    ) as tc:
+        assert coprime2(
+            tc.read_external_temperature_timer.interval,
+            tc.publish_temperature_timer.interval,
+        )

@@ -384,13 +384,14 @@ class Monitor(BackgroundJob):
 
         self.currently_flickering = True
 
-        for _ in range(error_code):
-            self.led_on()
-            sleep(0.3)
-            self.led_off()
-            sleep(0.3)
+        for _ in range(2):
+            for _ in range(error_code):
+                self.led_on()
+                sleep(0.3)
+                self.led_off()
+                sleep(0.3)
 
-        sleep(5)
+            sleep(5)
 
         self.currently_flickering = False
 
