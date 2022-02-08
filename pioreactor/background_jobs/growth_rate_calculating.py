@@ -86,14 +86,22 @@ class GrowthRateCalculator(BackgroundJob):
     def on_init_to_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where
         # two growth_rate_calculating jobs can be started.
-        (
-            self.initial_growth_rate,
-            self.initial_od,
-            self.od_normalization_factors,
-            self.od_variances,
-            self.od_blank,
-            self.initial_acc,
-        ) = self.get_precomputed_values()
+
+        # Note that this function runs in the __post__init__, i.e. in the same frame as __init__, i.e.
+        # when we initialize the class. Thus, we need to handle errors and cleanup resources gracefully.
+
+        try:
+            (
+                self.initial_growth_rate,
+                self.initial_od,
+                self.od_normalization_factors,
+                self.od_variances,
+                self.od_blank,
+                self.initial_acc,
+            ) = self.get_precomputed_values()
+        except Exception as e:
+            self.set_state(self.DISCONNECTED)
+            raise e
 
         self.ekf = self.initialize_extended_kalman_filter()
         self.start_passive_listeners()

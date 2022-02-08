@@ -135,32 +135,6 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
         assert "division by zero" in error_logs[0].payload.decode()
 
 
-@pytest.mark.xfail
-def test_what_happens_when_an_error_occurs_in_init_with_no_catch() -> None:
-    class TestJob(BackgroundJob):
-        def __init__(self, unit, experiment):
-            super(TestJob, self).__init__(
-                job_name="testjob", unit=unit, experiment=experiment
-            )
-            1 / 0  # we should try to catch this, and do a disconnect as well
-
-    state = []
-    exp = "test_what_happens_when_an_error_occurs_in_init_with_no_catch"
-    publish(f"pioreactor/unit/{exp}/testjob/$state", None, retain=True)
-
-    def update_state(msg: MQTTMessage) -> None:
-        state.append(msg.payload.decode())
-
-    subscribe_and_callback(update_state, f"pioreactor/unit/{exp}/testjob/$state")
-
-    with pytest.raises(ZeroDivisionError):
-        with TestJob(unit="unit", experiment=exp):
-            pass
-
-    time.sleep(0.25)
-    assert state[-1] == "lost"
-
-
 def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect() -> None:
     class TestJob(BackgroundJob):
         def __init__(self, unit: str, experiment: str) -> None:
