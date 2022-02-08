@@ -122,7 +122,9 @@ class TemperatureController(BackgroundJob):
 
         self.tmp_driver = TMP1075()
         self.read_external_temperature_timer = RepeatedTimer(
-            30, self.read_external_temperature, run_immediately=False
+            37,
+            self.read_external_temperature_and_check_temp,
+            run_immediately=False,  # seconds should be coprime to seconds in publish_temperature_timer
         )
         self.read_external_temperature_timer.start()
 
@@ -178,7 +180,7 @@ class TemperatureController(BackgroundJob):
         """
 
         if not self.pwm.is_locked():
-            self._update_heater(clamp(0.0, new_duty_cycle, 100.0))
+            self._update_heater(clamp(0.0, new_duty_cycle, 95.0))
             return True
         else:
             return False
@@ -194,13 +196,18 @@ class TemperatureController(BackgroundJob):
             clamp(0, self.heater_duty_cycle + delta_duty_cycle, 100)
         )
 
+    def read_external_temperature_and_check_temp(self) -> float:
+        pcb_temp = self.read_external_temperature()
+        self._check_if_exceeds_max_temp(pcb_temp)
+        return pcb_temp
+
     def read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
         """
         try:
             # check temp is fast, let's do it twice to reduce variance.
-            pcb_temp = 0.5 * (
+            return 0.5 * (
                 self.tmp_driver.get_temperature() + self.tmp_driver.get_temperature()
             )
         except OSError:
@@ -211,9 +218,6 @@ class TemperatureController(BackgroundJob):
             raise exc.HardwareNotFoundError(
                 "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
             )
-
-        self._check_if_exceeds_max_temp(pcb_temp)
-        return pcb_temp
 
     ##### internal and private methods ########
 
@@ -281,7 +285,9 @@ class TemperatureController(BackgroundJob):
             )
 
             self._update_heater(0)
-            self.set_automation(dumps({"automation_name": "silent"}))
+
+            if self.automation_name != "silent":
+                self.set_automation(dumps({"automation_name": "silent"}))
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
