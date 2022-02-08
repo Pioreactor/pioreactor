@@ -204,13 +204,13 @@ def subscribe(
 
 
 def subscribe_and_callback(
-    callback: Callable[[MQTTMessage], None],
+    callback: Callable[[MQTTMessage], Any],
     topics: str | list[str],
     hostname: str = leader_hostname,
-    last_will: dict = None,
-    job_name: str = None,
+    last_will: Optional[dict] = None,
+    job_name: Optional[str] = None,
     allow_retained: bool = True,
-    client: Client = None,
+    client: Optional[Client] = None,
     **mqtt_kwargs,
 ) -> Client:
     """
@@ -235,7 +235,7 @@ def subscribe_and_callback(
     def on_connect(client: Client, userdata: dict, *args):
         client.subscribe(userdata["topics"])
 
-    def wrap_callback(actual_callback: Callable) -> Callable:
+    def wrap_callback(actual_callback: Callable[[MQTTMessage], Any]) -> Callable:
         def _callback(client: Client, userdata: dict, message):
             try:
 
@@ -260,9 +260,11 @@ def subscribe_and_callback(
     }
 
     if client is None:
+        user_provided = False
         client = Client(userdata=userdata)
     else:
         # user provided a client
+        user_provided = True
         client.user_data_set(userdata)
 
     client.on_connect = on_connect
@@ -271,8 +273,9 @@ def subscribe_and_callback(
     if last_will is not None:
         client.will_set(**last_will)
 
-    client.connect(leader_hostname, **mqtt_kwargs)
-    client.loop_start()
+    if not user_provided:
+        client.connect(leader_hostname, **mqtt_kwargs)
+        client.loop_start()
 
     return client
 

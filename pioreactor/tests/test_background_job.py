@@ -261,23 +261,10 @@ def test_bad_key_in_published_settings() -> None:
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
 
-    warning_logs = []
     exp = "test_bad_key_in_published_settings"
-
-    def collect_warning_logs(msg: MQTTMessage) -> None:
-        if "WARNING" in msg.payload.decode():
-            warning_logs.append(msg)
-
-    subscribe_and_callback(
-        collect_warning_logs,
-        f"pioreactor/{get_unit_name()}/{exp}/logs/app",
-    )
-
-    with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
-        pause()
-        pause()
-        assert len(warning_logs) > 0
-        assert "Found extra property" in warning_logs[0].payload.decode()
+    with pytest.raises(ValueError):
+        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+            pass
 
 
 def test_bad_setting_name_in_published_settings() -> None:
@@ -293,13 +280,10 @@ def test_bad_setting_name_in_published_settings() -> None:
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
 
+    exp = "test_bad_setting_name_in_published_settings"
     with pytest.raises(ValueError):
-        t = TestJob(
-            job_name="job",
-            unit=get_unit_name(),
-            experiment="test_bad_setting_name_in_published_settings",
-        )
-        t.set_state(t.DISCONNECTED)
+        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+            pass
 
 
 def test_editing_readonly_attr_via_mqtt() -> None:

@@ -323,7 +323,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         for setting, properties in self.published_settings.items():
             # look for extra properties
             if not all_properties.issuperset(properties.keys()):
-                self.logger.warning(f"Found extra property in setting {setting}.")
+                raise ValueError(f"Found extra property in setting {setting}.")
 
             # look for missing properties
             if not set(properties.keys()).issuperset(necessary_properies):
