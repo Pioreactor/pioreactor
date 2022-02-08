@@ -10,7 +10,7 @@ from typing import Callable
 from typing import Optional
 
 from paho.mqtt import publish as mqtt_publish  # type: ignore
-from paho.mqtt.client import Client  # type: ignore
+from paho.mqtt.client import Client as PahoClient  # type: ignore
 from paho.mqtt.client import connack_string  # type: ignore
 
 from pioreactor.config import leader_hostname
@@ -21,6 +21,12 @@ class QOS(IntEnum):
     AT_MOST_ONCE = 0
     AT_LEAST_ONCE = 1
     EXACTLY_ONCE = 2
+
+
+class Client(PahoClient):
+    def loop_stop(self):
+        super().loop_stop()
+        self._reset_sockets(sockpair_only=True)
 
 
 def create_client(
@@ -182,7 +188,6 @@ def subscribe(
                 client.loop_start()
                 lock.acquire(timeout=timeout)
                 client.loop_stop()
-                client._reset_sockets(sockpair_only=True)
                 client.disconnect()
 
             return userdata["messages"]

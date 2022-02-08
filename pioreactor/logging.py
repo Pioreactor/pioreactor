@@ -79,9 +79,8 @@ class MQTTHandler(logging.Handler):
         mqtt_msg.wait_for_publish(timeout=5)
 
     def close(self) -> None:
-        self.client.disconnect()
         self.client.loop_stop()
-        self.client._reset_sockets(sockpair_only=True)
+        self.client.disconnect()
         super().close()
 
 
@@ -124,13 +123,6 @@ def create_logger(
         else:
             experiment = UNIVERSAL_EXPERIMENT
 
-    if (pub_client is None) and to_mqtt:
-        import uuid
-
-        pub_client = create_client(
-            client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}"
-        )
-
     # file handler
     file_handler = handlers.WatchedFileHandler(config["logging"]["log_file"])
     file_handler.setLevel(logging.DEBUG)
@@ -162,6 +154,14 @@ def create_logger(
     logger.addHandler(console_handler)
 
     if to_mqtt:
+
+        if pub_client is None:
+            import uuid
+
+            pub_client = create_client(
+                client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}"
+            )
+
         exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 
         # create MQTT handlers for logs table

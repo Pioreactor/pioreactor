@@ -1,3 +1,8 @@
+### Upcoming
+ - fixed memory leak in MQTT connections
+ - better clean up after a job disconnects
+ - If the temperature of the heating PCB gets too high, the automation switches to Silent (previously it did not switch at all.)
+
 ### 22.2.0
  - Added more error codes for the ADC, network issues, and high temperature
  - Reduce chance of running multiple growth_rate_calculating jobs

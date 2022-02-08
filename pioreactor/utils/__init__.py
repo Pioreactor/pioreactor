@@ -122,9 +122,7 @@ class publish_ready_to_disconnected_state:
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
-
         self.client.loop_stop()
-        self.client._reset_sockets(sockpair_only=True)
         self.client.disconnect()
         return
 
