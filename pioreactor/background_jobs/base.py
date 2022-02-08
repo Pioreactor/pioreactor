@@ -603,10 +603,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         # disconnect from MQTT
         self.sub_client.loop_stop()
+        self.sub_client._reset_sockets(sockpair_only=True)
         self.sub_client.disconnect()
 
         # this HAS to happen last, because this contains our publishing client
         self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+        self.pub_client._reset_sockets(sockpair_only=True)
         self.pub_client.disconnect()
 
     def disconnected(self) -> None:

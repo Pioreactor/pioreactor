@@ -182,6 +182,7 @@ def subscribe(
                 client.loop_start()
                 lock.acquire(timeout=timeout)
                 client.loop_stop()
+                client._reset_sockets(sockpair_only=True)
                 client.disconnect()
 
             return userdata["messages"]

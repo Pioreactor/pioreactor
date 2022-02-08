@@ -81,6 +81,7 @@ class MQTTHandler(logging.Handler):
     def close(self) -> None:
         self.client.disconnect()
         self.client.loop_stop()
+        self.client._reset_sockets(sockpair_only=True)
         super().close()
 
 

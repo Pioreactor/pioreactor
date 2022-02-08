@@ -19,7 +19,6 @@ def add_media(
     calibration: Optional[dict] = None,
     continuously: bool = False,
 ) -> float:
-
     pump_name = "media"
     return pump(
         unit,
