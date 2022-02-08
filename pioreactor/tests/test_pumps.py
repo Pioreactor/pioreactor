@@ -11,12 +11,11 @@ from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
 from pioreactor.pubsub import publish
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
-from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
-exp = get_latest_experiment_name()
 
 
 def pause(n=1):
@@ -37,6 +36,7 @@ def setup_function():
 
 
 def test_pump_io() -> None:
+    exp = "test_pump_io"
     ml = 0.1
     assert ml == add_media(ml=ml, unit=unit, experiment=exp)
     assert ml == add_alt_media(ml=ml, unit=unit, experiment=exp)
@@ -49,6 +49,7 @@ def test_pump_io() -> None:
 
 
 def test_pump_io_doesnt_allow_negative() -> None:
+    exp = "test_pump_io_doesnt_allow_negative"
     with pytest.raises(AssertionError):
         add_media(ml=-1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
@@ -65,6 +66,7 @@ def test_pump_io_doesnt_allow_negative() -> None:
 
 
 def test_pump_io_cant_set_both_duration_and_ml() -> None:
+    exp = "test_pump_io_cant_set_both_duration_and_ml"
     with pytest.raises(AssertionError):
         add_media(ml=1, duration=1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
@@ -74,6 +76,8 @@ def test_pump_io_cant_set_both_duration_and_ml() -> None:
 
 
 def test_pump_will_disconnect_via_mqtt() -> None:
+    exp = "test_pump_will_disconnect_via_mqtt"
+
     class ThreadWithReturnValue(threading.Thread):
         def __init__(self, *init_args, **init_kwargs):
             threading.Thread.__init__(self, *init_args, **init_kwargs)
@@ -106,6 +110,8 @@ def test_pump_will_disconnect_via_mqtt() -> None:
 
 
 def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
+    exp = "test_continuously_running_pump_will_disconnect_via_mqtt"
+
     class ThreadWithReturnValue(threading.Thread):
         def __init__(self, *init_args, **init_kwargs):
             threading.Thread.__init__(self, *init_args, **init_kwargs)
@@ -134,3 +140,14 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
     resulting_ml = t.join()
 
     assert resulting_ml > 0
+
+
+def test_pump_publishes_to_state():
+    exp = "test_pump_publishes_to_state"
+
+    add_media(ml=1, unit=unit, experiment=exp)
+    r = subscribe(f"pioreactor/{unit}/{exp}/add_media/$state", timeout=3)
+    if r is not None:
+        assert r.payload.decode() == "disconnected"
+    else:
+        assert False

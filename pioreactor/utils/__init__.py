@@ -116,7 +116,16 @@ class publish_ready_to_disconnected_state:
         return self
 
     def __exit__(self, *args) -> None:
+        self.client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
+            "disconnected",
+            qos=QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
 
+        self.client.loop_stop()
+        self.client._reset_sockets(sockpair_only=True)
+        self.client.disconnect()
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
