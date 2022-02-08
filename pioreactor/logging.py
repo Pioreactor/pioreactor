@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import logging
-from logging import handlers, Logger
+from logging import handlers
+from logging import Logger
 from typing import Optional
+
+import colorlog
 from json_log_formatter import JSONFormatter  # type: ignore
 from paho.mqtt.client import Client  # type: ignore
-import colorlog
 
-from pioreactor.pubsub import create_client, publish_to_pioreactor_cloud
-from pioreactor.whoami import (
-    get_unit_name,
-    am_I_active_worker,
-    UNIVERSAL_EXPERIMENT,
-    get_latest_experiment_name,
-    get_uuid,
-)
 from pioreactor.config import config
+from pioreactor.pubsub import create_client
+from pioreactor.pubsub import publish_to_pioreactor_cloud
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import am_I_active_worker
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import get_uuid
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 logging.raiseExceptions = False
 
@@ -123,7 +126,9 @@ def create_logger(
     if (pub_client is None) and to_mqtt:
         import uuid
 
-        pub_client = create_client(client_id=f"{unit}-logging-{uuid.uuid1()}")
+        pub_client = create_client(
+            client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}"
+        )
 
     # file handler
     file_handler = handlers.WatchedFileHandler(config["logging"]["log_file"])

@@ -41,6 +41,8 @@ jobs:
            import click
            from pioreactor.background_jobs.base import BackgroundJob
 
+           __plugin_version__ = "0.0.1"
+
            class ExamplePlugin(BackgroundJob):
 
               def __init__(self):
@@ -53,4 +55,4 @@ jobs:
            EOT
 
       - name: Run tests
-        run: pytest pioreactor/tests/ -vv --timeout 120
+        run: pytest pioreactor/tests/ -vv --timeout 600 --random-order

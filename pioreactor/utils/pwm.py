@@ -65,9 +65,14 @@ class PWM:
     HARDWARE_PWM_CHANNELS: dict[GpioPin, int] = {12: 0, 13: 1}
 
     def __init__(
-        self, pin: GpioPin, hz: float, always_use_software: bool = False
+        self,
+        pin: GpioPin,
+        hz: float,
+        always_use_software: bool = False,
+        experiment: str = None,
+        unit: str = None,
     ) -> None:
-        self.logger = create_logger("PWM")
+        self.logger = create_logger("PWM", experiment=experiment, unit=unit)
         self.pin = pin
         self.hz = hz
 

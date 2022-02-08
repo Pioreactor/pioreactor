@@ -49,7 +49,7 @@ def pump(
         "alt_media": "add_alt_media",
         "waste": "remove_waste",
     }[pump_name]
-    logger = create_logger(action_name)
+    logger = create_logger(action_name, experiment=experiment, unit=unit)
     with utils.publish_ready_to_disconnected_state(
         unit, experiment, action_name
     ) as state:
@@ -115,7 +115,7 @@ def pump(
 
         try:
 
-            pwm = PWM(GPIO_PIN, calibration["hz"])
+            pwm = PWM(GPIO_PIN, calibration["hz"], experiment=experiment, unit=unit)
             pwm.lock()
 
             with catchtime() as delta_time:

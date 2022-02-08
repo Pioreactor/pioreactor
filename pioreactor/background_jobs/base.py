@@ -129,7 +129,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     >     ...
     >
 
-    This will gracefully disconnect and cleanup the job, provided you clean up in the `on_disconnect` function.
+    This will gracefully disconnect and cleanup the job, provided you clean up in the `on_disconnected` function.
 
     2. Clean up yourself. The following is not recommended as it does not cleanup connections and state even after the function exits:
 
@@ -235,7 +235,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.sub_client = self.create_sub_client()
 
         self.set_up_exit_protocol()
-        self.check_published_settings()
+
+        try:
+            # this is one function in the __init__ that we may delibratily raise an error
+            # if we do raise an error, the class needs to be cleaned up correctly
+            # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
+            # but we still raise the error afterwards.
+            self.check_published_settings()
+        except ValueError as e:
+            self._cleanup()
+            raise e
+
         self.publish_settings_to_broker()
         self.start_general_passive_listeners()
 
@@ -313,7 +323,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         for setting, properties in self.published_settings.items():
             # look for extra properties
             if not all_properties.issuperset(properties.keys()):
-                self.logger.warning(f"Found extra property in setting {setting}.")
+                raise ValueError(f"Found extra property in setting {setting}.")
 
             # look for missing properties
             if not set(properties.keys()).issuperset(necessary_properies):
@@ -582,6 +592,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.log_state(self.state)
         pass
 
+    def _cleanup(self):
+        # Explictly cleanup resources...
+
+        # clean up logger handlers
+        while len(self.logger.handlers) > 0:
+            handler = self.logger.handlers[0]
+            handler.close()
+            self.logger.removeHandler(handler)
+
+        # disconnect from MQTT
+        self.sub_client.loop_stop()
+        self.sub_client.disconnect()
+
+        # this HAS to happen last, because this contains our publishing client
+        self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+        self.pub_client.disconnect()
+
     def disconnected(self) -> None:
         # set state to disconnect
         # call this first to make sure that it gets published to the broker.
@@ -608,12 +635,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self.log_state(self.state)
 
-        self.sub_client.loop_stop()
-        self.sub_client.disconnect()
-
-        # this HAS to happen last, because this contains our publishing client
-        self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-        self.pub_client.disconnect()
+        self._cleanup()
 
     def publish_settings_to_broker(self) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/

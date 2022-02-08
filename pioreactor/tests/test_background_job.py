@@ -14,7 +14,6 @@ from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -26,7 +25,7 @@ def pause() -> None:
 
 def test_states() -> None:
     unit = get_unit_name()
-    exp = get_latest_experiment_name()
+    exp = "test_states"
 
     bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
     pause()
@@ -78,8 +77,8 @@ def test_watchdog_will_try_to_fix_lost_job() -> None:
 def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     # see note in base.py about create_logger
 
-    unit: str = get_unit_name()
-    exp: str = get_latest_experiment_name()
+    unit = get_unit_name()
+    exp = "test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt"
 
     results = []
 
@@ -117,6 +116,7 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
             print(1 / 0)
 
     error_logs = []
+    experiment = "test_error_in_subscribe_and_callback_is_logged"
 
     def collect_error_logs(msg: MQTTMessage) -> None:
         if "ERROR" in msg.payload.decode():
@@ -124,12 +124,10 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
 
     subscribe_and_callback(
         collect_error_logs,
-        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/logs/app",
+        f"pioreactor/{get_unit_name()}/{experiment}/logs/app",
     )
 
-    with TestJob(
-        job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    ):
+    with TestJob(job_name="job", unit=get_unit_name(), experiment=experiment):
         publish("pioreactor/testing/subscription", "test")
         pause()
         pause()
@@ -147,15 +145,16 @@ def test_what_happens_when_an_error_occurs_in_init_with_no_catch() -> None:
             1 / 0  # we should try to catch this, and do a disconnect as well
 
     state = []
-    publish("pioreactor/unit/exp/testjob/$state", None, retain=True)
+    exp = "test_what_happens_when_an_error_occurs_in_init_with_no_catch"
+    publish(f"pioreactor/unit/{exp}/testjob/$state", None, retain=True)
 
     def update_state(msg: MQTTMessage) -> None:
         state.append(msg.payload.decode())
 
-    subscribe_and_callback(update_state, "pioreactor/unit/exp/testjob/$state")
+    subscribe_and_callback(update_state, f"pioreactor/unit/{exp}/testjob/$state")
 
     with pytest.raises(ZeroDivisionError):
-        with TestJob(unit="unit", experiment="exp"):
+        with TestJob(unit="unit", experiment=exp):
             pass
 
     time.sleep(0.25)
@@ -175,16 +174,17 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
                 self.set_state("disconnected")
                 raise e
 
-    publish("pioreactor/unit/exp/testjob/$state", None, retain=True)
+    exp = "test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect"
+    publish(f"pioreactor/unit/{exp}/testjob/$state", None, retain=True)
     state = []
 
     def update_state(msg: MQTTMessage) -> None:
         state.append(msg.payload.decode())
 
-    subscribe_and_callback(update_state, "pioreactor/unit/exp/testjob/$state")
+    subscribe_and_callback(update_state, f"pioreactor/unit/{exp}/testjob/$state")
 
     with pytest.raises(ZeroDivisionError):
-        with TestJob(unit="unit", experiment="exp"):
+        with TestJob(unit="unit", experiment=exp):
             pass
 
     pause()
@@ -226,7 +226,7 @@ def test_state_transition_callbacks() -> None:
         def on_init_to_ready(self) -> None:
             self.called_on_init_to_ready = True
 
-    unit, exp = get_unit_name(), get_latest_experiment_name()
+    unit, exp = get_unit_name(), "test_state_transition_callbacks"
     with TestJob(unit, exp) as tj:
         assert tj.called_on_init
         assert tj.called_on_init_to_ready
@@ -261,24 +261,10 @@ def test_bad_key_in_published_settings() -> None:
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
 
-    warning_logs = []
-
-    def collect_warning_logs(msg: MQTTMessage) -> None:
-        if "WARNING" in msg.payload.decode():
-            warning_logs.append(msg)
-
-    subscribe_and_callback(
-        collect_warning_logs,
-        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/logs/app",
-    )
-
-    with TestJob(
-        job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    ):
-        pause()
-        pause()
-        assert len(warning_logs) > 0
-        assert "Found extra property" in warning_logs[0].payload.decode()
+    exp = "test_bad_key_in_published_settings"
+    with pytest.raises(ValueError):
+        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+            pass
 
 
 def test_bad_setting_name_in_published_settings() -> None:
@@ -294,10 +280,10 @@ def test_bad_setting_name_in_published_settings() -> None:
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
 
+    exp = "test_bad_setting_name_in_published_settings"
     with pytest.raises(ValueError):
-        TestJob(
-            job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
-        )
+        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+            pass
 
 
 def test_editing_readonly_attr_via_mqtt() -> None:
@@ -311,21 +297,21 @@ def test_editing_readonly_attr_via_mqtt() -> None:
         }
 
     warning_logs = []
+    exp = "test_editing_readonly_attr_via_mqtt"
 
     def collect_logs(msg: MQTTMessage) -> None:
+        print(msg.payload.decode())
         if "readonly" in msg.payload.decode():
             warning_logs.append(msg)
 
     subscribe_and_callback(
         collect_logs,
-        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/logs/app",
+        f"pioreactor/{get_unit_name()}/{exp}/logs/app",
     )
 
-    with TestJob(
-        job_name="job", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    ):
+    with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
         publish(
-            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/job/readonly_attr/set",
+            f"pioreactor/{get_unit_name()}/{exp}/job/readonly_attr/set",
             1.0,
         )
         pause()
@@ -349,22 +335,22 @@ def test_persist_in_published_settings() -> None:
             self.persist_this = "persist_this"
             self.dont_persist_this = "dont_persist_this"
 
-    with TestJob(
-        job_name="test_job", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    ):
+    exp = "test_persist_in_published_settings"
+
+    with TestJob(job_name="test_job", unit=get_unit_name(), experiment=exp):
         pause()
         pause()
 
     pause()
     msg = subscribe(
-        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/test_job/persist_this",
+        f"pioreactor/{get_unit_name()}/{exp}/test_job/persist_this",
         timeout=2,
     )
     assert msg is not None
     assert msg.payload.decode() == "persist_this"
 
     msg = subscribe(
-        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/test_job/dont_persist_this",
+        f"pioreactor/{get_unit_name()}/{exp}/test_job/dont_persist_this",
         timeout=2,
     )
     assert msg is None
@@ -387,6 +373,6 @@ def test_sys_exit_does_exit() -> None:
 
     with pytest.raises(SystemExit):
         with TestJob(
-            unit=get_unit_name(), experiment=get_latest_experiment_name(), job_name="job"
+            unit=get_unit_name(), experiment="test_sys_exit_does_exit", job_name="job"
         ) as t:
             t.call_all_i_do_is_exit()

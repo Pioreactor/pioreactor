@@ -19,8 +19,21 @@ def test_run():
     assert result.exit_code == 0
 
 
-def test_plugin_is_available():
+def test_plugin_is_available_to_run():
+    runner = CliRunner()
+    result = runner.invoke(pio, ["run", "example_plugin"])
+    assert result.exit_code == 0
+
+
+def test_plugin_is_able_to_be_run():
 
     runner = CliRunner()
     result = runner.invoke(pio, ["run", "example_plugin"])
     assert result.exit_code == 0
+
+
+def test_list_plugins():
+
+    runner = CliRunner()
+    result = runner.invoke(pio, ["list-plugins"])
+    assert "example_plugin==0.0.1" in result.output

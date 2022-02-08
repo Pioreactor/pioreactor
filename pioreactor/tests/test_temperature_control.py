@@ -9,11 +9,9 @@ from pioreactor.automations.temperature import ConstantDutyCycle
 from pioreactor.automations.temperature import Silent
 from pioreactor.automations.temperature import Stable
 from pioreactor.background_jobs import temperature_control
-from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
-experiment = get_latest_experiment_name()
 
 
 def pause(n=1) -> None:
@@ -22,6 +20,7 @@ def pause(n=1) -> None:
 
 
 def test_stable_automation() -> None:
+    experiment = "test_stable_automation"
     with temperature_control.TemperatureController(
         "stable", target_temperature=50, unit=unit, experiment=experiment
     ) as algo:
@@ -46,6 +45,7 @@ def test_stable_automation() -> None:
 
 
 def test_changing_temperature_algo_over_mqtt() -> None:
+    experiment = "test_changing_temperature_algo_over_mqtt"
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
         None,
@@ -69,6 +69,7 @@ def test_changing_temperature_algo_over_mqtt() -> None:
 
 
 def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
+    experiment = "test_changing_temperature_algo_over_mqtt_and_then_update_params"
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
         None,
@@ -80,12 +81,13 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
     ) as algo:
         assert algo.automation_name == "silent"
         assert isinstance(algo.automation_job, Silent)
-
+        pause()
+        pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             '{"automation_name": "constant_duty_cycle", "duty_cycle": 25}',
         )
-        time.sleep(8)
+        time.sleep(15)
         assert algo.automation_name == "constant_duty_cycle"
         assert isinstance(algo.automation_job, ConstantDutyCycle)
         assert algo.automation_job.duty_cycle == 25
@@ -98,7 +100,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
 
 
 def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
-
+    experiment = "test_heating_is_reduced_when_set_temp_is_exceeded"
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as t:
@@ -115,7 +117,9 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
 
 
 def test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
-
+    experiment = (
+        "test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature"
+    )
     with temperature_control.TemperatureController(
         "stable", unit=unit, experiment=experiment, target_temperature=20
     ) as t:
@@ -126,7 +130,7 @@ def test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature
 
 
 def test_heating_stops_when_max_temp_is_exceeded() -> None:
-
+    experiment = "test_heating_stops_when_max_temp_is_exceeded"
     with temperature_control.TemperatureController(
         "stable",
         unit=unit,
@@ -147,7 +151,7 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
 
 
 def test_child_cant_update_heater_when_locked() -> None:
-
+    experiment = "test_child_cant_update_heater_when_locked"
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment, eval_and_publish_immediately=False
     ) as t:
@@ -161,6 +165,7 @@ def test_child_cant_update_heater_when_locked() -> None:
 
 
 def test_constant_duty_cycle_init() -> None:
+    experiment = "test_constant_duty_cycle_init"
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
         None,
@@ -177,7 +182,7 @@ def test_constant_duty_cycle_init() -> None:
 
 def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
-
+    experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
     with temperature_control.TemperatureController(
         "stable", unit=unit, experiment=experiment, target_temperature=35
     ) as t:
@@ -188,7 +193,7 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
 
 
 def test_duty_cycle_is_published_and_not_settable() -> None:
-
+    experiment = "test_duty_cycle_is_published_and_not_settable"
     dc_msgs = []
 
     def collect(msg) -> None:
@@ -196,7 +201,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
     pubsub.subscribe_and_callback(
         collect,
-        f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/temperature_control/heater_duty_cycle",
+        f"pioreactor/{unit}/{experiment}/temperature_control/heater_duty_cycle",
     )
 
     with temperature_control.TemperatureController(
@@ -213,7 +218,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
         # should produce an "Unable to set heater_duty_cycle"
         pubsub.publish(
-            f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/temperature_control/heater_duty_cycle/set",
+            f"pioreactor/{unit}/{experiment}/temperature_control/heater_duty_cycle/set",
             10,
         )
 
@@ -223,7 +228,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
 
 def test_temperature_approximation1() -> None:
-
+    experiment = "test_temperature_approximation1"
     features = {
         "previous_heater_dc": 17,
         "time_series_of_temp": [
@@ -254,7 +259,7 @@ def test_temperature_approximation1() -> None:
 
 
 def test_temperature_approximation2() -> None:
-
+    experiment = "test_temperature_approximation2"
     features = {
         "previous_heater_dc": 17,
         "time_series_of_temp": [
@@ -285,7 +290,7 @@ def test_temperature_approximation2() -> None:
 
 
 def test_temperature_approximation3() -> None:
-
+    experiment = "test_temperature_approximation3"
     features = {
         "previous_heater_dc": 17,
         "time_series_of_temp": [
@@ -316,7 +321,7 @@ def test_temperature_approximation3() -> None:
 
 
 def test_temperature_approximation_if_constant() -> None:
-
+    experiment = "test_temperature_approximation_if_constant"
     features = {"previous_heater_dc": 17, "time_series_of_temp": 30 * [32.0]}
 
     with temperature_control.TemperatureController(
@@ -328,6 +333,7 @@ def test_temperature_approximation_if_constant() -> None:
 def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
     import numpy as np
 
+    experiment = "test_temperature_approximation_even_if_very_tiny_heat_source"
     features = {
         "previous_heater_dc": 14.5,
         "time_series_of_temp": list(
@@ -346,6 +352,7 @@ def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
 def test_temperature_approximation_even_if_very_large_heat_source() -> None:
     import numpy as np
 
+    experiment = "test_temperature_approximation_even_if_very_large_heat_source"
     features = {
         "previous_heater_dc": 14.5,
         "time_series_of_temp": list(
@@ -362,7 +369,7 @@ def test_temperature_approximation_even_if_very_large_heat_source() -> None:
 
 
 def test_temperature_approximation_if_dc_is_nil() -> None:
-
+    experiment = "test_temperature_approximation_if_dc_is_nil"
     features = {"previous_heater_dc": 0, "time_series_of_temp": [37.8125, 32.1875]}
 
     with temperature_control.TemperatureController(
@@ -372,7 +379,7 @@ def test_temperature_approximation_if_dc_is_nil() -> None:
 
 
 def test_temperature_control_and_stables_relationship():
-
+    experiment = "test_temperature_control_and_stables_relationship"
     with temperature_control.TemperatureController(
         "stable", unit=unit, experiment=experiment, target_temperature=30
     ) as tc:
@@ -409,4 +416,4 @@ def test_temperature_control_and_stables_relationship():
         assert tc.heater_duty_cycle == 0
         pause()
 
-        thread.join()
+        thread.join()  # this takes a while
