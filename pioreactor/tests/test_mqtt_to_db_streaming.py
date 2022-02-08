@@ -1,10 +1,16 @@
 # -*- coding: utf-8 -*-
-import sqlite3, time, json
+from __future__ import annotations
+
+import json
+import sqlite3
+import time
+
 import numpy as np
-from pioreactor.config import config
+
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
-from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
+from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.config import config
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_time
 
@@ -12,9 +18,11 @@ from pioreactor.utils.timing import current_utc_time
 def test_kalman_filter_entries() -> None:
     config["storage"]["database"] = "test.sqlite"
     config["od_config"]["samples_per_second"] = "0.2"
+    config["od_config.photodiode_channel"]["1"] = "135"
+    config["od_config.photodiode_channel"]["2"] = "90"
 
     unit = "unit"
-    exp = "exp"
+    exp = "test_kalman_filter_entries"
 
     def parse_kalman_filter_outputs(topic, payload) -> dict:
         metadata, _ = m2db.produce_metadata(topic)

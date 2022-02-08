@@ -233,9 +233,6 @@ def subscribe_and_callback(
         callback
     ), "callback should be callable - do you need to change the order of arguments?"
 
-    def on_connect(client: Client, userdata: dict, *args):
-        client.subscribe(userdata["topics"])
-
     def wrap_callback(actual_callback: Callable[[MQTTMessage], Any]) -> Callable:
         def _callback(client: Client, userdata: dict, message):
             try:
@@ -255,28 +252,32 @@ def subscribe_and_callback(
         return _callback
 
     topics = [topics] if isinstance(topics, str) else topics
-    userdata = {
-        "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
-        "job_name": job_name,
-    }
 
     if client is None:
-        user_provided = False
+
+        def on_connect(client: Client, userdata: dict, *args):
+            client.subscribe(userdata["topics"])
+
+        userdata = {
+            "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
+            "job_name": job_name,
+        }
+
         client = Client(userdata=userdata)
+
+        client.on_connect = on_connect
+        client.on_message = wrap_callback(callback)
+
+        client.connect(leader_hostname, **mqtt_kwargs)
+        client.loop_start()
     else:
         # user provided a client
-        user_provided = True
-        client.user_data_set(userdata)
-
-    client.on_connect = on_connect
-    client.on_message = wrap_callback(callback)
+        for topic in topics:
+            client.message_callback_add(topic, wrap_callback(callback))
+            client.subscribe(topic)
 
     if last_will is not None:
         client.will_set(**last_will)
-
-    if not user_provided:
-        client.connect(leader_hostname, **mqtt_kwargs)
-        client.loop_start()
 
     return client
 
