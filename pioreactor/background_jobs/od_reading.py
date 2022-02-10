@@ -429,7 +429,7 @@ class ADCReader(LoggerMixin):
             A = np.sqrt(b**2 + c**2)
             phi = np.arcsin(c / np.sqrt(b**2 + c**2))
 
-        return (C, A, phi), AIC
+        return (float(C), float(A), float(phi)), AIC
 
     def from_voltage_to_raw(self, voltage: float) -> int:
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61

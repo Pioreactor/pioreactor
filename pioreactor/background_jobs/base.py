@@ -425,7 +425,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         This will convert the payload to a json blob if MQTT does not allow its original type.
         """
 
-        if not isinstance(payload, (str, bytearray, int, float)) and (
+        if not isinstance(payload, (str, bytearray, bytes, int, float)) and (
             payload is not None
         ):
             payload = dumps(payload)
