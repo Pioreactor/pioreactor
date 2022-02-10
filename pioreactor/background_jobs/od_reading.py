@@ -9,7 +9,7 @@ Ex:
 
     pioreactor/pioreactor1/trial15/od_reading/od_raw/1
 
-a json file like:
+a json blob like:
 
     {
         "voltage": 0.10030799136835057,
@@ -22,7 +22,7 @@ All signals published together to
 
     pioreactor/<unit>/<experiment>/od_reading/od_raw_batched
 
-a serialized json like:
+a serialized json blob like:
 
     {
       "od_raw": {
@@ -88,10 +88,12 @@ from typing import cast
 from typing import Optional
 
 import click
+import msgspec
 
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
 from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
@@ -874,20 +876,19 @@ class ODReader(BackgroundJob):
         if self.state != self.READY:
             return
 
-        output = {
-            "od_raw": dict(),
-            "timestamp": timestamp,
-        }
+        output = structs.ODReadings(timestamp=timestamp, od_raw=dict())
 
         for channel, angle in self.channel_angle_map.items():
-            output["od_raw"][channel] = {  # type: ignore
-                "voltage": batched_ads_readings[channel],
-                "angle": angle,
-            }
+
+            output.od_raw[channel] = structs.ODReading(
+                voltage=batched_ads_readings[channel],
+                angle=angle,
+                timestamp=timestamp,
+            )
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
-            output,
+            msgspec.json.encode(output),
             qos=QOS.EXACTLY_ONCE,
         )
 
@@ -899,15 +900,15 @@ class ODReader(BackgroundJob):
 
         for channel, angle in self.channel_angle_map.items():
 
-            payload = {
-                "voltage": batched_ads_readings[channel],
-                "angle": angle,
-                "timestamp": timestamp,
-            }
+            output = structs.ODReading(
+                voltage=batched_ads_readings[channel],
+                angle=angle,
+                timestamp=timestamp,
+            )
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{channel}",
-                payload,
+                msgspec.json.encode(output),
                 qos=QOS.EXACTLY_ONCE,
             )
 

@@ -38,8 +38,10 @@ from collections import defaultdict
 from datetime import datetime
 
 import click
+import msgspec
 
 from pioreactor import exc
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.actions.od_normalization import od_normalization
 from pioreactor.background_jobs.base import BackgroundJob
@@ -354,8 +356,8 @@ class GrowthRateCalculator(BackgroundJob):
         if self.state != self.READY:
             return
 
-        payload = json.loads(message.payload)
-        observations = self.batched_raw_od_readings_to_dict(payload["od_raw"])
+        payload = msgspec.json.decode(message.payload, type=structs.ODReadings)
+        observations = self.batched_raw_od_readings_to_dict(payload.od_raw)
         scaled_observations = self.scale_raw_observations(observations)
 
         if is_testing_env():
@@ -366,7 +368,7 @@ class GrowthRateCalculator(BackgroundJob):
             # TODO this should use the internal timestamp reference
 
             time_of_current_observation = datetime.strptime(
-                payload["timestamp"], "%Y-%m-%dT%H:%M:%S.%fZ"
+                payload.timestamp, "%Y-%m-%dT%H:%M:%S.%fZ"
             )
             dt = (
                 (
@@ -394,15 +396,14 @@ class GrowthRateCalculator(BackgroundJob):
 
             latest_od_filtered, latest_growth_rate = updated_state[0], updated_state[1]
 
-            self.growth_rate = {
-                "growth_rate": latest_growth_rate,
-                "timestamp": payload["timestamp"],
-            }
-
-            self.od_filtered = {
-                "od_filtered": latest_od_filtered,
-                "timestamp": payload["timestamp"],
-            }
+            self.growth_rate = structs.GrowthRate(
+                growth_rate=latest_growth_rate,
+                timestamp=payload.timestamp,
+            )
+            self.od_filtered = structs.ODFiltered(
+                od_filtered=latest_od_filtered,
+                timestamp=payload.timestamp,
+            )
 
             with local_persistant_storage("growth_rate") as cache:
                 cache[self.experiment] = str(latest_growth_rate)
@@ -417,7 +418,7 @@ class GrowthRateCalculator(BackgroundJob):
                     "covariance_matrix": [
                         self.format_list(x) for x in self.ekf.covariance_.tolist()
                     ],
-                    "timestamp": payload["timestamp"],
+                    "timestamp": payload.timestamp,
                 },
                 qos=QOS.EXACTLY_ONCE,
             )

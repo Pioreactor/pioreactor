@@ -415,7 +415,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def publish(
         self,
         topic: str,
-        payload: pt.PublishableSettingDataType | dict | None,
+        payload: pt.PublishableSettingDataType | dict | bytes | None,
         qos: int = 0,
         **kwargs,
     ) -> None:
