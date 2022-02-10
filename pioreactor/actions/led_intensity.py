@@ -110,30 +110,38 @@ def led_intensity(
     pubsub_client: Optional[Client] = None,
 ) -> bool:
     """
+    Change the intensity of the LED channels A,B,C, or D.
 
     Parameters
     ------------
     channel: an LED channel or list
+    unit: str
+    experiment: str
     intensity: float or list
         a value between 0 and 100 to set the LED channel to.
     verbose: bool
         if True, log the change, and send event to led_event table & mqtt. This is FALSE
         in od_reading job, so as to not create spam.
+    source_of_event: str
+        A human readable string of who is calling this function
     pubsub_client:
         provide a MQTT paho client to use for publishing.
+
 
     Returns
     --------
     bool representing if the all LED channels intensity were successfully changed
 
 
+    Notes
+    -------
     State is also updated in
 
-    pioreactor/<unit>/<experiment>/led/<channel>/intensity   <intensity>
+        pioreactor/<unit>/<experiment>/led/<channel>/intensity   <intensity>
 
     and
 
-    pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
+        pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
     """
     logger = create_logger("led_intensity", experiment=experiment, unit=unit)

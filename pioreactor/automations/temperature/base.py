@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-import json
+from __future__ import annotations
 
+import json
 import time
-from typing import Optional, cast
-from pioreactor.pubsub import QOS
-from pioreactor.utils.timing import current_utc_time
+from typing import cast
+from typing import Optional
+
+from pioreactor import exc
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
+from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
-from pioreactor import exc
+from pioreactor.utils.timing import current_utc_time
 
 
 class TemperatureAutomation(BackgroundSubJob):
@@ -66,6 +69,9 @@ class TemperatureAutomation(BackgroundSubJob):
         return self.temperature_control_parent.update_heater(new_duty_cycle)
 
     def is_heater_pwm_locked(self) -> bool:
+        """
+        Check if the heater PWM channels is locked
+        """
         return self.temperature_control_parent.pwm.is_locked()
 
     def update_heater_with_delta(self, delta_duty_cycle: float) -> bool:
@@ -78,6 +84,9 @@ class TemperatureAutomation(BackgroundSubJob):
         return self.temperature_control_parent.update_heater_with_delta(delta_duty_cycle)
 
     def execute(self):
+        """
+        Overwrite in base class
+        """
         raise NotImplementedError
 
     @property

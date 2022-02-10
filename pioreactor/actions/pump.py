@@ -27,21 +27,30 @@ def pump(
     source_of_event: Optional[str] = None,
     calibration: Optional[dict] = None,
     continuously: bool = False,
-):
-
+) -> float:
     """
 
     Parameters
     ------------
+    unit: str
+    experiment: str
     pump_name: one of "media", "alt_media", "waste"
+    ml: float
+        Amount of volume to pass, in mL
+    duration: float
+        Duration to run pump, in s
     calibration:
         specify a calibration for the dosing. Should be a dict
         with fields "duration_", "hz", "dc", and "bias_"
+    continuously: bool
+        Run pump continuously.
+    source_of_event: str
+        A human readable description of the source
+
 
     Returns
     -----------
     Amount of volume passed (approximate in some cases)
-
 
     """
     action_name = {
@@ -120,7 +129,7 @@ def pump(
 
             with catchtime() as delta_time:
                 pwm.start(calibration["dc"])
-                pump_start_time = time.time()
+                pump_start_time = time.monotonic()
 
             state.exit_event.wait(max(0, duration - delta_time()))
 
@@ -148,7 +157,7 @@ def pump(
 
             if state.exit_event.is_set():
                 # ended early for some reason
-                shortened_duration = time.time() - pump_start_time
+                shortened_duration = time.monotonic() - pump_start_time
                 ml = utils.pump_duration_to_ml(
                     shortened_duration, calibration["duration_"], calibration["bias_"]
                 )

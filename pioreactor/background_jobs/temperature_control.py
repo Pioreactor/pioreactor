@@ -55,7 +55,7 @@ class TemperatureController(BackgroundJob):
 
     This job publishes to
 
-       pioreactor/<unit>/<experiment>/temperature_control/temperature
+        pioreactor/<unit>/<experiment>/temperature_control/temperature
 
     the following:
 

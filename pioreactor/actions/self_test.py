@@ -50,6 +50,8 @@ def test_all_positive_correlations_between_pds_and_leds(
     """
     This tests that there is a positive correlation between the IR LED channel, and the photodiodes
     as defined in the config.ini.
+
+    TODO: if this exits early, we should turn off the LEDs
     """
     from pprint import pformat
 

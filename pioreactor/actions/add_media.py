@@ -19,6 +19,29 @@ def add_media(
     calibration: Optional[dict] = None,
     continuously: bool = False,
 ) -> float:
+    """
+    Parameters
+    ------------
+    unit: str
+    experiment: str
+    ml: float
+        Amount of volume to pass, in mL
+    duration: float
+        Duration to run pump, in s
+    calibration:
+        specify a calibration for the dosing. Should be a dict
+        with fields "duration_", "hz", "dc", and "bias_"
+    continuously: bool
+        Run pump continuously.
+    source_of_event: str
+        A human readable description of the source
+
+
+    Returns
+    -----------
+    Amount of volume passed (approximate in some cases)
+
+    """
     pump_name = "media"
     return pump(
         unit,

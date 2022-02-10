@@ -1,39 +1,39 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import json
 from collections import defaultdict
+from typing import Optional
+
 import click
 
-from pioreactor.config import config
-from pioreactor.utils import (
-    is_pio_job_running,
-    publish_ready_to_disconnected_state,
-    local_persistant_storage,
-)
-from pioreactor.whoami import (
-    get_unit_name,
-    get_latest_testing_experiment_name,
-    get_latest_experiment_name,
-    is_testing_env,
-)
 from pioreactor import pubsub
-from pioreactor.logging import create_logger
+from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.config import config
+from pioreactor.logging import create_logger
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 def od_blank(
-    od_angle_channel1,
-    od_angle_channel2,
+    od_angle_channel1: pt.PdAngle,
+    od_angle_channel2: pt.PdAngle,
     n_samples: int = 30,
-):
+) -> Optional[dict[pt.PdAngle, float]]:
     """
     Compute the sample average of the photodiodes attached.
 
     Note that because of the sensitivity of the growth rate (and normalized OD) to the starting values,
     we need a very accurate estimate of these statistics.
-
     """
     from statistics import mean, variance
 
@@ -55,7 +55,7 @@ def od_blank(
             logger.error(
                 "od_reading should not be running. Stop od_reading first. Exiting."
             )
-            return
+            return None
 
         # turn on stirring if not already on
         if not is_pio_job_running("stirring"):
@@ -148,8 +148,8 @@ def od_blank(
         ):
             to_share = {"mean": means, "variance": variances}
             to_share["ir_intensity"] = config["od_config"]["ir_intensity"]
-            to_share["od_angle_channel1"] = od_angle_channel1
-            to_share["od_angle_channel2"] = od_angle_channel2
+            to_share["od_angle_channel1"] = od_angle_channel1  # type: ignore
+            to_share["od_angle_channel2"] = od_angle_channel2  # type: ignore
             pubsub.publish_to_pioreactor_cloud("od_blank_mean", json=to_share)
 
         logger.debug(f"measured mean: {means}")

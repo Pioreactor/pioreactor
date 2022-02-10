@@ -82,11 +82,11 @@ JobState = Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 
 LedChannel = Literal["A", "B", "C", "D"]
-
 # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless.
 # str suggest symbols, which they are.
 PdChannel = Literal["1", "2"]
 PwmChannel = Literal["1", "2", "3", "4", "5"]
+
 PdAngle = Literal["45", "90", "135", "180", "REF"]
 
 
