@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
-"""
-This job runs on the leader
-"""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from json import dumps
 from json import loads
 from typing import Callable
 from typing import Optional
 
 import click
+from msgspec import Struct
 
 from pioreactor import types as pt
 from pioreactor.background_jobs.base import BackgroundJob
@@ -21,14 +18,12 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-@dataclass
-class MetaData:
+class MetaData(Struct):
     pioreactor_unit: str
     experiment: str
 
 
-@dataclass
-class TopicToParserToTable:
+class TopicToParserToTable(Struct):
     topic: str
     parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]]
     table: str
@@ -57,7 +52,7 @@ class MqttToDBStreamer(BackgroundJob):
             {
                 "topic": topic_to_table.topic,
                 "callback": self.create_on_message_callback(
-                    topic_to_table.parser, topic_to_table.table
+                    topic_to_table.parser, topic_to_table.table  # type: ignore
                 ),
             }
             for topic_to_table in topics_to_tables

@@ -876,15 +876,18 @@ class ODReader(BackgroundJob):
         if self.state != self.READY:
             return
 
-        output = structs.ODReadings(timestamp=timestamp, od_raw=dict())
 
-        for channel, angle in self.channel_angle_map.items():
-
-            output.od_raw[channel] = structs.ODReading(
-                voltage=batched_ads_readings[channel],
-                angle=angle,
-                timestamp=timestamp,
-            )
+        output = structs.ODReadings(
+            timestamp=timestamp,
+            od_raw={
+                channel: structs.ODReading(
+                    voltage=self.normalize_by_led_output(batched_ads_readings[channel]),
+                    angle=angle,
+                    timestamp=timestamp,
+                )
+                for channel, angle in self.channel_angle_map.items()
+            },
+        )
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
