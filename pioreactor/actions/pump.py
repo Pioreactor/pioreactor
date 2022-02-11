@@ -3,9 +3,10 @@ from __future__ import annotations
 
 import time
 from configparser import NoOptionError
-from json import dumps
 from json import loads
 from typing import Optional
+
+import msgspec
 
 from pioreactor import utils
 from pioreactor.config import config
@@ -13,6 +14,7 @@ from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
+from pioreactor.structs import DosingEvent
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_time
@@ -108,13 +110,13 @@ def pump(
             return 0.0
 
         # publish this first, as downstream jobs need to know about it.
-        json_output = dumps(
-            {
-                "volume_change": ml,
-                "event": action_name,
-                "source_of_event": source_of_event,
-                "timestamp": current_utc_time(),
-            }
+        json_output = msgspec.json.encode(
+            DosingEvent(
+                volume_change=ml,
+                event=action_name,
+                source_of_event=source_of_event,
+                timestamp=current_utc_time(),
+            )
         )
         publish(
             f"pioreactor/{unit}/{experiment}/dosing_events",

@@ -1022,13 +1022,21 @@ def test_changing_duty_cycle_over_mqtt() -> None:
 
 
 def test_AltMediaCalculator() -> None:
+    from pioreactor.structs import DosingEvent
+
     ac = AltMediaCalculator()
 
-    data = {"volume_change": 1.0, "event": "add_media"}
+    data = DosingEvent(
+        volume_change=1.0, event="add_media", timestamp="0", source_of_event="test"
+    )
     assert 0.0 == ac.update(data, 0.0)
 
-    data = {"volume_change": 1.0, "event": "add_alt_media"}
+    data = DosingEvent(
+        volume_change=1.0, event="add_alt_media", timestamp="1", source_of_event="test"
+    )
     assert 1 / 14.0 == 0.07142857142857142 == ac.update(data, 0.0)
 
-    data = {"volume_change": 1.0, "event": "add_alt_media"}
+    data = DosingEvent(
+        volume_change=1.0, event="add_alt_media", timestamp="2", source_of_event="test"
+    )
     assert 0.13775510204081634 == ac.update(data, 1 / 14.0) < 2 / 14.0

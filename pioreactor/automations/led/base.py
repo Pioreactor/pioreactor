@@ -1,22 +1,26 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import time
+
 import json
-from threading import Thread
+import time
 from contextlib import suppress
-from typing import Optional, cast
+from threading import Thread
+from typing import cast
+from typing import Optional
 
+import msgspec
 
-from pioreactor.pubsub import QOS
-
-from pioreactor.utils.timing import RepeatedTimer, current_utc_time
-from pioreactor.background_jobs.subjobs import BackgroundSubJob
-from pioreactor.background_jobs.led_control import LEDController
+from pioreactor import exc
+from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.automations import events
+from pioreactor.background_jobs.led_control import LEDController
+from pioreactor.background_jobs.subjobs import BackgroundSubJob
+from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
-from pioreactor.types import LedChannel
-from pioreactor import exc
+from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import RepeatedTimer
 
 
 class LEDAutomation(BackgroundSubJob):
@@ -72,7 +76,7 @@ class LEDAutomation(BackgroundSubJob):
         )
 
         self.skip_first_run = skip_first_run
-        self.edited_channels: set[LedChannel] = set()
+        self.edited_channels: set[pt.LedChannel] = set()
 
         self.set_duration(duration)
         self.start_passive_listeners()
@@ -146,7 +150,7 @@ class LEDAutomation(BackgroundSubJob):
     def most_stale_time(self) -> float:
         return min(self.latest_od_at, self.latest_growth_rate_at)
 
-    def set_led_intensity(self, channel: LedChannel, intensity: float) -> bool:
+    def set_led_intensity(self, channel: pt.LedChannel, intensity: float) -> bool:
         """
         This first checks the lock on the LED channel, and will wait a few seconds for it to clear,
         and error out if it waits too long.
@@ -239,15 +243,18 @@ class LEDAutomation(BackgroundSubJob):
             self._latest_settings_started_at = current_utc_time()
             self._latest_settings_ended_at = None
 
-    def _set_growth_rate(self, message) -> None:
+    def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         self.previous_growth_rate = self._latest_growth_rate
-        self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
+        self._latest_growth_rate = msgspec.json.decode(
+            message.payload, type=structs.GrowthRate
+        ).growth_rate
         self.latest_growth_rate_at = time.time()
 
-    def _set_OD(self, message) -> None:
-
+    def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
-        self._latest_od = float(json.loads(message.payload)["od_filtered"])
+        self._latest_od = msgspec.json.decode(
+            message.payload, type=structs.ODFiltered
+        ).od_filtered
         self.latest_od_at = time.time()
 
     def _send_details_to_mqtt(self) -> None:

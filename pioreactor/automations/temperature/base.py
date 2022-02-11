@@ -6,7 +6,11 @@ import time
 from typing import cast
 from typing import Optional
 
+import msgspec
+
 from pioreactor import exc
+from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.pubsub import QOS
@@ -147,14 +151,14 @@ class TemperatureAutomation(BackgroundSubJob):
                 None,
             )
 
-    def _set_growth_rate(self, message) -> None:
-        if not message.payload:
-            return
-
+    def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         self.previous_growth_rate = self._latest_growth_rate
-        self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
+        self._latest_growth_rate = msgspec.json.decode(
+            message.payload, type=structs.GrowthRate
+        ).growth_rate
+        self.latest_growth_rate_at = time.time()
 
-    def _set_temperature(self, message) -> None:
+    def _set_temperature(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
             return
 
@@ -164,11 +168,12 @@ class TemperatureAutomation(BackgroundSubJob):
         if self.state != self.SLEEPING:
             self.execute()
 
-    def _set_OD(self, message) -> None:
-
+    def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
-        self._latest_od = float(json.loads(message.payload)["od_filtered"])
-        self.latest_od_timestamp = time.time()
+        self._latest_od = msgspec.json.decode(
+            message.payload, type=structs.ODFiltered
+        ).od_filtered
+        self.latest_od_at = time.time()
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(

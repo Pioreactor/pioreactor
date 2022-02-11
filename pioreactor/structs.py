@@ -6,6 +6,13 @@ from msgspec import Struct
 import pioreactor.types as pt
 
 
+class DosingEvent(Struct):
+    volume_change: float
+    event: str
+    source_of_event: str
+    timestamp: str
+
+
 class GrowthRate(Struct):
     growth_rate: float
     timestamp: str
