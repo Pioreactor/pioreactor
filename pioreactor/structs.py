@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+"""
+These define structs for MQTT messages, and are type-checkable + runtime-checked.
+
+"""
 from __future__ import annotations
 
 from msgspec import Struct
