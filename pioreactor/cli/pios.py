@@ -8,20 +8,22 @@ command line for running the same command on all workers,
 > pios kill <substring>
 """
 from __future__ import annotations
-from concurrent.futures import ThreadPoolExecutor
+
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
 import click
 
-from pioreactor.whoami import (
-    am_I_leader,
-    UNIVERSAL_IDENTIFIER,
-    get_latest_experiment_name,
-    get_unit_name,
-)
-from pioreactor.config import get_active_workers_in_inventory, get_leader_hostname, config
+from pioreactor.config import config
+from pioreactor.config import get_active_workers_in_inventory
+from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import am_I_leader
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 def universal_identifier_to_all_active_workers(units: tuple[str, ...]) -> tuple[str, ...]:
@@ -124,8 +126,8 @@ def pios() -> None:
     type=click.STRING,
     help="specify a Pioreactor name, default is all active units",
 )
-@click.option("--dev", is_flag=True, help="update to the latest development code")
-def update(units: tuple[str, ...], dev: bool) -> None:
+@click.option("-b", "--branch", help="update to the github branch")
+def update(units: tuple[str, ...], branch: Optional[str]) -> None:
     """
     Pulls and installs the latest code
     """
@@ -135,8 +137,8 @@ def update(units: tuple[str, ...], dev: bool) -> None:
         "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
 
-    if dev:
-        command = "pio update --app --dev"
+    if branch is not None:
+        command = f"pio update --app -b {branch}"
     else:
         command = "pio update --app"
 

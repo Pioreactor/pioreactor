@@ -11,6 +11,7 @@ from __future__ import annotations
 import socket
 import sys
 from time import sleep
+from typing import Optional
 
 import click
 
@@ -185,8 +186,8 @@ def view_cache(cache: str) -> None:
 @pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
 @click.option("--ui", is_flag=True, help="update the PioreactorUI to latest")
 @click.option("--app", is_flag=True, help="update the Pioreactor to latest")
-@click.option("--dev", is_flag=True, help="update to the latest development code")
-def update(ui: bool, app: bool, dev: bool) -> None:
+@click.option("-b", "--branch", help="update to a branch on github")
+def update(ui: bool, app: bool, branch: Optional[str]) -> None:
     import subprocess
     from json import loads
     from pioreactor.mureq import get
@@ -200,19 +201,19 @@ def update(ui: bool, app: bool, dev: bool) -> None:
 
     if app:
 
-        if not dev:
+        if branch is None:
             latest_release_metadata = loads(
                 get(
                     "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
                 ).body
             )
-            latest_release_version = latest_release_metadata["name"]
-            url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{latest_release_version}/pioreactor-{latest_release_version}-py3-none-any.whl"
+            version_installed = latest_release_metadata["name"]
+            url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{version_installed}/pioreactor-{version_installed}-py3-none-any.whl"
 
             command = f'sudo pip3 install "pioreactor @ {url_to_get_whl}"'
         else:
-            latest_release_version = "master"
-            command = "sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/master.zip"
+            version_installed = branch
+            command = f"sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
 
         p = subprocess.run(
             command,
@@ -222,7 +223,7 @@ def update(ui: bool, app: bool, dev: bool) -> None:
             stderr=subprocess.PIPE,
         )
         if p.returncode == 0:
-            logger.info(f"Updated Pioreactor to version {latest_release_version}.")
+            logger.info(f"Updated Pioreactor to version {version_installed}.")
         else:
             logger.error(p.stderr)
 
