@@ -126,7 +126,7 @@ class GrowthRateCalculator(BackgroundJob):
             ]
         )
 
-        initial_covariance = 1e-5 * np.eye(
+        initial_covariance = 1e-4 * np.eye(
             3
         )  # empirically selected - TODO: this should probably scale with `expected_dt`
         self.logger.debug(f"Initial covariance matrix:\n{str(initial_covariance)}")
@@ -373,6 +373,11 @@ class GrowthRateCalculator(BackgroundJob):
                 / 60
                 / 60
             )  # delta time in hours
+
+            if dt <= 0:
+                self.logger.debug("Late arriving data...")
+                return
+
             self.time_of_previous_observation = time_of_current_observation
 
         try:

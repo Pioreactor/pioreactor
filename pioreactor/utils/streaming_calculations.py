@@ -40,12 +40,12 @@ class CultureGrowthEKF:
     Note that we normalized the raw sensor measurements by their initial values, so initially they
     "hover" around 1.0.
 
-    m_{1,t} = g1(OD_{t-1}) + noise   # noise here includes temperature noise, EM noise, stirring noise
-    m_{2,t} = g2(OD_{t-1}) + noise
+    m_{1,t} = g1(OD_{t-1}) + σ0B*noise   # noise here includes temperature noise, EM noise, stirring noise
+    m_{2,t} = g2(OD_{t-1}) + σ0A*noise
 
-    OD_t = OD_{t-1} * exp(r_{t-1} * Δt) + noise
-    r_t = r_{t-1} + a_{t-1} * Δt + noise
-    a_t = a_{t-1} + noise
+    OD_t = OD_{t-1} * exp(r_{t-1} * Δt) + σ1*noise
+    r_t = r_{t-1} + a_{t-1} * Δt + σ2*noise         => r_t = sum(a_{i}) + sum(σ2*noise_i)
+    a_t = a_{t-1} + σ3*noise
 
     # g1 and g2 are generic functions. Often they are the identity functions in OD,
     # but if using a 180deg sensor then it would be the inverse function, like exp(-OD)
