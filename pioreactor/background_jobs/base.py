@@ -6,8 +6,8 @@ import signal
 import threading
 import time
 import typing as t
-from json import dumps
 
+from msgspec.json import encode as dumps
 from paho.mqtt import client as mqtt  # type: ignore
 
 from pioreactor import types as pt

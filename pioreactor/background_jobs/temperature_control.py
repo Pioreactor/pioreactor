@@ -35,12 +35,12 @@ import click
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.utils import AutomationDict
 from pioreactor.config import config
 from pioreactor.hardware import HEATER_PWM_TO_PIN
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.structs import AutomationMetaData
 from pioreactor.utils import clamp
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time

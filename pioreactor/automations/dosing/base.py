@@ -423,14 +423,16 @@ class DosingAutomation(BackgroundSubJob):
         self._latest_growth_rate = msgspec.json.decode(
             message.payload, type=structs.GrowthRate
         ).growth_rate
-        self.latest_growth_rate_at = time.time()
+        self.latest_growth_rate_at = (
+            time.time()
+        )  # TODO: this should come from the payload...
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
         self._latest_od = msgspec.json.decode(
             message.payload, type=structs.ODFiltered
         ).od_filtered
-        self.latest_od_at = time.time()
+        self.latest_od_at = time.time()  # TODO: this should come from the payload...
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(

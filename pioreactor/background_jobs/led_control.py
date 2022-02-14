@@ -7,17 +7,20 @@ To change the automation over MQTT,
 topic: `pioreactor/<unit>/<experiment>/led_control/automation/set`
 message: a json object with required keyword argument. Specify the new automation with name `"automation_name"`.
 """
-import time
+from __future__ import annotations
+
 import json
-from typing import Optional
+import time
 from contextlib import suppress
+from typing import Optional
 
 import click
 
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
-from pioreactor.background_jobs.utils import AutomationDict
+from pioreactor.structs import AutomationMetaData
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 class LEDController(BackgroundJob):

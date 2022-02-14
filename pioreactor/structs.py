@@ -10,6 +10,24 @@ from msgspec import Struct
 import pioreactor.types as pt
 
 
+class AutomationMetaData(Struct):
+    automation_name: str
+    automation_type: str = "unknown"
+    args: dict = {}
+
+    def __str__(self) -> str:
+        s = f"{self.automation_name}("
+        for k, v in self.args.items():
+            s += f"{k}={v}, "
+
+        s = s.rstrip(", ")
+        s += ")"
+        return s
+
+    def __repr__(self) -> str:
+        return str(self)
+
+
 class DosingEvent(Struct):
     volume_change: float
     event: str
