@@ -103,8 +103,10 @@ def pump(
             )
             logger.info("Running pump continuously.")
 
-        assert isinstance(ml, (float, int))
-        assert isinstance(duration, (float, int))
+        assert isinstance(ml, float)
+        assert isinstance(duration, float)
+        ml = float(ml)
+        duration = float(duration)
         assert duration >= 0, "duration should be greater than 0"
         if duration == 0:
             return 0.0

@@ -51,6 +51,7 @@ from pioreactor.pubsub import subscribe
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
+from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -367,9 +368,7 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             # TODO this should use the internal timestamp reference
 
-            time_of_current_observation = datetime.strptime(
-                payload.timestamp, "%Y-%m-%dT%H:%M:%S.%fZ"
-            )
+            time_of_current_observation = to_datetime(payload.timestamp)
             dt = (
                 (
                     time_of_current_observation - self.time_of_previous_observation

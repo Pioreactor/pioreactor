@@ -9,12 +9,12 @@ message: a json object with required keyword argument. Specify the new automatio
 """
 from __future__ import annotations
 
-import json
 import time
 from contextlib import suppress
 from typing import Optional
 
 import click
+import msgspec
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
@@ -40,15 +40,16 @@ class LEDController(BackgroundJob):
             job_name="led_control", unit=unit, experiment=experiment
         )
 
-        self.automation = AutomationDict(automation_name=automation_name, **kwargs)
-
         try:
-            automation_class = self.automations[self.automation["automation_name"]]
+            automation_class = self.automations[automation_name]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
             )
 
+        self.automation = AutomationMetaData(
+            automation_name=automation_name, automation_type="led", **kwargs
+        )
         self.logger.info(f"Starting {self.automation}.")
         try:
             self.automation_job = automation_class(
@@ -59,10 +60,15 @@ class LEDController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.set_state(self.DISCONNECTED)
             raise e
-        self.automation_name = self.automation["automation_name"]
+        self.automation_name = self.automation.automation_name
 
     def set_automation(self, new_led_automation_json: str) -> None:
-        algo_metadata = AutomationDict(json.loads(new_led_automation_json))
+        algo_metadata = msgspec.json.decode(
+            new_led_automation_json.encode(), type=AutomationMetaData
+        )  # why encode? needs to be bytes
+
+        if algo_metadata.automation_type != "led":
+            raise ValueError("algo_metadata.automation_type != 'led'")
 
         try:
             self.automation_job.set_state("disconnected")
@@ -72,20 +78,20 @@ class LEDController(BackgroundJob):
             self.set_automation(new_led_automation_json)
 
         try:
-            klass = self.automations[algo_metadata["automation_name"]]
+            klass = self.automations[algo_metadata.automation_name]
             self.logger.info(f"Starting {algo_metadata}.")
             self.automation_job = klass(
                 unit=self.unit, experiment=self.experiment, **algo_metadata
             )
             self.automation = algo_metadata
-            self.automation_name = self.automation["automation_name"]
+            self.automation_name = self.automation.automation_name
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}"
             )
 
         except Exception as e:

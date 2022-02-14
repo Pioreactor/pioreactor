@@ -24,13 +24,12 @@ message: a json object with required keyword arguments. Specify the new automati
 """
 from __future__ import annotations
 
-from json import dumps
-from json import loads
 from time import sleep
 from typing import Any
 from typing import Optional
 
 import click
+import msgspec
 
 from pioreactor import error_codes
 from pioreactor import exc
@@ -134,15 +133,16 @@ class TemperatureController(BackgroundJob):
             run_after=60,
         ).start()
 
-        self.automation = AutomationDict(automation_name=automation_name, **kwargs)
-
         try:
-            automation_class = self.automations[self.automation["automation_name"]]
+            automation_class = self.automations[automation_name]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
             )
 
+        self.automation = AutomationMetaData(
+            automation_name=automation_name, automation_type="temperature", args=kwargs
+        )
         self.logger.info(f"Starting {self.automation}.")
         try:
             self.automation_job = automation_class(
@@ -153,7 +153,7 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.set_state(self.DISCONNECTED)
             raise e
-        self.automation_name = self.automation["automation_name"]
+        self.automation_name = self.automation.automation_name
 
         self.temperature = {
             "temperature": self.read_external_temperature(),
@@ -224,8 +224,12 @@ class TemperatureController(BackgroundJob):
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
         # OR should just bail...
-        algo_metadata = AutomationDict(**loads(new_temperature_automation_json))
+        algo_metadata = msgspec.json.decode(
+            new_temperature_automation_json.encode(), type=AutomationMetaData
+        )  # why encode? needs to be bytes
 
+        if algo_metadata.automation_type != "temperature":
+            raise ValueError("algo_metadata.automation_type != 'temperature'")
         try:
             self.automation_job.set_state("disconnected")
         except AttributeError:
@@ -238,19 +242,19 @@ class TemperatureController(BackgroundJob):
 
         try:
             self.logger.info(f"Starting {algo_metadata}.")
-            self.automation_job = self.automations[algo_metadata["automation_name"]](
+            self.automation_job = self.automations[algo_metadata.automation_name](
                 unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata
             )
             self.automation = algo_metadata
-            self.automation_name = algo_metadata["automation_name"]
+            self.automation_name = algo_metadata.automation_name
 
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}"
             )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -285,7 +289,13 @@ class TemperatureController(BackgroundJob):
             self._update_heater(0)
 
             if self.automation_name != "silent":
-                self.set_automation(dumps({"automation_name": "silent"}))
+                self.set_automation(
+                    msgspec.json.encode(
+                        AutomationMetaData(
+                            automation_name="silent", automation_type="temperature"
+                        )
+                    )
+                )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 

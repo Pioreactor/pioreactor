@@ -1,15 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-import time, logging
+
+import logging
+import time
+from contextlib import contextmanager
 from contextlib import suppress
-from typing import Callable, Optional, Generator
-from datetime import datetime, timezone
-from threading import Event, Thread
+from datetime import datetime
+from datetime import timezone
+from threading import Event
+from threading import Thread
 from time import perf_counter
+from typing import Callable
+from typing import Generator
+from typing import Optional
 
 from pioreactor.whoami import is_testing_env
 
-from contextlib import contextmanager
+
+def to_datetime(timestamp: str):
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 @contextmanager
@@ -73,7 +82,7 @@ class RepeatedTimer:
         run_immediately: bool = False,
         run_after: Optional[float] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.interval = interval
         self.function = function
