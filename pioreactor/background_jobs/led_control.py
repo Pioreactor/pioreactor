@@ -14,7 +14,6 @@ from contextlib import suppress
 from typing import Optional
 
 import click
-import msgspec
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
@@ -62,10 +61,7 @@ class LEDController(BackgroundJob):
             raise e
         self.automation_name = self.automation.automation_name
 
-    def set_automation(self, new_led_automation_json: str) -> None:
-        algo_metadata = msgspec.json.decode(
-            new_led_automation_json.encode(), type=Automation
-        )  # why encode? needs to be bytes...
+    def set_automation(self, algo_metadata: Automation) -> None:
 
         if algo_metadata.automation_type != "led":
             raise ValueError("algo_metadata.automation_type != 'led'")
@@ -75,7 +71,7 @@ class LEDController(BackgroundJob):
         except AttributeError:
             # sometimes the user will change the job too fast before the job is created, let's protect against that.
             time.sleep(1)
-            self.set_automation(new_led_automation_json)
+            self.set_automation(algo_metadata)
 
         try:
             klass = self.automations[algo_metadata.automation_name]

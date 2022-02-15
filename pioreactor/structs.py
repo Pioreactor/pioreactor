@@ -39,6 +39,11 @@ class DosingEvent(Struct):
     timestamp: str
 
 
+class MeasuredRPM(Struct):
+    measured_rpm: float
+    timestamp: str
+
+
 class GrowthRate(Struct):
     growth_rate: float
     timestamp: str

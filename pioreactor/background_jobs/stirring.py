@@ -13,6 +13,7 @@ import click
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
+from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.utils import clamp
@@ -198,8 +199,8 @@ class Stirrer(BackgroundJob):
     """
 
     published_settings = {
-        "target_rpm": {"datatype": "json", "settable": True, "unit": "RPM"},
-        "measured_rpm": {"datatype": "json", "settable": False, "unit": "RPM"},
+        "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
+        "measured_rpm": {"datatype": "MeasuredRPM", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
     _previous_duty_cycle: float = 0
@@ -250,7 +251,7 @@ class Stirrer(BackgroundJob):
             experiment=self.experiment,
             job_name=self.job_name,
             target_name="rpm",
-            output_limits=(-20, 20),  # avoid whiplashing
+            output_limits=(-15, 15),  # avoid whiplashing
         )
 
         # set up thread to periodically check the rpm
@@ -330,7 +331,9 @@ class Stirrer(BackgroundJob):
         else:
             self._measured_rpm = recent_rpm
 
-        self.measured_rpm = {"timestamp": current_utc_time(), "rpm": self._measured_rpm}
+        self.measured_rpm = structs.MeasuredRPM(
+            timestamp=current_utc_time(), rpm=self._measured_rpm
+        )
         return self._measured_rpm
 
     def poll_and_update_dc(self, poll_for_seconds: float) -> None:
@@ -357,11 +360,11 @@ class Stirrer(BackgroundJob):
 
     def set_duty_cycle(self, value: float) -> None:
         self._previous_duty_cycle = self.duty_cycle
-        self.duty_cycle = clamp(0, round(float(value), 5), 100)
+        self.duty_cycle = clamp(0, round(value, 5), 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value: float) -> None:
-        self.target_rpm = float(value)
+        self.target_rpm = value
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 

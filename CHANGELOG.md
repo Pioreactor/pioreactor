@@ -2,6 +2,7 @@
  - fixed memory leak in MQTT connections
  - better clean up after a job disconnects
  - If the temperature of the heating PCB gets too high, the automation switches to Silent (previously it did not switch at all.)
+ - "datatype" field in `published_settings` is now used to cast.
 
 ### 22.2.0
  - Added more error codes for the ADC, network issues, and high temperature

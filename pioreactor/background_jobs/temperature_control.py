@@ -29,7 +29,6 @@ from typing import Any
 from typing import Optional
 
 import click
-import msgspec
 
 from pioreactor import error_codes
 from pioreactor import exc
@@ -215,23 +214,21 @@ class TemperatureController(BackgroundJob):
 
     ##### internal and private methods ########
 
-    def set_automation(self, new_temperature_automation_json) -> None:
+    def set_automation(self, algo_metadata: Automation) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
         # OR should just bail...
-        algo_metadata = msgspec.json.decode(
-            new_temperature_automation_json.encode(), type=Automation
-        )  # why encode? needs to be bytes
 
         if algo_metadata.automation_type != "temperature":
             raise ValueError("algo_metadata.automation_type != 'temperature'")
+
         try:
             self.automation_job.set_state("disconnected")
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             sleep(1)
-            self.set_automation(new_temperature_automation_json)
+            self.set_automation(algo_metadata)
 
         # reset heater back to 0.
         self._update_heater(0)
@@ -286,11 +283,7 @@ class TemperatureController(BackgroundJob):
 
             if self.automation_name != "silent":
                 self.set_automation(
-                    msgspec.json.encode(
-                        Automation(
-                            automation_name="silent", automation_type="temperature"
-                        )
-                    )
+                    Automation(automation_name="silent", automation_type="temperature")
                 )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:

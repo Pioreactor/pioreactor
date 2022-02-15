@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from contextlib import suppress
-from pioreactor.automations.dosing.base import DosingAutomation
+
 from pioreactor.automations import events
-from pioreactor.utils.streaming_calculations import PID
+from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.config import config
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.streaming_calculations import PID
 
 
 class PIDTurbidostat(DosingAutomation):
@@ -89,7 +92,7 @@ class PIDTurbidostat(DosingAutomation):
         return 0.75 * self.target_od
 
     def set_target_od(self, value: float) -> None:
-        self.target_od = float(value)
+        self.target_od = value
         with suppress(AttributeError):
             # may not be defined yet...
             self.pid.set_setpoint(self.target_od)

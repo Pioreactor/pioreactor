@@ -84,7 +84,7 @@ class LEDAutomation(BackgroundSubJob):
         self.logger.info(f"Starting {self.automation_name} LED automation.")
 
     def set_duration(self, duration: float) -> None:
-        self.duration = float(duration)
+        self.duration = duration
         if self._latest_run_at:
             # what's the correct logic when changing from duration N and duration M?
             # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.

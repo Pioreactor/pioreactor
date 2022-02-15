@@ -7,9 +7,11 @@ import threading
 import time
 import typing as t
 
+from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 from paho.mqtt import client as mqtt  # type: ignore
 
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import create_client
@@ -21,6 +23,34 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 T = t.TypeVar("T")
+
+
+def cast_bytes_to_type(value: bytes, type_: str):
+    try:
+        if type_ == "string":
+            return value.decode()
+        elif type_ == "float":
+            return float(value)
+        elif type_ == "integer":
+            return int(value)
+        elif type_ == "boolean":
+            return bool(value)
+        elif type_ == "json":
+            return loads(value)
+        elif type_ == "Automation":
+            return loads(value, type=structs.Automation)
+
+        # these are useless, as we never change the setting over MQTT.
+        elif type_ == "GrowthRate":
+            return loads(value, type=structs.GrowthRate)
+        elif type_ == "ODFiltered":
+            return loads(value, type=structs.ODFiltered)
+        elif type_ == "Temperature":
+            return loads(value, type=structs.Temperature)
+        else:
+            raise ValueError("Not valid type.")
+    except Exception as e:
+        raise e
 
 
 def format_with_optional_units(
@@ -692,7 +722,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return pieces[4].lstrip("$")
 
     def set_attr_from_message(self, message: pt.MQTTMessage) -> None:
-        new_value = message.payload.decode()
         attr = self.get_attr_from_topic(message.topic)
 
         if attr not in self.published_settings:
@@ -705,17 +734,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             return
 
         previous_value = getattr(self, attr)
-
-        # TODO: alternatively, we can use the datatype attr to case here, and then pass
-        # into functions / assign to self.
-        # datatype = self.published_settings[attr]["datatype"]
-        # if datatype == "string":
-        #   new_value = str(new_value)
-        # ...
-        # else:
-        #   # must be a struct?
-        #   new_value = msgspec.json.decode(new_value, type=getattr(structs, datatype))
-        # put it into a _cast function though
+        new_value = cast_bytes_to_type(
+            message.payload, self.published_settings[attr]["datatype"]
+        )
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
         # for example, see Stirring.set_target_rpm, and `set_state` here
@@ -723,14 +744,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             getattr(self, f"set_{attr}")(new_value)
 
         else:
-            try:
-                # try to cast the input to the same value
-                setattr(self, attr, type(previous_value)(new_value))
-            except TypeError:
-                self.logger.error(
-                    f"Unable to cast new value `{new_value}` from type of previous value, `{previous_value}`. They should be the same type!"
-                )
-                setattr(self, attr, new_value)
+            setattr(self, attr, new_value)
 
         units = self.published_settings[attr].get("unit")
         self.logger.info(

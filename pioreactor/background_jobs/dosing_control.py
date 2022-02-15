@@ -23,7 +23,6 @@ import time
 from typing import Optional
 
 import click
-import msgspec
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
@@ -90,16 +89,12 @@ class DosingController(BackgroundJob):
 
         self.automation_name = self.automation.automation_name
 
-    def set_automation(self, new_dosing_automation_json: str) -> None:
+    def set_automation(self, algo_metadata: Automation) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.dosing_automation_job.set_state("init")
         # self.dosing_automation_job.set_state("ready")
         # because the state in MQTT is wrong.
         # OR should just bail...
-
-        algo_metadata = msgspec.json.decode(
-            new_dosing_automation_json.encode(), type=Automation
-        )  # why encode? needs to be bytes
 
         if algo_metadata.automation_type != "dosing":
             raise ValueError("algo_metadata.automation_type != 'dosing'")
@@ -109,7 +104,7 @@ class DosingController(BackgroundJob):
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             time.sleep(1)
-            self.set_automation(new_dosing_automation_json)
+            self.set_automation(algo_metadata)
 
         try:
             klass = self.automations[algo_metadata.automation_name]

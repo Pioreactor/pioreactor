@@ -69,6 +69,7 @@ class PublishableSetting(TypedDict, total=False):
         "GrowthRate",
         "ODFiltered",
         "Temperature",
+        "MeasuredRPM",
     ]
     unit: str
     settable: bool
