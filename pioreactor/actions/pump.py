@@ -86,18 +86,20 @@ def pump(
             return 0.0
 
         if ml is not None:
+            ml = float(ml)
             assert ml >= 0, "ml should be greater than 0"
             duration = utils.pump_ml_to_duration(
                 ml, calibration["duration_"], calibration["bias_"]
             )
             logger.info(f"{round(ml, 2)}mL")
         elif duration is not None:
+            duration = float(duration)
             ml = utils.pump_duration_to_ml(
                 duration, calibration["duration_"], calibration["bias_"]
             )
             logger.info(f"{round(duration, 2)}s")
         elif continuously:
-            duration = 600
+            duration = 600.0
             ml = utils.pump_duration_to_ml(
                 duration, calibration["duration_"], calibration["bias_"]
             )
@@ -105,8 +107,7 @@ def pump(
 
         assert isinstance(ml, float)
         assert isinstance(duration, float)
-        ml = float(ml)
-        duration = float(duration)
+
         assert duration >= 0, "duration should be greater than 0"
         if duration == 0:
             return 0.0

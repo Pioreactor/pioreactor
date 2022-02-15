@@ -673,7 +673,6 @@ class ODReader(BackgroundJob):
 
     Parameters
     -----------
-
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
     interval: float
@@ -683,8 +682,8 @@ class ODReader(BackgroundJob):
 
     Attributes
     ------------
-
     adc_reader: ADCReader
+    ir_led_reference_tracker: ir_led_reference_tracker
     latest_reading: dict
         represents the most recent dict from the adc_reader
 

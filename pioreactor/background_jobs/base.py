@@ -706,6 +706,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         previous_value = getattr(self, attr)
 
+        # TODO: alternatively, we can use the datatype attr to case here, and then pass
+        # into functions / assign to self.
+        # datatype = self.published_settings[attr]["datatype"]
+        # if datatype == "string":
+        #   new_value = str(new_value)
+        # ...
+        # else:
+        #   # must be a struct?
+        #   new_value = msgspec.json.decode(new_value, type=getattr(structs, datatype))
+        # put it into a _cast function though
+
         # a subclass may want to define a `set_<attr>` method that will be used instead
         # for example, see Stirring.set_target_rpm, and `set_state` here
         if hasattr(self, f"set_{attr}"):
