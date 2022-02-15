@@ -61,12 +61,12 @@ class GrowthRateCalculator(BackgroundJob):
 
     published_settings = {
         "growth_rate": {
-            "datatype": "json",
+            "datatype": "GrowthRate",
             "settable": False,
             "unit": "h⁻¹",
             "persist": True,
         },
-        "od_filtered": {"datatype": "json", "settable": False, "persist": True},
+        "od_filtered": {"datatype": "ODFiltered", "settable": False, "persist": True},
     }
 
     def __init__(

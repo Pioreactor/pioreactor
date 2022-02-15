@@ -10,7 +10,11 @@ from msgspec import Struct
 import pioreactor.types as pt
 
 
-class AutomationMetaData(Struct):
+class Automation(Struct):
+    """
+    Used to change an automation over MQTT.
+    """
+
     automation_name: str
     automation_type: str = "unknown"
     args: dict = {}
@@ -54,3 +58,8 @@ class ODReading(Struct):
 class ODReadings(Struct):
     timestamp: str
     od_raw: dict[pt.PdChannel, ODReading]
+
+
+class Temperature(Struct):
+    timestamp: str
+    temperature: float

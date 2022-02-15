@@ -18,7 +18,7 @@ import msgspec
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
-from pioreactor.structs import AutomationMetaData
+from pioreactor.structs import Automation
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -29,7 +29,7 @@ class LEDController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "automation": {"datatype": "json", "settable": True},
+        "automation": {"datatype": "Automation", "settable": True},
         "automation_name": {"datatype": "string", "settable": False},
     }
 
@@ -47,7 +47,7 @@ class LEDController(BackgroundJob):
                 f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
             )
 
-        self.automation = AutomationMetaData(
+        self.automation = Automation(
             automation_name=automation_name, automation_type="led", **kwargs
         )
         self.logger.info(f"Starting {self.automation}.")
@@ -64,8 +64,8 @@ class LEDController(BackgroundJob):
 
     def set_automation(self, new_led_automation_json: str) -> None:
         algo_metadata = msgspec.json.decode(
-            new_led_automation_json.encode(), type=AutomationMetaData
-        )  # why encode? needs to be bytes
+            new_led_automation_json.encode(), type=Automation
+        )  # why encode? needs to be bytes...
 
         if algo_metadata.automation_type != "led":
             raise ValueError("algo_metadata.automation_type != 'led'")

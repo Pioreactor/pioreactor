@@ -8,7 +8,7 @@ To change the automation over MQTT,
     pioreactor/<unit>/<experiment>/dosing_control/automation/set
 
 
-with payload a json object with required keyword argument(s). Specify the new automation with name `"automation_name"`.
+with payload a json object looking like pioreactor.structs.Automation, ex: specify the new automation with name `"automation_name"`.
 
 
 Using the CLI, specific automation values can be specified as additional options (note the underscore...) :
@@ -19,7 +19,6 @@ Using the CLI, specific automation values can be specified as additional options
 """
 from __future__ import annotations
 
-import json
 import time
 from typing import Optional
 
@@ -28,7 +27,7 @@ import msgspec
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
-from pioreactor.structs import AutomationMetaData
+from pioreactor.structs import Automation
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -39,10 +38,10 @@ class DosingController(BackgroundJob):
     Attributes
     ------------
 
-    automation: struct
+    automation: structs.Automation
         contains metadata about the automation running
     automation_name: str
-        the name of the automation running
+        the name of the automation running. Same as `automation.automation_name`.
     automation_job: DosingAutomation
         reference to the Python object of the automation.
 
@@ -57,7 +56,7 @@ class DosingController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "automation": {"datatype": "json", "settable": True},
+        "automation": {"datatype": "Automation", "settable": True},
         "automation_name": {"datatype": "string", "settable": False},
     }
 
@@ -74,7 +73,7 @@ class DosingController(BackgroundJob):
                 f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
             )
 
-        self.automation = AutomationMetaData(
+        self.automation = Automation(
             automation_name=automation_name, automation_type="dosing", args=kwargs
         )
         self.logger.info(f"Starting {self.automation}.")
@@ -99,7 +98,7 @@ class DosingController(BackgroundJob):
         # OR should just bail...
 
         algo_metadata = msgspec.json.decode(
-            new_dosing_automation_json.encode(), type=AutomationMetaData
+            new_dosing_automation_json.encode(), type=Automation
         )  # why encode? needs to be bytes
 
         if algo_metadata.automation_type != "dosing":
