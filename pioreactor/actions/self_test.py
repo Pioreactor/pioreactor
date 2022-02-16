@@ -126,9 +126,10 @@ def test_all_positive_correlations_between_pds_and_leds(
         if measured_correlation > 0.925:
             detected_relationships.append(
                 (
-                    config["leds"].get(led_channel, fallback=led_channel),
-                    config["od_config.photodiode_channel"].get(
-                        pd_channel, fallback=pd_channel
+                    (config["leds"].get(led_channel) or led_channel),
+                    (
+                        config["od_config.photodiode_channel"].get(pd_channel)
+                        or pd_channel
                     ),
                 )
             )
@@ -152,7 +153,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     for ir_pd_channel in pd_channels_to_test:
         assert (
             results[(ir_led_channel, ir_pd_channel)] > 0.925
-        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
+        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}, {list(zip(INTENSITIES, varying_intensity_results[pd_channel]))}"
 
 
 def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:
@@ -269,6 +270,9 @@ def click_self_test(k: str) -> int:
     logger = create_logger("self_test", unit=unit, experiment=experiment)
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
+
+        # flicker to assist the user to confirm they are testing the right pioreactor.
+        publish(f"pioreactor/{unit}/+/monitor/flicker_led_response_okay", 1)
 
         if is_pio_job_running("od_reading", "temperature_automation", "stirring"):
             logger.error(
