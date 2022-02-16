@@ -2,7 +2,8 @@
  - fixed memory leak in MQTT connections
  - better clean up after a job disconnects
  - If the temperature of the heating PCB gets too high, the automation switches to Silent (previously it did not switch at all.)
- - "datatype" field in `published_settings` is now used to cast.
+ - "datatype" field in `published_settings` is now used to cast before being given to `set_*` methods.
+ - Internally, the repo uses the `msgspec` library for complex MQTT message validation. This also introduces the `pioreactor.structs` module which details the structure of the messages.
 
 ### 22.2.0
  - Added more error codes for the ADC, network issues, and high temperature

@@ -24,11 +24,10 @@ from typing import Optional
 
 import click
 
+from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
 from pioreactor.structs import Automation
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_unit_name
 
 
 class DosingController(BackgroundJob):
@@ -37,11 +36,11 @@ class DosingController(BackgroundJob):
     Attributes
     ------------
 
-    automation: structs.Automation
+    automation: pioreactor.structs.Automation
         contains metadata about the automation running
     automation_name: str
         the name of the automation running. Same as `automation.automation_name`.
-    automation_job: DosingAutomation
+    automation_job: pioreactor.automations.dosing.base.DosingAutomation
         reference to the Python object of the automation.
 
     """
@@ -154,8 +153,8 @@ def start_dosing_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> DosingController:
-    unit = unit or get_unit_name()
-    experiment = experiment or get_latest_experiment_name()
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_latest_experiment_name()
 
     try:
 

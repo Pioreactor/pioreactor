@@ -68,15 +68,15 @@ class AltMediaCalculator:
     ) -> float:
         volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
-            return self.update_alt_media_fraction(current_alt_media_fraction, volume, 0)
+            return self._update_alt_media_fraction(current_alt_media_fraction, volume, 0)
         elif event == "add_alt_media":
-            return self.update_alt_media_fraction(current_alt_media_fraction, 0, volume)
+            return self._update_alt_media_fraction(current_alt_media_fraction, 0, volume)
         elif event == "remove_waste":
             return current_alt_media_fraction
         else:
             raise ValueError("Unknown event type")
 
-    def update_alt_media_fraction(
+    def _update_alt_media_fraction(
         self,
         current_alt_media_fraction: float,
         media_delta: float,
