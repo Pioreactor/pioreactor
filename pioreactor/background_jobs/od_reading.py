@@ -352,8 +352,8 @@ class ADCReader(LoggerMixin):
 
         sum_sin = sin_x.sum()
         sum_cos = cos_x.sum()
-        sum_sin2 = (sin_x ** 2).sum()
-        sum_cos2 = (cos_x ** 2).sum()
+        sum_sin2 = (sin_x**2).sum()
+        sum_cos2 = (cos_x**2).sum()
         sum_cossin = (cos_x * sin_x).sum()
 
         sum_y = y_.sum()
@@ -392,12 +392,12 @@ class ADCReader(LoggerMixin):
         else:
             AIC = math.inf
 
-        if np.sqrt(b ** 2 + c ** 2) <= 1e-20:
+        if np.sqrt(b**2 + c**2) <= 1e-20:
             A = 0
             phi = 0
         else:
-            A = np.sqrt(b ** 2 + c ** 2)
-            phi = np.arcsin(c / np.sqrt(b ** 2 + c ** 2))
+            A = np.sqrt(b**2 + c**2)
+            phi = np.arcsin(c / np.sqrt(b**2 + c**2))
 
         return (C, A, phi), AIC
 
@@ -647,10 +647,12 @@ class ODReader(BackgroundJob):
 
     published_settings = {
         "first_od_obs_time": {"datatype": "float", "settable": False},
-        "led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
+        "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
         "interval": {"datatype": "float", "settable": False, "unit": "s"},
+        "relative_intensity_of_ir_led": {"datatype": "float", "settable": False},
     }
     latest_reading: dict[pt.PdChannel, float]
+    _counter = 0
 
     def __init__(
         self,
@@ -752,11 +754,25 @@ class ODReader(BackgroundJob):
                 timestamp_of_readings = current_utc_time()
                 batched_readings = self.adc_reader.take_reading()
 
-        self.latest_reading = batched_readings
         self.ir_led_reference_tracker.update(batched_readings)
+        batched_readings = self.normalize_by_led_output(batched_readings)
 
+        self.latest_reading = batched_readings
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
+
+        if (
+            self._counter % 12 == 0
+        ):  # should record at most every 2 minutes, so pick a minute.
+            self.relative_intensity_of_ir_led = {
+                "relative_intensity_of_ir_led": 1
+                / self.ir_led_reference_tracker(
+                    1.0
+                ),  # represents the relative intensity of the LED.
+                "timestamp": timestamp_of_readings,
+            }
+
+        self._counter += 1
 
     def start_ir_led(self) -> None:
         r = change_led_intensity(
@@ -811,7 +827,7 @@ class ODReader(BackgroundJob):
 
         for channel, angle in self.channel_angle_map.items():
             output["od_raw"][channel] = {  # type: ignore
-                "voltage": self.normalize_by_led_output(batched_ads_readings[channel]),
+                "voltage": batched_ads_readings[channel],
                 "angle": angle,
             }
 
@@ -830,7 +846,7 @@ class ODReader(BackgroundJob):
         for channel, angle in self.channel_angle_map.items():
 
             payload = {
-                "voltage": self.normalize_by_led_output(batched_ads_readings[channel]),
+                "voltage": batched_ads_readings[channel],
                 "angle": angle,
                 "timestamp": timestamp,
             }
@@ -841,8 +857,13 @@ class ODReader(BackgroundJob):
                 qos=QOS.EXACTLY_ONCE,
             )
 
-    def normalize_by_led_output(self, od_signal: float) -> float:
-        return self.ir_led_reference_tracker(od_signal)
+    def normalize_by_led_output(
+        self, batched_readings: dict[pt.PdChannel, float]
+    ) -> dict[pt.PdChannel, float]:
+        return {
+            ch: self.ir_led_reference_tracker(od_signal)
+            for (ch, od_signal) in batched_readings.items()
+        }
 
 
 def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.PdChannel]:
