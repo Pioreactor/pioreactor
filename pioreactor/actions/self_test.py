@@ -272,7 +272,7 @@ def click_self_test(k: str) -> int:
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
 
         # flicker to assist the user to confirm they are testing the right pioreactor.
-        publish(f"pioreactor/{unit}/+/monitor/flicker_led_response_okay", 1)
+        publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)
 
         if is_pio_job_running("od_reading", "temperature_automation", "stirring"):
             logger.error(
