@@ -123,7 +123,7 @@ def od_blank(
                 )
 
             pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/od_blank/{channel}",
+                f"pioreactor/{unit}/{experiment}/{action_name}/{channel}",
                 json.dumps(
                     {"timestamp": current_utc_time(), "od_reading_v": means[channel]}
                 ),
@@ -152,6 +152,7 @@ def od_blank(
             to_share["od_angle_channel2"] = od_angle_channel2  # type: ignore
             pubsub.publish_to_pioreactor_cloud("od_blank_mean", json=to_share)
 
+        logger.debug(f"observed data: {od_reading_series}")
         logger.debug(f"measured mean: {means}")
         logger.debug(f"measured variances: {variances}")
         logger.debug(f"measured autocorrelations: {autocorrelations}")
@@ -185,10 +186,8 @@ def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples):
     """
     Compute statistics about the blank OD time series
     """
-    click.echo(
-        od_blank(
-            od_angle_channel1,
-            od_angle_channel2,
-            n_samples=n_samples,
-        )
+    od_blank(
+        od_angle_channel1,
+        od_angle_channel2,
+        n_samples=n_samples,
     )

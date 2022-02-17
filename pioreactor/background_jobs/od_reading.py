@@ -728,6 +728,14 @@ class ODReader(BackgroundJob):
             )
             raise KeyError("`IR` value not found in section.")
 
+    def take_reading(self) -> dict[pt.PdChannel, float]:
+        batched_readings = self.adc_reader.take_reading()
+        self.ir_led_reference_tracker.update(batched_readings)
+        batched_readings = {
+            pd: batched_readings[pd] for pd in self.channel_angle_map.keys()
+        }
+        return self.normalize_by_led_output(batched_readings)
+
     def record_and_publish_from_adc(self) -> None:
 
         if self.first_od_obs_time is None:
@@ -752,23 +760,18 @@ class ODReader(BackgroundJob):
                 sleep(pre_duration)
 
                 timestamp_of_readings = current_utc_time()
-                batched_readings = self.adc_reader.take_reading()
+                batched_readings = self.take_reading()
 
-        self.ir_led_reference_tracker.update(batched_readings)
-        batched_readings = self.normalize_by_led_output(batched_readings)
-
-        self.latest_reading = batched_readings
         self.publish_single(batched_readings, timestamp_of_readings)
         self.publish_batch(batched_readings, timestamp_of_readings)
+        self.latest_reading = batched_readings
 
         if (
             self._counter % 12 == 0
         ):  # should record at most every 2 minutes, so pick a minute.
             self.relative_intensity_of_ir_led = {
-                "relative_intensity_of_ir_led": 1
-                / self.ir_led_reference_tracker(
-                    1.0
-                ),  # represents the relative intensity of the LED.
+                # represents the relative intensity of the LED.
+                "relative_intensity_of_ir_led": 1 / self.ir_led_reference_tracker(1.0),
                 "timestamp": timestamp_of_readings,
             }
 

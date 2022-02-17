@@ -14,27 +14,27 @@ and
   pioreactor/{unit}/{experiment}/od_normalization/variance
 
 """
+from __future__ import annotations
+
 import json
 from collections import defaultdict
 from typing import Generator
 
 import click
 
-from pioreactor.config import config
-from pioreactor.utils import (
-    is_pio_job_running,
-    publish_ready_to_disconnected_state,
-    local_persistant_storage,
-)
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name, is_testing_env
-from pioreactor import pubsub
-from pioreactor.logging import create_logger
-from pioreactor.utils.math_helpers import (
-    correlation,
-    residuals_of_simple_linear_regression,
-)
 from pioreactor import exc
+from pioreactor import pubsub
+from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.types import PdChannel
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils.math_helpers import correlation
+from pioreactor.utils.math_helpers import residuals_of_simple_linear_regression
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 def od_normalization(
@@ -106,6 +106,7 @@ def od_normalization(
         with local_persistant_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps(variances)
 
+        logger.debug(f"observed data: {od_reading_series}")
         logger.debug(f"measured mean: {means}")
         logger.debug(f"measured variances: {variances}")
         logger.debug(f"measured autocorrelations: {autocorrelations}")

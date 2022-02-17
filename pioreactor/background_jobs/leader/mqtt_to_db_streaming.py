@@ -163,13 +163,20 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         metadata, split_topic = produce_metadata(topic)
         if not payload:
             return None
+
+        channel = split_topic[-1]
+
+        # this is techdebt since we also publish to a ".../od_blank/mean" topic
+        if channel not in ["1", "2"]:
+            return None
+
         payload_dict = loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": payload_dict["timestamp"],
             "od_reading_v": payload_dict["od_reading_v"],
-            "channel": split_topic[-1],
+            "channel": channel,
         }
 
     def parse_ir_led_intensity(topic: str, payload: MQTTMessagePayload) -> Optional[dict]:
@@ -344,9 +351,9 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         TopicToParserToTable(
             "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
         ),
-        TopicToParserToTable("pioreactor/+/+/od_blank/mean", parse_od_blank, "od_blanks"),
+        TopicToParserToTable("pioreactor/+/+/od_blank/+", parse_od_blank, "od_blanks"),
         TopicToParserToTable(
-            "pioreactor/+/+/od_reading/ir_led_reference",
+            "pioreactor/+/+/od_reading/relative_intensity_of_ir_led",
             parse_ir_led_intensity,
             "ir_led_intensity",
         ),

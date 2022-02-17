@@ -77,7 +77,7 @@ class CultureGrowthEKF:
         initial_covariance = np.eye(2)
         process_noise_covariance = np.array([[0.00001, 0], [0, 1e-13]])
         observation_noise_covariance = 0.2
-        ekf = ExtendedKalmanFilter(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
+        ekf = CultureGrowthEKF(initial_state, initial_covariance, process_noise_covariance, observation_noise_covariance)
 
         ekf.update(...)
         ekf.state_
