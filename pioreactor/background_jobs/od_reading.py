@@ -584,7 +584,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
 
     def __init__(self, channel: pt.PdChannel, ignore_blank: bool = False) -> None:
         super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(0.55)
+        self.led_output_ema = ExponentialMovingAverage(0.40)
         self.channel = channel
         self.ignore_blank = ignore_blank
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
