@@ -464,6 +464,8 @@ class ADCReader(LoggerMixin):
                     timestamps, aggregated_signals
                 )
 
+            self.logger.debug(f"{timestamps=}, {aggregated_signals=}")
+
             for channel in self.channels:
                 (
                     best_estimate_of_signal_,
@@ -729,6 +731,13 @@ class ODReader(BackgroundJob):
             raise KeyError("`IR` value not found in section.")
 
     def take_reading(self) -> dict[pt.PdChannel, float]:
+        """
+        Read from the ADC. This function normalizes by the IR ref.
+
+        Note
+        -----
+        The IR LED needs to be turned on for this function to report accurate OD signals.
+        """
         batched_readings = self.adc_reader.take_reading()
         self.ir_led_reference_tracker.update(batched_readings)
         batched_readings = {
