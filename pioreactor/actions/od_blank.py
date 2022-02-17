@@ -61,7 +61,7 @@ def od_blank(
         if not is_pio_job_running("stirring"):
             # start stirring
             st = start_stirring(
-                target_rpm=config.getint("stirring", "target_rpm"),
+                target_rpm=300,  # deliberately low to minimize noise
                 unit=unit,
                 experiment=testing_experiment,
             )

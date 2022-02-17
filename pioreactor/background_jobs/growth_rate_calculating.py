@@ -264,7 +264,9 @@ class GrowthRateCalculator(BackgroundJob):
             result = cache.get(self.experiment, None)
 
         if result:
-            return json.loads(result)
+            od_blanks = json.loads(result)
+            self.logger.debug(f"{od_blanks=}")
+            return od_blanks
         else:
             return defaultdict(lambda: 0)
 
