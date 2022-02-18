@@ -206,13 +206,12 @@ def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values()
 
 
 def test_simple_API():
-    import time
-
     od_job = start_od_reading("90", "REF", sampling_rate=100_000, fake_data=True)
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
         od_job.ir_led_intensity = led_int
+        od_job.start_ir_led()
         assert od_job.ir_led_intensity == led_int
         results = od_job.take_reading()
         assert list(results.keys()) == ["1"]

@@ -477,7 +477,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(75.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(100.0 / self.oversampling_count / self.interval)
                     if self.interval
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -520,23 +520,36 @@ class ADCReader(LoggerMixin):
         timestamps: dict[pt.PdChannel, list[float]],
         aggregated_signals: dict[pt.PdChannel, list[int]],
     ) -> float:
-        FREQS_TO_TRY = [60.0, 50.0]
+        def _compute_best_freq(timestamps, aggregated_signals):
+            FREQS_TO_TRY = [60.0, 50.0]
+            argmin_freq = None
+            min_AIC = float("inf")
+
+            for freq in FREQS_TO_TRY:
+                _, AIC = self.sin_regression_with_known_freq(
+                    timestamps, aggregated_signals, freq=freq
+                )
+                if AIC < min_AIC:
+                    min_AIC = AIC
+                    argmin_freq = freq
+
+            assert argmin_freq is not None
+            return argmin_freq
 
         first_channel = self.channels[0]
-        argmin_freq = None
-        min_AIC = float("inf")
+        argmin_freq1 = _compute_best_freq(
+            timestamps[first_channel], aggregated_signals[first_channel]
+        )
 
-        for freq in FREQS_TO_TRY:
-            _, AIC = self.sin_regression_with_known_freq(
-                timestamps[first_channel], aggregated_signals[first_channel], freq=freq
+        if len(self.channels) > 1:
+            second_channel = self.channels[1]
+            argmin_freq2 = _compute_best_freq(
+                timestamps[second_channel], aggregated_signals[second_channel]
             )
-            if AIC < min_AIC:
-                min_AIC = AIC
-                argmin_freq = freq
+            assert argmin_freq1 == argmin_freq2
 
-        assert argmin_freq is not None
-        self.logger.debug(f"AC hz estimate: {argmin_freq}")
-        return argmin_freq
+        self.logger.debug(f"AC hz estimate: {argmin_freq1}")
+        return argmin_freq1
 
 
 class IrLedReferenceTracker(LoggerMixin):
@@ -821,6 +834,7 @@ class ODReader(BackgroundJob):
     def on_disconnected(self) -> None:
 
         # turn off the LED after we have take our last ADC reading..
+        self.stop_ir_led()
         try:
             self.record_from_adc_timer.cancel()
         except Exception:
