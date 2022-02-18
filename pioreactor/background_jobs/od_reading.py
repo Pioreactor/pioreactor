@@ -120,6 +120,19 @@ REF_keyword = "REF"
 IR_keyword = "IR"
 
 
+def argextrema(x: list) -> tuple[int, int]:
+    min_, max_ = float("inf"), float("-inf")
+    argmin_, argmax_ = 0, 0
+    for i, value in enumerate(x):
+        if value < min_:
+            min_ = value
+            argmin_ = i
+        if value > max_:
+            max_ = value
+            argmax_ = i
+    return argmin_, argmax_
+
+
 class ADCReader(LoggerMixin):
     """
     Notes
@@ -159,7 +172,7 @@ class ADCReader(LoggerMixin):
         16: 0.256,
     }
 
-    oversampling_count: int = 25
+    oversampling_count: int = 26
     readings_completed: int = 0
     most_appropriate_AC_hz: Optional[float] = None
 
@@ -338,10 +351,25 @@ class ADCReader(LoggerMixin):
         https://scikit-guess.readthedocs.io/en/latest/appendices/references.html#concept
 
 
+        Notes
+        ------
+        This clips the max and min values from the input.
+
         """
         import numpy as np
 
         assert len(x) == len(y), "shape mismatch"
+
+        # remove the max and min values. We need to do this in two steps, since
+        # removing the first element may change the location of the second element.
+        argmin_y_, _ = argextrema(y)
+        y.pop(argmin_y_)
+        x.pop(argmin_y_)
+
+        _, argmax_y = argextrema(y)
+        y.pop(argmax_y)
+        x.pop(argmax_y)
+
         x_ = np.asarray(x)
         y_ = np.asarray(y)
         n = x_.shape[0]
@@ -546,7 +574,9 @@ class ADCReader(LoggerMixin):
             argmin_freq2 = _compute_best_freq(
                 timestamps[second_channel], aggregated_signals[second_channel]
             )
-            assert argmin_freq1 == argmin_freq2
+            assert (
+                argmin_freq1 == argmin_freq2
+            ) or self.fake_data, "discrepancy in best hz."
 
         self.logger.debug(f"AC hz estimate: {argmin_freq1}")
         return argmin_freq1

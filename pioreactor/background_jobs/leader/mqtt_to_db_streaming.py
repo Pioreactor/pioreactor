@@ -179,7 +179,11 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "channel": channel,
         }
 
-    def parse_ir_led_intensity(topic: str, payload: MQTTMessagePayload) -> Optional[dict]:
+    def parse_ir_led_intensity(
+        topic: str, payload: Optional[MQTTMessagePayload]
+    ) -> Optional[dict]:
+        if payload is None:
+            return None
         metadata, split_topic = produce_metadata(topic)
 
         payload_dict = loads(payload)

@@ -255,7 +255,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            17,  # 17 and 5 are coprime
+            21,  # 17 and 5 are coprime
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -303,7 +303,7 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
-        sleep(0.15)
+        sleep(0.10)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.75)
         self.rpm_check_repeated_thread.start()  # .start is idempotent
