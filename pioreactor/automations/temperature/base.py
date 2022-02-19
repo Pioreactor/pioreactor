@@ -163,7 +163,9 @@ class TemperatureAutomation(BackgroundSubJob):
             return
 
         self.previous_temperature = self.latest_temperature
-        self.latest_temperature = float(json.loads(message.payload)["temperature"])
+        self.latest_temperature = msgspec.json.decode(
+            message.payload, type=structs.Temperature
+        ).temperature
 
         if self.state != self.SLEEPING:
             self.execute()
