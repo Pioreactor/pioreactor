@@ -2,25 +2,28 @@
 # pump calibration
 from __future__ import annotations
 
-from typing import Callable
 import json
-import click
 import time
-from pioreactor.utils import publish_ready_to_disconnected_state, local_persistant_storage
-from pioreactor.config import config
+from typing import Callable
+
+import click
+import msgspec
+
+from pioreactor import structs
+from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
-from pioreactor.actions.add_alt_media import add_alt_media
+from pioreactor.config import config
+from pioreactor.logging import create_logger
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import (
     simple_linear_regression_with_forced_nil_intercept,
 )
 from pioreactor.utils.timing import current_utc_time
-from pioreactor.whoami import (
-    get_unit_name,
-    get_latest_experiment_name,
-    get_latest_testing_experiment_name,
-)
-from pioreactor.logging import create_logger
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_latest_testing_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
 def which_pump_are_you_calibrating():
@@ -111,7 +114,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
             source_of_event="pump_calibration",
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
-            calibration={"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0},
+            calibration=structs.PumpCalibration(duration_=1.0, hz=hz, dc=dc, bias_=0),
         )
     except KeyboardInterrupt:
         pass
@@ -225,14 +228,14 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
 
         # save to cache
         with local_persistant_storage("pump_calibration") as cache:
-            cache[f"{pump_name}_ml_calibration"] = json.dumps(
-                {
-                    "duration_": slope,
-                    "hz": hz,
-                    "dc": dc,
-                    "bias_": bias,
-                    "timestamp": current_utc_time(),
-                }
+            cache[f"{pump_name}_ml_calibration"] = msgspec.json.encode(
+                structs.PumpCalibration(
+                    duration_=slope,
+                    hz=hz,
+                    dc=dc,
+                    bias_=bias,
+                    timestamp=current_utc_time(),
+                )
             )
             cache[f"{pump_name}_calibration_data"] = json.dumps(
                 {

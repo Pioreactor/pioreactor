@@ -3,18 +3,17 @@ from __future__ import annotations
 
 import time
 from configparser import NoOptionError
-from json import loads
 from typing import Optional
 
 import msgspec
 
+from pioreactor import structs
 from pioreactor import utils
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
-from pioreactor.structs import DosingEvent
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_time
@@ -27,7 +26,7 @@ def pump(
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[dict] = None,
+    calibration: Optional[structs.PumpCalibration] = None,
     continuously: bool = False,
 ) -> float:
     """
@@ -74,7 +73,9 @@ def pump(
         if calibration is None:
             with utils.local_persistant_storage("pump_calibration") as cache:
                 try:
-                    calibration = loads(cache[f"{pump_name}_ml_calibration"])
+                    calibration = msgspec.json.decode(
+                        cache[f"{pump_name}_ml_calibration"], type=structs.PumpCalibration
+                    )
                 except KeyError:
                     logger.error("Calibration not defined. Run pump calibration first.")
                     return 0.0
@@ -89,19 +90,19 @@ def pump(
             ml = float(ml)
             assert ml >= 0, "ml should be greater than 0"
             duration = utils.pump_ml_to_duration(
-                ml, calibration["duration_"], calibration["bias_"]
+                ml, calibration.duration_, calibration.bias_
             )
             logger.info(f"{round(ml, 2)}mL")
         elif duration is not None:
             duration = float(duration)
             ml = utils.pump_duration_to_ml(
-                duration, calibration["duration_"], calibration["bias_"]
+                duration, calibration.duration_, calibration.bias_
             )
             logger.info(f"{round(duration, 2)}s")
         elif continuously:
             duration = 600.0
             ml = utils.pump_duration_to_ml(
-                duration, calibration["duration_"], calibration["bias_"]
+                duration, calibration.duration_, calibration.bias_
             )
             logger.info("Running pump continuously.")
 
@@ -114,7 +115,7 @@ def pump(
 
         # publish this first, as downstream jobs need to know about it.
         json_output = msgspec.json.encode(
-            DosingEvent(
+            structs.DosingEvent(
                 volume_change=ml,
                 event=action_name,
                 source_of_event=source_of_event,
@@ -129,11 +130,11 @@ def pump(
 
         try:
 
-            pwm = PWM(GPIO_PIN, calibration["hz"], experiment=experiment, unit=unit)
+            pwm = PWM(GPIO_PIN, calibration.hz, experiment=experiment, unit=unit)
             pwm.lock()
 
             with catchtime() as delta_time:
-                pwm.start(calibration["dc"])
+                pwm.start(calibration.dc)
                 pump_start_time = time.monotonic()
 
             state.exit_event.wait(max(0, duration - delta_time()))
@@ -164,6 +165,6 @@ def pump(
                 # ended early for some reason
                 shortened_duration = time.monotonic() - pump_start_time
                 ml = utils.pump_duration_to_ml(
-                    shortened_duration, calibration["duration_"], calibration["bias_"]
+                    shortened_duration, calibration.duration_, calibration.bias_
                 )
         return ml

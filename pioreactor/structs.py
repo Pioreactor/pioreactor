@@ -72,3 +72,12 @@ class ODReadings(Struct):
 class Temperature(Struct):
     timestamp: str
     temperature: float
+
+
+class PumpCalibration(Struct):
+
+    duration_: float
+    hz: float
+    dc: float
+    bias_: float
+    timestamp: str

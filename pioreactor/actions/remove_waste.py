@@ -5,6 +5,7 @@ from typing import Optional
 
 import click
 
+from pioreactor import structs
 from pioreactor.actions.pump import pump
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -16,7 +17,7 @@ def remove_waste(
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[dict] = None,
+    calibration: Optional[structs.PumpCalibration] = None,
     continuously: bool = False,
 ) -> float:
     """
