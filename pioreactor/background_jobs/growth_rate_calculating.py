@@ -393,7 +393,9 @@ class GrowthRateCalculator(BackgroundJob):
 
             # TODO: EKF values can be nans...
 
-            latest_od_filtered, latest_growth_rate = updated_state[0], updated_state[1]
+            latest_od_filtered, latest_growth_rate = float(updated_state[0]), float(
+                updated_state[1]
+            )
 
             self.growth_rate = structs.GrowthRate(
                 growth_rate=latest_growth_rate,
@@ -471,7 +473,7 @@ class GrowthRateCalculator(BackgroundJob):
         }
         """
         return {
-            channel: float(raw_od_readings[channel]["voltage"])
+            channel: float(raw_od_readings[channel].voltage)
             for channel in sorted(raw_od_readings, reverse=True)
         }
 

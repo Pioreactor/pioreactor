@@ -9,8 +9,6 @@ from typing import Literal
 
 from msgspec import Struct
 
-import pioreactor.types as pt
-
 
 class Automation(Struct):
     """
@@ -66,7 +64,7 @@ class ODReading(Struct):
 
 class ODReadings(Struct):
     timestamp: str
-    od_raw: dict[pt.PdChannel, ODReading]
+    od_raw: dict[str, ODReading]  # pt.PDChannel
 
 
 class Temperature(Struct):
