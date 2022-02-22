@@ -85,6 +85,13 @@ def od_normalization(
             if count == n_samples:
                 break
 
+        def trimmed_mean(x: list) -> float:
+            x = list(x)  # copy it
+            max_, min_ = max(x), min(x)
+            x.remove(max_)
+            x.remove(min_)
+            return mean(x)
+
         variances = {}
         means = {}
         autocorrelations = {}  # lag 1
@@ -95,7 +102,7 @@ def od_normalization(
                     list(range(n_samples)), od_reading_series
                 )
             )  # see issue #206
-            means[sensor] = mean(od_reading_series)
+            means[sensor] = trimmed_mean(od_reading_series)
             autocorrelations[sensor] = correlation(
                 od_reading_series[:-1], od_reading_series[1:]
             )

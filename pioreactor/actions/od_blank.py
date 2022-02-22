@@ -35,7 +35,7 @@ def od_blank(
     Note that because of the sensitivity of the growth rate (and normalized OD) to the starting values,
     we need a very accurate estimate of these statistics.
     """
-    from statistics import mean, variance
+    from statistics import variance
 
     action_name = "od_blank"
     logger = create_logger(action_name)
@@ -61,7 +61,7 @@ def od_blank(
         if not is_pio_job_running("stirring"):
             # start stirring
             st = start_stirring(
-                target_rpm=300,  # deliberately low to minimize noise
+                target_rpm=config.getfloat("stirring", "target_rpm"),
                 unit=unit,
                 experiment=testing_experiment,
             )
@@ -104,13 +104,22 @@ def od_blank(
             if count == n_samples:
                 break
 
+        def trimmed_mean(x: list) -> float:
+            from statistics import mean
+
+            x = list(x)  # copy it
+            max_, min_ = max(x), min(x)
+            x.remove(max_)
+            x.remove(min_)
+            return mean(x)
+
         means = {}
         variances = {}
         autocorrelations = {}  # lag 1
 
         for channel, od_reading_series in readings.items():
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
-            means[channel] = mean(od_reading_series)
+            means[channel] = trimmed_mean(od_reading_series)
             variances[channel] = variance(od_reading_series)
             autocorrelations[channel] = correlation(
                 od_reading_series[:-1], od_reading_series[1:]

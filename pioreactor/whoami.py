@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-import sys
+from __future__ import annotations
+
 import os
+import sys
 from functools import lru_cache
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
@@ -34,6 +36,7 @@ def get_latest_experiment_name() -> str:
         return NO_EXPERIMENT
 
 
+@lru_cache(maxsize=1)
 def is_testing_env() -> bool:
     return ("pytest" in sys.modules) or (os.environ.get("TESTING") is not None)
 

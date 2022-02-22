@@ -203,8 +203,8 @@ class Stirrer(BackgroundJob):
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
     _previous_duty_cycle: float = 0
-    duty_cycle: float = config.getint(
-        "stirring", "initial_duty_cycle", fallback=60.0
+    duty_cycle: float = config.getfloat(
+        "stirring", "initial_duty_cycle"
     )  # only used if calibration isn't defined.
     _measured_rpm: Optional[float] = None
 
@@ -255,7 +255,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            21,  # 17 and 5 are coprime
+            91,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -339,7 +339,7 @@ class Stirrer(BackgroundJob):
         if self._measured_rpm is None:
             return
 
-        result = self.pid.update(self._measured_rpm, dt=1)
+        result = self.pid.update(self._measured_rpm)
         self.set_duty_cycle(self.duty_cycle + result)
 
     def stop_stirring(self) -> None:
