@@ -161,7 +161,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = float(json.loads(message.payload)["temperature"])
 
-        if self.state == self.READY or self.state == self.INIT:
+        if self.state != self.SLEEPING:
             self.execute()
 
     def _set_OD(self, message) -> None:

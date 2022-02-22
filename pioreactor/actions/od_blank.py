@@ -27,13 +27,15 @@ from pioreactor.whoami import is_testing_env
 def od_blank(
     od_angle_channel1: pt.PdAngle,
     od_angle_channel2: pt.PdAngle,
-    n_samples: int = 30,
+    n_samples: int = 40,
 ) -> Optional[dict[pt.PdAngle, float]]:
     """
-    Compute the sample average of the photodiodes attached.
+    Compute a sample average of the photodiodes attached.
 
     Note that because of the sensitivity of the growth rate (and normalized OD) to the starting values,
     we need a very accurate estimate of these statistics.
+
+    There's a variance w.r.t. the rotation of the vial that we can't control.
     """
     from statistics import variance
 

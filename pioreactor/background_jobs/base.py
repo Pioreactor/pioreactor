@@ -374,7 +374,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client = create_client(
             client_id=f"{self.unit}-sub-{self.job_name}-{get_uuid()}-{id(self)}",
             last_will=last_will,
-            keepalive=40,
+            keepalive=60,
         )
         # we catch exceptions and report them in our software
         client.suppress_exceptions = True

@@ -387,13 +387,13 @@ def test_temperature_control_and_stables_relationship():
         "stable", unit=unit, experiment=experiment, target_temperature=30
     ) as tc:
         tc.publish_temperature_timer.pause()  # pause this for now. we will manually run evaluate_and_publish_temperature
-
         pause()
         pause()
-        assert tc.heater_duty_cycle > 0
+        stable_automation = tc.automation_job
         initial_dc = tc.heater_duty_cycle
 
-        stable_automation = tc.automation_job
+        assert initial_dc > 0
+
         # suppose we want to update target_temperature...
         stable_automation.set_target_temperature(35)
         pause()

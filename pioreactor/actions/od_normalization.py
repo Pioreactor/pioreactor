@@ -38,7 +38,7 @@ from pioreactor.whoami import is_testing_env
 
 
 def od_normalization(
-    unit: str, experiment: str, n_samples: int = 35
+    unit: str, experiment: str, n_samples: int = 40
 ) -> tuple[dict[PdChannel, float], dict[PdChannel, float]]:
     from statistics import mean, variance
 
