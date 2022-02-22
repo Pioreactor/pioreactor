@@ -492,8 +492,6 @@ class ADCReader(LoggerMixin):
                     timestamps, aggregated_signals
                 )
 
-            self.logger.debug(f"{timestamps=}, {aggregated_signals=}")
-
             for channel in self.channels:
                 (
                     best_estimate_of_signal_,

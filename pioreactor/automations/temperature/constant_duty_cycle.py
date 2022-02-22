@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from pioreactor.automations.temperature.base import TemperatureAutomation
 
 
@@ -11,7 +13,7 @@ class ConstantDutyCycle(TemperatureAutomation):
 
     def __init__(self, duty_cycle, **kwargs) -> None:
         super(ConstantDutyCycle, self).__init__(**kwargs)
-        self.set_duty_cycle(duty_cycle)
+        self.set_duty_cycle(float(duty_cycle))
 
     def set_duty_cycle(self, dc) -> None:
         self.duty_cycle = float(dc)

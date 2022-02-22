@@ -214,7 +214,7 @@ class Stirrer(BackgroundJob):
         unit: str,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator],
-        hertz: float = 150,
+        hertz: float = 75,
     ) -> None:
         super(Stirrer, self).__init__(
             job_name="stirring", unit=unit, experiment=experiment
@@ -255,7 +255,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            91,
+            31,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -326,7 +326,7 @@ class Stirrer(BackgroundJob):
 
         if self._measured_rpm is not None:
             # use a simple EMA, alpha chosen arbitrarily, but should be a function of delta time.
-            self._measured_rpm = 0.025 * self._measured_rpm + 0.975 * recent_rpm
+            self._measured_rpm = 0.1 * self._measured_rpm + 0.90 * recent_rpm
         else:
             self._measured_rpm = recent_rpm
 
