@@ -90,7 +90,7 @@ class Monitor(BackgroundJob):
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
         self.GPIO.add_event_detect(
-            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up, bouncetime=20
+            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up, bouncetime=200
         )
 
     def check_for_network(self) -> None:
