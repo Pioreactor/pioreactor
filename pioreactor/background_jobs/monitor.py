@@ -244,8 +244,6 @@ class Monitor(BackgroundJob):
             qos=QOS.AT_LEAST_ONCE,
         )
 
-        self.logger.debug("Pushed tactile button")
-
         while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
             sleep(0.025)
 
