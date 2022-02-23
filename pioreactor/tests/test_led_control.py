@@ -53,7 +53,7 @@ def test_changing_automation_over_mqtt() -> None:
         "silent", duration=original_duration, unit=unit, experiment=experiment
     ) as ld:
         assert ld.automation_name == "silent"
-        assert ld.automation["duration"] == original_duration
+        assert ld.automation.duration == original_duration
         pause()
         pause()
         r = pubsub.subscribe(
@@ -75,7 +75,7 @@ def test_changing_automation_over_mqtt() -> None:
         pause()
         pause()
         assert ld.automation_name == "silent"
-        assert ld.automation["duration"] == 20
+        assert ld.automation.duration == 20
 
 
 @pytest.mark.xfail

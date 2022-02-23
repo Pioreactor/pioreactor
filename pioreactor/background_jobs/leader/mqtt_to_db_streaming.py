@@ -1,37 +1,31 @@
 # -*- coding: utf-8 -*-
-"""
-This job runs on the leader
-"""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from json import dumps
 from json import loads
 from typing import Callable
 from typing import Optional
 
 import click
+from msgspec import Struct
 
+from pioreactor import types as pt
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
-from pioreactor.types import MQTTMessage
-from pioreactor.types import MQTTMessagePayload
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-@dataclass
-class MetaData:
+class MetaData(Struct):
     pioreactor_unit: str
     experiment: str
 
 
-@dataclass
-class TopicToParserToTable:
+class TopicToParserToTable(Struct):
     topic: str
-    parser: Callable[[str, MQTTMessagePayload], Optional[dict]]
+    parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]]
     table: str
 
 
@@ -58,7 +52,7 @@ class MqttToDBStreamer(BackgroundJob):
             {
                 "topic": topic_to_table.topic,
                 "callback": self.create_on_message_callback(
-                    topic_to_table.parser, topic_to_table.table
+                    topic_to_table.parser, topic_to_table.table  # type: ignore
                 ),
             }
             for topic_to_table in topics_to_tables
@@ -70,9 +64,9 @@ class MqttToDBStreamer(BackgroundJob):
         self.sqliteworker.close()  # close the db safely
 
     def create_on_message_callback(
-        self, parser: Callable[[str, MQTTMessagePayload], Optional[dict]], table: str
+        self, parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]], table: str
     ) -> Callable:
-        def _callback(message: MQTTMessage) -> None:
+        def _callback(message: pt.MQTTMessage) -> None:
             # TODO: filter testing experiments here?
             try:
                 new_row = parser(message.topic, message.payload)
@@ -146,7 +140,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "channel": split_topic[-1],
         }
 
-    def parse_od_filtered(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, split_topic = produce_metadata(topic)
         payload_dict = loads(payload)
 
@@ -158,7 +152,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_od_blank(
-        topic: str, payload: Optional[MQTTMessagePayload]
+        topic: str, payload: Optional[pt.MQTTMessagePayload]
     ) -> Optional[dict]:
         metadata, split_topic = produce_metadata(topic)
         if not payload:
@@ -180,7 +174,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_ir_led_intensity(
-        topic: str, payload: Optional[MQTTMessagePayload]
+        topic: str, payload: Optional[pt.MQTTMessagePayload]
     ) -> Optional[dict]:
         if payload is None:
             return None
@@ -194,7 +188,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "relative_intensity": payload_dict["relative_intensity_of_ir_led"],
         }
 
-    def parse_dosing_events(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         payload_dict = loads(payload)
         metadata, _ = produce_metadata(topic)
 
@@ -207,7 +201,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "source_of_event": payload_dict["source_of_event"],
         }
 
-    def parse_led_events(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_led_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         payload_dict = loads(payload)
         metadata, _ = produce_metadata(topic)
 
@@ -220,7 +214,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "source_of_event": payload_dict["source_of_event"],
         }
 
-    def parse_growth_rate(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
         payload_dict = loads(payload)
 
@@ -232,7 +226,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_temperature(
-        topic: str, payload: Optional[MQTTMessagePayload]
+        topic: str, payload: Optional[pt.MQTTMessagePayload]
     ) -> Optional[dict]:
         metadata, _ = produce_metadata(topic)
 
@@ -248,7 +242,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "temperature_c": float(payload_dict["temperature"]),
         }
 
-    def parse_alt_media_fraction(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
         payload = loads(payload)
 
@@ -259,7 +253,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "alt_media_fraction": float(payload),
         }
 
-    def parse_logs(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, split_topic = produce_metadata(topic)
         payload_dict = loads(payload)
         return {
@@ -272,7 +266,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "source": split_topic[-1],  # should be app, ui, etc.
         }
 
-    def parse_kalman_filter_outputs(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
         payload_dict = loads(payload)
         return {
@@ -283,12 +277,12 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "covariance_matrix": dumps(payload_dict["covariance_matrix"]),
         }
 
-    def parse_automation_settings(topic: str, payload: MQTTMessagePayload) -> dict:
+    def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         payload_dict = loads(payload)
         return payload_dict
 
     def parse_stirring_rates(
-        topic: str, payload: Optional[MQTTMessagePayload]
+        topic: str, payload: Optional[pt.MQTTMessagePayload]
     ) -> Optional[dict]:
         if not payload:
             return None
@@ -300,7 +294,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": payload_dict["timestamp"],
-            "measured_rpm": payload_dict["rpm"],
+            "measured_rpm": payload_dict["measured_rpm"],
         }
 
     topics_to_tables = [

@@ -8,7 +8,7 @@ To change the automation over MQTT,
     pioreactor/<unit>/<experiment>/dosing_control/automation/set
 
 
-with payload a json object with required keyword argument(s). Specify the new automation with name `"automation_name"`.
+with payload a json object looking like pioreactor.structs.Automation, ex: specify the new automation with name `"automation_name"`.
 
 
 Using the CLI, specific automation values can be specified as additional options (note the underscore...) :
@@ -19,20 +19,31 @@ Using the CLI, specific automation values can be specified as additional options
 """
 from __future__ import annotations
 
-import json
 import time
 from typing import Optional
 
 import click
 
+from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.utils import AutomationDict
 from pioreactor.logging import create_logger
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_unit_name
+from pioreactor.structs import Automation
 
 
 class DosingController(BackgroundJob):
+    """
+
+    Attributes
+    ------------
+
+    automation: pioreactor.structs.Automation
+        contains metadata about the automation running
+    automation_name: str
+        the name of the automation running. Same as `automation.automation_name`.
+    automation_job: pioreactor.automations.dosing.base.DosingAutomation
+        reference to the Python object of the automation.
+
+    """
 
     # this is populated dynamically with subclasses of DosingAutomations in the form:
     # {
@@ -43,7 +54,7 @@ class DosingController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "automation": {"datatype": "json", "settable": True},
+        "automation": {"datatype": "Automation", "settable": True},
         "automation_name": {"datatype": "string", "settable": False},
     }
 
@@ -52,16 +63,17 @@ class DosingController(BackgroundJob):
     ) -> None:
         super().__init__(job_name="dosing_control", unit=unit, experiment=experiment)
 
-        self.automation = AutomationDict(automation_name=automation_name, **kwargs)
-
         try:
-            automation_class = self.automations[self.automation["automation_name"]]
+            automation_class = self.automations[automation_name]
         except KeyError:
             self.set_state(self.DISCONNECTED)
             raise KeyError(
-                f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
             )
 
+        self.automation = Automation(
+            automation_name=automation_name, automation_type="dosing", args=kwargs
+        )
         self.logger.info(f"Starting {self.automation}.")
 
         try:
@@ -73,38 +85,41 @@ class DosingController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.set_state(self.DISCONNECTED)
             raise e
-        self.automation_name = self.automation["automation_name"]
 
-    def set_automation(self, new_dosing_automation_json: str) -> None:
+        self.automation_name = self.automation.automation_name
+
+    def set_automation(self, algo_metadata: Automation) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.dosing_automation_job.set_state("init")
         # self.dosing_automation_job.set_state("ready")
         # because the state in MQTT is wrong.
         # OR should just bail...
-        algo_metadata = AutomationDict(**json.loads(new_dosing_automation_json))
+
+        if algo_metadata.automation_type != "dosing":
+            raise ValueError("algo_metadata.automation_type != 'dosing'")
 
         try:
             self.automation_job.set_state("disconnected")
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             time.sleep(1)
-            self.set_automation(new_dosing_automation_json)
+            self.set_automation(algo_metadata)
 
         try:
-            klass = self.automations[algo_metadata["automation_name"]]
+            klass = self.automations[algo_metadata.automation_name]
             self.logger.info(f"Starting {algo_metadata}.")
             self.automation_job = klass(
-                unit=self.unit, experiment=self.experiment, **algo_metadata
+                unit=self.unit, experiment=self.experiment, **algo_metadata.args
             )
             self.automation = algo_metadata
-            self.automation_name = self.automation["automation_name"]
+            self.automation_name = self.automation.automation_name
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}"
             )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -138,8 +153,8 @@ def start_dosing_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> DosingController:
-    unit = unit or get_unit_name()
-    experiment = experiment or get_latest_experiment_name()
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_latest_experiment_name()
 
     try:
 

@@ -60,7 +60,7 @@ def test_changing_temperature_algo_over_mqtt() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "stable", "target_temperature": 20}',
+            '{"automation_name": "stable", "args":{"target_temperature": 20}, "automation_type": "temperature"}',
         )
         time.sleep(8)
         assert algo.automation_name == "stable"
@@ -85,7 +85,7 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "constant_duty_cycle", "duty_cycle": 25}',
+            '{"automation_name": "constant_duty_cycle", "automation_type": "temperature", "args":{"duty_cycle": 25}}',
         )
         time.sleep(15)
         assert algo.automation_name == "constant_duty_cycle"
@@ -214,7 +214,7 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "stable", "target_temperature": 35}',
+            '{"automation_name": "stable", "args":{"target_temperature": 35}, "automation_type": "temperature"',
         )
 
         pause(3)

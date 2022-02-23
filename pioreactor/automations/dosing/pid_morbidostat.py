@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from contextlib import suppress
-from pioreactor.automations.dosing.base import DosingAutomation
+
 from pioreactor.automations import events
-from pioreactor.utils.streaming_calculations import PID
+from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.config import config
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.streaming_calculations import PID
 
 
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
@@ -105,6 +108,6 @@ class PIDMorbidostat(DosingAutomation):
         return 1.25 * self.target_od
 
     def set_target_growth_rate(self, value):
-        self.target_growth_rate = float(value)
+        self.target_growth_rate = value
         with suppress(AttributeError):
             self.pid.set_setpoint(self.target_growth_rate)

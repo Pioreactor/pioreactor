@@ -24,8 +24,6 @@ message: a json object with required keyword arguments. Specify the new automati
 """
 from __future__ import annotations
 
-from json import dumps
-from json import loads
 from time import sleep
 from typing import Any
 from typing import Optional
@@ -34,20 +32,16 @@ import click
 
 from pioreactor import error_codes
 from pioreactor import exc
+from pioreactor import hardware
+from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.background_jobs.utils import AutomationDict
 from pioreactor.config import config
-from pioreactor.hardware import HEATER_PWM_TO_PIN
-from pioreactor.hardware import is_HAT_present
-from pioreactor.hardware import is_heating_pcb_present
-from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.structs import Automation
+from pioreactor.structs import Temperature
 from pioreactor.utils import clamp
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
 
 
 class TemperatureController(BackgroundJob):
@@ -82,12 +76,12 @@ class TemperatureController(BackgroundJob):
     automations = {}  # type: ignore
 
     published_settings = {
-        "automation": {"datatype": "json", "settable": True},
+        "automation": {"datatype": "Automation", "settable": True},
         "automation_name": {"datatype": "string", "settable": False},
-        "temperature": {"datatype": "json", "settable": False, "unit": "℃"},
+        "temperature": {"datatype": "Temperature", "settable": False, "unit": "℃"},
         "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
     }
-    temperature: Optional[dict[str, Any]] = None
+    temperature: Optional[Temperature] = None
 
     def __init__(
         self,
@@ -99,19 +93,19 @@ class TemperatureController(BackgroundJob):
     ) -> None:
         super().__init__(job_name="temperature_control", unit=unit, experiment=experiment)
 
-        if not is_HAT_present():
+        if not hardware.is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
-        if not is_heating_pcb_present():
+        if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError(
                 "Heating PCB must be attached to Pioreactor HAT"
             )
 
-        if is_testing_env():
+        if whoami.is_testing_env():
             self.logger.debug("TMP1075 not available; using MockTMP1075")
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
@@ -134,15 +128,16 @@ class TemperatureController(BackgroundJob):
             run_after=60,
         ).start()
 
-        self.automation = AutomationDict(automation_name=automation_name, **kwargs)
-
         try:
-            automation_class = self.automations[self.automation["automation_name"]]
+            automation_class = self.automations[automation_name]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {self.automation['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
             )
 
+        self.automation = Automation(
+            automation_name=automation_name, automation_type="temperature", args=kwargs
+        )
         self.logger.info(f"Starting {self.automation}.")
         try:
             self.automation_job = automation_class(
@@ -153,12 +148,12 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.set_state(self.DISCONNECTED)
             raise e
-        self.automation_name = self.automation["automation_name"]
+        self.automation_name = self.automation.automation_name
 
-        self.temperature = {
-            "temperature": self.read_external_temperature(),
-            "timestamp": current_utc_time(),
-        }
+        self.temperature = Temperature(
+            temperature=self.read_external_temperature(),
+            timestamp=current_utc_time(),
+        )
 
     def turn_off_heater(self) -> None:
         self._update_heater(0)
@@ -219,38 +214,43 @@ class TemperatureController(BackgroundJob):
 
     ##### internal and private methods ########
 
-    def set_automation(self, new_temperature_automation_json) -> None:
+    def set_automation(self, algo_metadata: Automation) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
         # OR should just bail...
-        algo_metadata = AutomationDict(**loads(new_temperature_automation_json))
+
+        if algo_metadata.automation_type != "temperature":
+            raise ValueError("algo_metadata.automation_type != 'temperature'")
 
         try:
             self.automation_job.set_state("disconnected")
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             sleep(1)
-            self.set_automation(new_temperature_automation_json)
+            self.set_automation(algo_metadata)
 
         # reset heater back to 0.
         self._update_heater(0)
 
         try:
             self.logger.info(f"Starting {algo_metadata}.")
-            self.automation_job = self.automations[algo_metadata["automation_name"]](
-                unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata
+            self.automation_job = self.automations[algo_metadata.automation_name](
+                unit=self.unit,
+                experiment=self.experiment,
+                parent=self,
+                **algo_metadata.args,
             )
             self.automation = algo_metadata
-            self.automation_name = algo_metadata["automation_name"]
+            self.automation_name = algo_metadata.automation_name
 
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata['automation_name']}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}"
             )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -285,7 +285,9 @@ class TemperatureController(BackgroundJob):
             self._update_heater(0)
 
             if self.automation_name != "silent":
-                self.set_automation(dumps({"automation_name": "silent"}))
+                self.set_automation(
+                    Automation(automation_name="silent", automation_type="temperature")
+                )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
@@ -328,8 +330,10 @@ class TemperatureController(BackgroundJob):
 
     def setup_pwm(self) -> PWM:
         hertz = 1
-        pin = PWM_TO_PIN[HEATER_PWM_TO_PIN]
-        pin = PWM_TO_PIN[config.get("PWM_reverse", "heating")]  # TODO: remove this.
+        pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
+        pin = hardware.PWM_TO_PIN[
+            config.get("PWM_reverse", "heating")
+        ]  # TODO: remove this.
         pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         pwm.start(0)
         return pwm
@@ -352,9 +356,9 @@ class TemperatureController(BackgroundJob):
             N_sample_points = 30
             time_between_samples = 5
 
-            features = {}
+            features: dict[str, Any] = {}
             features["prev_temp"] = (
-                self.temperature["temperature"] if self.temperature else None
+                self.temperature.temperature if (self.temperature is not None) else None
             )
             features["previous_heater_dc"] = previous_heater_dc
 
@@ -383,10 +387,10 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
 
-        self.temperature = {
-            "temperature": approximated_temperature,
-            "timestamp": current_utc_time(),
-        }
+        self.temperature = Temperature(
+            temperature=approximated_temperature,
+            timestamp=current_utc_time(),
+        )
 
     def approximate_temperature(self, features: dict[str, Any]) -> float:
         """
@@ -485,7 +489,7 @@ class TemperatureController(BackgroundJob):
 
         # the recent estimate weighted because I trust the predicted temperature at the start of observation more
         # than the predicted temperature at the end.
-        return 2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs
+        return float(2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs)
 
 
 def start_temperature_control(
@@ -496,8 +500,8 @@ def start_temperature_control(
 ) -> TemperatureController:
     return TemperatureController(
         automation_name=automation_name,
-        unit=unit or get_unit_name(),
-        experiment=experiment or get_latest_experiment_name(),
+        unit=unit or whoami.get_unit_name(),
+        experiment=experiment or whoami.get_latest_experiment_name(),
         **kwargs,
     )
 

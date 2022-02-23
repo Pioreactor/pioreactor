@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from contextlib import suppress
-from pioreactor.automations.dosing.base import DosingAutomation
+
 from pioreactor.automations import events
-from pioreactor.utils.streaming_calculations import PID
+from pioreactor.automations.dosing.base import DosingAutomation
 from pioreactor.config import config
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.streaming_calculations import PID
 
 
 class PIDTurbidostat(DosingAutomation):

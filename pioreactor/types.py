@@ -46,6 +46,7 @@ class PublishableSetting(TypedDict, total=False):
         integer: an integer
         json: this can have arbitrary data in it.
         boolean: must be 0 or 1 (this is unlike the Homie convention)
+        Automation: json encoded struct.Automation
 
     unit (optional):
         a string representing what the unit suffix is
@@ -58,7 +59,18 @@ class PublishableSetting(TypedDict, total=False):
 
     """
 
-    datatype: Literal["string", "float", "integer", "json", "boolean"]
+    datatype: Literal[
+        "string",
+        "float",
+        "integer",
+        "json",
+        "boolean",
+        "Automation",
+        "GrowthRate",
+        "ODFiltered",
+        "Temperature",
+        "MeasuredRPM",
+    ]
     unit: str
     settable: bool
     persist: bool

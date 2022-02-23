@@ -6,10 +6,15 @@ import time
 from contextlib import suppress
 from functools import partial
 from threading import Thread
+from typing import Any
 from typing import cast
 from typing import Optional
 
+import msgspec
+
 from pioreactor import exc
+from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.actions.add_alt_media import add_alt_media
 from pioreactor.actions.add_media import add_media
 from pioreactor.actions.remove_waste import remove_waste
@@ -18,8 +23,6 @@ from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
-from pioreactor.types import DosingProgram
-from pioreactor.types import PublishableSetting
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import brief_pause
@@ -35,9 +38,12 @@ class ThroughputCalculator:
     """
 
     def update(
-        self, payload: dict, current_media_volume: float, current_alt_media_volume: float
+        self,
+        dosing_event: structs.DosingEvent,
+        current_media_volume: float,
+        current_alt_media_volume: float,
     ) -> tuple[float, float]:
-        volume, event = float(payload["volume_change"]), payload["event"]
+        volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
             current_media_volume += volume
         elif event == "add_alt_media":
@@ -57,18 +63,20 @@ class AltMediaCalculator:
 
     vial_volume = config.getfloat("bioreactor", "volume_ml")
 
-    def update(self, payload: dict, current_alt_media_fraction) -> float:
-        volume, event = float(payload["volume_change"]), payload["event"]
+    def update(
+        self, dosing_event: structs.DosingEvent, current_alt_media_fraction
+    ) -> float:
+        volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
-            return self.update_alt_media_fraction(current_alt_media_fraction, volume, 0)
+            return self._update_alt_media_fraction(current_alt_media_fraction, volume, 0)
         elif event == "add_alt_media":
-            return self.update_alt_media_fraction(current_alt_media_fraction, 0, volume)
+            return self._update_alt_media_fraction(current_alt_media_fraction, 0, volume)
         elif event == "remove_waste":
             return current_alt_media_fraction
         else:
             raise ValueError("Unknown event type")
 
-    def update_alt_media_fraction(
+    def _update_alt_media_fraction(
         self,
         current_alt_media_fraction: float,
         media_delta: float,
@@ -113,7 +121,7 @@ class DosingAutomation(BackgroundSubJob):
     """
 
     automation_name = "dosing_automation_base"  # is overwritten in subclasses
-    published_settings: dict[str, PublishableSetting] = {}
+    published_settings: dict[str, pt.PublishableSetting] = {}
 
     _latest_growth_rate: Optional[float] = None
     _latest_od: Optional[float] = None
@@ -129,13 +137,13 @@ class DosingAutomation(BackgroundSubJob):
 
     # overwrite to use your own dosing programs.
     # interface must look like types.DosingProgram
-    add_media_to_bioreactor: DosingProgram = partial(
+    add_media_to_bioreactor: pt.DosingProgram = partial(
         add_media, duration=None, calibration=None, continuously=False
     )
-    remove_waste_from_bioreactor: DosingProgram = partial(
+    remove_waste_from_bioreactor: pt.DosingProgram = partial(
         remove_waste, duration=None, calibration=None
     )
-    add_alt_media_to_bioreactor: DosingProgram = partial(
+    add_alt_media_to_bioreactor: pt.DosingProgram = partial(
         add_alt_media, duration=None, calibration=None
     )
 
@@ -397,7 +405,7 @@ class DosingAutomation(BackgroundSubJob):
         with suppress(AttributeError):
             self.run_thread.join()
 
-    def __setattr__(self, name, value) -> None:
+    def __setattr__(self, name: str, value: Any) -> None:
         super(DosingAutomation, self).__setattr__(name, value)
         if name in self.published_settings and name not in [
             "state",
@@ -410,15 +418,21 @@ class DosingAutomation(BackgroundSubJob):
             self._latest_settings_started_at = current_utc_time()
             self._latest_settings_ended_at = None
 
-    def _set_growth_rate(self, message) -> None:
+    def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         self.previous_growth_rate = self._latest_growth_rate
-        self._latest_growth_rate = float(json.loads(message.payload)["growth_rate"])
-        self.latest_growth_rate_at = time.time()
+        self._latest_growth_rate = msgspec.json.decode(
+            message.payload, type=structs.GrowthRate
+        ).growth_rate
+        self.latest_growth_rate_at = (
+            time.time()
+        )  # TODO: this should come from the payload...
 
-    def _set_OD(self, message) -> None:
+    def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
-        self._latest_od = float(json.loads(message.payload)["od_filtered"])
-        self.latest_od_at = time.time()
+        self._latest_od = msgspec.json.decode(
+            message.payload, type=structs.ODFiltered
+        ).od_filtered
+        self.latest_od_at = time.time()  # TODO: this should come from the payload...
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(
@@ -448,26 +462,25 @@ class DosingAutomation(BackgroundSubJob):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def _update_dosing_metrics(self, message) -> None:
+    def _update_dosing_metrics(self, message: pt.MQTTMessage) -> None:
+        dosing_event = msgspec.json.decode(message.payload, type=structs.DosingEvent)
+        self._update_alt_media_fraction(dosing_event)
+        self._update_throughput(dosing_event)
 
-        self._update_alt_media_fraction(message)
-        self._update_throughput(message)
-
-    def _update_alt_media_fraction(self, message) -> None:
+    def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
         self.alt_media_fraction = self._alt_media_fraction_calculator.update(
-            json.loads(message.payload), self.alt_media_fraction
+            dosing_event, self.alt_media_fraction
         )
         # add to cache
         with local_persistant_storage("alt_media_fraction") as cache:
             cache[self.experiment] = str(self.alt_media_fraction)
 
-    def _update_throughput(self, message) -> None:
-        payload = json.loads(message.payload)
+    def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:
         (
             self.media_throughput,
             self.alt_media_throughput,
         ) = self._volume_throughput_calculator.update(
-            payload, self.media_throughput, self.alt_media_throughput
+            dosing_event, self.media_throughput, self.alt_media_throughput
         )
 
         # add to cache

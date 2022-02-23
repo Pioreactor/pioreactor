@@ -15,23 +15,35 @@ Entry Points
 Adding to ~/.pioreactor/plugins
 
    1. Scripts placed in ~/.pioreactor/plugins are automagically loaded.
+     The authors can add metadata to their file with the following variables at the
+     highest level in the file:
+     __plugin_name__
+     __plugin_author__
+     __plugin_summary__
+     __plugin_version__
+     __plugin_homepage__
 
 """
 from __future__ import annotations
-import glob, importlib, os, pathlib, sys
-from importlib.metadata import entry_points, metadata
-from dataclasses import dataclass
+
+import glob
+import importlib
+import os
+import pathlib
+import sys
+from importlib.metadata import entry_points
+from importlib.metadata import metadata
 from typing import Any
 
+from msgspec import Struct
 
 from .install_plugin import click_install_plugin
-from .uninstall_plugin import click_uninstall_plugin
 from .list_plugins import click_list_plugins
+from .uninstall_plugin import click_uninstall_plugin
 from pioreactor.whoami import is_testing_env
 
 
-@dataclass
-class Plugin:
+class Plugin(Struct):
     module: Any
     description: str
     version: str

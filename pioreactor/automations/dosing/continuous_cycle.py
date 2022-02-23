@@ -37,7 +37,7 @@ class ContinuousCycle(DosingAutomation):
         self.duty_cycle = duty_cycle
 
     def set_duty_cycle(self, new_dc: float) -> None:
-        self.duty_cycle = clamp(0, float(new_dc), 100)
+        self.duty_cycle = clamp(0, new_dc, 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def run(self) -> Optional[events.Event]:

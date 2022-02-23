@@ -5,6 +5,7 @@ from typing import Optional
 
 import click
 
+from pioreactor import structs
 from pioreactor.actions.pump import pump
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -16,10 +17,32 @@ def add_alt_media(
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[dict] = None,
+    calibration: Optional[structs.PumpCalibration] = None,
     continuously: bool = False,
 ) -> float:
+    """
+    Parameters
+    ------------
+    unit: str
+    experiment: str
+    ml: float
+        Amount of volume to pass, in mL
+    duration: float
+        Duration to run pump, in s
+    calibration:
+        specify a calibration for the dosing. Should be a dict
+        with fields "duration_", "hz", "dc", and "bias_"
+    continuously: bool
+        Run pump continuously.
+    source_of_event: str
+        A human readable description of the source
 
+
+    Returns
+    -----------
+    Amount of volume passed (approximate in some cases)
+
+    """
     pump_name = "alt_media"
     return pump(
         unit,
