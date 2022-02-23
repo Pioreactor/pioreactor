@@ -234,30 +234,29 @@ class Monitor(BackgroundJob):
     def button_down_and_up(self, *args) -> None:
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
         # don't put anything that is not idempotent in here.
+
+        self.led_on()
+
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
             1,
+            retain=True,
             qos=QOS.AT_LEAST_ONCE,
         )
-
-        self.led_on()
 
         self.logger.debug("Pushed tactile button")
 
         while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
+            sleep(0.025)
 
-            # we keep sending it because the user may change the webpage.
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down", 1
-            )
-            sleep(0.25)
+        self.led_off()
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
             0,
+            retain=True,
             qos=QOS.AT_LEAST_ONCE,
         )
-        self.led_off()
 
     def check_for_power_problems(self) -> None:
         """

@@ -531,7 +531,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 "Lost contact with MQTT server. Is the leader Pioreactor still online?"
             )
 
-        self.logger.error(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
+        self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
+        self.logger.error("Disconnected from leader.")
         return
 
     def publish_attr(self, attr: str) -> None:
