@@ -439,8 +439,12 @@ class PID:
     def set_setpoint(self, new_setpoint) -> None:
         self.pid.setpoint = new_setpoint
 
-    def update(self, input_, dt=None) -> float:
-        output = self.pid(input_, dt=dt) + self.K0
+    def update(self, input_: float, dt=None) -> float:
+        output = self.pid(input_, dt=dt)
+        if output is not None:
+            output += self.K0
+        else:
+            output = 0
         self.publish_pid_stats()
         return output
 

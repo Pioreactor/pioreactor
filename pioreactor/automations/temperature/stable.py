@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from pioreactor.automations.temperature.base import TemperatureAutomation
 from pioreactor.config import config
-from pioreactor.utils.streaming_calculations import PID
 from pioreactor.utils import clamp
+from pioreactor.utils.streaming_calculations import PID
 
 
 class Stable(TemperatureAutomation):
@@ -36,6 +38,7 @@ class Stable(TemperatureAutomation):
             # sometimes when initializing, this execute can run before the sublasses __init__ is resolved.
             pass
 
+        assert self.latest_temperature is not None
         output = self.pid.update(
             self.latest_temperature, dt=1
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
@@ -54,6 +57,7 @@ class Stable(TemperatureAutomation):
         # when set_target_temperature is executed, and we wish to update the DC to some new value,
         # it's possible that it isn't updated immediately if set during the `evaluate` routine.
         if not self.is_heater_pwm_locked():
+            assert self.latest_temperature is not None
             output = self.pid.update(
                 self.latest_temperature, dt=1
             )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.

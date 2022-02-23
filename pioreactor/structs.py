@@ -9,6 +9,8 @@ from typing import Literal
 
 from msgspec import Struct
 
+from pioreactor import types as pt
+
 
 class Automation(Struct):
     """
@@ -30,6 +32,13 @@ class Automation(Struct):
 
     def __repr__(self) -> str:
         return str(self)
+
+
+class LEDEvent(Struct):
+    channel: pt.LedChannel
+    intensity: float
+    source_of_event: str
+    timestamp: str
 
 
 class DosingEvent(Struct):

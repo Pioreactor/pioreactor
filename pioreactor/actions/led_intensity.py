@@ -2,14 +2,15 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from json import dumps
 from typing import Any
 from typing import Iterator
 from typing import Optional
 
 import click
+import msgspec
 from paho.mqtt.client import Client  # type: ignore
 
+from pioreactor import structs
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
@@ -218,23 +219,23 @@ def led_intensity(
 
     pubsub_client.publish(
         f"pioreactor/{unit}/{experiment}/leds/intensity",
-        dumps(new_state),
+        msgspec.json.encode(new_state),
         qos=QOS.AT_MOST_ONCE,
         retain=True,
     )
 
     if verbose:
         for channel, intensity in zip(channels, intensities):
-            event = {
-                "channel": channel,
-                "intensity": intensity,
-                "source_of_event": source_of_event,
-                "timestamp": current_utc_time(),
-            }
+            event = structs.LEDEvent(
+                channel=channel,
+                intensity=intensity,
+                source_of_event=source_of_event,
+                timestamp=current_utc_time(),
+            )
 
             pubsub_client.publish(
                 f"pioreactor/{unit}/{experiment}/led_events",
-                dumps(event),
+                msgspec.json.encode(event),
                 qos=QOS.AT_MOST_ONCE,
                 retain=False,
             )

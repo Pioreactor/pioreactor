@@ -8,7 +8,9 @@ from typing import Optional
 
 import click
 from msgspec import Struct
+from msgspec.json import decode as msgspec_loads
 
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
@@ -124,31 +126,31 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_od(topic: str, payload) -> dict:
         metadata, split_topic = produce_metadata(topic)
-        payload_dict = loads(payload)
+        od_reading = msgspec_loads(payload, type=structs.ODReading)
 
         try:
-            angle = int(payload_dict["angle"])
+            angle = int(od_reading.angle)
         except TypeError:
             angle = -1
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "od_reading_v": payload_dict["voltage"],
+            "timestamp": od_reading.timestamp,
+            "od_reading_v": od_reading.voltage,
             "angle": angle,
             "channel": split_topic[-1],
         }
 
     def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, split_topic = produce_metadata(topic)
-        payload_dict = loads(payload)
+        od_reading = msgspec_loads(payload, type=structs.ODFiltered)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "normalized_od_reading": payload_dict["od_filtered"],
+            "timestamp": od_reading.timestamp,
+            "normalized_od_reading": od_reading.od_filtered,
         }
 
     def parse_od_blank(
@@ -189,40 +191,40 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        payload_dict = loads(payload)
+        dosing_event = msgspec_loads(payload, type=structs.DosingEvent)
         metadata, _ = produce_metadata(topic)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "volume_change_ml": payload_dict["volume_change"],
-            "event": payload_dict["event"],
-            "source_of_event": payload_dict["source_of_event"],
+            "timestamp": dosing_event.timestamp,
+            "volume_change_ml": dosing_event.volume_change,
+            "event": dosing_event.event,
+            "source_of_event": dosing_event.source_of_event,
         }
 
     def parse_led_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        payload_dict = loads(payload)
+        led_event = msgspec_loads(payload, type=structs.LEDEvent)
         metadata, _ = produce_metadata(topic)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "channel": payload_dict["channel"],
-            "intensity": payload_dict["intensity"],
-            "source_of_event": payload_dict["source_of_event"],
+            "timestamp": led_event.timestamp,
+            "channel": led_event.channel,
+            "intensity": led_event.intensity,
+            "source_of_event": led_event.source_of_event,
         }
 
     def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
-        payload_dict = loads(payload)
+        gr = msgspec_loads(payload, type=structs.GrowthRate)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "rate": float(payload_dict["growth_rate"]),
+            "timestamp": gr.timestamp,
+            "rate": gr.growth_rate,
         }
 
     def parse_temperature(
@@ -233,13 +235,13 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         if not payload:
             return None
 
-        payload_dict = loads(payload)
+        temp = msgspec_loads(payload, type=structs.Temperature)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "temperature_c": float(payload_dict["temperature"]),
+            "timestamp": temp.timestamp,
+            "temperature_c": temp.temperature,
         }
 
     def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:
@@ -288,13 +290,13 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             return None
 
         metadata, _ = produce_metadata(topic)
-        payload_dict = loads(payload)
+        rpms = loads(payload, type=structs.MeasuredRPM)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "measured_rpm": payload_dict["measured_rpm"],
+            "timestamp": rpms.timestamp,
+            "measured_rpm": rpms.measured_rpm,
         }
 
     topics_to_tables = [
