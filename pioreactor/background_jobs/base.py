@@ -37,18 +37,9 @@ def cast_bytes_to_type(value: bytes, type_: str):
             return bool(value)
         elif type_ == "json":
             return loads(value)
-        elif type_ == "Automation":
-            return loads(value, type=structs.Automation)
-
-        # these are useless, as we never change the setting over MQTT.
-        elif type_ == "GrowthRate":
-            return loads(value, type=structs.GrowthRate)
-        elif type_ == "ODFiltered":
-            return loads(value, type=structs.ODFiltered)
-        elif type_ == "Temperature":
-            return loads(value, type=structs.Temperature)
         else:
-            raise ValueError("Not valid type.")
+            return loads(value, type=getattr(structs, type_))
+        raise TypeError(f"{type_} not found.")
     except Exception as e:
         raise e
 
@@ -344,6 +335,107 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def on_init_to_sleeping(self) -> None:
         pass
 
+    def publish(
+        self,
+        topic: str,
+        payload: pt.PublishableSettingDataType | dict | bytes | None,
+        qos: int = 0,
+        **kwargs,
+    ) -> None:
+        """
+        Publish payload to topic.
+
+        This will convert the payload to a json blob if MQTT does not allow its original type.
+        """
+
+        if not isinstance(payload, (str, bytearray, bytes, int, float)) and (
+            payload is not None
+        ):
+            payload = dumps(payload)
+
+        self.pub_client.publish(topic, payload=payload, **kwargs)
+
+    def subscribe_and_callback(
+        self,
+        callback: t.Callable[[pt.MQTTMessage], None],
+        subscriptions: list[str] | str,
+        allow_retained: bool = True,
+        qos: int = 0,
+    ) -> None:
+        """
+        Parameters
+        -------------
+        callback: callable
+            Callbacks only accept a single parameter, message.
+        subscriptions: str, list of str
+        allow_retained: bool
+            if True, all messages are allowed, including messages that the broker has retained. Note
+            that client can fire a msg with retain=True, but because the broker is serving it to a
+            subscriber "fresh", it will have retain=False on the client side. More here:
+            https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
+        qos: int
+            see pioreactor.pubsub.QOS
+        """
+
+        def wrap_callback(
+            actual_callback: t.Callable[..., T]
+        ) -> t.Callable[..., t.Optional[T]]:
+            def _callback(client, userdata, message: pt.MQTTMessage) -> t.Optional[T]:
+                if not allow_retained and message.retain:
+                    return None
+                try:
+                    return actual_callback(message)
+                except Exception as e:
+                    self.logger.error(e)
+                    self.logger.debug(e, exc_info=True)
+                    raise e
+
+            return _callback
+
+        assert callable(
+            callback
+        ), "callback should be callable - do you need to change the order of arguments?"
+
+        subscriptions = (
+            [subscriptions] if isinstance(subscriptions, str) else subscriptions
+        )
+
+        for sub in subscriptions:
+            self.sub_client.message_callback_add(sub, wrap_callback(callback))
+            self.sub_client.subscribe(sub, qos=qos)
+        return
+
+    def set_state(self, new_state: pt.JobState) -> None:
+        if new_state not in self.LIFECYCLE_STATES:
+            self.logger.error(f"saw {new_state}: not a valid state")
+            return
+
+        if new_state == self.state:
+            return
+
+        if hasattr(self, f"on_{self.state}_to_{new_state}"):
+            getattr(self, f"on_{self.state}_to_{new_state}")()
+        getattr(self, new_state)()
+
+    def block_until_disconnected(self) -> None:
+        """
+        This will block the main thread until disconnected() is called.
+
+        This will unblock if:
+
+        1. a kill/keyboard interrupt signal is sent
+        2. state is set to "disconnected" over MQTT or programmatically
+
+        Useful for standalone jobs (and with click). Ex:
+
+        > if __name__ == "__main__":
+        >     job = Job(...)
+        >     job.block_until_disconnected()
+
+
+        """
+        self._blocking_event.wait()
+
     ########### private #############
 
     def check_published_settings(self) -> None:
@@ -442,26 +534,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.logger.error(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
         return
 
-    def publish(
-        self,
-        topic: str,
-        payload: pt.PublishableSettingDataType | dict | bytes | None,
-        qos: int = 0,
-        **kwargs,
-    ) -> None:
-        """
-        Publish payload to topic.
-
-        This will convert the payload to a json blob if MQTT does not allow its original type.
-        """
-
-        if not isinstance(payload, (str, bytearray, bytes, int, float)) and (
-            payload is not None
-        ):
-            payload = dumps(payload)
-
-        self.pub_client.publish(topic, payload=payload, **kwargs)
-
     def publish_attr(self, attr: str) -> None:
         """
         Publish the current value of the class attribute `attr` to MQTT.
@@ -477,56 +549,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             retain=True,
             qos=QOS.EXACTLY_ONCE,
         )
-
-    def subscribe_and_callback(
-        self,
-        callback: t.Callable[[pt.MQTTMessage], None],
-        subscriptions: list[str] | str,
-        allow_retained: bool = True,
-        qos: int = 0,
-    ) -> None:
-        """
-        Parameters
-        -------------
-        callback: callable
-            Callbacks only accept a single parameter, message.
-        subscriptions: str, list of str
-        allow_retained: bool
-            if True, all messages are allowed, including messages that the broker has retained. Note
-            that client can fire a msg with retain=True, but because the broker is serving it to a
-            subscriber "fresh", it will have retain=False on the client side. More here:
-            https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L364
-        qos: int
-            see pioreactor.pubsub.QOS
-        """
-
-        def wrap_callback(
-            actual_callback: t.Callable[..., T]
-        ) -> t.Callable[..., t.Optional[T]]:
-            def _callback(client, userdata, message: pt.MQTTMessage) -> t.Optional[T]:
-                if not allow_retained and message.retain:
-                    return None
-                try:
-                    return actual_callback(message)
-                except Exception as e:
-                    self.logger.error(e)
-                    self.logger.debug(e, exc_info=True)
-                    raise e
-
-            return _callback
-
-        assert callable(
-            callback
-        ), "callback should be callable - do you need to change the order of arguments?"
-
-        subscriptions = (
-            [subscriptions] if isinstance(subscriptions, str) else subscriptions
-        )
-
-        for sub in subscriptions:
-            self.sub_client.message_callback_add(sub, wrap_callback(callback))
-            self.sub_client.subscribe(sub, qos=qos)
-        return
 
     def set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
@@ -698,18 +720,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     retain=True,
                 )
 
-    def set_state(self, new_state: pt.JobState) -> None:
-        if new_state not in self.LIFECYCLE_STATES:
-            self.logger.error(f"saw {new_state}: not a valid state")
-            return
-
-        if new_state == self.state:
-            return
-
-        if hasattr(self, f"on_{self.state}_to_{new_state}"):
-            getattr(self, f"on_{self.state}_to_{new_state}")()
-        getattr(self, new_state)()
-
     def log_state(self, state: pt.JobState) -> None:
         if state == self.READY or state == self.DISCONNECTED:
             self.logger.info(state.capitalize() + ".")
@@ -776,25 +786,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     retain=True,
                     qos=QOS.EXACTLY_ONCE,
                 )
-
-    def block_until_disconnected(self) -> None:
-        """
-        This will block the main thread until disconnected() is called.
-
-        This will unblock if:
-
-        1. a kill/keyboard interrupt signal is sent
-        2. state is set to "disconnected" over MQTT or programmatically
-
-        Useful for standalone jobs (and with click). Ex:
-
-        > if __name__ == "__main__":
-        >     job = Job(...)
-        >     job.block_until_disconnected()
-
-
-        """
-        self._blocking_event.wait()
 
     def check_for_duplicate_activity(self) -> None:
         with local_intermittent_storage("pio_jobs_running") as cache:

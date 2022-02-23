@@ -80,27 +80,25 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     unit = get_unit_name()
     exp = "test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt"
 
-    results = []
+    warnings = []
 
     def cb(msg: MQTTMessage) -> None:
         if "WARNING" in msg.payload.decode():
-            results.append([msg.payload])
+            warnings.append([msg.payload])
 
     subscribe_and_callback(cb, f"pioreactor/{unit}/{exp}/logs/app")
-
-    bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
-    bj.logger.warning("test1")
-
-    # disonnect, which should clear logger handlers (but may not...)
-    bj.set_state(bj.DISCONNECTED)
-
-    bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
-    bj.logger.warning("test2")
-
     pause()
-    pause()
-    assert len(results) == 2
-    bj.set_state(bj.DISCONNECTED)
+    with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
+        pause()
+        bj.logger.warning("test1")
+
+    # disconnect, which should clear logger handlers (but may not...)
+
+    with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
+        pause()
+        bj.logger.warning("test2")
+
+    assert len(warnings) == 2
 
 
 def test_error_in_subscribe_and_callback_is_logged() -> None:
@@ -115,8 +113,8 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
         def callback(self, msg: MQTTMessage) -> None:
             print(1 / 0)
 
-    error_logs = []
     experiment = "test_error_in_subscribe_and_callback_is_logged"
+    error_logs = []
 
     def collect_error_logs(msg: MQTTMessage) -> None:
         if "ERROR" in msg.payload.decode():
@@ -128,7 +126,10 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
     )
 
     with TestJob(job_name="job", unit=get_unit_name(), experiment=experiment):
-        publish("pioreactor/testing/subscription", "test")
+        pause()
+        pause()
+        publish("pioreactor/testing/subscription", "test", retain=False)
+        pause()
         pause()
         pause()
         assert len(error_logs) > 0
@@ -274,7 +275,6 @@ def test_editing_readonly_attr_via_mqtt() -> None:
     exp = "test_editing_readonly_attr_via_mqtt"
 
     def collect_logs(msg: MQTTMessage) -> None:
-        print(msg.payload.decode())
         if "readonly" in msg.payload.decode():
             warning_logs.append(msg)
 
