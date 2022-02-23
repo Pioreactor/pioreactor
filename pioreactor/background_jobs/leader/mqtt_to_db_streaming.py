@@ -174,7 +174,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_ir_led_intensity(
-        topic: str, payload: Optional[MQTTMessagePayload]
+        topic: str, payload: Optional[pt.MQTTMessagePayload]
     ) -> Optional[dict]:
         if payload is None:
             return None
@@ -294,7 +294,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": payload_dict["timestamp"],
-            "measured_rpm": payload_dict["rpm"],
+            "measured_rpm": payload_dict["measured_rpm"],
         }
 
     topics_to_tables = [

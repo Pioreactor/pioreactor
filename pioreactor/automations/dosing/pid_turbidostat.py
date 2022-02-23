@@ -92,7 +92,7 @@ class PIDTurbidostat(DosingAutomation):
         return 0.75 * self.target_od
 
     def set_target_od(self, value: float) -> None:
-        self.target_od = value
+        self.target_od = float(value)
         with suppress(AttributeError):
             # may not be defined yet...
             self.pid.set_setpoint(self.target_od)

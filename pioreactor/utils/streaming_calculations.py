@@ -410,7 +410,7 @@ class PID:
         Ki: float,
         Kd: float,
         setpoint: float,
-        K0=0,
+        K0: float = 0,
         output_limits=(None, None),
         sample_time: float = None,
         unit: str = None,

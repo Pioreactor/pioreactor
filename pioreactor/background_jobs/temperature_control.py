@@ -236,7 +236,10 @@ class TemperatureController(BackgroundJob):
         try:
             self.logger.info(f"Starting {algo_metadata}.")
             self.automation_job = self.automations[algo_metadata.automation_name](
-                unit=self.unit, experiment=self.experiment, parent=self, **algo_metadata
+                unit=self.unit,
+                experiment=self.experiment,
+                parent=self,
+                **algo_metadata.args,
             )
             self.automation = algo_metadata
             self.automation_name = algo_metadata.automation_name
@@ -486,7 +489,7 @@ class TemperatureController(BackgroundJob):
 
         # the recent estimate weighted because I trust the predicted temperature at the start of observation more
         # than the predicted temperature at the end.
-        return 2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs
+        return float(2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs)
 
 
 def start_temperature_control(

@@ -60,7 +60,7 @@ def test_changing_temperature_algo_over_mqtt() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "stable", "args":{"target_temperature": 20}}, "automation_type": "temperature"}',
+            '{"automation_name": "stable", "args":{"target_temperature": 20}, "automation_type": "temperature"}',
         )
         time.sleep(8)
         assert algo.automation_name == "stable"

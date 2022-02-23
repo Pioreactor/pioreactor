@@ -332,7 +332,7 @@ class Stirrer(BackgroundJob):
             self._measured_rpm = recent_rpm
 
         self.measured_rpm = structs.MeasuredRPM(
-            timestamp=current_utc_time(), rpm=self._measured_rpm
+            timestamp=current_utc_time(), measured_rpm=self._measured_rpm
         )
         return self._measured_rpm
 

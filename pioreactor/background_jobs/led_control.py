@@ -47,7 +47,7 @@ class LEDController(BackgroundJob):
             )
 
         self.automation = Automation(
-            automation_name=automation_name, automation_type="led", **kwargs
+            automation_name=automation_name, automation_type="led", args=kwargs
         )
         self.logger.info(f"Starting {self.automation}.")
         try:

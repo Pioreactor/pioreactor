@@ -67,7 +67,7 @@ def test_sin_regression_constant_should_return_constant() -> None:
         [i / 25 for i in range(25)], [1.0] * 25, 60
     )
     assert C == 1.0
-    assert A == 0.0
+    assert abs(A - 0.0) < 1e-10  # type: ignore
 
 
 def test_sin_regression_with_linear_change_should_return_close_to_mean() -> None:

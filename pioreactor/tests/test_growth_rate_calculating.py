@@ -34,7 +34,11 @@ def create_od_raw_batched_json(
     d = {"od_raw": {}, "timestamp": timestamp}
     for channel, voltage, angle in zip(channels, voltages, angles):
         assert int(channel) in [0, 1, 2, 3]
-        d["od_raw"][channel] = {"voltage": voltage, "angle": angle}
+        d["od_raw"][channel] = {
+            "voltage": voltage,
+            "angle": angle,
+            "timestamp": timestamp,
+        }
 
     return json.dumps(d)
 
@@ -457,7 +461,13 @@ class TestGrowthRateCalculating:
 
                 voltage = 3.3 * np.exp(-(self.od_reading - 1))
                 payload = {
-                    "od_raw": {"1": {"voltage": voltage, "angle": "180"}},
+                    "od_raw": {
+                        "1": {
+                            "voltage": voltage,
+                            "angle": "180",
+                            "timestamp": "2021-06-06T15:08:12.081153",
+                        }
+                    },
                     "timestamp": "2021-06-06T15:08:12.081153",
                 }
 
@@ -502,7 +512,13 @@ class TestGrowthRateCalculating:
 
                 voltage = 0.1 * self.od_reading
                 payload = {
-                    "od_raw": {"1": {"voltage": voltage, "angle": "90"}},
+                    "od_raw": {
+                        "1": {
+                            "voltage": voltage,
+                            "angle": "90",
+                            "timestamp": "2021-06-06T15:08:12.081153",
+                        }
+                    },
                     "timestamp": "2021-06-06T15:08:12.081153",
                 }
 

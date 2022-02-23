@@ -84,8 +84,11 @@ def test_publish_target_rpm() -> None:
 
 
 def test_publish_measured_rpm() -> None:
+    exp = "test_publish_measured_rpm"
+
     publish(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", None, retain=True)
     pause()
+
     target_rpm = 500
 
     with Stirrer(target_rpm, unit, exp, rpm_calculator=RpmFromFrequency()) as st:
@@ -93,10 +96,25 @@ def test_publish_measured_rpm() -> None:
         assert st.target_rpm == target_rpm
 
         pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
 
-        message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm")
+        message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=3)
+        pause()
+        pause()
+        pause()
+        pause()
         assert message is not None
-        assert json.loads(message.payload)["rpm"] == 0
+        assert json.loads(message.payload)["measured_rpm"] == 0
 
 
 def test_stirring_with_lookup_linear_v1() -> None:

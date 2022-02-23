@@ -875,12 +875,11 @@ class ODReader(BackgroundJob):
         if self.state != self.READY:
             return
 
-
         output = structs.ODReadings(
             timestamp=timestamp,
             od_raw={
                 channel: structs.ODReading(
-                    voltage=self.normalize_by_led_output(batched_ads_readings[channel]),
+                    voltage=batched_ads_readings[channel],
                     angle=angle,
                     timestamp=timestamp,
                 )
