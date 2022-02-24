@@ -2,14 +2,15 @@
 from __future__ import annotations
 
 from datetime import datetime
-from json import dumps
 from json import loads
 from time import sleep
+from typing import Optional
 
 import click
 from paho.mqtt.client import MQTTMessage  # type: ignore
 
 from pioreactor import error_codes
+from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
@@ -19,16 +20,10 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
+from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.version import hardware_version_info
 from pioreactor.version import software_version_info
-from pioreactor.whoami import am_I_active_worker
-from pioreactor.whoami import am_I_leader
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
-from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 class Monitor(BackgroundJob):
@@ -47,19 +42,27 @@ class Monitor(BackgroundJob):
 
     """
 
-    currently_flickering: bool = False
+    published_settings = {
+        "computer_statistics": {"datatype": "json", "settable": False},
+        "button_down": {"datatype": "boolean", "settable": False},
+    }
+    computer_statistics: Optional[dict] = None
+    led_in_use: bool = False
 
-    def __init__(self, unit, experiment) -> None:
+    def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(job_name="monitor", unit=unit, experiment=experiment)
 
-        def to_version(info: tuple[int, ...]) -> str:
+        def pretty_version(info: tuple[int, ...]) -> str:
             return ".".join((str(x) for x in info))
 
         self.logger.info(
-            f"Pioreactor software version: {to_version(software_version_info)}"
+            f"Pioreactor software version: {pretty_version(software_version_info)}"
         )
-        self.logger.info(f"Pioreactor HAT version: {to_version(hardware_version_info)}")
+        self.logger.info(
+            f"Pioreactor HAT version: {pretty_version(hardware_version_info)}"
+        )
 
+        self.button_down = False
         # set up GPIO for accessing the button and changing the LED
         self.setup_GPIO()
 
@@ -109,15 +112,15 @@ class Monitor(BackgroundJob):
         # report on CPU usage, memory, disk space
         self.publish_self_statistics()
 
-        if am_I_leader():
+        if whoami.am_I_leader():
             # report on last database backup, if leader
             self.check_for_last_backup()
 
-        if am_I_active_worker():
+        if whoami.am_I_active_worker():
             # check the PCB temperature
             self.check_heater_pcb_temperature()
 
-        if not am_I_leader():
+        if not whoami.am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
 
@@ -125,7 +128,7 @@ class Monitor(BackgroundJob):
         """
         Originally from #220
         """
-        if is_testing_env():
+        if whoami.is_testing_env():
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
             from TMP1075 import TMP1075  # type: ignore
@@ -183,7 +186,7 @@ class Monitor(BackgroundJob):
 
         See answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
         """
-        latest_exp = get_latest_experiment_name()
+        latest_exp = whoami.get_latest_experiment_name()
 
         def check_against_processes_running(msg: MQTTMessage) -> None:
             job = msg.topic.split("/")[3]
@@ -237,24 +240,14 @@ class Monitor(BackgroundJob):
 
         self.led_on()
 
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
-            1,
-            retain=True,
-            qos=QOS.AT_LEAST_ONCE,
-        )
+        self.button_down = True
 
         while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
-            sleep(0.025)
+            sleep(0.02)
 
         self.led_off()
 
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/button_down",
-            0,
-            retain=True,
-            qos=QOS.AT_LEAST_ONCE,
-        )
+        self.button_down = False
 
     def check_for_power_problems(self) -> None:
         """
@@ -291,7 +284,7 @@ class Monitor(BackgroundJob):
         def non_ignorable_status(status: int) -> int:
             return (status & 0x1) or (status & 0x4)
 
-        if is_testing_env():
+        if whoami.is_testing_env():
             return
 
         with open("/sys/devices/platform/soc/soc:firmware/get_throttled") as file:
@@ -305,7 +298,7 @@ class Monitor(BackgroundJob):
     def publish_self_statistics(self) -> None:
         import psutil  # type: ignore
 
-        if is_testing_env():
+        if whoami.is_testing_env():
             return
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
@@ -344,23 +337,19 @@ class Monitor(BackgroundJob):
             # TODO: add documentation
             self.logger.warning(f"CPU temperature at {cpu_temperature_celcius} ℃.")
 
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/computer_statistics",
-            dumps(
-                {
-                    "disk_usage_percent": disk_usage_percent,
-                    "cpu_usage_percent": cpu_usage_percent,
-                    "available_memory_percent": available_memory_percent,
-                    "cpu_temperature_celcius": cpu_temperature_celcius,
-                }
-            ),
-        )
+        self.computer_statistics = {
+            "disk_usage_percent": disk_usage_percent,
+            "cpu_usage_percent": cpu_usage_percent,
+            "available_memory_percent": available_memory_percent,
+            "cpu_temperature_celcius": cpu_temperature_celcius,
+            "timestamp": current_utc_time(),
+        }
 
     def flicker_led_response_okay(self, *args) -> None:
-        if self.currently_flickering:
+        if self.led_in_use:
             return
 
-        self.currently_flickering = True
+        self.led_in_use = True
 
         for _ in range(4):
 
@@ -373,13 +362,13 @@ class Monitor(BackgroundJob):
             self.led_off()
             sleep(0.45)
 
-        self.currently_flickering = False
+        self.led_in_use = False
 
     def flicker_led_with_error_code(self, error_code: int) -> None:
-        if self.currently_flickering:
+        if self.led_in_use:
             return
 
-        self.currently_flickering = True
+        self.led_in_use = True
 
         self.led_on()
         sleep(1.5)
@@ -391,7 +380,7 @@ class Monitor(BackgroundJob):
 
         sleep(5)
 
-        self.currently_flickering = False
+        self.led_in_use = False
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
 
@@ -447,7 +436,7 @@ class Monitor(BackgroundJob):
 
         self.subscribe_and_callback(
             self.run_job_on_machine,
-            f"pioreactor/{UNIVERSAL_IDENTIFIER}/+/run/+",
+            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/run/+",
         )
 
 
@@ -460,5 +449,5 @@ def click_monitor() -> None:
 
     os.nice(1)
 
-    job = Monitor(unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+    job = Monitor(unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     job.block_until_disconnected()
