@@ -65,7 +65,11 @@ def logs(n: int) -> None:
 
     click.echo(tail("-n", n, config["logging"]["log_file"]))
 
-    subscribe_and_callback(cb, f"pioreactor/{get_unit_name()}/+/logs/+")
+    try:
+        # will fail if not connected to leader.
+        subscribe_and_callback(cb, f"pioreactor/{get_unit_name()}/+/logs/+")
+    except OSError:
+        pass
 
     pause()
 

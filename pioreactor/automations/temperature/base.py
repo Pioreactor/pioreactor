@@ -34,8 +34,8 @@ class TemperatureAutomation(BackgroundSubJob):
     _latest_od: Optional[float] = None
     previous_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
-    latest_od_timestamp: float = 0
-    latest_growth_rate_timestamp: float = 0
+    latest_od_at: float = 0
+    latest_growth_rate_at: float = 0
 
     latest_temperature = None
     previous_temperature = None
@@ -95,7 +95,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     @property
     def most_stale_time(self) -> float:
-        return min(self.latest_od_timestamp, self.latest_growth_rate_timestamp)
+        return min(self.latest_od_at, self.latest_growth_rate_at)
 
     @property
     def latest_growth_rate(self) -> float:

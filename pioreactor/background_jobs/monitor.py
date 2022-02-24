@@ -141,7 +141,7 @@ class Monitor(BackgroundJob):
 
         observed_tmp = tmp_driver.get_temperature()
 
-        if observed_tmp >= 62:
+        if observed_tmp >= 64.0:
             # something is wrong - temperature_control should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
             # we're going to just shutdown to be safe.
             from subprocess import call
@@ -158,7 +158,7 @@ class Monitor(BackgroundJob):
             not self.sub_client.is_connected()
         ):
             self.logger.warning(
-                "Not able to connect MQTT clients to leader. Is the leader in config.ini correct?"
+                "Not able to connect MQTT clients to leader. 1. Is the leader in config.ini correct? 2. Is the Pioreactor leader online and responsive?"
             )  # remember, this doesn't get published to leader...
 
             self.set_state(self.LOST)
