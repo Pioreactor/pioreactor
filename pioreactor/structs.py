@@ -34,6 +34,15 @@ class Automation(Struct):
         return str(self)
 
 
+class AutomationSettings(Struct):
+    pioreactor_unit: str
+    experiment: str
+    started_at: str
+    ended_at: str
+    automation_name: str
+    settings: str
+
+
 class LEDEvent(Struct):
     channel: pt.LedChannel
     intensity: float

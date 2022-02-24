@@ -273,10 +273,7 @@ class TemperatureController(BackgroundJob):
 
         elif temp > self.MAX_TEMP_TO_DISABLE_HEATING:
 
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
-                error_codes.PCB_TEMPERATURE_TOO_HIGH,
-            )
+            self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to Silent. Take caution when touching the heating surface and wetware."
@@ -291,10 +288,7 @@ class TemperatureController(BackgroundJob):
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
-                error_codes.PCB_TEMPERATURE_TOO_HIGH,
-            )
+            self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.debug(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."

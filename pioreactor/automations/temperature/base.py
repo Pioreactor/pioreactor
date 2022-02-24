@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
 import time
 from typing import cast
 from typing import Optional
 
-import msgspec
+from msgspec.json import decode
+from msgspec.json import encode
 
 from pioreactor import exc
 from pioreactor import structs
@@ -153,7 +153,7 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         self.previous_growth_rate = self._latest_growth_rate
-        self._latest_growth_rate = msgspec.json.decode(
+        self._latest_growth_rate = decode(
             message.payload, type=structs.GrowthRate
         ).growth_rate
         self.latest_growth_rate_at = time.time()
@@ -163,7 +163,7 @@ class TemperatureAutomation(BackgroundSubJob):
             return
 
         self.previous_temperature = self.latest_temperature
-        self.latest_temperature = msgspec.json.decode(
+        self.latest_temperature = decode(
             message.payload, type=structs.Temperature
         ).temperature
 
@@ -172,29 +172,27 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
-        self._latest_od = msgspec.json.decode(
-            message.payload, type=structs.ODFiltered
-        ).od_filtered
+        self._latest_od = decode(message.payload, type=structs.ODFiltered).od_filtered
         self.latest_od_at = time.time()
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/temperature_automation_settings",
-            json.dumps(
-                {
-                    "pioreactor_unit": self.unit,
-                    "experiment": self.experiment,
-                    "started_at": self._latest_settings_started_at,
-                    "ended_at": self._latest_settings_ended_at,
-                    "automation": self.automation_name,
-                    "settings": json.dumps(
+            encode(
+                structs.AutomationSettings(
+                    pioreactor_unit=self.unit,
+                    experiment=self.experiment,
+                    started_at=self._latest_settings_started_at,
+                    ended_at=self._latest_settings_ended_at,
+                    automation_name=self.automation_name,
+                    settings=encode(
                         {
                             attr: getattr(self, attr, None)
                             for attr in self.published_settings
                             if attr != "state"
                         }
                     ),
-                }
+                )
             ),
             qos=QOS.EXACTLY_ONCE,
         )

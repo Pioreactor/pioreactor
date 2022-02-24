@@ -436,6 +436,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         self._blocking_event.wait()
 
+    def blink_error_code(self, error_code: int) -> None:
+        """
+        Publish the error code to `monitor` job s.t. it will make the Pioreactor blink.
+        See pioreactor.error_codes
+        """
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
+            error_code,
+        )
+
     ########### private #############
 
     def check_published_settings(self) -> None:

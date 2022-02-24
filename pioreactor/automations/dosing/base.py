@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
 import time
 from contextlib import suppress
 from functools import partial
@@ -10,7 +9,8 @@ from typing import Any
 from typing import cast
 from typing import Optional
 
-import msgspec
+from msgspec.json import decode
+from msgspec.json import encode
 
 from pioreactor import exc
 from pioreactor import structs
@@ -420,7 +420,7 @@ class DosingAutomation(BackgroundSubJob):
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         self.previous_growth_rate = self._latest_growth_rate
-        self._latest_growth_rate = msgspec.json.decode(
+        self._latest_growth_rate = decode(
             message.payload, type=structs.GrowthRate
         ).growth_rate
         self.latest_growth_rate_at = (
@@ -429,22 +429,20 @@ class DosingAutomation(BackgroundSubJob):
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
-        self._latest_od = msgspec.json.decode(
-            message.payload, type=structs.ODFiltered
-        ).od_filtered
+        self._latest_od = decode(message.payload, type=structs.ODFiltered).od_filtered
         self.latest_od_at = time.time()  # TODO: this should come from the payload...
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/dosing_automation_settings",
-            json.dumps(
-                {
-                    "pioreactor_unit": self.unit,
-                    "experiment": self.experiment,
-                    "started_at": self._latest_settings_started_at,
-                    "ended_at": self._latest_settings_ended_at,
-                    "automation": self.automation_name,
-                    "settings": json.dumps(
+            encode(
+                structs.AutomationSettings(
+                    pioreactor_unit=self.unit,
+                    experiment=self.experiment,
+                    started_at=self._latest_settings_started_at,
+                    ended_at=self._latest_settings_ended_at,
+                    automation_name=self.automation_name,
+                    settings=encode(
                         {
                             attr: getattr(self, attr, None)
                             for attr in self.published_settings
@@ -457,13 +455,13 @@ class DosingAutomation(BackgroundSubJob):
                             ]
                         }
                     ),
-                }
+                )
             ),
             qos=QOS.EXACTLY_ONCE,
         )
 
     def _update_dosing_metrics(self, message: pt.MQTTMessage) -> None:
-        dosing_event = msgspec.json.decode(message.payload, type=structs.DosingEvent)
+        dosing_event = decode(message.payload, type=structs.DosingEvent)
         self._update_alt_media_fraction(dosing_event)
         self._update_throughput(dosing_event)
 

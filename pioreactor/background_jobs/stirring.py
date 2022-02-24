@@ -319,11 +319,8 @@ class Stirrer(BackgroundJob):
         recent_rpm = self.rpm_calculator(poll_for_seconds)
         if recent_rpm == 0:
             # TODO: attempt to restart stirring
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/monitor/flicker_led_with_error_code",
-                error_codes.STIRRING_FAILED_ERROR_CODE,
-            )
             self.logger.warning("Stirring RPM is 0 - has it failed?")
+            self.blink_error_code(error_codes.STIRRING_FAILED_ERROR_CODE)
 
         if self._measured_rpm is not None:
             # use a simple EMA, alpha chosen arbitrarily, but should be a function of delta time.

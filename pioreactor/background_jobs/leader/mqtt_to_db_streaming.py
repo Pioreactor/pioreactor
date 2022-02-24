@@ -70,6 +70,10 @@ class MqttToDBStreamer(BackgroundJob):
     ) -> Callable:
         def _callback(message: pt.MQTTMessage) -> None:
             # TODO: filter testing experiments here?
+            if message.payload is None:
+                return
+
+            assert message.payload is not None
             try:
                 new_row = parser(message.topic, message.payload)
             except Exception as e:
@@ -153,12 +157,8 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "normalized_od_reading": od_reading.od_filtered,
         }
 
-    def parse_od_blank(
-        topic: str, payload: Optional[pt.MQTTMessagePayload]
-    ) -> Optional[dict]:
+    def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> Optional[dict]:
         metadata, split_topic = produce_metadata(topic)
-        if not payload:
-            return None
 
         channel = split_topic[-1]
 
@@ -175,11 +175,8 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "channel": channel,
         }
 
-    def parse_ir_led_intensity(
-        topic: str, payload: Optional[pt.MQTTMessagePayload]
-    ) -> Optional[dict]:
-        if payload is None:
-            return None
+    def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+
         metadata, split_topic = produce_metadata(topic)
 
         payload_dict = loads(payload)
@@ -227,13 +224,8 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "rate": gr.growth_rate,
         }
 
-    def parse_temperature(
-        topic: str, payload: Optional[pt.MQTTMessagePayload]
-    ) -> Optional[dict]:
+    def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata, _ = produce_metadata(topic)
-
-        if not payload:
-            return None
 
         temp = msgspec_loads(payload, type=structs.Temperature)
 
@@ -283,11 +275,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         payload_dict = loads(payload)
         return payload_dict
 
-    def parse_stirring_rates(
-        topic: str, payload: Optional[pt.MQTTMessagePayload]
-    ) -> Optional[dict]:
-        if not payload:
-            return None
+    def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
         metadata, _ = produce_metadata(topic)
         rpms = loads(payload, type=structs.MeasuredRPM)
