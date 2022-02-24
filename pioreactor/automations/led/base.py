@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from contextlib import suppress
+from datetime import datetime
 from threading import Thread
 from typing import cast
 from typing import Optional
@@ -21,6 +22,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import to_datetime
 
 
 class LEDAutomation(BackgroundSubJob):
@@ -46,14 +48,14 @@ class LEDAutomation(BackgroundSubJob):
 
     _latest_settings_started_at: str = current_utc_time()
     _latest_settings_ended_at: Optional[str] = None
-    _latest_run_at: Optional[float] = None
+    _latest_run_at: Optional[datetime] = None
 
     latest_event: Optional[events.Event] = None
     run_thread: RepeatedTimer | Thread
 
     # next two are seconds-since-unix-epoch
-    latest_od_at: float = 0
-    latest_growth_rate_at: float = 0
+    latest_od_at: datetime = datetime.min
+    latest_growth_rate_at: datetime = datetime.min
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -85,11 +87,14 @@ class LEDAutomation(BackgroundSubJob):
 
     def set_duration(self, duration: float) -> None:
         self.duration = duration
-        if self._latest_run_at:
+        if self._latest_run_at is not None:
             # what's the correct logic when changing from duration N and duration M?
             # - N=20, and it's been 5m since the last run (or initialization). I change to M=30, I should wait M-5 minutes.
             # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
-            run_after = max(0, (self.duration * 60) - (time.time() - self._latest_run_at))
+            run_after = max(
+                0,
+                (self.duration * 60) - (datetime.utcnow() - self._latest_run_at).seconds,
+            )
         else:
             # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
             # set_duration is run in the __init__ (hence the job is INIT). So we wait 2 seconds for the __init__ to finish, and then run.
@@ -140,14 +145,14 @@ class LEDAutomation(BackgroundSubJob):
             self.logger.info(str(event))
 
         self.latest_event = event
-        self._latest_run_at = time.time()
+        self._latest_run_at = datetime.utcnow()
         return event
 
     def execute(self) -> Optional[events.Event]:
         pass
 
     @property
-    def most_stale_time(self) -> float:
+    def most_stale_time(self) -> datetime:
         return min(self.latest_od_at, self.latest_growth_rate_at)
 
     def set_led_intensity(self, channel: pt.LedChannel, intensity: float) -> bool:
@@ -209,7 +214,7 @@ class LEDAutomation(BackgroundSubJob):
                 )
 
         # check most stale time
-        if (time.time() - self.most_stale_time) > 5 * 60:
+        if (datetime.utcnow() - self.most_stale_time).seconds > 5 * 60:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -228,7 +233,7 @@ class LEDAutomation(BackgroundSubJob):
                 )
 
         # check most stale time
-        if (time.time() - self.most_stale_time) > 5 * 60:
+        if (datetime.utcnow() - self.most_stale_time).seconds > 5 * 60:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -245,15 +250,15 @@ class LEDAutomation(BackgroundSubJob):
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         self.previous_growth_rate = self._latest_growth_rate
-        self._latest_growth_rate = decode(
-            message.payload, type=structs.GrowthRate
-        ).growth_rate
-        self.latest_growth_rate_at = time.time()
+        payload = decode(message.payload, type=structs.GrowthRate)
+        self._latest_growth_rate = payload.growth_rate
+        self.latest_growth_rate_at = to_datetime(payload.timestamp)
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
-        self._latest_od = decode(message.payload, type=structs.ODFiltered).od_filtered
-        self.latest_od_at = time.time()
+        payload = decode(message.payload, type=structs.ODFiltered)
+        self._latest_od = payload.od_filtered
+        self.latest_od_at = to_datetime(payload.timestamp)
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(

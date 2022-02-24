@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 
 from pioreactor import pubsub
@@ -452,8 +454,8 @@ def test_old_readings_will_not_execute_io() -> None:
     algo._latest_growth_rate = 1
     algo._latest_od = 1
 
-    algo.latest_od_at = time.time() - 10 * 60
-    algo.latest_growth_rate_at = time.time() - 4 * 60
+    algo.latest_od_at = datetime.utcnow() - timedelta(minutes=10)
+    algo.latest_growth_rate_at = datetime.utcnow() - timedelta(minutes=4)
 
     assert algo.most_stale_time == algo.latest_od_at
 

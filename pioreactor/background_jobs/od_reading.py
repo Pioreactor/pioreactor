@@ -561,7 +561,9 @@ class ADCReader(LoggerMixin):
                     min_AIC = AIC
                     argmin_freq = freq
 
-            assert argmin_freq is not None
+            assert (
+                argmin_freq is not None
+            ), f"{min_AIC=}, {argmin_freq=}, {timestamps=}, {aggregated_signals=}"
             return argmin_freq
 
         first_channel = self.channels[0]

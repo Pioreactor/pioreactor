@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import time
+from datetime import datetime
 from typing import cast
 from typing import Optional
 
@@ -16,6 +16,7 @@ from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import to_datetime
 
 
 class TemperatureAutomation(BackgroundSubJob):
@@ -34,8 +35,8 @@ class TemperatureAutomation(BackgroundSubJob):
     _latest_od: Optional[float] = None
     previous_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
-    latest_od_at: float = 0
-    latest_growth_rate_at: float = 0
+    latest_od_at: datetime = datetime.min
+    latest_growth_rate_at: datetime = datetime.min
 
     latest_temperature = None
     previous_temperature = None
@@ -94,7 +95,7 @@ class TemperatureAutomation(BackgroundSubJob):
         raise NotImplementedError
 
     @property
-    def most_stale_time(self) -> float:
+    def most_stale_time(self) -> datetime:
         return min(self.latest_od_at, self.latest_growth_rate_at)
 
     @property
@@ -109,7 +110,7 @@ class TemperatureAutomation(BackgroundSubJob):
                 )
 
         # check most stale time
-        if (time.time() - self.most_stale_time) > 5 * 60:
+        if (datetime.utcnow() - self.most_stale_time).seconds > 5 * 60:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -128,7 +129,7 @@ class TemperatureAutomation(BackgroundSubJob):
                 )
 
         # check most stale time
-        if (time.time() - self.most_stale_time) > 5 * 60:
+        if (datetime.utcnow() - self.most_stale_time).seconds > 5 * 60:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -153,10 +154,9 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:
         self.previous_growth_rate = self._latest_growth_rate
-        self._latest_growth_rate = decode(
-            message.payload, type=structs.GrowthRate
-        ).growth_rate
-        self.latest_growth_rate_at = time.time()
+        payload = decode(message.payload, type=structs.GrowthRate)
+        self._latest_growth_rate = payload.growth_rate
+        self.latest_growth_rate_at = to_datetime(payload.timestamp)
 
     def _set_temperature(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
@@ -172,8 +172,9 @@ class TemperatureAutomation(BackgroundSubJob):
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
-        self._latest_od = decode(message.payload, type=structs.ODFiltered).od_filtered
-        self.latest_od_at = time.time()
+        payload = decode(message.payload, type=structs.ODFiltered)
+        self._latest_od = payload.od_filtered
+        self.latest_od_at = to_datetime(payload.timestamp)
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(
