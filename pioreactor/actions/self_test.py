@@ -155,6 +155,10 @@ def test_all_positive_correlations_between_pds_and_leds(
             results[(ir_led_channel, ir_pd_channel)] > 0.925
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}, {list(zip(INTENSITIES, varying_intensity_results[pd_channel]))}"
 
+        assert (
+            varying_intensity_results[pd_channel][-1] > 1e-4
+        ), f"{pd_channel} channel too low: {varying_intensity_results[pd_channel]}"
+
 
 def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.

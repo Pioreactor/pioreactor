@@ -82,6 +82,7 @@ s.t. it is _not_ running when an turbidity measurement is about to occur.
 from __future__ import annotations
 
 import math
+import os
 from time import sleep
 from time import time
 from typing import cast
@@ -493,6 +494,10 @@ class ADCReader(LoggerMixin):
                 self.most_appropriate_AC_hz = self.determine_most_appropriate_AC_hz(
                     timestamps, aggregated_signals
                 )
+
+            if os.environ.get("DEBUG") is not None:
+                self.logger.debug(f"{timestamps=}")
+                self.logger.debug(f"{aggregated_signals=}")
 
             for channel in self.channels:
                 (
