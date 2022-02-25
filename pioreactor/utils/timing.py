@@ -21,6 +21,10 @@ def to_datetime(timestamp: str):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
 
 
+def to_datetime_str(datetime: datetime):
+    return datetime.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
 @contextmanager
 def catchtime() -> Generator[Callable, None, None]:
     start = perf_counter()

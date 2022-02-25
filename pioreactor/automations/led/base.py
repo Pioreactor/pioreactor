@@ -53,7 +53,6 @@ class LEDAutomation(BackgroundSubJob):
     latest_event: Optional[events.Event] = None
     run_thread: RepeatedTimer | Thread
 
-    # next two are seconds-since-unix-epoch
     latest_od_at: datetime = datetime.min
     latest_growth_rate_at: datetime = datetime.min
 
@@ -190,20 +189,11 @@ class LEDAutomation(BackgroundSubJob):
         )
         return False
 
-    ########## Private & internal methods
-
-    def on_disconnected(self) -> None:
-        self._latest_settings_ended_at = current_utc_time()
-        self._send_details_to_mqtt()
-
-        with suppress(AttributeError):
-            self.run_thread.join()
-
-        for channel in self.edited_channels:
-            led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
-
     @property
     def latest_growth_rate(self) -> float:
+        """
+        Access the latest growth rate.
+        """
         # check if None
         if self._latest_growth_rate is None:
             # this should really only happen on the initialization.
@@ -223,6 +213,9 @@ class LEDAutomation(BackgroundSubJob):
 
     @property
     def latest_od(self) -> float:
+        """
+        Access the latest normalized optical density.
+        """
         # check if None
         if self._latest_od is None:
             # this should really only happen on the initialization.
@@ -239,6 +232,18 @@ class LEDAutomation(BackgroundSubJob):
             )
 
         return cast(float, self._latest_od)
+
+    ########## Private & internal methods
+
+    def on_disconnected(self) -> None:
+        self._latest_settings_ended_at = current_utc_time()
+        self._send_details_to_mqtt()
+
+        with suppress(AttributeError):
+            self.run_thread.join()
+
+        for channel in self.edited_channels:
+            led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
 
     def __setattr__(self, name, value) -> None:
         super(LEDAutomation, self).__setattr__(name, value)
