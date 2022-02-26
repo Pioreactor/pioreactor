@@ -9,6 +9,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.leader.watchdog import WatchDog
 from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.config import leader_hostname
+from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.pubsub import subscribe_and_callback
@@ -80,25 +81,18 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     unit = get_unit_name()
     exp = "test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt"
 
-    warnings = []
+    with collect_all_logs_of_level("WARNING", unit, exp) as bucket:
+        with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
+            pause()
+            bj.logger.warning("test1")
 
-    def cb(msg: MQTTMessage) -> None:
-        if "WARNING" in msg.payload.decode():
-            warnings.append([msg.payload])
+        # disconnect, which should clear logger handlers (but may not...)
 
-    subscribe_and_callback(cb, f"pioreactor/{unit}/{exp}/logs/app")
-    pause()
-    with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
-        pause()
-        bj.logger.warning("test1")
+        with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
+            pause()
+            bj.logger.warning("test2")
 
-    # disconnect, which should clear logger handlers (but may not...)
-
-    with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
-        pause()
-        bj.logger.warning("test2")
-
-    assert len(warnings) == 2
+    assert len(bucket) == 2
 
 
 def test_error_in_subscribe_and_callback_is_logged() -> None:
@@ -114,26 +108,18 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
             print(1 / 0)
 
     experiment = "test_error_in_subscribe_and_callback_is_logged"
-    error_logs = []
 
-    def collect_error_logs(msg: MQTTMessage) -> None:
-        if "ERROR" in msg.payload.decode():
-            error_logs.append(msg)
+    with collect_all_logs_of_level("ERROR", get_unit_name(), experiment) as error_logs:
+        with TestJob(job_name="job", unit=get_unit_name(), experiment=experiment):
+            pause()
+            pause()
+            publish("pioreactor/testing/subscription", "test", retain=False)
+            pause()
+            pause()
+            pause()
 
-    subscribe_and_callback(
-        collect_error_logs,
-        f"pioreactor/{get_unit_name()}/{experiment}/logs/app",
-    )
-
-    with TestJob(job_name="job", unit=get_unit_name(), experiment=experiment):
-        pause()
-        pause()
-        publish("pioreactor/testing/subscription", "test", retain=False)
-        pause()
-        pause()
-        pause()
-        assert len(error_logs) > 0
-        assert "division by zero" in error_logs[0].payload.decode()
+    assert len(error_logs) > 0
+    assert "division by zero" in error_logs[0]["message"]
 
 
 def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect() -> None:
@@ -271,26 +257,18 @@ def test_editing_readonly_attr_via_mqtt() -> None:
             },
         }
 
-    warning_logs = []
     exp = "test_editing_readonly_attr_via_mqtt"
 
-    def collect_logs(msg: MQTTMessage) -> None:
-        if "readonly" in msg.payload.decode():
-            warning_logs.append(msg)
+    with collect_all_logs_of_level("DEBUG", get_unit_name(), exp) as logs:
+        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+            publish(
+                f"pioreactor/{get_unit_name()}/{exp}/job/readonly_attr/set",
+                1.0,
+            )
+            pause()
 
-    subscribe_and_callback(
-        collect_logs,
-        f"pioreactor/{get_unit_name()}/{exp}/logs/app",
-    )
-
-    with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
-        publish(
-            f"pioreactor/{get_unit_name()}/{exp}/job/readonly_attr/set",
-            1.0,
-        )
-        pause()
-
-    assert len(warning_logs) > 0
+    assert len(logs) > 0
+    assert any(["readonly" in log["message"] for log in logs])
 
 
 def test_persist_in_published_settings() -> None:

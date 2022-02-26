@@ -70,10 +70,11 @@ class MqttToDBStreamer(BackgroundJob):
     ) -> Callable:
         def _callback(message: pt.MQTTMessage) -> None:
             # TODO: filter testing experiments here?
-            if message.payload is None:
+
+            if not message.payload:
+                # filter out empty payloads
                 return
 
-            assert message.payload is not None
             try:
                 new_row = parser(message.topic, message.payload)
             except Exception as e:

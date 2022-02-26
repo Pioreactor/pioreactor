@@ -367,31 +367,23 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
     experiment = "test_changing_parameters_over_mqtt_with_unknown_parameter"
-    with DosingAutomation(
-        target_growth_rate=0.05,
-        target_od=1.0,
-        duration=60,
-        unit=unit,
-        experiment=experiment,
-    ):
+    with pubsub.collect_all_logs_of_level("DEBUG", unit, experiment) as bucket:
+        with DosingAutomation(
+            target_growth_rate=0.05,
+            target_od=1.0,
+            duration=60,
+            unit=unit,
+            experiment=experiment,
+        ):
 
-        logs = []
+            pubsub.publish(
+                f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07
+            )
+            # there should be a log published with "Unable to set garbage in dosing_automation"
+            pause()
 
-        def append_logs(msg):
-            if "garbage" in msg.payload.decode():
-                logs.append(msg.payload)
-
-        pubsub.subscribe_and_callback(
-            append_logs, f"pioreactor/{unit}/{experiment}/logs/app"
-        )
-
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07
-        )
-        # there should be a log published with "Unable to set garbage in dosing_automation"
-        pause()
-
-        assert len(logs) > 0
+    assert len(bucket) > 0
+    assert any(["garbage" in log["message"] for log in bucket])
 
 
 def test_pause_in_dosing_automation() -> None:

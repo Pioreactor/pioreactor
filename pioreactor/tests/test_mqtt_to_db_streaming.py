@@ -8,9 +8,11 @@ import time
 import numpy as np
 
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
+from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
+from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_time
 
@@ -103,3 +105,45 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     od.set_state(od.DISCONNECTED)
     gr.set_state(gr.DISCONNECTED)
     m.set_state(m.DISCONNECTED)
+
+
+def test_empty_payload_is_filtered_early() -> None:
+    # TODO: assert there is not error in mqtt.
+    config["storage"]["database"] = "test.sqlite"
+
+    unit = "unit"
+    exp = "test_empty_payload_is_filtered_early"
+
+    class TestJob(BackgroundJob):
+
+        published_settings = {
+            "some_key": {
+                "datatype": "json",
+                "settable": False,
+            },
+        }
+
+        def __init__(self, *args, **kwargs) -> None:
+            super(TestJob, self).__init__(*args, **kwargs)
+            self.some_key = {"int": 4, "ts": 1}
+
+    def parse_setting(topic, payload) -> dict:
+        return json.loads(payload)
+
+    # turn on our mqtt to db
+    parsers = [
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/test_job/some_key",
+            parse_setting,
+            "table_setting",
+        )
+    ]
+
+    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
+
+        with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
+            t = TestJob(unit=unit, experiment=exp)
+            t.set_state(t.DISCONNECTED)
+            time.sleep(1)
+
+        assert len(bucket) == 0

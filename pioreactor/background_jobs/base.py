@@ -486,7 +486,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         def reconnect_protocol(
             client: mqtt.Client, userdata, flags, rc: int, properties=None
         ):
-            self.logger.debug("Reconnected to MQTT broker.")
+            self.logger.info("Reconnected to MQTT broker.")
             self.publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()

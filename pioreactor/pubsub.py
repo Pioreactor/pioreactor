@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import json
 import socket
 import threading
 import time
@@ -301,6 +302,31 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
         publish(topic, None, retain=True, hostname=hostname)
 
     client.disconnect()
+
+
+class collect_all_logs_of_level:
+    def __init__(self, log_level, unit, experiment):
+        self.unit = unit
+        self.log_level = log_level
+        self.experiment = experiment
+        self.bucket = []
+
+        self.client = subscribe_and_callback(
+            self._collect_logs_into_bucket,
+            f"pioreactor/{self.unit}/{self.experiment}/logs/app",
+        )
+
+    def __enter__(self):
+        return self.bucket
+
+    def _collect_logs_into_bucket(self, message):
+        log = json.loads(message.payload)
+        if log["level"] == self.log_level:
+            self.bucket.append(log)
+
+    def __exit__(self, *args):
+        self.client.loop_stop()
+        self.client.disconnect()
 
 
 def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None):
