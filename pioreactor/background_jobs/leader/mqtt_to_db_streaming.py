@@ -278,7 +278,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
         metadata, _ = produce_metadata(topic)
-        rpms = loads(payload, type=structs.MeasuredRPM)
+        rpms = msgspec_loads(payload, type=structs.MeasuredRPM)
 
         return {
             "experiment": metadata.experiment,
