@@ -9,11 +9,11 @@ import typing as t
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
-from paho.mqtt import client as mqtt  # type: ignore
 
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.utils import append_signal_handler
@@ -468,7 +468,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     f"setting {setting} has bad characters - must be alphanumeric, and only separated by underscore."
                 )
 
-    def create_pub_client(self) -> mqtt.Client:
+    def create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(
             client_id=f"{self.unit}-pub-{self.job_name}-{get_uuid()}-{id(self)}"
@@ -476,16 +476,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         return client
 
-    def create_sub_client(self) -> mqtt.Client:
+    def create_sub_client(self) -> Client:
         # see note above as to why we split pub and sub.
 
         # the client will try to automatically reconnect if something bad happens
         # when we reconnect to the broker, we want to republish our state
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
-        def reconnect_protocol(
-            client: mqtt.Client, userdata, flags, rc: int, properties=None
-        ):
+        def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None):
             self.logger.info("Reconnected to MQTT broker.")
             self.publish_attr("state")
             self.start_general_passive_listeners()
@@ -524,6 +522,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return client
 
     def on_mqtt_disconnect(self, client, rc: int) -> None:
+        from paho.mqtt import client as mqtt  # type: ignore
+
         if rc == mqtt.MQTT_ERR_SUCCESS:
             # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")

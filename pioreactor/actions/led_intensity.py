@@ -8,10 +8,10 @@ from typing import Optional
 
 import click
 import msgspec
-from paho.mqtt.client import Client  # type: ignore
 
 from pioreactor import structs
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel

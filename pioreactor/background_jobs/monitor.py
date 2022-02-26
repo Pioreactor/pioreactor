@@ -7,7 +7,6 @@ from time import sleep
 from typing import Optional
 
 import click
-from paho.mqtt.client import MQTTMessage  # type: ignore
 
 from pioreactor import error_codes
 from pioreactor import whoami
@@ -15,6 +14,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.pubsub import QOS
+from pioreactor.types import MQTTMessage
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states

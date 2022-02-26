@@ -10,9 +10,7 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-from paho.mqtt import publish as mqtt_publish  # type: ignore
 from paho.mqtt.client import Client as PahoClient  # type: ignore
-from paho.mqtt.client import connack_string  # type: ignore
 
 from pioreactor.config import leader_hostname
 from pioreactor.types import MQTTMessage
@@ -44,6 +42,7 @@ def create_client(
     def on_connect(client: Client, userdata, flags, rc: int, properties=None):
         if rc > 1:
             from pioreactor.logging import create_logger
+            from paho.mqtt.client import connack_string  # type: ignore
 
             logger = create_logger("pubsub.create_client", to_mqtt=False)
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
@@ -71,6 +70,7 @@ def create_client(
 def publish(
     topic: str, message, hostname: str = leader_hostname, retries: int = 10, **mqtt_kwargs
 ):
+    from paho.mqtt import publish as mqtt_publish  # type: ignore
 
     for retry_count in range(retries):
         try:
@@ -91,37 +91,6 @@ def publish(
 
         logger = create_logger("pubsub.publish", to_mqtt=False)
         logger.error(f"Unable to connect to host: {hostname}.")
-        raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
-
-
-def publish_multiple(
-    list_of_topic_message_tuples, hostname=leader_hostname, retries=10, **mqtt_kwargs
-):
-    """
-    list_of_topic_message_tuples is of the form ("<topic>", "<payload>", qos, retain)
-
-    """
-    for retry_count in range(retries):
-        try:
-            mqtt_publish.multiple(
-                list_of_topic_message_tuples, hostname=hostname, **mqtt_kwargs
-            )
-            return
-        except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
-            # possible that leader is down/restarting, keep trying, but log to local machine.
-            from pioreactor.logging import create_logger
-
-            logger = create_logger("pubsub.publish_multiple", to_mqtt=False)
-            logger.debug(
-                f"Attempt {retry_count}: Unable to connect to host: {hostname}",
-                exc_info=True,
-            )
-            time.sleep(5 * retry_count)  # linear backoff
-
-    else:
-
-        logger = create_logger("pubsub.publish_multiple", to_mqtt=False)
-        logger.error(f"Unable to connect to host: {hostname}. Exiting.")
         raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
 

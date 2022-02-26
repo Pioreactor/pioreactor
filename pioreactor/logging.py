@@ -8,9 +8,9 @@ from typing import Optional
 
 import colorlog
 from json_log_formatter import JSONFormatter  # type: ignore
-from paho.mqtt.client import Client  # type: ignore
 
 from pioreactor.config import config
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish_to_pioreactor_cloud
 from pioreactor.utils.timing import current_utc_time
@@ -98,7 +98,7 @@ def create_logger(
     -----------
     name: string
         the name of the logger
-    pub_client: paho.mqtt.Client
+    pub_client: pubsub.Client
         use an existing Client, else one is created
     source:
         "app" for the core Pioreactor codebase, else the name of the plugin.

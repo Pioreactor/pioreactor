@@ -108,14 +108,10 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
 
 
 def test_empty_payload_is_filtered_early() -> None:
-    # TODO: assert there is not error in mqtt.
-    config["storage"]["database"] = "test.sqlite"
-
     unit = "unit"
     exp = "test_empty_payload_is_filtered_early"
 
     class TestJob(BackgroundJob):
-
         published_settings = {
             "some_key": {
                 "datatype": "json",
@@ -140,7 +136,6 @@ def test_empty_payload_is_filtered_early() -> None:
     ]
 
     with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
-
         with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
             t = TestJob(unit=unit, experiment=exp)
             t.set_state(t.DISCONNECTED)
