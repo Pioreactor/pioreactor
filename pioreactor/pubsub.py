@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import socket
 import threading
 import time
 from enum import IntEnum
@@ -38,6 +37,7 @@ def create_client(
     """
     Create a MQTT client and connect to a host.
     """
+    import socket
 
     def on_connect(client: Client, userdata, flags, rc: int, properties=None):
         if rc > 1:
@@ -71,6 +71,7 @@ def publish(
     topic: str, message, hostname: str = leader_hostname, retries: int = 10, **mqtt_kwargs
 ):
     from paho.mqtt import publish as mqtt_publish  # type: ignore
+    import socket
 
     for retry_count in range(retries):
         try:
@@ -110,6 +111,7 @@ def subscribe(
     indefinitely for a message. The parent job may not exit properly.
 
     """
+    import socket
 
     retry_count = 1
     for retry_count in range(retries):

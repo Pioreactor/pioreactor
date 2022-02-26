@@ -8,7 +8,6 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 from __future__ import annotations
 
-import socket
 import sys
 from time import sleep
 from typing import Optional
@@ -350,6 +349,7 @@ if am_I_leader():
         name="cluster-status", short_help="report information on the pioreactor cluster"
     )
     def cluster_status() -> None:
+        import socket
 
         click.secho(
             f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
