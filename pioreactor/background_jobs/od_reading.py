@@ -89,7 +89,7 @@ from typing import cast
 from typing import Optional
 
 import click
-import msgspec
+from msgspec.json import encode
 
 from pioreactor import error_codes
 from pioreactor import exc
@@ -896,7 +896,7 @@ class ODReader(BackgroundJob):
 
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
-            msgspec.json.encode(output),
+            encode(output),
             qos=QOS.EXACTLY_ONCE,
         )
 
@@ -916,7 +916,7 @@ class ODReader(BackgroundJob):
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{channel}",
-                msgspec.json.encode(output),
+                encode(output),
                 qos=QOS.EXACTLY_ONCE,
             )
 

@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
 import threading
-import time
 from enum import IntEnum
+from time import sleep
 from typing import Any
 from typing import Callable
 from typing import Optional
@@ -59,7 +58,7 @@ def create_client(
         except (socket.gaierror, OSError):
             if retries == max_retries:
                 break
-            time.sleep(retries * 2)
+            sleep(retries * 2)
         else:
             client.loop_start()
             break
@@ -86,7 +85,7 @@ def publish(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
                 exc_info=True,
             )
-            time.sleep(5 * retry_count)  # linear backoff
+            sleep(5 * retry_count)  # linear backoff
 
     else:
 
@@ -173,7 +172,7 @@ def subscribe(
                 exc_info=True,
             )
 
-            time.sleep(5 * retry_count)  # linear backoff
+            sleep(5 * retry_count)  # linear backoff
 
     else:
         logger = create_logger("pubsub.subscribe", to_mqtt=False)
@@ -291,7 +290,9 @@ class collect_all_logs_of_level:
         return self.bucket
 
     def _collect_logs_into_bucket(self, message):
-        log = json.loads(message.payload)
+        from json import loads
+
+        log = loads(message.payload)
         if log["level"] == self.log_level:
             self.bucket.append(log)
 

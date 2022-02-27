@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
 from collections import defaultdict
+from json import dumps
 from typing import Optional
 
 import click
+from msgspec.json import decode
 
 from pioreactor import pubsub
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
@@ -17,6 +19,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
+from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
@@ -89,13 +92,13 @@ def od_blank(
                 msg = pubsub.subscribe(
                     f"pioreactor/{unit}/{testing_experiment}/od_reading/od_raw_batched"
                 )
-                yield json.loads(msg.payload)
+                yield decode(msg.payload, type=structs.ODReadings)
 
         signal = yield_from_mqtt()
         readings = defaultdict(list)
 
         for count, batched_reading in enumerate(signal, start=1):
-            for (channel, reading) in batched_reading["od_raw"].items():
+            for (channel, reading) in batched_reading.od_raw.items():
                 readings[channel].append(reading["voltage"])
 
             pubsub.publish(
@@ -105,15 +108,6 @@ def od_blank(
             logger.debug(f"Progress: {count/n_samples:.0%}")
             if count == n_samples:
                 break
-
-        def trimmed_mean(x: list) -> float:
-            from statistics import mean
-
-            x = list(x)  # copy it
-            max_, min_ = max(x), min(x)
-            x.remove(max_)
-            x.remove(min_)
-            return mean(x)
 
         means = {}
         variances = {}
@@ -135,19 +129,17 @@ def od_blank(
 
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/{channel}",
-                json.dumps(
-                    {"timestamp": current_utc_time(), "od_reading_v": means[channel]}
-                ),
+                dumps({"timestamp": current_utc_time(), "od_reading_v": means[channel]}),
             )
 
         # store locally as the source of truth.
         with local_persistant_storage(action_name) as cache:
-            cache[experiment] = json.dumps(means)
+            cache[experiment] = dumps(means)
 
         # publish to UI and database
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/{action_name}/mean",
-            json.dumps(means),
+            dumps(means),
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,
         )

@@ -7,7 +7,7 @@ import time
 from typing import Callable
 
 import click
-import msgspec
+from msgspec.json import encode
 
 from pioreactor import structs
 from pioreactor.actions.add_alt_media import add_alt_media
@@ -228,7 +228,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
 
         # save to cache
         with local_persistant_storage("pump_calibration") as cache:
-            cache[f"{pump_name}_ml_calibration"] = msgspec.json.encode(
+            cache[f"{pump_name}_ml_calibration"] = encode(
                 structs.PumpCalibration(
                     duration_=slope,
                     hz=hz,

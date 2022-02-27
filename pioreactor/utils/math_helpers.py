@@ -1,5 +1,17 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from typing import Iterable
+
+
+def trimmed_mean(x: list) -> float:
+    from statistics import mean
+
+    x = list(x)  # copy it
+    max_, min_ = max(x), min(x)
+    x.remove(max_)
+    x.remove(min_)
+    return mean(x)
 
 
 def simple_linear_regression(
@@ -18,7 +30,7 @@ def simple_linear_regression(
     sum_xy = np.sum(x_ * y_)
     sum_y = np.sum(y_)
 
-    slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x ** 2)
+    slope = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x**2)
     bias = y_.mean() - slope * x_.mean()
 
     residuals_sq = ((y_ - (slope * x_ + bias)) ** 2).sum()

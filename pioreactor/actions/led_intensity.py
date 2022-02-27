@@ -7,7 +7,7 @@ from typing import Iterator
 from typing import Optional
 
 import click
-import msgspec
+from msgspec.json import encode
 
 from pioreactor import structs
 from pioreactor.logging import create_logger
@@ -219,7 +219,7 @@ def led_intensity(
 
     pubsub_client.publish(
         f"pioreactor/{unit}/{experiment}/leds/intensity",
-        msgspec.json.encode(new_state),
+        encode(new_state),
         qos=QOS.AT_MOST_ONCE,
         retain=True,
     )
@@ -235,7 +235,7 @@ def led_intensity(
 
             pubsub_client.publish(
                 f"pioreactor/{unit}/{experiment}/led_events",
-                msgspec.json.encode(event),
+                encode(event),
                 qos=QOS.AT_MOST_ONCE,
                 retain=False,
             )

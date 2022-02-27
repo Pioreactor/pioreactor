@@ -33,12 +33,12 @@ with payload
 """
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from datetime import datetime
 
-import click
-import msgspec
+from click import command
+from click import option
+from msgspec.json import decode
 
 from pioreactor import exc
 from pioreactor import structs
@@ -267,7 +267,7 @@ class GrowthRateCalculator(BackgroundJob):
             result = cache.get(self.experiment, None)
 
         if result:
-            od_blanks = json.loads(result)
+            od_blanks = decode(result)
             self.logger.debug(f"{od_blanks=}")
             return od_blanks
         else:
@@ -287,7 +287,7 @@ class GrowthRateCalculator(BackgroundJob):
             result = cache.get(self.experiment, None)
 
         if result is not None:
-            return json.loads(result)
+            return decode(result)
         else:
             self.logger.debug("od_normalization/mean not found in cache.")
             self.logger.info(
@@ -303,7 +303,7 @@ class GrowthRateCalculator(BackgroundJob):
             result = cache.get(self.experiment, None)
 
         if result:
-            return json.loads(result)
+            return decode(result)
         else:
             self.logger.debug("od_normalization/variance not found in cache.")
             self.logger.info(
@@ -357,7 +357,7 @@ class GrowthRateCalculator(BackgroundJob):
         if self.state != self.READY:
             return
 
-        payload = msgspec.json.decode(message.payload, type=structs.ODReadings)
+        payload = decode(message.payload, type=structs.ODReadings)
         observations = self.batched_raw_od_readings_to_dict(payload.od_raw)
         scaled_observations = self.scale_raw_observations(observations)
 
@@ -478,8 +478,8 @@ class GrowthRateCalculator(BackgroundJob):
         }
 
 
-@click.command(name="growth_rate_calculating")
-@click.option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
+@command(name="growth_rate_calculating")
+@option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
 def click_growth_rate_calculating(ignore_cache):
     """
     Start calculating growth rate

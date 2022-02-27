@@ -5,7 +5,8 @@ import time
 from configparser import NoOptionError
 from typing import Optional
 
-import msgspec
+from msgspec.json import decode
+from msgspec.json import encode
 
 from pioreactor import structs
 from pioreactor import utils
@@ -73,7 +74,7 @@ def pump(
         if calibration is None:
             with utils.local_persistant_storage("pump_calibration") as cache:
                 try:
-                    calibration = msgspec.json.decode(
+                    calibration = decode(
                         cache[f"{pump_name}_ml_calibration"], type=structs.PumpCalibration
                     )
                 except KeyError:
@@ -114,7 +115,7 @@ def pump(
             return 0.0
 
         # publish this first, as downstream jobs need to know about it.
-        json_output = msgspec.json.encode(
+        json_output = encode(
             structs.DosingEvent(
                 volume_change=ml,
                 event=action_name,

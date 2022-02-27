@@ -7,7 +7,7 @@ This should be run with a vial in, with a stirbar. Water is fine.
 from __future__ import annotations
 
 import json
-import time
+from time import sleep
 
 import click
 
@@ -62,12 +62,12 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
                 min_dc  # we start with a somewhat low value, s.t. the stir bar is caught.
             )
             st.start_stirring()
-            time.sleep(8)
+            sleep(8)
             n_samples = len(dcs)
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
-                time.sleep(8)
+                sleep(8)
                 rpm = rpm_calc(4)
                 measured_rpms.append(rpm)
                 logger.debug(f"Detected {rpm=} RPM @ {dc=}%")

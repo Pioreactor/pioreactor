@@ -16,14 +16,17 @@ and
 """
 from __future__ import annotations
 
-import json
 from collections import defaultdict
+from json import dumps
+from typing import cast
 from typing import Generator
 
 import click
+from msgspec.json import decode
 
 from pioreactor import exc
 from pioreactor import pubsub
+from pioreactor import structs
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.types import PdChannel
@@ -32,6 +35,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import residuals_of_simple_linear_regression
+from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -40,7 +44,7 @@ from pioreactor.whoami import is_testing_env
 def od_normalization(
     unit: str, experiment: str, n_samples: int = 40
 ) -> tuple[dict[PdChannel, float], dict[PdChannel, float]]:
-    from statistics import mean, variance
+    from statistics import variance
 
     action_name = "od_normalization"
     logger = create_logger(action_name)
@@ -59,7 +63,7 @@ def od_normalization(
             )
 
         # TODO: write tests for this
-        def yield_from_mqtt() -> Generator[dict, None, None]:
+        def yield_from_mqtt() -> Generator[structs.ODReadings, None, None]:
             while True:
                 msg = pubsub.subscribe(
                     f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
@@ -68,14 +72,14 @@ def od_normalization(
                 if msg is None:
                     continue
 
-                yield json.loads(msg.payload)
+                yield decode(msg.payload, type=structs.ODReadings)
 
         signal = yield_from_mqtt()
         readings = defaultdict(list)
 
         for count, batched_reading in enumerate(signal, start=1):
-            for (sensor, reading) in batched_reading["od_raw"].items():
-                readings[sensor].append(reading["voltage"])
+            for (channel, reading) in batched_reading.od_raw.items():
+                readings[channel].append(reading.voltage)
 
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
@@ -85,33 +89,27 @@ def od_normalization(
             if count == n_samples:
                 break
 
-        def trimmed_mean(x: list) -> float:
-            x = list(x)  # copy it
-            max_, min_ = max(x), min(x)
-            x.remove(max_)
-            x.remove(min_)
-            return mean(x)
-
         variances = {}
         means = {}
         autocorrelations = {}  # lag 1
 
-        for sensor, od_reading_series in readings.items():
-            variances[sensor] = variance(
+        for channel, od_reading_series in readings.items():
+            channel = cast(PdChannel, channel)
+            variances[channel] = variance(
                 residuals_of_simple_linear_regression(
                     list(range(n_samples)), od_reading_series
                 )
             )  # see issue #206
-            means[sensor] = trimmed_mean(od_reading_series)
-            autocorrelations[sensor] = correlation(
+            means[channel] = trimmed_mean(od_reading_series)
+            autocorrelations[channel] = correlation(
                 od_reading_series[:-1], od_reading_series[1:]
             )
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps(means)
+            cache[experiment] = dumps(means)
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps(variances)
+            cache[experiment] = dumps(variances)
 
         logger.debug(f"observed data: {od_reading_series}")
         logger.debug(f"measured mean: {means}")

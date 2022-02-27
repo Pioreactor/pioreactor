@@ -16,7 +16,7 @@ def is_hostname_on_network(hostname: str) -> bool:
 
 def is_reachable(hostname: str) -> bool:
     """
-    Can we ping the computer called `hostname`?
+    Can we ping the computer at `hostname`?
     """
     import subprocess
 
