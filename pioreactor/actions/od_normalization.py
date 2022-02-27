@@ -1,17 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 
-Publishes a message like:
+Writes a message like to cache:
 
     {'0': 1.3e-5, '1': 3.2e-6}
-
-to the topic
-
-  pioreactor/{unit}/{experiment}/od_normalization/mean
-
-and
-
-  pioreactor/{unit}/{experiment}/od_normalization/variance
 
 """
 from __future__ import annotations
