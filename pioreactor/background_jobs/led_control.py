@@ -77,7 +77,7 @@ class LEDController(BackgroundJob):
             klass = self.automations[algo_metadata.automation_name]
             self.logger.info(f"Starting {algo_metadata}.")
             self.automation_job = klass(
-                unit=self.unit, experiment=self.experiment, **algo_metadata
+                unit=self.unit, experiment=self.experiment, **algo_metadata.args
             )
             self.automation = algo_metadata
             self.automation_name = self.automation.automation_name

@@ -13,6 +13,7 @@ from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.automations.led.base import LEDAutomation
 from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -25,17 +26,17 @@ def pause() -> None:
 
 def test_silent() -> None:
     experiment = "test_silent"
-    with LEDController("silent", duration=60, unit=unit, experiment=experiment):
+    with LEDController("silent", duration=60, unit=unit, experiment=experiment) as ld:
         pause()
         pause()
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": "2010-01-01 12:00:00"}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            '{"od_filtered": 1.0}',
+            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
         )
         pause()
         pause()
@@ -44,6 +45,8 @@ def test_silent() -> None:
         )
         assert r is not None
         assert r.payload.decode() == "silent"
+        assert ld.automation_job.latest_od == 1.0
+        assert ld.automation_job.latest_growth_rate == 0.01
 
 
 def test_changing_automation_over_mqtt() -> None:
@@ -53,7 +56,7 @@ def test_changing_automation_over_mqtt() -> None:
         "silent", duration=original_duration, unit=unit, experiment=experiment
     ) as ld:
         assert ld.automation_name == "silent"
-        assert ld.automation.duration == original_duration
+        assert ld.automation_job.duration == original_duration
         pause()
         pause()
         r = pubsub.subscribe(
@@ -65,7 +68,13 @@ def test_changing_automation_over_mqtt() -> None:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/led_control/automation/set",
-            json.dumps({"automation_name": "silent", "duration": 20}),
+            json.dumps(
+                {
+                    "automation_name": "silent",
+                    "automation_type": "led",
+                    "args": {"duration": 20},
+                }
+            ),
         )
         pause()
         pause()
@@ -75,7 +84,7 @@ def test_changing_automation_over_mqtt() -> None:
         pause()
         pause()
         assert ld.automation_name == "silent"
-        assert ld.automation.duration == 20
+        assert ld.automation_job.duration == 20
 
 
 @pytest.mark.xfail
