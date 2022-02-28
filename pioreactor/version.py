@@ -16,5 +16,9 @@ def _get_hardware_version() -> tuple[int, int]:
         return (0, 1)
 
 
+def tuple_to_text(t: tuple):
+    return ".".join(map(str, t))
+
+
 hardware_version_info = _get_hardware_version()
 software_version_info = tuple(int(c) for c in __version__.split("."))

@@ -205,6 +205,19 @@ def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values()
     assert np.abs(C / (factor * C_True) - ratio) < 0.01
 
 
+def test_sin_regression_all_negative() -> None:
+
+    freq = 60
+    x = [i / 25 for i in range(25)]
+    y = [-2 for _x in x]
+
+    adc_reader = ADCReader(channels=[])
+
+    (C, A, phi), AIC = adc_reader.sin_regression_with_known_freq(x, y, freq)
+    assert C == -2
+    assert AIC == float("inf")
+
+
 def test_simple_API():
     od_job = start_od_reading("90", "REF", sampling_rate=100_000, fake_data=True)
 

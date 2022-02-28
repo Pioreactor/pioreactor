@@ -154,9 +154,13 @@ def version(verbose: bool) -> None:
 
     if verbose:
         import platform
+        from pioreactor.version import hardware_version_info
+        from pioreactor.version import software_version_info
+        from pioreactor.version import tuple_to_text
 
         # TODO include HAT version and latest git shas
-        click.echo(f"Pioreactor:             {pioreactor.__version__}")
+        click.echo(f"Pioreactor software:    {tuple_to_text(software_version_info)}")
+        click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {get_rpi_machine()}")
     else:

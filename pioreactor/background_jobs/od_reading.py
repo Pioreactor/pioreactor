@@ -413,7 +413,7 @@ class ADCReader(LoggerMixin):
             self.logger.error(f"Error in regression. {e}")
             self.logger.debug(f"{x=}")
             self.logger.debug(f"{y=}")
-            return (y_.mean(), None, None), float("inf")
+            return (y_.mean(), None, None), 1e10
 
         y_model = C + b * np.sin(freq * tau * x_) + c * np.cos(freq * tau * x_)
         SSE = np.sum((y_ - y_model) ** 2)
@@ -555,7 +555,7 @@ class ADCReader(LoggerMixin):
     ) -> float:
         def _compute_best_freq(timestamps, aggregated_signals):
             FREQS_TO_TRY = [60.0, 50.0]
-            argmin_freq = None
+            argmin_freq = FREQS_TO_TRY[0]
             min_AIC = float("inf")
 
             for freq in FREQS_TO_TRY:
@@ -566,9 +566,6 @@ class ADCReader(LoggerMixin):
                     min_AIC = AIC
                     argmin_freq = freq
 
-            assert (
-                argmin_freq is not None
-            ), f"{min_AIC=}, {argmin_freq=}, {timestamps=}, {aggregated_signals=}"
             return argmin_freq
 
         first_channel = self.channels[0]

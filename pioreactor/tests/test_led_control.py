@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# testing_led_control
 from __future__ import annotations
 
 import json

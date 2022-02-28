@@ -202,7 +202,7 @@ def test_positive_correlation_between_temp_and_heating(
         logger.debug("Varying heating.")
         for dc in dcs:
             tc._update_heater(dc)
-            sleep(0.75)
+            sleep(2.0)  # two cycles
             measured_pcb_temps.append(tc.read_external_temperature())
 
         tc._update_heater(0)

@@ -82,7 +82,7 @@ class ODReading(Struct):
 
 class ODReadings(Struct):
     timestamp: str
-    od_raw: dict[str, ODReading]  # pt.PDChannel
+    od_raw: dict[pt.PdChannel, ODReading]
 
 
 class Temperature(Struct):
