@@ -165,30 +165,32 @@ class TestGrowthRateCalculating:
 
         config["od_config.photodiode_channel"]["1"] = "90"
         config["od_config.photodiode_channel"]["2"] = "135"
-        config["od_config.photodiode_channel"]["3"] = "90"
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({1: 1, 2: 1, 3: 1})
+            cache[experiment] = json.dumps({1: 1, 2: 1})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({1: 1, 2: 1, 3: 1})
+            cache[experiment] = json.dumps({1: 1, 2: 1})
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2", "3"],
-                [1.15, 0.93, 1.0],
-                ["90", "135", "90"],
+                ["1", "2"],
+                [
+                    1.15,
+                    0.93,
+                ],
+                ["90", "135"],
                 timestamp="2010-01-01 12:00:15",
             ),
             retain=True,
         )
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = '{"1": 1.15, "2": 0.93, "3": 1.0}'
+            cache[experiment] = '{"1": 1.15, "2": 0.93}'
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = '{"1": 1, "2": 1, "3": 1}'
+            cache[experiment] = '{"1": 1, "2": 1}'
 
         pause()
         calc1 = GrowthRateCalculator(unit=unit, experiment=experiment)
@@ -196,36 +198,36 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2", "3"],
-                [1.151, 0.931, 1.1],
-                ["90", "135", "90"],
+                ["1", "2"],
+                [1.151, 0.931],
+                ["90", "135"],
                 timestamp="2010-01-01 12:00:20",
             ),
         )
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2", "3"],
-                [1.152, 0.932, 1.2],
-                ["90", "135", "90"],
+                ["1", "2"],
+                [1.152, 0.932],
+                ["90", "135"],
                 timestamp="2010-01-01 12:00:25",
             ),
         )
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2", "3"],
-                [1.153, 0.933, 1.3],
-                ["90", "135", "90"],
+                ["1", "2"],
+                [1.153, 0.933],
+                ["90", "135"],
                 timestamp="2010-01-01 12:00:30",
             ),
         )
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2", "3"],
-                [1.154, 0.934, 1.4],
-                ["90", "135", "90"],
+                ["1", "2"],
+                [1.154, 0.934],
+                ["90", "135"],
                 timestamp="2010-01-01 12:00:35",
             ),
         )
