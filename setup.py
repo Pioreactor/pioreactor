@@ -8,13 +8,13 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 
 CORE_REQUIREMENTS = [
-    "click>=8.0.0",
+    "click>=8.0.4",
     "paho-mqtt>=1.6.0",
-    "psutil>=5.8.0",
+    "psutil>=5.9.0",
     "sh>=1.14.0",
     "JSON-log-formatter>=0.4.0",
     "colorlog>=6.6.0",
-    "msgspec>=0.4.1",
+    "msgspec>=0.4.2",
     # tech debt - this needed to be in the core req
     # leader requirement
     "sqlite3worker @ https://github.com/pioreactor/sqlite3worker/archive/master.zip#egg=sqlite3worker-0.0.1",
@@ -22,13 +22,13 @@ CORE_REQUIREMENTS = [
 
 
 LEADER_REQUIREMENTS = [
-    "paramiko>=2.8.0",
+    "paramiko>=2.9.2",
 ]
 
 
 WORKER_REQUIREMENTS = [
     "RPi.GPIO>=0.7.1",
-    "adafruit-circuitpython-ads1x15>=2.2.8",
+    "adafruit-circuitpython-ads1x15>=2.2.12",
     "DAC43608>=0.2.6",
     "TMP1075>=0.2.0",
     "rpi-hardware-pwm>=0.1.4",

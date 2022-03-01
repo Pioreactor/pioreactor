@@ -1,9 +1,8 @@
-click==8.0.3
+click==8.0.4
 paho-mqtt==1.6.1
-psutil==5.8.0
+psutil==5.9.0
 sh==1.14.2
 JSON-log-formatter==0.4.0
-requests==2.26.0
 rpi_hardware_pwm==0.1.3
 colorlog==6.6.0
-msgspec==0.4.1
+msgspec==0.4.2
