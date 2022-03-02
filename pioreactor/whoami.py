@@ -25,14 +25,14 @@ def get_latest_experiment_name() -> str:
 
     from pioreactor.pubsub import subscribe
 
-    mqtt_msg = subscribe("pioreactor/latest_experiment", timeout=2)
+    mqtt_msg = subscribe("pioreactor/latest_experiment", timeout=1, retries=2)
     if mqtt_msg:
         return mqtt_msg.payload.decode()
     else:
         from pioreactor.logging import create_logger
 
         logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT)
-        logger.info("No experiment running. Try creating a new experiment first.")
+        logger.info("No experiment found. Try creating a new experiment first.")
         return NO_EXPERIMENT
 
 

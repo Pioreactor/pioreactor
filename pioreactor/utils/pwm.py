@@ -93,10 +93,13 @@ class PWM:
 
             import RPi.GPIO as GPIO  # type: ignore
 
+            GPIO.setwarnings(
+                False
+            )  # we already "registered" this GPIO in the EEPROM, ignore GPIO telling us again.
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
 
-            if self.hz > 2000:
+            if self.hz >= 1000:
                 self.logger.warning(
                     "Setting a PWM to a very high frequency with software. Did you mean to use a hardware PWM?"
                 )

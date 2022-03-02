@@ -371,7 +371,7 @@ class Monitor(BackgroundJob):
         self.led_in_use = True
 
         self.led_on()
-        sleep(1.5)
+        sleep(2.0)
         for _ in range(error_code):
             self.led_on()
             sleep(0.2)

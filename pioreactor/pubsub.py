@@ -85,7 +85,7 @@ def publish(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
                 exc_info=True,
             )
-            sleep(5 * retry_count)  # linear backoff
+            sleep(3 * retry_count)  # linear backoff
 
     else:
 
@@ -172,7 +172,7 @@ def subscribe(
                 exc_info=True,
             )
 
-            sleep(5 * retry_count)  # linear backoff
+            sleep(3 * retry_count)  # linear backoff
 
     else:
         logger = create_logger("pubsub.subscribe", to_mqtt=False)
