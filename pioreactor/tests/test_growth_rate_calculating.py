@@ -147,7 +147,10 @@ class TestGrowthRateCalculating:
                 f"pioreactor/{unit}/{experiment}/dosing_events",
                 encode(
                     structs.DosingEvent(
-                        volume_change=1.5, event="add_media", source_of_event="test"
+                        volume_change=1.5,
+                        event="add_media",
+                        source_of_event="test",
+                        timestamp="2010-01-01 12:00:12",
                     )
                 ),
             )
@@ -355,7 +358,10 @@ class TestGrowthRateCalculating:
             f"pioreactor/{unit}/{experiment}/dosing_events",
             encode(
                 structs.DosingEvent(
-                    volume_change=1.0, event="add_media", source_of_event="algo"
+                    volume_change=1.0,
+                    event="add_media",
+                    source_of_event="algo",
+                    timestamp="2010-01-01 12:00:48",
                 )
             ),
         )
@@ -388,7 +394,10 @@ class TestGrowthRateCalculating:
             f"pioreactor/{unit}/{experiment}/dosing_events",
             encode(
                 structs.DosingEvent(
-                    volume_change=1.0, event="add_media", source_of_event="algo"
+                    volume_change=1.0,
+                    event="add_media",
+                    source_of_event="algo",
+                    timestamp="2010-01-01 12:01:55",
                 )
             ),
         )

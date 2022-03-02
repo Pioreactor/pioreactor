@@ -8,7 +8,6 @@ from pioreactor.structs import Automation
 def test_str_representation():
     a = Automation(
         automation_name="test",
-        automation_type="led",
         args={"growth": 0.1, "intensity": "high", "value": True},
     )
 

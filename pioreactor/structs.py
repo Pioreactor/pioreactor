@@ -16,6 +16,7 @@ class Automation(Struct):
     """
 
     automation_name: str
+    automation_type: str
     args: dict = {}
 
     def __str__(self) -> str:
@@ -32,15 +33,15 @@ class Automation(Struct):
 
 
 class TemperatureAutomation(Automation):
-    pass
+    automation_type: str = "temperature"
 
 
 class DosingAutomation(Automation):
-    pass
+    automation_type: str = "dosing"
 
 
 class LEDAutomation(Automation):
-    pass
+    automation_type: str = "led"
 
 
 class AutomationSettings(Struct):
@@ -100,9 +101,8 @@ class Temperature(Struct):
 
 
 class PumpCalibration(Struct):
-
-    duration_: float
     hz: float
     dc: float
+    duration_: float
     bias_: float
     timestamp: str

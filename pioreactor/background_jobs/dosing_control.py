@@ -8,7 +8,8 @@ To change the automation over MQTT,
     pioreactor/<unit>/<experiment>/dosing_control/automation/set
 
 
-with payload a json object looking like pioreactor.structs.Automation, ex: specify the new automation with name `"automation_name"`.
+with payload a json object looking like pioreactor.structs.Automation, ex: specify the new automation with name `"automation_name"`,
+ and field "automation_type": "dosing"
 
 
 Using the CLI, specific automation values can be specified as additional options (note the underscore...) :
@@ -45,9 +46,9 @@ class DosingController(BackgroundJob):
 
     """
 
-    # this is populated dynamically with subclasses of DosingAutomationJobs in the form:
+    # `available_automations` is populated dynamically with uninitialized subclasses of DosingAutomationJobs in the form:
     # {
-    #    DosingAutomationJob1.automation_name: DosingAutomationJob1,
+    #    automation_name: DosingAutomationJob1,
     #    ...
     # }
     # this includes plugins
@@ -72,6 +73,7 @@ class DosingController(BackgroundJob):
             )
 
         self.automation = DosingAutomation(automation_name=automation_name, args=kwargs)
+        self.automation_name = self.automation.automation_name
         self.logger.info(f"Starting {self.automation}.")
 
         try:
@@ -83,8 +85,6 @@ class DosingController(BackgroundJob):
             self.logger.debug(e, exc_info=True)
             self.set_state(self.DISCONNECTED)
             raise e
-
-        self.automation_name = self.automation.automation_name
 
     def set_automation(self, algo_metadata: DosingAutomation) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like

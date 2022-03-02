@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
 import time
 
-import pytest
+from msgspec.json import encode
 
 from pioreactor import pubsub
+from pioreactor import structs
 from pioreactor.actions.led_intensity import LED_UNLOCKED
 from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.automations.led.base import LEDAutomationJob
@@ -31,11 +31,11 @@ def test_silent() -> None:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_time())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
+            encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_time())),
         )
         pause()
         pause()
@@ -67,12 +67,12 @@ def test_changing_automation_over_mqtt() -> None:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/led_control/automation/set",
-            json.dumps(
-                {
-                    "automation_name": "silent",
-                    "automation_type": "led",
-                    "args": {"duration": 20},
-                }
+            encode(
+                structs.LEDAutomation(
+                    automation_name="silent",
+                    automation_type="led",
+                    args={"duration": 20},
+                )
             ),
         )
         pause()
@@ -86,7 +86,6 @@ def test_changing_automation_over_mqtt() -> None:
         assert ld.automation_job.duration == 20
 
 
-@pytest.mark.xfail
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     """
     This test works locally, but not in github CI
