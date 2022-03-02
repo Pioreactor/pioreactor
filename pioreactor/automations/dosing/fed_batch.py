@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-
 # pump X ml every period (minute, 30min, hour, etc.)
+from __future__ import annotations
 
-from pioreactor.automations.dosing.base import DosingAutomation
-from pioreactor.automations import events
 from pioreactor.actions.add_media import add_media
+from pioreactor.automations import events
+from pioreactor.automations.dosing.base import DosingAutomationJob
 
 
-class FedBatch(DosingAutomation):
+class FedBatch(DosingAutomationJob):
     """
     Useful for fed-batch automations
     """

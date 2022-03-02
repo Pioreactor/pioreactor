@@ -6,8 +6,10 @@ import time
 
 import numpy as np
 import pytest
+from msgspec.json import encode
 from numpy.testing import assert_array_equal
 
+from pioreactor import structs
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
@@ -24,23 +26,23 @@ def pause() -> None:
 
 def create_od_raw_batched_json(
     channels=None, voltages=None, angles=None, timestamp=None
-) -> str:
+) -> bytes:
     """
-    channel is a list, elements from {0, 1, 2, 3}
+    channel is a list, elements from {1, 2}
     raw_signal is a list
-    angle is a list, elements from {0, 45, 90, 135, 180}
+    angle is a list, elements from {45, 90, 135, 180}
 
     """
-    d = {"od_raw": {}, "timestamp": timestamp}
+    readings = structs.ODReadings(timestamp=timestamp, od_raw=dict())
     for channel, voltage, angle in zip(channels, voltages, angles):
-        assert int(channel) in [0, 1, 2, 3]
-        d["od_raw"][channel] = {
-            "voltage": voltage,
-            "angle": angle,
-            "timestamp": timestamp,
-        }
+        assert int(channel) in [1, 2]
+        readings.od_raw[channel] = structs.ODReading(
+            voltage=voltage,
+            angle=angle,
+            timestamp=timestamp,
+        )
 
-    return json.dumps(d)
+    return encode(readings)
 
 
 class TestGrowthRateCalculating:
@@ -143,7 +145,11 @@ class TestGrowthRateCalculating:
             )
             publish(
                 f"pioreactor/{unit}/{experiment}/dosing_events",
-                '{"volume_change": "1.5", "event": "add_media", "source_of_event": "test"}',
+                encode(
+                    structs.DosingEvent(
+                        volume_change=1.5, event="add_media", source_of_event="test"
+                    )
+                ),
             )
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
@@ -347,8 +353,10 @@ class TestGrowthRateCalculating:
         # trigger dosing events, which change the "regime"
         publish(
             f"pioreactor/{unit}/{experiment}/dosing_events",
-            json.dumps(
-                {"source_of_event": "algo", "event": "add_media", "volume_change": 1.0}
+            encode(
+                structs.DosingEvent(
+                    volume_change=1.0, event="add_media", source_of_event="algo"
+                )
             ),
         )
         pause()
@@ -378,8 +386,10 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/dosing_events",
-            json.dumps(
-                {"source_of_event": "algo", "event": "add_media", "volume_change": 1.0}
+            encode(
+                structs.DosingEvent(
+                    volume_change=1.0, event="add_media", source_of_event="algo"
+                )
             ),
         )
         pause()
@@ -641,25 +651,24 @@ class TestGrowthRateCalculating:
             retain=True,
         )
 
-        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-        pause()
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            pause()
 
-        pause()
-        publish(
-            f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-            create_od_raw_batched_json(
-                ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:02:15"
-            ),
-            retain=True,
-        )
-        pause()
-        pause()
-        assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
-        assert calc.od_blank == {"2": 0.0, "1": 0.0}
-        results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
-        assert abs(results["2"] - 1.25) < 0.00001
-        assert abs(results["1"] - 1.2) < 0.00001
-        calc.set_state(calc.DISCONNECTED)
+            pause()
+            publish(
+                f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
+                create_od_raw_batched_json(
+                    ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:02:15"
+                ),
+                retain=True,
+            )
+            pause()
+            pause()
+            assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
+            assert calc.od_blank == {"2": 0.0, "1": 0.0}
+            results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
+            assert abs(results["2"] - 1.25) < 0.00001
+            assert abs(results["1"] - 1.2) < 0.00001
 
     def test_observation_order_is_preserved_in_job(self) -> None:
         unit = get_unit_name()
@@ -681,10 +690,12 @@ class TestGrowthRateCalculating:
             retain=True,
         )
 
-        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
 
-        assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {"2": 2.0, "1": 0.25}
-        calc.set_state(calc.DISCONNECTED)
+            assert calc.scale_raw_observations({"2": 2, "1": 0.5}) == {
+                "2": 2.0,
+                "1": 0.25,
+            }
 
     def test_zero_blank_and_zero_od_coming_in(self) -> None:
         unit = get_unit_name()

@@ -24,6 +24,7 @@ message: a json object with required keyword arguments. Specify the new automati
 """
 from __future__ import annotations
 
+from contextlib import suppress
 from time import sleep
 from typing import Any
 from typing import Optional
@@ -36,8 +37,8 @@ from pioreactor import hardware
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
-from pioreactor.structs import Automation
 from pioreactor.structs import Temperature
+from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
@@ -59,21 +60,20 @@ class TemperatureController(BackgroundJob):
         }
 
     If you have your own thermo-couple, you can publish to this topic, with the same schema
-    and all should just work™️. You'll need to provide your own feedback loops however.
+    and all should just work™️. Set `using_third_party_thermocouple` to True in the class creation, too.
 
 
     Parameters
     ------------
-    eval_and_publish_immediately: bool, default True
-        evaluate and publish the temperature once the class is created (in the background)
-        TODO: do I need this still?
+    using_third_party_thermocouple: bool
+        True if supplying an external thermocouple that will publish to MQTT.
     """
 
     MAX_TEMP_TO_REDUCE_HEATING = 58.0
     MAX_TEMP_TO_DISABLE_HEATING = 62.0  # ~PLA glass transition temp
     MAX_TEMP_TO_SHUTDOWN = 64.0
 
-    automations = {}  # type: ignore
+    available_automations = {}  # type: ignore
 
     published_settings = {
         "automation": {"datatype": "Automation", "settable": True},
@@ -89,6 +89,7 @@ class TemperatureController(BackgroundJob):
         unit: str,
         experiment: str,
         eval_and_publish_immediately: bool = True,
+        using_third_party_thermocouple: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(job_name="temperature_control", unit=unit, experiment=experiment)
@@ -111,32 +112,33 @@ class TemperatureController(BackgroundJob):
         else:
             from TMP1075 import TMP1075  # type: ignore
 
+        self.using_third_party_thermocouple = using_third_party_thermocouple
         self.pwm = self.setup_pwm()
         self.update_heater(0)
 
-        self.tmp_driver = TMP1075()
-        self.read_external_temperature_timer = RepeatedTimer(
-            37,
-            self.read_external_temperature_and_check_temp,
-            run_immediately=False,
-        ).start()
+        if not self.using_third_party_thermocouple:
+            self.tmp_driver = TMP1075()
+            self.read_external_temperature_timer = RepeatedTimer(
+                37,
+                self.read_external_temperature_and_check_temp,
+                run_immediately=False,
+            ).start()
 
-        self.publish_temperature_timer = RepeatedTimer(
-            4 * 60,
-            self.evaluate_and_publish_temperature,
-            run_immediately=eval_and_publish_immediately,
-            run_after=60,
-        ).start()
+            self.publish_temperature_timer = RepeatedTimer(
+                4 * 60,
+                self.evaluate_and_publish_temperature,
+                run_after=60,
+            ).start()
 
         try:
-            automation_class = self.automations[automation_name]
+            automation_class = self.available_automations[automation_name]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
 
-        self.automation = Automation(
-            automation_name=automation_name, automation_type="temperature", args=kwargs
+        self.automation = TemperatureAutomation(
+            automation_name=automation_name, args=kwargs
         )
         self.logger.info(f"Starting {self.automation}.")
         try:
@@ -150,10 +152,11 @@ class TemperatureController(BackgroundJob):
             raise e
         self.automation_name = self.automation.automation_name
 
-        self.temperature = Temperature(
-            temperature=self.read_external_temperature(),
-            timestamp=current_utc_time(),
-        )
+        if not self.using_third_party_thermocouple:
+            self.temperature = Temperature(
+                temperature=self.read_external_temperature(),
+                timestamp=current_utc_time(),
+            )
 
     def turn_off_heater(self) -> None:
         self._update_heater(0)
@@ -214,14 +217,11 @@ class TemperatureController(BackgroundJob):
 
     ##### internal and private methods ########
 
-    def set_automation(self, algo_metadata: Automation) -> None:
+    def set_automation(self, algo_metadata: TemperatureAutomation) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
         # OR should just bail...
-
-        if algo_metadata.automation_type != "temperature":
-            raise ValueError("algo_metadata.automation_type != 'temperature'")
 
         try:
             self.automation_job.set_state("disconnected")
@@ -235,7 +235,9 @@ class TemperatureController(BackgroundJob):
 
         try:
             self.logger.info(f"Starting {algo_metadata}.")
-            self.automation_job = self.automations[algo_metadata.automation_name](
+            self.automation_job = self.available_automations[
+                algo_metadata.automation_name
+            ](
                 unit=self.unit,
                 experiment=self.experiment,
                 parent=self,
@@ -246,11 +248,11 @@ class TemperatureController(BackgroundJob):
 
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -282,9 +284,7 @@ class TemperatureController(BackgroundJob):
             self._update_heater(0)
 
             if self.automation_name != "silent":
-                self.set_automation(
-                    Automation(automation_name="silent", automation_type="temperature")
-                )
+                self.set_automation(TemperatureAutomation(automation_name="silent"))
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
@@ -303,24 +303,17 @@ class TemperatureController(BackgroundJob):
         self.automation_job.set_state(self.READY)
 
     def on_disconnected(self) -> None:
-        try:
+        with suppress(AttributeError):
             self.automation_job.set_state(self.DISCONNECTED)
-        except AttributeError:
-            # if disconnect is called right after starting, temperature_automation_job isn't instantiated
-            pass
 
-        try:
+        with suppress(AttributeError):
             self.read_external_temperature_timer.cancel()
             self.publish_temperature_timer.cancel()
-        except AttributeError:
-            pass
 
-        try:
+        with suppress(AttributeError):
             self._update_heater(0)
             self.pwm.stop()
             self.pwm.cleanup()
-        except AttributeError:
-            pass
 
     def setup_pwm(self) -> PWM:
         hertz = 1

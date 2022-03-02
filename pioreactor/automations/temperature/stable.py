@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from pioreactor.automations.temperature.base import TemperatureAutomation
+from pioreactor.automations.temperature.base import TemperatureAutomationJob
 from pioreactor.config import config
 from pioreactor.utils import clamp
 from pioreactor.utils.streaming_calculations import PID
 
 
-class Stable(TemperatureAutomation):
+class Stable(TemperatureAutomationJob):
     """
     Uses a PID controller to change the DC% to match a target temperature.
     """

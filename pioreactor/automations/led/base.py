@@ -25,7 +25,7 @@ from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
 
 
-class LEDAutomation(BackgroundSubJob):
+class LEDAutomationJob(BackgroundSubJob):
     """
     This is the super class that LED automations inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program), and call the `execute` function
@@ -62,7 +62,7 @@ class LEDAutomation(BackgroundSubJob):
         # this registers all subclasses of LEDAutomation back to LEDController, so the subclass
         # can be invoked in LEDController.
         if hasattr(cls, "automation_name"):
-            LEDController.automations[cls.automation_name] = cls
+            LEDController.available_automations[cls.automation_name] = cls
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class LEDAutomation(BackgroundSubJob):
         experiment: str = None,
         **kwargs,
     ) -> None:
-        super(LEDAutomation, self).__init__(
+        super(LEDAutomationJob, self).__init__(
             job_name="led_automation", unit=unit, experiment=experiment
         )
 
@@ -109,7 +109,7 @@ class LEDAutomation(BackgroundSubJob):
         ).start()
 
     def run(self) -> Optional[events.Event]:
-        # TODO: this should be close to or equal to the function in DosingAutomation
+        # TODO: this should be close to or equal to the function in DosingAutomationJob
         event: Optional[events.Event]
         if self.state == self.DISCONNECTED:
             # NOOP
@@ -246,7 +246,7 @@ class LEDAutomation(BackgroundSubJob):
             led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
 
     def __setattr__(self, name, value) -> None:
-        super(LEDAutomation, self).__setattr__(name, value)
+        super(LEDAutomationJob, self).__setattr__(name, value)
         if name in self.published_settings and name != "state":
             self._latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
@@ -298,5 +298,5 @@ class LEDAutomation(BackgroundSubJob):
         )
 
 
-class LEDAutomationContrib(LEDAutomation):
+class LEDAutomationJobContrib(LEDAutomationJob):
     automation_name: str

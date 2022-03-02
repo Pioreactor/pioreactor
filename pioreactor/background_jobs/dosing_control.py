@@ -27,7 +27,7 @@ import click
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
-from pioreactor.structs import Automation
+from pioreactor.structs import DosingAutomation
 
 
 class DosingController(BackgroundJob):
@@ -36,22 +36,22 @@ class DosingController(BackgroundJob):
     Attributes
     ------------
 
-    automation: pioreactor.structs.Automation
+    automation: pioreactor.structs.DosingAutomation
         contains metadata about the automation running
     automation_name: str
         the name of the automation running. Same as `automation.automation_name`.
-    automation_job: pioreactor.automations.dosing.base.DosingAutomation
+    automation_job: pioreactor.available_automations.dosing.base.DosingAutomationJob
         reference to the Python object of the automation.
 
     """
 
-    # this is populated dynamically with subclasses of DosingAutomations in the form:
+    # this is populated dynamically with subclasses of DosingAutomationJobs in the form:
     # {
-    #    DosingAutomation1.automation_name: DosingAutomation1,
+    #    DosingAutomationJob1.automation_name: DosingAutomationJob1,
     #    ...
     # }
     # this includes plugins
-    automations = {}  # type: ignore
+    available_automations = {}  # type: ignore
 
     published_settings = {
         "automation": {"datatype": "Automation", "settable": True},
@@ -64,16 +64,14 @@ class DosingController(BackgroundJob):
         super().__init__(job_name="dosing_control", unit=unit, experiment=experiment)
 
         try:
-            automation_class = self.automations[automation_name]
+            automation_class = self.available_automations[automation_name]
         except KeyError:
             self.set_state(self.DISCONNECTED)
             raise KeyError(
-                f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
 
-        self.automation = Automation(
-            automation_name=automation_name, automation_type="dosing", args=kwargs
-        )
+        self.automation = DosingAutomation(automation_name=automation_name, args=kwargs)
         self.logger.info(f"Starting {self.automation}.")
 
         try:
@@ -88,15 +86,12 @@ class DosingController(BackgroundJob):
 
         self.automation_name = self.automation.automation_name
 
-    def set_automation(self, algo_metadata: Automation) -> None:
+    def set_automation(self, algo_metadata: DosingAutomation) -> None:
         # TODO: this needs a better rollback. Ex: in except, something like
         # self.dosing_automation_job.set_state("init")
         # self.dosing_automation_job.set_state("ready")
         # because the state in MQTT is wrong.
         # OR should just bail...
-
-        if algo_metadata.automation_type != "dosing":
-            raise ValueError("algo_metadata.automation_type != 'dosing'")
 
         try:
             self.automation_job.set_state("disconnected")
@@ -106,7 +101,7 @@ class DosingController(BackgroundJob):
             self.set_automation(algo_metadata)
 
         try:
-            klass = self.automations[algo_metadata.automation_name]
+            klass = self.available_automations[algo_metadata.automation_name]
             self.logger.info(f"Starting {algo_metadata}.")
             self.automation_job = klass(
                 unit=self.unit, experiment=self.experiment, **algo_metadata.args
@@ -115,11 +110,11 @@ class DosingController(BackgroundJob):
             self.automation_name = self.automation.automation_name
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)

@@ -4,7 +4,7 @@ from __future__ import annotations
 from contextlib import suppress
 
 from pioreactor.automations import events
-from pioreactor.automations.dosing.base import DosingAutomation
+from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import PID
@@ -13,7 +13,7 @@ from pioreactor.utils.streaming_calculations import PID
 VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
 
 
-class PIDMorbidostat(DosingAutomation):
+class PIDMorbidostat(DosingAutomationJob):
     """
     As defined in Zhong 2020
     """

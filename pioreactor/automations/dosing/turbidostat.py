@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-from pioreactor.automations.dosing.base import DosingAutomation
+from __future__ import annotations
+
 from pioreactor.automations import events
+from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.utils import local_persistant_storage
 
 
-class Turbidostat(DosingAutomation):
+class Turbidostat(DosingAutomationJob):
     """
     Turbidostat mode - try to keep cell density constant. The algorithm should run at
     high frequency (every 5-10m) to react quickly to when the target OD is hit.

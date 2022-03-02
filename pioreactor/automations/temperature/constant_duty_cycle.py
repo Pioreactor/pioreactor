@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from pioreactor.automations.temperature.base import TemperatureAutomation
+from pioreactor.automations.temperature.base import TemperatureAutomationJob
 
 
-class ConstantDutyCycle(TemperatureAutomation):
+class ConstantDutyCycle(TemperatureAutomationJob):
 
     automation_name = "constant_duty_cycle"
     published_settings = {

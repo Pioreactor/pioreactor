@@ -6,14 +6,14 @@ from contextlib import suppress
 from typing import Optional
 
 from pioreactor.automations import events
-from pioreactor.automations.dosing.base import DosingAutomation
+from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.utils import clamp
 from pioreactor.utils.pwm import PWM
 
 
-class ContinuousCycle(DosingAutomation):
+class ContinuousCycle(DosingAutomationJob):
     """
     Useful for using the Pioreactor as an inline sensor.
 

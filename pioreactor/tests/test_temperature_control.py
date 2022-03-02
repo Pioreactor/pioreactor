@@ -4,7 +4,10 @@ from __future__ import annotations
 import threading
 import time
 
+from msgspec.json import encode
+
 from pioreactor import pubsub
+from pioreactor import structs
 from pioreactor.automations.temperature import ConstantDutyCycle
 from pioreactor.automations.temperature import Silent
 from pioreactor.automations.temperature import Stable
@@ -60,7 +63,11 @@ def test_changing_temperature_algo_over_mqtt() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "stable", "args":{"target_temperature": 20}, "automation_type": "temperature"}',
+            encode(
+                structs.TemperatureAutomation(
+                    automation_name="stable", args={"target_temperature": 20}
+                )
+            ),
         )
         time.sleep(8)
         assert algo.automation_name == "stable"
@@ -85,7 +92,11 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "constant_duty_cycle", "automation_type": "temperature", "args":{"duty_cycle": 25}}',
+            encode(
+                structs.TemperatureAutomation(
+                    automation_name="constant_duty_cycle", args={"duty_cycle": 25}
+                )
+            ),
         )
         time.sleep(15)
         assert algo.automation_name == "constant_duty_cycle"
@@ -214,7 +225,11 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
-            '{"automation_name": "stable", "args":{"target_temperature": 35}, "automation_type": "temperature"',
+            encode(
+                structs.TemperatureAutomation(
+                    automation_name="stable", args={"target_temperature": 35}
+                )
+            ),
         )
 
         pause(3)
@@ -381,7 +396,7 @@ def test_temperature_approximation_if_dc_is_nil() -> None:
         assert t.approximate_temperature(features) == 32.1875
 
 
-def test_temperature_control_and_stables_relationship():
+def test_temperature_control_and_stables_relationship() -> None:
     experiment = "test_temperature_control_and_stables_relationship"
     with temperature_control.TemperatureController(
         "stable", unit=unit, experiment=experiment, target_temperature=30
@@ -422,7 +437,7 @@ def test_temperature_control_and_stables_relationship():
         thread.join()  # this takes a while
 
 
-def test_coprime():
+def test_coprime() -> None:
     # seconds in read_external_temperature_timer should be coprime to seconds in publish_temperature_timer
     # so that they don't collide often
     from math import gcd as bltin_gcd
@@ -438,3 +453,59 @@ def test_coprime():
             tc.read_external_temperature_timer.interval,
             tc.publish_temperature_timer.interval,
         )
+
+
+def test_using_external_thermocouple() -> None:
+    from pioreactor.automations.temperature.base import TemperatureAutomationJob
+    from pioreactor.utils.timing import current_utc_time
+
+    class MySuperSimpleAutomation(TemperatureAutomationJob):
+        automation_name = "my_super_simple_automation"
+
+        def execute(self):
+            self.latest_value_arrived = self.latest_temperature
+            return
+
+    experiment = "test_using_external_thermocouple"
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment, using_third_party_thermocouple=True
+    ) as tc:
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
+            encode(
+                structs.TemperatureAutomation(
+                    automation_name="my_super_simple_automation"
+                )
+            ),
+        )
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        assert tc.automation_name == "my_super_simple_automation"
+
+        # start publishing from our external temperature
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            encode(structs.Temperature(temperature=38, timestamp=current_utc_time())),
+        )
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            encode(structs.Temperature(temperature=39, timestamp=current_utc_time())),
+        )
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            encode(structs.Temperature(temperature=40, timestamp=current_utc_time())),
+        )
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
+            encode(structs.Temperature(temperature=41, timestamp=current_utc_time())),
+        )
+        pause()
+
+        assert tc.automation_job.latest_value_arrived == 41

@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 from pioreactor.automations import events
-from pioreactor.automations.led.base import LEDAutomation
+from pioreactor.automations.led.base import LEDAutomationJob
 
 
-class Silent(LEDAutomation):
+class Silent(LEDAutomationJob):
 
     automation_name = "silent"
 

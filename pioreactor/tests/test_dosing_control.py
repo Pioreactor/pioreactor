@@ -8,7 +8,7 @@ from datetime import timedelta
 from typing import Any
 
 from pioreactor import pubsub
-from pioreactor.automations import DosingAutomation
+from pioreactor.automations import DosingAutomationJob
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import AltMediaCalculator
 from pioreactor.automations.dosing.continuous_cycle import ContinuousCycle
@@ -369,7 +369,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
     experiment = "test_changing_parameters_over_mqtt_with_unknown_parameter"
     with pubsub.collect_all_logs_of_level("DEBUG", unit, experiment) as bucket:
-        with DosingAutomation(
+        with DosingAutomationJob(
             target_growth_rate=0.05,
             target_od=1.0,
             duration=60,
@@ -389,7 +389,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
 
 def test_pause_in_dosing_automation() -> None:
     experiment = "test_pause_in_dosing_automation"
-    with DosingAutomation(
+    with DosingAutomationJob(
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
@@ -437,7 +437,7 @@ def test_pause_in_dosing_control_also_pauses_automation() -> None:
 
 def test_old_readings_will_not_execute_io() -> None:
     experiment = "test_old_readings_will_not_execute_io"
-    algo = DosingAutomation(
+    algo = DosingAutomationJob(
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
@@ -651,7 +651,7 @@ def test_execute_io_action_outputs1() -> None:
     with local_persistant_storage("alt_media_fraction") as c:
         c[experiment] = "0.0"
 
-    ca = DosingAutomation(unit=unit, experiment=experiment)
+    ca = DosingAutomationJob(unit=unit, experiment=experiment)
     result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     assert result[0] == 1.25
     assert result[1] == 0.01
@@ -677,7 +677,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
         del cache["media_ml_calibration"]
         del cache["alt_media_ml_calibration"]
 
-    with DosingAutomation(unit=unit, experiment=experiment, skip_first_run=True) as ca:
+    with DosingAutomationJob(unit=unit, experiment=experiment, skip_first_run=True) as ca:
         result = ca.execute_io_action(media_ml=1.0, alt_media_ml=1.0, waste_ml=2.0)
         assert result[0] == 0
         assert result[1] == 0.0
@@ -701,7 +701,7 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     with local_persistant_storage("alt_media_fraction") as c:
         c[experiment] = "0.0"
 
-    ca = DosingAutomation(unit=unit, experiment=experiment)
+    ca = DosingAutomationJob(unit=unit, experiment=experiment)
     ca.set_state(ca.DISCONNECTED)
     result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     assert result[0] == 0.0
@@ -1019,7 +1019,7 @@ def test_disconnect_cleanly() -> None:
 def test_custom_class_will_register_and_run() -> None:
     experiment = "test_custom_class_will_register_and_run"
 
-    class NaiveTurbidostat(DosingAutomation):
+    class NaiveTurbidostat(DosingAutomationJob):
 
         automation_name = "naive_turbidostat"
         published_settings = {

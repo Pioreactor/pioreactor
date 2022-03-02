@@ -5,8 +5,6 @@ These define structs for MQTT messages, and are type-checkable + runtime-checked
 """
 from __future__ import annotations
 
-from typing import Literal
-
 from msgspec import Struct
 
 from pioreactor import types as pt
@@ -18,7 +16,6 @@ class Automation(Struct):
     """
 
     automation_name: str
-    automation_type: Literal["temperature", "dosing", "led"]
     args: dict = {}
 
     def __str__(self) -> str:
@@ -32,6 +29,18 @@ class Automation(Struct):
 
     def __repr__(self) -> str:
         return str(self)
+
+
+class TemperatureAutomation(Automation):
+    pass
+
+
+class DosingAutomation(Automation):
+    pass
+
+
+class LEDAutomation(Automation):
+    pass
 
 
 class AutomationSettings(Struct):

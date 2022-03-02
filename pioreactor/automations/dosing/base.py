@@ -110,7 +110,7 @@ class SummableList(list):
         return self + other
 
 
-class DosingAutomation(BackgroundSubJob):
+class DosingAutomationJob(BackgroundSubJob):
     """
     This is the super class that automations inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program). If `duration` is left
@@ -162,10 +162,10 @@ class DosingAutomation(BackgroundSubJob):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        # this registers all subclasses of DosingAutomation back to DosingController, so the subclass
+        # this registers all subclasses of DosingAutomationJob back to DosingController, so the subclass
         # can be invoked in DosingController.
         if hasattr(cls, "automation_name"):
-            DosingController.automations[cls.automation_name] = cls
+            DosingController.available_automations[cls.automation_name] = cls
 
     def __init__(
         self,
@@ -175,7 +175,7 @@ class DosingAutomation(BackgroundSubJob):
         skip_first_run: bool = False,
         **kwargs,
     ) -> None:
-        super(DosingAutomation, self).__init__(
+        super(DosingAutomationJob, self).__init__(
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
         self.skip_first_run = skip_first_run
@@ -409,7 +409,7 @@ class DosingAutomation(BackgroundSubJob):
             self.run_thread.join()
 
     def __setattr__(self, name: str, value: Any) -> None:
-        super(DosingAutomation, self).__setattr__(name, value)
+        super(DosingAutomationJob, self).__setattr__(name, value)
         if name in self.published_settings and name not in [
             "state",
             "alt_media_fraction",
@@ -536,5 +536,5 @@ class DosingAutomation(BackgroundSubJob):
         )
 
 
-class DosingAutomationContrib(DosingAutomation):
+class DosingAutomationJobContrib(DosingAutomationJob):
     automation_name: str

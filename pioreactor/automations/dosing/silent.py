@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-from pioreactor.automations.dosing.base import DosingAutomation
+from __future__ import annotations
+
+from pioreactor.automations.dosing.base import DosingAutomationJob
 
 
-class Silent(DosingAutomation):
+class Silent(DosingAutomationJob):
     """
     Do nothing, ever. Just pass.
     """

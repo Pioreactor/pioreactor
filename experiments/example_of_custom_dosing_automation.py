@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import signal
-from pioreactor.automations import DosingAutomation
-from pioreactor.whoami import get_unit_name, get_latest_experiment_name
+
+from pioreactor.automations import DosingAutomationJob
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 
 
-class NaiveTurbidostat(DosingAutomation):
+class NaiveTurbidostat(DosingAutomationJob):
 
     automation_name = "naive_turbidostat"
 

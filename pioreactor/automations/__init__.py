@@ -1,18 +1,26 @@
 # -*- coding: utf-8 -*-
-from . import dosing, led, temperature, events
-from .dosing.base import DosingAutomation, DosingAutomationContrib
-from .led.base import LEDAutomation, LEDAutomationContrib
-from .temperature.base import TemperatureAutomation, TemperatureAutomationContrib
+from __future__ import annotations
+
+from . import dosing
+from . import events
+from . import led
+from . import temperature
+from .dosing.base import DosingAutomationJob
+from .dosing.base import DosingAutomationJobContrib
+from .led.base import LEDAutomationJob
+from .led.base import LEDAutomationJobContrib
+from .temperature.base import TemperatureAutomationJob
+from .temperature.base import TemperatureAutomationJobContrib
 
 __all__ = (
     "dosing",
     "led",
     "temperature",
     "events",
-    "DosingAutomation",
-    "DosingAutomationContrib",
-    "LEDAutomation",
-    "LEDAutomationContrib",
-    "TemperatureAutomation",
-    "TemperatureAutomationContrib",
+    "DosingAutomationJob",
+    "DosingAutomationJobContrib",
+    "LEDAutomationJob",
+    "LEDAutomationJobContrib",
+    "TemperatureAutomationJob",
+    "TemperatureAutomationJobContrib",
 )

@@ -17,7 +17,7 @@ import click
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.logging import create_logger
-from pioreactor.structs import Automation
+from pioreactor.structs import LEDAutomation
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -25,7 +25,7 @@ from pioreactor.whoami import get_unit_name
 class LEDController(BackgroundJob):
 
     # this is automagically populated
-    automations = {}  # type: ignore
+    available_automations = {}  # type: ignore
 
     published_settings = {
         "automation": {"datatype": "Automation", "settable": True},
@@ -40,15 +40,13 @@ class LEDController(BackgroundJob):
         )
 
         try:
-            automation_class = self.automations[automation_name]
+            automation_class = self.available_automations[automation_name]
         except KeyError:
             raise KeyError(
-                f"Unable to find automation {automation_name}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
 
-        self.automation = Automation(
-            automation_name=automation_name, automation_type="led", args=kwargs
-        )
+        self.automation = LEDAutomation(automation_name=automation_name, args=kwargs)
         self.logger.info(f"Starting {self.automation}.")
         try:
             self.automation_job = automation_class(
@@ -61,10 +59,7 @@ class LEDController(BackgroundJob):
             raise e
         self.automation_name = self.automation.automation_name
 
-    def set_automation(self, algo_metadata: Automation) -> None:
-
-        if algo_metadata.automation_type != "led":
-            raise ValueError("algo_metadata.automation_type != 'led'")
+    def set_automation(self, algo_metadata: LEDAutomation) -> None:
 
         try:
             self.automation_job.set_state("disconnected")
@@ -74,7 +69,7 @@ class LEDController(BackgroundJob):
             self.set_automation(algo_metadata)
 
         try:
-            klass = self.automations[algo_metadata.automation_name]
+            klass = self.available_automations[algo_metadata.automation_name]
             self.logger.info(f"Starting {algo_metadata}.")
             self.automation_job = klass(
                 unit=self.unit, experiment=self.experiment, **algo_metadata.args
@@ -83,11 +78,11 @@ class LEDController(BackgroundJob):
             self.automation_name = self.automation.automation_name
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
 
         except Exception as e:

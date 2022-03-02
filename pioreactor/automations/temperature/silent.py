@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-from pioreactor.automations.temperature.base import TemperatureAutomation
+from __future__ import annotations
+
+from pioreactor.automations.temperature.base import TemperatureAutomationJob
 
 
-class Silent(TemperatureAutomation):
+class Silent(TemperatureAutomationJob):
 
     automation_name = "silent"
 

@@ -4,13 +4,13 @@ from __future__ import annotations
 from contextlib import suppress
 
 from pioreactor.automations import events
-from pioreactor.automations.dosing.base import DosingAutomation
+from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import PID
 
 
-class PIDTurbidostat(DosingAutomation):
+class PIDTurbidostat(DosingAutomationJob):
     """
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
 

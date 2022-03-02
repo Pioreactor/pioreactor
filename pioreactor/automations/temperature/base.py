@@ -19,7 +19,7 @@ from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import to_datetime
 
 
-class TemperatureAutomation(BackgroundSubJob):
+class TemperatureAutomationJob(BackgroundSubJob):
     """
     This is the super class that Temperature automations inherit from.
     The `execute` function, which is what subclasses will define, is updated every time a new temperature is recorded to MQTT.
@@ -48,15 +48,15 @@ class TemperatureAutomation(BackgroundSubJob):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
-        # this registers all subclasses of TemperatureAutomation back to TemperatureController, so the subclass
+        # this registers all subclasses of TemperatureAutomationJob back to TemperatureController, so the subclass
         # can be invoked in TemperatureController.
         if hasattr(cls, "automation_name") and cls.automation_name is not None:
-            TemperatureController.automations[cls.automation_name] = cls
+            TemperatureController.available_automations[cls.automation_name] = cls
 
     def __init__(
         self, unit: str, experiment: str, parent: TemperatureController, **kwargs
     ) -> None:
-        super(TemperatureAutomation, self).__init__(
+        super(TemperatureAutomationJob, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
 
@@ -143,7 +143,7 @@ class TemperatureAutomation(BackgroundSubJob):
         self._send_details_to_mqtt()
 
     def __setattr__(self, name, value) -> None:
-        super(TemperatureAutomation, self).__setattr__(name, value)
+        super(TemperatureAutomationJob, self).__setattr__(name, value)
         if name in self.published_settings and name != "state":
             self._latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
@@ -218,5 +218,5 @@ class TemperatureAutomation(BackgroundSubJob):
         )
 
 
-class TemperatureAutomationContrib(TemperatureAutomation):
+class TemperatureAutomationJobContrib(TemperatureAutomationJob):
     automation_name: str

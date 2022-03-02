@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-from pioreactor.automations.dosing.base import DosingAutomation
+from __future__ import annotations
+
 from pioreactor.automations import events
+from pioreactor.automations.dosing.base import DosingAutomationJob
 
 
-class Morbidostat(DosingAutomation):
+class Morbidostat(DosingAutomationJob):
     """
     As defined in Toprak 2013., keep cell density below and threshold using chemical means. The conc.
     of the chemical is diluted slowly over time, allowing the microbes to recover.
