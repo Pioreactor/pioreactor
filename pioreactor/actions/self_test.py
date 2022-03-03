@@ -17,6 +17,7 @@ from typing import cast
 import click
 
 from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
+from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
 from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs.od_reading import ADCReader
@@ -158,6 +159,37 @@ def test_all_positive_correlations_between_pds_and_leds(
         assert (
             varying_intensity_results[pd_channel][-1] > 1e-4
         ), f"{pd_channel} channel too low: {varying_intensity_results[pd_channel]}"
+
+
+def test_REF_is_lower_than_0_dot_256_volts(
+    logger: Logger, unit: str, experiment: str
+) -> None:
+
+    for (channel, angle_or_ref) in config["od_config.photodiode_channel"].items():
+        if angle_or_ref == "REF":
+            reference_channel = cast(PdChannel, channel)
+            ir_channel = config["leds_reverse"][IR_keyword]
+            ir_intensity = config["od_config"]["ir_intensity"]
+
+            adc_reader = ADCReader(
+                channels=[reference_channel],
+                dynamic_gain=False,
+                initial_gain=1,
+                fake_data=is_testing_env(),
+            ).setup_adc()
+
+            with change_leds_intensities_temporarily(
+                ir_channel,
+                ir_intensity,
+                unit=unit,
+                source_of_event="self_test",
+                experiment=experiment,
+                verbose=False,
+            ):
+                readings = adc_reader.take_reading()
+
+            # provide a margin, since we have margins when determining change gain in od_reading
+            assert readings[reference_channel] < 0.256 * 0.8
 
 
 def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:

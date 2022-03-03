@@ -39,7 +39,9 @@ def _list(x) -> list:
 
 @contextmanager
 def change_leds_intensities_temporarily(
-    channels: list[LedChannel], new_intensities: list[float], **kwargs: Any
+    channels: LedChannel | list[LedChannel],
+    new_intensities: float | list[float],
+    **kwargs: Any,
 ) -> Iterator[None]:
     """
     Change the LED referenced in `channels` to some intensity `new_intensities`
@@ -49,7 +51,7 @@ def change_leds_intensities_temporarily(
     """
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: float(cache.get(c, 0.0)) for c in channels}
+            old_state = {c: float(cache.get(c, 0.0)) for c in _list(channels)}
 
         led_intensity(channels, new_intensities, **kwargs)
 
