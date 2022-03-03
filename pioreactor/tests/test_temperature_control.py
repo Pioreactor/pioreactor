@@ -57,22 +57,24 @@ def test_changing_temperature_algo_over_mqtt() -> None:
 
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
-    ) as algo:
-        assert algo.automation_name == "silent"
-        assert isinstance(algo.automation_job, Silent)
-
+    ) as tc:
+        assert tc.automation_name == "silent"
+        assert isinstance(tc.automation_job, Silent)
+        pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
                 structs.TemperatureAutomation(
-                    automation_name="stable", args={"target_temperature": 20}
+                    automation_name="stable", args={"target_temperature": 36}
                 )
             ),
         )
         time.sleep(8)
-        assert algo.automation_name == "stable"
-        assert isinstance(algo.automation_job, Stable)
-        assert algo.automation_job.target_temperature == 20
+        assert tc.automation_name == "stable"
+        assert isinstance(tc.automation_job, Stable)
+        assert tc.automation_job.target_temperature == 36
+        assert tc.automation_job.latest_temperature is not None
+        assert tc.heater_duty_cycle > 0
 
 
 def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:

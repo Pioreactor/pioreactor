@@ -128,6 +128,7 @@ class TemperatureController(BackgroundJob):
                 4 * 60,
                 self.evaluate_and_publish_temperature,
                 run_after=60,
+                run_immediately=True,
             ).start()
 
         try:
@@ -245,6 +246,11 @@ class TemperatureController(BackgroundJob):
             )
             self.automation = algo_metadata
             self.automation_name = algo_metadata.automation_name
+
+            # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
+            # pass it on to the new automation.
+            # this is most useful when temp-control is initialized with silent, and then quickly switched over to stable.
+            self.automation_job._set_latest_temperature(self.temperature)
 
         except KeyError:
             self.logger.debug(

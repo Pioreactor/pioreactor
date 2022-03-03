@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import time
 
 import click
 
-from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.pubsub import subscribe
 from pioreactor.types import MQTTMessage
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 class WatchDog(BackgroundJob):
@@ -52,7 +55,7 @@ class WatchDog(BackgroundJob):
 
             # continue to pull the latest state to see if anything has changed.
             while True:
-                time.sleep(2.5 * 60)
+                time.sleep(2.0 * 60)
                 msg = subscribe(
                     f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
                 )

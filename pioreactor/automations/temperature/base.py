@@ -162,13 +162,17 @@ class TemperatureAutomationJob(BackgroundSubJob):
         if not message.payload:
             return
 
+        self._set_latest_temperature(decode(message.payload, type=structs.Temperature))
+        return
+
+    def _set_latest_temperature(self, temperature_struct: structs.Temperature) -> None:
         self.previous_temperature = self.latest_temperature
-        self.latest_temperature = decode(
-            message.payload, type=structs.Temperature
-        ).temperature
+        self.latest_temperature = temperature_struct.temperature
 
         if self.state != self.SLEEPING:
             self.execute()
+
+        return
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
         self.previous_od = self._latest_od
