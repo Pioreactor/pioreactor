@@ -573,15 +573,6 @@ class ADCReader(LoggerMixin):
             timestamps[first_channel], aggregated_signals[first_channel]
         )
 
-        if len(self.channels) > 1:
-            second_channel = self.channels[1]
-            argmin_freq2 = _compute_best_freq(
-                timestamps[second_channel], aggregated_signals[second_channel]
-            )
-            assert (
-                argmin_freq1 == argmin_freq2
-            ) or self.fake_data, "discrepancy in best hz."
-
         self.logger.debug(f"AC hz estimate: {argmin_freq1}")
         return argmin_freq1
 
