@@ -99,7 +99,7 @@ def od_blank(
 
         for count, batched_reading in enumerate(signal, start=1):
             for (channel, reading) in batched_reading.od_raw.items():
-                readings[channel].append(reading["voltage"])
+                readings[channel].append(reading.voltage)
 
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
