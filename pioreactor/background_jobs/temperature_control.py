@@ -127,7 +127,7 @@ class TemperatureController(BackgroundJob):
             self.publish_temperature_timer = RepeatedTimer(
                 4 * 60,
                 self.evaluate_and_publish_temperature,
-                run_after=60,
+                run_after=90,  # 90 is how long PWM is active for during a cycle (see evaluate_and_publish_temperature's constants). This gives an automation a "full" cycle to be on.
                 run_immediately=True,
             ).start()
 
@@ -339,15 +339,16 @@ class TemperatureController(BackgroundJob):
         4. assign temp to publish to ../temperature
         5. return heater to previous DC value and unlock heater
         """
+
+        # we pause heating for (N_sample_points * time_between_samples) seconds
+        N_sample_points = 30
+        time_between_samples = 5
+
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
         with self.pwm.lock_temporarily():
 
             previous_heater_dc = self.heater_duty_cycle
             self._update_heater(0)
-
-            # we pause heating for (N_sample_points * time_between_samples) seconds
-            N_sample_points = 30
-            time_between_samples = 5
 
             features: dict[str, Any] = {}
             features["prev_temp"] = (
@@ -481,7 +482,7 @@ class TemperatureController(BackgroundJob):
         temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
 
         # the recent estimate weighted because I trust the predicted temperature at the start of observation more
-        # than the predicted temperature at the end.
+        # than the predicted temperature at the end. This is pretty arbitrary.
         return float(2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs)
 
 

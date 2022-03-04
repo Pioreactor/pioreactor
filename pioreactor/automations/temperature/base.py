@@ -40,6 +40,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
 
     latest_temperature = None
     previous_temperature = None
+    latest_temperture_at: datetime = datetime.min
 
     _latest_settings_started_at = current_utc_time()
     _latest_settings_ended_at = None
@@ -168,6 +169,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
     def _set_latest_temperature(self, temperature_struct: structs.Temperature) -> None:
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = temperature_struct.temperature
+        self.latest_temperature_at = to_datetime(temperature_struct.timestamp)
 
         if self.state != self.SLEEPING:
             self.execute()

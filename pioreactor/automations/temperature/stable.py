@@ -35,7 +35,7 @@ class Stable(TemperatureAutomationJob):
 
     def execute(self) -> None:
         while not hasattr(self, "pid"):
-            # sometimes when initializing, this execute can run before the sublasses __init__ is resolved.
+            # sometimes when initializing, this execute can run before the subclasses __init__ is resolved.
             pass
 
         assert self.latest_temperature is not None
@@ -47,10 +47,11 @@ class Stable(TemperatureAutomationJob):
         return
 
     def set_target_temperature(self, value) -> None:
-        if float(value) > 50:
+        value = float(value)
+        if value > 50:
             self.logger.warning("Values over 50℃ are not supported. Setting to 50℃.")
 
-        target_temperature = clamp(0, float(value), 50)
+        target_temperature = clamp(0, value, 50)
         self.target_temperature = target_temperature
         self.pid.set_setpoint(self.target_temperature)
 
