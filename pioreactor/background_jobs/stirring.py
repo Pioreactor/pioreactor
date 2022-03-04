@@ -42,11 +42,25 @@ class RpmCalculator:
        SD card. Anyways, what we do now is turn the pin from IN to OUT inbetween the calls to RPM measurement. This
        is taken care of in `turn_{on,off}_collection`. Flipping this only writes to `/sys/class/gpio/gpio15/direction` once.
 
+    Examples
+    -----------
+
+    > rpm_calc = RpmCalculator()
+    > rpm_calc.setup()
+    > rpm_calc(seconds_to_observe=1.5)
+
+
     """
 
     hall_sensor_pin = hardware.HALL_SENSOR_PIN
 
     def __init__(self) -> None:
+        pass
+
+    def setup(self) -> None:
+        # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
+        # use the GPIO for this.
+
         set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
 
         import RPi.GPIO as GPIO  # type: ignore
@@ -232,6 +246,9 @@ class Stirrer(BackgroundJob):
             self.logger.error("Heating PCB must be present to measure RPM.")
             self.set_state(self.DISCONNECTED)
             raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
+
+        if self.rpm_calculator is not None:
+            self.rpm_calculator.setup()
 
         pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "stirring")]
         self.pwm = PWM(pin, hertz, unit=unit, experiment=experiment)

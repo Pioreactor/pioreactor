@@ -119,6 +119,9 @@ def test_publish_measured_rpm() -> None:
 
 def test_stirring_with_lookup_linear_v1() -> None:
     class FakeRpmCalculator:
+        def setup(self):
+            return
+
         def __call__(self, *args):
             return 475
 

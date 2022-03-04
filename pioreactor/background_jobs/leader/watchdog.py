@@ -35,7 +35,7 @@ class WatchDog(BackgroundJob):
             self.pub_client.publish(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.READY
             )
-            time.sleep(25)
+            time.sleep(20)
 
             msg = subscribe(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
@@ -47,24 +47,9 @@ class WatchDog(BackgroundJob):
 
             if current_state == self.LOST:
                 # failed, let's confirm to user
-                self.logger.error(
-                    f"{unit} was lost. We will continue checking for re-connection."
-                )
+                self.logger.error(f"{unit} was lost.")
             else:
                 self.logger.info(f"Update: {unit} is connected. All is well.")
-
-            # continue to pull the latest state to see if anything has changed.
-            while True:
-                time.sleep(2.0 * 60)
-                msg = subscribe(
-                    f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
-                )
-                assert msg is not None
-                current_state = msg.payload.decode()
-
-                if current_state != self.LOST:
-                    self.logger.info(f"Update: {unit} is connected. All is well.")
-                    return
 
     def watch_for_new_experiment(self, msg: MQTTMessage) -> None:
         new_experiment_name = msg.payload.decode()

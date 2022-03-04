@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from json import dumps
+from typing import Iterator
 from typing import Optional
 
 import click
@@ -31,7 +32,7 @@ def od_blank(
     od_angle_channel1: pt.PdAngle,
     od_angle_channel2: pt.PdAngle,
     n_samples: int = 40,
-) -> Optional[dict[pt.PdAngle, float]]:
+) -> Optional[dict[pt.PdChannel, float]]:
     """
     Compute a sample average of the photodiodes attached.
 
@@ -87,11 +88,13 @@ def od_blank(
             fake_data=is_testing_env(),
         )
 
-        def yield_from_mqtt():
+        def yield_from_mqtt() -> Iterator[structs.ODReadings]:
             while True:
                 msg = pubsub.subscribe(
                     f"pioreactor/{unit}/{testing_experiment}/od_reading/od_raw_batched"
                 )
+                assert msg is not None
+                assert msg.payload is not None
                 yield decode(msg.payload, type=structs.ODReadings)
 
         signal = yield_from_mqtt()

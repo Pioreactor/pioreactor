@@ -272,6 +272,7 @@ def test_positive_correlation_between_rpm_and_stirring(
         target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
 
+        rpm_calc.setup()
         st.duty_cycle = initial_dc
         st.start_stirring()
         sleep(1)
