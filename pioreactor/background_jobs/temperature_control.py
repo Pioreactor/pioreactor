@@ -398,8 +398,12 @@ class TemperatureController(BackgroundJob):
         page 71 - 72
 
 
-        It's possible that we can determine if the vial is in using the heat loss coefficient. Quick look:
-        when the vial is in, heat coefficient is ~ -0.008, when not in, coefficient is ~ -0.028.
+        Extensions
+        --------------
+
+        1. It's possible that we can determine if the vial is in the sleeve by examining the heat loss coefficient.
+        2. We have prior information about what p, q are => we have prior information about A, B. We can use this.
+           From the equations, B = p + q, A = -p * q, so weak prior in B ~ Normal(-0.143, ...), A = Normal(-0.00042, ....)
 
         """
 
@@ -417,40 +421,61 @@ class TemperatureController(BackgroundJob):
         y = np.array(times_series) - ROOM_TEMP
         x = np.arange(n)  # scaled by factor of 1/10 seconds
 
+        # first regression
         S = np.zeros(n)
         SS = np.zeros(n)
         for i in range(1, n):
             S[i] = S[i - 1] + 0.5 * (y[i - 1] + y[i]) * (x[i] - x[i - 1])
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
-        # first regression
+        # priors chosen based on historical data, penalty values pretty arbitrary
+        A_penalizer, A_prior = 100.0, -0.00042
+        B_penalizer, B_prior = 10.0, -0.143
+
         M1 = np.array(
             [
-                [(SS**2).sum(), (SS * S).sum(), (SS * x).sum(), (SS).sum()],
-                [(SS * S).sum(), (S**2).sum(), (S * x).sum(), (S).sum()],
+                [
+                    (SS**2).sum() + A_penalizer,
+                    (SS * S).sum(),
+                    (SS * x).sum(),
+                    (SS).sum(),
+                ],
+                [(SS * S).sum(), (S**2).sum() + B_penalizer, (S * x).sum(), (S).sum()],
                 [(SS * x).sum(), (S * x).sum(), (x**2).sum(), (x).sum()],
                 [(SS).sum(), (S).sum(), (x).sum(), n],
             ]
         )
-        Y1 = np.array([(y * SS).sum(), (y * S).sum(), (y * x).sum(), y.sum()])
+        Y1 = np.array(
+            [
+                (y * SS).sum() + A_penalizer * A_prior,
+                (y * S).sum() + B_penalizer * B_prior,
+                (y * x).sum(),
+                y.sum(),
+            ]
+        )
 
         try:
             A, B, _, _ = np.linalg.solve(M1, Y1)
         except np.linalg.LinAlgError:
-            self.logger.error("Error in first regression.")
+            self.logger.error("Error in temperature inference.")
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
 
         if (B**2 + 4 * A) < 0:
             # something when wrong in the data collection - the data doesn't look enough like a sum of two expos
-            self.logger.error(f"Error in regression: {(B ** 2 + 4 * A)=} < 0")
+            self.logger.error("Error in temperature inference.")
+            self.logger.debug(f"Error in temperature inference: {(B ** 2 + 4 * A)=} < 0")
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
 
-        p = 0.5 * (B + np.sqrt(B**2 + 4 * A))
-        q = 0.5 * (B - np.sqrt(B**2 + 4 * A))
+        p = 0.5 * (
+            B + np.sqrt(B**2 + 4 * A)
+        )  # usually p ~= -0.0020 to -0.0040, but is a function of the temperature (Recall it describes the heat loss to ambient)
+        q = 0.5 * (
+            B - np.sqrt(B**2 + 4 * A)
+        )  # usually q ~= -0.135 to -0.150, but is a not really a function of the temperature. Oddly enough, it looks periodic with freq ~1hr...
 
         # second regression
         M2 = np.array(
@@ -469,14 +494,14 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
 
+        self.logger.debug(f"{b=}, {c=}, {p=}, {q=}, {B=}, {A=}")
+
         if abs(p) < abs(q):
             # since the regression can have identifiable problems, we use
             # our domain knowledge to choose the pair that has the lower heat transfer coefficient.
             alpha, beta = b, p
         else:
             alpha, beta = c, q
-
-        self.logger.debug(f"{b=}, {c=}, {p=} , {q=}")
 
         temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
         temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
