@@ -496,13 +496,7 @@ class TemperatureController(BackgroundJob):
 
         self.logger.debug(f"{b=}, {c=}, {p=}, {q=}, {B=}, {A=}")
 
-        if abs(p) < abs(q):
-            # since the regression can have identifiable problems, we use
-            # our domain knowledge to choose the pair that has the lower heat transfer coefficient.
-            alpha, beta = b, p
-        else:
-            alpha, beta = c, q
-
+        alpha, beta = b, p
         temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
         temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
 
