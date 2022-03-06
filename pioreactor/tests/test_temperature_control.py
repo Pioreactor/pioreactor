@@ -337,7 +337,7 @@ def test_temperature_approximation3() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as t:
-        assert 39 <= t.approximate_temperature(features) <= 40
+        assert 38 <= t.approximate_temperature(features) <= 40
 
 
 def test_temperature_approximation4() -> None:
@@ -381,7 +381,139 @@ def test_temperature_approximation4() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as t:
-        assert 39 <= t.approximate_temperature(features) <= 40
+        assert 38 <= t.approximate_temperature(features) <= 40
+
+
+def test_temperature_approximation5() -> None:
+    experiment = "test_temperature_approximation5"
+    features = {
+        "previous_heater_dc": 17,
+        "time_series_of_temp": [
+            27.75,
+            27.75,
+            27.6875,
+            27.6875,
+            27.6875,
+            27.6875,
+            27.6875,
+            27.6875,
+            27.6875,
+            27.625,
+            27.625,
+            27.625,
+            27.625,
+            27.625,
+            27.625,
+            27.625,
+            27.5625,
+            27.5625,
+            27.5625,
+            27.5625,
+            27.5625,
+            27.5625,
+            27.5625,
+            27.5625,
+            27.5,
+            27.5,
+            27.5,
+            27.5,
+            27.5,
+            27.5,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert 27.5 <= t.approximate_temperature(features) <= 27.75
+
+
+def test_temperature_approximation6() -> None:
+    experiment = "test_temperature_approximation6"
+    features = {
+        "previous_heater_dc": 0.3,
+        "time_series_of_temp": [
+            27.0,
+            26.9375,
+            26.9375,
+            26.9375,
+            26.9375,
+            26.9375,
+            26.9375,
+            26.9375,
+            26.9375,
+            26.875,
+            26.875,
+            26.875,
+            26.875,
+            26.875,
+            26.875,
+            26.875,
+            26.875,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+            26.8125,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert 26.8125 <= t.approximate_temperature(features) <= 27.0
+
+
+def test_temperature_approximation7() -> None:
+    experiment = "test_temperature_approximation7"
+    features = {
+        "previous_heater_dc": 0.3,
+        "time_series_of_temp": [
+            27.1875,
+            27.125,
+            27.0625,
+            27.0625,
+            27.0,
+            27.0,
+            26.9375,
+            26.875,
+            26.875,
+            26.8125,
+            26.8125,
+            26.75,
+            26.6875,
+            26.6875,
+            26.625,
+            26.625,
+            26.625,
+            26.5625,
+            26.5625,
+            26.5,
+            26.5,
+            26.4375,
+            26.4375,
+            26.4375,
+            26.4375,
+            26.375,
+            26.375,
+            26.3125,
+            26.3125,
+            26.3125,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "silent", unit=unit, experiment=experiment
+    ) as t:
+        assert 26.3 <= t.approximate_temperature(features) <= 27.1875
 
 
 def test_temperature_approximation_if_constant() -> None:
@@ -391,7 +523,12 @@ def test_temperature_approximation_if_constant() -> None:
     with temperature_control.TemperatureController(
         "silent", unit=unit, experiment=experiment
     ) as t:
-        assert abs(32.0 - t.approximate_temperature(features)) < 0.01
+        for temp in range(20, 45):
+            features = {
+                "previous_heater_dc": 17,
+                "time_series_of_temp": 30 * [float(temp)],
+            }
+            assert abs(temp - t.approximate_temperature(features)) < 0.01
 
 
 def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:

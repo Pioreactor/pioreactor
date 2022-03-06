@@ -429,6 +429,7 @@ class TemperatureController(BackgroundJob):
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
         # priors chosen based on historical data, penalty values pretty arbitrary
+        # TODO: update these priors as we develop more pioreactors
         A_penalizer, A_prior = 100.0, -0.00042
         B_penalizer, B_prior = 10.0, -0.143
 
@@ -472,7 +473,7 @@ class TemperatureController(BackgroundJob):
 
         p = 0.5 * (
             B + np.sqrt(B**2 + 4 * A)
-        )  # usually p ~= -0.0020 to -0.0040, but is a function of the temperature (Recall it describes the heat loss to ambient)
+        )  # usually p ~= -0.0000 to -0.0040, but is a function of the temperature (Recall it describes the heat loss to ambient)
         q = 0.5 * (
             B - np.sqrt(B**2 + 4 * A)
         )  # usually q ~= -0.135 to -0.150, but is a not really a function of the temperature. Oddly enough, it looks periodic with freq ~1hr...
