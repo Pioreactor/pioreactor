@@ -294,8 +294,6 @@ class TemperatureController(BackgroundJob):
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
-            self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
-
             self.logger.debug(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
