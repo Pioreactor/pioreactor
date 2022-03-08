@@ -70,7 +70,6 @@ def test_changing_automation_over_mqtt() -> None:
             encode(
                 structs.LEDAutomation(
                     automation_name="silent",
-                    automation_type="led",
                     args={"duration": 20},
                 )
             ),

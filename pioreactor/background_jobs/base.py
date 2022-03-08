@@ -37,8 +37,8 @@ def cast_bytes_to_type(value: bytes, type_: str):
             return bool(value)
         elif type_ == "json":
             return loads(value)
-        else:
-            return loads(value, type=getattr(structs, type_))
+        elif type_ == "Automation":
+            return loads(value, type=t.Union[structs.LEDAutomation, structs.TemperatureAutomation, structs.DosingAutomation])  # type: ignore
         raise TypeError(f"{type_} not found.")
     except Exception as e:
         raise e

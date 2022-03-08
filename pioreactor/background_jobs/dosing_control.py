@@ -9,7 +9,7 @@ To change the automation over MQTT,
 
 
 with payload a json object looking like pioreactor.structs.Automation, ex: specify the new automation with name `"automation_name"`,
- and field "automation_type": "dosing"
+ and field "type": "dosing"
 
 
 Using the CLI, specific automation values can be specified as additional options (note the underscore...) :
@@ -92,6 +92,8 @@ class DosingController(BackgroundJob):
         # self.dosing_automation_job.set_state("ready")
         # because the state in MQTT is wrong.
         # OR should just bail...
+
+        assert isinstance(algo_metadata, DosingAutomation)
 
         try:
             self.automation_job.set_state("disconnected")

@@ -128,7 +128,7 @@ class PWM:
         with local_intermittent_storage("pwm_dc") as cache:
             cache[str(self.pin)] = str(initial_duty_cycle)
 
-        self.pwm.start(initial_duty_cycle)
+        self.pwm.start(round(initial_duty_cycle, 5))
 
     def stop(self) -> None:
         self.pwm.stop()
@@ -140,7 +140,7 @@ class PWM:
             cache[str(self.pin)] = str(dc)
 
         if self.using_hardware:
-            self.pwm.change_duty_cycle(dc)
+            self.pwm.change_duty_cycle(round(dc, 5))
         else:
             self.pwm.ChangeDutyCycle(dc)  # type: ignore
 

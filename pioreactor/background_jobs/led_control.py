@@ -61,6 +61,8 @@ class LEDController(BackgroundJob):
 
     def set_automation(self, algo_metadata: LEDAutomation) -> None:
 
+        assert isinstance(algo_metadata, LEDAutomation)
+
         try:
             self.automation_job.set_state("disconnected")
         except AttributeError:

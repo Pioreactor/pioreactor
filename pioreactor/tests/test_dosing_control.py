@@ -823,7 +823,7 @@ def test_changing_algo_over_mqtt_with_wrong_automation_type() -> None:
             json.dumps(
                 {
                     "automation_name": "pid_morbidostat",
-                    "automation_type": "led",
+                    "type": "led",
                     "args": {
                         "duration": 60,
                         "target_od": 1.0,
@@ -853,7 +853,7 @@ def test_changing_algo_over_mqtt_solo() -> None:
             json.dumps(
                 {
                     "automation_name": "pid_morbidostat",
-                    "automation_type": "dosing",
+                    "type": "dosing",
                     "args": {
                         "duration": 60,
                         "target_od": 1.0,
@@ -887,7 +887,7 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
                 {
                     "automation_name": "pid_morbidostat",
                     "args": {"duration": 60},
-                    "automation_type": "dosing",
+                    "type": "dosing",
                 }
             ),
         )
@@ -926,7 +926,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
         json.dumps(
             {
                 "automation_name": "turbidostat",
-                "automation_type": "dosing",
+                "type": "dosing",
                 "args": {
                     "duration": 60,
                     "target_od": 1.0,
@@ -984,7 +984,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
         json.dumps(
             {
                 "automation_name": "pid_turbidostat",
-                "automation_type": "dosing",
+                "type": "dosing",
                 "args": {"duration": "60", "target_od": "1.0", "volume": "1.0"},
             }
         ),

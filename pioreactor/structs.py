@@ -16,7 +16,6 @@ class Automation(Struct):
     """
 
     automation_name: str
-    automation_type: str
     args: dict = {}
 
     def __str__(self) -> str:
@@ -32,16 +31,16 @@ class Automation(Struct):
         return str(self)
 
 
-class TemperatureAutomation(Automation):
-    automation_type: str = "temperature"
+class TemperatureAutomation(Automation, tag="temperature"):  # type: ignore
+    ...
 
 
-class DosingAutomation(Automation):
-    automation_type: str = "dosing"
+class DosingAutomation(Automation, tag="dosing"):  # type: ignore
+    ...
 
 
-class LEDAutomation(Automation):
-    automation_type: str = "led"
+class LEDAutomation(Automation, tag="led"):  # type: ignore
+    ...
 
 
 class AutomationSettings(Struct):

@@ -66,7 +66,7 @@ class TemperatureController(BackgroundJob):
     Parameters
     ------------
     using_third_party_thermocouple: bool
-        True if supplying an external thermocouple that will publish to MQTT.
+        True if supplying an external thermometer that will publish to MQTT.
     """
 
     MAX_TEMP_TO_REDUCE_HEATING = 58.0
@@ -119,7 +119,7 @@ class TemperatureController(BackgroundJob):
         if not self.using_third_party_thermocouple:
             self.tmp_driver = TMP1075()
             self.read_external_temperature_timer = RepeatedTimer(
-                37,
+                57,
                 self.read_external_temperature_and_check_temp,
                 run_immediately=False,
             ).start()
@@ -177,8 +177,7 @@ class TemperatureController(BackgroundJob):
         """
 
         if not self.pwm.is_locked():
-            self._update_heater(clamp(0.0, new_duty_cycle, 90.0))
-            return True
+            return self._update_heater(clamp(0.0, new_duty_cycle, 90.0))
         else:
             return False
 
@@ -189,18 +188,16 @@ class TemperatureController(BackgroundJob):
 
         Returns true if the update was made (eg: no lock), else returns false
         """
-        return self.update_heater(
-            clamp(0, self.heater_duty_cycle + delta_duty_cycle, 100)
-        )
+        return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
 
-    def read_external_temperature_and_check_temp(self) -> float:
-        pcb_temp = self.read_external_temperature()
-        self._check_if_exceeds_max_temp(pcb_temp)
-        return pcb_temp
+    def read_external_temperature_and_check_temp(self):
+        self._check_if_exceeds_max_temp(self.read_external_temperature())
 
     def read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
+
+        This takes about ~0.001 seconds on a RPi.
         """
         try:
             # check temp is fast, let's do it twice to reduce variance.
@@ -223,6 +220,8 @@ class TemperatureController(BackgroundJob):
         # self.automation_job.set_state("init")
         # self.automation_job.set_state("ready")
         # OR should just bail...
+
+        assert isinstance(algo_metadata, TemperatureAutomation)
 
         try:
             self.automation_job.set_state("disconnected")
@@ -264,9 +263,10 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
             self.logger.warning(f"Change failed because of {str(e)}")
 
-    def _update_heater(self, new_duty_cycle: float) -> None:
-        self.heater_duty_cycle = round(float(new_duty_cycle), 5)
+    def _update_heater(self, new_duty_cycle: float) -> bool:
+        self.heater_duty_cycle = clamp(0, float(new_duty_cycle), 100)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
+        return True
 
     def _check_if_exceeds_max_temp(self, temp: float) -> None:
 
@@ -320,7 +320,9 @@ class TemperatureController(BackgroundJob):
             self.pwm.cleanup()
 
     def setup_pwm(self) -> PWM:
-        hertz = 1
+        hertz = 10  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
+        # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
+        # 0.3s. The influence of when the heat is one on the pump can be significant in a power-contrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
         pin = hardware.PWM_TO_PIN[
             config.get("PWM_reverse", "heating")

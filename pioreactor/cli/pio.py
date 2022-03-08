@@ -19,19 +19,13 @@ import pioreactor.utils.networking as networking
 from pioreactor import actions
 from pioreactor import background_jobs as jobs
 from pioreactor import plugin_management
+from pioreactor import pubsub
+from pioreactor import whoami
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import publish
-from pioreactor.pubsub import subscribe
-from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
-from pioreactor.whoami import am_I_active_worker
-from pioreactor.whoami import am_I_leader
-from pioreactor.whoami import get_rpi_machine
-from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 @click.group()
@@ -66,7 +60,7 @@ def logs(n: int) -> None:
 
     try:
         # will fail if not connected to leader.
-        subscribe_and_callback(cb, f"pioreactor/{get_unit_name()}/+/logs/+")
+        pubsub.subscribe_and_callback(cb, f"pioreactor/{whoami.get_unit_name()}/+/logs/+")
     except OSError:
         pass
 
@@ -111,7 +105,14 @@ def blink() -> None:
             GPIO.cleanup(LED_PIN)
 
     else:
-        publish(f"pioreactor/{get_unit_name()}/.../monitor/flicker_led_response_okay", 1)
+        pubsub.publish(
+            f"pioreactor/{whoami.get_unit_name()}/.../monitor/flicker_led_response_okay",
+            1,
+        )
+        pubsub.publish(
+            f"pioreactor/{whoami.get_unit_name()}/.../monitor/flicker_led_response_okay",
+            1,
+        )
 
 
 @pio.command(name="kill", short_help="kill job(s)")
@@ -162,7 +163,7 @@ def version(verbose: bool) -> None:
         click.echo(f"Pioreactor software:    {tuple_to_text(software_version_info)}")
         click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
         click.echo(f"Operating system:       {platform.platform()}")
-        click.echo(f"Raspberry Pi:           {get_rpi_machine()}")
+        click.echo(f"Raspberry Pi:           {whoami.get_rpi_machine()}")
     else:
         click.echo(pioreactor.__version__)
 
@@ -190,6 +191,34 @@ def view_cache(cache: str) -> None:
             click.echo(f"{key.decode()} = {c[key].decode()}")
 
 
+@pio.command(
+    name="update-settings",
+    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
+    short_help="update settings on a running job",
+)
+@click.argument("job", type=click.STRING)
+@click.pass_context
+def update_settings(ctx, job: str) -> None:
+    """
+    Examples
+    ----------
+
+    > pio update-settings stirring --target_rpm 500
+    > pio update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
+
+    """
+    exp = whoami.get_latest_experiment_name()
+    unit = whoami.get_unit_name()
+
+    extra_args = {ctx.args[i][2:]: ctx.args[i + 1] for i in range(0, len(ctx.args), 2)}
+
+    assert len(extra_args) > 0
+
+    for (setting, value) in extra_args.items():
+        pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
+        pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
+
+
 @pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
 @click.option("--ui", is_flag=True, help="update the PioreactorUI to latest")
 @click.option("--app", is_flag=True, help="update the Pioreactor to latest")
@@ -200,7 +229,7 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
     from pioreactor.mureq import get
 
     logger = create_logger(
-        "update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
+        "update", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
 
     if (not app) and (not ui):
@@ -234,7 +263,7 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
         else:
             logger.error(p.stderr)
 
-    if ui and am_I_leader():
+    if ui and whoami.am_I_leader():
         cd = "cd ~/pioreactorui/backend"
         gitp = "git pull origin master"
         npm_install = "npm install"
@@ -262,7 +291,7 @@ pio.add_command(plugin_management.click_list_plugins)
 run_always.add_command(jobs.monitor.click_monitor)
 
 
-if am_I_active_worker():
+if whoami.am_I_active_worker():
     run.add_command(jobs.growth_rate_calculating.click_growth_rate_calculating)
     run.add_command(jobs.stirring.click_stirring)
     run.add_command(jobs.od_reading.click_od_reading)
@@ -286,7 +315,7 @@ if am_I_active_worker():
                 run.add_command(getattr(plugin.module, possible_entry_point))
 
 
-if am_I_leader():
+if whoami.am_I_leader():
     run_always.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
     run_always.add_command(jobs.watchdog.click_watchdog)
 
@@ -318,7 +347,9 @@ if am_I_leader():
         import subprocess
 
         logger = create_logger(
-            "add_pioreactor", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
+            "add_pioreactor",
+            unit=whoami.get_unit_name(),
+            experiment=whoami.UNIVERSAL_EXPERIMENT,
         )
         logger.info(f"Adding new pioreactor {new_name} to cluster.")
 
@@ -364,7 +395,7 @@ if am_I_leader():
                 continue
 
             # get ip
-            if get_unit_name() == hostname:
+            if whoami.get_unit_name() == hostname:
                 ip = networking.get_ip()
             else:
                 try:
@@ -373,8 +404,9 @@ if am_I_leader():
                     ip = "Unknown"
 
             # get state
-            result = subscribe(
-                f"pioreactor/{hostname}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=1
+            result = pubsub.subscribe(
+                f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/$state",
+                timeout=1,
             )
             if result:
                 state = result.payload.decode()
@@ -391,8 +423,10 @@ if am_I_leader():
             )
 
 
-if not am_I_leader() and not am_I_active_worker():
-    logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+if not whoami.am_I_leader() and not whoami.am_I_active_worker():
+    logger = create_logger(
+        "CLI", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+    )
     logger.info(
-        f"Running `pio` on a non-active Pioreactor. Do you need to change `{get_unit_name()}` in `network.inventory` section in `config.ini`?"
+        f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `network.inventory` section in `config.ini`?"
     )

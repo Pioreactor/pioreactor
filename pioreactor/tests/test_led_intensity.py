@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# test_led_intensity
 from __future__ import annotations
 
 import pytest

@@ -482,7 +482,11 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
 @click.pass_context
 def update_settings(ctx, job: str, units: tuple[str, ...]) -> None:
     """
-    pios update-settings stirring --duty_cycle 10
+
+    Examples
+    ---------
+    > pios update-settings stirring --target_rpm 500 --units worker1
+    > pios update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
     """
 
