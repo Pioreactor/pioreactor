@@ -789,14 +789,35 @@ class _BackgroundJob(metaclass=PostInitCaller):
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         Use "persist" to keep it from clearing.
         """
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
+            None,
+            retain=True,
+        )
+
         for attr, metadata_on_attr in self.published_settings.items():
             if not metadata_on_attr.get("persist", False):
                 self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
                     None,
                     retain=True,
-                    qos=QOS.EXACTLY_ONCE,
                 )
+
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$settable",
+                None,
+                retain=True,
+            )
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$datatype",
+                None,
+                retain=True,
+            )
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$unit",
+                None,
+                retain=True,
+            )
 
     def check_for_duplicate_activity(self) -> None:
         with local_intermittent_storage("pio_jobs_running") as cache:

@@ -328,3 +328,28 @@ def test_sys_exit_does_exit() -> None:
             unit=get_unit_name(), experiment="test_sys_exit_does_exit", job_name="job"
         ) as t:
             t.call_all_i_do_is_exit()
+
+
+def test_cleans_up_mqtt() -> None:
+    class TestJob(BackgroundJob):
+
+        published_settings = {
+            "readonly_attr": {
+                "datatype": "float",
+                "settable": False,
+            },
+        }
+
+    exp = "test_cleans_up_mqtt"
+
+    with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+        pause()
+
+    msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr/#", timeout=0.5)
+    assert msg is None
+
+    msg = subscribe(f"pioreactor/+/{exp}/job/$properties", timeout=0.5)
+    assert msg is None
+
+    msg = subscribe(f"pioreactor/+/{exp}/job/$state", timeout=0.5)
+    assert msg is not None
