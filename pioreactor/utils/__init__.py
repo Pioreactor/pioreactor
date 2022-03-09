@@ -275,5 +275,5 @@ def get_cpu_temperature() -> float:
         return 22.0
 
     with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
-        cpu_temperature_celcius = round(int(f.read().strip()) / 1000)
+        cpu_temperature_celcius = int(f.read().strip()) / 1000.0
     return cpu_temperature_celcius

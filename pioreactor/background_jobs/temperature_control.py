@@ -323,7 +323,7 @@ class TemperatureController(BackgroundJob):
     def setup_pwm(self) -> PWM:
         hertz = 10  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
-        # 0.3s. The influence of when the heat is one on the pump can be significant in a power-contrained system.
+        # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
         pin = hardware.PWM_TO_PIN[
             config.get("PWM_reverse", "heating")
@@ -358,7 +358,7 @@ class TemperatureController(BackgroundJob):
             features["previous_heater_dc"] = previous_heater_dc
 
             # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
-            features["room_temp"] = get_cpu_temperature() - 24
+            features["room_temp"] = 0.5 * 20 + 0.5 * (get_cpu_temperature() - 24)
 
             time_series_of_temp = []
             for i in range(N_sample_points):
@@ -435,8 +435,8 @@ class TemperatureController(BackgroundJob):
 
         # priors chosen based on historical data, penalty values pretty arbitrary
         # TODO: update these priors as we develop more pioreactors
-        A_penalizer, A_prior = 100.0, -0.00042
-        B_penalizer, B_prior = 10.0, -0.143
+        A_penalizer, A_prior = 100.0, -0.000725
+        B_penalizer, B_prior = 10.0, -0.15
 
         M1 = np.array(
             [
@@ -478,10 +478,10 @@ class TemperatureController(BackgroundJob):
 
         p = 0.5 * (
             B + np.sqrt(B**2 + 4 * A)
-        )  # usually p ~= -0.0000 to -0.0040, but is a function of the temperature (Recall it describes the heat loss to ambient)
+        )  # usually p ~= -0.0000 to -0.0100, but is a function of the temperature (Recall it describes the heat loss to ambient)
         q = 0.5 * (
             B - np.sqrt(B**2 + 4 * A)
-        )  # usually q ~= -0.135 to -0.150, but is a not really a function of the temperature. Oddly enough, it looks periodic with freq ~1hr...
+        )  # usually q ~= -0.130 to -0.160, but is a not really a function of the temperature. Oddly enough, it looks periodic with freq ~1hr...
 
         # second regression
         M2 = np.array(
@@ -506,9 +506,8 @@ class TemperatureController(BackgroundJob):
         temp_at_start_of_obs = room_temp + alpha * exp(beta * 0)
         temp_at_end_of_obs = room_temp + alpha * exp(beta * n)
 
-        # the recent estimate weighted because I trust the predicted temperature at the start of observation more
-        # than the predicted temperature at the end. This is pretty arbitrary.
-        return float(2 / 3 * temp_at_start_of_obs + 1 / 3 * temp_at_end_of_obs)
+        # This is pretty arbitrary.
+        return float(0.5 * temp_at_start_of_obs + 0.5 * temp_at_end_of_obs)
 
 
 def start_temperature_control(
