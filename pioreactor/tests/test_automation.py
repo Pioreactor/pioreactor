@@ -9,7 +9,6 @@ def test_str_representation():
     a = Automation(
         automation_name="test",
         args={"growth": 0.1, "intensity": "high", "value": True},
-        type="led",
     )
 
     assert str(a) == "test(growth=0.1, intensity=high, value=True)"

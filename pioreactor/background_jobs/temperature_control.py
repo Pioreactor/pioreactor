@@ -40,7 +40,6 @@ from pioreactor.config import config
 from pioreactor.structs import Temperature
 from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
-from pioreactor.utils import get_cpu_temperature
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import RepeatedTimer
@@ -332,6 +331,10 @@ class TemperatureController(BackgroundJob):
         pwm.start(0)
         return pwm
 
+    @staticmethod
+    def _get_room_temperature():
+        return 20.0
+
     def evaluate_and_publish_temperature(self) -> None:
         """
         1. lock PWM and turn off heater
@@ -358,7 +361,8 @@ class TemperatureController(BackgroundJob):
             features["previous_heater_dc"] = previous_heater_dc
 
             # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
-            features["room_temp"] = 0.5 * 20 + 0.5 * (get_cpu_temperature() - 24)
+            # users can override this function with something more accurate later.
+            features["room_temp"] = self._get_room_temperature()
 
             time_series_of_temp = []
             for i in range(N_sample_points):
@@ -408,7 +412,7 @@ class TemperatureController(BackgroundJob):
         1. It's possible that we can determine if the vial is in the sleeve by examining the heat loss coefficient.
         2. We have prior information about what p, q are => we have prior information about A, B. We use this.
            From the equations, B = p + q, A = -p * q, so weak prior in B ~ Normal(-0.143, ...), A = Normal(-0.00042, ....)
-        3. Room temp has a moderate impact on inference: ~0.15C
+        3. Room temp has a moderate impact on inference: ~0.30C over a wide range of values
 
 
         """

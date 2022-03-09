@@ -266,6 +266,8 @@ def test_editing_readonly_attr_via_mqtt() -> None:
                 1.0,
             )
             pause()
+            pause()
+            pause()
 
     assert len(logs) > 0
     assert any(["readonly" in log["message"] for log in logs])
