@@ -14,10 +14,11 @@ CORE_REQUIREMENTS = [
     "sh>=1.14.0",
     "JSON-log-formatter>=0.4.0",
     "colorlog>=6.6.0",
-    "msgspec>=0.4.2",
+    # "msgspec>=0.4.2",
     # tech debt - this needed to be in the core req
     # leader requirement
     "sqlite3worker @ https://github.com/pioreactor/sqlite3worker/archive/master.zip#egg=sqlite3worker-0.0.1",
+    "msgspec @ https://github.com/jcrist/msgspec/archive/master.zip#egg=msgspec-0.4.3",
 ]
 
 
@@ -37,7 +38,7 @@ WORKER_REQUIREMENTS = [
 
 setup(
     name="pioreactor",
-    version=__version__,  # type: ignore # noqa: F821g
+    version=__version__,  # type: ignore # noqa: F821
     license="MIT",
     long_description=open("README.md").read(),
     author="Pioreactor",

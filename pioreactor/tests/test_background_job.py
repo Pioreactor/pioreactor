@@ -343,6 +343,15 @@ def test_cleans_up_mqtt() -> None:
     exp = "test_cleans_up_mqtt"
 
     with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+        msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr/#", timeout=0.5)
+        assert msg is not None
+
+        msg = subscribe(f"pioreactor/+/{exp}/job/$properties", timeout=0.5)
+        assert msg is not None
+
+        msg = subscribe(f"pioreactor/+/{exp}/job/$state", timeout=0.5)
+        assert msg is not None
+
         pause()
 
     msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr/#", timeout=0.5)
