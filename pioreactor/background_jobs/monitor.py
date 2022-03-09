@@ -15,6 +15,7 @@ from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.pubsub import QOS
 from pioreactor.types import MQTTMessage
+from pioreactor.utils import get_cpu_temperature
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states
@@ -309,8 +310,7 @@ class Monitor(BackgroundJob):
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
 
-        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
-            cpu_temperature_celcius = round(int(f.read().strip()) / 1000)
+        cpu_temperature_celcius = get_cpu_temperature()
 
         if disk_usage_percent <= 80:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")

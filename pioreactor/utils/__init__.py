@@ -268,3 +268,12 @@ def pump_duration_to_ml(duration: float, duration_: float = 0, bias_: float = 0)
     duration_ : the coefficient from calibration
     """
     return duration * duration_ + bias_
+
+
+def get_cpu_temperature() -> float:
+    if whoami.is_testing_env():
+        return 22.0
+
+    with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+        cpu_temperature_celcius = round(int(f.read().strip()) / 1000)
+    return cpu_temperature_celcius

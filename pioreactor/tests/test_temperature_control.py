@@ -251,6 +251,7 @@ def test_temperature_approximation1() -> None:
     experiment = "test_temperature_approximation1"
     features = {
         "previous_heater_dc": 17,
+        "room_temp": 20.0,
         "time_series_of_temp": [
             37.8125,
             36.625,
@@ -282,6 +283,7 @@ def test_temperature_approximation2() -> None:
     experiment = "test_temperature_approximation2"
     features = {
         "previous_heater_dc": 17,
+        "room_temp": 17,
         "time_series_of_temp": [
             44.8125,
             43.8125,
@@ -313,6 +315,7 @@ def test_temperature_approximation3() -> None:
     experiment = "test_temperature_approximation3"
     features = {
         "previous_heater_dc": 17,
+        "room_temp": 17,
         "time_series_of_temp": [
             49.875,
             47.5,
@@ -344,6 +347,7 @@ def test_temperature_approximation4() -> None:
     experiment = "test_temperature_approximation4"
     features = {
         "previous_heater_dc": 17,
+        "room_temp": 20,
         "time_series_of_temp": [
             47.4375,
             46.8125,
@@ -388,6 +392,7 @@ def test_temperature_approximation5() -> None:
     experiment = "test_temperature_approximation5"
     features = {
         "previous_heater_dc": 17,
+        "room_temp": 20,
         "time_series_of_temp": [
             27.75,
             27.75,
@@ -432,6 +437,7 @@ def test_temperature_approximation6() -> None:
     experiment = "test_temperature_approximation6"
     features = {
         "previous_heater_dc": 0.3,
+        "room_temp": 0.3,
         "time_series_of_temp": [
             27.0,
             26.9375,
@@ -476,6 +482,7 @@ def test_temperature_approximation7() -> None:
     experiment = "test_temperature_approximation7"
     features = {
         "previous_heater_dc": 0.3,
+        "room_temp": 0.3,
         "time_series_of_temp": [
             27.1875,
             27.125,
@@ -525,6 +532,7 @@ def test_temperature_approximation_if_constant() -> None:
     ) as t:
         for temp in range(20, 45):
             features = {
+                "room_temp": 20,
                 "previous_heater_dc": 17,
                 "time_series_of_temp": 30 * [float(temp)],
             }
@@ -537,6 +545,7 @@ def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
     experiment = "test_temperature_approximation_even_if_very_tiny_heat_source"
     features = {
         "previous_heater_dc": 14.5,
+        "room_temp": 20,
         "time_series_of_temp": list(
             22
             + 10 * np.exp(-0.008 * np.arange(0, 17))
@@ -556,6 +565,7 @@ def test_temperature_approximation_even_if_very_large_heat_source() -> None:
     experiment = "test_temperature_approximation_even_if_very_large_heat_source"
     features = {
         "previous_heater_dc": 14.5,
+        "room_temp": 20,
         "time_series_of_temp": list(
             22
             + 3 * np.exp(-0.008 * np.arange(0, 17))

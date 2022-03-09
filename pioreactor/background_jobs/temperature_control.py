@@ -40,6 +40,7 @@ from pioreactor.config import config
 from pioreactor.structs import Temperature
 from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
+from pioreactor.utils import get_cpu_temperature
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import RepeatedTimer
@@ -119,7 +120,7 @@ class TemperatureController(BackgroundJob):
         if not self.using_third_party_thermocouple:
             self.tmp_driver = TMP1075()
             self.read_external_temperature_timer = RepeatedTimer(
-                57,
+                53,
                 self.read_external_temperature_and_check_temp,
                 run_immediately=False,
             ).start()
@@ -356,6 +357,9 @@ class TemperatureController(BackgroundJob):
             )
             features["previous_heater_dc"] = previous_heater_dc
 
+            # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
+            features["room_temp"] = get_cpu_temperature() - 24
+
             time_series_of_temp = []
             for i in range(N_sample_points):
                 time_series_of_temp.append(self.read_external_temperature())
@@ -390,7 +394,7 @@ class TemperatureController(BackgroundJob):
         """
         models
 
-            temp = b * exp(p * t) + c * exp(q * t) + ROOM_TEMP
+            temp = b * exp(p * t) + c * exp(q * t) + room_temp
 
         Reference
         -------------
@@ -402,8 +406,10 @@ class TemperatureController(BackgroundJob):
         --------------
 
         1. It's possible that we can determine if the vial is in the sleeve by examining the heat loss coefficient.
-        2. We have prior information about what p, q are => we have prior information about A, B. We can use this.
+        2. We have prior information about what p, q are => we have prior information about A, B. We use this.
            From the equations, B = p + q, A = -p * q, so weak prior in B ~ Normal(-0.143, ...), A = Normal(-0.00042, ....)
+        3. Room temp has a moderate impact on inference: ~0.15C
+
 
         """
 
@@ -413,12 +419,11 @@ class TemperatureController(BackgroundJob):
         import numpy as np
         from numpy import exp
 
-        ROOM_TEMP = 10.0  # ??
-
         times_series = features["time_series_of_temp"]
+        room_temp = features["room_temp"]
 
         n = len(times_series)
-        y = np.array(times_series) - ROOM_TEMP
+        y = np.array(times_series) - room_temp
         x = np.arange(n)  # scaled by factor of 1/10 seconds
 
         # first regression
@@ -498,8 +503,8 @@ class TemperatureController(BackgroundJob):
         self.logger.debug(f"{b=}, {c=}, {p=}, {q=}, {B=}, {A=}")
 
         alpha, beta = b, p
-        temp_at_start_of_obs = ROOM_TEMP + alpha * exp(beta * 0)
-        temp_at_end_of_obs = ROOM_TEMP + alpha * exp(beta * n)
+        temp_at_start_of_obs = room_temp + alpha * exp(beta * 0)
+        temp_at_end_of_obs = room_temp + alpha * exp(beta * n)
 
         # the recent estimate weighted because I trust the predicted temperature at the start of observation more
         # than the predicted temperature at the end. This is pretty arbitrary.
