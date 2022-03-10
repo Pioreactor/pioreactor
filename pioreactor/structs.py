@@ -49,7 +49,7 @@ class AutomationSettings(Struct):
     started_at: str
     ended_at: str
     automation_name: str
-    settings: str
+    settings: bytes
 
 
 class LEDEvent(Struct):

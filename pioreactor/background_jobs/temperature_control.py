@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Continuously monitor the bioreactor and take action. This is the core of the temperature automation.
+Continuously monitor the bioreactor's temperature and take action. This is the core of the temperature automation.
 
 
 The temperature is determined using a temperature sensor outside the vial, on the base PCB. This means there is some
@@ -19,7 +19,7 @@ algorithm is below, housed in TemperatureController
 To change the automation over MQTT,
 
 topic: `pioreactor/<unit>/<experiment>/temperture_control/automation/set`
-message: a json object with required keyword arguments. Specify the new automation with key `"automation_name"`.
+message: a json object with required keyword arguments, see structs.TemperatureAutomation
 
 """
 from __future__ import annotations
@@ -510,7 +510,8 @@ class TemperatureController(BackgroundJob):
         temp_at_start_of_obs = room_temp + alpha * exp(beta * 0)
         temp_at_end_of_obs = room_temp + alpha * exp(beta * n)
 
-        # This is pretty arbitrary.
+        # This weighting is pretty arbitrary.
+        # cast from numpy float to python float
         return float(0.5 * temp_at_start_of_obs + 0.5 * temp_at_end_of_obs)
 
 
