@@ -2,7 +2,7 @@
 # pump X ml every period (minute, 30min, hour, etc.)
 from __future__ import annotations
 
-from pioreactor.actions.add_media import add_media
+from pioreactor.actions.pump import add_media
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 

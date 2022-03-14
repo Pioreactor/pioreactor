@@ -299,10 +299,10 @@ if whoami.am_I_active_worker():
     run.add_command(jobs.led_control.click_led_control)
     run.add_command(jobs.temperature_control.click_temperature_control)
 
-    run.add_command(actions.add_alt_media.click_add_alt_media)
+    run.add_command(actions.pump.click_add_alt_media)
     run.add_command(actions.led_intensity.click_led_intensity)
-    run.add_command(actions.add_media.click_add_media)
-    run.add_command(actions.remove_waste.click_remove_waste)
+    run.add_command(actions.pump.click_add_media)
+    run.add_command(actions.pump.click_remove_waste)
     run.add_command(actions.od_normalization.click_od_normalization)
     run.add_command(actions.od_blank.click_od_blank)
     run.add_command(actions.self_test.click_self_test)

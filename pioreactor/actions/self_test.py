@@ -71,8 +71,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
-        ALL_LED_CHANNELS,
-        intensities=[0] * len(ALL_LED_CHANNELS),
+        {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
         source_of_event="self_test",
         experiment=current_experiment_name,
@@ -86,8 +85,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         for intensity in INTENSITIES:
             # turn on the LED to set intensity
             led_intensity(
-                led_channel,
-                intensities=intensity,
+                {led_channel: intensity},
                 unit=unit,
                 experiment=current_experiment_name,
                 verbose=False,
@@ -113,8 +111,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
         # set back to 0
         led_intensity(
-            led_channel,
-            intensities=0,
+            {led_channel: 0},
             unit=unit,
             experiment=current_experiment_name,
             verbose=False,
@@ -179,8 +176,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
             ).setup_adc()
 
             with change_leds_intensities_temporarily(
-                ir_channel,
-                ir_intensity,
+                {ir_channel: ir_intensity},
                 unit=unit,
                 source_of_event="self_test",
                 experiment=experiment,
@@ -205,8 +201,7 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
     adc_reader.setup_adc()
 
     led_intensity(
-        ALL_LED_CHANNELS,
-        intensities=[0] * len(ALL_LED_CHANNELS),
+        {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
         source_of_event="self_test",
         experiment=experiment,
@@ -272,7 +267,7 @@ def test_positive_correlation_between_rpm_and_stirring(
         target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
 
-        rpm_calc.setup()
+        rpm_calc.setup
         st.duty_cycle = initial_dc
         st.start_stirring()
         sleep(1)

@@ -396,8 +396,18 @@ class Monitor(BackgroundJob):
 
         # this is a performance hack and should be changed later...
         if job_name == "led_intensity":
+            from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
-            pass
+            state = {c: payload.get(c) for c in ALL_LED_CHANNELS if c in payload}
+
+            kwargs = payload
+            kwargs["unit"] = self.unit
+            kwargs["experiment"] = whoami.get_latest_experiment_name()
+
+            for c in ALL_LED_CHANNELS:
+                kwargs.pop(c, None)
+
+            led_intensity(state, **kwargs)
 
         elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
             pass
@@ -446,6 +456,7 @@ class Monitor(BackgroundJob):
                 f"pioreactor/{self.unit}/+/run/+",
                 f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/run/+",
             ],
+            allow_retained=False,
         )
 
 

@@ -7,9 +7,9 @@ import time
 
 import pytest
 
-from pioreactor.actions.add_alt_media import add_alt_media
-from pioreactor.actions.add_media import add_media
-from pioreactor.actions.remove_waste import remove_waste
+from pioreactor.actions.pump import add_alt_media
+from pioreactor.actions.pump import add_media
+from pioreactor.actions.pump import remove_waste
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage

@@ -263,8 +263,7 @@ class ADCReader(LoggerMixin):
             # turn off all LEDs that might be causing problems
             # however, ODReader may turn on the IR LED again.
             change_led_intensity(
-                channels=ALL_LED_CHANNELS,
-                intensities=[0] * len(ALL_LED_CHANNELS),
+                {c: 0 for c in ALL_LED_CHANNELS},
                 source_of_event="ADCReader",
                 unit=unit,
                 experiment=exp,
@@ -729,8 +728,7 @@ class ODReader(BackgroundJob):
 
         # setup the ADC and IrLedReference by turning off all LEDs.
         with change_leds_intensities_temporarily(
-            ALL_LED_CHANNELS,
-            [0.0, 0.0, 0.0, 0.0],
+            {channel: 0 for channel in ALL_LED_CHANNELS},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -792,8 +790,7 @@ class ODReader(BackgroundJob):
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
         with change_leds_intensities_temporarily(
-            ALL_LED_CHANNELS,
-            [0.0, 0.0, 0.0, 0.0],
+            {channel: 0 for channel in ALL_LED_CHANNELS},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -825,8 +822,7 @@ class ODReader(BackgroundJob):
 
     def start_ir_led(self) -> None:
         r = change_led_intensity(
-            channels=self.ir_channel,
-            intensities=self.ir_led_intensity,
+            {self.ir_channel: self.ir_led_intensity},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -840,8 +836,7 @@ class ODReader(BackgroundJob):
 
     def stop_ir_led(self) -> None:
         change_led_intensity(
-            channels=self.ir_channel,
-            intensities=0.0,
+            {self.ir_channel: 0},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
