@@ -657,7 +657,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         pass
 
     def _cleanup(self):
-        # Explictly cleanup resources...
+        # Explicitly cleanup resources...
 
         # clean up logger handlers
         while len(self.logger.handlers) > 0:
