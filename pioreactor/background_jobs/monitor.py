@@ -410,7 +410,16 @@ class Monitor(BackgroundJob):
             led_intensity(state, **kwargs)
 
         elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
-            pass
+            from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
+
+            if job_name == "add_media":
+                pump = add_media
+            elif job_name == "add_alt_media":
+                pump = add_alt_media
+            else:
+                pump = remove_waste
+
+            pump(self.unit, whoami.get_latest_experiment_name(), **payload)
 
         else:
             prefix = ["nohup"]
