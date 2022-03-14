@@ -22,6 +22,8 @@ from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
+__all__ = ["add_media", "remove_waste", "add_alt_media"]
+
 
 def _pump(
     unit: str,
