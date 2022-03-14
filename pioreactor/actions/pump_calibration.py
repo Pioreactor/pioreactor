@@ -180,7 +180,9 @@ def run_tests(
             source_of_event="pump_calibration",
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
-            calibration={"duration_": 1.0, "hz": hz, "dc": dc, "bias_": 0},
+            calibration=structs.PumpCalibration(
+                duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_time()
+            ),
         )
         r = click.prompt(
             click.style("Enter amount of water expelled", fg="green"),
