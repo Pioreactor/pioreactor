@@ -377,7 +377,7 @@ def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
             if all_jobs:  # tech debt
                 ssh(
                     unit,
-                    "pio run led_intensity --intensity 0 --channel A --channel B --channel C --channel D --no-log",
+                    "pio run led_intensity --A 0 --B 0 --C 0 --D 0 --no-log",
                 )
             return True
 

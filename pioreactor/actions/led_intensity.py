@@ -50,7 +50,7 @@ def change_leds_intensities_temporarily(
     """
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: float(cache[c]) for c in desired_state.keys()}
+            old_state = {c: float(cache.get(c, 0.0)) for c in desired_state.keys()}
 
         led_intensity(desired_state, **kwargs)
 
