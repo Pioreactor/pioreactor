@@ -17,6 +17,10 @@ def get_latest_testing_experiment_name() -> str:
 
 @lru_cache(maxsize=1)
 def get_latest_experiment_name() -> str:
+    return _get_latest_experiment_name()
+
+
+def _get_latest_experiment_name() -> str:
 
     if os.environ.get("EXPERIMENT") is not None:
         return os.environ["EXPERIMENT"]

@@ -187,7 +187,7 @@ class Monitor(BackgroundJob):
 
         See answer here: https://iot.stackexchange.com/questions/5784/does-mosquito-broker-persist-lwt-messages-to-disk-so-they-may-be-recovered-betw
         """
-        latest_exp = whoami.get_latest_experiment_name()
+        latest_exp = whoami._get_latest_experiment_name()
 
         def check_against_processes_running(msg: MQTTMessage) -> None:
             job = msg.topic.split("/")[3]
@@ -400,14 +400,12 @@ class Monitor(BackgroundJob):
 
             state = {c: payload.get(c) for c in ALL_LED_CHANNELS if c in payload}
 
-            kwargs = payload
-            kwargs["unit"] = self.unit
-            kwargs["experiment"] = whoami.get_latest_experiment_name()
+            exp = whoami._get_latest_experiment_name()
 
             for c in ALL_LED_CHANNELS:
-                kwargs.pop(c, None)
+                payload.pop(c, None)
 
-            led_intensity(state, **kwargs)
+            led_intensity(state, unit=self.unit, experiment=exp, **payload)
 
         elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
             from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
@@ -423,7 +421,7 @@ class Monitor(BackgroundJob):
             elif job_name == "remove_waste":
                 pump = remove_waste
 
-            exp = whoami.get_latest_experiment_name()
+            exp = whoami._get_latest_experiment_name()
             t = Thread(target=pump, args=(self.unit, exp), kwargs=payload, daemon=True)
             t.start()
 
