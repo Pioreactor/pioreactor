@@ -274,6 +274,7 @@ class TemperatureController(BackgroundJob):
             self.logger.error(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
             )
+            self._update_heater(0)
 
             from subprocess import call
 
