@@ -40,7 +40,7 @@ def simple_linear_regression(
         residuals_sq / (n - 2) / n * sum_xx / (np.sum((x_ - x_.mean()) ** 2))
     )
 
-    return (slope, std_error_slope), (bias, std_error_bias)
+    return (float(slope), float(std_error_slope)), (float(bias), float(std_error_bias))
 
 
 def simple_linear_regression_with_forced_nil_intercept(
@@ -62,7 +62,7 @@ def simple_linear_regression_with_forced_nil_intercept(
     residuals_sq = np.sum((y_ - slope * x_) ** 2)
     std_error_slope = np.sqrt(residuals_sq / (n - 1) / sum_xx)
 
-    return (slope, std_error_slope), (0, 0.0)
+    return (float(slope), float(std_error_slope)), (0, 0.0)
 
 
 def residuals_of_simple_linear_regression(x: Iterable, y: Iterable):
