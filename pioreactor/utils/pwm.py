@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from typing import Any
 from typing import Iterator
 
+from pioreactor.exc import PWMError
 from pioreactor.logging import create_logger
 from pioreactor.types import GpioPin
 from pioreactor.utils import gpio_helpers
@@ -77,7 +78,10 @@ class PWM:
         self.hz = hz
 
         if self.is_locked():
-            self.logger.debug(
+            self.logger.warning(
+                f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
+            )
+            raise PWMError(
                 f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
             )
 
@@ -121,9 +125,8 @@ class PWM:
             return False
 
     def start(self, initial_duty_cycle: float) -> None:
-        assert (
-            0.0 <= initial_duty_cycle <= 100.0
-        ), "dc should be between 0 and 100, inclusive."
+        if not (0 <= initial_duty_cycle <= 100):
+            raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
         with local_intermittent_storage("pwm_dc") as cache:
             cache[str(self.pin)] = str(initial_duty_cycle)
@@ -133,16 +136,17 @@ class PWM:
     def stop(self) -> None:
         self.pwm.stop()
 
-    def change_duty_cycle(self, dc: float) -> None:
-        assert 0 <= dc <= 100, "dc should be between 0 and 100, inclusive."
+    def change_duty_cycle(self, duty_cycle: float) -> None:
+        if not (0 <= duty_cycle <= 100):
+            raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
         with local_intermittent_storage("pwm_dc") as cache:
-            cache[str(self.pin)] = str(dc)
+            cache[str(self.pin)] = str(duty_cycle)
 
         if self.using_hardware:
-            self.pwm.change_duty_cycle(round(dc, 5))
+            self.pwm.change_duty_cycle(round(duty_cycle, 5))
         else:
-            self.pwm.ChangeDutyCycle(dc)  # type: ignore
+            self.pwm.ChangeDutyCycle(duty_cycle)  # type: ignore
 
     def cleanup(self) -> None:
         self.stop()

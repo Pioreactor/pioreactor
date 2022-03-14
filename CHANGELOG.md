@@ -8,6 +8,7 @@
  - New json-encoded datatype for changing automations over MQTT: see `pioreactor.struct.Automation`
  - `pio run led_intensity` has new API: use the flags, ex: `--A 10.0`, to set the intensities on different channels.
  - `pioreactor.actions.led_intensity` has a new API that accepts the desired state as a dict.
+ - pump actions are now under `pioreactor.actions.pump` instead of their own files.
 
 ### 22.2.0
  - Added more error codes for the ADC, network issues, and high temperature

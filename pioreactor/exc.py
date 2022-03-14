@@ -1,4 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
+
+class PWMError(OSError):
+    """
+    Something went wrong with PWM outputs
+    """
 
 
 class HardwareNotFoundError(OSError):

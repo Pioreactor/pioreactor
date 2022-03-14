@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-# pump calibration
 from __future__ import annotations
 
-import json
 import time
 from typing import Callable
 
 import click
+from msgspec.json import decode
 from msgspec.json import encode
 
 from pioreactor import structs
@@ -37,15 +36,19 @@ def which_pump_are_you_calibrating():
         missing_alt_media = "alt_media_ml_calibration" not in cache
 
         if not missing_media:
-            media_timestamp = json.loads(cache["media_ml_calibration"])["timestamp"][:10]
+            media_timestamp = decode(
+                cache["media_ml_calibration"], type=structs.PumpCalibration
+            ).timestamp[:10]
 
         if not missing_waste:
-            waste_timestamp = json.loads(cache["waste_ml_calibration"])["timestamp"][:10]
+            waste_timestamp = decode(
+                cache["waste_ml_calibration"], type=structs.PumpCalibration
+            ).timestamp[:10]
 
         if not missing_alt_media:
-            alt_media_timestamp = json.loads(cache["alt_media_ml_calibration"])[
-                "timestamp"
-            ][:10]
+            alt_media_timestamp = decode(
+                cache["alt_media_ml_calibration"], type=structs.PumpCalibration
+            ).timestamp[:10]
 
     r = click.prompt(
         click.style(
@@ -241,7 +244,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                     timestamp=current_utc_time(),
                 )
             )
-            cache[f"{pump_name}_calibration_data"] = json.dumps(
+            cache[f"{pump_name}_calibration_data"] = encode(
                 {
                     "timestamp": current_utc_time(),
                     "data": {"durations": durations, "volumes": volumes},

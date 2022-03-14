@@ -412,14 +412,20 @@ class Monitor(BackgroundJob):
         elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
             from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
 
+            # we use a thread here since we want to exit this callback without blocking it.
+            # a blocked callback can disconnect from MQTT broker.
+            from threading import Thread
+
             if job_name == "add_media":
                 pump = add_media
             elif job_name == "add_alt_media":
                 pump = add_alt_media
-            else:
+            elif job_name == "remove_waste":
                 pump = remove_waste
 
-            pump(self.unit, whoami.get_latest_experiment_name(), **payload)
+            exp = whoami.get_latest_experiment_name()
+            t = Thread(target=pump, args=(self.unit, exp), kwargs=payload, daemon=True)
+            t.start()
 
         else:
             prefix = ["nohup"]
