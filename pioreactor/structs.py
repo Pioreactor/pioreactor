@@ -59,6 +59,13 @@ class LEDEvent(Struct):
     timestamp: str
 
 
+class LEDsIntensity(Struct):
+    A: float = 0.0
+    B: float = 0.0
+    C: float = 0.0
+    D: float = 0.0
+
+
 class DosingEvent(Struct):
     """output of a pump action"""
 

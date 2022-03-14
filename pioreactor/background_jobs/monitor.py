@@ -394,22 +394,31 @@ class Monitor(BackgroundJob):
         job_name = quote(msg.topic.split("/")[-1])
         payload = loads(msg.payload)
 
-        prefix = ["nohup"]
-        core_command = ["pio", "run", job_name]
-        args: list[str] = sum(
-            [
-                [f"--{quote(key).replace('_', '-')}", quote(str(value))]
-                for key, value in payload.items()
-            ],
-            [],
-        )
-        suffix = [">/dev/null", "2>&1", "&"]
+        # this is a performance hack and should be changed later...
+        if job_name == "led_intensity":
 
-        command = " ".join((prefix + core_command + args + suffix))
+            pass
 
-        self.logger.debug(f"Running `{command}` from monitor job.")
+        elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
+            pass
 
-        subprocess.run(command, shell=True)
+        else:
+            prefix = ["nohup"]
+            core_command = ["pio", "run", job_name]
+            args: list[str] = sum(
+                [
+                    [f"--{quote(key).replace('_', '-')}", quote(str(value))]
+                    for key, value in payload.items()
+                ],
+                [],
+            )
+            suffix = [">/dev/null", "2>&1", "&"]
+
+            command = " ".join((prefix + core_command + args + suffix))
+
+            self.logger.debug(f"Running `{command}` from monitor job.")
+
+            subprocess.run(command, shell=True)
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         payload = int(message.payload)
@@ -433,12 +442,10 @@ class Monitor(BackgroundJob):
         # The payload provided is a json dict of options for the command line invocation of the job.
         self.subscribe_and_callback(
             self.run_job_on_machine,
-            f"pioreactor/{self.unit}/+/run/+",
-        )
-
-        self.subscribe_and_callback(
-            self.run_job_on_machine,
-            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/run/+",
+            [
+                f"pioreactor/{self.unit}/+/run/+",
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/run/+",
+            ],
         )
 
 

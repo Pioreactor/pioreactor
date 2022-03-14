@@ -264,7 +264,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def get_od_blank_from_cache(self) -> dict[pt.PdChannel, float]:
         with local_persistant_storage("od_blank") as cache:
-            result = cache.get(self.experiment, None)
+            result = cache.get(self.experiment)
 
         if result:
             od_blanks = decode(result)

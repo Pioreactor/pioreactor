@@ -2,15 +2,10 @@
 # types
 from __future__ import annotations
 
-from typing import Any
-from typing import Literal
-from typing import MutableMapping
-from typing import Protocol
-from typing import TypedDict
-from typing import Union
+import typing as t
 
 
-class DosingProgram(Protocol):
+class DosingProgram(t.Protocol):
     """
     Should return a non-negative float representing (approx) how much liquid was moved, in ml.
     """
@@ -21,21 +16,21 @@ class DosingProgram(Protocol):
         ...
 
 
-MQTTMessagePayload = Union[bytes, bytearray]
+MQTTMessagePayload = t.Union[bytes, bytearray]
 
 
 class MQTTMessage:
     payload: MQTTMessagePayload
     topic: str
-    qos: Literal[0, 1, 2]
+    qos: t.Literal[0, 1, 2]
     retain: bool
     mid: int
 
 
-PublishableSettingDataType = Union[str, float, int, bool]
+PublishableSettingDataType = t.Union[str, float, int, bool]
 
 
-class PublishableSetting(TypedDict, total=False):
+class PublishableSetting(t.TypedDict, total=False):
     """
     In a job, the published_settings attribute is a list of dictionaries that have
     the below schema.
@@ -59,7 +54,7 @@ class PublishableSetting(TypedDict, total=False):
 
     """
 
-    datatype: Literal[
+    datatype: t.Literal[
         "string",
         "float",
         "integer",
@@ -76,34 +71,34 @@ class PublishableSetting(TypedDict, total=False):
     persist: bool
 
 
-class DbmMapping(MutableMapping):
+class DbmMapping(t.MutableMapping):
     def __getitem__(self, key: str | bytes) -> bytes:
         """
         Internally, dbm will convert all values to bytes
         """
         ...
 
-    def __setitem__(self, key: str | bytes, value: str | bytes) -> None:
+    def __setitem__(self, key: str | bytes, value: t.Any) -> None:
         ...
 
-    def get(self, key: str | bytes, default: Any = None) -> Any:
+    def get(self, key: str | bytes, default: t.Any = None) -> bytes:
         ...
 
 
-JobState = Literal["init", "ready", "sleeping", "disconnected", "lost"]
+JobState = t.Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 
-LedChannel = Literal["A", "B", "C", "D"]
+LedChannel = t.Literal["A", "B", "C", "D"]
 # these are strings! Don't make them ints, since ints suggest we can perform math on them, that's meaningless.
 # str suggest symbols, which they are.
-PdChannel = Literal["1", "2"]
-PwmChannel = Literal["1", "2", "3", "4", "5"]
+PdChannel = t.Literal["1", "2"]
+PwmChannel = t.Literal["1", "2", "3", "4", "5"]
 
-PdAngle = Literal["45", "90", "135", "180", "REF"]
+PdAngle = t.Literal["45", "90", "135", "180", "REF"]
 
 
 # All GPIO pins below are BCM numbered
-GpioPin = Literal[
+GpioPin = t.Literal[
     2,
     3,
     4,

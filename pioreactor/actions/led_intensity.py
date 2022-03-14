@@ -51,7 +51,7 @@ def change_leds_intensities_temporarily(
     """
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: float(cache.get(c, 0.0)) for c in _list(channels)}
+            old_state = {c: float(cache[c]) for c in _list(channels)}
 
         led_intensity(channels, new_intensities, **kwargs)
 
@@ -81,24 +81,31 @@ def is_led_channel_locked(channel: LedChannel) -> bool:
 def _update_current_state(
     channels: list[LedChannel],
     intensities: list[float],
-) -> tuple[dict[LedChannel, float], dict[LedChannel, float]]:
+) -> tuple[structs.LEDsIntensity, structs.LEDsIntensity]:
     """
     Previously this used MQTT, but network latency could really cause trouble.
     Eventually I should try to modify the UI to not even need this `state` variable,
     """
 
     with local_intermittent_storage("leds") as led_cache:
-        old_state = {
-            channel: float(led_cache.get(channel, 0.0)) for channel in ALL_LED_CHANNELS
-        }
+        # rehydrate old cache
+        old_state = structs.LEDsIntensity(
+            **{
+                channel.decode(): float(led_cache.get(channel, 0.0))
+                for channel in led_cache.keys()
+            }
+        )
 
         # update cache
         for channel, intensity in zip(channels, intensities):
             led_cache[channel] = str(intensity)
 
-        new_state = {
-            channel: float(led_cache.get(channel, 0.0)) for channel in ALL_LED_CHANNELS
-        }
+        new_state = structs.LEDsIntensity(
+            **{
+                channel.decode(): float(led_cache.get(channel, 0.0))
+                for channel in led_cache.keys()
+            }
+        )
 
         return new_state, old_state
 
@@ -138,11 +145,7 @@ def led_intensity(
 
     Notes
     -------
-    State is also updated in
-
-        pioreactor/<unit>/<experiment>/led/<channel>/intensity   <intensity>
-
-    and
+    State is updated in MQTT:
 
         pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
@@ -202,13 +205,6 @@ def led_intensity(
                 # the channel to guarantee no output.
                 dac.power_down(getattr(dac, channel))
 
-            pubsub_client.publish(
-                f"pioreactor/{unit}/{experiment}/led/{channel}/intensity",
-                intensity,
-                qos=QOS.AT_MOST_ONCE,
-                retain=True,
-            )
-
         except ValueError as e:
             logger.debug(e, exc_info=True)
             logger.error(
@@ -243,7 +239,7 @@ def led_intensity(
             )
 
             logger.info(
-                f"Updated LED {channel} from {old_state[channel]:0.3g}% to {new_state[channel]:0.3g}%."
+                f"Updated LED {channel} from {getattr(old_state, channel):0.3g}% to {getattr(new_state, channel):0.3g}%."
             )
 
     return updated_successfully
