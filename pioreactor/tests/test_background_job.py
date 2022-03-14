@@ -84,14 +84,18 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     with collect_all_logs_of_level("WARNING", unit, exp) as bucket:
         with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
             pause()
+            pause()
             bj.logger.warning("test1")
-
+            pause()
+            pause()
         # disconnect, which should clear logger handlers (but may not...)
 
         with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
             pause()
+            pause()
             bj.logger.warning("test2")
-
+            pause()
+            pause()
     assert len(bucket) == 2
 
 
