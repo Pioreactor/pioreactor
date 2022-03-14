@@ -10,9 +10,9 @@ import click
 from msgspec.json import encode
 
 from pioreactor import structs
-from pioreactor.actions.add_alt_media import add_alt_media
-from pioreactor.actions.add_media import add_media
-from pioreactor.actions.remove_waste import remove_waste
+from pioreactor.actions.pump import add_alt_media
+from pioreactor.actions.pump import add_media
+from pioreactor.actions.pump import remove_waste
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.utils import local_persistant_storage

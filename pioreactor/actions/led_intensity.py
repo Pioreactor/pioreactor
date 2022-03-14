@@ -39,8 +39,7 @@ def _list(x) -> list:
 
 @contextmanager
 def change_leds_intensities_temporarily(
-    channels: LedChannel | list[LedChannel],
-    new_intensities: float | list[float],
+    desired_state: dict[LedChannel, float],
     **kwargs: Any,
 ) -> Iterator[None]:
     """
@@ -51,13 +50,13 @@ def change_leds_intensities_temporarily(
     """
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: float(cache.get(c, 0.0)) for c in _list(channels)}
+            old_state = {c: float(cache[c]) for c in desired_state.keys()}
 
-        led_intensity(channels, new_intensities, **kwargs)
+        led_intensity(desired_state, **kwargs)
 
         yield
     finally:
-        led_intensity(list(old_state.keys()), list(old_state.values()), **kwargs)
+        led_intensity(old_state, **kwargs)
 
 
 @contextmanager
@@ -79,33 +78,38 @@ def is_led_channel_locked(channel: LedChannel) -> bool:
 
 
 def _update_current_state(
-    channels: list[LedChannel],
-    intensities: list[float],
-) -> tuple[dict[LedChannel, float], dict[LedChannel, float]]:
+    new_state,
+) -> tuple[structs.LEDsIntensity, structs.LEDsIntensity]:
     """
     Previously this used MQTT, but network latency could really cause trouble.
     Eventually I should try to modify the UI to not even need this `state` variable,
     """
 
     with local_intermittent_storage("leds") as led_cache:
-        old_state = {
-            channel: float(led_cache.get(channel, 0.0)) for channel in ALL_LED_CHANNELS
-        }
+        # rehydrate old cache
+        old_state = structs.LEDsIntensity(
+            **{
+                channel.decode(): float(led_cache.get(channel, 0.0))
+                for channel in led_cache.keys()
+            }
+        )
 
         # update cache
-        for channel, intensity in zip(channels, intensities):
+        for channel, intensity in new_state.items():
             led_cache[channel] = str(intensity)
 
-        new_state = {
-            channel: float(led_cache.get(channel, 0.0)) for channel in ALL_LED_CHANNELS
-        }
+        new_state = structs.LEDsIntensity(
+            **{
+                channel.decode(): float(led_cache.get(channel, 0.0))
+                for channel in led_cache.keys()
+            }
+        )
 
         return new_state, old_state
 
 
 def led_intensity(
-    channels: LedChannel | list[LedChannel],
-    intensities: float | list[float],
+    desired_state: dict[LedChannel, float],
     unit: str,
     experiment: str,
     verbose: bool = True,
@@ -117,11 +121,10 @@ def led_intensity(
 
     Parameters
     ------------
-    channel: an LED channel or list
+    desired_state: dict
+        what you want the desired LED state to be. Leave keys out if you do wish to update that channel.
     unit: str
     experiment: str
-    intensity: float or list
-        a value between 0 and 100 to set the LED channel to.
     verbose: bool
         if True, log the change, and send event to led_event table & mqtt. This is FALSE
         in od_reading job, so as to not create spam.
@@ -138,15 +141,13 @@ def led_intensity(
 
     Notes
     -------
-    State is also updated in
-
-        pioreactor/<unit>/<experiment>/led/<channel>/intensity   <intensity>
-
-    and
+    State is updated in MQTT:
 
         pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
     """
+    assert experiment is not None, "experiment must be set"
+    assert unit is not None, "unit must be set"
     logger = create_logger("led_intensity", experiment=experiment, unit=unit)
     updated_successfully = True
     if not is_testing_env():
@@ -158,33 +159,16 @@ def led_intensity(
     if pubsub_client is None:
         pubsub_client = create_client()
 
-    channels, intensities = _list(channels), _list(intensities)
-
-    if len(channels) != len(intensities):
-        raise ValueError("channels must be the same length as intensities")
-
     # any locked channels?
-    for channel in channels:
+    for channel in list(desired_state.keys()):
         if is_led_channel_locked(channel):
             updated_successfully = False
             logger.warning(
                 f"Unable to update channel {channel} due to a lock on it. Please try again."
             )
+            del desired_state[channel]
 
-    # remove locked channels:
-    try:
-        channels, intensities = zip(  # type: ignore
-            *[
-                (c, float(i))
-                for c, i in zip(channels, intensities)
-                if not is_led_channel_locked(c)
-            ]
-        )
-    except ValueError:
-        # if the only channel being updated is locked, the resulting error is a ValueError: not enough values to unpack (expected 2, got 0)
-        return updated_successfully
-
-    for channel, intensity in zip(channels, intensities):
+    for channel, intensity in desired_state.items():
         try:
             assert (
                 0.0 <= intensity <= 100.0
@@ -202,13 +186,6 @@ def led_intensity(
                 # the channel to guarantee no output.
                 dac.power_down(getattr(dac, channel))
 
-            pubsub_client.publish(
-                f"pioreactor/{unit}/{experiment}/led/{channel}/intensity",
-                intensity,
-                qos=QOS.AT_MOST_ONCE,
-                retain=True,
-            )
-
         except ValueError as e:
             logger.debug(e, exc_info=True)
             logger.error(
@@ -217,7 +194,7 @@ def led_intensity(
             updated_successfully = False
             return updated_successfully
 
-    new_state, old_state = _update_current_state(channels, intensities)
+    new_state, old_state = _update_current_state(desired_state)
 
     pubsub_client.publish(
         f"pioreactor/{unit}/{experiment}/leds/intensity",
@@ -227,7 +204,7 @@ def led_intensity(
     )
 
     if verbose:
-        for channel, intensity in zip(channels, intensities):
+        for channel, intensity in desired_state.items():
             event = structs.LEDEvent(
                 channel=channel,
                 intensity=intensity,
@@ -243,7 +220,7 @@ def led_intensity(
             )
 
             logger.info(
-                f"Updated LED {channel} from {old_state[channel]:0.3g}% to {new_state[channel]:0.3g}%."
+                f"Updated LED {channel} from {getattr(old_state, channel):0.3g}% to {getattr(new_state, channel):0.3g}%."
             )
 
     return updated_successfully
@@ -251,16 +228,24 @@ def led_intensity(
 
 @click.command(name="led_intensity")
 @click.option(
-    "--channel",
-    type=click.Choice(ALL_LED_CHANNELS, case_sensitive=False),
-    multiple=True,
-    required=True,
-)
-@click.option(
-    "--intensity",
+    "--A",
     help="value between 0 and 100",
     type=click.FloatRange(0, 100),
-    required=True,
+)
+@click.option(
+    "--B",
+    help="value between 0 and 100",
+    type=click.FloatRange(0, 100),
+)
+@click.option(
+    "--C",
+    help="value between 0 and 100",
+    type=click.FloatRange(0, 100),
+)
+@click.option(
+    "--D",
+    help="value between 0 and 100",
+    type=click.FloatRange(0, 100),
 )
 @click.option(
     "--source-of-event",
@@ -270,10 +255,12 @@ def led_intensity(
 )
 @click.option("--no-log", is_flag=True, help="Add to log")
 def click_led_intensity(
-    channel: LedChannel | tuple[LedChannel, ...],
-    intensity: int,
-    source_of_event: str,
-    no_log: bool,
+    a: Optional[float] = None,
+    b: Optional[float] = None,
+    c: Optional[float] = None,
+    d: Optional[float] = None,
+    source_of_event: str = None,
+    no_log: bool = False,
 ) -> bool:
     """
     Modify the intensity of LED channel(s)
@@ -281,9 +268,18 @@ def click_led_intensity(
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
+    state: dict[LedChannel, float] = {}
+    if a is not None:
+        state["A"] = a
+    if b is not None:
+        state["B"] = b
+    if c is not None:
+        state["C"] = c
+    if d is not None:
+        state["D"] = d
+
     status = led_intensity(
-        channels=_list(channel),
-        intensities=[intensity] * len(channel),
+        state,
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,

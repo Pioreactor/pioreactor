@@ -5,6 +5,7 @@ import time
 from configparser import NoOptionError
 from typing import Optional
 
+import click
 from msgspec.json import decode
 from msgspec.json import encode
 
@@ -18,9 +19,13 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_time
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
+
+__all__ = ["add_media", "remove_waste", "add_alt_media"]
 
 
-def pump(
+def _pump(
     unit: str,
     experiment: str,
     pump_name: str,
@@ -169,3 +174,233 @@ def pump(
                     shortened_duration, calibration.duration_, calibration.bias_
                 )
         return ml
+
+
+def add_media(
+    unit: str,
+    experiment: str,
+    ml: Optional[float] = None,
+    duration: Optional[float] = None,
+    source_of_event: Optional[str] = None,
+    calibration: Optional[structs.PumpCalibration] = None,
+    continuously: bool = False,
+) -> float:
+    """
+    Parameters
+    ------------
+    unit: str
+    experiment: str
+    ml: float
+        Amount of volume to pass, in mL
+    duration: float
+        Duration to run pump, in s
+    calibration:
+        specify a calibration for the dosing. Should be a dict
+        with fields "duration_", "hz", "dc", and "bias_"
+    continuously: bool
+        Run pump continuously.
+    source_of_event: str
+        A human readable description of the source
+
+
+    Returns
+    -----------
+    Amount of volume passed (approximate in some cases)
+
+    """
+    pump_name = "media"
+    return _pump(
+        unit,
+        experiment,
+        pump_name,
+        ml,
+        duration,
+        source_of_event,
+        calibration,
+        continuously,
+    )
+
+
+def remove_waste(
+    unit: str,
+    experiment: str,
+    ml: Optional[float] = None,
+    duration: Optional[float] = None,
+    source_of_event: Optional[str] = None,
+    calibration: Optional[structs.PumpCalibration] = None,
+    continuously: bool = False,
+) -> float:
+    """
+    Parameters
+    ------------
+    unit: str
+    experiment: str
+    ml: float
+        Amount of volume to pass, in mL
+    duration: float
+        Duration to run pump, in s
+    calibration:
+        specify a calibration for the dosing. Should be a dict
+        with fields "duration_", "hz", "dc", and "bias_"
+    continuously: bool
+        Run pump continuously.
+    source_of_event: str
+        A human readable description of the source
+
+    Returns
+    -----------
+    Amount of volume passed (approximate in some cases)
+
+    """
+    pump_name = "waste"
+    return _pump(
+        unit,
+        experiment,
+        pump_name,
+        ml,
+        duration,
+        source_of_event,
+        calibration,
+        continuously,
+    )
+
+
+def add_alt_media(
+    unit: str,
+    experiment: str,
+    ml: Optional[float] = None,
+    duration: Optional[float] = None,
+    source_of_event: Optional[str] = None,
+    calibration: Optional[structs.PumpCalibration] = None,
+    continuously: bool = False,
+) -> float:
+    """
+    Parameters
+    ------------
+    unit: str
+    experiment: str
+    ml: float
+        Amount of volume to pass, in mL
+    duration: float
+        Duration to run pump, in s
+    calibration:
+        specify a calibration for the dosing. Should be a dict
+        with fields "duration_", "hz", "dc", and "bias_"
+    continuously: bool
+        Run pump continuously.
+    source_of_event: str
+        A human readable description of the source
+
+
+    Returns
+    -----------
+    Amount of volume passed (approximate in some cases)
+
+    """
+    pump_name = "alt_media"
+    return _pump(
+        unit,
+        experiment,
+        pump_name,
+        ml,
+        duration,
+        source_of_event,
+        calibration,
+        continuously,
+    )
+
+
+@click.command(name="add_alt_media")
+@click.option("--ml", type=float)
+@click.option("--duration", type=float)
+@click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option(
+    "--source-of-event",
+    default="CLI",
+    type=str,
+    help="who is calling this function - data goes into database and MQTT",
+)
+def click_add_alt_media(
+    ml: Optional[float],
+    duration: Optional[float],
+    continuously: bool,
+    source_of_event: Optional[str],
+):
+    """
+    Remove waste/media from unit
+    """
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    return add_alt_media(
+        ml=ml,
+        duration=duration,
+        continuously=continuously,
+        source_of_event=source_of_event,
+        unit=unit,
+        experiment=experiment,
+    )
+
+
+@click.command(name="remove_waste")
+@click.option("--ml", type=float)
+@click.option("--duration", type=float)
+@click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option(
+    "--source-of-event",
+    default="CLI",
+    type=str,
+    help="who is calling this function - for logging",
+)
+def click_remove_waste(
+    ml: Optional[float],
+    duration: Optional[float],
+    continuously: bool,
+    source_of_event: Optional[str],
+):
+    """
+    Remove waste/media from unit
+    """
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    return remove_waste(
+        ml=ml,
+        duration=duration,
+        continuously=continuously,
+        source_of_event=source_of_event,
+        unit=unit,
+        experiment=experiment,
+    )
+
+
+@click.command(name="add_media")
+@click.option("--ml", type=float)
+@click.option("--duration", type=float)
+@click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option(
+    "--source-of-event",
+    default="CLI",
+    type=str,
+    help="who is calling this function - data goes into database and MQTT",
+)
+def click_add_media(
+    ml: Optional[float],
+    duration: Optional[float],
+    continuously: bool,
+    source_of_event: Optional[str],
+):
+    """
+    Add media to unit
+    """
+    unit = get_unit_name()
+    experiment = get_latest_experiment_name()
+
+    return add_media(
+        ml=ml,
+        duration=duration,
+        continuously=continuously,
+        source_of_event=source_of_event,
+        unit=unit,
+        experiment=experiment,
+    )

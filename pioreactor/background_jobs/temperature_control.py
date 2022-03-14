@@ -126,8 +126,8 @@ class TemperatureController(BackgroundJob):
 
             self.publish_temperature_timer = RepeatedTimer(
                 4 * 60,
-                self.evaluate_and_publish_temperature,
-                run_after=90,  # 90 is how long PWM is active for during a cycle (see evaluate_and_publish_temperature's constants). This gives an automation a "full" cycle to be on.
+                self.evaluate_temperature,
+                run_after=90,  # 90 is how long PWM is active for during a cycle (see evaluate_temperature's constants). This gives an automation a "full" cycle to be on.
                 run_immediately=True,
             ).start()
 
@@ -177,7 +177,7 @@ class TemperatureController(BackgroundJob):
         """
 
         if not self.pwm.is_locked():
-            return self._update_heater(clamp(0.0, new_duty_cycle, 90.0))
+            return self._update_heater(clamp(0.0, new_duty_cycle, 100.0))
         else:
             return False
 
@@ -335,7 +335,7 @@ class TemperatureController(BackgroundJob):
     def _get_room_temperature():
         return 20.0
 
-    def evaluate_and_publish_temperature(self) -> None:
+    def evaluate_temperature(self) -> None:
         """
         1. lock PWM and turn off heater
         2. start recording temperatures from the sensor
@@ -468,6 +468,7 @@ class TemperatureController(BackgroundJob):
             A, B, _, _ = np.linalg.solve(M1, Y1)
         except np.linalg.LinAlgError:
             self.logger.error("Error in temperature inference.")
+            self.logger.debug("Error in temperature inference", exc_info=True)
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
@@ -499,7 +500,10 @@ class TemperatureController(BackgroundJob):
         try:
             b, c = np.linalg.solve(M2, Y2)
         except np.linalg.LinAlgError:
-            self.logger.error("Error in second regression")
+            self.logger.error("Error in temperature inference.")
+            self.logger.debug(
+                "Error in temperature inference's second regression.", exc_info=True
+            )
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return features["prev_temp"]

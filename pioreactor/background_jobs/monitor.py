@@ -394,22 +394,50 @@ class Monitor(BackgroundJob):
         job_name = quote(msg.topic.split("/")[-1])
         payload = loads(msg.payload)
 
-        prefix = ["nohup"]
-        core_command = ["pio", "run", job_name]
-        args: list[str] = sum(
-            [
-                [f"--{quote(key).replace('_', '-')}", quote(str(value))]
-                for key, value in payload.items()
-            ],
-            [],
-        )
-        suffix = [">/dev/null", "2>&1", "&"]
+        # this is a performance hack and should be changed later...
+        if job_name == "led_intensity":
+            from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
-        command = " ".join((prefix + core_command + args + suffix))
+            state = {c: payload.get(c) for c in ALL_LED_CHANNELS if c in payload}
 
-        self.logger.debug(f"Running `{command}` from monitor job.")
+            kwargs = payload
+            kwargs["unit"] = self.unit
+            kwargs["experiment"] = whoami.get_latest_experiment_name()
 
-        subprocess.run(command, shell=True)
+            for c in ALL_LED_CHANNELS:
+                kwargs.pop(c, None)
+
+            led_intensity(state, **kwargs)
+
+        elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
+            from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
+
+            if job_name == "add_media":
+                pump = add_media
+            elif job_name == "add_alt_media":
+                pump = add_alt_media
+            else:
+                pump = remove_waste
+
+            pump(self.unit, whoami.get_latest_experiment_name(), **payload)
+
+        else:
+            prefix = ["nohup"]
+            core_command = ["pio", "run", job_name]
+            args: list[str] = sum(
+                [
+                    [f"--{quote(key).replace('_', '-')}", quote(str(value))]
+                    for key, value in payload.items()
+                ],
+                [],
+            )
+            suffix = [">/dev/null", "2>&1", "&"]
+
+            command = " ".join((prefix + core_command + args + suffix))
+
+            self.logger.debug(f"Running `{command}` from monitor job.")
+
+            subprocess.run(command, shell=True)
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         payload = int(message.payload)
@@ -433,12 +461,11 @@ class Monitor(BackgroundJob):
         # The payload provided is a json dict of options for the command line invocation of the job.
         self.subscribe_and_callback(
             self.run_job_on_machine,
-            f"pioreactor/{self.unit}/+/run/+",
-        )
-
-        self.subscribe_and_callback(
-            self.run_job_on_machine,
-            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/run/+",
+            [
+                f"pioreactor/{self.unit}/+/run/+",
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/+/run/+",
+            ],
+            allow_retained=False,
         )
 
 

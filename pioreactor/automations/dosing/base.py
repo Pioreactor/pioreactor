@@ -16,9 +16,9 @@ from msgspec.json import encode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.actions.add_alt_media import add_alt_media
-from pioreactor.actions.add_media import add_media
-from pioreactor.actions.remove_waste import remove_waste
+from pioreactor.actions.pump import add_alt_media
+from pioreactor.actions.pump import add_media
+from pioreactor.actions.pump import remove_waste
 from pioreactor.automations import events
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.subjobs import BackgroundSubJob

@@ -6,6 +6,8 @@
  - Internally, the repo uses the `msgspec` library for complex MQTT message validation. This also introduces the `pioreactor.structs` module which details the structure of the messages.
  - Name change: `DosingAutomation` -> `DosingAutomationJob`, `TemperatureAutomation` -> `TemperatureAutomationJob`, `LEDAutomation` -> `LEDAutomationJob`.
  - New json-encoded datatype for changing automations over MQTT: see `pioreactor.struct.Automation`
+ - `pio run led_intensity` has new API: use the flags, ex: `--A 10.0`, to set the intensities on different channels.
+ - `pioreactor.actions.led_intensity` has a new API that accepts the desired state as a dict.
 
 ### 22.2.0
  - Added more error codes for the ADC, network issues, and high temperature

@@ -170,8 +170,7 @@ class LEDAutomationJob(BackgroundSubJob):
         """
         for _ in range(12):
             success = led_intensity(
-                channel,
-                intensity,
+                {channel: intensity},
                 unit=self.unit,
                 experiment=self.experiment,
                 pubsub_client=self.pub_client,
@@ -242,8 +241,11 @@ class LEDAutomationJob(BackgroundSubJob):
         with suppress(AttributeError):
             self.run_thread.join()
 
-        for channel in self.edited_channels:
-            led_intensity(channel, 0, unit=self.unit, experiment=self.experiment)
+        led_intensity(
+            {channel: 0 for channel in self.edited_channels},
+            unit=self.unit,
+            experiment=self.experiment,
+        )
 
     def __setattr__(self, name, value) -> None:
         super(LEDAutomationJob, self).__setattr__(name, value)
