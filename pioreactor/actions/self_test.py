@@ -158,6 +158,31 @@ def test_all_positive_correlations_between_pds_and_leds(
         ), f"{pd_channel} channel too low: {varying_intensity_results[pd_channel]}"
 
 
+def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:
+    # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
+
+    adc_reader = ADCReader(
+        channels=ALL_PD_CHANNELS,
+        dynamic_gain=False,
+        initial_gain=16,
+        fake_data=is_testing_env(),
+    )
+
+    adc_reader.setup_adc()
+
+    led_intensity(
+        {channel: 0 for channel in ALL_LED_CHANNELS},
+        unit=unit,
+        source_of_event="self_test",
+        experiment=experiment,
+        verbose=False,
+    )
+
+    readings = adc_reader.take_reading()
+
+    assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
+
+
 def test_REF_is_lower_than_0_dot_256_volts(
     logger: Logger, unit: str, experiment: str
 ) -> None:
@@ -186,31 +211,6 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
             # provide a margin, since we have margins when determining change gain in od_reading
             assert readings[reference_channel] < 0.256 * 0.8
-
-
-def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:
-    # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
-
-    adc_reader = ADCReader(
-        channels=ALL_PD_CHANNELS,
-        dynamic_gain=False,
-        initial_gain=16,
-        fake_data=is_testing_env(),
-    )
-
-    adc_reader.setup_adc()
-
-    led_intensity(
-        {channel: 0 for channel in ALL_LED_CHANNELS},
-        unit=unit,
-        source_of_event="self_test",
-        experiment=experiment,
-        verbose=False,
-    )
-
-    readings = adc_reader.take_reading()
-
-    assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
 def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
