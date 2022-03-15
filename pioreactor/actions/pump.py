@@ -9,6 +9,7 @@ import click
 from msgspec.json import decode
 from msgspec.json import encode
 
+from pioreactor import exc
 from pioreactor import structs
 from pioreactor import utils
 from pioreactor.config import config
@@ -136,7 +137,11 @@ def _pump(
 
         try:
 
-            pwm = PWM(GPIO_PIN, calibration.hz, experiment=experiment, unit=unit)
+            try:
+                pwm = PWM(GPIO_PIN, calibration.hz, experiment=experiment, unit=unit)
+            except exc.PWMError:
+                return 0.0
+
             pwm.lock()
 
             with catchtime() as delta_time:

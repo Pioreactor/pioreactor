@@ -27,4 +27,12 @@ def run_around_tests():
         for key in cache.keys():
             del cache[key]
 
+    with local_intermittent_storage("pwm_locks") as cache:
+        for key in cache.keys():
+            del cache[key]
+
+    with local_intermittent_storage("leds") as cache:
+        for key in cache.keys():
+            del cache[key]
+
     yield
