@@ -38,6 +38,7 @@ def current_utc_time() -> str:
 
 def brief_pause() -> None:
     if is_testing_env():
+        time.sleep(0.25)
         return
     else:
         time.sleep(3)

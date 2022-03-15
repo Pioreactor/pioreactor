@@ -254,7 +254,7 @@ class DosingAutomationJob(BackgroundSubJob):
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
-                event = events.ErrorOccurred()
+                event = events.ErrorOccurred(str(e))
 
         if event:
             self.logger.info(str(event))
