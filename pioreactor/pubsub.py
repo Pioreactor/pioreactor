@@ -32,6 +32,7 @@ def create_client(
     client_id: Optional[str] = None,
     keepalive=60,
     max_retries=3,
+    clean_session=None,
 ) -> Client:
     """
     Create a MQTT client and connect to a host.
@@ -46,7 +47,7 @@ def create_client(
             logger = create_logger("pubsub.create_client", to_mqtt=False)
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
-    client = Client(client_id=client_id)
+    client = Client(client_id=client_id, clean_session=clean_session)
     client.on_connect = on_connect
 
     if last_will is not None:

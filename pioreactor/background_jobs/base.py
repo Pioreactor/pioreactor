@@ -505,6 +505,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             client_id=f"{self.unit}-sub-{self.job_name}-{get_uuid()}-{id(self)}",
             last_will=last_will,
             keepalive=60,
+            clean_session=False,  # this, in theory, will reconnect to old subs when we reconnect.
         )
         # we catch exceptions and report them in our software
         client.suppress_exceptions = True
