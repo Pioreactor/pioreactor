@@ -1,4 +1,4 @@
-### Upcoming
+### 22.3.0
  - fixed memory leak in MQTT connections
  - better clean up after a job disconnects
  - If the temperature of the heating PCB gets too high, the automation switches to Silent (previously it did not switch at all.)
