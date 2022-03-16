@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 from logging import handlers
 from logging import Logger
-from typing import Optional
 
 import colorlog
 from json_log_formatter import JSONFormatter  # type: ignore
@@ -89,7 +88,6 @@ def create_logger(
     unit: str = None,
     experiment: str = None,
     source: str = "app",
-    pub_client: Optional[Client] = None,
     to_mqtt: bool = True,
 ) -> Logger:
     """
@@ -154,13 +152,11 @@ def create_logger(
     logger.addHandler(console_handler)
 
     if to_mqtt:
+        import uuid
 
-        if pub_client is None:
-            import uuid
-
-            pub_client = create_client(
-                client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}"
-            )
+        pub_client = create_client(
+            client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}"
+        )
 
         exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 

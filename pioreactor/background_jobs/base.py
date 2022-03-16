@@ -229,14 +229,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         }
 
         self.logger = create_logger(
-            self.job_name,
-            unit=self.unit,
-            experiment=self.experiment,
-            source=source
-            # TODO: the following should work, but doesn't. When we disconnect a subjob, like when changing dosing_automations,
-            # the new subjob does _not_ log anything to MQTT - it's like the logger is still using the (disconnected) subjobs pub_client.
-            # For now, we will just create a new client each time.
-            # pub_client=self.pub_client,
+            self.job_name, unit=self.unit, experiment=self.experiment, source=source
         )
 
         # check_for_duplicate_activity checks _before_ the pubsub client,
