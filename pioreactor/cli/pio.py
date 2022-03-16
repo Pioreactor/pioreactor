@@ -57,8 +57,10 @@ def logs(n: int) -> None:
         )
 
     click.echo(tail("-n", n, config["logging"]["log_file"]))
+    click.echo("------------ New ------------")
 
     try:
+        # TODO: why use MQTT and not just tail -f ??? This puts a dependency on mqtt
         # will fail if not connected to leader.
         pubsub.subscribe_and_callback(cb, f"pioreactor/{whoami.get_unit_name()}/+/logs/+")
     except OSError:

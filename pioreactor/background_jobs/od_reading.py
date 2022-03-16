@@ -213,8 +213,19 @@ class ADCReader(LoggerMixin):
             from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
             from busio import I2C  # type: ignore
 
+        channel_to_adc_map: dict[pt.PdChannel, int] = {
+            "1": 1,
+            "2": 0,
+        }
+
         if hardware_version_info[0] == 0 and hardware_version_info[1] <= 2:
             from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
+
+            if hardware_version_info[0] == 0 and hardware_version_info[1] == 1:
+                channel_to_adc_map = {
+                    "1": 0,
+                    "2": 1,
+                }
         else:
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
@@ -224,9 +235,7 @@ class ADCReader(LoggerMixin):
         self.analog_in: dict[pt.PdChannel, AnalogIn] = {}
 
         for channel in self.channels:
-            self.analog_in[channel] = AnalogIn(
-                self.ads, int(channel) - 1
-            )  # subtract 1 because we use 1-indexing for PD numbers, but library wants 0 indexing
+            self.analog_in[channel] = AnalogIn(self.ads, channel_to_adc_map[channel])
 
         # check if using correct gain
         # this may need to be adjusted for higher rates of data collection
