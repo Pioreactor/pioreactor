@@ -16,7 +16,7 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
-from pioreactor.utils import append_signal_handler
+from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_uuid
 from pioreactor.whoami import is_testing_env
@@ -236,6 +236,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # as they will set (and revoke) a new last will.
         # Ex: job X is running, but we try to rerun it, causing the latter job to abort, and
         # potentially firing the last_will
+        # TODO: I don't think this is true anymore, since we append an id() to the client id now.
         self.check_for_duplicate_activity()
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
@@ -579,20 +580,26 @@ class _BackgroundJob(metaclass=PostInitCaller):
             atexit.register(disconnect_gracefully, "Python atexit")
 
             # terminate command, ex: pkill, kill
-            append_signal_handler(signal.SIGTERM, disconnect_gracefully)
+            append_signal_handlers(signal.SIGTERM, [disconnect_gracefully])
 
             # keyboard interrupt
-            append_signal_handler(signal.SIGINT, disconnect_gracefully)
-            # add a "ignore all future SIGINTs" onto the top of the stack.
-            append_signal_handler(
-                signal.SIGINT, lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN)
+            append_signal_handlers(
+                signal.SIGINT,
+                [
+                    disconnect_gracefully,
+                    # add a "ignore all future SIGINTs" onto the top of the stack.
+                    lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN),
+                ],
             )
 
             # ssh closes
-            append_signal_handler(signal.SIGHUP, disconnect_gracefully)
-            # add a "ignore all future SIGUPs" onto the top of the stack.
-            append_signal_handler(
-                signal.SIGHUP, lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN)
+            append_signal_handlers(
+                signal.SIGHUP,
+                [
+                    disconnect_gracefully,
+                    # add a "ignore all future SIGUPs" onto the top of the stack.
+                    lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
+                ],
             )
 
         self._blocking_event = threading.Event()

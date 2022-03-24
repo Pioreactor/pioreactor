@@ -58,6 +58,13 @@ def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) 
         raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
 
 
+def append_signal_handlers(
+    signal_value: signal.Signals, new_callbacks: list[Callable]
+) -> None:
+    for callback in new_callbacks:
+        append_signal_handler(signal_value, callback)
+
+
 class publish_ready_to_disconnected_state:
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test.

@@ -114,7 +114,7 @@ class PWM:
             cache[str(self.pin)] = str(self.hz)
 
         self.logger.debug(
-            f"Initialized PWM-{self.pin} with {'hardware' if self.using_hardware else 'software'}, initial frequency is {self.hz}hz."
+            f"Initialized GPIO-{self.pin} using {'hardware' if self.using_hardware else 'software'}-timing, initial frequency = {self.hz} hz."
         )
 
     @property
@@ -175,7 +175,7 @@ class PWM:
             GPIO.setup(self.pin, GPIO.OUT, initial=GPIO.LOW)
             GPIO.cleanup(self.pin)
 
-        self.logger.debug(f"Cleaned up PWM-{self.pin}.")
+        self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:

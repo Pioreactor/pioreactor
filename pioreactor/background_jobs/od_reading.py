@@ -151,7 +151,7 @@ class ADCReader(LoggerMixin):
         generate fake ADC readings internally.
     dynamic_gain: bool
         dynamically change the gain based on the max reading from channels
-    initial_gain: number
+    initial_gain:
         set the initial gain - see data sheet for values.
 
     """
@@ -218,14 +218,14 @@ class ADCReader(LoggerMixin):
             "2": 0,
         }
 
+        if hardware_version_info[0] == 0 and hardware_version_info[1] == 1:
+            channel_to_adc_map = {
+                "1": 0,
+                "2": 1,
+            }
         if hardware_version_info[0] == 0 and hardware_version_info[1] <= 2:
             from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
 
-            if hardware_version_info[0] == 0 and hardware_version_info[1] == 1:
-                channel_to_adc_map = {
-                    "1": 0,
-                    "2": 1,
-                }
         else:
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
@@ -316,7 +316,7 @@ class ADCReader(LoggerMixin):
         # this isn't _always_ equal to self.gain, ex: if another process is using the ADC to measure fluor.,
         # then they might use a different gain value. However, on take_reading, we always set it back to the
         # ADCReader's gain.
-        self.ads.gain = gain  # this assignment checks to see if the gain is allowed.
+        self.ads.gain = gain  # this assignment will check to see if the gain is allowed.
 
     def sin_regression_with_known_freq(
         self,
@@ -518,7 +518,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(150.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(175.0 / self.oversampling_count / self.interval)
                     if self.interval
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
