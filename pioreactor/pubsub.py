@@ -24,6 +24,7 @@ class Client(PahoClient):
     def loop_stop(self):
         super().loop_stop()
         self._reset_sockets(sockpair_only=True)
+        return self
 
 
 def create_client(

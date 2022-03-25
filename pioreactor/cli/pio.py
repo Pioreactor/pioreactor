@@ -373,10 +373,7 @@ if whoami.am_I_leader():
                     sys.exit(1)
 
         res = subprocess.call(
-            [
-                "bash /usr/local/bin/add_new_pioreactor_worker_from_leader.sh %s"
-                % (new_name)
-            ],
+            [f"bash /usr/local/bin/add_new_pioreactor_worker_from_leader.sh {new_name}"],
             shell=True,
         )
         if res == 0:

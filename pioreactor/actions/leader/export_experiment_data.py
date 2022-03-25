@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 # export experiment data
 # See create_tables.sql for all tables
+from __future__ import annotations
 
 import os
 from datetime import datetime
 
 import click
+
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 
@@ -16,7 +18,7 @@ def exists_table(cursor, table_name_to_check: str) -> bool:
 
 
 def get_column_names(cursor, table_name: str) -> list[str]:
-    query = "PRAGMA table_info(%s)" % table_name
+    query = f"PRAGMA table_info({table_name})"
     return [row[1] for row in cursor.execute(query).fetchall()]
 
 
@@ -104,4 +106,4 @@ def click_export_experiment_data(experiment, output, tables):
     """
     (leader only) Export tables from db.
     """
-    return export_experiment_data(experiment, output, tables)
+    export_experiment_data(experiment, output, tables)
