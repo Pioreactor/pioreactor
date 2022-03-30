@@ -98,7 +98,6 @@ def get_config():
         waste=3
         media=4
 
-
     """
     config = ConfigParserMod()
 

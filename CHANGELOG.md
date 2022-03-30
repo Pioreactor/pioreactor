@@ -1,3 +1,7 @@
+### Upcoming
+ - store more experiment metadata, like strain and media, in the database.
+ - pumps now throw a `CalibrationError` exception if their calibration is not defined.
+
 ### 22.3.0
  - fixed memory leak in MQTT connections
  - better clean up after a job disconnects

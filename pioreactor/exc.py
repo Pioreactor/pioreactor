@@ -18,3 +18,9 @@ class JobRequiredError(Exception):
     """
     A job should be running, but isn't found.
     """
+
+
+class CalibrationError(Exception):
+    """
+    An issue with hardware calibration (pump, stirring, etc.)
+    """

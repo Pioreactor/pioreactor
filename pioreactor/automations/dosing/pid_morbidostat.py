@@ -6,6 +6,7 @@ from contextlib import suppress
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
+from pioreactor.exc import CalibrationError
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import PID
 
@@ -33,11 +34,13 @@ class PIDMorbidostat(DosingAutomationJob):
 
         with local_persistant_storage("pump_calibration") as cache:
             if "media_ml_calibration" not in cache:
-                raise RuntimeError("Media pump calibration must be performed first.")
+                raise CalibrationError("Media pump calibration must be performed first.")
             elif "waste_ml_calibration" not in cache:
-                raise RuntimeError("Waste pump calibration must be performed first.")
+                raise CalibrationError("Waste pump calibration must be performed first.")
             elif "alt_media_ml_calibration" not in cache:
-                raise RuntimeError("Alt-Media pump calibration must be performed first.")
+                raise CalibrationError(
+                    "Alt-Media pump calibration must be performed first."
+                )
 
         self.set_target_growth_rate(target_growth_rate)
         self.target_od = float(target_od)

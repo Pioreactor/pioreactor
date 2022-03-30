@@ -10,6 +10,7 @@ import pytest
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
+from pioreactor.exc import CalibrationError
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
@@ -46,6 +47,24 @@ def test_pump_io() -> None:
     assert ml == add_media(duration=ml, unit=unit, experiment=exp)
     assert ml == add_alt_media(duration=ml, unit=unit, experiment=exp)
     assert ml == remove_waste(duration=ml, unit=unit, experiment=exp)
+
+
+def test_pump_fails_if_calibration_not_present():
+    exp = "test_pump_fails_if_calibration_not_present"
+
+    with local_persistant_storage("pump_calibration") as cache:
+        del cache["media_ml_calibration"]
+        del cache["alt_media_ml_calibration"]
+        del cache["waste_ml_calibration"]
+
+    with pytest.raises(CalibrationError):
+        add_media(duration=1.0, unit=unit, experiment=exp)
+
+    with pytest.raises(CalibrationError):
+        add_alt_media(duration=1.0, unit=unit, experiment=exp)
+
+    with pytest.raises(CalibrationError):
+        remove_waste(duration=1.0, unit=unit, experiment=exp)
 
 
 def test_pump_io_doesnt_allow_negative() -> None:
