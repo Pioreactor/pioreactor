@@ -217,7 +217,7 @@ def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
     assert is_heating_pcb_present()
 
 
-def test_positive_correlation_between_temp_and_heating(
+def test_positive_correlation_between_temperature_and_heating(
     logger: Logger, unit: str, experiment: str
 ) -> None:
     assert is_heating_pcb_present()

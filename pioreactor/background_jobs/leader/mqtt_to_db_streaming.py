@@ -314,7 +314,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         TopicToParserToTable(
             "pioreactor/+/+/dosing_automation/alt_media_fraction",
             parse_alt_media_fraction,
-            "alt_media_fraction",
+            "alt_media_fractions",
         ),
         TopicToParserToTable("pioreactor/+/+/logs/+", parse_logs, "logs"),
         TopicToParserToTable(
@@ -344,7 +344,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         TopicToParserToTable(
             "pioreactor/+/+/od_reading/relative_intensity_of_ir_led",
             parse_ir_led_intensity,
-            "ir_led_intensity",
+            "ir_led_intensities",
         ),
     ]
 

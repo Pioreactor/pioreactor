@@ -438,7 +438,7 @@ class TemperatureController(BackgroundJob):
             S[i] = S[i - 1] + 0.5 * (y[i - 1] + y[i]) * (x[i] - x[i - 1])
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
-        # priors chosen based on historical data, penalty values pretty arbitrary
+        # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
         # TODO: update these priors as we develop more pioreactors
         A_penalizer, A_prior = 100.0, -0.000725
         B_penalizer, B_prior = 10.0, -0.15

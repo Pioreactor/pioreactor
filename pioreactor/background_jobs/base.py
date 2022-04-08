@@ -660,28 +660,19 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _cleanup(self):
         # Explicitly cleanup resources...
 
-        def cleanup_handlers():
-            # clean up logger handlers
-            while len(self.logger.handlers) > 0:
-                handler = self.logger.handlers[0]
-                handler.close()
-                self.logger.removeHandler(handler)
+        # clean up logger handlers
+        while len(self.logger.handlers) > 0:
+            handler = self.logger.handlers[0]
+            handler.close()
+            self.logger.removeHandler(handler)
 
-        # Disconnecting from MQTT is the bring slow down. I think its because
-        # internally _loop (in paho) uses a default timeout of 1.0.
-        # Without threads, this takes about 2.0s to execute all three disconnects (logging, pub, sub)
-        # Moving these to threads saves us a second (on my mac)
-        # I hate it.
-        t0 = threading.Thread(target=cleanup_handlers)
-        t1 = threading.Thread(target=lambda: self.sub_client.loop_stop().disconnect())
-        t2 = threading.Thread(target=lambda: self.pub_client.loop_stop().disconnect())
-        t0.start()
-        t1.start()
-        t2.start()
+        # disconnect from MQTT
+        self.sub_client.loop_stop()
+        self.sub_client.disconnect()
 
-        t0.join()
-        t1.join()
-        t2.join()
+        # this HAS to happen last, because this contains our publishing client
+        self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+        self.pub_client.disconnect()
 
     def disconnected(self) -> None:
         # set state to disconnect
