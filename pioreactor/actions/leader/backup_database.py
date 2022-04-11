@@ -1,17 +1,19 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from time import sleep
 
 import click
 
-from pioreactor.config import config, get_active_workers_in_inventory
+from pioreactor.config import config
+from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.logging import create_logger
+from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.timing import current_utc_time
-from pioreactor.utils import (
-    local_persistant_storage,
-    is_pio_job_running,
-    publish_ready_to_disconnected_state,
-)
-from pioreactor.whoami import get_unit_name, UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def backup_database(output_file: str) -> None:
@@ -93,7 +95,9 @@ def backup_database(output_file: str) -> None:
 
 
 @click.command(name="backup_database")
-@click.option("--output", default="/home/pi/.pioreactor/storage/pioreactor.sqlite.backup")
+@click.option(
+    "--output", default="/home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup"
+)
 def click_backup_database(output: str) -> None:
     """
     (leader only) Backup db to workers.

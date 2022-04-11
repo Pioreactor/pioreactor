@@ -105,11 +105,11 @@ def get_config():
         global_config_path = "./config.dev.ini"
         local_config_path = ""
     else:
-        global_config_path = "/home/pi/.pioreactor/config.ini"
-        local_config_path = "/home/pi/.pioreactor/unit_config.ini"
+        global_config_path = "/home/pioreactor/.pioreactor/config.ini"
+        local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
         if not os.path.isfile(global_config_path):
             raise FileNotFoundError(
-                "/home/pi/.pioreactor/config.ini is missing from this Pioreactor. Has it completed initializing? Does it need to connect to a leader?"
+                "/home/pioreactor/.pioreactor/config.ini is missing from this Pioreactor. Has it completed initializing? Does it need to connect to a leader?"
             )
 
     config_files = [global_config_path, local_config_path]
@@ -122,7 +122,7 @@ def get_config():
         # pios sync tries to run, it uses a malformed unit_config.ini and hence the leader_config.ini can't be deployed
         # to replace the malformed unit_config.ini.
         print(
-            "Bad config state. Check /home/pi/.pioreactor/unit_config.ini on leader for malformed configuration?"
+            "Bad config state. Check /home/pioreactor/.pioreactor/unit_config.ini on leader for malformed configuration?"
         )
         raise e
     except configparser.DuplicateSectionError as e:

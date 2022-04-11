@@ -1,6 +1,11 @@
-### Upcoming
+### 22.4.0
  - store more experiment metadata, like strain and media, in the database.
+ - adding temporary labels of Pioreactors into the database in `pioreactor_unit_labels` table
+ - renaming some tables, `alt_media_fraction` -> `alt_media_fractions`, `ir_led_intensity` -> `ir_led_intensities`
  - pumps now throw a `CalibrationError` exception if their calibration is not defined.
+ - default user is no longer `pi`. It is now `pioreactor`. Any coded paths like `/home/pi/` should be updated to `home/pioreactor/`.
+ - new image metadata file added to `home/pioreactor/.pioreactor/.image_metadata`
+
 
 ### 22.3.0
  - fixed memory leak in MQTT connections

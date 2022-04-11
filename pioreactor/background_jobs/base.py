@@ -659,6 +659,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _cleanup(self):
         # Explicitly cleanup resources...
+        # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
+        # logger, sub_client, pub_client.
 
         # clean up logger handlers
         while len(self.logger.handlers) > 0:

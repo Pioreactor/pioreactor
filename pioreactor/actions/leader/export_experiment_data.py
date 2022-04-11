@@ -100,7 +100,7 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
 
 @click.command(name="export_experiment_data")
 @click.option("--experiment", default=None)
-@click.option("--output", default="/home/pi/exports/export.zip")
+@click.option("--output", default="/home/pioreactor/exports/export.zip")
 @click.option("--tables", multiple=True, default=[])
 def click_export_experiment_data(experiment, output, tables):
     """

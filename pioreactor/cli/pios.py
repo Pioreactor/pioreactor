@@ -50,11 +50,11 @@ def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool
 
     if specific:
         for unit in units:
-            with open(f"/home/pi/.pioreactor/config_{unit}.ini") as f:
+            with open(f"/home/pioreactor/.pioreactor/config_{unit}.ini") as f:
                 cur.execute(sql, (timestamp, f"config_{unit}.ini", f.read()))
 
     if shared:
-        with open("/home/pi/.pioreactor/config.ini") as f:
+        with open("/home/pioreactor/.pioreactor/config.ini") as f:
             cur.execute(sql, (timestamp, "config.ini", f.read()))
 
     conn.commit()
@@ -74,16 +74,16 @@ def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool) -> No
     # there was a bug where if the leader == unit, the config.ini would get wiped
     if (get_leader_hostname() != unit) and shared:
         ftp_client.put(
-            localpath="/home/pi/.pioreactor/config.ini",
-            remotepath="/home/pi/.pioreactor/config.ini",
+            localpath="/home/pioreactor/.pioreactor/config.ini",
+            remotepath="/home/pioreactor/.pioreactor/config.ini",
         )
 
     # move the specific unit config.ini
     if specific:
         try:
             ftp_client.put(
-                localpath=f"/home/pi/.pioreactor/config_{unit}.ini",
-                remotepath="/home/pi/.pioreactor/unit_config.ini",
+                localpath=f"/home/pioreactor/.pioreactor/config_{unit}.ini",
+                remotepath="/home/pioreactor/.pioreactor/unit_config.ini",
             )
         except Exception as e:
             click.echo(
