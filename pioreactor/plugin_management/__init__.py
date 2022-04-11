@@ -93,7 +93,7 @@ def get_plugins() -> dict[str, Plugin]:
     if is_testing_env():
         MODULE_DIR = "plugins_dev"
     else:
-        MODULE_DIR = "/home/pi/.pioreactor/plugins"
+        MODULE_DIR = "/home/pioreactor/.pioreactor/plugins"
 
     sys.path.append(MODULE_DIR)
 
