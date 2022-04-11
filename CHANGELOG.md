@@ -1,3 +1,6 @@
+### 22.4.1
+ - Fix bug associated with user changes.
+
 ### 22.4.0
  - store more experiment metadata, like strain and media, in the database.
  - adding temporary labels of Pioreactors into the database in `pioreactor_unit_labels` table
