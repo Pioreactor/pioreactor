@@ -15,7 +15,10 @@ from pioreactor.whoami import is_testing_env
 if is_testing_env():
     from pioreactor.utils.mock import MockHardwarePWM as HardwarePWM
 else:
-    from rpi_hardware_pwm import HardwarePWM  # type: ignore
+    try:
+        from rpi_hardware_pwm import HardwarePWM  # type: ignore
+    except ImportError:
+        pass
 
 PWM_LOCKED = b"1"
 PWM_UNLOCKED = b"0"

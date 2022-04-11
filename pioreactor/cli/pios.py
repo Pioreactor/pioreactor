@@ -148,7 +148,7 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
 
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pi", compress=True)
+                client.connect(unit, username="pioreactor", compress=True)
 
                 (stdin, stdout, stderr) = client.exec_command(command)
                 for line in stderr.readlines():
@@ -195,7 +195,7 @@ def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
         try:
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pi", compress=True)
+                client.connect(unit, username="pioreactor", compress=True)
 
                 (stdin, stdout, stderr) = client.exec_command(command)
                 for line in stderr.readlines():
@@ -243,7 +243,7 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
 
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pi", compress=True)
+                client.connect(unit, username="pioreactor", compress=True)
 
                 (stdin, stdout, stderr) = client.exec_command(command)
                 for line in stderr.readlines():
@@ -303,7 +303,7 @@ def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
         try:
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pi", compress=True)
+                client.connect(unit, username="pioreactor", compress=True)
 
                 with client.open_sftp() as ftp_client:
                     sync_config_files(ftp_client, unit, shared, specific)
