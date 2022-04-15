@@ -36,6 +36,8 @@ def pio() -> None:
     See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
+
+    # this check could go somewhere else. This check won't execute if calling pioreactor from a script.
     if not check_firstboot_successful():
         raise SystemError(
             "firstboot.sh was not successfully run. Try finding an error in `sudo systemctl status firstboot`."
@@ -43,35 +45,28 @@ def pio() -> None:
 
 
 @pio.command(name="logs", short_help="show recent logs")
-@click.option("-n", type=int, default=100)
-def logs(n: int) -> None:
+def logs() -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
-    from sh import tail  # type: ignore
-    from json import loads
-    import time
-    from signal import pause
 
-    def cb(msg) -> None:
-        payload = loads(msg.payload.decode())
+    def follow(filename, sleep_sec=0.1):
+        """Yield each line from a file as they are written.
+        `sleep_sec` is the time to sleep after empty reads."""
+        with open(filename) as file:
+            line = ""
+            while True:
+                tmp = file.readline()
+                if tmp is not None:
+                    line += tmp
+                    if line.endswith("\n"):
+                        yield line
+                        line = ""
+                else:
+                    sleep(sleep_sec)
 
-        # time module is used below because it is the same that the logging module uses: https://docs.python.org/3/library/logging.html#logging.Formatter.formatTime
-        click.echo(
-            f"{time.strftime('%Y-%m-%dT%H:%M:%S%z', time.localtime())} [{payload['task']}] {payload['level']} {payload['message']}"
-        )
-
-    click.echo(tail("-n", n, config["logging"]["log_file"]))
-    click.echo("------------ New ------------")
-
-    try:
-        # TODO: why use MQTT and not just tail -f ??? This puts a dependency on mqtt
-        # will fail if not connected to leader.
-        pubsub.subscribe_and_callback(cb, f"pioreactor/{whoami.get_unit_name()}/+/logs/+")
-    except OSError:
-        pass
-
-    pause()
+    for line in follow(config["logging"]["log_file"]):
+        print(line, end="")
 
 
 @pio.command(name="blink", short_help="blink LED")
