@@ -21,6 +21,7 @@ from pioreactor import background_jobs as jobs
 from pioreactor import plugin_management
 from pioreactor import pubsub
 from pioreactor import whoami
+from pioreactor.config import check_firstboot_successful
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
@@ -35,6 +36,10 @@ def pio() -> None:
     See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
+    if not check_firstboot_successful():
+        raise SystemError(
+            "firstboot.sh was not successfully run. Try finding an error in `sudo systemctl status firstboot`."
+        )
 
 
 @pio.command(name="logs", short_help="show recent logs")

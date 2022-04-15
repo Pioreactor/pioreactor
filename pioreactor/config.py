@@ -143,6 +143,12 @@ def get_leader_hostname() -> str:
     return get_config().get("network.topology", "leader_hostname", fallback="localhost")
 
 
+def check_firstboot_successful() -> bool:
+    if is_testing_env:
+        return True
+    return os.path.isfile("/boot/firstboot.sh.done")
+
+
 def get_active_workers_in_inventory() -> tuple[str, ...]:
     # because we are not using config.getboolean here, values like "0" are seen as true,
     # hence we use the built in config.BOOLEAN_STATES to determine truthiness
