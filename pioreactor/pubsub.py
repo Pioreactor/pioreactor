@@ -10,7 +10,7 @@ from typing import Optional
 
 from paho.mqtt.client import Client as PahoClient  # type: ignore
 
-from pioreactor.config import leader_hostname
+from pioreactor.config import leader_address
 from pioreactor.types import MQTTMessage
 
 
@@ -28,7 +28,7 @@ class Client(PahoClient):
 
 
 def create_client(
-    hostname: str = leader_hostname,
+    hostname: str = leader_address,
     last_will: Optional[dict] = None,
     client_id: Optional[str] = None,
     keepalive=60,
@@ -69,7 +69,7 @@ def create_client(
 
 
 def publish(
-    topic: str, message, hostname: str = leader_hostname, retries: int = 10, **mqtt_kwargs
+    topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs
 ):
     from paho.mqtt import publish as mqtt_publish  # type: ignore
     import socket
@@ -98,7 +98,7 @@ def publish(
 
 def subscribe(
     topics: str | list[str],
-    hostname=leader_hostname,
+    hostname=leader_address,
     retries: int = 10,
     timeout: Optional[float] = None,
     allow_retained: bool = True,
@@ -151,7 +151,7 @@ def subscribe(
             client = Client(userdata=userdata)
             client.on_connect = on_connect
             client.on_message = on_message
-            client.connect(leader_hostname)
+            client.connect(leader_address)
 
             if timeout is None:
                 client.loop_forever()
@@ -185,7 +185,7 @@ def subscribe(
 def subscribe_and_callback(
     callback: Callable[[MQTTMessage], Any],
     topics: str | list[str],
-    hostname: str = leader_hostname,
+    hostname: str = leader_address,
     last_will: Optional[dict] = None,
     job_name: Optional[str] = None,
     allow_retained: bool = True,
@@ -246,7 +246,7 @@ def subscribe_and_callback(
         client.on_connect = on_connect
         client.on_message = wrap_callback(callback)
 
-        client.connect(leader_hostname, **mqtt_kwargs)
+        client.connect(leader_address, **mqtt_kwargs)
         client.loop_start()
     else:
         # user provided a client
@@ -260,7 +260,7 @@ def subscribe_and_callback(
     return client
 
 
-def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
+def prune_retained_messages(topics_to_prune="#", hostname=leader_address):
     topics = []
 
     def on_message(message):
@@ -288,15 +288,15 @@ class collect_all_logs_of_level:
             f"pioreactor/{self.unit}/{self.experiment}/logs/app",
         )
 
-    def __enter__(self):
-        return self.bucket
-
     def _collect_logs_into_bucket(self, message):
         from json import loads
 
         log = loads(message.payload)
         if log["level"] == self.log_level:
             self.bucket.append(log)
+
+    def __enter__(self):
+        return self.bucket
 
     def __exit__(self, *args):
         self.client.loop_stop()

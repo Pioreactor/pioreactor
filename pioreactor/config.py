@@ -17,6 +17,8 @@ def __getattr__(attr):  # type: ignore
         return get_config()
     elif attr == "leader_hostname":
         return get_leader_hostname()
+    elif attr == "leader_address":
+        return get_leader_address()
     else:
         raise AttributeError
 
@@ -141,6 +143,11 @@ def get_config():
 @lru_cache(1)
 def get_leader_hostname() -> str:
     return get_config().get("network.topology", "leader_hostname", fallback="localhost")
+
+
+@lru_cache(1)
+def get_leader_address() -> str:
+    return get_config().get("network.topology", "leader_address", fallback="localhost")
 
 
 def check_firstboot_successful() -> bool:
