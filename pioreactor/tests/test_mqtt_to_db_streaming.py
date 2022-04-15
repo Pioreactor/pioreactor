@@ -102,9 +102,9 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     assert results[1] == 3
     assert np.array(json.loads(results[2])).shape == (3, 3)
 
-    od.set_state(od.DISCONNECTED)
-    gr.set_state(gr.DISCONNECTED)
-    m.set_state(m.DISCONNECTED)
+    od.clean_up()
+    gr.clean_up()
+    m.clean_up()
 
 
 def test_empty_payload_is_filtered_early() -> None:
@@ -140,7 +140,7 @@ def test_empty_payload_is_filtered_early() -> None:
     with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
         with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
             t = TestJob(unit=unit, experiment=exp)
-            t.set_state(t.DISCONNECTED)
+            t.clean_up()
             time.sleep(1)
 
         assert len(bucket) == 0

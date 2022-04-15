@@ -163,7 +163,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     > def do_some_stirring():
     >     st = Stirrer(duty_cycle=50, unit=unit, experiment=experiment)
     >     ...
-    >     st.set_state("disconnected")
+    >     st.clean_up()
     >    return
 
     When Python exits, jobs will also clean themselves up, so this also works as a script:
@@ -440,6 +440,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             error_code,
         )
 
+    def clean_up(self):
+        self.set_state(self.DISCONNECTED)
+
     ########### private #############
 
     def check_published_settings(self) -> None:
@@ -567,7 +570,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             elif isinstance(reason, str):
                 self.logger.debug(f"Exiting caused by {reason}.")
 
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
 
             if (reason == signal.SIGTERM) or (reason == signal.SIGHUP):
                 import sys
@@ -613,7 +616,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise e
 
         self.log_state(self.state)
@@ -835,7 +838,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
-        self.set_state(self.DISCONNECTED)
+        self.clean_up()
 
 
 class BackgroundJob(_BackgroundJob):

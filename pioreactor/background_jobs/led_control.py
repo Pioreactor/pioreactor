@@ -55,7 +55,7 @@ class LEDController(BackgroundJob):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise e
         self.automation_name = self.automation.automation_name
 
@@ -64,7 +64,7 @@ class LEDController(BackgroundJob):
         assert isinstance(algo_metadata, LEDAutomation)
 
         try:
-            self.automation_job.set_state("disconnected")
+            self.automation_job.clean_up()
         except AttributeError:
             # sometimes the user will change the job too fast before the job is created, let's protect against that.
             time.sleep(1)
@@ -102,7 +102,7 @@ class LEDController(BackgroundJob):
 
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
-            self.automation_job.set_state(self.DISCONNECTED)
+            self.automation_job.clean_up()
 
 
 def start_led_control(

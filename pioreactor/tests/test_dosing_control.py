@@ -238,7 +238,7 @@ def test_morbidostat_automation() -> None:
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_pid_morbidostat_automation() -> None:
@@ -292,7 +292,7 @@ def test_pid_morbidostat_automation() -> None:
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_changing_morbidostat_parameters_over_mqtt() -> None:
@@ -315,7 +315,7 @@ def test_changing_morbidostat_parameters_over_mqtt() -> None:
     pause()
     assert algo.target_growth_rate == new_target
     assert algo.pid.pid.setpoint == new_target
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_changing_turbidostat_params_over_mqtt() -> None:
@@ -363,7 +363,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     )
     pause()
     assert algo.target_od == new_od
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
@@ -432,7 +432,7 @@ def test_pause_in_dosing_control_also_pauses_automation() -> None:
     pause()
     assert algo.state == "ready"
     assert algo.automation_job.state == "ready"
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_old_readings_will_not_execute_io() -> None:
@@ -453,7 +453,7 @@ def test_old_readings_will_not_execute_io() -> None:
     assert algo.most_stale_time == algo.latest_od_at
 
     assert isinstance(algo.run(), events.NoEvent)
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_throughput_calculator() -> None:
@@ -526,7 +526,7 @@ def test_throughput_calculator() -> None:
     algo.automation_job.run()
     assert algo.automation_job.media_throughput > 0
     assert algo.automation_job.alt_media_throughput > 0
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_throughput_calculator_restart() -> None:
@@ -656,7 +656,7 @@ def test_execute_io_action_outputs1() -> None:
     assert result[0] == 1.25
     assert result[1] == 0.01
     assert result[2] == 1.26
-    ca.set_state(ca.DISCONNECTED)
+    ca.clean_up()
 
 
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
@@ -702,7 +702,7 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
         c[experiment] = "0.0"
 
     ca = DosingAutomationJob(unit=unit, experiment=experiment)
-    ca.set_state(ca.DISCONNECTED)
+    ca.clean_up()
     result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
     assert result[0] == 0.0
     assert result[1] == 0.0
@@ -742,7 +742,7 @@ def test_duration_and_timer() -> None:
     time.sleep(10)
     pause()
     assert isinstance(algo.latest_event, events.AddAltMediaEvent)
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_changing_duration_over_mqtt() -> None:
@@ -960,7 +960,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
     pause()
     pause()
     assert algo.automation_job.target_od == 1.5
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
@@ -994,7 +994,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
     )  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.automation_job, PIDTurbidostat)
     assert algo.automation_job.target_od == 1.0
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_disconnect_cleanly() -> None:
@@ -1042,7 +1042,7 @@ def test_custom_class_will_register_and_run() -> None:
         unit=get_unit_name(),
         experiment=experiment,
     )
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_what_happens_when_no_od_data_is_coming_in() -> None:
@@ -1064,7 +1064,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
     pause()
     event = algo.run()
     assert isinstance(event, events.ErrorOccurred)
-    algo.set_state(algo.DISCONNECTED)
+    algo.clean_up()
 
 
 def test_changing_duty_cycle_over_mqtt() -> None:

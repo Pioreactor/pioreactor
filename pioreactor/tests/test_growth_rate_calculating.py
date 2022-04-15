@@ -243,13 +243,13 @@ class TestGrowthRateCalculating:
         pause()
 
         assert calc1.ekf.state_[-1] != 0
-        calc1.set_state(calc1.DISCONNECTED)
+        calc1.clean_up()
 
         calc2 = GrowthRateCalculator(unit=unit, experiment=experiment)
         pause()
         assert calc2.initial_growth_rate != 0
 
-        calc2.set_state(calc2.DISCONNECTED)
+        calc2.clean_up()
 
     def test_single_observation(self) -> None:
         unit = get_unit_name()
@@ -280,7 +280,7 @@ class TestGrowthRateCalculating:
         pause()
 
         assert True
-        calc.set_state(calc.DISCONNECTED)
+        calc.clean_up()
 
     def test_scaling_works(self) -> None:
         unit = get_unit_name()
@@ -305,7 +305,7 @@ class TestGrowthRateCalculating:
         pause()
         assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
 
-        calc.set_state(calc.DISCONNECTED)
+        calc.clean_up()
 
     def test_shock_from_dosing_works(self) -> None:
         unit = get_unit_name()
@@ -422,7 +422,7 @@ class TestGrowthRateCalculating:
         # should revert back
         assert not calc.ekf._currently_scaling_covariance
         assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
-        calc.set_state(calc.DISCONNECTED)
+        calc.clean_up()
 
     def test_end_to_end(self) -> None:
 
@@ -450,9 +450,9 @@ class TestGrowthRateCalculating:
 
         time.sleep(35)
         assert calc.ekf.state_[-2] != 1.0
-        calc.set_state(calc.DISCONNECTED)
-        st.set_state(st.DISCONNECTED)
-        od.set_state(od.DISCONNECTED)
+        calc.clean_up()
+        st.clean_up()
+        od.clean_up()
 
     def test_180_angle(self) -> None:
         import json
@@ -591,7 +591,7 @@ class TestGrowthRateCalculating:
         print(results)
         assert abs(results["2"] - 1.5) < 0.00001
         assert abs(results["1"] - 1.4) < 0.00001
-        calc.set_state(calc.DISCONNECTED)
+        calc.clean_up()
 
     def test_od_blank_being_higher_than_observations(self) -> None:
         unit = get_unit_name()
@@ -637,7 +637,7 @@ class TestGrowthRateCalculating:
         )
         pause()
         pause()
-        calc.set_state(calc.DISCONNECTED)
+        calc.clean_up()
 
     def test_od_blank_being_empty(self) -> None:
         unit = get_unit_name()

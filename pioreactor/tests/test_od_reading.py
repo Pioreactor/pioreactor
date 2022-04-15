@@ -8,7 +8,9 @@ import numpy as np
 import pytest
 
 from pioreactor.background_jobs.od_reading import ADCReader
+from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.pubsub import collect_all_logs_of_level
 
 
 def pause() -> None:
@@ -176,7 +178,7 @@ def test_error_thrown_if_wrong_angle() -> None:
     st = start_od_reading(
         "135", "90", fake_data=True, experiment="test_error_thrown_if_wrong_angle"
     )
-    st.set_state(st.DISCONNECTED)
+    st.clean_up()
 
 
 def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values() -> None:
@@ -229,7 +231,48 @@ def test_simple_API():
         results = od_job.take_reading()
         assert list(results.keys()) == ["1"]
 
-    od_job.set_state(od_job.DISCONNECTED)
+    od_job.clean_up()
+
+
+def test_add_pre_read_callback():
+    def cb(od_job):
+        od_job.ir_led_intensity = 15
+
+    ODReader.add_pre_read_callback(cb)
+
+    od = start_od_reading("45", "REF", sampling_rate=1, fake_data=True)
+    pause()
+    pause()
+    pause()
+    pause()
+    assert od.ir_led_intensity == 15
+    od.clean_up()
+
+
+def test_add_post_read_callback():
+    def cb(od_job, batched_readings, *args):
+        od_job.logger.critical("hi")
+
+    ODReader.add_post_read_callback(cb)
+
+    with collect_all_logs_of_level(
+        "CRITICAL", experiment="test_add_post_read_callback", unit="test"
+    ) as bucket:
+        od = start_od_reading(
+            "45",
+            "REF",
+            sampling_rate=1,
+            fake_data=True,
+            experiment="test_add_post_read_callback",
+            unit="test",
+        )
+        pause()
+        pause()
+        pause()
+        pause()
+        pause()
+        od.clean_up()
+        assert len(bucket) > 0
 
 
 def test_outliers_are_removed_in_sin_regression():

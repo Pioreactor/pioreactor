@@ -96,12 +96,12 @@ class TemperatureController(BackgroundJob):
 
         if not hardware.is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise exc.HardwareNotFoundError(
                 "Heating PCB must be attached to Pioreactor HAT"
             )
@@ -149,7 +149,7 @@ class TemperatureController(BackgroundJob):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise e
         self.automation_name = self.automation.automation_name
 
@@ -224,7 +224,7 @@ class TemperatureController(BackgroundJob):
         assert isinstance(algo_metadata, TemperatureAutomation)
 
         try:
-            self.automation_job.set_state("disconnected")
+            self.automation_job.clean_up()
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             sleep(1)
@@ -309,7 +309,7 @@ class TemperatureController(BackgroundJob):
 
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
-            self.automation_job.set_state(self.DISCONNECTED)
+            self.automation_job.clean_up()
 
         with suppress(AttributeError):
             self.read_external_temperature_timer.cancel()

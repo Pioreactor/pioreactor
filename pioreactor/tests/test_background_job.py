@@ -71,8 +71,8 @@ def test_watchdog_will_try_to_fix_lost_job() -> None:
     pause()
     assert monitor.sub_client._will
 
-    wd.set_state(wd.DISCONNECTED)
-    monitor.set_state(monitor.DISCONNECTED)
+    wd.clean_up()
+    monitor.clean_up()
 
 
 def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
@@ -136,7 +136,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
                 1 / 0
             except Exception as e:
                 self.logger.error("Error!")
-                self.set_state("disconnected")
+                self.clean_up()
                 raise e
 
     exp = "test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect"

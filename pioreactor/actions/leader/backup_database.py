@@ -62,7 +62,9 @@ def backup_database(output_file: str) -> None:
 
         logger.info("Completed backup of database.")
 
-        n_backups = config.getint("number_of_backup_replicates_to_workers", fallback=2)
+        n_backups = config.getint(
+            "storage", "number_of_backup_replicates_to_workers", fallback=0
+        )
         backups_complete = 0
         available_workers = list(get_active_workers_in_inventory())
 

@@ -103,7 +103,7 @@ class GrowthRateCalculator(BackgroundJob):
                 self.initial_acc,
             ) = self.get_precomputed_values()
         except Exception as e:
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise e
 
         self.ekf = self.initialize_extended_kalman_filter()

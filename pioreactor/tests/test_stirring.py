@@ -25,7 +25,7 @@ def pause() -> None:
 
 def test_stirring_runs() -> None:
     st = start_stirring(target_rpm=500)
-    st.set_state(st.DISCONNECTED)
+    st.clean_up()
 
 
 def test_change_target_rpm_mid_cycle() -> None:

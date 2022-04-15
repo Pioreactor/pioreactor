@@ -85,6 +85,7 @@ import math
 import os
 from time import sleep
 from time import time
+from typing import Callable
 from typing import cast
 from typing import Optional
 
@@ -679,7 +680,7 @@ class ODReader(BackgroundJob):
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
     interval: float
-        seconds between readings
+        seconds between readings. If None, then don't periodically read.
     adc_reader: ADCReader
     ir_led_reference_tracker: IrLedReferenceTracker
 
@@ -701,10 +702,13 @@ class ODReader(BackgroundJob):
     latest_reading: dict[pt.PdChannel, float]
     _counter = 0
 
+    _pre_read: list[Callable] = []
+    _post_read: list[Callable] = []
+
     def __init__(
         self,
         channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
-        interval: float,
+        interval: Optional[float],
         adc_reader: ADCReader,
         ir_led_reference_tracker: IrLedReferenceTracker,
         unit: str,
@@ -728,7 +732,7 @@ class ODReader(BackgroundJob):
         ]
 
         if not hardware.is_HAT_present():
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         self.logger.debug(
@@ -756,11 +760,24 @@ class ODReader(BackgroundJob):
                 # See that class's docs.
                 self.ir_led_reference_tracker.set_blank(self.adc_reader.take_reading())
 
-        self.record_from_adc_timer = RepeatedTimer(
-            self.interval,
-            self.record_and_publish_from_adc,
-            run_immediately=True,
-        ).start()
+        self.add_post_read_callback(self._publish_single)
+        self.add_post_read_callback(self._publish_batch)
+        self.add_post_read_callback(self._log_relative_intensity_of_ir_led)
+
+        if self.interval is not None:
+            self.record_from_adc_timer = RepeatedTimer(
+                self.interval,
+                self.record_from_adc,
+                run_immediately=True,
+            ).start()
+
+    @classmethod
+    def add_pre_read_callback(cls, function: Callable):
+        cls._pre_read.append(function)
+
+    @classmethod
+    def add_post_read_callback(cls, function: Callable):
+        cls._post_read.append(function)
 
     def get_ir_channel_from_configuration(self) -> pt.LedChannel:
         try:
@@ -774,7 +791,7 @@ class ODReader(BackgroundJob):
             )
             raise KeyError("`IR` value not found in section.")
 
-    def take_reading(self) -> dict[pt.PdChannel, float]:
+    def read_from_adc(self) -> dict[pt.PdChannel, float]:
         """
         Read from the ADC. This function normalizes by the IR ref.
 
@@ -787,14 +804,18 @@ class ODReader(BackgroundJob):
         batched_readings = {
             pd: batched_readings[pd] for pd in self.channel_angle_map.keys()
         }
-        return self.normalize_by_led_output(batched_readings)
+        return self._normalize_by_led_output(batched_readings)
 
-    def record_and_publish_from_adc(self) -> None:
+    def record_from_adc(self) -> None:
 
         if self.first_od_obs_time is None:
             self.first_od_obs_time = time()
 
-        pre_duration = 0.01  # turn on LED prior to taking snapshot and wait
+        for kallable in self._pre_read:
+            try:
+                kallable(self)
+            except Exception:
+                self.logger.debug(f"Error in callback {kallable}.", exc_info=True)
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
@@ -807,26 +828,20 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with lock_leds_temporarily(self.non_ir_led_channels):
-
+                pre_duration = 0.01  # turn on LED prior to taking snapshot and wait
                 self.start_ir_led()
                 sleep(pre_duration)
 
                 timestamp_of_readings = current_utc_time()
-                batched_readings = self.take_reading()
+                batched_readings = self.read_from_adc()
 
-        self.publish_single(batched_readings, timestamp_of_readings)
-        self.publish_batch(batched_readings, timestamp_of_readings)
+        for kallable in self._post_read:
+            try:
+                kallable(self, batched_readings, timestamp_of_readings)
+            except Exception:
+                self.logger.debug(f"Error in callback {kallable}.", exc_info=True)
+
         self.latest_reading = batched_readings
-
-        if (
-            self._counter % 12 == 0
-        ):  # should record at most every 2 minutes, so pick a minute.
-            self.relative_intensity_of_ir_led = {
-                # represents the relative intensity of the LED.
-                "relative_intensity_of_ir_led": 1 / self.ir_led_reference_tracker(1.0),
-                "timestamp": timestamp_of_readings,
-            }
-
         self._counter += 1
 
     def start_ir_led(self) -> None:
@@ -868,10 +883,11 @@ class ODReader(BackgroundJob):
         except Exception:
             pass
 
-    def publish_batch(
-        self, batched_ads_readings: dict[pt.PdChannel, float], timestamp: str
+    @staticmethod
+    def _publish_batch(
+        cls, batched_ads_readings: dict[pt.PdChannel, float], timestamp: str
     ) -> None:
-        if self.state != self.READY:
+        if cls.state != cls.READY:
             return
 
         output = structs.ODReadings(
@@ -882,23 +898,24 @@ class ODReader(BackgroundJob):
                     angle=angle,
                     timestamp=timestamp,
                 )
-                for channel, angle in self.channel_angle_map.items()
+                for channel, angle in cls.channel_angle_map.items()
             },
         )
 
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw_batched",
+        cls.publish(
+            f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/od_raw_batched",
             encode(output),
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def publish_single(
-        self, batched_ads_readings: dict[pt.PdChannel, float], timestamp: str
+    @staticmethod
+    def _publish_single(
+        cls, batched_ads_readings: dict[pt.PdChannel, float], timestamp: str
     ) -> None:
-        if self.state != self.READY:
+        if cls.state != cls.READY:
             return
 
-        for channel, angle in self.channel_angle_map.items():
+        for channel, angle in cls.channel_angle_map.items():
 
             output = structs.ODReading(
                 voltage=batched_ads_readings[channel],
@@ -906,13 +923,22 @@ class ODReader(BackgroundJob):
                 timestamp=timestamp,
             )
 
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od_raw/{channel}",
+            cls.publish(
+                f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/od_raw/{channel}",
                 encode(output),
                 qos=QOS.EXACTLY_ONCE,
             )
 
-    def normalize_by_led_output(
+    @staticmethod
+    def _log_relative_intensity_of_ir_led(self, _, timestamp_of_readings):
+        if self._counter % 12 == 0:
+            self.relative_intensity_of_ir_led = {
+                # represents the relative intensity of the LED.
+                "relative_intensity_of_ir_led": 1 / self.ir_led_reference_tracker(1.0),
+                "timestamp": timestamp_of_readings,
+            }
+
+    def _normalize_by_led_output(
         self, batched_readings: dict[pt.PdChannel, float]
     ) -> dict[pt.PdChannel, float]:
         return {

@@ -67,7 +67,7 @@ class DosingController(BackgroundJob):
         try:
             automation_class = self.available_automations[automation_name]
         except KeyError:
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise KeyError(
                 f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
@@ -83,7 +83,7 @@ class DosingController(BackgroundJob):
         except Exception as e:
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
-            self.set_state(self.DISCONNECTED)
+            self.clean_up()
             raise e
 
     def set_automation(self, algo_metadata: DosingAutomation) -> None:
@@ -96,7 +96,7 @@ class DosingController(BackgroundJob):
         assert isinstance(algo_metadata, DosingAutomation)
 
         try:
-            self.automation_job.set_state("disconnected")
+            self.automation_job.clean_up()
         except AttributeError:
             # sometimes the user will change the job too fast before the dosing job is created, let's protect against that.
             time.sleep(1)
@@ -136,7 +136,7 @@ class DosingController(BackgroundJob):
 
     def on_disconnected(self) -> None:
         try:
-            self.automation_job.set_state(self.DISCONNECTED)
+            self.automation_job.clean_up()
         except AttributeError:
             # if disconnect is called right after starting, automation_job isn't instantiated
             pass
