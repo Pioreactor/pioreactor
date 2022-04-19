@@ -60,7 +60,7 @@ def test_silent_automation() -> None:
             json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
         )
         pause()
-        assert algo.run() is None
+        assert isinstance(algo.run(), events.NoEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -71,7 +71,7 @@ def test_silent_automation() -> None:
             json.dumps({"od_filtered": 1.1, "timestamp": current_utc_time()}),
         )
         pause()
-        assert algo.run() is None
+        assert isinstance(algo.run(), events.NoEvent)
 
 
 def test_turbidostat_automation() -> None:
@@ -440,23 +440,22 @@ def test_pause_in_dosing_control_also_pauses_automation() -> None:
 
 def test_old_readings_will_not_execute_io() -> None:
     experiment = "test_old_readings_will_not_execute_io"
-    algo = DosingAutomationJob(
+    with DosingAutomationJob(
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
         unit=unit,
         experiment=experiment,
-    )
-    algo._latest_growth_rate = 1
-    algo._latest_od = 1
+    ) as algo:
+        algo._latest_growth_rate = 1
+        algo._latest_od = 1
 
-    algo.latest_od_at = datetime.utcnow() - timedelta(minutes=10)
-    algo.latest_growth_rate_at = datetime.utcnow() - timedelta(minutes=4)
+        algo.latest_od_at = datetime.utcnow() - timedelta(minutes=10)
+        algo.latest_growth_rate_at = datetime.utcnow() - timedelta(minutes=4)
 
-    assert algo.most_stale_time == algo.latest_od_at
+        assert algo.most_stale_time == algo.latest_od_at
 
-    assert isinstance(algo.run(), events.NoEvent)
-    algo.clean_up()
+        assert isinstance(algo.run(), events.NoEvent)
 
 
 def test_throughput_calculator() -> None:
