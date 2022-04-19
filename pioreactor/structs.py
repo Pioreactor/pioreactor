@@ -5,6 +5,8 @@ These define structs for MQTT messages, and are type-checkable + runtime-checked
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from msgspec import Struct
 
 from pioreactor import types as pt
@@ -52,7 +54,22 @@ class AutomationSettings(Struct):
     settings: bytes
 
 
-class LEDEvent(Struct):
+class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
+    message: Optional[str] = None
+    data: Optional[dict] = None
+
+    def __str__(self) -> str:
+        if self.message:
+            return f"{self.human_readable_name()}: {self.message}"
+        else:
+            return self.human_readable_name()
+
+    def human_readable_name(self) -> str:
+        name = type(self).__name__
+        return name
+
+
+class LEDChangeEvent(Struct):
     channel: pt.LedChannel
     intensity: float
     source_of_event: str

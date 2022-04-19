@@ -12,5 +12,5 @@ class Silent(LEDAutomationJob):
     def __init__(self, **kwargs) -> None:
         super(Silent, self).__init__(**kwargs)
 
-    def execute(self) -> events.Event:
+    def execute(self) -> events.AutomationEvent:
         return events.NoEvent("no changes occur in Silent")

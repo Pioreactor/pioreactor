@@ -1,53 +1,36 @@
 # -*- coding: utf-8 -*-
-import re
+from __future__ import annotations
+
+from pioreactor.structs import AutomationEvent
 
 
-class Event:
-
-    message = None
-
-    def __init__(self, message: str = "") -> None:
-        self.message = message
-
-    def __str__(self) -> str:
-        if self.message:
-            return f"{self.human_readable_name()}: {self.message}"
-        else:
-            return self.human_readable_name()
-
-    def human_readable_name(self) -> str:
-        name = type(self).__name__
-        split = self.split_on_uppercase(name)
-        return " ".join(map(lambda s: s.lower(), split))
-
-    @staticmethod
-    def split_on_uppercase(s: str) -> list[str]:
-        return list(filter(None, re.split("([A-Z][^A-Z]*)", s)))
-
-
-class NoEvent(Event):
+class NoEvent(AutomationEvent):
     pass
 
 
-class DilutionEvent(Event):
+class DilutionEvent(AutomationEvent):
     pass
 
 
-class AddMediaEvent(Event):
+class AddMediaEvent(AutomationEvent):
     pass
 
 
-class AddAltMediaEvent(Event):
+class AddAltMediaEvent(AutomationEvent):
     pass
 
 
-class ChangedLedIntensity(Event):
+class ChangedLedIntensity(AutomationEvent):
     pass
 
 
-class RunningContinuously(Event):
+class RunningContinuously(AutomationEvent):
     pass
 
 
-class ErrorOccurred(Event):
+class ErrorOccurred(AutomationEvent):
+    pass
+
+
+class UpdatedHeaterDC(AutomationEvent):
     pass

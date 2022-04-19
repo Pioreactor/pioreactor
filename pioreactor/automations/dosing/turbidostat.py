@@ -34,13 +34,15 @@ class Turbidostat(DosingAutomationJob):
         self.target_od = float(target_od)
         self.volume = float(volume)
 
-    def execute(self) -> events.Event:
+    def execute(self) -> events.DilutionEvent | events.NoEvent:
         if self.latest_od >= self.target_od:
             self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return events.DilutionEvent(
-                f"latest OD={self.latest_od:.2f} >= target OD={self.target_od:.2f}"
+                f"latest OD={self.latest_od:.2f} >= target OD={self.target_od:.2f}",
+                {"latest_od": self.latest_od, "target_od": self.target_od},
             )
         else:
             return events.NoEvent(
-                f"latest OD={self.latest_od:.2f} < target OD={self.target_od:.2f}"
+                f"latest OD={self.latest_od:.2f} < target OD={self.target_od:.2f}",
+                {"latest_od": self.latest_od, "target_od": self.target_od},
             )

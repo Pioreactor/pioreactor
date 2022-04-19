@@ -23,7 +23,7 @@ class Morbidostat(DosingAutomationJob):
         self.target_od = float(target_od)
         self.volume = float(volume)
 
-    def execute(self) -> events.Event:
+    def execute(self) -> events.AutomationEvent:
         if self.previous_od is None:
             return events.NoEvent("skip first event to wait for OD readings.")
         elif self.latest_od >= self.target_od and self.latest_od >= self.previous_od:

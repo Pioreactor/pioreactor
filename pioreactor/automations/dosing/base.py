@@ -130,7 +130,7 @@ class DosingAutomationJob(BackgroundSubJob):
     previous_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
 
-    latest_event: Optional[events.Event] = None
+    latest_event: Optional[events.AutomationEvent] = None
     _latest_settings_started_at: str = current_utc_time()
     _latest_settings_ended_at: Optional[str] = None
     _latest_run_at: Optional[datetime] = None
@@ -183,8 +183,10 @@ class DosingAutomationJob(BackgroundSubJob):
         self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator()
         self._volume_throughput_calculator = self._init_volume_throughput_calculator()
 
-        # we republish metadata to broker since we edited it above - this is techdebt
-        self.publish_settings_to_broker()
+        self.published_settings["latest_event"] = {
+            "datatype": "AutomationEvent",
+            "settable": False,
+        }
 
         self.set_duration(duration)
 
@@ -225,8 +227,8 @@ class DosingAutomationJob(BackgroundSubJob):
             self.run_thread = Thread(target=self.run, daemon=True)
             self.run_thread.start()
 
-    def run(self) -> Optional[events.Event]:
-        event: Optional[events.Event]
+    def run(self) -> Optional[events.AutomationEvent]:
+        event: Optional[events.AutomationEvent]
 
         if self.state == self.DISCONNECTED:
             # NOOP
@@ -263,7 +265,7 @@ class DosingAutomationJob(BackgroundSubJob):
         self._latest_run_at = datetime.utcnow()
         return event
 
-    def execute(self) -> Optional[events.Event]:
+    def execute(self) -> Optional[events.AutomationEvent]:
         # should be defined in subclass
         return events.NoEvent()
 
@@ -417,6 +419,7 @@ class DosingAutomationJob(BackgroundSubJob):
             "alt_media_fraction",
             "media_throughput",
             "alt_media_throughput",
+            "latest_event",
         ]:
             self._latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
@@ -455,6 +458,7 @@ class DosingAutomationJob(BackgroundSubJob):
                                 "alt_media_fraction",
                                 "media_throughput",
                                 "alt_media_throughput",
+                                "latest_event",
                             ]
                         }
                     ),

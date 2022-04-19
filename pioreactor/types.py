@@ -65,6 +65,7 @@ class PublishableSetting(t.TypedDict, total=False):
         "ODFiltered",
         "Temperature",
         "MeasuredRPM",
+        "AutomationEvent",
     ]
     unit: str
     settable: bool
