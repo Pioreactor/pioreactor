@@ -220,7 +220,7 @@ def test_sin_regression_all_negative() -> None:
     assert AIC == float("inf")
 
 
-def test_simple_API():
+def test_simple_API() -> None:
     od_job = start_od_reading("90", "REF", sampling_rate=100_000, fake_data=True)
 
     for led_int in range(5, 70, 15):
@@ -228,13 +228,13 @@ def test_simple_API():
         od_job.ir_led_intensity = led_int
         od_job.start_ir_led()
         assert od_job.ir_led_intensity == led_int
-        results = od_job.take_reading()
+        results = od_job.record_from_adc()
         assert list(results.keys()) == ["1"]
 
     od_job.clean_up()
 
 
-def test_add_pre_read_callback():
+def test_add_pre_read_callback() -> None:
     def cb(od_job):
         od_job.ir_led_intensity = 15
 
@@ -249,7 +249,7 @@ def test_add_pre_read_callback():
     od.clean_up()
 
 
-def test_add_post_read_callback():
+def test_add_post_read_callback() -> None:
     def cb(od_job, batched_readings, *args):
         od_job.logger.critical("hi")
 
@@ -275,7 +275,7 @@ def test_add_post_read_callback():
         assert len(bucket) > 0
 
 
-def test_outliers_are_removed_in_sin_regression():
+def test_outliers_are_removed_in_sin_regression() -> None:
 
     freq = 60
     x = [

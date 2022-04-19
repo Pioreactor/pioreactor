@@ -7,6 +7,9 @@ from datetime import datetime
 from datetime import timedelta
 from typing import Any
 
+import pytest
+
+from pioreactor import exc
 from pioreactor import pubsub
 from pioreactor.automations import DosingAutomationJob
 from pioreactor.automations import events
@@ -677,11 +680,11 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
         del cache["media_ml_calibration"]
         del cache["alt_media_ml_calibration"]
 
-    with DosingAutomationJob(unit=unit, experiment=experiment, skip_first_run=True) as ca:
-        result = ca.execute_io_action(media_ml=1.0, alt_media_ml=1.0, waste_ml=2.0)
-        assert result[0] == 0
-        assert result[1] == 0.0
-        assert result[2] == 2.0
+    with pytest.raises(exc.CalibrationError):
+        with DosingAutomationJob(
+            unit=unit, experiment=experiment, skip_first_run=True
+        ) as ca:
+            ca.execute_io_action(media_ml=0.1, alt_media_ml=0.1, waste_ml=0.2)
 
     # add back to cache
     with local_persistant_storage("pump_calibration") as cache:

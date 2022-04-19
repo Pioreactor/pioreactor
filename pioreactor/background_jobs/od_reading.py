@@ -806,7 +806,7 @@ class ODReader(BackgroundJob):
         }
         return self._normalize_by_led_output(batched_readings)
 
-    def record_from_adc(self) -> None:
+    def record_from_adc(self) -> dict[pt.PdChannel, float]:
 
         if self.first_od_obs_time is None:
             self.first_od_obs_time = time()
@@ -843,6 +843,7 @@ class ODReader(BackgroundJob):
 
         self.latest_reading = batched_readings
         self._counter += 1
+        return self.latest_reading
 
     def start_ir_led(self) -> None:
         r = change_led_intensity(

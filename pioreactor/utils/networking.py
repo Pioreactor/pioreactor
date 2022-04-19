@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import Optional
+
 
 def is_hostname_on_network(hostname: str) -> bool:
     import socket
@@ -32,16 +34,10 @@ def is_reachable(hostname: str) -> bool:
     return False
 
 
-def get_ip() -> str:
-    # psutil.net_if_addrs()?
-    import socket
+def get_ip() -> Optional[str]:
+    from psutil import net_if_addrs
 
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s.connect(("10.255.255.255", 1))
-        ip = s.getsockname()[0]
+        return net_if_addrs()["wlan0"][0].address
     except Exception:
-        ip = "127.0.0.1"
-    finally:
-        s.close()
-    return ip
+        return None

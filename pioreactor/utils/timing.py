@@ -13,8 +13,6 @@ from typing import Callable
 from typing import Generator
 from typing import Optional
 
-from pioreactor.whoami import is_testing_env
-
 
 def to_datetime(timestamp: str):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
@@ -36,12 +34,8 @@ def current_utc_time() -> str:
 
 
 def brief_pause() -> None:
-    if is_testing_env():
-        time.sleep(0.25)
-        return
-    else:
-        time.sleep(3)
-        return
+    time.sleep(3)
+    return
 
 
 class RepeatedTimer:

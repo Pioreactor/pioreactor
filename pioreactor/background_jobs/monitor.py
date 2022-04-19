@@ -98,10 +98,12 @@ class Monitor(BackgroundJob):
         )
 
     def check_for_network(self) -> None:
-        while get_ip() == "127.0.0.1":
+        ip = get_ip()
+        while (ip == "127.0.0.1") or (ip is None):
             # no wifi connection? Sound the alarm.
             self.logger.error("Unable to connect to network...")
             self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
+            ip = get_ip()
 
     def self_checks(self) -> None:
         # check active network connection

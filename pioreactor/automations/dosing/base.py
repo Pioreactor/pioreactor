@@ -346,6 +346,8 @@ class DosingAutomationJob(BackgroundSubJob):
                     experiment=self.experiment,
                 )
                 volumes_moved[2] += waste_moved
+                brief_pause()
+
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(
                     ml=waste_ml * 2,

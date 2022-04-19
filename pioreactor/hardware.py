@@ -7,11 +7,12 @@ from pioreactor.version import hardware_version_info
 from pioreactor.whoami import is_testing_env
 
 # All GPIO pins below are BCM numbered
+
 # Heater PWM
 HEATER_PWM_TO_PIN: PwmChannel = "5"
 
+# map between PCB labels and GPIO pins
 PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
-    # map between PCB labels and GPIO pins
     "1": 6 if hardware_version_info == (0, 1) else 17,
     "2": 13,  # hardware PWM1 available
     "3": 16,
@@ -23,14 +24,16 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 PCB_LED_PIN: GpioPin = 23
 PCB_BUTTON_PIN: GpioPin = 24
 
+# RaspAP trigger. See docs: TODO
+RASPAP_TRIGGER_ON_PIN: GpioPin = 20
+RASPAP_TRIGGER_OFF_PIN: GpioPin = 26
+
 # hall sensor
 HALL_SENSOR_PIN: GpioPin = 25
-
 
 # I2C GPIO pins
 SDA: GpioPin = 2
 SCL: GpioPin = 3
-
 
 # I2C channels used
 ADC = 0x48  # hex(72)

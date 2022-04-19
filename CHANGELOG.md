@@ -1,3 +1,9 @@
+### 22.4.2
+ - Added ability to add callbacks to ODReader. See `add_pre_read_callback` and `add_post_read_callback`.
+ - Fix bug associated with user changes.
+ - `pio logs` no longer uses MQTT. Also, it now prints their entire log file.
+ - BETA: testing shipping with access-point capabilities. See docs.
+
 ### 22.4.1
  - Fix bug associated with user changes.
 
