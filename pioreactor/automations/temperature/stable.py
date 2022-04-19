@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from pioreactor.automations.events import UpdatedHeaterDC
 from pioreactor.automations.temperature.base import TemperatureAutomationJob
 from pioreactor.config import config
 from pioreactor.utils import clamp
@@ -33,7 +34,7 @@ class Stable(TemperatureAutomationJob):
             target_name="temperature",
         )
 
-    def execute(self) -> None:
+    def execute(self) -> UpdatedHeaterDC:
         while not hasattr(self, "pid"):
             # sometimes when initializing, this execute can run before the subclasses __init__ is resolved.
             pass
@@ -44,7 +45,7 @@ class Stable(TemperatureAutomationJob):
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
         self.update_heater_with_delta(output)
         self.logger.debug(f"delta={output}")
-        return
+        return UpdatedHeaterDC()
 
     def set_target_temperature(self, value) -> None:
         value = float(value)

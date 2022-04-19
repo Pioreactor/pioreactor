@@ -26,7 +26,7 @@ class MetaData(Struct):
 
 
 class TopicToParserToTable(Struct):
-    topic: str
+    topic: str | list[str]
     parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]]
     table: str
 
@@ -201,8 +201,8 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "source_of_event": dosing_event.source_of_event,
         }
 
-    def parse_led_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        led_event = msgspec_loads(payload, type=structs.LEDEvent)
+    def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+        led_event = msgspec_loads(payload, type=structs.LEDChangeEvent)
         metadata, _ = produce_metadata(topic)
 
         return {
@@ -235,6 +235,19 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": temp.timestamp,
             "temperature_c": temp.temperature,
+        }
+
+    def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+        metadata, _ = produce_metadata(topic)
+
+        event = msgspec_loads(payload, type=structs.AutomationEvent)
+
+        return {
+            "experiment": metadata.experiment,
+            "pioreactor_unit": metadata.pioreactor_unit,
+            "timestamp": current_utc_time(),
+            "message": event.message,
+            "data": event.data,
         }
 
     def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:
@@ -300,7 +313,11 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         TopicToParserToTable(
             "pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"
         ),
-        TopicToParserToTable("pioreactor/+/+/led_events", parse_led_events, "led_events"),
+        TopicToParserToTable(
+            "pioreactor/+/+/led_change_events",
+            parse_led_change_events,
+            "led_change_events",
+        ),
         TopicToParserToTable(
             "pioreactor/+/+/growth_rate_calculating/growth_rate",
             parse_growth_rate,
@@ -345,6 +362,15 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "pioreactor/+/+/od_reading/relative_intensity_of_ir_led",
             parse_ir_led_intensity,
             "ir_led_intensities",
+        ),
+        TopicToParserToTable(
+            [
+                "pioreactor/+/+/dosing_automation/latest_event",
+                "pioreactor/+/+/led_automation/latest_event",
+                "pioreactor/+/+/temperature_automation/latest_event",
+            ],
+            parse_automation_event,
+            "automation_events",
         ),
     ]
 

@@ -261,7 +261,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._cleanup()
             raise e
 
-        self.publish_settings_to_broker()
         self.start_general_passive_listeners()
 
         # let's move to init, next thing that run is the subclasses __init__
@@ -269,6 +268,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def __post__init__(self) -> None:
         # this function is called AFTER the subclass' __init__ finishes
+        self.publish_settings_to_broker()
         self.set_state(self.READY)
 
     def start_passive_listeners(self) -> None:

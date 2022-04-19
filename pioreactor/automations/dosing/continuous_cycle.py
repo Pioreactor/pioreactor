@@ -40,7 +40,7 @@ class ContinuousCycle(DosingAutomationJob):
         self.duty_cycle = clamp(0, new_dc, 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
-    def run(self) -> Optional[events.Event]:
+    def run(self) -> Optional[events.AutomationEvent]:
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
@@ -68,7 +68,7 @@ class ContinuousCycle(DosingAutomationJob):
 
         super(ContinuousCycle, self).on_disconnected()
 
-    def execute(self) -> events.Event:
+    def execute(self) -> events.AutomationEvent:
         self.pwm.start(self.duty_cycle)
         return events.RunningContinuously(
             f"Running pump on channel {config.getint('PWM_reverse', 'media')} continuously"

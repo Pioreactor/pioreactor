@@ -50,7 +50,7 @@ class LEDAutomationJob(BackgroundSubJob):
     _latest_settings_ended_at: Optional[str] = None
     _latest_run_at: Optional[datetime] = None
 
-    latest_event: Optional[events.Event] = None
+    latest_event: Optional[events.AutomationEvent] = None
     run_thread: RepeatedTimer | Thread
 
     latest_od_at: datetime = datetime.min
@@ -78,6 +78,11 @@ class LEDAutomationJob(BackgroundSubJob):
 
         self.skip_first_run = skip_first_run
         self.edited_channels: set[pt.LedChannel] = set()
+
+        self.published_settings["latest_event"] = {
+            "datatype": "AutomationEvent",
+            "settable": False,
+        }
 
         self.set_duration(duration)
         self.start_passive_listeners()
@@ -108,9 +113,9 @@ class LEDAutomationJob(BackgroundSubJob):
             run_after=run_after,
         ).start()
 
-    def run(self) -> Optional[events.Event]:
+    def run(self) -> Optional[events.AutomationEvent]:
         # TODO: this should be close to or equal to the function in DosingAutomationJob
-        event: Optional[events.Event]
+        event: Optional[events.AutomationEvent]
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
@@ -147,7 +152,7 @@ class LEDAutomationJob(BackgroundSubJob):
         self._latest_run_at = datetime.utcnow()
         return event
 
-    def execute(self) -> Optional[events.Event]:
+    def execute(self) -> Optional[events.AutomationEvent]:
         pass
 
     @property

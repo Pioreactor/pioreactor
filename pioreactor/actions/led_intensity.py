@@ -205,7 +205,7 @@ def led_intensity(
 
     if verbose:
         for channel, intensity in desired_state.items():
-            event = structs.LEDEvent(
+            event = structs.LEDChangeEvent(
                 channel=channel,
                 intensity=intensity,
                 source_of_event=source_of_event,
@@ -213,7 +213,7 @@ def led_intensity(
             )
 
             pubsub_client.publish(
-                f"pioreactor/{unit}/{experiment}/led_events",
+                f"pioreactor/{unit}/{experiment}/led_change_events",
                 encode(event),
                 qos=QOS.AT_MOST_ONCE,
                 retain=False,

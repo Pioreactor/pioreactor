@@ -72,7 +72,7 @@ class PIDMorbidostat(DosingAutomationJob):
             self.target_growth_rate * VIAL_VOLUME * (self.duration / 60), 4
         )
 
-    def execute(self) -> events.Event:
+    def execute(self) -> events.AutomationEvent:
         if self.latest_od <= self.min_od:
             return events.NoEvent(
                 f"latest OD less than OD to start diluting, {self.min_od:.2f}"
@@ -99,7 +99,12 @@ class PIDMorbidostat(DosingAutomationJob):
                 alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume
             )
             return events.AddAltMediaEvent(
-                f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL"
+                f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL",
+                data={
+                    "fraction_of_alt_media_to_add": fraction_of_alt_media_to_add,
+                    "alt_media_ml": alt_media_ml,
+                    "media_ml": media_ml,
+                },
             )
 
     @property

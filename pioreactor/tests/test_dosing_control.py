@@ -712,8 +712,8 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     assert result[2] == 0.0
 
 
-def test_duration_and_timer() -> None:
-    experiment = "test_duration_and_timer"
+def test_PIDMorbidostat() -> None:
+    experiment = "test_PIDMorbidostat"
     algo = PIDMorbidostat(
         target_od=1.0,
         target_growth_rate=0.01,
@@ -742,7 +742,7 @@ def test_duration_and_timer() -> None:
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
         json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
     )
-    time.sleep(10)
+    time.sleep(20)
     pause()
     assert isinstance(algo.latest_event, events.AddAltMediaEvent)
     algo.clean_up()
@@ -1038,14 +1038,14 @@ def test_custom_class_will_register_and_run() -> None:
             if self.latest_od > self.target_od:
                 self.execute_io_action(media_ml=1.0, waste_ml=1.0)
 
-    algo = DosingController(
+    with DosingController(
         "naive_turbidostat",
         target_od=2.0,
         duration=10,
         unit=get_unit_name(),
         experiment=experiment,
-    )
-    algo.clean_up()
+    ):
+        pass
 
 
 def test_what_happens_when_no_od_data_is_coming_in() -> None:
@@ -1101,3 +1101,41 @@ def test_AltMediaCalculator() -> None:
         volume_change=1.0, event="add_alt_media", timestamp="2", source_of_event="test"
     )
     assert 0.13775510204081634 == ac.update(data, 1 / 14.0) < 2 / 14.0
+
+
+def test_latest_event_goes_to_mqtt():
+    experiment = "test_latest_event_goes_to_mqtt"
+
+    class FakeAutomation(DosingAutomationJob):
+        """
+        Do nothing, ever. Just pass.
+        """
+
+        automation_name = "fake_automation"
+        published_settings = {
+            "duration": {"datatype": "float", "settable": True, "unit": "min"}
+        }
+
+        def __init__(self, **kwargs) -> None:
+            super(FakeAutomation, self).__init__(**kwargs)
+
+        def execute(self):
+            return events.NoEvent(message="demo", data={"d": 1.0, "s": "test"})
+
+    with DosingController(
+        "fake_automation",
+        duration=0.1,
+        unit=get_unit_name(),
+        experiment=experiment,
+    ) as dc:
+        assert "latest_event" in dc.automation_job.published_settings
+
+        latest_event_from_mqtt = json.loads(
+            pubsub.subscribe(
+                f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event"
+            ).payload
+        )
+        assert latest_event_from_mqtt["event_name"] == "NoEvent"
+        assert latest_event_from_mqtt["message"] == "demo"
+        assert latest_event_from_mqtt["data"]["d"] == 1.0
+        assert latest_event_from_mqtt["data"]["s"] == "test"

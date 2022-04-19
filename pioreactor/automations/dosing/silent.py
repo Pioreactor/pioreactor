@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pioreactor.automations.dosing.base import DosingAutomationJob
+from pioreactor.automations.events import NoEvent
 
 
 class Silent(DosingAutomationJob):
@@ -17,5 +18,5 @@ class Silent(DosingAutomationJob):
     def __init__(self, **kwargs) -> None:
         super(Silent, self).__init__(**kwargs)
 
-    def execute(self) -> None:
-        return
+    def execute(self) -> NoEvent:
+        return NoEvent()
