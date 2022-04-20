@@ -55,6 +55,11 @@ class AutomationSettings(Struct):
 
 
 class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
+    """
+    Automations can return an AutomationEvent from their execute method, and it
+    will get published to MQTT under latest_event
+    """
+
     message: Optional[str] = None
     data: Optional[dict] = None
 

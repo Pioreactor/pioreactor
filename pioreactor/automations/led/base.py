@@ -254,7 +254,7 @@ class LEDAutomationJob(BackgroundSubJob):
 
     def __setattr__(self, name, value) -> None:
         super(LEDAutomationJob, self).__setattr__(name, value)
-        if name in self.published_settings and name != "state":
+        if name in self.published_settings and name not in ["state", "latest_event"]:
             self._latest_settings_ended_at = current_utc_time()
             self._send_details_to_mqtt()
             self._latest_settings_started_at = current_utc_time()
@@ -286,7 +286,7 @@ class LEDAutomationJob(BackgroundSubJob):
                         {
                             attr: getattr(self, attr, None)
                             for attr in self.published_settings
-                            if attr != "state"
+                            if attr not in ["state", "latest_event"]
                         }
                     ),
                 )
