@@ -85,7 +85,11 @@ class PIDTurbidostat(DosingAutomationJob):
                     media_ml=self.volume_to_cycle, waste_ml=self.volume_to_cycle
                 )
                 return events.DilutionEvent(
-                    f"Volume cycled={volumes_actually_moved[0]:.2f}mL"
+                    f"Volume cycled={volumes_actually_moved[0]:.2f}mL",
+                    {
+                        "volumes_actually_moved": volumes_actually_moved[0],
+                        "pid_output": pid_output,
+                    },
                 )
 
     @property

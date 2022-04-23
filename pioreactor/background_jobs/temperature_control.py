@@ -321,7 +321,7 @@ class TemperatureController(BackgroundJob):
             self.pwm.cleanup()
 
     def setup_pwm(self) -> PWM:
-        hertz = 10  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
+        hertz = 6  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]

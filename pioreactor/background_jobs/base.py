@@ -222,11 +222,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
-        self.published_settings["state"] = {
-            "datatype": "string",
-            "settable": True,
-            "persist": True,
-        }
+        self.add_to_published_settings(
+            "state",
+            {
+                "datatype": "string",
+                "settable": True,
+                "persist": True,
+            },
+        )
 
         self.logger = create_logger(
             self.job_name, unit=self.unit, experiment=self.experiment, source=source
@@ -252,14 +255,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.set_up_exit_protocol()
 
         try:
-            # this is one function in the __init__ that we may delibratily raise an error
+            # this is one function in the __init__ that we may deliberately raise an error
             # if we do raise an error, the class needs to be cleaned up correctly
             # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
             # but we still raise the error afterwards.
-            self.check_published_settings()
+            self._check_published_settings(self.published_settings)
         except ValueError as e:
             self._cleanup()
             raise e
+        finally:
+            self._publish_properties_to_broker(self.published_settings)
+            self._publish_settings_to_broker(self.published_settings)
 
         self.start_general_passive_listeners()
 
@@ -268,7 +274,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def __post__init__(self) -> None:
         # this function is called AFTER the subclass' __init__ finishes
-        self.publish_settings_to_broker()
         self.set_state(self.READY)
 
     def start_passive_listeners(self) -> None:
@@ -443,13 +448,24 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def clean_up(self):
         self.set_state(self.DISCONNECTED)
 
+    def add_to_published_settings(
+        self, setting: str, props: pt.PublishableSetting
+    ) -> None:
+        self._check_published_settings({setting: props})
+        self.published_settings[setting] = props
+        self._publish_properties_to_broker(self.published_settings)
+        self._publish_settings_to_broker(self.published_settings)
+
     ########### private #############
 
-    def check_published_settings(self) -> None:
+    @staticmethod
+    def _check_published_settings(
+        published_settings: dict[str, pt.PublishableSetting]
+    ) -> None:
         necessary_properies = set(["datatype", "settable"])
         optional_properties = set(["unit", "persist"])
         all_properties = optional_properties.union(necessary_properies)
-        for setting, properties in self.published_settings.items():
+        for setting, properties in published_settings.items():
             # look for extra properties
             if not all_properties.issuperset(properties.keys()):
                 raise ValueError(f"Found extra property in setting {setting}.")
@@ -705,16 +721,22 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.log_state(self.state)
         self._cleanup()
 
-    def publish_settings_to_broker(self) -> None:
+    def _publish_properties_to_broker(
+        self, published_settings: dict[str, pt.PublishableSetting]
+    ) -> None:
         # this follows some of the Homie convention: https://homieiot.github.io/specification/
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            ",".join(self.published_settings),
+            ",".join(published_settings),
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
 
-        for setting, props in self.published_settings.items():
+    def _publish_settings_to_broker(
+        self, published_settings: dict[str, pt.PublishableSetting]
+    ) -> None:
+        # this follows some of the Homie convention: https://homieiot.github.io/specification/
+        for setting, props in published_settings.items():
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{setting}/$settable",
                 props["settable"],

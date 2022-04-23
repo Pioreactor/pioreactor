@@ -79,10 +79,13 @@ class LEDAutomationJob(BackgroundSubJob):
         self.skip_first_run = skip_first_run
         self.edited_channels: set[pt.LedChannel] = set()
 
-        self.published_settings["latest_event"] = {
-            "datatype": "AutomationEvent",
-            "settable": False,
-        }
+        self.add_to_published_settings(
+            "latest_event",
+            {
+                "datatype": "AutomationEvent",
+                "settable": False,
+            },
+        )
 
         self.set_duration(duration)
         self.start_passive_listeners()

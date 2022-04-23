@@ -44,8 +44,10 @@ class Stable(TemperatureAutomationJob):
             self.latest_temperature, dt=1
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
         self.update_heater_with_delta(output)
-        self.logger.debug(f"delta={output}")
-        return UpdatedHeaterDC()
+        return UpdatedHeaterDC(
+            f"delta_dc={output}",
+            data={"current_dc": self.parent.heater_duty_cycle, "delta_dc": output},
+        )
 
     def set_target_temperature(self, value) -> None:
         value = float(value)

@@ -8,23 +8,21 @@ from typing import Optional
 
 import click
 
+from pioreactor import config
 from pioreactor import error_codes
+from pioreactor import utils
+from pioreactor import version
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.pubsub import QOS
 from pioreactor.types import MQTTMessage
-from pioreactor.utils import get_cpu_temperature
-from pioreactor.utils import is_pio_job_running
-from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import GPIO_states
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_time
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.version import hardware_version_info
-from pioreactor.version import software_version_info
 
 
 class Monitor(BackgroundJob):
@@ -57,10 +55,10 @@ class Monitor(BackgroundJob):
             return ".".join((str(x) for x in info))
 
         self.logger.info(
-            f"Pioreactor software version: {pretty_version(software_version_info)}"
+            f"Pioreactor software version: {pretty_version(version.software_version_info)}"
         )
         self.logger.info(
-            f"Pioreactor HAT version: {pretty_version(hardware_version_info)}"
+            f"Pioreactor HAT version: {pretty_version(version.hardware_version_info)}"
         )
 
         self.button_down = False
@@ -101,7 +99,7 @@ class Monitor(BackgroundJob):
         ip = get_ip()
         while (not whoami.is_testing_env()) and ((ip == "127.0.0.1") or (ip is None)):
             # no wifi connection? Sound the alarm.
-            self.logger.error("Unable to connect to network...")
+            self.logger.warning("Unable to connect to network...")
             self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
             ip = get_ip()
 
@@ -161,7 +159,10 @@ class Monitor(BackgroundJob):
             not self.sub_client.is_connected()
         ):
             self.logger.warning(
-                "Not able to connect MQTT clients to leader. 1. Is the leader in config.ini correct? 2. Is the Pioreactor leader online and responsive?"
+                f"""Not able to connect MQTT clients to leader.
+1. Is the leader, {config.leader_hostname} at {config.leader_address}, in config.ini correct?
+2. Is the Pioreactor leader online and responsive?
+"""
             )  # remember, this doesn't get published to leader...
 
             self.set_state(self.LOST)
@@ -171,7 +172,7 @@ class Monitor(BackgroundJob):
 
     def check_for_last_backup(self) -> None:
 
-        with local_persistant_storage("database_backups") as cache:
+        with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = datetime.strptime(
                     cache["latest_backup_timestamp"].decode("utf-8"),
@@ -194,7 +195,7 @@ class Monitor(BackgroundJob):
         def check_against_processes_running(msg: MQTTMessage) -> None:
             job = msg.topic.split("/")[3]
             if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
-                not is_pio_job_running(job)
+                not utils.is_pio_job_running(job)
             ):
                 self.publish(
                     f"pioreactor/{self.unit}/{latest_exp}/{job}/$state",
@@ -312,7 +313,7 @@ class Monitor(BackgroundJob):
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
 
-        cpu_temperature_celcius = get_cpu_temperature()
+        cpu_temperature_celcius = utils.get_cpu_temperature()
 
         if disk_usage_percent <= 80:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")

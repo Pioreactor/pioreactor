@@ -61,10 +61,13 @@ class TemperatureAutomationJob(BackgroundSubJob):
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
 
-        self.published_settings["latest_event"] = {
-            "datatype": "AutomationEvent",
-            "settable": False,
-        }
+        self.add_to_published_settings(
+            "latest_event",
+            {
+                "datatype": "AutomationEvent",
+                "settable": False,
+            },
+        )
 
         self.temperature_control_parent = parent
 

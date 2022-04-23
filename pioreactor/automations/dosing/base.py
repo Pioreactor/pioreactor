@@ -183,10 +183,13 @@ class DosingAutomationJob(BackgroundSubJob):
         self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator()
         self._volume_throughput_calculator = self._init_volume_throughput_calculator()
 
-        self.published_settings["latest_event"] = {
-            "datatype": "AutomationEvent",
-            "settable": False,
-        }
+        self.add_to_published_settings(
+            "latest_event",
+            {
+                "datatype": "AutomationEvent",
+                "settable": False,
+            },
+        )
 
         self.set_duration(duration)
 
@@ -496,28 +499,37 @@ class DosingAutomationJob(BackgroundSubJob):
             cache[self.experiment] = str(self.media_throughput)
 
     def _init_alt_media_fraction_calculator(self) -> AltMediaCalculator:
-        self.published_settings["alt_media_fraction"] = {
-            "datatype": "float",
-            "settable": True,
-        }
+        self.add_to_published_settings(
+            "latest_event",
+            {
+                "datatype": "float",
+                "settable": True,
+            },
+        )
 
         with local_persistant_storage("alt_media_fraction") as cache:
             self.alt_media_fraction = float(cache.get(self.experiment, 0.0))
             return AltMediaCalculator()
 
     def _init_volume_throughput_calculator(self) -> ThroughputCalculator:
-        self.published_settings["alt_media_throughput"] = {
-            "datatype": "float",
-            "settable": True,
-            "unit": "mL",
-            "persist": True,
-        }
-        self.published_settings["media_throughput"] = {
-            "datatype": "float",
-            "settable": True,
-            "unit": "mL",
-            "persist": True,
-        }
+        self.add_to_published_settings(
+            "alt_media_throughput",
+            {
+                "datatype": "float",
+                "settable": True,
+                "unit": "mL",
+                "persist": True,
+            },
+        )
+        self.add_to_published_settings(
+            "media_throughput",
+            {
+                "datatype": "float",
+                "settable": True,
+                "unit": "mL",
+                "persist": True,
+            },
+        )
 
         with local_persistant_storage("alt_media_throughput") as cache:
             self.alt_media_throughput = float(cache.get(self.experiment, 0.0))
