@@ -467,6 +467,54 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
 
 
 @pios.command(
+    name="reboot",
+    short_help="reboot workers",
+)
+@click.option(
+    "--units",
+    multiple=True,
+    default=(UNIVERSAL_IDENTIFIER,),
+    type=click.STRING,
+    help="specify a hostname, default is all active units",
+)
+@click.option("-y", is_flag=True, help="Skip asking for confirmation.")
+@click.pass_context
+def reboot(units: tuple[str, ...], y: bool) -> None:
+    """
+    Reboot Pioreactor / Raspberry Pi
+    """
+    from sh import ssh
+
+    # pipe all output to null
+    command = " ".join(["sudo", "reboot"])
+
+    if not y:
+        confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+        if confirm != "Y":
+            return
+
+    def _thread_function(unit: str) -> bool:
+        click.echo(f"Executing `{command}` on {unit}.")
+        try:
+            ssh(unit, command)
+            return True
+        except Exception as e:
+            logger = create_logger(
+                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            )
+            logger.debug(e, exc_info=True)
+            logger.error(f"Unable to connect to unit {unit}.")
+            return False
+
+    units = universal_identifier_to_all_active_workers(units)
+    with ThreadPoolExecutor(max_workers=len(units)) as executor:
+        results = executor.map(_thread_function, units)
+
+    if not all(results):
+        sys.exit(1)
+
+
+@pios.command(
     name="update-settings",
     context_settings=dict(ignore_unknown_options=True, allow_extra_args=True),
     short_help="update settings on a job on workers",
