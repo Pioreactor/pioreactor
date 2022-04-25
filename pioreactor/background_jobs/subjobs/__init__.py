@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 from pioreactor.background_jobs.base import BackgroundJob
 
 
@@ -9,13 +11,13 @@ class BackgroundSubJob(BackgroundJob):
         super(BackgroundSubJob, self).__init__(*args, **kwargs)
         self.parent = parent
 
-    def set_up_exit_protocol(self):
+    def _set_up_exit_protocol(self):
         # NOOP: subjobs don't exit from python, parents do.
         return
 
-    def log_state(self, state):
+    def _log_state(self, state):
         self.logger.debug(state.capitalize() + ".")
 
-    def check_for_duplicate_process(self):
+    def _check_for_duplicate_process(self):
         # multiple subjobs can run, - the parents should control if it's not allowed.
         return

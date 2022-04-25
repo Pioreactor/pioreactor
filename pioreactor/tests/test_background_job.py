@@ -336,6 +336,31 @@ def test_sys_exit_does_exit() -> None:
             t.call_all_i_do_is_exit()
 
 
+def test_adding_key_in_published_settings() -> None:
+    class TestJob(BackgroundJob):
+        def __init__(self, *args, **kwargs) -> None:
+            super(TestJob, self).__init__(*args, **kwargs)
+            self.add_to_published_settings(
+                "test", {"datatype": "string", "persist": True, "settable": True}
+            )
+
+    with TestJob(
+        unit=get_unit_name(),
+        experiment="test_adding_key_in_published_settings",
+        job_name="test_job",
+    ):
+        msg = subscribe(
+            "pioreactor/testing_unit/test_adding_key_in_published_settings/test_job/test/$settable"
+        )
+        assert msg is not None
+        assert msg.payload.decode() == "True"
+        msg = subscribe(
+            "pioreactor/testing_unit/test_adding_key_in_published_settings/test_job/$properties"
+        )
+        assert msg is not None
+        assert msg.payload.decode() == "state,test"
+
+
 def test_cleans_up_mqtt() -> None:
     class TestJob(BackgroundJob):
 

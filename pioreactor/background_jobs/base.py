@@ -222,25 +222,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
-        self.add_to_published_settings(
-            "state",
-            {
-                "datatype": "string",
-                "settable": True,
-                "persist": True,
-            },
-        )
 
         self.logger = create_logger(
             self.job_name, unit=self.unit, experiment=self.experiment, source=source
         )
 
-        # check_for_duplicate_activity checks _before_ the pubsub client,
+        # _check_for_duplicate_activity checks _before_ the pubsub client,
         # as they will set (and revoke) a new last will.
         # Ex: job X is running, but we try to rerun it, causing the latter job to abort, and
         # potentially firing the last_will
         # TODO: I don't think this is true anymore, since we append an id() to the client id now.
-        self.check_for_duplicate_activity()
+        self._check_for_duplicate_activity()
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
         # but this is critical to our usecase: listen for events, and fire a response (ex: state change)
@@ -249,10 +241,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # See issue: https://github.com/eclipse/paho.mqtt.python/issues/527
         # The order we add them to the list is important too, as disconnects occur async,
         # we want to give the sub_client (has the will msg) as much time as possible to disconnect.
-        self.pub_client = self.create_pub_client()
-        self.sub_client = self.create_sub_client()
+        self.pub_client = self._create_pub_client()
+        self.sub_client = self._create_sub_client()
 
-        self.set_up_exit_protocol()
+        self._set_up_exit_protocol()
 
         try:
             # this is one function in the __init__ that we may deliberately raise an error
@@ -266,6 +258,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
         finally:
             self._publish_properties_to_broker(self.published_settings)
             self._publish_settings_to_broker(self.published_settings)
+
+        # this happens _after_ pub clients are set up
+        self.add_to_published_settings(
+            "state",
+            {
+                "datatype": "string",
+                "settable": True,
+                "persist": True,
+            },
+        )
 
         self.start_general_passive_listeners()
 
@@ -446,17 +448,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
         )
 
     def clean_up(self):
+        """
+        Disconnect from brokers, set state to "disconnected", stop any activity, etc.
+        """
         self.set_state(self.DISCONNECTED)
 
     def add_to_published_settings(
         self, setting: str, props: pt.PublishableSetting
     ) -> None:
+        """
+        Add a pair to self.published_settings.
+        """
         self._check_published_settings({setting: props})
         self.published_settings[setting] = props
         self._publish_properties_to_broker(self.published_settings)
-        self._publish_settings_to_broker(self.published_settings)
+        self._publish_settings_to_broker({setting: props})
 
-    ########### private #############
+    ########### Private #############
 
     @staticmethod
     def _check_published_settings(
@@ -468,11 +476,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         for setting, properties in published_settings.items():
             # look for extra properties
             if not all_properties.issuperset(properties.keys()):
-                raise ValueError(f"Found extra property in setting {setting}.")
+                raise ValueError(f"Found extra property in setting `{setting}`.")
 
             # look for missing properties
             if not set(properties.keys()).issuperset(necessary_properies):
-                raise ValueError(f"Missing necessary property in setting {setting}.")
+                raise ValueError(
+                    f"Missing necessary property in setting `{setting}`. All settings require at least {necessary_properies}"
+                )
 
             # correct syntax in setting name?
             if not all(ss.isalnum() for ss in setting.split("_")):
@@ -481,7 +491,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     f"setting {setting} has bad characters - must be alphanumeric, and only separated by underscore."
                 )
 
-    def create_pub_client(self) -> Client:
+    def _create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(
             client_id=f"{self.unit}-pub-{self.job_name}-{get_uuid()}-{id(self)}"
@@ -489,7 +499,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         return client
 
-    def create_sub_client(self) -> Client:
+    def _create_sub_client(self) -> Client:
         # see note above as to why we split pub and sub.
 
         # the client will try to automatically reconnect if something bad happens
@@ -498,12 +508,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # also reconnect to our old topics.
         def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None):
             self.logger.info("Reconnected to MQTT broker.")
-            self.publish_attr("state")
+            self._publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()
 
         def on_disconnect(client, userdata, rc: int) -> None:
-            self.on_mqtt_disconnect(client, rc)
+            self._on_mqtt_disconnect(client, rc)
 
         # we give the last_will to this sub client because when it reconnects, it
         # will republish state.
@@ -535,7 +545,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client.on_disconnect = on_disconnect
         return client
 
-    def on_mqtt_disconnect(self, client, rc: int) -> None:
+    def _on_mqtt_disconnect(self, client, rc: int) -> None:
         from paho.mqtt import client as mqtt  # type: ignore
 
         if rc == mqtt.MQTT_ERR_SUCCESS:
@@ -559,7 +569,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.logger.error("Disconnected from leader.")
         return
 
-    def publish_attr(self, attr: str) -> None:
+    def _publish_attr(self, attr: str) -> None:
         """
         Publish the current value of the class attribute `attr` to MQTT.
         """
@@ -575,7 +585,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             qos=QOS.EXACTLY_ONCE,
         )
 
-    def set_up_exit_protocol(self) -> None:
+    def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
         def disconnect_gracefully(reason: int | str, *args) -> None:
             if self.state == self.DISCONNECTED:
@@ -635,7 +645,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.clean_up()
             raise e
 
-        self.log_state(self.state)
+        self._log_state(self.state)
 
     def ready(self) -> None:
         self.state = self.READY
@@ -653,7 +663,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
 
-        self.log_state(self.state)
+        self._log_state(self.state)
 
     def sleeping(self) -> None:
         self.state = self.SLEEPING
@@ -664,7 +674,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(e)
             self.logger.debug(e, exc_info=True)
 
-        self.log_state(self.state)
+        self._log_state(self.state)
 
     def lost(self) -> None:
         # TODO: what should happen when a running job recieves a lost signal? When does it ever
@@ -673,27 +683,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # I think it makes sense to ignore it?
 
         self.state = self.LOST
-        self.log_state(self.state)
+        self._log_state(self.state)
         pass
-
-    def _cleanup(self):
-        # Explicitly cleanup resources...
-        # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
-        # logger, sub_client, pub_client.
-
-        # clean up logger handlers
-        while len(self.logger.handlers) > 0:
-            handler = self.logger.handlers[0]
-            handler.close()
-            self.logger.removeHandler(handler)
-
-        # disconnect from MQTT
-        self.sub_client.loop_stop()
-        self.sub_client.disconnect()
-
-        # this HAS to happen last, because this contains our publishing client
-        self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
-        self.pub_client.disconnect()
 
     def disconnected(self) -> None:
         # set state to disconnect
@@ -714,12 +705,31 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(e, exc_info=True)
 
         # remove attrs from MQTT
-        self.clear_mqtt_cache()
+        self._clear_mqtt_cache()
         with local_intermittent_storage("pio_jobs_running") as cache:
             if self.job_name in cache:
                 del cache[self.job_name]
-        self.log_state(self.state)
+        self._log_state(self.state)
         self._cleanup()
+
+    def _cleanup(self):
+        # Explicitly cleanup resources...
+        # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
+        # logger, sub_client, pub_client.
+
+        # clean up logger handlers
+        while len(self.logger.handlers) > 0:
+            handler = self.logger.handlers[0]
+            handler.close()
+            self.logger.removeHandler(handler)
+
+        # disconnect from MQTT
+        self.sub_client.loop_stop()
+        self.sub_client.disconnect()
+
+        # this HAS to happen last, because this contains our publishing client
+        self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
+        self.pub_client.disconnect()
 
     def _publish_properties_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
@@ -757,19 +767,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     retain=True,
                 )
 
-    def log_state(self, state: pt.JobState) -> None:
+    def _log_state(self, state: pt.JobState) -> None:
         if state == self.READY or state == self.DISCONNECTED:
             self.logger.info(state.capitalize() + ".")
         else:
             self.logger.debug(state.capitalize() + ".")
 
-    @staticmethod
-    def get_attr_from_topic(topic: str) -> str:
-        pieces = topic.split("/")
-        return pieces[4].lstrip("$")
+    def _set_attr_from_message(self, message: pt.MQTTMessage) -> None:
+        def get_attr_from_topic(topic: str) -> str:
+            pieces = topic.split("/")
+            return pieces[4].lstrip("$")
 
-    def set_attr_from_message(self, message: pt.MQTTMessage) -> None:
-        attr = self.get_attr_from_topic(message.topic)
+        attr = get_attr_from_topic(message.topic)
 
         if attr not in self.published_settings:
             self.logger.debug(f"Unable to set `{attr}` in {self.job_name}.")
@@ -801,7 +810,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def start_general_passive_listeners(self) -> None:
         # listen to changes in editable properties
         self.subscribe_and_callback(
-            self.set_attr_from_message,
+            self._set_attr_from_message,
             [
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/+/set",
                 # everyone listens to $BROADCAST
@@ -810,7 +819,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             allow_retained=False,
         )
 
-    def clear_mqtt_cache(self) -> None:
+    def _clear_mqtt_cache(self) -> None:
         """
         From homie: Devices can remove old properties and nodes by publishing a zero-length payload on the respective topics.
         Use "persist" to keep it from clearing.
@@ -845,7 +854,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 retain=True,
             )
 
-    def check_for_duplicate_activity(self) -> None:
+    def _check_for_duplicate_activity(self) -> None:
         with local_intermittent_storage("pio_jobs_running") as cache:
             if not is_testing_env() and (cache.get(self.job_name, b"0") == b"1"):
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
@@ -854,7 +863,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
         if name in self.published_settings:
-            self.publish_attr(name)
+            self._publish_attr(name)
 
     def __enter__(self):
         return self
