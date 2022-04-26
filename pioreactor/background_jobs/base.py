@@ -209,11 +209,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # attributes are
     # {'datatype', 'unit', 'settable', 'persist'}
     # See pt.PublishableSetting type
-    # TODO: turn this into a data structure dict-like thingie, so it can be updated in subclasses and we still get the right metadata published.
     published_settings: dict[str, pt.PublishableSetting] = dict()
 
     # these are used elsewhere in our software
-    DISALLOWED_JOB_NAMES = ["run", "dosing_events", "led", "leds"]
+    DISALLOWED_JOB_NAMES = {
+        "run",
+        "dosing_events",
+        "leds",
+        "led_change_events",
+        "unit_label",
+    }
 
     def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
         if job_name in self.DISALLOWED_JOB_NAMES:
@@ -684,7 +689,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self.state = self.LOST
         self._log_state(self.state)
-        pass
 
     def disconnected(self) -> None:
         # set state to disconnect

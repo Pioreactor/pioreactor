@@ -16,7 +16,7 @@ def test_run_exits_if_command_not_found():
 
 def test_run():
     runner = CliRunner()
-    result = runner.invoke(pio, ["run", "add_media", "--duration", "1"])
+    result = runner.invoke(pio, ["run"])
     assert result.exit_code == 0
 
 

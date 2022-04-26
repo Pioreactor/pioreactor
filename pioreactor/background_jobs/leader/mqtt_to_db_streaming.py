@@ -71,7 +71,7 @@ class MqttToDBStreamer(BackgroundJob):
         def _callback(message: pt.MQTTMessage) -> None:
             # TODO: filter testing experiments here?
 
-            if message.payload is None:
+            if not message.payload:
                 # filter out empty payloads
                 return
 
@@ -364,13 +364,19 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "ir_led_intensities",
         ),
         TopicToParserToTable(
-            [
-                "pioreactor/+/+/dosing_automation/latest_event",
-                "pioreactor/+/+/led_automation/latest_event",
-                "pioreactor/+/+/temperature_automation/latest_event",
-            ],
+            "pioreactor/+/+/dosing_automation/latest_event",
             parse_automation_event,
-            "automation_events",
+            "dosing_automation_events",
+        ),
+        TopicToParserToTable(
+            "pioreactor/+/+/led_automation/latest_event",
+            parse_automation_event,
+            "led_automation_events",
+        ),
+        TopicToParserToTable(
+            "pioreactor/+/+/temperature_automation/latest_event",
+            parse_automation_event,
+            "temperature_automation_events",
         ),
     ]
 

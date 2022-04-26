@@ -25,6 +25,8 @@ def backup_database(output_file: str) -> None:
     drop due to this running. See issue #81. For now, we will skip the backup if `od_reading` is running
 
     Elsewhere, a cronjob is set up as well to run this action every N days.
+
+    TODO: we should gzip before sending it, "B-tree databases like SQLite compress well so it’s recommended to compress your database"
     """
 
     import sqlite3
