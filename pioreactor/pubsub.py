@@ -174,7 +174,7 @@ def subscribe(
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
             from pioreactor.logging import create_logger
 
-            logger = create_logger("pubsub.subscribe", to_mqtt=False)
+            logger = create_logger(name or "pubsub.subscribe", to_mqtt=False)
             logger.debug(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
                 exc_info=True,
@@ -183,7 +183,7 @@ def subscribe(
             sleep(3 * retry_count)  # linear backoff
 
     else:
-        logger = create_logger("pubsub.subscribe", to_mqtt=False)
+        logger = create_logger(name or "pubsub.subscribe", to_mqtt=False)
         logger.error(f"Unable to connect to host: {hostname}. Exiting.")
         raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
 
