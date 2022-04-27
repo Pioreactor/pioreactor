@@ -21,6 +21,7 @@ class WatchDog(BackgroundJob):
         self.start_passive_listeners()
 
     def watch_for_lost_state(self, state_message: MQTTMessage) -> None:
+        # generally, I hate this code...
         if state_message.payload.decode() == self.LOST:
 
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
@@ -32,10 +33,21 @@ class WatchDog(BackgroundJob):
                 f"{unit} seems to be lost. Trying to re-establish connection..."
             )
             time.sleep(5)
+
+            if self.state != self.READY:
+                # when the entire Rpi shuts down, ex via sudo reboot, monitor can publish a lost. This code will halt the shutdown.
+                # let's return early.
+                return
+
             self.pub_client.publish(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.READY
             )
             time.sleep(20)
+
+            if self.state != self.READY:
+                # when the entire Rpi shuts down, ex via sudo reboot, monitor can publish a lost. This code will halt the shutdown.
+                # let's return early.
+                return
 
             msg = subscribe(  # I don't think this can be self.sub_client because we are in a callback.
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state",
