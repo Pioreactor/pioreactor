@@ -38,7 +38,9 @@ class WatchDog(BackgroundJob):
             time.sleep(20)
 
             msg = subscribe(  # I don't think this can be self.sub_client because we are in a callback.
-                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state", timeout=15
+                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state",
+                timeout=15,
+                name=self.job_name,
             )
             if msg is None:
                 return

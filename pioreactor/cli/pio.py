@@ -417,6 +417,7 @@ if whoami.am_I_leader():
             result = pubsub.subscribe(
                 f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/$state",
                 timeout=1,
+                name="CLI",
             )
             if result:
                 state = result.payload.decode()
