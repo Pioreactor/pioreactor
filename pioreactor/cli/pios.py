@@ -112,8 +112,11 @@ def pios() -> None:
         sys.exit(1)
 
     if len(get_active_workers_in_inventory()) == 0:
-        click.echo(
-            "No active workers. See `network.inventory` section in config.ini.", err=True
+        logger = create_logger(
+            "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+        )
+        logger.warning(
+            "No active workers. See `network.inventory` section in config.ini."
         )
         sys.exit(1)
 

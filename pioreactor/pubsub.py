@@ -32,7 +32,7 @@ def create_client(
     last_will: Optional[dict] = None,
     client_id: Optional[str] = None,
     keepalive=60,
-    max_retries=3,
+    max_retries=2,
     clean_session=None,
 ) -> Client:
     """

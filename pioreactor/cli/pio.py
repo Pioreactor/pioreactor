@@ -69,6 +69,24 @@ def logs() -> None:
         print(line, end="")
 
 
+@pio.command(name="append_to_log", short_help="logs a message from the CLI")
+@click.option(
+    "-m", "--message", required=True, type=str, help="the message to append to the log"
+)
+@click.option(
+    "-l",
+    "--level",
+    default="debug",
+    type=click.Choice(["debug", "info", "warning", "critical"], case_sensitive=False),
+)
+def append_to_log(message, level):
+    logger = create_logger(
+        "CLI", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+    )
+    getattr(logger, level)(message)
+    return
+
+
 @pio.command(name="blink", short_help="blink LED")
 def blink() -> None:
 
