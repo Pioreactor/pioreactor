@@ -29,7 +29,12 @@ def _get_latest_experiment_name() -> str:
 
     from pioreactor.pubsub import subscribe
 
-    mqtt_msg = subscribe("pioreactor/latest_experiment", timeout=1, retries=2)
+    mqtt_msg = subscribe(
+        "pioreactor/latest_experiment",
+        timeout=1,
+        retries=2,
+        name="get_latest_experiment_name",
+    )
     if mqtt_msg:
         return mqtt_msg.payload.decode()
     else:

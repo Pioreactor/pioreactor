@@ -316,7 +316,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     def update_ekf_variance_after_event(self, minutes: float, factor: float) -> None:
         if is_testing_env():
-            msg = subscribe(
+            msg = subscribe(  # TODO: make this self.sub_client.subscribe?
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval",
                 timeout=1.0,
             )
