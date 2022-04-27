@@ -155,7 +155,8 @@ def create_logger(
         import uuid
 
         pub_client = create_client(
-            client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}"
+            client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}",
+            max_connection_attempts=2,
         )
 
         exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT

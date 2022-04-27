@@ -10,7 +10,7 @@ from typing import Optional
 
 from paho.mqtt.client import Client as PahoClient  # type: ignore
 
-from pioreactor.config import leader_address
+from pioreactor.config import leader_hostname
 from pioreactor.types import MQTTMessage
 
 
@@ -28,11 +28,11 @@ class Client(PahoClient):
 
 
 def create_client(
-    hostname: str = leader_address,
+    hostname: str = leader_hostname,
     last_will: Optional[dict] = None,
     client_id: Optional[str] = None,
     keepalive=60,
-    max_retries=2,
+    max_connection_attempts=3,
     clean_session=None,
 ) -> Client:
     """
@@ -54,11 +54,11 @@ def create_client(
     if last_will is not None:
         client.will_set(**last_will)
 
-    for retries in range(1, max_retries + 1):
+    for retries in range(1, max_connection_attempts + 1):
         try:
             client.connect(hostname, keepalive=keepalive)
         except (socket.gaierror, OSError):
-            if retries == max_retries:
+            if retries == max_connection_attempts:
                 break
             sleep(retries * 2)
         else:
@@ -69,7 +69,7 @@ def create_client(
 
 
 def publish(
-    topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs
+    topic: str, message, hostname: str = leader_hostname, retries: int = 10, **mqtt_kwargs
 ):
     from paho.mqtt import publish as mqtt_publish  # type: ignore
     import socket
@@ -98,10 +98,11 @@ def publish(
 
 def subscribe(
     topics: str | list[str],
-    hostname=leader_address,
+    hostname=leader_hostname,
     retries: int = 10,
     timeout: Optional[float] = None,
     allow_retained: bool = True,
+    name: Optional[str] = None,
     **mqtt_kwargs,
 ) -> Optional[MQTTMessage]:
     """
@@ -111,6 +112,11 @@ def subscribe(
     A failure case occurs if this is called in a thread (eg: a callback) and is waiting
     indefinitely for a message. The parent job may not exit properly.
 
+    Parameters
+    ------------
+    topics: str, list of str
+    name:
+        Optional: provide a name, and logging will include it.
     """
     import socket
 
@@ -151,7 +157,7 @@ def subscribe(
             client = Client(userdata=userdata)
             client.on_connect = on_connect
             client.on_message = on_message
-            client.connect(leader_address)
+            client.connect(leader_hostname)
 
             if timeout is None:
                 client.loop_forever()
@@ -185,9 +191,9 @@ def subscribe(
 def subscribe_and_callback(
     callback: Callable[[MQTTMessage], Any],
     topics: str | list[str],
-    hostname: str = leader_address,
+    hostname: str = leader_hostname,
     last_will: Optional[dict] = None,
-    job_name: Optional[str] = None,
+    name: Optional[str] = None,
     allow_retained: bool = True,
     client: Optional[Client] = None,
     **mqtt_kwargs,
@@ -199,8 +205,8 @@ def subscribe_and_callback(
     -------------
     last_will: dict
         a dictionary describing the last will details: topic, qos, retain, msg.
-    job_name:
-        Optional: provide the job name, and logging will include it.
+    name:
+        Optional: provide a name, and logging will include it.
     allow_retained: bool
         if True, all messages are allowed, including messages that the broker has retained. Note
         that client can fire a msg with retain=True, but because the broker is serving it to a
@@ -223,7 +229,7 @@ def subscribe_and_callback(
             except Exception as e:
                 from pioreactor.logging import create_logger
 
-                logger = create_logger(userdata.get("job_name", "pioreactor"))
+                logger = create_logger(userdata.get("name", "pioreactor"))
                 logger.error(e, exc_info=True)
                 raise e
 
@@ -238,7 +244,7 @@ def subscribe_and_callback(
 
         userdata = {
             "topics": [(topic, mqtt_kwargs.pop("qos", 0)) for topic in topics],
-            "job_name": job_name,
+            "name": name,
         }
 
         client = Client(userdata=userdata)
@@ -246,7 +252,7 @@ def subscribe_and_callback(
         client.on_connect = on_connect
         client.on_message = wrap_callback(callback)
 
-        client.connect(leader_address, **mqtt_kwargs)
+        client.connect(leader_hostname, **mqtt_kwargs)
         client.loop_start()
     else:
         # user provided a client
@@ -260,7 +266,7 @@ def subscribe_and_callback(
     return client
 
 
-def prune_retained_messages(topics_to_prune="#", hostname=leader_address):
+def prune_retained_messages(topics_to_prune="#", hostname=leader_hostname):
     topics = []
 
     def on_message(message):
