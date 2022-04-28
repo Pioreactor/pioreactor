@@ -4,7 +4,7 @@
  - new tables `led_automation_events`, `dosing_automation_events`, `temperature_automation_events`
  - `pioreactor.automation.events.Event` renamed to `pioreactor.automation.events.AutomationEvent`. The have a second kwarg that accepts a dict of data (must be json-serializable).
  - new leader command `pios reboot`: reboot RPis on the network, optionally specific ones with `--unit` flag.
- - new CLI tool: `pio append_to_log -m <message>`. This is used internally after systemd finish to log to our system.
+ - new CLI tool: `pio log -m <message>` which will post a message to the pioreactors logs (everywhere). Example: this is used internally after systemd finish to log to our system.
 
 ### 22.4.2
  - Added ability to add callbacks to ODReader. See `add_pre_read_callback` and `add_post_read_callback`.

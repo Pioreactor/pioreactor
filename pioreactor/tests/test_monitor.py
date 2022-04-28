@@ -50,6 +50,8 @@ def test_update_leds_with_monitor() -> None:
             '{"A": 10, "B": 11}',
         )
         pause()
+        pause()
+        pause()
         with local_intermittent_storage("leds") as c:
             assert float(c["A"]) == 10.0
             assert float(c["B"]) == 11.0
