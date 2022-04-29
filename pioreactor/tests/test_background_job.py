@@ -337,6 +337,8 @@ def test_sys_exit_does_exit() -> None:
 
 
 def test_adding_key_in_published_settings() -> None:
+    exp = "test_adding_key_in_published_settings"
+
     class TestJob(BackgroundJob):
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
@@ -346,17 +348,13 @@ def test_adding_key_in_published_settings() -> None:
 
     with TestJob(
         unit=get_unit_name(),
-        experiment="test_adding_key_in_published_settings",
+        experiment=exp,
         job_name="test_job",
     ):
-        msg = subscribe(
-            "pioreactor/testing_unit/test_adding_key_in_published_settings/test_job/test/$settable"
-        )
+        msg = subscribe(f"pioreactor/testing_unit/{exp}/test_job/test/$settable")
         assert msg is not None
         assert msg.payload.decode() == "True"
-        msg = subscribe(
-            "pioreactor/testing_unit/test_adding_key_in_published_settings/test_job/$properties"
-        )
+        msg = subscribe(f"pioreactor/testing_unit/{exp}/test_job/$properties")
         assert msg is not None
         assert msg.payload.decode() == "state,test"
 

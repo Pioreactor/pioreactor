@@ -385,6 +385,8 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
             )
             # there should be a log published with "Unable to set garbage in dosing_automation"
             pause()
+            pause()
+            pause()
 
     assert len(bucket) > 0
     assert any(["garbage" in log["message"] for log in bucket])

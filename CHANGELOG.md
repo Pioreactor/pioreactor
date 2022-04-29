@@ -1,4 +1,4 @@
-### Upcoming
+### 22.4.3
  - table `led_events` is renamed to `led_change_events`
  - automation events returned from `execute` are published to MQTT under the published setting `latest_event`
  - new tables `led_automation_events`, `dosing_automation_events`, `temperature_automation_events`
