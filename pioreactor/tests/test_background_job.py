@@ -44,9 +44,18 @@ def test_states() -> None:
     pause()
     assert bj.state == "init"
 
+    # it's kinda an antipattern to use this disconnect method from the main
+    # thread. Better, if in the main thread and able to, to call bj.cleanup().
+    # There's no 100% guarantee that this cleans up properly since it is called
+    # in the sub thread, which means it's cleaning itself up?? Not clear!
     publish(f"pioreactor/{unit}/{exp}/job/$state/set", "disconnected")
     pause()
     assert bj.state == bj.DISCONNECTED
+
+    pause()
+    pause()
+    pause()
+    pause()
 
 
 @pytest.mark.skip(reason="hangs")
@@ -77,7 +86,6 @@ def test_watchdog_will_try_to_fix_lost_job() -> None:
 
 def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     # see note in base.py about create_logger
-
     unit = get_unit_name()
     exp = "test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt"
 
@@ -88,7 +96,6 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
             bj.logger.warning("test1")
             pause()
             pause()
-        # disconnect, which should clear logger handlers (but may not...)
 
         with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
             pause()
@@ -96,6 +103,7 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
             bj.logger.warning("test2")
             pause()
             pause()
+
     assert len(bucket) == 2
 
 

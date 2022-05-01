@@ -464,10 +464,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         Add a pair to self.published_settings.
         """
-        self._check_published_settings({setting: props})
-        self.published_settings[setting] = props
+        new_setting_pair = {setting: props}
+        self._check_published_settings(new_setting_pair)
+        # we need create a new dict (versus just a key update), since published_settings is a class level prop, and editing this would have effects for other BackgroundJob classes.
+        self.published_settings = self.published_settings | new_setting_pair
         self._publish_properties_to_broker(self.published_settings)
-        self._publish_settings_to_broker({setting: props})
+        self._publish_settings_to_broker(new_setting_pair)
 
     ########### Private #############
 
@@ -499,7 +501,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(
-            client_id=f"{self.unit}-pub-{self.job_name}-{get_uuid()}-{id(self)}"
+            client_id=f"{self.unit}-pub-{self.experiment}-{self.job_name}-{get_uuid()}-{id(self)}"
         )
 
         return client
@@ -530,7 +532,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         }
 
         client = create_client(
-            client_id=f"{self.unit}-sub-{self.job_name}-{get_uuid()}-{id(self)}",
+            client_id=f"{self.unit}-sub-{self.experiment}-{self.job_name}-{get_uuid()}-{id(self)}",
             last_will=last_will,
             keepalive=60,
             clean_session=False,  # this, in theory, will reconnect to old subs when we reconnect.

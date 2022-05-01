@@ -46,7 +46,12 @@ class Stable(TemperatureAutomationJob):
         self.update_heater_with_delta(output)
         return UpdatedHeaterDC(
             f"delta_dc={output}",
-            data={"current_dc": self.parent.heater_duty_cycle, "delta_dc": output},
+            data={
+                "current_dc": None
+                if self.parent is None
+                else self.parent.heater_duty_cycle,
+                "delta_dc": output,
+            },
         )
 
     def set_target_temperature(self, value) -> None:

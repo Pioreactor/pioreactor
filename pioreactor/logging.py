@@ -155,7 +155,7 @@ def create_logger(
         import uuid
 
         pub_client = create_client(
-            client_id=f"{unit}-{experiment}-logging-{uuid.uuid1()}",
+            client_id=f"{unit}-logging-{experiment}-{uuid.uuid1()}",
             max_connection_attempts=2,
         )
 
