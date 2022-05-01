@@ -2,10 +2,19 @@
 # test_cli.py
 from __future__ import annotations
 
+import time
+
 from click.testing import CliRunner
 
+from pioreactor import whoami
 from pioreactor.cli.pio import pio
+from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_intermittent_storage
+
+
+def pause() -> None:
+    # to avoid race conditions
+    time.sleep(0.5)
 
 
 def test_run_exits_if_command_not_found():
@@ -46,3 +55,18 @@ def test_list_plugins():
     runner = CliRunner()
     result = runner.invoke(pio, ["list-plugins"])
     assert "example_plugin==0.0.1" in result.output
+
+
+def test_pio_log():
+
+    with collect_all_logs_of_level(
+        "DEBUG", whoami.get_unit_name(), whoami.UNIVERSAL_EXPERIMENT
+    ) as bucket:
+        runner = CliRunner()
+        runner.invoke(pio, ["log", "-m", "test msg", "-n", "job1"])
+        pause()
+        pause()
+
+    assert len(bucket) > 0
+    assert bucket[0]["message"] == "test msg"
+    assert bucket[0]["task"] == "job1"
