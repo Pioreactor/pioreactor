@@ -2,15 +2,18 @@
 # test_od_reading.py
 from __future__ import annotations
 
+import json
 import time
 
 import numpy as np
 import pytest
 
+from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.utils import local_persistant_storage
 
 
 def pause() -> None:
@@ -229,9 +232,51 @@ def test_simple_API() -> None:
         od_job.start_ir_led()
         assert od_job.ir_led_intensity == led_int
         results = od_job.record_from_adc()
-        assert list(results.keys()) == ["1"]
+        assert list(results.od_raw.keys()) == ["1"]
 
     od_job.clean_up()
+
+
+def test_ability_to_yield() -> None:
+    od_job = start_od_reading(
+        "90", "REF", sampling_rate=1, fake_data=True, experiment="test_ability_to_yield"
+    )
+    results = []
+
+    for i, reading in enumerate(od_job):
+        results.append(reading)
+        if i == 5:
+            break
+
+    od_job.clean_up()
+    assert len(results) > 0
+    assert results[0].timestamp < results[1].timestamp < results[2].timestamp
+
+
+def test_ability_to_yield_into_growth_rate_calc() -> None:
+    unit = "unit"
+    experiment = "test_ability_to_yield_into_growth_rate_calc"
+
+    with local_persistant_storage("od_normalization_mean") as cache:
+        cache[experiment] = json.dumps({1: 1.0})
+
+    with local_persistant_storage("od_normalization_variance") as cache:
+        cache[experiment] = json.dumps({1: 1.0})
+
+    od_job = start_od_reading(
+        "90", "REF", sampling_rate=1, fake_data=True, unit=unit, experiment=experiment
+    )
+    gr = GrowthRateCalculator(unit=unit, experiment=experiment, from_mqtt=False)
+    results = []
+
+    for i, reading in enumerate(od_job):
+        results.append(gr.update_state_from_observation(reading))
+        if i == 5:
+            break
+
+    od_job.clean_up()
+    assert len(results) > 0
+    assert results[0][0].timestamp < results[1][0].timestamp < results[2][0].timestamp  # type: ignore
 
 
 def test_add_pre_read_callback() -> None:

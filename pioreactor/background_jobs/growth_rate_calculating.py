@@ -35,6 +35,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
+from typing import Optional
 
 from click import command
 from click import option
@@ -43,6 +44,7 @@ from msgspec.json import decode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor import whoami
 from pioreactor.actions.od_normalization import od_normalization
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
@@ -52,12 +54,18 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.utils.timing import to_datetime
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
 
 
 class GrowthRateCalculator(BackgroundJob):
+    """
+    Parameters
+    -----------
+    ignore_cache: bool
+        ignore any cached calculated statistics from this experiment.
+    from_mqtt: bool
+        listen for data from MQTT to respond to.
+
+    """
 
     published_settings = {
         "growth_rate": {
@@ -74,12 +82,14 @@ class GrowthRateCalculator(BackgroundJob):
         unit: str,
         experiment: str,
         ignore_cache: bool = False,
+        from_mqtt=True,
     ):
 
         super(GrowthRateCalculator, self).__init__(
             job_name="growth_rate_calculating", unit=unit, experiment=experiment
         )
 
+        self.from_mqtt = from_mqtt
         self.ignore_cache = ignore_cache
         self.time_of_previous_observation = datetime.utcnow()
         self.expected_dt = 1 / (
@@ -107,7 +117,9 @@ class GrowthRateCalculator(BackgroundJob):
             raise e
 
         self.ekf = self.initialize_extended_kalman_filter()
-        self.start_passive_listeners()
+
+        if self.from_mqtt:
+            self.start_passive_listeners()
 
     def on_sleeping_to_ready(self) -> None:
         # when the job sleeps, we expect a "big" jump in OD due to a few things:
@@ -315,8 +327,8 @@ class GrowthRateCalculator(BackgroundJob):
             return variances
 
     def update_ekf_variance_after_event(self, minutes: float, factor: float) -> None:
-        if is_testing_env():
-            msg = subscribe(  # TODO: make this self.sub_client.subscribe?
+        if whoami.is_testing_env():
+            msg = subscribe(  # needs to be pubsub.subscribe (ie not sub_client.subscribe) since this is called in a callback
                 f"pioreactor/{self.unit}/{self.experiment}/adc_reader/interval",
                 timeout=1.0,
             )
@@ -352,23 +364,31 @@ class GrowthRateCalculator(BackgroundJob):
 
         return v
 
-    def update_state_from_observation(self, message) -> None:
-
+    def respond_to_od_readings_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if self.state != self.READY:
             return
 
-        payload = decode(message.payload, type=structs.ODReadings)
-        observations = self.batched_raw_od_readings_to_dict(payload.od_raw)
-        scaled_observations = self.scale_raw_observations(observations)
+        od_readings = decode(message.payload, type=structs.ODReadings)
+        self.update_state_from_observation(od_readings)
+        return
 
-        if is_testing_env():
+    def update_state_from_observation(
+        self, od_readings: structs.ODReadings
+    ) -> Optional[tuple[structs.GrowthRate, structs.ODFiltered]]:
+
+        timestamp = od_readings.timestamp
+        scaled_observations = self.scale_raw_observations(
+            self.batched_raw_od_readings_to_dict(od_readings.od_raw)
+        )
+
+        if whoami.is_testing_env():
             # when running a mock script, we run at an accelerated rate, but want to mimic
             # production.
             dt = self.expected_dt
         else:
             # TODO this should use the internal timestamp reference
 
-            time_of_current_observation = to_datetime(payload.timestamp)
+            time_of_current_observation = to_datetime(timestamp)
             dt = (
                 (
                     time_of_current_observation - self.time_of_previous_observation
@@ -379,7 +399,7 @@ class GrowthRateCalculator(BackgroundJob):
 
             if dt <= 0:
                 self.logger.debug("Late arriving data...")
-                return
+                return None
 
             self.time_of_previous_observation = time_of_current_observation
 
@@ -388,7 +408,7 @@ class GrowthRateCalculator(BackgroundJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
-            return
+            return None
         else:
 
             # TODO: EKF values can be nans...
@@ -399,11 +419,11 @@ class GrowthRateCalculator(BackgroundJob):
 
             self.growth_rate = structs.GrowthRate(
                 growth_rate=latest_growth_rate,
-                timestamp=payload.timestamp,
+                timestamp=timestamp,
             )
             self.od_filtered = structs.ODFiltered(
                 od_filtered=latest_od_filtered,
-                timestamp=payload.timestamp,
+                timestamp=timestamp,
             )
 
             with local_persistant_storage("growth_rate") as cache:
@@ -419,10 +439,12 @@ class GrowthRateCalculator(BackgroundJob):
                     "covariance_matrix": [
                         self.format_list(x) for x in self.ekf.covariance_.tolist()
                     ],
-                    "timestamp": payload.timestamp,
+                    "timestamp": timestamp,
                 },
                 qos=QOS.EXACTLY_ONCE,
             )
+
+            return self.growth_rate, self.od_filtered
 
     @staticmethod
     def format_list(np_list: list[float]) -> list[str]:
@@ -433,22 +455,25 @@ class GrowthRateCalculator(BackgroundJob):
 
         return [np.format_float_scientific(x, precision=2) for x in np_list]
 
-    def response_to_dosing_event(self, message: pt.MQTTMessage) -> None:
-        # here we can add custom logic to handle dosing events.
+    def respond_to_dosing_event_from_mqtt(self, message: pt.MQTTMessage) -> None:
+        dosing_event = decode(message.payload, type=structs.DosingEvent)
+        return self.respond_to_dosing_event(dosing_event)
 
+    def respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
+        # here we can add custom logic to handle dosing events.
         # an improvement to this: the variance factor is proportional to the amount exchanged.
         self.update_ekf_variance_after_event(minutes=1, factor=2500)
 
     def start_passive_listeners(self) -> None:
         # process incoming data
         self.subscribe_and_callback(
-            self.update_state_from_observation,
+            self.respond_to_od_readings_from_mqtt,
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched",
             qos=QOS.EXACTLY_ONCE,
             allow_retained=False,
         )
         self.subscribe_and_callback(
-            self.response_to_dosing_event,
+            self.respond_to_dosing_event_from_mqtt,
             f"pioreactor/{self.unit}/{self.experiment}/dosing_events",
             qos=QOS.EXACTLY_ONCE,
             allow_retained=False,
@@ -488,8 +513,8 @@ def click_growth_rate_calculating(ignore_cache):
 
     os.nice(1)
 
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    unit = whoami.get_unit_name()
+    experiment = whoami.get_latest_experiment_name()
 
     calculator = GrowthRateCalculator(  # noqa: F841
         ignore_cache=ignore_cache, unit=unit, experiment=experiment

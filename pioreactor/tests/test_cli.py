@@ -66,6 +66,7 @@ def test_pio_log():
         runner.invoke(pio, ["log", "-m", "test msg", "-n", "job1"])
         pause()
         pause()
+        pause()
 
     assert len(bucket) > 0
     assert bucket[0]["message"] == "test msg"
