@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     od = start_od_reading(
         od_angle_channel1="135",
         od_angle_channel2="90",
-        sampling_rate=interval,
+        interval=interval,
         fake_data=True,
         unit=unit,
         experiment=exp,

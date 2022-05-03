@@ -221,7 +221,7 @@ def test_sin_regression_all_negative() -> None:
 
 
 def test_simple_API() -> None:
-    od_job = start_od_reading("90", "REF", sampling_rate=100_000, fake_data=True)
+    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True)
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
@@ -234,9 +234,13 @@ def test_simple_API() -> None:
     od_job.clean_up()
 
 
-def test_ability_to_yield() -> None:
+def test_ability_to_be_iterated() -> None:
     od_stream = start_od_reading(
-        "90", "REF", sampling_rate=0.5, fake_data=True, experiment="test_ability_to_yield"
+        "90",
+        "REF",
+        interval=1.0,
+        fake_data=True,
+        experiment="test_ability_to_be_iterated",
     )
     results = []
 
@@ -256,13 +260,16 @@ def test_add_pre_read_callback() -> None:
 
     ODReader.add_pre_read_callback(cb)
 
-    od = start_od_reading("45", "REF", sampling_rate=1, fake_data=True)
+    od = start_od_reading("45", "REF", interval=1, fake_data=True)
     pause()
     pause()
     pause()
     pause()
     assert od.ir_led_intensity == 15
     od.clean_up()
+
+    # clear it again.
+    ODReader._pre_read.clear()
 
 
 def test_add_post_read_callback() -> None:
@@ -277,7 +284,7 @@ def test_add_post_read_callback() -> None:
         od = start_od_reading(
             "45",
             "REF",
-            sampling_rate=1,
+            interval=1,
             fake_data=True,
             experiment="test_add_post_read_callback",
             unit="test",

@@ -55,22 +55,3 @@ def test_update_leds_with_monitor() -> None:
         with local_intermittent_storage("leds") as c:
             assert float(c["A"]) == 10.0
             assert float(c["B"]) == 11.0
-
-
-def test_running_job_over_monitor():
-
-    unit = get_unit_name()
-    exp = UNIVERSAL_EXPERIMENT
-
-    with local_intermittent_storage("pio_jobs_running") as c:
-        assert c.get("od_reading", b"0") == b"0"
-
-    with Monitor(unit=unit, experiment=exp):
-
-        publish(f"pioreactor/{unit}/{get_latest_experiment_name()}/run/od_reading", "{}")
-        pause()
-        pause()
-        pause()
-        pause()
-        with local_intermittent_storage("pio_jobs_running") as c:
-            assert c["od_reading"] == b"1"

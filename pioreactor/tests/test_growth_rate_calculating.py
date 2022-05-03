@@ -438,7 +438,7 @@ class TestGrowthRateCalculating:
         od = start_od_reading(
             "135",
             "90",
-            sampling_rate=interval,
+            interval=interval,
             unit=unit,
             experiment=experiment,
             fake_data=True,
@@ -735,7 +735,7 @@ class TestGrowthRateCalculating:
         od_stream = start_od_reading(
             "90",
             "REF",
-            sampling_rate=0.5,
+            interval=1.0,
             fake_data=True,
             unit=unit,
             experiment=experiment,

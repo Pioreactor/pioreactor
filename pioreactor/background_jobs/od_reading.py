@@ -781,6 +781,11 @@ class ODReader(BackgroundJob):
         self.add_post_read_callback(self._unblock_internal_event)
 
         if self.interval is not None:
+            if self.interval < 1.0:
+                self.logger.warning(
+                    f"Recommended to have the interval between readings be larger than 1.0 second. Currently {self.interval} s."
+                )
+
             self.record_from_adc_timer = timing.RepeatedTimer(
                 self.interval,
                 self.record_from_adc,
@@ -1007,7 +1012,7 @@ def create_channel_angle_map(
 def start_od_reading(
     od_angle_channel1: Optional[pt.PdAngle] = None,
     od_angle_channel2: Optional[pt.PdAngle] = None,
-    sampling_rate: float = 1 / config.getfloat("od_config", "samples_per_second"),
+    interval: float = 1 / config.getfloat("od_config", "samples_per_second"),
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
@@ -1032,12 +1037,10 @@ def start_od_reading(
 
     return ODReader(
         channel_angle_map,
-        interval=sampling_rate,
+        interval=interval,
         unit=unit,
         experiment=experiment,
-        adc_reader=ADCReader(
-            channels=channels, fake_data=fake_data, interval=sampling_rate
-        ),
+        adc_reader=ADCReader(channels=channels, fake_data=fake_data, interval=interval),
         ir_led_reference_tracker=ir_led_reference_tracker,
     )
 

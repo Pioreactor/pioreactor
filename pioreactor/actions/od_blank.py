@@ -82,7 +82,7 @@ def od_blank(
         start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
-            sampling_rate=sampling_rate,
+            interval=sampling_rate,
             unit=unit,
             experiment=testing_experiment,
             fake_data=is_testing_env(),
