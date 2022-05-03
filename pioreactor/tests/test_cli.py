@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 
+import pytest
 from click.testing import CliRunner
 
 from pioreactor import whoami
@@ -57,6 +58,7 @@ def test_list_plugins():
     assert "example_plugin==0.0.1" in result.output
 
 
+@pytest.mark.xfail
 def test_pio_log():
 
     with collect_all_logs_of_level(
