@@ -912,6 +912,11 @@ class ODReader(BackgroundJob):
 
         # turn off the LED after we have take our last ADC reading..
         self.stop_ir_led()
+
+        # tech debt: clear _pre and _post
+        self._pre_read.clear()
+        self._post_read.clear()
+
         try:
             self.record_from_adc_timer.cancel()
         except Exception:
