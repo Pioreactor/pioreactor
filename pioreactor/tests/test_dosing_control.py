@@ -1020,6 +1020,25 @@ def test_disconnect_cleanly() -> None:
     assert algo.state == algo.DISCONNECTED
 
 
+def test_disconnect_cleanly_during_pumping_execution() -> None:
+    experiment = "test_disconnect_cleanly_during_pumping_execution"
+    algo = DosingController(
+        "chemostat",
+        volume=5.0,
+        duration=10,
+        unit=unit,
+        experiment=experiment,
+    )
+    assert algo.automation.automation_name == "chemostat"
+    time.sleep(4)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
+    )
+    time.sleep(10)
+    assert algo.state == algo.DISCONNECTED
+    assert algo.automation_job.state == algo.DISCONNECTED
+
+
 def test_custom_class_will_register_and_run() -> None:
     experiment = "test_custom_class_will_register_and_run"
 
