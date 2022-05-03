@@ -300,7 +300,7 @@ class Monitor(BackgroundJob):
             self.logger.debug(f"Power status: {status_to_human_readable(status)}")
 
     def publish_self_statistics(self) -> None:
-        import psutil  # type: ignore
+        import psutil
 
         if whoami.is_testing_env():
             return

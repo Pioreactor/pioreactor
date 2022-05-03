@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import signal
 from contextlib import contextmanager
-from contextlib import suppress
 from dbm import ndbm
 from threading import Event
 from typing import Callable
@@ -228,37 +227,6 @@ def is_pio_job_running(*target_jobs: str) -> bool:
                 return True
 
     return False
-
-
-def pio_processes_running() -> list:
-    """
-    This returns a list of the current pioreactor processes running. Ex:
-
-    > ["stirring", "air_bubbler", "stirring"]
-
-
-    Notes
-    -------
-    Duplicate jobs can show up here, as in the case when a job starts while another
-    job runs (hence why this needs to be a list and not a set.)
-
-    This function is slow, takes about 0.1s on a RaspberryPi, so it's preferred to use
-    `is_pio_job_runnning` first, and use this as a backup to double check.
-
-    """
-    import psutil  # type: ignore
-
-    jobs = []
-    for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
-        with suppress(Exception):
-            if (
-                proc.info["cmdline"]
-                and (proc.info["cmdline"][0] == "/usr/bin/python3")
-                and (proc.info["cmdline"][1] == "/usr/local/bin/pio")  # not pios!
-            ):
-                job = proc.info["cmdline"][3]
-                jobs.append(job)
-    return jobs
 
 
 def pump_ml_to_duration(ml: float, duration_: float = 0, bias_: float = 0) -> float:
