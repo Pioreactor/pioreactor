@@ -302,14 +302,11 @@ class Monitor(BackgroundJob):
     def publish_self_statistics(self) -> None:
         import psutil
 
-        if whoami.is_testing_env():
-            return
-
         disk_usage_percent = round(psutil.disk_usage("/").percent)
         cpu_usage_percent = round(
             (psutil.cpu_percent() + psutil.cpu_percent() + psutil.cpu_percent()) / 3
         )  # this is a noisy process, and we average it over a small window.
-        available_memory_percent = round(
+        memory_usage_percent = 100 - round(
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
 
@@ -328,11 +325,11 @@ class Monitor(BackgroundJob):
             # TODO: add documentation
             self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
 
-        if available_memory_percent >= 20:
-            self.logger.debug(f"Available memory at {available_memory_percent}%.")
+        if memory_usage_percent <= 20:
+            self.logger.debug(f"Memory usage at {memory_usage_percent}%.")
         else:
             # TODO: add documentation
-            self.logger.warning(f"Available memory at {available_memory_percent}%.")
+            self.logger.warning(f"Memory usage at {memory_usage_percent}%.")
 
         if cpu_temperature_celcius <= 70:
             self.logger.debug(f"CPU temperature at {cpu_temperature_celcius} ℃.")
@@ -343,7 +340,7 @@ class Monitor(BackgroundJob):
         self.computer_statistics = {
             "disk_usage_percent": disk_usage_percent,
             "cpu_usage_percent": cpu_usage_percent,
-            "available_memory_percent": available_memory_percent,
+            "memory_usage_percent": memory_usage_percent,
             "cpu_temperature_celcius": cpu_temperature_celcius,
             "timestamp": current_utc_time(),
         }

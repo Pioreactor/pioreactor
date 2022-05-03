@@ -267,7 +267,7 @@ def test_add_pre_read_callback() -> None:
 
 def test_add_post_read_callback() -> None:
     def cb(od_job, batched_readings, *args):
-        od_job.logger.critical("hi")
+        od_job.logger.critical("is lunch ready?")
 
     ODReader.add_post_read_callback(cb)
 
@@ -289,6 +289,9 @@ def test_add_post_read_callback() -> None:
         pause()
         od.clean_up()
         assert len(bucket) > 0
+
+    # clear it again.
+    ODReader._post_read.clear()
 
 
 def test_outliers_are_removed_in_sin_regression() -> None:
