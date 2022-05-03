@@ -721,3 +721,33 @@ class TestGrowthRateCalculating:
         with pytest.raises(ZeroDivisionError):
             with GrowthRateCalculator(unit=unit, experiment=experiment):
                 ...
+
+    def test_ability_to_yield_into_growth_rate_calc(self) -> None:
+        unit = "unit"
+        experiment = "test_ability_to_yield_into_growth_rate_calc"
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({1: 1.0})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({1: 1.0})
+
+        od_stream = start_od_reading(
+            "90",
+            "REF",
+            sampling_rate=0.5,
+            fake_data=True,
+            unit=unit,
+            experiment=experiment,
+        )
+        gr = GrowthRateCalculator(unit=unit, experiment=experiment, from_mqtt=False)
+        results = []
+
+        for i, reading in enumerate(od_stream):
+            results.append(gr.update_state_from_observation(reading))
+            if i == 5:
+                break
+
+        assert len(results) > 0
+        assert results[0][0].timestamp < results[1][0].timestamp < results[2][0].timestamp  # type: ignore
+        od_stream.clean_up()

@@ -9,6 +9,7 @@ from datetime import datetime
 from datetime import timezone
 from threading import Event
 from threading import Thread
+from time import perf_counter
 from typing import Callable
 from typing import Generator
 from typing import Optional
@@ -24,8 +25,8 @@ def to_datetime_str(datetime: datetime):
 
 @contextmanager
 def catchtime() -> Generator[Callable, None, None]:
-    start = time.perf_counter()
-    yield lambda: time.perf_counter() - start
+    start = perf_counter()
+    yield lambda: perf_counter() - start
 
 
 def current_utc_time() -> str:

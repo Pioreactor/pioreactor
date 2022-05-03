@@ -83,6 +83,7 @@ from __future__ import annotations
 
 import math
 import os
+import threading
 from time import sleep
 from time import time
 from typing import Callable
@@ -92,30 +93,23 @@ from typing import Optional
 import click
 from msgspec.json import encode
 
+import pioreactor.actions.led_intensity as led_utils
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.actions.led_intensity import ALL_LED_CHANNELS
-from pioreactor.actions.led_intensity import change_leds_intensities_temporarily
-from pioreactor.actions.led_intensity import led_intensity as change_led_intensity
-from pioreactor.actions.led_intensity import LED_UNLOCKED
-from pioreactor.actions.led_intensity import lock_leds_temporarily
+from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.timing import catchtime
-from pioreactor.utils.timing import current_utc_time
-from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.version import hardware_version_info
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
@@ -264,16 +258,16 @@ class ADCReader(LoggerMixin):
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
             )
 
-            unit, exp = get_unit_name(), get_latest_experiment_name()
+            unit, exp = whoami.get_unit_name(), whoami.get_latest_experiment_name()
 
             with local_intermittent_storage("led_locks") as cache:
-                for c in ALL_LED_CHANNELS:
-                    cache[c] = LED_UNLOCKED
+                for c in led_utils.ALL_LED_CHANNELS:
+                    cache[c] = led_utils.LED_UNLOCKED
 
             # turn off all LEDs that might be causing problems
             # however, ODReader may turn on the IR LED again.
-            change_led_intensity(
-                {c: 0 for c in ALL_LED_CHANNELS},
+            led_utils.led_intensity(
+                {c: 0 for c in led_utils.ALL_LED_CHANNELS},
                 source_of_event="ADCReader",
                 unit=unit,
                 experiment=exp,
@@ -285,7 +279,7 @@ class ADCReader(LoggerMixin):
                 error_codes.ADC_INPUT_TOO_HIGH,
             )
             # kill ourselves - this will hopefully kill ODReader.
-            # we have to send a signal since this is often called in a thread (RepeatedTimer)
+            # we have to send a signal since this is often called in a thread (timing.RepeatedTimer)
             import os
             import signal
 
@@ -297,7 +291,7 @@ class ADCReader(LoggerMixin):
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.3V."
             )
             publish(
-                f"pioreactor/{get_unit_name()}/{get_latest_experiment_name()}/monitor/flicker_led_with_error_code",
+                f"pioreactor/{whoami.get_unit_name()}/{whoami.get_latest_experiment_name()}/monitor/flicker_led_with_error_code",
                 error_codes.ADC_INPUT_TOO_HIGH,
             )
             return
@@ -465,12 +459,14 @@ class ADCReader(LoggerMixin):
             raise ValueError("Must call setup_adc() first.")
 
         max_signal = -1.0
+        oversampling_count = self.oversampling_count
 
+        # we pre-allocate these arrays to make the for loop faster => more accurate
         aggregated_signals: dict[pt.PdChannel, list[int]] = {
-            channel: [] for channel in self.channels
+            channel: [0] * oversampling_count for channel in self.channels
         }
         timestamps: dict[pt.PdChannel, list[float]] = {
-            channel: [] for channel in self.channels
+            channel: [0.0] * oversampling_count for channel in self.channels
         }
 
         # in case some other process is also using the ADC chip and changes the gain, we want
@@ -479,17 +475,17 @@ class ADCReader(LoggerMixin):
 
         try:
             with catchtime() as time_since_start:
-                for counter in range(self.oversampling_count):
+                for counter in range(oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
                         for channel, ai in self.analog_in.items():
-                            timestamps[channel].append(time_since_start())
-                            aggregated_signals[channel].append(ai.value)
+                            timestamps[channel][counter] = time_since_start()
+                            aggregated_signals[channel][counter] = ai.value
 
                     sleep(
                         max(
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.80 / (self.oversampling_count - 1)
+                            + 0.80 / (oversampling_count - 1)
                             + 0.001
                             * (
                                 (counter * 0.618034) % 1
@@ -691,6 +687,25 @@ class ODReader(BackgroundJob):
     latest_reading:
         represents the most recent dict from the adc_reader
 
+
+    Examples
+    ---------
+
+    Initializing this class will start reading in the background, if ``interval`` is not ``None``.
+
+    > od_reader = ODReader({'1': '45'}, 5)
+    > # readings will start to be published to MQTT, and the latest reading will be available as od_reader.latest_reading
+
+    It can also be iterated over:
+
+    > od_reader = ODReader({'1': '45'}, 5)
+    > for od_reading in od_reader:
+    >    # do things...
+
+    If ``interval`` is ``None``, then users need to call ``record_from_adc``.
+
+    >> od_reading = od_reader.record_from_adc()
+
     """
 
     published_settings = {
@@ -700,7 +715,6 @@ class ODReader(BackgroundJob):
         "relative_intensity_of_ir_led": {"datatype": "float", "settable": False},
     }
     latest_reading: structs.ODReadings
-    _counter = 0
 
     _pre_read: list[Callable] = []
     _post_read: list[Callable] = []
@@ -724,11 +738,12 @@ class ODReader(BackgroundJob):
         self.ir_led_reference_tracker = ir_led_reference_tracker
 
         self.first_od_obs_time: Optional[float] = None
+        self._set_for_iterating = threading.Event()
 
         self.ir_channel: pt.LedChannel = self.get_ir_channel_from_configuration()
         self.ir_led_intensity: float = config.getfloat("od_config", "ir_intensity")
         self.non_ir_led_channels: list[pt.LedChannel] = [
-            ch for ch in ALL_LED_CHANNELS if ch != self.ir_channel
+            ch for ch in led_utils.ALL_LED_CHANNELS if ch != self.ir_channel
         ]
 
         if not hardware.is_HAT_present():
@@ -740,15 +755,15 @@ class ODReader(BackgroundJob):
         )
 
         # setup the ADC and IrLedReference by turning off all LEDs.
-        with change_leds_intensities_temporarily(
-            {channel: 0 for channel in ALL_LED_CHANNELS},
+        with led_utils.change_leds_intensities_temporarily(
+            {channel: 0 for channel in led_utils.ALL_LED_CHANNELS},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
             pubsub_client=self.pub_client,
             verbose=False,
         ):
-            with lock_leds_temporarily(self.non_ir_led_channels):
+            with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
@@ -763,9 +778,10 @@ class ODReader(BackgroundJob):
         self.add_post_read_callback(self._publish_single)
         self.add_post_read_callback(self._publish_batch)
         self.add_post_read_callback(self._log_relative_intensity_of_ir_led)
+        self.add_post_read_callback(self._unblock_internal_event)
 
         if self.interval is not None:
-            self.record_from_adc_timer = RepeatedTimer(
+            self.record_from_adc_timer = timing.RepeatedTimer(
                 self.interval,
                 self.record_from_adc,
                 run_immediately=True,
@@ -791,7 +807,7 @@ class ODReader(BackgroundJob):
             )
             raise KeyError("`IR` value not found in section.")
 
-    def read_from_adc(self) -> dict[pt.PdChannel, float]:
+    def _read_from_adc(self) -> dict[pt.PdChannel, float]:
         """
         Read from the ADC. This function normalizes by the IR ref.
 
@@ -819,21 +835,21 @@ class ODReader(BackgroundJob):
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
-        with change_leds_intensities_temporarily(
-            {channel: 0 for channel in ALL_LED_CHANNELS},
+        with led_utils.change_leds_intensities_temporarily(
+            {channel: 0 for channel in led_utils.ALL_LED_CHANNELS},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
             pubsub_client=self.pub_client,
             verbose=False,
         ):
-            with lock_leds_temporarily(self.non_ir_led_channels):
+            with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 pre_duration = 0.01  # turn on LED prior to taking snapshot and wait
                 self.start_ir_led()
                 sleep(pre_duration)
 
-                timestamp_of_readings = current_utc_time()
-                adc_reading_by_channel = self.read_from_adc()
+                timestamp_of_readings = timing.current_utc_time()
+                adc_reading_by_channel = self._read_from_adc()
 
                 od_readings = structs.ODReadings(
                     timestamp=timestamp_of_readings,
@@ -847,18 +863,18 @@ class ODReader(BackgroundJob):
                     },
                 )
 
+        self.latest_reading = od_readings
+
         for post_function in self._post_read:
             try:
                 post_function(self, od_readings)
             except Exception:
                 self.logger.debug(f"Error in callback {post_function}.", exc_info=True)
 
-        self.latest_reading = od_readings
-        self._counter += 1
         return od_readings
 
     def start_ir_led(self) -> None:
-        r = change_led_intensity(
+        r = led_utils.led_intensity(
             {self.ir_channel: self.ir_led_intensity},
             unit=self.unit,
             experiment=self.experiment,
@@ -872,7 +888,7 @@ class ODReader(BackgroundJob):
         return
 
     def stop_ir_led(self) -> None:
-        change_led_intensity(
+        led_utils.led_intensity(
             {self.ir_channel: 0},
             unit=self.unit,
             experiment=self.experiment,
@@ -922,13 +938,21 @@ class ODReader(BackgroundJob):
             )
 
     @staticmethod
-    def _log_relative_intensity_of_ir_led(self, od_readings):
-        if self._counter % 12 == 0:
-            self.relative_intensity_of_ir_led = {
+    def _log_relative_intensity_of_ir_led(cls, od_readings):
+        if int(od_readings.timestamp[-3:-1]) % 12 == 0:  # some pseudo randomness
+            cls.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
-                "relative_intensity_of_ir_led": 1 / self.ir_led_reference_tracker(1.0),
+                "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker(1.0),
                 "timestamp": od_readings.timestamp,
             }
+
+    @staticmethod
+    def _unblock_internal_event(cls, _) -> None:
+        # post
+        if cls.state != cls.READY:
+            return
+
+        cls._set_for_iterating.set()
 
     def _normalize_by_led_output(
         self, batched_readings: dict[pt.PdChannel, float]
@@ -942,8 +966,9 @@ class ODReader(BackgroundJob):
         return self
 
     def __next__(self):
-        sleep(self.interval or 0)
-        return self.latest_reading
+        while self._set_for_iterating.wait():
+            self._set_for_iterating.clear()
+            return self.latest_reading
 
 
 def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.PdChannel]:
@@ -988,8 +1013,8 @@ def start_od_reading(
     experiment: Optional[str] = None,
 ) -> ODReader:
 
-    unit = unit or get_unit_name()
-    experiment = experiment or get_latest_experiment_name()
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_latest_experiment_name()
 
     ir_led_reference_channel = find_ir_led_reference(od_angle_channel1, od_angle_channel2)
     channel_angle_map = create_channel_angle_map(od_angle_channel1, od_angle_channel2)
@@ -1042,6 +1067,6 @@ def click_od_reading(
     od = start_od_reading(
         od_angle_channel1,
         od_angle_channel2,
-        fake_data=fake_data or is_testing_env(),
+        fake_data=fake_data or whoami.is_testing_env(),
     )
     od.block_until_disconnected()
