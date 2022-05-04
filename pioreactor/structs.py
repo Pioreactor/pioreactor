@@ -46,6 +46,10 @@ class LEDAutomation(Automation, tag="led"):  # type: ignore
 
 
 class AutomationSettings(Struct):
+    """
+    Metadata produced when settings in an automation job change
+    """
+
     pioreactor_unit: str
     experiment: str
     started_at: str
@@ -56,8 +60,8 @@ class AutomationSettings(Struct):
 
 class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
     """
-    Automations can return an AutomationEvent from their execute method, and it
-    will get published to MQTT under latest_event
+    Automations can return an AutomationEvent from their `execute` method, and it
+    will get published to MQTT under /latest_event
     """
 
     message: Optional[str] = None
@@ -75,6 +79,10 @@ class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
 
 
 class LEDChangeEvent(Struct):
+    """
+    Produced when an LED changes value
+    """
+
     channel: pt.LedChannel
     intensity: float
     source_of_event: str
@@ -89,7 +97,9 @@ class LEDsIntensity(Struct):
 
 
 class DosingEvent(Struct):
-    """output of a pump action"""
+    """
+    Output of a pump action
+    """
 
     volume_change: float
     event: str
