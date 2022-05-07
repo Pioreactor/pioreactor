@@ -27,7 +27,7 @@ def test_kalman_filter_entries() -> None:
     exp = "test_kalman_filter_entries"
 
     def parse_kalman_filter_outputs(topic, payload) -> dict:
-        metadata, _ = m2db.produce_metadata(topic)
+        metadata = m2db.produce_metadata(topic)
         payload = json.loads(payload)
         return {
             "experiment": metadata.experiment,

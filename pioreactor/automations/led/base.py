@@ -189,7 +189,7 @@ class LEDAutomationJob(BackgroundSubJob):
                 self.edited_channels.add(channel)
                 return True
 
-            time.sleep(0.1)
+            time.sleep(0.6)
 
         self.logger.warning(
             f"Unable to update channel {channel} due to a long lock being on the channel."

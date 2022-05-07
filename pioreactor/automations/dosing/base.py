@@ -9,6 +9,7 @@ from threading import Thread
 from typing import Any
 from typing import cast
 from typing import Optional
+from typing import Type
 
 from msgspec.json import decode
 from msgspec.json import encode
@@ -39,8 +40,8 @@ class ThroughputCalculator:
 
     """
 
+    @staticmethod
     def update(
-        self,
         dosing_event: structs.DosingEvent,
         current_media_volume: float,
         current_alt_media_volume: float,
@@ -65,21 +66,23 @@ class AltMediaCalculator:
 
     vial_volume = config.getfloat("bioreactor", "volume_ml")
 
+    @classmethod
     def update(
-        self, dosing_event: structs.DosingEvent, current_alt_media_fraction
+        cls, dosing_event: structs.DosingEvent, current_alt_media_fraction
     ) -> float:
         volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
-            return self._update_alt_media_fraction(current_alt_media_fraction, volume, 0)
+            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0)
         elif event == "add_alt_media":
-            return self._update_alt_media_fraction(current_alt_media_fraction, 0, volume)
+            return cls._update_alt_media_fraction(current_alt_media_fraction, 0, volume)
         elif event == "remove_waste":
             return current_alt_media_fraction
         else:
             raise ValueError("Unknown event type")
 
+    @classmethod
     def _update_alt_media_fraction(
-        self,
+        cls,
         current_alt_media_fraction: float,
         media_delta: float,
         alt_media_delta: float,
@@ -88,18 +91,18 @@ class AltMediaCalculator:
         total_delta = media_delta + alt_media_delta
 
         # current mL
-        alt_media_ml = self.vial_volume * current_alt_media_fraction
-        media_ml = self.vial_volume * (1 - current_alt_media_fraction)
+        alt_media_ml = cls.vial_volume * current_alt_media_fraction
+        media_ml = cls.vial_volume * (1 - current_alt_media_fraction)
 
         # remove
-        alt_media_ml = alt_media_ml * (1 - total_delta / self.vial_volume)
-        media_ml = media_ml * (1 - total_delta / self.vial_volume)
+        alt_media_ml = alt_media_ml * (1 - total_delta / cls.vial_volume)
+        media_ml = media_ml * (1 - total_delta / cls.vial_volume)
 
         # add (alt) media
         alt_media_ml = alt_media_ml + alt_media_delta
         media_ml = media_ml + media_delta
 
-        return alt_media_ml / self.vial_volume
+        return alt_media_ml / cls.vial_volume
 
 
 class SummableList(list):
@@ -498,7 +501,7 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("media_throughput") as cache:
             cache[self.experiment] = str(self.media_throughput)
 
-    def _init_alt_media_fraction_calculator(self) -> AltMediaCalculator:
+    def _init_alt_media_fraction_calculator(self) -> Type[AltMediaCalculator]:
         self.add_to_published_settings(
             "latest_event",
             {
@@ -509,9 +512,9 @@ class DosingAutomationJob(BackgroundSubJob):
 
         with local_persistant_storage("alt_media_fraction") as cache:
             self.alt_media_fraction = float(cache.get(self.experiment, 0.0))
-            return AltMediaCalculator()
+            return AltMediaCalculator
 
-    def _init_volume_throughput_calculator(self) -> ThroughputCalculator:
+    def _init_volume_throughput_calculator(self) -> Type[ThroughputCalculator]:
         self.add_to_published_settings(
             "alt_media_throughput",
             {
@@ -537,7 +540,7 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("media_throughput") as cache:
             self.media_throughput = float(cache.get(self.experiment, 0.0))
 
-        return ThroughputCalculator()
+        return ThroughputCalculator
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(

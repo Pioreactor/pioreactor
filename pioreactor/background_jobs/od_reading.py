@@ -173,6 +173,7 @@ class ADCReader(LoggerMixin):
     oversampling_count: int = 26
     readings_completed: int = 0
     most_appropriate_AC_hz: Optional[float] = None
+    _setup_complete = False
 
     def __init__(
         self,
@@ -286,7 +287,7 @@ class ADCReader(LoggerMixin):
             os.kill(os.getpid(), signal.SIGTERM)
             return
 
-        elif value > 3.1:
+        elif value > 3.0:
             self.logger.warning(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.3V."
             )
@@ -529,11 +530,11 @@ class ADCReader(LoggerMixin):
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_, 0)
 
-                # check if more than 3V, and shut down to prevent damage to ADC.
+                # check if more than 3.x V, and shut down to prevent damage to ADC.
                 # we use max_signal to modify the PGA, too
                 max_signal = max(max_signal, best_estimate_of_signal_)
-                self.check_on_max(max_signal)
 
+            self.check_on_max(max_signal)
             self.batched_readings = batched_estimates_
 
             # the max signal should determine the ADS1x15's gain
@@ -841,7 +842,8 @@ class ODReader(BackgroundJob):
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
         with led_utils.change_leds_intensities_temporarily(
-            {channel: 0 for channel in led_utils.ALL_LED_CHANNELS},
+            {channel: 0 for channel in led_utils.ALL_LED_CHANNELS}
+            | {self.ir_channel: self.ir_led_intensity},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -849,9 +851,6 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-                pre_duration = 0.01  # turn on LED prior to taking snapshot and wait
-                self.start_ir_led()
-                sleep(pre_duration)
 
                 timestamp_of_readings = timing.current_utc_time()
                 adc_reading_by_channel = self._read_from_adc()
@@ -863,6 +862,7 @@ class ODReader(BackgroundJob):
                             voltage=adc_reading_by_channel[channel],
                             angle=angle,
                             timestamp=timestamp_of_readings,
+                            channel=channel,
                         )
                         for channel, angle in self.channel_angle_map.items()
                     },

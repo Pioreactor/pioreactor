@@ -132,7 +132,13 @@ def od_blank(
 
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/{channel}",
-                dumps({"timestamp": current_utc_time(), "od_reading_v": means[channel]}),
+                dumps(
+                    {
+                        "timestamp": current_utc_time(),
+                        "channel": channel,
+                        "od_reading_v": means[channel],
+                    }
+                ),
             )
 
         # store locally as the source of truth.

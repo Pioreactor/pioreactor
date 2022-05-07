@@ -16,7 +16,6 @@ from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import get_uuid
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 logging.raiseExceptions = False
@@ -30,7 +29,6 @@ class CustomisedJSONFormatter(JSONFormatter):
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_time()
-        extra["rpi_uuid"] = get_uuid()
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)
@@ -48,7 +46,7 @@ class MQTTHandler(logging.Handler):
         self,
         topic: str,
         client: Client,
-        qos: int = 2,
+        qos: int = 0,
         retain: bool = False,
         **mqtt_kwargs,
     ) -> None:
@@ -126,7 +124,7 @@ def create_logger(
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
         logging.Formatter(
-            "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
+            "%(asctime)s [%(name)s] [%(source)s] %(levelname)-2s %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
     )
@@ -135,7 +133,7 @@ def create_logger(
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(
         colorlog.ColoredFormatter(
-            "%(log_color)s%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
+            "%(log_color)s%(asctime)s %(levelname)-6s [%(source)s] [%(name)s] %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
             log_colors={
                 "DEBUG": "cyan",
@@ -169,5 +167,15 @@ def create_logger(
 
         # add MQTT/remote log handlers
         logger.addHandler(mqtt_to_db_handler)
+
+    # add metadata
+    old_factory = logging.getLogRecordFactory()
+
+    def record_factory(*args, **kwargs):
+        record = old_factory(*args, **kwargs)
+        record.source = source
+        return record
+
+    logging.setLogRecordFactory(record_factory)
 
     return logger

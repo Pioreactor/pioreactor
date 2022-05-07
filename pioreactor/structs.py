@@ -126,6 +126,7 @@ class ODReading(Struct):
     timestamp: str
     angle: str
     voltage: float
+    channel: pt.PdChannel
 
 
 class ODReadings(Struct):

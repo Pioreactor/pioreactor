@@ -110,13 +110,10 @@ class MqttToDBStreamer(BackgroundJob):
             )
 
 
-def produce_metadata(topic: str) -> tuple[MetaData, list[str]]:
+def produce_metadata(topic: str) -> MetaData:
     # helper function for parsers below
     split_topic = topic.split("/")
-    return (
-        MetaData(split_topic[1], split_topic[2]),
-        split_topic,
-    )
+    return MetaData(split_topic[1], split_topic[2])
 
 
 def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
@@ -130,7 +127,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     #
 
     def parse_od(topic: str, payload) -> dict:
-        metadata, split_topic = produce_metadata(topic)
+        metadata = produce_metadata(topic)
         od_reading = msgspec_loads(payload, type=structs.ODReading)
 
         try:
@@ -144,11 +141,11 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "timestamp": od_reading.timestamp,
             "od_reading_v": od_reading.voltage,
             "angle": angle,
-            "channel": split_topic[-1],
+            "channel": od_reading.channel,
         }
 
     def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata, split_topic = produce_metadata(topic)
+        metadata = produce_metadata(topic)
         od_reading = msgspec_loads(payload, type=structs.ODFiltered)
 
         return {
@@ -159,26 +156,20 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> Optional[dict]:
-        metadata, split_topic = produce_metadata(topic)
-
-        channel = split_topic[-1]
-
-        # this is techdebt since we also publish to a ".../od_blank/mean" topic
-        if channel not in ["1", "2"]:
-            return None
-
+        metadata = produce_metadata(topic)
         payload_dict = loads(payload)
+
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": payload_dict["timestamp"],
             "od_reading_v": payload_dict["od_reading_v"],
-            "channel": channel,
+            "channel": payload_dict["channel"],
         }
 
     def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
-        metadata, split_topic = produce_metadata(topic)
+        metadata = produce_metadata(topic)
 
         payload_dict = loads(payload)
         return {
@@ -190,7 +181,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         dosing_event = msgspec_loads(payload, type=structs.DosingEvent)
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
 
         return {
             "experiment": metadata.experiment,
@@ -203,7 +194,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         led_event = msgspec_loads(payload, type=structs.LEDChangeEvent)
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
 
         return {
             "experiment": metadata.experiment,
@@ -215,7 +206,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
         gr = msgspec_loads(payload, type=structs.GrowthRate)
 
         return {
@@ -226,7 +217,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
 
         temp = msgspec_loads(payload, type=structs.Temperature)
 
@@ -238,7 +229,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
 
         event = msgspec_loads(payload, type=structs.AutomationEvent)
 
@@ -251,7 +242,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
         payload = loads(payload)
 
         return {
@@ -262,7 +253,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         }
 
     def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata, split_topic = produce_metadata(topic)
+        metadata = produce_metadata(topic)
         payload_dict = loads(payload)
         return {
             "experiment": metadata.experiment,
@@ -271,11 +262,11 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "message": payload_dict["message"],
             "task": payload_dict["task"],
             "level": payload_dict["level"],
-            "source": split_topic[-1],  # should be app, ui, etc.
+            "source": payload_dict["source"],  # should be app, ui, etc.
         }
 
     def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
         payload_dict = loads(payload)
         return {
             "experiment": metadata.experiment,
@@ -290,8 +281,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         return payload_dict
 
     def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-
-        metadata, _ = produce_metadata(topic)
+        metadata = produce_metadata(topic)
         rpms = msgspec_loads(payload, type=structs.MeasuredRPM)
 
         return {
