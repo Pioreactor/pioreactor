@@ -37,8 +37,6 @@ __all__ = [
 ]
 
 DEFAULT_TIMEOUT = 15.0
-
-# e.g. "Python 3.8.10"
 DEFAULT_UA = "Python/Pioreactor"
 
 

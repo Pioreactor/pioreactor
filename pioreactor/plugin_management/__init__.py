@@ -17,6 +17,7 @@ Adding to ~/.pioreactor/plugins
    1. Scripts placed in ~/.pioreactor/plugins are automagically loaded.
      The authors can add metadata to their file with the following variables at the
      highest level in the file:
+
      __plugin_name__
      __plugin_author__
      __plugin_summary__

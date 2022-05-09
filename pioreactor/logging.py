@@ -24,7 +24,6 @@ logging.raiseExceptions = False
 class CustomisedJSONFormatter(JSONFormatter):
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
         extra["message"] = message
-
         # Include builtins
         extra["level"] = record.levelname
         extra["task"] = record.name
@@ -73,7 +72,7 @@ class MQTTHandler(logging.Handler):
             publish_to_pioreactor_cloud("reported_errors", data=payload)
 
         # if Python exits too quickly, the last msg might never make it to the broker.
-        mqtt_msg.wait_for_publish(timeout=5)
+        mqtt_msg.wait_for_publish(timeout=1)
 
     def close(self) -> None:
         self.client.loop_stop()

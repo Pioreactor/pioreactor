@@ -37,9 +37,7 @@ def create_od_raw_batched_json(
     for channel, voltage, angle in zip(channels, voltages, angles):
         assert int(channel) in [1, 2]
         readings.od_raw[channel] = structs.ODReading(
-            voltage=voltage,
-            angle=angle,
-            timestamp=timestamp,
+            voltage=voltage, angle=angle, timestamp=timestamp, channel=channel
         )
 
     return encode(readings)
