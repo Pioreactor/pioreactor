@@ -289,7 +289,7 @@ class ADCReader(LoggerMixin):
 
         elif value > 3.0:
             self.logger.warning(
-                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.3V."
+                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.3V. Suggestion: decrease the IR intensity, or change the PD angle to a lower angle."
             )
             publish(
                 f"pioreactor/{whoami.get_unit_name()}/{whoami.get_latest_experiment_name()}/monitor/flicker_led_with_error_code",

@@ -16,9 +16,10 @@ from pioreactor.utils.timing import current_utc_time
 from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
-logging.raiseExceptions = False
+logging.raiseExceptions = is_testing_env()
 
 
 class CustomisedJSONFormatter(JSONFormatter):

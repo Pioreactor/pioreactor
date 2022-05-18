@@ -254,15 +254,16 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata = produce_metadata(topic)
-        payload_dict = loads(payload)
+        log = msgspec_loads(payload, type=structs.Log)
+
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "message": payload_dict["message"],
-            "task": payload_dict["task"],
-            "level": payload_dict["level"],
-            "source": payload_dict["source"],  # should be app, ui, etc.
+            "timestamp": log.timestamp,
+            "message": log.message,
+            "task": log.task,
+            "level": log.level,
+            "source": log.source,  # should be app, ui, etc.
         }
 
     def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
