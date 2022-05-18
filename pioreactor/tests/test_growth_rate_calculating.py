@@ -485,6 +485,7 @@ class TestGrowthRateCalculating:
                             "voltage": voltage,
                             "angle": "180",
                             "timestamp": "2021-06-06T15:08:12.081153",
+                            "channel": "1",
                         }
                     },
                     "timestamp": "2021-06-06T15:08:12.081153",
@@ -536,6 +537,7 @@ class TestGrowthRateCalculating:
                             "voltage": voltage,
                             "angle": "90",
                             "timestamp": "2021-06-06T15:08:12.081153",
+                            "channel": "1",
                         }
                     },
                     "timestamp": "2021-06-06T15:08:12.081153",
