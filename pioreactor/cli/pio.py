@@ -40,7 +40,7 @@ def pio() -> None:
     # this check could go somewhere else. This check won't execute if calling pioreactor from a script.
     if not check_firstboot_successful():
         raise SystemError(
-            "firstboot.sh was not successfully run. Try finding an error in `sudo systemctl status firstboot`."
+            "/boot/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
         )
 
 
@@ -132,11 +132,11 @@ def blink() -> None:
 
     else:
         pubsub.publish(
-            f"pioreactor/{whoami.get_unit_name()}/.../monitor/flicker_led_response_okay",
+            f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
             1,
         )
         pubsub.publish(
-            f"pioreactor/{whoami.get_unit_name()}/.../monitor/flicker_led_response_okay",
+            f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
             1,
         )
 
