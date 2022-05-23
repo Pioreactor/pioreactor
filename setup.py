@@ -23,6 +23,7 @@ CORE_REQUIREMENTS = [
 
 LEADER_REQUIREMENTS = [
     "paramiko>=2.10.1",
+    "zeroconf>=0.38.6",
 ]
 
 

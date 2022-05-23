@@ -9,6 +9,7 @@ cmd line interface for running individual pioreactor units (including leader)
 from __future__ import annotations
 
 import sys
+from json import dumps
 from time import sleep
 from typing import Optional
 
@@ -404,9 +405,26 @@ if whoami.am_I_leader():
             logger.info(f"New pioreactor {new_name} successfully added to cluster.")
 
     @pio.command(
+        name="discover-workers",
+        short_help="discover all pioreactor workers on the network",
+    )
+    @click.option("--json", is_flag=True, help="output as json")
+    def discover_workers(json) -> None:
+        from pioreactor.utils.networking import discover_workers_on_network
+
+        if json:
+            click.echo(dumps({"workers": discover_workers_on_network()}))
+        else:
+            for hostname in discover_workers_on_network():
+                click.echo(hostname)
+
+    @pio.command(
         name="cluster-status", short_help="report information on the pioreactor cluster"
     )
     def cluster_status() -> None:
+        """
+        Note that this only looks at the current cluster as defined in config.ini.
+        """
         import socket
 
         def get_network_metadata(hostname):
