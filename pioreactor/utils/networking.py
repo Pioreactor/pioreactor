@@ -41,3 +41,25 @@ def get_ip() -> Optional[str]:
         return net_if_addrs()["wlan0"][0].address
     except Exception:
         return None
+
+
+def discover_workers_on_network() -> list[str]:
+    import time
+    from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+
+    class Listener(ServiceListener):
+        def __init__(self):
+            self.hostnames: list[str] = []
+
+        def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
+            info = zc.get_service_info(type_, name)
+            self.hostnames.append(info.server.removesuffix(".local."))
+
+    with Zeroconf() as zeroconf:
+        listener = Listener()
+        browser = ServiceBrowser(
+            zeroconf, "_pioreactor_worker._tcp.local.", listener=listener
+        )
+        time.sleep(2)
+        browser.cancel()
+        return listener.hostnames
