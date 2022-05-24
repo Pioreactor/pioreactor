@@ -80,7 +80,8 @@ class MqttToDBStreamer(BackgroundJob):
             except Exception as e:
                 self.logger.error(e)
                 self.logger.debug(
-                    f"Error in {parser.__name__}. message.payload that caused error: `{message.payload.decode()}`"
+                    f"Error in {parser.__name__}. message.payload that caused error: `{message.payload.decode()}`",
+                    exc_info=True,
                 )
                 return
 
@@ -126,7 +127,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     # - parsers can return None as well, to skip adding the message to the database.
     #
 
-    def parse_od(topic: str, payload) -> dict:
+    def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata = produce_metadata(topic)
         od_reading = msgspec_loads(payload, type=structs.ODReading)
 

@@ -939,11 +939,10 @@ class ODReader(BackgroundJob):
         if cls.state != cls.READY:
             return
 
-        for channel, od_reading in cls.channel_angle_map.items():
-
+        for channel, _ in cls.channel_angle_map.items():
             cls.publish(
                 f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/od_raw/{channel}",
-                encode(od_reading),
+                encode(od_readings.od_raw[channel]),
                 qos=QOS.EXACTLY_ONCE,
             )
 

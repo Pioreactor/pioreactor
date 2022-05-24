@@ -191,7 +191,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
         if angle_or_ref == "REF":
             reference_channel = cast(PdChannel, channel)
             ir_channel = config["leds_reverse"][IR_keyword]
-            ir_intensity = config["od_config"]["ir_intensity"]
+            ir_intensity = config.getfloat("od_config", "ir_intensity")
 
             adc_reader = ADCReader(
                 channels=[reference_channel],
