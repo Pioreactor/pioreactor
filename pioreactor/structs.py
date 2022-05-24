@@ -151,6 +151,5 @@ class Log(Struct):
     message: str
     level: str
     task: str
-    rpi_uuid: str
     source: str
     timestamp: str
