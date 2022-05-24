@@ -210,7 +210,9 @@ def test_REF_is_lower_than_0_dot_256_volts(
                 readings = adc_reader.take_reading()
 
             # provide a margin, since we have margins when determining change gain in od_reading
-            assert readings[reference_channel] < 0.256 * 0.8
+            assert (
+                readings[reference_channel] < 0.256 * 0.9
+            ), f"Recorded {readings[reference_channel]} in REF, should be less than 0.256."
 
 
 def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
@@ -267,7 +269,7 @@ def test_positive_correlation_between_rpm_and_stirring(
         target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
 
-        rpm_calc.setup
+        rpm_calc.setup()
         st.duty_cycle = initial_dc
         st.start_stirring()
         sleep(1)
