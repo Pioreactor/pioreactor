@@ -135,9 +135,7 @@ class Monitor(BackgroundJob):
             from TMP1075 import TMP1075  # type: ignore
 
         try:
-            tmp_driver = TMP1075(
-                address=config.getint("heating", "address", fallback=0x4F)
-            )
+            tmp_driver = TMP1075()
         except ValueError:
             # No PCB detected using i2c - fine to exit.
             return

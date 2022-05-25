@@ -117,9 +117,7 @@ class TemperatureController(BackgroundJob):
         self.update_heater(0)
 
         if not self.using_third_party_thermocouple:
-            self.tmp_driver = TMP1075(
-                address=config.getint("heating", "address", fallback=0x4F)
-            )
+            self.tmp_driver = TMP1075()
             self.read_external_temperature_timer = RepeatedTimer(
                 53,
                 self.read_external_temperature_and_check_temp,
