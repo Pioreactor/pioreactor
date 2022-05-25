@@ -24,7 +24,7 @@ def install_plugin(name_of_plugin, url=None):
     )
 
     if result.returncode == 0:
-        logger.info(f"Successfully installed plugin {name_of_plugin}.")
+        logger.notice(f"Successfully installed plugin {name_of_plugin}.")
     else:
         logger.error(f"Failed to install plugin {name_of_plugin}. See logs.")
         logger.debug(result.stdout)

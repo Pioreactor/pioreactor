@@ -303,7 +303,7 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
             stderr=subprocess.PIPE,
         )
         if p.returncode == 0:
-            logger.info(f"Updated Pioreactor to version {version_installed}.")
+            logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
         else:
             logger.error(p.stderr)
 
@@ -322,7 +322,7 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
             stderr=subprocess.PIPE,
         )
         if p.returncode == 0:
-            logger.info("Updated PioreactorUI to latest version.")
+            logger.notice("Updated PioreactorUI to latest version.")  # type: ignore
         else:
             logger.error(p.stderr)
 
@@ -419,7 +419,7 @@ if whoami.am_I_leader():
             shell=True,
         )
         if res == 0:
-            logger.info(f"New pioreactor {new_name} successfully added to cluster.")
+            logger.notice(f"New pioreactor {new_name} successfully added to cluster.")  # type: ignore
 
     @pio.command(
         name="discover-workers",
