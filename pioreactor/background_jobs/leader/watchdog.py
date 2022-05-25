@@ -21,13 +21,14 @@ class WatchDog(BackgroundJob):
         self.start_passive_listeners()
 
     def watch_for_lost_state(self, state_message: MQTTMessage) -> None:
-        # generally, I hate this code...
-        if state_message.payload.decode() == self.LOST:
+        # generally, I hate this code below...
+
+        unit = state_message.topic.split("/")[1]
+
+        # ignore if leader is "lost"
+        if (state_message.payload.decode() == self.LOST) and (unit != self.unit):
 
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
-
-            # let's try pinging the unit a few times first:
-            unit = state_message.topic.split("/")[1]
 
             self.logger.warning(
                 f"{unit} seems to be lost. Trying to re-establish connection..."

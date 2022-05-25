@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from pioreactor.config import config
 from pioreactor.types import GpioPin
 from pioreactor.types import PwmChannel
 from pioreactor.version import hardware_version_info
@@ -38,7 +39,7 @@ SCL: GpioPin = 3
 # I2C channels used
 ADC = 0x48  # hex(72)
 DAC = 0x49  # hex(73)
-TEMP = 0x4F  # hex(79)
+TEMP = config.getint("heating", "address")  # 0x4F  # hex(79)
 
 
 def is_HAT_present() -> bool:

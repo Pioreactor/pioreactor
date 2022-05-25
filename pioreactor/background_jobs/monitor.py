@@ -10,6 +10,7 @@ import click
 
 from pioreactor import config
 from pioreactor import error_codes
+from pioreactor import hardware
 from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
@@ -135,7 +136,7 @@ class Monitor(BackgroundJob):
             from TMP1075 import TMP1075  # type: ignore
 
         try:
-            tmp_driver = TMP1075()
+            tmp_driver = TMP1075(address=hardware.TEMP)
         except ValueError:
             # No PCB detected using i2c - fine to exit.
             return
