@@ -56,7 +56,7 @@ def logs(n) -> None:
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
 
-    def file_len(filename):
+    def file_len(filename) -> int:
         with open(filename) as f:
             for i, _ in enumerate(f):
                 pass
@@ -399,7 +399,7 @@ if whoami.am_I_leader():
 
         # check to make sure new_name isn't already on the network
 
-        # check to make sure raspberrypi.local is on network
+        # check to make sure X.local is on network
         checks, max_checks = 0, 20
         while not networking.is_hostname_on_network(new_name):
             checks += 1
