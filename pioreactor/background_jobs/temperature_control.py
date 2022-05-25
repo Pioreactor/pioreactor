@@ -117,7 +117,9 @@ class TemperatureController(BackgroundJob):
         self.update_heater(0)
 
         if not self.using_third_party_thermocouple:
-            self.tmp_driver = TMP1075()
+            self.tmp_driver = TMP1075(
+                address=config.getint("heating", "address", fallback=0x4F)
+            )
             self.read_external_temperature_timer = RepeatedTimer(
                 53,
                 self.read_external_temperature_and_check_temp,
@@ -440,6 +442,10 @@ class TemperatureController(BackgroundJob):
 
         # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
         # TODO: update these priors as we develop more pioreactors
+        # observed data:
+        #  B=-0.1244534657804866,  A=-0.00012566629719875475 (May 24, 2022)
+        #  B=-0.14928314914531557, A=-0.000376953627819461
+        #  B=-0.13807398778473443, A=-0.00021395682471394434
         A_penalizer, A_prior = 100.0, -0.000725
         B_penalizer, B_prior = 10.0, -0.15
 

@@ -118,7 +118,7 @@ class MockDAC43608:
 
 
 class MockTMP1075:
-    def __init__(*args) -> None:
+    def __init__(*args, address=0x4F) -> None:
         pass
 
     def get_temperature(self) -> float:

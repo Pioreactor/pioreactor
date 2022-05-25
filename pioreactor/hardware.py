@@ -72,4 +72,11 @@ def is_heating_pcb_present() -> bool:
             present = True
         except ValueError:
             present = False
+
+        try:
+            I2CDevice(i2c, 0x4B, probe=True)
+            present = True
+        except ValueError:
+            present = False
+
     return present

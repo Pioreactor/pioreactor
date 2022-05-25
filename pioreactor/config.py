@@ -62,7 +62,7 @@ class ConfigParserMod(configparser.ConfigParser):
             from pioreactor.logging import create_logger
 
             create_logger("read config").error(
-                f"""No found in configuration: '{section}.{option}'. Are you missing the following in your config?
+                f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
 {option}=some value
