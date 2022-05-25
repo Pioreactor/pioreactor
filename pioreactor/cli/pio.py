@@ -46,23 +46,40 @@ def pio() -> None:
 
 
 @pio.command(name="logs", short_help="show recent logs")
-def logs() -> None:
+@click.option(
+    "-n",
+    default=100,
+    type=int,
+)
+def logs(n) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     """
 
+    def file_len(filename):
+        with open(filename) as f:
+            for i, _ in enumerate(f):
+                pass
+        return i + 1
+
     def follow(filename, sleep_sec=0.1):
         """Yield each line from a file as they are written.
         `sleep_sec` is the time to sleep after empty reads."""
+
+        # count the number of lines
+        n_lines = file_len(filename)
+
         with open(filename) as file:
             line = ""
+            count = 1
             while True:
                 tmp = file.readline()
+                count += 1
                 if tmp is not None:
                     line += tmp
-                    if line.endswith("\n"):
+                    if line.endswith("\n") and count > (n_lines - n):
                         yield line
-                        line = ""
+                    line = ""
                 else:
                     sleep(sleep_sec)
 
