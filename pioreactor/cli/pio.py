@@ -41,7 +41,7 @@ def pio() -> None:
     # this check could go somewhere else. This check won't execute if calling pioreactor from a script.
     if not check_firstboot_successful():
         raise SystemError(
-            "/boot/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
+            "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
         )
 
 
@@ -95,7 +95,9 @@ def logs(n) -> None:
     "-l",
     "--level",
     default="debug",
-    type=click.Choice(["debug", "info", "warning", "critical"], case_sensitive=False),
+    type=click.Choice(
+        ["debug", "info", "notice", "warning", "critical"], case_sensitive=False
+    ),
 )
 @click.option(
     "-n",
@@ -380,11 +382,12 @@ if whoami.am_I_leader():
         os.system(f"""mosquitto_sub -v -t '{topic}' -F "%I %t %p" """)
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
-    @click.argument("new_name")
-    def add_pioreactor(new_name: str) -> None:
+    @click.argument("hostname")
+    def add_pioreactor(hostname: str) -> None:
         """
         Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
 
+        hostname is without any .local.
         """
         # TODO: move this to its own file
         import socket
@@ -395,31 +398,34 @@ if whoami.am_I_leader():
             unit=whoami.get_unit_name(),
             experiment=whoami.UNIVERSAL_EXPERIMENT,
         )
-        logger.info(f"Adding new pioreactor {new_name} to cluster.")
+        logger.info(f"Adding new pioreactor {hostname} to cluster.")
 
-        # check to make sure new_name isn't already on the network
+        hostname = hostname.removesuffix(".local")
+        hostname_dot_local = hostname + ".local"
+
+        # check to make sure hostname isn't already on the network
 
         # check to make sure X.local is on network
         checks, max_checks = 0, 20
-        while not networking.is_hostname_on_network(new_name):
+        while not networking.is_hostname_on_network(hostname_dot_local):
             checks += 1
             try:
-                socket.gethostbyname(new_name)
+                socket.gethostbyname(hostname_dot_local)
             except socket.gaierror:
                 sleep(3)
-                click.echo(f"`{new_name}` not found on network - checking again.")
+                click.echo(f"`{hostname}` not found on network - checking again.")
                 if checks >= max_checks:
                     logger.error(
-                        f"`{new_name}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
+                        f"`{hostname}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
                     )
                     sys.exit(1)
 
         res = subprocess.call(
-            [f"bash /usr/local/bin/add_new_pioreactor_worker_from_leader.sh {new_name}"],
+            [f"bash /usr/local/bin/add_new_pioreactor_worker_from_leader.sh {hostname}"],
             shell=True,
         )
         if res == 0:
-            logger.notice(f"New pioreactor {new_name} successfully added to cluster.")  # type: ignore
+            logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
 
     @pio.command(
         name="discover-workers",

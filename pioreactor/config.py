@@ -153,7 +153,7 @@ def get_leader_address() -> str:
 def check_firstboot_successful() -> bool:
     if is_testing_env:
         return True
-    return os.path.isfile("/boot/firstboot.sh.done")
+    return os.path.isfile("/usr/local/bin/firstboot.sh.done")
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:

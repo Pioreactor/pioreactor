@@ -326,7 +326,7 @@ class Monitor(BackgroundJob):
             # TODO: add documentation
             self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
 
-        if memory_usage_percent <= 20:
+        if memory_usage_percent <= 30:
             self.logger.debug(f"Memory usage at {memory_usage_percent}%.")
         else:
             # TODO: add documentation

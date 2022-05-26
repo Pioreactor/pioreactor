@@ -334,7 +334,7 @@ class TemperatureController(BackgroundJob):
 
     @staticmethod
     def _get_room_temperature():
-        return 20.0
+        return 22.0
 
     def evaluate_temperature(self) -> None:
         """
@@ -446,8 +446,8 @@ class TemperatureController(BackgroundJob):
         #  B=-0.13807398778473443, A=-0.00021395682471394434
         #  B=-0.14123191941209473, A=-0.0005287562253399032 (May 25, 2022)
         #  B=-0.15192316555127186, A=-0.000894869124798112
-        A_penalizer, A_prior = 100.0, -0.000725
-        B_penalizer, B_prior = 10.0, -0.15
+        A_penalizer, A_prior = 100.0, -0.00050
+        B_penalizer, B_prior = 20.0, -0.140
 
         M1 = np.array(
             [

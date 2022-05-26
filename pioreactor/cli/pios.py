@@ -497,6 +497,11 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
             return
 
     def _thread_function(unit: str) -> bool:
+        # don't run on leader.
+        if unit == get_unit_name():
+            click.echo(f"Skipping {unit}.")
+            return True
+
         click.echo(f"Executing `{command}` on {unit}.")
         try:
             ssh(unit, command)
