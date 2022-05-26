@@ -127,10 +127,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             detected_relationships.append(
                 (
                     (config["leds"].get(led_channel) or led_channel),
-                    (
-                        config["od_config.photodiode_channel"].get(pd_channel)
-                        or pd_channel
-                    ),
+                    (config["od_config.photodiode_channel"].get(pd_channel) or pd_channel),
                 )
             )
 
@@ -185,9 +182,7 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
     assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
-def test_REF_is_lower_than_0_dot_256_volts(
-    logger: Logger, unit: str, experiment: str
-) -> None:
+def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment: str) -> None:
 
     for (channel, angle_or_ref) in config["od_config.photodiode_channel"].items():
         if angle_or_ref == "REF":
@@ -238,9 +233,7 @@ def test_positive_correlation_between_temperature_and_heating(
 
         tc._update_heater(0)
         measured_correlation = round(correlation(dcs, measured_pcb_temps), 2)
-        logger.debug(
-            f"Correlation between temp sensor and heating: {measured_correlation}"
-        )
+        logger.debug(f"Correlation between temp sensor and heating: {measured_correlation}")
         assert measured_correlation > 0.9, (dcs, measured_pcb_temps)
 
 
@@ -285,9 +278,7 @@ def test_positive_correlation_between_rpm_and_stirring(
             dcs.append(dc)
 
         measured_correlation = round(correlation(dcs, measured_rpms), 2)
-        logger.debug(
-            f"Correlation between stirring RPM and duty cycle: {measured_correlation}"
-        )
+        logger.debug(f"Correlation between stirring RPM and duty cycle: {measured_correlation}")
         logger.debug(f"{dcs=}, {measured_rpms=}")
         assert measured_correlation > 0.9, (dcs, measured_rpms)
 
@@ -314,16 +305,12 @@ class SummableList(list):
 
 
 class BatchTestRunner:
-    def __init__(
-        self, tests_to_run: set[Callable], logger: Logger, unit: str, experiment_name: str
-    ):
+    def __init__(self, tests_to_run: set[Callable], *test_func_args):
 
         self.count_tested = 0
         self.count_passed = 0
         self.tests_to_run = tests_to_run
-        self._thread = Thread(
-            target=self._run, args=(logger, unit, experiment_name), daemon=True
-        )
+        self._thread = Thread(target=self._run, args=test_func_args, daemon=True)
 
     def start(self):
         self._thread.start()
@@ -401,12 +388,8 @@ def click_self_test(k: str) -> int:
         # run in parallel
         test_args = (logger, unit, testing_experiment)
         ODTests = BatchTestRunner(functions_to_test & OD_TESTS, *test_args).start()
-        HeatingTests = BatchTestRunner(
-            functions_to_test & HEATING_TESTS, *test_args
-        ).start()
-        StirringTests = BatchTestRunner(
-            functions_to_test & STIRRING_TESTS, *test_args
-        ).start()
+        HeatingTests = BatchTestRunner(functions_to_test & HEATING_TESTS, *test_args).start()
+        StirringTests = BatchTestRunner(functions_to_test & STIRRING_TESTS, *test_args).start()
 
         count_tested, count_passed = (
             ODTests.collect() + HeatingTests.collect() + StirringTests.collect()
@@ -424,8 +407,6 @@ def click_self_test(k: str) -> int:
         elif count_failures == 0:
             logger.info("All tests passed ✅")
         elif count_failures > 0:
-            logger.info(
-                f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌"
-            )
+            logger.info(f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌")
 
         return int(count_failures > 0)
