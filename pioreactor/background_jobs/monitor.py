@@ -92,9 +92,16 @@ class Monitor(BackgroundJob):
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
-        self.GPIO.add_event_detect(
-            BUTTON_PIN, self.GPIO.RISING, callback=self.button_down_and_up, bouncetime=200
-        )
+        try:
+            self.GPIO.add_event_detect(
+                BUTTON_PIN,
+                self.GPIO.RISING,
+                callback=self.button_down_and_up,
+                bouncetime=200,
+            )
+        except RuntimeError:
+            self.logger.debug("Failed to add button detect.", exc_info=True)
+            self.logger.warning("Failed to add button detect.")
 
     def check_for_network(self) -> None:
         ip = get_ip()
@@ -326,7 +333,7 @@ class Monitor(BackgroundJob):
             # TODO: add documentation
             self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
 
-        if memory_usage_percent <= 30:
+        if memory_usage_percent <= 50:
             self.logger.debug(f"Memory usage at {memory_usage_percent}%.")
         else:
             # TODO: add documentation
