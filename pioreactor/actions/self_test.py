@@ -399,13 +399,13 @@ def click_self_test(k: str) -> int:
             )
 
         # run in parallel
-        args = (logger, unit, testing_experiment)
-        ODTests = BatchTestRunner(functions_to_test & OD_TESTS, *args).start()
+        test_args = (logger, unit, testing_experiment)
+        ODTests = BatchTestRunner(functions_to_test & OD_TESTS, *test_args).start()
         HeatingTests = BatchTestRunner(
-            functions_to_test & HEATING_TESTS, logger, unit, testing_experiment
+            functions_to_test & HEATING_TESTS, *test_args
         ).start()
         StirringTests = BatchTestRunner(
-            functions_to_test & STIRRING_TESTS, logger, unit, testing_experiment
+            functions_to_test & STIRRING_TESTS, *test_args
         ).start()
 
         count_tested, count_passed = (
