@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from json import dumps
 from json import loads
-from logging import Logger
+from threading import Thread
 from time import sleep
+from typing import Callable
 from typing import cast
 
 import click
@@ -28,6 +29,7 @@ from pioreactor.config import config
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.logging import create_logger
+from pioreactor.logging import Logger
 from pioreactor.pubsub import publish
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
@@ -41,7 +43,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-def test_pioreactor_hat_present(logger: Logger, unit: str, experiment: str) -> None:
+def test_pioreactor_HAT_present(logger: Logger, unit: str, experiment: str) -> None:
     assert is_HAT_present()
 
 
@@ -290,8 +292,76 @@ def test_positive_correlation_between_rpm_and_stirring(
         assert measured_correlation > 0.9, (dcs, measured_rpms)
 
 
+HEATING_TESTS = {
+    test_detect_heating_pcb,
+    test_positive_correlation_between_temperature_and_heating,
+}
+STIRRING_TESTS = {test_positive_correlation_between_rpm_and_stirring}
+OD_TESTS = {
+    test_pioreactor_HAT_present,
+    test_all_positive_correlations_between_pds_and_leds,
+    test_ambient_light_interference,
+    test_REF_is_lower_than_0_dot_256_volts,
+}
+
+
+class SummableList(list):
+    def __add__(self, other) -> SummableList:
+        return SummableList([s + o for (s, o) in zip(self, other)])
+
+    def __iadd__(self, other) -> SummableList:
+        return self + other
+
+
+class BatchTestRunner:
+    def __init__(
+        self, tests_to_run: set[Callable], logger: Logger, unit: str, experiment_name: str
+    ):
+
+        self.count_tested = 0
+        self.count_passed = 0
+        self.tests_to_run = tests_to_run
+        self._thread = Thread(
+            target=self._run, args=(logger, unit, experiment_name), daemon=True
+        )
+
+    def start(self):
+        self._thread.start()
+        return self
+
+    def collect(self) -> SummableList:
+        self._thread.join()
+        return SummableList([self.count_tested, self.count_passed])
+
+    def _run(self, logger, unit, experiment_name):
+
+        for test in self.tests_to_run:
+            test_name = test.__name__
+
+            try:
+                test(logger, unit, experiment_name)
+            except Exception:
+                import traceback
+
+                traceback.print_exc()
+                res = False
+            else:
+                res = True
+
+            logger.debug(f"{test_name}: {'✅' if res else '❌'}")
+
+            self.count_tested += 1
+            self.count_passed += int(res)
+
+            publish(
+                f"pioreactor/{unit}/{experiment_name}/self_test/{test_name}",
+                int(res),
+                retain=True,
+            )
+
+
 @click.command(name="self_test")
-@click.option("-k", help="see pytest's -k argument", type=str)
+@click.option("-k", help="see pytest's -k argument", type=str, default="")
 def click_self_test(k: str) -> int:
     """
     Test the input/output in the Pioreactor
@@ -304,71 +374,59 @@ def click_self_test(k: str) -> int:
     logger = create_logger("self_test", unit=unit, experiment=experiment)
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
-
-        # flicker to assist the user to confirm they are testing the right pioreactor.
-        publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)
-
         if is_pio_job_running("od_reading", "temperature_automation", "stirring"):
             logger.error(
                 "Make sure Optical Density, Temperature Automation, and Stirring are off before running a self test. Exiting."
             )
             return 1
 
-        functions_to_test = [
-            (name, f)
-            for (name, f) in vars(sys.modules[__name__]).items()
-            if name.startswith("test_")
-        ]  # automagically finds the test_ functions.
-        if k:
-            functions_to_test = [
-                (name, f) for (name, f) in functions_to_test if (k in name)
-            ]
+        # flicker to assist the user to confirm they are testing the right pioreactor.
+        publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)
 
-        # clear the mqtt cache
-        for name, _ in functions_to_test:
+        # automagically finds the test_ functions.
+        functions_to_test = {
+            f
+            for (name, f) in vars(sys.modules[__name__]).items()
+            if name.startswith("test_") and (k in name)
+        }
+
+        # and clear the mqtt cache first
+        for f in functions_to_test:
             publish(
-                f"pioreactor/{unit}/{testing_experiment}/self_test/{name}",
+                f"pioreactor/{unit}/{testing_experiment}/self_test/{f.__name__}",
                 None,
                 retain=True,
             )
 
-        count_tested: int = 0
-        count_passed: int = 0
-        for name, test in functions_to_test:
+        # run in parallel
+        ODTests = BatchTestRunner(
+            functions_to_test & OD_TESTS, logger, unit, testing_experiment
+        ).start()
+        HeatingTests = BatchTestRunner(
+            functions_to_test & HEATING_TESTS, logger, unit, testing_experiment
+        ).start()
+        StirringTests = BatchTestRunner(
+            functions_to_test & STIRRING_TESTS, logger, unit, testing_experiment
+        ).start()
 
-            try:
-                test(logger, unit, testing_experiment)
-            except Exception:
-                import traceback
-
-                traceback.print_exc()
-
-                res = False
-            else:
-                res = True
-
-            logger.debug(f"{name}: {'✅' if res else '❌'}")
-
-            count_tested += 1
-            count_passed += res
-
-            publish(
-                f"pioreactor/{unit}/{testing_experiment}/self_test/{name}",
-                int(res),
-                retain=True,
-            )
+        count_tested, count_passed = (
+            ODTests.collect() + HeatingTests.collect() + StirringTests.collect()
+        )
+        count_failures = count_tested - count_passed
 
         publish(
             f"pioreactor/{unit}/{testing_experiment}/self_test/all_tests_passed",
-            int(count_passed == count_tested),
+            int(count_failures == 0),
             retain=True,
         )
 
-        if count_passed == count_tested:
+        if count_tested == 0:
+            logger.info("No tests ran 🟡")
+        elif count_failures == 0:
             logger.info("All tests passed ✅")
-        else:
+        elif count_failures > 0:
             logger.info(
-                f"{count_tested-count_passed} failed test{'s' if (count_tested-count_passed) > 1 else ''}."
+                f"{count_failures} failed test{'s' if count_failures > 1 else ''} ❌"
             )
 
-        return int(count_passed != count_tested)
+        return int(count_failures > 0)
