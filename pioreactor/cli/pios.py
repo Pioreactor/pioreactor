@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-command line for running the same command on all workers,
-
-> pios run od_reading
-> pios run stirring
-> pios sync
-> pios kill <substring>
+CLI for running the commands on workers
 """
 from __future__ import annotations
 
@@ -37,6 +32,13 @@ def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
     if leader not in units:
         units = units + (leader,)
     return units
+
+
+def remove_leader(units: tuple[str, ...]) -> tuple[str, ...]:
+    leader = get_leader_hostname()
+    if leader not in units:
+        return units
+    return tuple(u for u in units if u != leader)
 
 
 def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool) -> None:
@@ -497,10 +499,6 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
             return
 
     def _thread_function(unit: str) -> bool:
-        # don't run on leader.
-        if unit == get_unit_name():
-            click.echo(f"Skipping {unit}.")
-            return True
 
         click.echo(f"Executing `{command}` on {unit}.")
         try:
@@ -514,7 +512,7 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
             logger.error(f"Unable to connect to unit {unit}.")
             return False
 
-    units = universal_identifier_to_all_active_workers(units)
+    units = remove_leader(universal_identifier_to_all_active_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
