@@ -88,16 +88,12 @@ def logs(n) -> None:
 
 
 @pio.command(name="log", short_help="logs a message from the CLI")
-@click.option(
-    "-m", "--message", required=True, type=str, help="the message to append to the log"
-)
+@click.option("-m", "--message", required=True, type=str, help="the message to append to the log")
 @click.option(
     "-l",
     "--level",
     default="debug",
-    type=click.Choice(
-        ["debug", "info", "notice", "warning", "critical"], case_sensitive=False
-    ),
+    type=click.Choice(["debug", "info", "notice", "warning", "critical"], case_sensitive=False),
 )
 @click.option(
     "-n",
@@ -285,17 +281,17 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
 
         if branch is None:
             latest_release_metadata = loads(
-                get(
-                    "https://api.github.com/repos/pioreactor/pioreactor/releases/latest"
-                ).body
+                get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest").body
             )
             version_installed = latest_release_metadata["name"]
             url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{version_installed}/pioreactor-{version_installed}-py3-none-any.whl"
 
-            command = f'sudo pip3 install "pioreactor @ {url_to_get_whl}"'
+            command = (
+                f'sudo pip3 install --disable-pip-version-check "pioreactor @ {url_to_get_whl}"'
+            )
         else:
             version_installed = branch
-            command = f"sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
+            command = f"sudo pip3 install --disable-pip-version-check -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
 
         p = subprocess.run(
             command,
@@ -441,9 +437,7 @@ if whoami.am_I_leader():
             for hostname in discover_workers_on_network():
                 click.echo(hostname)
 
-    @pio.command(
-        name="cluster-status", short_help="report information on the pioreactor cluster"
-    )
+    @pio.command(name="cluster-status", short_help="report information on the pioreactor cluster")
     def cluster_status() -> None:
         """
         Note that this only looks at the current cluster as defined in config.ini.
@@ -479,9 +473,7 @@ if whoami.am_I_leader():
         def display_data_for(hostname):
             ip, state, reachable = get_network_metadata(hostname)
 
-            statef = click.style(
-                f"{state:15s}", fg="green" if state == "ready" else "red"
-            )
+            statef = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
             ipf = f"{ip:20s}"
             reachablef = f"{(  click.style('Y', fg='green') if reachable else click.style('N', fg='red') ):10s}"
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
