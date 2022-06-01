@@ -156,14 +156,15 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> Optional[dict]:
         metadata = produce_metadata(topic)
-        payload_dict = loads(payload)
+        od_reading = msgspec_loads(payload, type=structs.ODReading)
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "od_reading_v": payload_dict["od_reading_v"],
-            "channel": payload_dict["channel"],
+            "timestamp": od_reading.timestamp,
+            "od_reading_v": od_reading.voltage,
+            "channel": od_reading.channel,
+            "angle": od_reading.angle,
         }
 
     def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
@@ -343,7 +344,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         TopicToParserToTable(
             "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
         ),
-        TopicToParserToTable("pioreactor/+/+/od_blank/+", parse_od_blank, "od_blanks"),
+        TopicToParserToTable("pioreactor/+/+/od_blank/od_raw/+", parse_od_blank, "od_blanks"),
         TopicToParserToTable(
             "pioreactor/+/+/od_reading/relative_intensity_of_ir_led",
             parse_ir_led_intensity,

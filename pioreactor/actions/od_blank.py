@@ -8,6 +8,7 @@ from typing import Optional
 
 import click
 from msgspec.json import decode
+from msgspec.json import encode
 
 from pioreactor import pubsub
 from pioreactor import structs
@@ -103,8 +104,12 @@ def od_blank(
                 readings[channel].append(reading.voltage)
 
             pubsub.publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/od_raw/{channel}",
+                encode(reading),
+            )
+            pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                count // n_samples * 100,
+                count / n_samples * 100,
             )
             logger.debug(f"Progress: {count/n_samples:.0%}")
             if count == n_samples:
