@@ -44,9 +44,7 @@ def cast_bytes_to_type(value: bytes, type_: str):
         raise e
 
 
-def format_with_optional_units(
-    value: pt.PublishableSettingDataType, units: t.Optional[str]
-) -> str:
+def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Optional[str]) -> str:
     """
     Ex:
     > format_with_optional_units(25.0, "cm") # returns "25.0 cm"
@@ -354,9 +352,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         This will convert the payload to a json blob if MQTT does not allow its original type.
         """
 
-        if not isinstance(payload, (str, bytearray, bytes, int, float)) and (
-            payload is not None
-        ):
+        if not isinstance(payload, (str, bytearray, bytes, int, float)) and (payload is not None):
             payload = dumps(payload)
 
         self.pub_client.publish(topic, payload=payload, **kwargs)
@@ -383,9 +379,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             see pioreactor.pubsub.QOS
         """
 
-        def wrap_callback(
-            actual_callback: t.Callable[..., T]
-        ) -> t.Callable[..., t.Optional[T]]:
+        def wrap_callback(actual_callback: t.Callable[..., T]) -> t.Callable[..., t.Optional[T]]:
             def _callback(client, userdata, message: pt.MQTTMessage) -> t.Optional[T]:
                 if not allow_retained and message.retain:
                     return None
@@ -402,9 +396,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             callback
         ), "callback should be callable - do you need to change the order of arguments?"
 
-        subscriptions = (
-            [subscriptions] if isinstance(subscriptions, str) else subscriptions
-        )
+        subscriptions = [subscriptions] if isinstance(subscriptions, str) else subscriptions
 
         for sub in subscriptions:
             self.sub_client.message_callback_add(sub, wrap_callback(callback))
@@ -458,9 +450,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         self.set_state(self.DISCONNECTED)
 
-    def add_to_published_settings(
-        self, setting: str, props: pt.PublishableSetting
-    ) -> None:
+    def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:
         """
         Add a pair to self.published_settings.
         """
@@ -474,9 +464,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     ########### Private #############
 
     @staticmethod
-    def _check_published_settings(
-        published_settings: dict[str, pt.PublishableSetting]
-    ) -> None:
+    def _check_published_settings(published_settings: dict[str, pt.PublishableSetting]) -> None:
         necessary_properies = set(["datatype", "settable"])
         optional_properties = set(["unit", "persist"])
         all_properties = optional_properties.union(necessary_properies)
@@ -542,9 +530,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         # the client connects async, but we want it to be connected before adding
         # our reconnect callback
-        for _ in range(20):
+        for _ in range(40):
             if not client.is_connected():
-                time.sleep(0.5)
+                time.sleep(0.05)
             else:
                 break
 
@@ -790,15 +778,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Unable to set `{attr}` in {self.job_name}.")
             return
         elif not self.published_settings[attr]["settable"]:
-            self.logger.debug(
-                f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only."
-            )
+            self.logger.debug(f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only.")
             return
 
         previous_value = getattr(self, attr)
-        new_value = cast_bytes_to_type(
-            message.payload, self.published_settings[attr]["datatype"]
-        )
+        new_value = cast_bytes_to_type(message.payload, self.published_settings[attr]["datatype"])
 
         # a subclass may want to define a `set_<attr>` method that will be used instead
         # for example, see Stirring.set_target_rpm, and `set_state` here
@@ -884,9 +868,7 @@ class BackgroundJob(_BackgroundJob):
     """
 
     def __init__(self, job_name: str, experiment: str, unit: str) -> None:
-        super().__init__(
-            job_name=job_name, source="app", experiment=experiment, unit=unit
-        )
+        super().__init__(job_name=job_name, source="app", experiment=experiment, unit=unit)
 
 
 class BackgroundJobContrib(_BackgroundJob):
@@ -894,9 +876,5 @@ class BackgroundJobContrib(_BackgroundJob):
     Plugin jobs should inherit from this class.
     """
 
-    def __init__(
-        self, job_name: str, experiment: str, unit: str, plugin_name: str
-    ) -> None:
-        super().__init__(
-            job_name=job_name, source=plugin_name, experiment=experiment, unit=unit
-        )
+    def __init__(self, job_name: str, experiment: str, unit: str, plugin_name: str) -> None:
+        super().__init__(job_name=job_name, source=plugin_name, experiment=experiment, unit=unit)

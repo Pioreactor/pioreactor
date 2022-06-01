@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from logging import handlers
 from logging import Logger
 
@@ -126,7 +127,6 @@ class MQTTHandler(logging.Handler):
 
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish(timeout=1)
-        print(mqtt_msg.is_published())
 
     def close(self) -> None:
         self.client.loop_stop()
@@ -221,6 +221,13 @@ def create_logger(
 
         # add MQTT/remote log handlers
         logger.addHandler(mqtt_to_db_handler)
+
+        # confirm that we have connected to the pubsub client
+        for _ in range(40):
+            if not pub_client.is_connected():
+                time.sleep(0.05)
+            else:
+                break
 
     # add metadata
     old_factory = logging.getLogRecordFactory()
