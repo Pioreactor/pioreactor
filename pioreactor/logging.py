@@ -16,7 +16,6 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
@@ -71,7 +70,7 @@ def add_logging_level(levelName, levelNum, methodName=None):
     setattr(logging, methodName, logToRoot)
 
 
-logging.raiseExceptions = is_testing_env()
+logging.raiseExceptions = False
 add_logging_level("NOTICE", logging.INFO + 5)
 
 

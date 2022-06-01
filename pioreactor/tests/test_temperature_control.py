@@ -239,6 +239,35 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
     assert len(dc_msgs) > 0
 
 
+def test_temperature_inference_if_less_than_hardcoded_room_temp() -> None:
+    experiment = "test_temperature_inference_if_less_than_hardcoded_room_temp"
+    features = {
+        "previous_heater_dc": 0,
+        "room_temp": 22.0,
+        "time_series_of_temp": [
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+            19.5,
+        ],
+    }
+    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+        assert 19.0 <= t.approximate_temperature(features) <= 20.0
+
+
 def test_temperature_approximation1() -> None:
     experiment = "test_temperature_approximation1"
     features = {
