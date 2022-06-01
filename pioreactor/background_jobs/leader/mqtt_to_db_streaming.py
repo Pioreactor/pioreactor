@@ -344,7 +344,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         TopicToParserToTable(
             "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
         ),
-        TopicToParserToTable("pioreactor/+/+/od_blank/od_raw/+", parse_od_blank, "od_blanks"),
+        TopicToParserToTable("pioreactor/+/+/od_blank/mean/+", parse_od_blank, "od_blanks"),
         TopicToParserToTable(
             "pioreactor/+/+/od_reading/relative_intensity_of_ir_led",
             parse_ir_led_intensity,

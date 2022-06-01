@@ -10,13 +10,13 @@ import click
 
 from pioreactor import config
 from pioreactor import error_codes
-from pioreactor import hardware
 from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
+from pioreactor.hardware import TEMP
 from pioreactor.pubsub import QOS
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import GPIO_states
@@ -141,7 +141,7 @@ class Monitor(BackgroundJob):
             from TMP1075 import TMP1075  # type: ignore
 
         try:
-            tmp_driver = TMP1075(address=hardware.TEMP)
+            tmp_driver = TMP1075(address=TEMP)
         except ValueError:
             # No PCB detected using i2c - fine to exit.
             return

@@ -515,7 +515,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(250.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(300.0 / self.oversampling_count / self.interval)
                     if self.interval
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -627,7 +627,9 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
 
     def __init__(self, channel: pt.PdChannel, ignore_blank: bool = False) -> None:
         super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(0.40)
+        self.led_output_ema = ExponentialMovingAverage(
+            config.getfloat("od_config", "pd_reference_ema")
+        )
         self.channel = channel
         self.ignore_blank = ignore_blank
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")

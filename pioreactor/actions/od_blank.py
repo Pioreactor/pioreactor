@@ -98,18 +98,16 @@ def od_blank(
 
         signal = yield_from_mqtt()
         readings = defaultdict(list)
+        angles = {}
 
         for count, batched_reading in enumerate(signal, start=1):
             for (channel, reading) in batched_reading.od_raw.items():
                 readings[channel].append(reading.voltage)
+                angles[channel] = reading.angle
 
             pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/od_raw/{channel}",
-                encode(reading),
-            )
-            pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/percent_progress",
-                count / n_samples * 100,
+                int(count / n_samples * 100),
             )
             logger.debug(f"Progress: {count/n_samples:.0%}")
             if count == n_samples:
@@ -132,21 +130,23 @@ def od_blank(
                 )
 
             pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/{action_name}/{channel}",
-                dumps(
-                    {
-                        "timestamp": current_utc_timestamp(),
-                        "channel": channel,
-                        "od_reading_v": means[channel],
-                    }
+                f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
+                encode(
+                    structs.ODReading(
+                        timestamp=current_utc_timestamp(),
+                        channel=channel,
+                        voltage=means[channel],
+                        angle=angles[channel],
+                    )
                 ),
+                qos=pubsub.QOS.EXACTLY_ONCE,
             )
 
         # store locally as the source of truth.
         with local_persistant_storage(action_name) as cache:
             cache[experiment] = dumps(means)
 
-        # publish to UI and database
+        # publish to UI...
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/{action_name}/mean",
             dumps(means),
