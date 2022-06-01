@@ -82,7 +82,7 @@ class TemperatureController(BackgroundJob):
         "temperature": {"datatype": "Temperature", "settable": False, "unit": "℃"},
         "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
     }
-    temperature: Optional[Temperature] = None
+    temperature: Temperature | None = None
 
     def __init__(
         self,

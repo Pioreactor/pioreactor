@@ -226,7 +226,12 @@ class ADCReader(LoggerMixin):
         else:
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
-        self.ads = ADS(I2C(hardware.SCL, hardware.SDA), data_rate=self.DATA_RATE, gain=self.gain)
+        self.ads = ADS(
+            I2C(hardware.SCL, hardware.SDA),
+            data_rate=self.DATA_RATE,
+            gain=self.gain,
+            address=hardware.ADC,
+        )
         self.analog_in: dict[pt.PdChannel, AnalogIn] = {}
 
         for channel in self.channels:

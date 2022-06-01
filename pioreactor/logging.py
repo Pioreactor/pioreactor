@@ -126,6 +126,7 @@ class MQTTHandler(logging.Handler):
 
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish(timeout=1)
+        print(mqtt_msg.is_published())
 
     def close(self) -> None:
         self.client.loop_stop()

@@ -9,6 +9,7 @@ from typing import Optional
 import click
 from msgspec.json import encode
 
+from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
@@ -169,7 +170,7 @@ def led_intensity(
                 channel in ALL_LED_CHANNELS
             ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
 
-            dac = DAC43608()
+            dac = DAC43608(address=hardware.DAC)
             dac.power_up(getattr(dac, channel))
             dac.set_intensity_to(getattr(dac, channel), intensity / 100.0)
 
