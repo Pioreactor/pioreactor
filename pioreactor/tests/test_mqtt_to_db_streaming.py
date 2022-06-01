@@ -5,8 +5,6 @@ import json
 import sqlite3
 import time
 
-import numpy as np
-
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
@@ -14,7 +12,6 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.timing import current_utc_timestamp
 
 
 def test_kalman_filter_entries() -> None:
@@ -26,15 +23,22 @@ def test_kalman_filter_entries() -> None:
     unit = "unit"
     exp = "test_kalman_filter_entries"
 
-    def parse_kalman_filter_outputs(topic, payload) -> dict:
+    def parse_kalman_filter_outputs(topic: str, payload) -> dict:
         metadata = m2db.produce_metadata(topic)
-        payload = json.loads(payload)
+        payload_dict = json.loads(payload)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": current_utc_timestamp(),
-            "state": json.dumps(payload["state"]),
-            "covariance_matrix": json.dumps(payload["covariance_matrix"]),
+            "timestamp": payload_dict["timestamp"],
+            "state_0": payload_dict["state"][0],
+            "state_1": payload_dict["state"][1],
+            "state_2": payload_dict["state"][2],
+            "cov_00": payload_dict["covariance_matrix"][0][0],
+            "cov_01": payload_dict["covariance_matrix"][0][1],
+            "cov_02": payload_dict["covariance_matrix"][0][2],
+            "cov_11": payload_dict["covariance_matrix"][1][1],
+            "cov_12": payload_dict["covariance_matrix"][1][2],
+            "cov_22": payload_dict["covariance_matrix"][2][2],
         }
 
     # init the database
@@ -43,13 +47,23 @@ def test_kalman_filter_entries() -> None:
 
     cursor.executescript(
         """
+DROP TABLE kalman_filter_outputs;
+
 CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     timestamp                TEXT NOT NULL,
     pioreactor_unit          TEXT NOT NULL,
     experiment               TEXT NOT NULL,
-    state                    TEXT NOT NULL,
-    covariance_matrix        TEXT NOT NULL
+    state_0                  REAL NOT NULL,
+    state_1                  REAL NOT NULL,
+    state_2                  REAL NOT NULL,
+    cov_00                   REAL NOT NULL,
+    cov_01                   REAL NOT NULL,
+    cov_02                   REAL NOT NULL,
+    cov_11                   REAL NOT NULL,
+    cov_12                   REAL NOT NULL,
+    cov_22                   REAL NOT NULL
 );
+
     """
     )
     connection.commit()
@@ -92,15 +106,23 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     assert len(results) > 0
 
     cursor.execute(
-        'SELECT json_array_length("state"), json_array_length("covariance_matrix"), json("covariance_matrix") FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1',
+        "SELECT state_0, state_1, state_2 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
         (exp,),
     )
     results = cursor.fetchone()
-    assert (
-        results[0] == 3
-    )  # why 3? growth rate, od filtered, and acceleration are the three hidden states
-    assert results[1] == 3
-    assert np.array(json.loads(results[2])).shape == (3, 3)
+    assert results[0] != 0.0
+    assert results[1] != 0.0
+    assert results[2] != 0.0
+
+    cursor.execute(
+        "SELECT cov_00, cov_11, cov_22 FROM kalman_filter_outputs WHERE experiment = ? ORDER BY timestamp DESC LIMIT 1",
+        (exp,),
+    )
+    results = cursor.fetchone()
+
+    assert results[0] != 0.0
+    assert results[1] != 0.0
+    assert results[2] != 0.0
 
     od.clean_up()
     gr.clean_up()

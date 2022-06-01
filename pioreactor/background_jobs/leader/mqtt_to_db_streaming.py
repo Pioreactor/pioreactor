@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from json import dumps
 from json import loads
 from typing import Callable
 from typing import Optional
@@ -273,8 +272,15 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": payload_dict["timestamp"],
-            "state": dumps(payload_dict["state"]),
-            "covariance_matrix": dumps(payload_dict["covariance_matrix"]),
+            "state_0": payload_dict["state"][0],
+            "state_1": payload_dict["state"][1],
+            "state_2": payload_dict["state"][2],
+            "cov_00": payload_dict["covariance_matrix"][0][0],
+            "cov_01": payload_dict["covariance_matrix"][0][1],
+            "cov_02": payload_dict["covariance_matrix"][0][2],
+            "cov_11": payload_dict["covariance_matrix"][1][1],
+            "cov_12": payload_dict["covariance_matrix"][1][2],
+            "cov_22": payload_dict["covariance_matrix"][2][2],
         }
 
     def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> dict:

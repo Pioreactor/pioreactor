@@ -92,9 +92,7 @@ class GrowthRateCalculator(BackgroundJob):
         self.from_mqtt = from_mqtt
         self.ignore_cache = ignore_cache
         self.time_of_previous_observation = datetime.utcnow()
-        self.expected_dt = 1 / (
-            60 * 60 * config.getfloat("od_config", "samples_per_second")
-        )
+        self.expected_dt = 1 / (60 * 60 * config.getfloat("od_config", "samples_per_second"))
 
     def on_init_to_ready(self) -> None:
         # this is here since the below is long running, and if kept in the init(), there is a large window where
@@ -157,9 +155,7 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[0, 0] = od_process_variance
         process_noise_covariance[1, 1] = rate_process_variance
         process_noise_covariance[2, 2] = acc_process_variance
-        self.logger.debug(
-            f"Process noise covariance matrix:\n{str(process_noise_covariance)}"
-        )
+        self.logger.debug(f"Process noise covariance matrix:\n{str(process_noise_covariance)}")
 
         observation_noise_covariance = self.create_obs_noise_covariance()
         self.logger.debug(
@@ -202,15 +198,14 @@ class GrowthRateCalculator(BackgroundJob):
             scaling_obs_variances = np.array(
                 [
                     self.od_variances[channel]
-                    / (self.od_normalization_factors[channel] - self.od_blank[channel])
-                    ** 2
+                    / (self.od_normalization_factors[channel] - self.od_blank[channel]) ** 2
                     for channel in self.od_normalization_factors
                 ]
             )
 
-            obs_variances = config.getfloat(
-                "growth_rate_kalman", "obs_std"
-            ) ** 2 * np.diag(scaling_obs_variances)
+            obs_variances = config.getfloat("growth_rate_kalman", "obs_std") ** 2 * np.diag(
+                scaling_obs_variances
+            )
             return obs_variances
         except ZeroDivisionError:
             self.logger.debug(
@@ -237,9 +232,7 @@ class GrowthRateCalculator(BackgroundJob):
                 self.logger.error("OD reading should be running. Stopping.")
                 raise exc.JobRequiredError("OD reading should be running. Stopping.")
 
-            self.logger.info(
-                "Computing OD normalization metrics. This may take a few minutes"
-            )
+            self.logger.info("Computing OD normalization metrics. This may take a few minutes")
             od_normalization_factors, od_variances = od_normalization(
                 unit=self.unit, experiment=self.experiment
             )
@@ -302,9 +295,7 @@ class GrowthRateCalculator(BackgroundJob):
             return decode(result)
         else:
             self.logger.debug("od_normalization/mean not found in cache.")
-            self.logger.info(
-                "Calculating OD normalization metrics. This may take a few minutes"
-            )
+            self.logger.info("Calculating OD normalization metrics. This may take a few minutes")
             means, _ = od_normalization(unit=self.unit, experiment=self.experiment)
             self.logger.info("Finished calculating OD normalization metrics.")
             return means
@@ -318,9 +309,7 @@ class GrowthRateCalculator(BackgroundJob):
             return decode(result)
         else:
             self.logger.debug("od_normalization/variance not found in cache.")
-            self.logger.info(
-                "Calculating OD normalization metrics. This may take a few minutes"
-            )
+            self.logger.info("Calculating OD normalization metrics. This may take a few minutes")
             _, variances = od_normalization(unit=self.unit, experiment=self.experiment)
             self.logger.info("Finished calculating OD normalization metrics.")
 
@@ -336,9 +325,7 @@ class GrowthRateCalculator(BackgroundJob):
                 interval = float(msg.payload)
             else:
                 interval = 1
-            self.ekf.scale_OD_variance_for_next_n_seconds(
-                factor, minutes * (12 * interval)
-            )
+            self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * (12 * interval))
         else:
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
@@ -357,9 +344,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         if any(v[a] < 0 for a in v):
             self.logger.warning(f"Negative normalized value(s) observed: {v}")
-            self.logger.debug(
-                f"od_normalization_factors: {self.od_normalization_factors}"
-            )
+            self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")
             self.logger.debug(f"od_blank: {self.od_blank}")
 
         return v
@@ -390,9 +375,7 @@ class GrowthRateCalculator(BackgroundJob):
 
             time_of_current_observation = to_datetime(timestamp)
             dt = (
-                (
-                    time_of_current_observation - self.time_of_previous_observation
-                ).total_seconds()
+                (time_of_current_observation - self.time_of_previous_observation).total_seconds()
                 / 60
                 / 60
             )  # delta time in hours
@@ -435,25 +418,14 @@ class GrowthRateCalculator(BackgroundJob):
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
                 {
-                    "state": self.format_list(updated_state.tolist()),
-                    "covariance_matrix": [
-                        self.format_list(x) for x in self.ekf.covariance_.tolist()
-                    ],
+                    "state": updated_state.tolist(),
+                    "covariance_matrix": self.ekf.covariance_.tolist(),
                     "timestamp": timestamp,
                 },
                 qos=QOS.EXACTLY_ONCE,
             )
 
             return self.growth_rate, self.od_filtered
-
-    @staticmethod
-    def format_list(np_list: list[float]) -> list[str]:
-        # we found that storing lists of floating point values as strings in the database
-        # was consume a lot of storage on disk. So we format the values, without losing
-        # much resolution, to reduce the storage impact.
-        import numpy as np
-
-        return [np.format_float_scientific(x, precision=2) for x in np_list]
 
     def respond_to_dosing_event_from_mqtt(self, message: pt.MQTTMessage) -> None:
         dosing_event = decode(message.payload, type=structs.DosingEvent)
