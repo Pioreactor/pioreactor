@@ -12,7 +12,7 @@ from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.automations.led.base import LEDAutomationJob
 from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -31,11 +31,11 @@ def test_silent() -> None:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_time())),
+            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_timestamp())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_time())),
+            encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_timestamp())),
         )
         pause()
         pause()

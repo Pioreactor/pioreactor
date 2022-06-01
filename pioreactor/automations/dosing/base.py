@@ -28,7 +28,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import brief_pause
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
 
@@ -67,9 +67,7 @@ class AltMediaCalculator:
     vial_volume = config.getfloat("bioreactor", "volume_ml")
 
     @classmethod
-    def update(
-        cls, dosing_event: structs.DosingEvent, current_alt_media_fraction
-    ) -> float:
+    def update(cls, dosing_event: structs.DosingEvent, current_alt_media_fraction) -> float:
         volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
             return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0)
@@ -134,7 +132,7 @@ class DosingAutomationJob(BackgroundSubJob):
     previous_growth_rate: Optional[float] = None
 
     latest_event: Optional[events.AutomationEvent] = None
-    _latest_settings_started_at: str = current_utc_time()
+    _latest_settings_started_at: str = current_utc_timestamp()
     _latest_settings_ended_at: Optional[str] = None
     _latest_run_at: Optional[datetime] = None
     run_thread: RepeatedTimer | Thread
@@ -153,9 +151,7 @@ class DosingAutomationJob(BackgroundSubJob):
     )
 
     # dosing metrics that are available, and published to MQTT
-    alt_media_fraction: float = (
-        0  # fraction of the vial that is alt-media (vs regular media).
-    )
+    alt_media_fraction: float = 0  # fraction of the vial that is alt-media (vs regular media).
     media_throughput: float = 0  # amount of media that has been expelled
     alt_media_throughput: float = 0  # amount of alt-media that has been expelled
 
@@ -211,8 +207,7 @@ class DosingAutomationJob(BackgroundSubJob):
                 # - N=60, and it's been 50m since last run. I change to M=30, I should run immediately.
                 run_after = max(
                     0,
-                    (self.duration * 60)
-                    - (datetime.utcnow() - self._latest_run_at).seconds,
+                    (self.duration * 60) - (datetime.utcnow() - self._latest_run_at).seconds,
                 )
             else:
                 # there is a race condition here: self.run() will run immediately (see run_immediately), but the state of the job is not READY, since
@@ -223,8 +218,7 @@ class DosingAutomationJob(BackgroundSubJob):
                 self.duration * 60,
                 self.run,
                 job_name=self.job_name,
-                run_immediately=(not self.skip_first_run)
-                or (self._latest_run_at is not None),
+                run_immediately=(not self.skip_first_run) or (self._latest_run_at is not None),
                 run_after=run_after,
             ).start()
 
@@ -412,7 +406,7 @@ class DosingAutomationJob(BackgroundSubJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self._latest_settings_ended_at = current_utc_time()
+        self._latest_settings_ended_at = current_utc_timestamp()
         self._send_details_to_mqtt()
 
         with suppress(AttributeError):
@@ -427,9 +421,9 @@ class DosingAutomationJob(BackgroundSubJob):
             "alt_media_throughput",
             "latest_event",
         ]:
-            self._latest_settings_ended_at = current_utc_time()
+            self._latest_settings_ended_at = current_utc_timestamp()
             self._send_details_to_mqtt()
-            self._latest_settings_started_at = current_utc_time()
+            self._latest_settings_started_at = current_utc_timestamp()
             self._latest_settings_ended_at = None
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:

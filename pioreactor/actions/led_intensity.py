@@ -16,7 +16,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -88,10 +88,7 @@ def _update_current_state(
     with local_intermittent_storage("leds") as led_cache:
         # rehydrate old cache
         old_state = structs.LEDsIntensity(
-            **{
-                channel.decode(): float(led_cache.get(channel, 0.0))
-                for channel in led_cache.keys()
-            }
+            **{channel.decode(): float(led_cache.get(channel, 0.0)) for channel in led_cache.keys()}
         )
 
         # update cache
@@ -99,10 +96,7 @@ def _update_current_state(
             led_cache[channel] = str(intensity)
 
         new_state = structs.LEDsIntensity(
-            **{
-                channel.decode(): float(led_cache.get(channel, 0.0))
-                for channel in led_cache.keys()
-            }
+            **{channel.decode(): float(led_cache.get(channel, 0.0)) for channel in led_cache.keys()}
         )
 
         return new_state, old_state
@@ -170,9 +164,7 @@ def led_intensity(
 
     for channel, intensity in desired_state.items():
         try:
-            assert (
-                0.0 <= intensity <= 100.0
-            ), "intensity should be between 0 and 100, inclusive"
+            assert 0.0 <= intensity <= 100.0, "intensity should be between 0 and 100, inclusive"
             assert (
                 channel in ALL_LED_CHANNELS
             ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
@@ -209,7 +201,7 @@ def led_intensity(
                 channel=channel,
                 intensity=intensity,
                 source_of_event=source_of_event,
-                timestamp=current_utc_time(),
+                timestamp=current_utc_timestamp(),
             )
 
             pubsub_client.publish(

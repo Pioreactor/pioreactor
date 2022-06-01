@@ -20,7 +20,7 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import simple_linear_regression
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -106,9 +106,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             return
 
         if intercept <= 0:
-            logger.warning(
-                "Something went wrong - the intercept should be greater than 0."
-            )
+            logger.warning("Something went wrong - the intercept should be greater than 0.")
             return
 
         with local_persistant_storage(action_name) as cache:
@@ -116,12 +114,12 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
                 {
                     "rpm_coef": rpm_coef,
                     "intercept": intercept,
-                    "timestamp": current_utc_time(),
+                    "timestamp": current_utc_timestamp(),
                 }
             )
             cache["stirring_calibration_data"] = json.dumps(
                 {
-                    "timestamp": current_utc_time(),
+                    "timestamp": current_utc_timestamp(),
                     "data": {"dcs": dcs, "measured_rpms": measured_rpms},
                 }
             )
@@ -145,9 +143,7 @@ def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
 
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
-        config_initial_duty_cycle = round(
-            config.getfloat("stirring", "initial_duty_cycle")
-        )
+        config_initial_duty_cycle = round(config.getfloat("stirring", "initial_duty_cycle"))
         min_dc, max_dc = config_initial_duty_cycle - 10, config_initial_duty_cycle + 10
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"

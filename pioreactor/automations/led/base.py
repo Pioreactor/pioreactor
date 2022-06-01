@@ -20,7 +20,7 @@ from pioreactor.background_jobs.led_control import LEDController
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
 
@@ -46,7 +46,7 @@ class LEDAutomationJob(BackgroundSubJob):
     previous_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
 
-    _latest_settings_started_at: str = current_utc_time()
+    _latest_settings_started_at: str = current_utc_timestamp()
     _latest_settings_ended_at: Optional[str] = None
     _latest_run_at: Optional[datetime] = None
 
@@ -111,8 +111,7 @@ class LEDAutomationJob(BackgroundSubJob):
             self.duration * 60,  # RepeatedTimer uses seconds
             self.run,
             job_name=self.job_name,
-            run_immediately=(not self.skip_first_run)
-            or (self._latest_run_at is not None),
+            run_immediately=(not self.skip_first_run) or (self._latest_run_at is not None),
             run_after=run_after,
         ).start()
 
@@ -243,7 +242,7 @@ class LEDAutomationJob(BackgroundSubJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self._latest_settings_ended_at = current_utc_time()
+        self._latest_settings_ended_at = current_utc_timestamp()
         self._send_details_to_mqtt()
 
         with suppress(AttributeError):
@@ -258,9 +257,9 @@ class LEDAutomationJob(BackgroundSubJob):
     def __setattr__(self, name, value) -> None:
         super(LEDAutomationJob, self).__setattr__(name, value)
         if name in self.published_settings and name not in ["state", "latest_event"]:
-            self._latest_settings_ended_at = current_utc_time()
+            self._latest_settings_ended_at = current_utc_timestamp()
             self._send_details_to_mqtt()
-            self._latest_settings_started_at = current_utc_time()
+            self._latest_settings_started_at = current_utc_timestamp()
             self._latest_settings_ended_at = None
 
     def _set_growth_rate(self, message: pt.MQTTMessage) -> None:

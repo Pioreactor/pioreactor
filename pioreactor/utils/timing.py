@@ -15,23 +15,24 @@ from typing import Generator
 from typing import Optional
 
 
-def to_datetime(timestamp: str):
-    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
-
-
-def to_datetime_str(datetime: datetime):
-    return datetime.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-
-
 @contextmanager
 def catchtime() -> Generator[Callable, None, None]:
     start = perf_counter()
     yield lambda: perf_counter() - start
 
 
-def current_utc_time() -> str:
+def current_utc_datetime() -> datetime:
     # this is timezone aware.
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(timezone.utc)
+
+
+def current_utc_timestamp() -> str:
+    # this is timezone aware.
+    return current_utc_datetime().isoformat().replace("+00:00", "Z")
+
+
+def to_datetime(timestamp: str):
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def brief_pause() -> None:

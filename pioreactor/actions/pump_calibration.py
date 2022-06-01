@@ -19,7 +19,7 @@ from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import (
     simple_linear_regression_with_forced_nil_intercept,
 )
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -103,9 +103,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
     )
     click.echo("We'll run the pumps continuously until the tubes are filled.")
     click.echo(
-        click.style(
-            "3. Press CTRL+C when the tubes are fully filled with water.", bold=True
-        )
+        click.style("3. Press CTRL+C when the tubes are fully filled with water.", bold=True)
     )
 
     while not click.confirm(click.style("Ready?", fg="green")):
@@ -118,7 +116,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
-                duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_time()
+                duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_timestamp()
             ),
         )
     except KeyboardInterrupt:
@@ -173,9 +171,7 @@ def run_tests(
             "You can either use a container on top of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
         )
         click.echo("Place the outflow tube into the container (or graduated cylinder).")
-        while not click.confirm(
-            click.style(f"Ready to test {duration:.2f}s?", fg="green")
-        ):
+        while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
             pass
 
         execute_pump(
@@ -184,7 +180,7 @@ def run_tests(
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
-                duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_time()
+                duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_timestamp()
             ),
         )
         r = click.prompt(
@@ -225,9 +221,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
 
         # check parameters for problems
         if slope < 0:
-            logger.warning(
-                "Slope is negative - you probably want to rerun this calibration..."
-            )
+            logger.warning("Slope is negative - you probably want to rerun this calibration...")
         if slope / std_slope < 5.0:
             logger.warning(
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
@@ -241,19 +235,17 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                     hz=hz,
                     dc=dc,
                     bias_=bias,
-                    timestamp=current_utc_time(),
+                    timestamp=current_utc_timestamp(),
                 )
             )
             cache[f"{pump_name}_calibration_data"] = encode(
                 {
-                    "timestamp": current_utc_time(),
+                    "timestamp": current_utc_timestamp(),
                     "data": {"durations": durations, "volumes": volumes},
                 }
             )
 
-        logger.debug(
-            f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}"
-        )
+        logger.debug(f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}")
 
         logger.debug(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.1f}mL to {(slope * max_duration + bias):0.1f}mL, but will be okay for slightly outside this range too."

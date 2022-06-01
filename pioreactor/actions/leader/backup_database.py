@@ -11,7 +11,7 @@ from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -60,13 +60,11 @@ def backup_database(output_file: str) -> None:
         con.close()
 
         with local_persistant_storage("database_backups") as cache:
-            cache["latest_backup_timestamp"] = current_utc_time()
+            cache["latest_backup_timestamp"] = current_utc_timestamp()
 
         logger.info("Completed backup of database.")
 
-        n_backups = config.getint(
-            "storage", "number_of_backup_replicates_to_workers", fallback=0
-        )
+        n_backups = config.getint("storage", "number_of_backup_replicates_to_workers", fallback=0)
         backups_complete = 0
         available_workers = list(get_active_workers_in_inventory())
 
@@ -88,9 +86,7 @@ def backup_database(output_file: str) -> None:
                     f"Unable to backup database to {backup_unit}. Is it online?",
                     exc_info=True,
                 )
-                logger.warning(
-                    f"Unable to backup database to {backup_unit}. Is it online?"
-                )
+                logger.warning(f"Unable to backup database to {backup_unit}. Is it online?")
             else:
                 logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
                 backups_complete += 1
@@ -99,9 +95,7 @@ def backup_database(output_file: str) -> None:
 
 
 @click.command(name="backup_database")
-@click.option(
-    "--output", default="/home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup"
-)
+@click.option("--output", default="/home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup")
 def click_backup_database(output: str) -> None:
     """
     (leader only) Backup db to workers.

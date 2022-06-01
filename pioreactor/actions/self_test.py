@@ -224,11 +224,11 @@ def test_positive_correlation_between_temperature_and_heating(
     with TemperatureController("silent", unit=unit, experiment=experiment) as tc:
 
         measured_pcb_temps = []
-        dcs = list(range(0, 30, 4))
+        dcs = list(range(0, 22, 3))
         logger.debug("Varying heating.")
         for dc in dcs:
             tc._update_heater(dc)
-            sleep(2.0)  # two cycles
+            sleep(2.0)  # two cycles TODO: can I do 1 cycle?
             measured_pcb_temps.append(tc.read_external_temperature())
 
         tc._update_heater(0)
@@ -283,17 +283,17 @@ def test_positive_correlation_between_rpm_and_stirring(
         assert measured_correlation > 0.9, (dcs, measured_rpms)
 
 
-HEATING_TESTS = {
+HEATING_TESTS = [
     test_detect_heating_pcb,
     test_positive_correlation_between_temperature_and_heating,
-}
-STIRRING_TESTS = {test_positive_correlation_between_rpm_and_stirring}
-OD_TESTS = {
+]
+STIRRING_TESTS = [test_positive_correlation_between_rpm_and_stirring]
+OD_TESTS = [
     test_pioreactor_HAT_present,
     test_all_positive_correlations_between_pds_and_leds,
     test_ambient_light_interference,
     test_REF_is_lower_than_0_dot_256_volts,
-}
+]
 
 
 class SummableList(list):
@@ -305,7 +305,7 @@ class SummableList(list):
 
 
 class BatchTestRunner:
-    def __init__(self, tests_to_run: set[Callable], *test_func_args):
+    def __init__(self, tests_to_run: list[Callable], *test_func_args):
 
         self.count_tested = 0
         self.count_passed = 0
@@ -387,9 +387,15 @@ def click_self_test(k: str) -> int:
 
         # run in parallel
         test_args = (logger, unit, testing_experiment)
-        ODTests = BatchTestRunner(functions_to_test & OD_TESTS, *test_args).start()
-        HeatingTests = BatchTestRunner(functions_to_test & HEATING_TESTS, *test_args).start()
-        StirringTests = BatchTestRunner(functions_to_test & STIRRING_TESTS, *test_args).start()
+        ODTests = BatchTestRunner(
+            [f for f in OD_TESTS if f in functions_to_test], *test_args
+        ).start()
+        HeatingTests = BatchTestRunner(
+            [f for f in HEATING_TESTS if f in functions_to_test], *test_args
+        ).start()
+        StirringTests = BatchTestRunner(
+            [f for f in STIRRING_TESTS if f in functions_to_test], *test_args
+        ).start()
 
         count_tested, count_passed = (
             ODTests.collect() + HeatingTests.collect() + StirringTests.collect()

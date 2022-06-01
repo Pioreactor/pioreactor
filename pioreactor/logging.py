@@ -12,7 +12,7 @@ from pioreactor.config import config
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish_to_pioreactor_cloud
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -81,7 +81,7 @@ class CustomisedJSONFormatter(JSONFormatter):
         # Include builtins
         extra["level"] = record.levelname
         extra["task"] = record.name
-        extra["timestamp"] = current_utc_time()
+        extra["timestamp"] = current_utc_timestamp()
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)

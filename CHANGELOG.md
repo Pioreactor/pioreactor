@@ -3,6 +3,8 @@
  - `config.ini` is now the place where the local-access-point's SSID and passphrase are stored.
  - new `pio` command on leader: `pio discover-workers` returns a list of workers on the network (may be a superset of `inventory` in the config.ini)
  - new `pios` command on leader: `pios reboot`. Reboots all active workers in the cluster.
+ - self-test tests run in parallel
+ -
 
 ### 22.4.3
  - table `led_events` is renamed to `led_change_events`

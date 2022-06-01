@@ -15,7 +15,7 @@ from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import to_datetime
 
 
@@ -42,7 +42,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
     previous_temperature = None
     latest_temperture_at: datetime = datetime.min
 
-    _latest_settings_started_at = current_utc_time()
+    _latest_settings_started_at = current_utc_timestamp()
     _latest_settings_ended_at = None
     automation_name = "temperature_automation_base"  # is overwritten in subclasses
 
@@ -54,9 +54,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
         if hasattr(cls, "automation_name") and cls.automation_name is not None:
             TemperatureController.available_automations[cls.automation_name] = cls
 
-    def __init__(
-        self, unit: str, experiment: str, parent: TemperatureController, **kwargs
-    ) -> None:
+    def __init__(self, unit: str, experiment: str, parent: TemperatureController, **kwargs) -> None:
         super(TemperatureAutomationJob, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
@@ -148,16 +146,16 @@ class TemperatureAutomationJob(BackgroundSubJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self._latest_settings_ended_at = current_utc_time()
+        self._latest_settings_ended_at = current_utc_timestamp()
         self._send_details_to_mqtt()
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomationJob, self).__setattr__(name, value)
         if name in self.published_settings and name not in ["state", "latest_event"]:
-            self._latest_settings_ended_at = current_utc_time()
+            self._latest_settings_ended_at = current_utc_timestamp()
             self._send_details_to_mqtt()
             self._latest_settings_started_at, self._latest_settings_ended_at = (
-                current_utc_time(),
+                current_utc_timestamp(),
                 None,
             )
 

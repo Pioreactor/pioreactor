@@ -15,7 +15,7 @@ from pioreactor import types as pt
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -41,9 +41,7 @@ class MqttToDBStreamer(BackgroundJob):
 
         from sqlite3worker import Sqlite3Worker
 
-        super().__init__(
-            job_name="mqtt_to_db_streaming", experiment=experiment, unit=unit
-        )
+        super().__init__(job_name="mqtt_to_db_streaming", experiment=experiment, unit=unit)
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["database"], max_queue_size=250, raise_on_error=False
         )
@@ -237,7 +235,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": current_utc_time(),
+            "timestamp": current_utc_timestamp(),
             "message": event.message,
             "data": event.data,
         }
@@ -249,7 +247,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": current_utc_time(),
+            "timestamp": current_utc_timestamp(),
             "alt_media_fraction": float(payload),
         }
 
@@ -299,12 +297,8 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             parse_od_filtered,
             "od_readings_filtered",
         ),
-        TopicToParserToTable(
-            "pioreactor/+/+/od_reading/od_raw/+", parse_od, "od_readings_raw"
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"
-        ),
+        TopicToParserToTable("pioreactor/+/+/od_reading/od_raw/+", parse_od, "od_readings_raw"),
+        TopicToParserToTable("pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"),
         TopicToParserToTable(
             "pioreactor/+/+/led_change_events",
             parse_led_change_events,
@@ -372,9 +366,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         ),
     ]
 
-    return MqttToDBStreamer(
-        topics_to_tables, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name()
-    )
+    return MqttToDBStreamer(topics_to_tables, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name())
 
 
 @click.command(name="mqtt_to_db_streaming")

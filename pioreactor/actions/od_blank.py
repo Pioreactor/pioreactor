@@ -21,7 +21,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import trimmed_mean
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -58,9 +58,7 @@ def od_blank(
             # but if test mode, ignore
             and not is_testing_env()
         ):
-            logger.error(
-                "od_reading should not be running. Stop od_reading first. Exiting."
-            )
+            logger.error("od_reading should not be running. Stop od_reading first. Exiting.")
             return None
 
         # turn on stirring if not already on
@@ -120,9 +118,7 @@ def od_blank(
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
             means[channel] = trimmed_mean(od_reading_series)
             variances[channel] = variance(od_reading_series)
-            autocorrelations[channel] = correlation(
-                od_reading_series[:-1], od_reading_series[1:]
-            )
+            autocorrelations[channel] = correlation(od_reading_series[:-1], od_reading_series[1:])
 
             # warn users that a blank is 0 - maybe this should be an error instead? TODO: link this to a docs page.
             if means[channel] == 0.0:
@@ -134,7 +130,7 @@ def od_blank(
                 f"pioreactor/{unit}/{experiment}/{action_name}/{channel}",
                 dumps(
                     {
-                        "timestamp": current_utc_time(),
+                        "timestamp": current_utc_timestamp(),
                         "channel": channel,
                         "od_reading_v": means[channel],
                     }

@@ -22,7 +22,7 @@ from pioreactor.utils.gpio_helpers import GPIO_states
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -231,9 +231,7 @@ class Stirrer(BackgroundJob):
         rpm_calculator: Optional[RpmCalculator],
         hertz: float = config.getfloat("stirring", "pwm_hz"),
     ) -> None:
-        super(Stirrer, self).__init__(
-            job_name="stirring", unit=unit, experiment=experiment
-        )
+        super(Stirrer, self).__init__(job_name="stirring", unit=unit, experiment=experiment)
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
         self.rpm_calculator = rpm_calculator
 
@@ -346,7 +344,7 @@ class Stirrer(BackgroundJob):
             self._measured_rpm = recent_rpm
 
         self.measured_rpm = structs.MeasuredRPM(
-            timestamp=current_utc_time(), measured_rpm=self._measured_rpm
+            timestamp=current_utc_timestamp(), measured_rpm=self._measured_rpm
         )
         return self._measured_rpm
 

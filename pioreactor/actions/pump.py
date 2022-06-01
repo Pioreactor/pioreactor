@@ -19,7 +19,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -67,15 +67,11 @@ def _pump(
         "waste": "remove_waste",
     }[pump_name]
     logger = create_logger(action_name, experiment=experiment, unit=unit)
-    with utils.publish_ready_to_disconnected_state(
-        unit, experiment, action_name
-    ) as state:
+    with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         assert (
             (ml is not None) or (duration is not None) or continuously
         ), "either ml or duration must be set"
-        assert not (
-            (ml is not None) and (duration is not None)
-        ), "Only select ml or duration"
+        assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
         if calibration is None:
             with utils.local_persistant_storage("pump_calibration") as cache:
@@ -100,21 +96,15 @@ def _pump(
         if ml is not None:
             ml = float(ml)
             assert ml >= 0, "ml should be greater than 0"
-            duration = utils.pump_ml_to_duration(
-                ml, calibration.duration_, calibration.bias_
-            )
+            duration = utils.pump_ml_to_duration(ml, calibration.duration_, calibration.bias_)
             logger.info(f"{round(ml, 2)}mL")
         elif duration is not None:
             duration = float(duration)
-            ml = utils.pump_duration_to_ml(
-                duration, calibration.duration_, calibration.bias_
-            )
+            ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
             logger.info(f"{round(duration, 2)}s")
         elif continuously:
             duration = 600.0
-            ml = utils.pump_duration_to_ml(
-                duration, calibration.duration_, calibration.bias_
-            )
+            ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
             logger.info("Running pump continuously.")
 
         assert isinstance(ml, float)
@@ -130,7 +120,7 @@ def _pump(
                 volume_change=ml,
                 event=action_name,
                 source_of_event=source_of_event,
-                timestamp=current_utc_time(),
+                timestamp=current_utc_timestamp(),
             )
         )
         publish(

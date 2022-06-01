@@ -68,9 +68,7 @@ def create_client(
     return client
 
 
-def publish(
-    topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs
-):
+def publish(topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs):
     from paho.mqtt import publish as mqtt_publish  # type: ignore
     import socket
 
@@ -272,9 +270,7 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_address):
     def on_message(message):
         topics.append(message.topic)
 
-    client = subscribe_and_callback(
-        on_message, topics_to_prune, hostname=hostname, timeout=1
-    )
+    client = subscribe_and_callback(on_message, topics_to_prune, hostname=hostname, timeout=1)
 
     for topic in topics.copy():
         publish(topic, None, retain=True, hostname=hostname)
@@ -320,14 +316,14 @@ def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None):
     """
     from pioreactor.mureq import post
     from pioreactor.whoami import get_uuid, is_testing_env
-    from pioreactor.utils.timing import current_utc_time
+    from pioreactor.utils.timing import current_utc_timestamp
 
     if is_testing_env():
         return
 
     if json is not None:
         json["rpi_uuid"] = get_uuid()
-        json["timestamp"] = current_utc_time()
+        json["timestamp"] = current_utc_timestamp()
 
     headers = {"Content-type": "application/json", "Accept": "text/plain"}
     try:

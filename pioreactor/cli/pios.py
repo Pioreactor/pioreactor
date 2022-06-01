@@ -14,7 +14,7 @@ from pioreactor.config import config
 from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -47,7 +47,7 @@ def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool
     conn = sqlite3.connect(config["storage"]["database"])
     cur = conn.cursor()
 
-    timestamp = current_utc_time()
+    timestamp = current_utc_timestamp()
     sql = "INSERT INTO config_files(timestamp,filename,data) VALUES(?,?,?)"
 
     if specific:
@@ -114,12 +114,8 @@ def pios() -> None:
         sys.exit(1)
 
     if len(get_active_workers_in_inventory()) == 0:
-        logger = create_logger(
-            "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-        )
-        logger.warning(
-            "No active workers. See `network.inventory` section in config.ini."
-        )
+        logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger.warning("No active workers. See `network.inventory` section in config.ini.")
         sys.exit(1)
 
 
@@ -138,9 +134,7 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
     """
     import paramiko  # type: ignore
 
-    logger = create_logger(
-        "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    )
+    logger = create_logger("update", unit=get_unit_name(), experiment=get_latest_experiment_name())
 
     if branch is not None:
         command = f"pio update --app -b {branch}"
@@ -371,9 +365,7 @@ def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
     command = f"pio kill {' '.join(job)}"
     command += "--all-jobs" if all_jobs else ""
 
-    logger = create_logger(
-        "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-    )
+    logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
 
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}.")

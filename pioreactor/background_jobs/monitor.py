@@ -22,7 +22,7 @@ from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import GPIO_states
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 
 
@@ -58,9 +58,7 @@ class Monitor(BackgroundJob):
         self.logger.info(
             f"Pioreactor software version: {pretty_version(version.software_version_info)}"
         )
-        self.logger.info(
-            f"Pioreactor HAT version: {pretty_version(version.hardware_version_info)}"
-        )
+        self.logger.info(f"Pioreactor HAT version: {pretty_version(version.hardware_version_info)}")
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
@@ -163,9 +161,7 @@ class Monitor(BackgroundJob):
         self.logger.debug(f"Heating PCB temperature at {observed_tmp} ℃.")
 
     def check_for_mqtt_connection_to_leader(self) -> None:
-        while (not self.pub_client.is_connected()) or (
-            not self.sub_client.is_connected()
-        ):
+        while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
             self.logger.warning(
                 f"""Not able to connect MQTT clients to leader.
 1. Is the leader, {config.leader_hostname} at {config.leader_address}, in config.ini correct?
@@ -221,9 +217,7 @@ class Monitor(BackgroundJob):
         sleep(2.5)
 
         # unsubscribe
-        self.sub_client.message_callback_remove(
-            f"pioreactor/{self.unit}/{latest_exp}/+/$state"
-        )
+        self.sub_client.message_callback_remove(f"pioreactor/{self.unit}/{latest_exp}/+/$state")
         self.sub_client.unsubscribe(f"pioreactor/{self.unit}/{latest_exp}/+/$state")
 
         return
@@ -333,7 +327,7 @@ class Monitor(BackgroundJob):
             # TODO: add documentation
             self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
 
-        if memory_usage_percent <= 50:
+        if memory_usage_percent <= 60:
             self.logger.debug(f"Memory usage at {memory_usage_percent}%.")
         else:
             # TODO: add documentation
@@ -350,7 +344,7 @@ class Monitor(BackgroundJob):
             "cpu_usage_percent": cpu_usage_percent,
             "memory_usage_percent": memory_usage_percent,
             "cpu_temperature_celcius": cpu_temperature_celcius,
-            "timestamp": current_utc_time(),
+            "timestamp": current_utc_timestamp(),
         }
 
     def flicker_led_response_okay(self, *args) -> None:

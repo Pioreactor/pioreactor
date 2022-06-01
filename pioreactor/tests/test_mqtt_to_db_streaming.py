@@ -14,7 +14,7 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 
 
 def test_kalman_filter_entries() -> None:
@@ -32,7 +32,7 @@ def test_kalman_filter_entries() -> None:
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": current_utc_time(),
+            "timestamp": current_utc_timestamp(),
             "state": json.dumps(payload["state"]),
             "covariance_matrix": json.dumps(payload["covariance_matrix"]),
         }
@@ -120,9 +120,7 @@ def test_empty_payload_is_filtered_early() -> None:
         }
 
         def __init__(self, unit, experiment) -> None:
-            super(TestJob, self).__init__(
-                job_name="test_job", unit=unit, experiment=experiment
-            )
+            super(TestJob, self).__init__(job_name="test_job", unit=unit, experiment=experiment)
             self.some_key = {"int": 4, "ts": 1}
 
     def parse_setting(topic, payload) -> dict:

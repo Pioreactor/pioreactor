@@ -40,8 +40,9 @@ from pioreactor.config import config
 from pioreactor.structs import Temperature
 from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 
 
@@ -102,9 +103,7 @@ class TemperatureController(BackgroundJob):
         if not hardware.is_heating_pcb_present():
             self.logger.error("Heating PCB must be attached to Pioreactor HAT")
             self.clean_up()
-            raise exc.HardwareNotFoundError(
-                "Heating PCB must be attached to Pioreactor HAT"
-            )
+            raise exc.HardwareNotFoundError("Heating PCB must be attached to Pioreactor HAT")
 
         if whoami.is_testing_env():
             self.logger.debug("TMP1075 not available; using MockTMP1075")
@@ -138,9 +137,7 @@ class TemperatureController(BackgroundJob):
                 f"Unable to find automation {automation_name}. Available automations are {list(self.available_automations.keys())}"
             )
 
-        self.automation = TemperatureAutomation(
-            automation_name=automation_name, args=kwargs
-        )
+        self.automation = TemperatureAutomation(automation_name=automation_name, args=kwargs)
         self.logger.info(f"Starting {self.automation}.")
         try:
             self.automation_job = automation_class(
@@ -156,7 +153,7 @@ class TemperatureController(BackgroundJob):
         if not self.using_third_party_thermocouple:
             self.temperature = Temperature(
                 temperature=self.read_external_temperature(),
-                timestamp=current_utc_time(),
+                timestamp=current_utc_timestamp(),
             )
 
     def turn_off_heater(self) -> None:
@@ -201,9 +198,7 @@ class TemperatureController(BackgroundJob):
         """
         try:
             # check temp is fast, let's do it twice to reduce variance.
-            return 0.5 * (
-                self.tmp_driver.get_temperature() + self.tmp_driver.get_temperature()
-            )
+            return 0.5 * (self.tmp_driver.get_temperature() + self.tmp_driver.get_temperature())
         except OSError:
             # could not find temp driver on i2c
             self.logger.error(
@@ -235,9 +230,7 @@ class TemperatureController(BackgroundJob):
 
         try:
             self.logger.info(f"Starting {algo_metadata}.")
-            self.automation_job = self.available_automations[
-                algo_metadata.automation_name
-            ](
+            self.automation_job = self.available_automations[algo_metadata.automation_name](
                 unit=self.unit,
                 experiment=self.experiment,
                 parent=self,
@@ -266,6 +259,7 @@ class TemperatureController(BackgroundJob):
     def _update_heater(self, new_duty_cycle: float) -> bool:
         self.heater_duty_cycle = clamp(0, float(new_duty_cycle), 100)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
+
         return True
 
     def _check_if_exceeds_max_temp(self, temp: float) -> None:
@@ -320,14 +314,15 @@ class TemperatureController(BackgroundJob):
             self.pwm.stop()
             self.pwm.cleanup()
 
+        with local_intermittent_storage("last_heating_timestamp") as cache:
+            cache["last_heating_timestamp"] = current_utc_timestamp()
+
     def setup_pwm(self) -> PWM:
         hertz = 6  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
-        pin = hardware.PWM_TO_PIN[
-            config.get("PWM_reverse", "heating")
-        ]  # TODO: remove this.
+        pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "heating")]  # TODO: remove this.
         pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         pwm.start(0)
         return pwm
@@ -392,7 +387,7 @@ class TemperatureController(BackgroundJob):
 
         self.temperature = Temperature(
             temperature=approximated_temperature,
-            timestamp=current_utc_time(),
+            timestamp=current_utc_timestamp(),
         )
 
     def approximate_temperature(self, features: dict[str, Any]) -> float:
@@ -508,9 +503,7 @@ class TemperatureController(BackgroundJob):
             b, c = np.linalg.solve(M2, Y2)
         except np.linalg.LinAlgError:
             self.logger.error("Error in temperature inference.")
-            self.logger.debug(
-                "Error in temperature inference's second regression.", exc_info=True
-            )
+            self.logger.debug("Error in temperature inference's second regression.", exc_info=True)
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
@@ -557,9 +550,6 @@ def click_temperature_control(ctx, automation_name: str) -> None:
     """
     tc = start_temperature_control(
         automation_name=automation_name,
-        **{
-            ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1]
-            for i in range(0, len(ctx.args), 2)
-        },
+        **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
     tc.block_until_disconnected()

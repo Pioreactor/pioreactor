@@ -22,7 +22,7 @@ from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.timing import current_utc_time
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 
 
@@ -53,22 +53,22 @@ def test_silent_automation() -> None:
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.02, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.02, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.1, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 1.1, "timestamp": current_utc_timestamp()}),
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
@@ -83,44 +83,44 @@ def test_turbidostat_automation() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.98, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 0.98, "timestamp": current_utc_timestamp()}),
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
         )
         pause()
         assert isinstance(algo.run(), events.DilutionEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.01, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 1.01, "timestamp": current_utc_timestamp()}),
         )
         pause()
         assert isinstance(algo.run(), events.DilutionEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.99, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 0.99, "timestamp": current_utc_timestamp()}),
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
@@ -129,17 +129,15 @@ def test_turbidostat_automation() -> None:
 def test_pid_turbidostat_automation() -> None:
     experiment = "test_pid_turbidostat_automation"
     target_od = 2.4
-    with PIDTurbidostat(
-        target_od=target_od, duration=20, unit=unit, experiment=experiment
-    ) as algo:
+    with PIDTurbidostat(target_od=target_od, duration=20, unit=unit, experiment=experiment) as algo:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 2.6, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 2.6, "timestamp": current_utc_timestamp()}),
         )
         pause()
         e = algo.run()
@@ -147,11 +145,11 @@ def test_pid_turbidostat_automation() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 2.8, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 2.8, "timestamp": current_utc_timestamp()}),
         )
         pause()
         e = algo.run()
@@ -178,66 +176,66 @@ def test_morbidostat_automation() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.99, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.99, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.05, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 1.05, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.03, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 1.03, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.04, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 1.04, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.99, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.99, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
@@ -257,41 +255,41 @@ def test_pid_morbidostat_automation() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.5, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.07, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.07, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.065, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.065, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
@@ -336,11 +334,11 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.05, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.05, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
     )
     pause()
     algo.run()
@@ -350,20 +348,18 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.05, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.05, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
     )
     algo.run()
 
     assert algo.volume == 1.0
 
     new_od = 1.5
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_automation/target_od/set", new_od
-    )
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_od/set", new_od)
     pause()
     assert algo.target_od == new_od
     algo.clean_up()
@@ -380,9 +376,7 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
             experiment=experiment,
         ):
 
-            pubsub.publish(
-                f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07
-            )
+            pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07)
             # there should be a log published with "Unable to set garbage in dosing_automation"
             pause()
             pause()
@@ -402,15 +396,11 @@ def test_pause_in_dosing_automation() -> None:
         experiment=experiment,
     ) as algo:
         pause()
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "sleeping"
-        )
+        pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "sleeping")
         pause()
         assert algo.state == "sleeping"
 
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "ready"
-        )
+        pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/$state/set", "ready")
         pause()
         assert algo.state == "ready"
 
@@ -426,9 +416,7 @@ def test_pause_in_dosing_control_also_pauses_automation() -> None:
         experiment=experiment,
     )
     pause()
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "sleeping"
-    )
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "sleeping")
     pause()
     assert algo.state == "sleeping"
     assert algo.automation_job.state == "sleeping"
@@ -483,35 +471,22 @@ def test_throughput_calculator() -> None:
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
     )
     pause()
     algo.automation_job.run()
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
-    )
-    pause()
-    algo.automation_job.run()
-    assert algo.automation_job.media_throughput > 0
-    assert algo.automation_job.alt_media_throughput > 0
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.07, "timestamp": current_utc_time()}),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
     )
     pause()
     algo.automation_job.run()
@@ -520,11 +495,24 @@ def test_throughput_calculator() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.065, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.07, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+    )
+    pause()
+    algo.automation_job.run()
+    assert algo.automation_job.media_throughput > 0
+    assert algo.automation_job.alt_media_throughput > 0
+
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        json.dumps({"growth_rate": 0.065, "timestamp": current_utc_timestamp()}),
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
     )
     pause()
     algo.automation_job.run()
@@ -579,9 +567,7 @@ def test_throughput_calculator_manual_set() -> None:
             f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput/set",
             0,
         )
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput/set", 0
-        )
+        pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput/set", 0)
         pause()
         pause()
         assert algo.automation_job.media_throughput == 0
@@ -597,16 +583,12 @@ def test_execute_io_action() -> None:
         c[experiment] = "0.0"
 
     with DosingController("silent", unit=unit, experiment=experiment) as ca:
-        ca.automation_job.execute_io_action(
-            media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35
-        )
+        ca.automation_job.execute_io_action(media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35)
         pause()
         assert ca.automation_job.media_throughput == 0.65
         assert ca.automation_job.alt_media_throughput == 0.35
 
-        ca.automation_job.execute_io_action(
-            media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3
-        )
+        ca.automation_job.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
         pause()
         assert ca.automation_job.media_throughput == 0.80
         assert ca.automation_job.alt_media_throughput == 0.50
@@ -634,9 +616,7 @@ def test_execute_io_action2() -> None:
         c[experiment] = "0.0"
 
     with DosingController("silent", unit=unit, experiment=experiment) as ca:
-        ca.automation_job.execute_io_action(
-            media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26
-        )
+        ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert ca.automation_job.media_throughput == 1.25
         assert ca.automation_job.alt_media_throughput == 0.01
@@ -665,9 +645,7 @@ def test_execute_io_action_outputs1() -> None:
 
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
     # regression test
-    experiment = (
-        "test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined"
-    )
+    experiment = "test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined"
     with local_persistant_storage("media_throughput") as c:
         c[experiment] = "0.0"
 
@@ -682,9 +660,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
         del cache["alt_media_ml_calibration"]
 
     with pytest.raises(exc.CalibrationError):
-        with DosingAutomationJob(
-            unit=unit, experiment=experiment, skip_first_run=True
-        ) as ca:
+        with DosingAutomationJob(unit=unit, experiment=experiment, skip_first_run=True) as ca:
             ca.execute_io_action(media_ml=0.1, alt_media_ml=0.1, waste_ml=0.2)
 
     # add back to cache
@@ -725,11 +701,11 @@ def test_PIDMorbidostat() -> None:
     assert algo.latest_event is None
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.5, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
     )
     time.sleep(10)
     pause()
@@ -737,11 +713,11 @@ def test_PIDMorbidostat() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
     )
     time.sleep(20)
     pause()
@@ -761,11 +737,11 @@ def test_changing_duration_over_mqtt() -> None:
         assert algo.latest_event is None
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.5, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
         )
         time.sleep(10)
 
@@ -791,11 +767,11 @@ def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
         assert algo.latest_event is None
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.08, "timestamp": current_utc_time()}),
+            json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.5, "timestamp": current_utc_time()}),
+            json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
         )
         time.sleep(15)
 
@@ -940,18 +916,16 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
             }
         ),
     )
-    time.sleep(
-        10
-    )  # need to wait for all jobs to disconnect correctly and threads to join.
+    time.sleep(10)  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.automation_job, Turbidostat)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 1.0, "timestamp": current_utc_time()}),
+        json.dumps({"growth_rate": 1.0, "timestamp": current_utc_timestamp()}),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_time()}),
+        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
     )
     pause()
 
@@ -993,9 +967,7 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
             }
         ),
     )
-    time.sleep(
-        7
-    )  # need to wait for all jobs to disconnect correctly and threads to join.
+    time.sleep(7)  # need to wait for all jobs to disconnect correctly and threads to join.
     assert isinstance(algo.automation_job, PIDTurbidostat)
     assert algo.automation_job.target_od == 1.0
     algo.clean_up()
@@ -1013,9 +985,7 @@ def test_disconnect_cleanly() -> None:
     )
     assert algo.automation.automation_name == "turbidostat"
     assert isinstance(algo.automation_job, Turbidostat)
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
-    )
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected")
     time.sleep(10)
     assert algo.state == algo.DISCONNECTED
 
@@ -1031,9 +1001,7 @@ def test_disconnect_cleanly_during_pumping_execution() -> None:
     )
     assert algo.automation.automation_name == "chemostat"
     time.sleep(4)
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected"
-    )
+    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "disconnected")
     time.sleep(10)
     assert algo.state == algo.DISCONNECTED
     assert algo.automation_job.state == algo.DISCONNECTED
@@ -1095,9 +1063,7 @@ def test_changing_duty_cycle_over_mqtt() -> None:
     with ContinuousCycle(unit=unit, experiment=experiment) as algo:
 
         assert algo.duty_cycle == 100
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/dosing_automation/duty_cycle/set", 50
-        )
+        pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/duty_cycle/set", 50)
         pause()
         assert algo.duty_cycle == 50
 
@@ -1107,9 +1073,7 @@ def test_AltMediaCalculator() -> None:
 
     ac = AltMediaCalculator()
 
-    data = DosingEvent(
-        volume_change=1.0, event="add_media", timestamp="0", source_of_event="test"
-    )
+    data = DosingEvent(volume_change=1.0, event="add_media", timestamp="0", source_of_event="test")
     assert 0.0 == ac.update(data, 0.0)
 
     data = DosingEvent(
@@ -1132,9 +1096,7 @@ def test_latest_event_goes_to_mqtt():
         """
 
         automation_name = "fake_automation"
-        published_settings = {
-            "duration": {"datatype": "float", "settable": True, "unit": "min"}
-        }
+        published_settings = {"duration": {"datatype": "float", "settable": True, "unit": "min"}}
 
         def __init__(self, **kwargs) -> None:
             super(FakeAutomation, self).__init__(**kwargs)

@@ -151,6 +151,7 @@ class ADCReader(LoggerMixin):
 
     """
 
+    _logger_name = "adc_reader"
     DATA_RATE: int = 128
     ADS1X15_GAIN_THRESHOLDS = {
         2 / 3: (4.096, 6.144),
@@ -225,9 +226,7 @@ class ADCReader(LoggerMixin):
         else:
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
-        self.ads = ADS(
-            I2C(hardware.SCL, hardware.SDA), data_rate=self.DATA_RATE, gain=self.gain
-        )
+        self.ads = ADS(I2C(hardware.SCL, hardware.SDA), data_rate=self.DATA_RATE, gain=self.gain)
         self.analog_in: dict[pt.PdChannel, AnalogIn] = {}
 
         for channel in self.channels:
@@ -523,9 +522,7 @@ class ADCReader(LoggerMixin):
                 )
 
                 # convert to voltage
-                best_estimate_of_signal_ = self.from_raw_to_voltage(
-                    best_estimate_of_signal_
-                )
+                best_estimate_of_signal_ = self.from_raw_to_voltage(best_estimate_of_signal_)
 
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_, 0)
@@ -585,7 +582,7 @@ class ADCReader(LoggerMixin):
 
 class IrLedReferenceTracker(LoggerMixin):
 
-    _logger_name = "IR LED ref"
+    _logger_name = "ir_led_ref"
 
     def __init__(self) -> None:
         super().__init__()
@@ -729,9 +726,7 @@ class ODReader(BackgroundJob):
         unit: str,
         experiment: str,
     ) -> None:
-        super(ODReader, self).__init__(
-            job_name="od_reading", unit=unit, experiment=experiment
-        )
+        super(ODReader, self).__init__(job_name="od_reading", unit=unit, experiment=experiment)
 
         self.adc_reader = adc_reader
         self.channel_angle_map = channel_angle_map
@@ -823,9 +818,7 @@ class ODReader(BackgroundJob):
         """
         batched_readings = self.adc_reader.take_reading()
         self.ir_led_reference_tracker.update(batched_readings)
-        batched_readings = {
-            pd: batched_readings[pd] for pd in self.channel_angle_map.keys()
-        }
+        batched_readings = {pd: batched_readings[pd] for pd in self.channel_angle_map.keys()}
         return self._normalize_by_led_output(batched_readings)
 
     def record_from_adc(self) -> structs.ODReadings:
@@ -852,7 +845,7 @@ class ODReader(BackgroundJob):
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
 
-                timestamp_of_readings = timing.current_utc_time()
+                timestamp_of_readings = timing.current_utc_timestamp()
                 adc_reading_by_channel = self._read_from_adc()
 
                 od_readings = structs.ODReadings(
@@ -1065,9 +1058,7 @@ def start_od_reading(
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
-def click_od_reading(
-    od_angle_channel1: pt.PdAngle, od_angle_channel2: pt.PdAngle, fake_data: bool
-):
+def click_od_reading(od_angle_channel1: pt.PdAngle, od_angle_channel2: pt.PdAngle, fake_data: bool):
     """
     Start the optical density reading job
     """
