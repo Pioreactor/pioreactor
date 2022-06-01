@@ -106,6 +106,7 @@ def log(message, level, name):
         name, unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
     getattr(logger, level)(message)
+    sleep(0.1)  # brief paus
     return
 
 
