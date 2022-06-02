@@ -121,6 +121,7 @@ class RpmFromFrequency(RpmCalculator):
         obs_time = perf_counter()
 
         if self._start_time is not None:
+            print(obs_time - self._start_time)
             self._running_sum += obs_time - self._start_time
             self._running_count += 1
 
