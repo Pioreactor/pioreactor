@@ -61,14 +61,15 @@ def od_normalization(
         def yield_from_mqtt() -> Generator[structs.ODReadings, None, None]:
 
             while True:
-                if not continue_check():
-                    raise StopIteration("Ending early.")
-
                 msg = pubsub.subscribe(
                     f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
                     allow_retained=False,
                     timeout=10,
                 )
+
+                if not continue_check():
+                    raise StopIteration("Ending early.")
+
                 if msg is None:
                     continue
 
