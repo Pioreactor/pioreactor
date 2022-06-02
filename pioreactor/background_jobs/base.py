@@ -550,7 +550,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # MQTT is the last thing to disconnect, so once this is done,
             # we "set" the internal event, which will cause any event.waits to finishing blocking.
             self._blocking_event.set()
-            return
 
         # we won't exit, but the client object will try to reconnect
         # Error codes are below, but don't always align
@@ -559,9 +558,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(
                 "Lost contact with MQTT server. Is the leader Pioreactor still online?"
             )
-
-        self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
-        self.logger.error("Disconnected from leader.")
+        else:
+            self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
+            self.logger.error("Disconnected from leader.")
         return
 
     def _publish_attr(self, attr: str) -> None:
@@ -700,17 +699,20 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         # remove attrs from MQTT
         self._clear_mqtt_cache()
+
         with local_intermittent_storage("pio_jobs_running") as cache:
             if self.job_name in cache:
                 del cache[self.job_name]
+
         self._log_state(self.state)
+
+        # _cleanup kills MQTT, and the on_disconnect in MQTT will unblock the job.
         self._cleanup()
 
     def _cleanup(self):
         # Explicitly cleanup resources...
         # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
         # logger, sub_client, pub_client.
-
         # clean up logger handlers
         while len(self.logger.handlers) > 0:
             handler = self.logger.handlers[0]

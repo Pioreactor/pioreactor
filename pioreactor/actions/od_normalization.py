@@ -28,15 +28,18 @@ from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import residuals_of_simple_linear_regression
 from pioreactor.utils.math_helpers import trimmed_mean
+from pioreactor.utils.math_helpers import trimmed_variance
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
 def od_normalization(
-    unit: str, experiment: str, n_samples: int = 40
+    unit: str,
+    experiment: str,
+    n_samples: int = 40,
+    continue_check=lambda: True,
 ) -> tuple[dict[PdChannel, float], dict[PdChannel, float]]:
-    from statistics import variance
 
     action_name = "od_normalization"
     logger = create_logger(action_name)
@@ -56,10 +59,15 @@ def od_normalization(
 
         # TODO: write tests for this
         def yield_from_mqtt() -> Generator[structs.ODReadings, None, None]:
+
             while True:
+                if not continue_check():
+                    raise StopIteration("Ending early.")
+
                 msg = pubsub.subscribe(
                     f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
                     allow_retained=False,
+                    timeout=10,
                 )
                 if msg is None:
                     continue
@@ -70,6 +78,7 @@ def od_normalization(
         readings = defaultdict(list)
 
         for count, batched_reading in enumerate(signal, start=1):
+
             for (channel, reading) in batched_reading.od_raw.items():
                 readings[channel].append(reading.voltage)
 
@@ -87,15 +96,13 @@ def od_normalization(
 
         for channel, od_reading_series in readings.items():
             channel = cast(PdChannel, channel)
-            variances[channel] = variance(
+            variances[channel] = trimmed_variance(
                 residuals_of_simple_linear_regression(
-                    list(range(n_samples)), od_reading_series
+                    list(range(n_samples)), od_reading_series, trimmed=True
                 )
             )  # see issue #206
             means[channel] = trimmed_mean(od_reading_series)
-            autocorrelations[channel] = correlation(
-                od_reading_series[:-1], od_reading_series[1:]
-            )
+            autocorrelations[channel] = correlation(od_reading_series[:-1], od_reading_series[1:])
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = dumps(means)

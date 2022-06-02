@@ -110,9 +110,11 @@ class GrowthRateCalculator(BackgroundJob):
                 self.od_blank,
                 self.initial_acc,
             ) = self.get_precomputed_values()
-        except Exception as e:
+        except Exception:
+            # something happened - abort
+            self.logger.debug("Aborting `get_precomputed_values`.", exc_info=True)
             self.clean_up()
-            raise e
+            return
 
         self.ekf = self.initialize_extended_kalman_filter()
 
@@ -234,7 +236,9 @@ class GrowthRateCalculator(BackgroundJob):
 
             self.logger.info("Computing OD normalization metrics. This may take a few minutes")
             od_normalization_factors, od_variances = od_normalization(
-                unit=self.unit, experiment=self.experiment
+                unit=self.unit,
+                experiment=self.experiment,
+                continue_check=lambda: (self.state != self.DISCONNECTED),
             )
             self.logger.info("Completed OD normalization metrics.")
             initial_growth_rate = 0.0
@@ -296,7 +300,11 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.logger.debug("od_normalization/mean not found in cache.")
             self.logger.info("Calculating OD normalization metrics. This may take a few minutes")
-            means, _ = od_normalization(unit=self.unit, experiment=self.experiment)
+            means, _ = od_normalization(
+                unit=self.unit,
+                experiment=self.experiment,
+                continue_check=lambda: (self.state != self.DISCONNECTED),
+            )
             self.logger.info("Finished calculating OD normalization metrics.")
             return means
 
@@ -310,7 +318,11 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.logger.debug("od_normalization/variance not found in cache.")
             self.logger.info("Calculating OD normalization metrics. This may take a few minutes")
-            _, variances = od_normalization(unit=self.unit, experiment=self.experiment)
+            _, variances = od_normalization(
+                unit=self.unit,
+                experiment=self.experiment,
+                continue_check=lambda: (self.state != self.DISCONNECTED),
+            )
             self.logger.info("Finished calculating OD normalization metrics.")
 
             return variances

@@ -105,6 +105,7 @@ from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
+from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
@@ -116,19 +117,6 @@ VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
 
 REF_keyword = "REF"
 IR_keyword = "IR"
-
-
-def argextrema(x: list) -> tuple[int, int]:
-    min_, max_ = float("inf"), float("-inf")
-    argmin_, argmax_ = 0, 0
-    for i, value in enumerate(x):
-        if value < min_:
-            min_ = value
-            argmin_ = i
-        if value > max_:
-            max_ = value
-            argmax_ = i
-    return argmin_, argmax_
 
 
 class ADCReader(LoggerMixin):

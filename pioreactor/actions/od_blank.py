@@ -22,6 +22,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import trimmed_mean
+from pioreactor.utils.math_helpers import trimmed_variance
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
@@ -42,8 +43,6 @@ def od_blank(
 
     There's a variance w.r.t. the rotation of the vial that we can't control.
     """
-    from statistics import variance
-
     action_name = "od_blank"
     logger = create_logger(action_name)
     unit = get_unit_name()
@@ -120,7 +119,7 @@ def od_blank(
         for channel, od_reading_series in readings.items():
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
             means[channel] = trimmed_mean(od_reading_series)
-            variances[channel] = variance(od_reading_series)
+            variances[channel] = trimmed_variance(od_reading_series)
             autocorrelations[channel] = correlation(od_reading_series[:-1], od_reading_series[1:])
 
             # warn users that a blank is 0 - maybe this should be an error instead? TODO: link this to a docs page.
@@ -148,7 +147,7 @@ def od_blank(
 
         # publish to UI...
         pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/{action_name}/mean",
+            f"pioreactor/{unit}/{experiment}/{action_name}/means",
             dumps(means),
             qos=pubsub.QOS.AT_LEAST_ONCE,
             retain=True,

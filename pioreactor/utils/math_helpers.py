@@ -3,6 +3,18 @@ from __future__ import annotations
 
 from typing import Iterable
 
+from pioreactor.utils import argextrema
+
+
+def trimmed_variance(x: list) -> float:
+    from statistics import variance
+
+    x = list(x)  # copy it
+    max_, min_ = max(x), min(x)
+    x.remove(max_)
+    x.remove(min_)
+    return variance(x)
+
 
 def trimmed_mean(x: list) -> float:
     from statistics import mean
@@ -36,9 +48,7 @@ def simple_linear_regression(
     residuals_sq = ((y_ - (slope * x_ + bias)) ** 2).sum()
     std_error_slope = np.sqrt(residuals_sq / (n - 2) / (np.sum((x_ - x_.mean()) ** 2)))
 
-    std_error_bias = np.sqrt(
-        residuals_sq / (n - 2) / n * sum_xx / (np.sum((x_ - x_.mean()) ** 2))
-    )
+    std_error_bias = np.sqrt(residuals_sq / (n - 2) / n * sum_xx / (np.sum((x_ - x_.mean()) ** 2)))
 
     return (float(slope), float(std_error_slope)), (float(bias), float(std_error_bias))
 
@@ -65,8 +75,17 @@ def simple_linear_regression_with_forced_nil_intercept(
     return (float(slope), float(std_error_slope)), (0, 0.0)
 
 
-def residuals_of_simple_linear_regression(x: Iterable, y: Iterable):
+def residuals_of_simple_linear_regression(x: list, y: list, trimmed=False):
     import numpy as np
+
+    if trimmed:
+        argmin_y_, _ = argextrema(y)
+        y.pop(argmin_y_)
+        x.pop(argmin_y_)
+
+        _, argmax_y = argextrema(y)
+        y.pop(argmax_y)
+        x.pop(argmax_y)
 
     x_ = np.array(x)
     y_ = np.array(y)

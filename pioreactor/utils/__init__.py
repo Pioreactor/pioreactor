@@ -57,9 +57,7 @@ def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) 
         raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
 
 
-def append_signal_handlers(
-    signal_value: signal.Signals, new_callbacks: list[Callable]
-) -> None:
+def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Callable]) -> None:
     for callback in new_callbacks:
         append_signal_handler(signal_value, callback)
 
@@ -252,3 +250,16 @@ def get_cpu_temperature() -> float:
     with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
         cpu_temperature_celcius = int(f.read().strip()) / 1000.0
     return cpu_temperature_celcius
+
+
+def argextrema(x: list) -> tuple[int, int]:
+    min_, max_ = float("inf"), float("-inf")
+    argmin_, argmax_ = 0, 0
+    for i, value in enumerate(x):
+        if value < min_:
+            min_ = value
+            argmin_ = i
+        if value > max_:
+            max_ = value
+            argmax_ = i
+    return argmin_, argmax_
