@@ -115,6 +115,7 @@ class RpmFromFrequency(RpmCalculator):
     _start_time = None
 
     def callback(self, *args) -> None:
+        print(self.collecting)
         if not self.collecting:
             return
 
