@@ -72,14 +72,16 @@ class RpmCalculator:
         # ignore any changes that occur within 15ms - at 1000rpm (very fast), the
         # delta between changes is ~60ms, so 15ms is good enough.
         self.GPIO.add_event_detect(
-            self.hall_sensor_pin, self.GPIO.RISING, callback=self.callback, bouncetime=15
+            self.hall_sensor_pin, self.GPIO.FALLING, callback=self.callback, bouncetime=15
         )
         self.turn_off_collection()
 
     def turn_off_collection(self) -> None:
+        self.collecting = False
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
 
     def turn_on_collection(self) -> None:
+        self.collecting = True
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def cleanup(self) -> None:
@@ -111,17 +113,16 @@ class RpmFromFrequency(RpmCalculator):
     _running_sum = 0
     _running_count = 0
     _start_time = None
-    _is_first_delta = True
 
     def callback(self, *args) -> None:
+        if not self.collecting:
+            return
+
         obs_time = perf_counter()
 
         if self._start_time is not None:
-            if not self._is_first_delta:
-                self._running_sum += obs_time - self._start_time
-                self._running_count += 1
-            else:
-                self._is_first_delta = False
+            self._running_sum += obs_time - self._start_time
+            self._running_count += 1
 
         self._start_time = obs_time
 
@@ -129,7 +130,6 @@ class RpmFromFrequency(RpmCalculator):
         self._running_sum = 0
         self._running_count = 0
         self._start_time = None
-        self._is_first_delta = True
 
     def __call__(self, seconds_to_observe: float) -> float:
 

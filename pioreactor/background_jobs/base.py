@@ -556,7 +556,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             )
         else:
             self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
-            self.logger.error("Disconnected from leader.")
 
         return
 
@@ -669,7 +668,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
     def lost(self) -> None:
-        # TODO: what should happen when a running job recieves a lost signal? When does it ever
+        # TODO: what should happen when a running job receives a lost signal? When does it ever
         # receive a lost signal?
         # 1. Monitor can send a lost signal if `check_against_processes_running` triggers.
         # I think it makes sense to ignore it?
