@@ -115,14 +115,12 @@ class RpmFromFrequency(RpmCalculator):
     _start_time = None
 
     def callback(self, *args) -> None:
-        print(self.collecting)
         if not self.collecting:
             return
 
         obs_time = perf_counter()
 
         if self._start_time is not None:
-            print(obs_time - self._start_time)
             self._running_sum += obs_time - self._start_time
             self._running_count += 1
 
@@ -139,7 +137,6 @@ class RpmFromFrequency(RpmCalculator):
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
-        print()
 
         if self._running_sum == 0:
             return 0
