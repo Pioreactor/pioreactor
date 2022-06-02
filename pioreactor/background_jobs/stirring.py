@@ -111,14 +111,17 @@ class RpmFromFrequency(RpmCalculator):
     _running_sum = 0
     _running_count = 0
     _start_time = None
+    _is_first_delta = True
 
     def callback(self, *args) -> None:
         obs_time = perf_counter()
 
         if self._start_time is not None:
-            print(obs_time - self._start_time)
-            self._running_sum += obs_time - self._start_time
-            self._running_count += 1
+            if not self._is_first_delta:
+                self._running_sum += obs_time - self._start_time
+                self._running_count += 1
+            else:
+                self._is_first_delta = False
 
         self._start_time = obs_time
 
@@ -126,6 +129,7 @@ class RpmFromFrequency(RpmCalculator):
         self._running_sum = 0
         self._running_count = 0
         self._start_time = None
+        self._is_first_delta = True
 
     def __call__(self, seconds_to_observe: float) -> float:
 
@@ -133,7 +137,7 @@ class RpmFromFrequency(RpmCalculator):
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
         self.turn_off_collection()
-        print()
+
         if self._running_sum == 0:
             return 0
         else:
