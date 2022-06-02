@@ -77,9 +77,11 @@ class RpmCalculator:
         self.turn_off_collection()
 
     def turn_off_collection(self) -> None:
+        self.collecting = False
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.OUT)
 
     def turn_on_collection(self) -> None:
+        self.collecting = True
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def cleanup(self) -> None:
@@ -113,10 +115,12 @@ class RpmFromFrequency(RpmCalculator):
     _start_time = None
 
     def callback(self, *args) -> None:
+        if not self.collecting:
+            return
+
         obs_time = perf_counter()
 
         if self._start_time is not None:
-            print(obs_time - self._start_time)
             self._running_sum += obs_time - self._start_time
             self._running_count += 1
 
