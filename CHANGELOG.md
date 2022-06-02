@@ -1,10 +1,11 @@
-### Upcoming
+### 22.6.0
  - You can now edit the config.ini without having to boot a Pioreactor. By adding a file called `config.ini` to the `boot` folder when the SD card is interested in a computer, the `/boot/config.ini` will be merged with the Pioreactor's `config.ini`. This is useful for changing settings before ever starting up your Pioreactor for the first time. See below.
  - `config.ini` is now the place where the local-access-point's SSID and passphrase are stored.
  - new `pio` command on leader: `pio discover-workers` returns a list of workers on the network (may be a superset of `inventory` in the config.ini)
  - new `pios` command on leader: `pios reboot`. Reboots all active workers in the cluster.
  - self-test tests run in parallel
- -
+ - Adding `NOTICE` log level, which will appear in the UI.
+ - New schemas for `kalman_filter_outputs` and `od_blanks` tables in the db.
 
 ### 22.4.3
  - table `led_events` is renamed to `led_change_events`

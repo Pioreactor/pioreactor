@@ -58,7 +58,9 @@ def od_blank(
             # but if test mode, ignore
             and not is_testing_env()
         ):
-            logger.error("od_reading should not be running. Stop od_reading first. Exiting.")
+            logger.error(
+                "Optical density should not be running. Stop Optical density before running this. Exiting."
+            )
             return None
 
         # turn on stirring if not already on

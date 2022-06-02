@@ -295,7 +295,7 @@ def test_temperature_approximation1() -> None:
     }
 
     with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
-        assert 32.0 <= t.approximate_temperature(features) <= 33.4
+        assert 31.5 <= t.approximate_temperature(features) <= 33.0
 
 
 def test_temperature_approximation21() -> None:
@@ -399,7 +399,7 @@ def test_temperature_approximation3() -> None:
     }
 
     with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
-        assert 37 <= t.approximate_temperature(features) <= 38
+        assert 36.5 <= t.approximate_temperature(features) <= 38
 
 
 def test_temperature_approximation4() -> None:

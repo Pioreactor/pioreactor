@@ -248,6 +248,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.sub_client = self._create_sub_client()
 
         self._set_up_exit_protocol()
+        self._blocking_event = threading.Event()
 
         try:
             # this is one function in the __init__ that we may deliberately raise an error
@@ -292,7 +293,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         pass
 
     def on_init(self) -> None:
-        # Note: this is called after this classes __init__, but before the subclasses __init__
+        # Note: this is called after this class's __init__, but before the subclass's __init__
         pass
 
     def on_sleeping(self) -> None:
@@ -621,8 +622,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
                 ],
             )
-
-        self._blocking_event = threading.Event()
 
     def init(self) -> None:
         self.state = self.INIT
