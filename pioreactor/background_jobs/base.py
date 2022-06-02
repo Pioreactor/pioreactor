@@ -547,10 +547,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
 
-            # MQTT is the last thing to disconnect, so once this is done,
-            # we "set" the internal event, which will cause any event.waits to finishing blocking.
-            self._blocking_event.set()
-
         # we won't exit, but the client object will try to reconnect
         # Error codes are below, but don't always align
         # https://github.com/eclipse/paho.mqtt.python/blob/42f0b13001cb39aee97c2b60a3b4807314dfcb4d/src/paho/mqtt/client.py#L147
@@ -561,6 +557,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         else:
             self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
             self.logger.error("Disconnected from leader.")
+
         return
 
     def _publish_attr(self, attr: str) -> None:
@@ -581,7 +578,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-        def disconnect_gracefully(reason: int | str, *args) -> None:
+
+        def exit_gracefully(reason: int | str, *args) -> None:
             if self.state == self.DISCONNECTED:
                 return
 
@@ -600,16 +598,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
-            atexit.register(disconnect_gracefully, "Python atexit")
+            atexit.register(exit_gracefully, "Python atexit")
 
             # terminate command, ex: pkill, kill
-            append_signal_handlers(signal.SIGTERM, [disconnect_gracefully])
+            append_signal_handlers(signal.SIGTERM, [exit_gracefully])
 
             # keyboard interrupt
             append_signal_handlers(
                 signal.SIGINT,
                 [
-                    disconnect_gracefully,
+                    exit_gracefully,
                     # add a "ignore all future SIGINTs" onto the top of the stack.
                     lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN),
                 ],
@@ -619,7 +617,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             append_signal_handlers(
                 signal.SIGHUP,
                 [
-                    disconnect_gracefully,
+                    exit_gracefully,
                     # add a "ignore all future SIGUPs" onto the top of the stack.
                     lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
                 ],
@@ -706,18 +704,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self._log_state(self.state)
 
-        # _cleanup kills MQTT, and the on_disconnect in MQTT will unblock the job.
+        # _cleanup disconnects from MQTT, clean up loggers, and "set" the blocking event
         self._cleanup()
+
+        # we "set" the internal event, which will cause any event.waits to finishing blocking.
+        self._blocking_event.set()
 
     def _cleanup(self):
         # Explicitly cleanup resources...
         # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
         # logger, sub_client, pub_client.
-        # clean up logger handlers
-        while len(self.logger.handlers) > 0:
-            handler = self.logger.handlers[0]
-            handler.close()
-            self.logger.removeHandler(handler)
 
         # disconnect from MQTT
         self.sub_client.loop_stop()
@@ -726,6 +722,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this HAS to happen last, because this contains our publishing client
         self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pub_client.disconnect()
+
+        # clean up logger handlers
+        while len(self.logger.handlers) > 0:
+            handler = self.logger.handlers[0]
+            handler.close()
+            self.logger.removeHandler(handler)
 
     def _publish_properties_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
