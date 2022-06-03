@@ -229,15 +229,17 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata = produce_metadata(topic)
-
-        event = msgspec_loads(payload, type=structs.AutomationEvent)
+        event = loads(
+            payload
+        )  # structs.AutomationEvent, but see https://github.com/jcrist/msgspec/issues/115#issuecomment-1146097674
 
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": current_utc_timestamp(),
-            "message": event.message,
-            "data": event.data,
+            "message": event["message"],
+            "data": event["data"],
+            "event_name": event["event_name"],
         }
 
     def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:

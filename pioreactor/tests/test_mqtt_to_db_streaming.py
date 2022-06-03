@@ -47,7 +47,7 @@ def test_kalman_filter_entries() -> None:
 
     cursor.executescript(
         """
-DROP TABLE kalman_filter_outputs;
+DROP TABLE IF EXISTS kalman_filter_outputs;
 
 CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     timestamp                TEXT NOT NULL,
