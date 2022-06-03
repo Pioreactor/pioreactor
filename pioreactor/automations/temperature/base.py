@@ -177,7 +177,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
         self.latest_temperature = temperature_struct.temperature
         self.latest_temperature_at = to_datetime(temperature_struct.timestamp)
 
-        if self.state == self.READY and self.state == self.INIT:
+        if self.state == self.READY or self.state == self.INIT:
             self.latest_event = self.execute()
 
         return
