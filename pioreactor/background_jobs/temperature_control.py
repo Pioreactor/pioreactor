@@ -226,9 +226,10 @@ class TemperatureController(BackgroundJob):
         ):
             # just update the setting, and return
             self.logger.debug(
-                "Bypassing changing automations, and just updating the setting on the existing Stable automation"
+                "Bypassing changing automations, and just updating the setting on the existing Stable automation."
             )
             self.automation_job.target_temperature = float(algo_metadata.args["target_temperature"])
+            self.automation = algo_metadata
             return
 
         try:
