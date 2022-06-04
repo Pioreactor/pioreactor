@@ -218,6 +218,19 @@ class TemperatureController(BackgroundJob):
 
         assert isinstance(algo_metadata, TemperatureAutomation)
 
+        # users sometimes take the "sad path" and create a _new_ Stable with target_temperature=X
+        # instead of just changing the target_temperature in their current Stable. We check for this condition,
+        # and do the right thing for them.
+        if (algo_metadata.automation_name == "stable") and (
+            self.automation.automation_name == "stable"
+        ):
+            # just update the setting, and return
+            self.logger.debug(
+                "Bypassing changing automations, and just updating the setting on the existing Stable automation"
+            )
+            self.automation_job.target_temperature = float(algo_metadata.args["target_temperature"])
+            return
+
         try:
             self.automation_job.clean_up()
         except AttributeError:

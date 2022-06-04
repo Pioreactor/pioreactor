@@ -737,3 +737,35 @@ def test_using_external_thermocouple() -> None:
         pause()
 
         assert tc.automation_job.latest_value_arrived == 41
+
+
+def test_that_if_a_user_tries_to_change_stable_X_to_stable_Y_we_just_change_the_attr_instead_of_the_entire_automation():
+
+    experiment = "test_that_if_a_user_tries_to_change_stable_X_to_stable_Y_we_just_change_the_attr_instead_of_the_entire_automation"
+
+    with temperature_control.TemperatureController(
+        "stable", target_temperature=30, unit=unit, experiment=experiment
+    ) as tc:
+        assert tc.automation_name == "stable"
+        assert isinstance(tc.automation_job, Stable)
+
+        tc.automation_job.test_attr = True
+
+        pause()
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
+            encode(
+                structs.TemperatureAutomation(
+                    automation_name="stable", args={"target_temperature": 36}
+                )
+            ),
+        )
+
+        pause(8)
+        assert tc.automation_name == "stable"
+        assert isinstance(tc.automation_job, Stable)
+        assert tc.automation_job.target_temperature == 36
+
+        assert hasattr(tc.automation_job, "test_attr")
+        assert tc.automation_job.test_attr
