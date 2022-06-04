@@ -35,7 +35,6 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional
 
 from click import command
 from click import option
@@ -116,6 +115,9 @@ class GrowthRateCalculator(BackgroundJob):
             self.clean_up()
             return
 
+        self.logger.debug(f"od_blank={self.od_blank}")
+        self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
+        self.logger.debug(f"od_normalization_variance={self.od_variances}")
         self.ekf = self.initialize_extended_kalman_filter()
 
         if self.from_mqtt:
@@ -249,7 +251,7 @@ class GrowthRateCalculator(BackgroundJob):
             initial_growth_rate = self.get_growth_rate_from_cache()
             initial_od = self.get_previous_od_from_cache()
 
-        initial_acc = 0
+        initial_acc = 0.0
         od_blank = self.get_od_blank_from_cache()
 
         # what happens if od_blank is near / less than od_normalization_factors?
@@ -275,12 +277,11 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("od_blank") as cache:
             result = cache.get(self.experiment)
 
-        if result:
+        if result is not None:
             od_blanks = decode(result)
-            self.logger.debug(f"{od_blanks=}")
             return od_blanks
         else:
-            return defaultdict(lambda: 0)
+            return defaultdict(lambda: 0.0)
 
     def get_growth_rate_from_cache(self) -> float:
         with local_persistant_storage("growth_rate") as cache:
@@ -341,37 +342,69 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
+    @staticmethod
+    def _scale_and_shift(obs, shift, scale):
+        return (obs - shift) / (scale - shift)
+
     def scale_raw_observations(
         self, observations: dict[pt.PdChannel, float]
     ) -> dict[pt.PdChannel, float]:
-        def scale_and_shift(obs, shift, scale):
-            return (obs - shift) / (scale - shift)
 
-        v = {
-            channel: scale_and_shift(
+        scaled_signals = {
+            channel: self._scale_and_shift(
                 raw_signal, self.od_blank[channel], self.od_normalization_factors[channel]
             )
             for channel, raw_signal in observations.items()
         }
 
-        if any(v[a] < 0 for a in v):
-            self.logger.warning(f"Negative normalized value(s) observed: {v}")
+        if any(v <= 0.0 for v in scaled_signals.values()):
+            self.logger.warning(f"Negative normalized value(s) observed: {scaled_signals}")
             self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")
             self.logger.debug(f"od_blank: {self.od_blank}")
 
-        return v
+        return scaled_signals
 
     def respond_to_od_readings_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if self.state != self.READY:
             return
 
         od_readings = decode(message.payload, type=structs.ODReadings)
+
         self.update_state_from_observation(od_readings)
         return
 
     def update_state_from_observation(
         self, od_readings: structs.ODReadings
-    ) -> Optional[tuple[structs.GrowthRate, structs.ODFiltered]]:
+    ) -> tuple[structs.GrowthRate, structs.ODFiltered]:
+        """
+        this is like _update_state_from_observation, but also updates attributes, caches, mqtt
+        """
+
+        self.growth_rate, self.od_filtered = self._update_state_from_observation(od_readings)
+
+        # save to cache
+        with local_persistant_storage("growth_rate") as cache:
+            cache[self.experiment] = str(self.growth_rate.growth_rate)
+
+        with local_persistant_storage("od_filtered") as cache:
+            cache[self.experiment] = str(self.od_filtered.od_filtered)
+
+        # publish EKF outputs
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
+            {
+                "state": self.ekf.state_.tolist(),
+                "covariance_matrix": self.ekf.covariance_.tolist(),
+                "timestamp": od_readings.timestamp,
+            },
+            qos=QOS.EXACTLY_ONCE,
+        )
+
+        return self.growth_rate, self.od_filtered
+
+    def _update_state_from_observation(
+        self, od_readings: structs.ODReadings
+    ) -> tuple[structs.GrowthRate, structs.ODFiltered]:
 
         timestamp = od_readings.timestamp
         scaled_observations = self.scale_raw_observations(
@@ -394,7 +427,7 @@ class GrowthRateCalculator(BackgroundJob):
 
             if dt <= 0:
                 self.logger.debug("Late arriving data...")
-                return None
+                return self.growth_rate, self.od_filtered
 
             self.time_of_previous_observation = time_of_current_observation
 
@@ -403,7 +436,7 @@ class GrowthRateCalculator(BackgroundJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
-            return None
+            return self.growth_rate, self.od_filtered
         else:
 
             # TODO: EKF values can be nans...
@@ -412,32 +445,16 @@ class GrowthRateCalculator(BackgroundJob):
                 updated_state[1]
             )
 
-            self.growth_rate = structs.GrowthRate(
+            growth_rate = structs.GrowthRate(
                 growth_rate=latest_growth_rate,
                 timestamp=timestamp,
             )
-            self.od_filtered = structs.ODFiltered(
+            od_filtered = structs.ODFiltered(
                 od_filtered=latest_od_filtered,
                 timestamp=timestamp,
             )
 
-            with local_persistant_storage("growth_rate") as cache:
-                cache[self.experiment] = str(latest_growth_rate)
-
-            with local_persistant_storage("od_filtered") as cache:
-                cache[self.experiment] = str(latest_od_filtered)
-
-            self.publish(
-                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
-                {
-                    "state": updated_state.tolist(),
-                    "covariance_matrix": self.ekf.covariance_.tolist(),
-                    "timestamp": timestamp,
-                },
-                qos=QOS.EXACTLY_ONCE,
-            )
-
-            return self.growth_rate, self.od_filtered
+            return growth_rate, od_filtered
 
     def respond_to_dosing_event_from_mqtt(self, message: pt.MQTTMessage) -> None:
         dosing_event = decode(message.payload, type=structs.DosingEvent)
