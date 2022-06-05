@@ -37,6 +37,7 @@ from pioreactor import hardware
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
+from pioreactor.logging import create_logger
 from pioreactor.structs import Temperature
 from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
@@ -218,9 +219,9 @@ class TemperatureController(BackgroundJob):
 
         assert isinstance(algo_metadata, TemperatureAutomation)
 
-        # users sometimes take the "sad path" and create a _new_ Stable with target_temperature=X
+        # users sometimes take the "wrong path" and create a _new_ Stable with target_temperature=X
         # instead of just changing the target_temperature in their current Stable. We check for this condition,
-        # and do the right thing for them.
+        # and do the "right" thing for them.
         if (algo_metadata.automation_name == "stable") and (
             self.automation.automation_name == "stable"
         ):
@@ -539,12 +540,18 @@ def start_temperature_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> TemperatureController:
-    return TemperatureController(
-        automation_name=automation_name,
-        unit=unit or whoami.get_unit_name(),
-        experiment=experiment or whoami.get_latest_experiment_name(),
-        **kwargs,
-    )
+    try:
+        return TemperatureController(
+            automation_name=automation_name,
+            unit=unit or whoami.get_unit_name(),
+            experiment=experiment or whoami.get_latest_experiment_name(),
+            **kwargs,
+        )
+    except Exception as e:
+        logger = create_logger("temperature_automation")
+        logger.error(e)
+        logger.debug(e, exc_info=True)
+        raise e
 
 
 @click.command(

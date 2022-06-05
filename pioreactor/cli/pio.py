@@ -151,10 +151,6 @@ def blink() -> None:
             f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
             1,
         )
-        pubsub.publish(
-            f"pioreactor/{whoami.get_unit_name()}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/flicker_led_response_okay",
-            1,
-        )
 
 
 @pio.command(name="kill", short_help="kill job(s)")

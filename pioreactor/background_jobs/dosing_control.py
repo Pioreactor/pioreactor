@@ -59,9 +59,7 @@ class DosingController(BackgroundJob):
         "automation_name": {"datatype": "string", "settable": False},
     }
 
-    def __init__(
-        self, automation_name: str, unit: str, experiment: str, **kwargs
-    ) -> None:
+    def __init__(self, automation_name: str, unit: str, experiment: str, **kwargs) -> None:
         super().__init__(job_name="dosing_control", unit=unit, experiment=experiment)
 
         try:
@@ -154,12 +152,11 @@ def start_dosing_control(
     experiment = experiment or whoami.get_latest_experiment_name()
 
     try:
-
         kwargs["duration"] = duration
-        kwargs["unit"] = unit
-        kwargs["experiment"] = experiment
         kwargs["skip_first_run"] = skip_first_run
-        return DosingController(automation_name, **kwargs)  # noqa: F841
+        return DosingController(
+            automation_name, unit=unit, experiment=experiment, **kwargs
+        )  # noqa: F841
 
     except Exception as e:
         logger = create_logger("dosing_automation")
@@ -198,9 +195,6 @@ def click_dosing_control(ctx, automation_name, duration, skip_first_run):
         automation_name=automation_name,
         duration=duration,
         skip_first_run=bool(skip_first_run),
-        **{
-            ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1]
-            for i in range(0, len(ctx.args), 2)
-        },
+        **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
     dc.block_until_disconnected()
