@@ -34,6 +34,7 @@ def od_blank(
     od_angle_channel1: pt.PdAngle,
     od_angle_channel2: pt.PdAngle,
     n_samples: int = 40,
+    ignore_rpm=False,
 ) -> Optional[dict[pt.PdChannel, float]]:
     """
     Compute a sample average of the photodiodes attached.
@@ -70,6 +71,7 @@ def od_blank(
                 target_rpm=config.getfloat("stirring", "target_rpm"),
                 unit=unit,
                 experiment=testing_experiment,
+                ignore_rpm=ignore_rpm,
             )
             st.block_until_rpm_is_close_to_target()
         else:
@@ -196,12 +198,19 @@ def od_blank(
     show_default=True,
     help="Number of samples",
 )
-def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples):
+@click.option(
+    "--n-samples",
+    default=30,
+    show_default=True,
+    help="Number of samples",
+)
+@click.option(
+    "--ignore-rpm",
+    help="don't use feedback loop for stirring",
+    is_flag=True,
+)
+def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples, ignore_rpm):
     """
     Compute statistics about the blank OD time series
     """
-    od_blank(
-        od_angle_channel1,
-        od_angle_channel2,
-        n_samples=n_samples,
-    )
+    od_blank(od_angle_channel1, od_angle_channel2, n_samples=n_samples, ignore_rpm=ignore_rpm)

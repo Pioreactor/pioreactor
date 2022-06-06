@@ -399,7 +399,7 @@ def start_stirring(
     target_rpm: float = 0.0,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    ignore_rpm=False,
+    ignore_rpm: bool = False,
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
@@ -432,7 +432,7 @@ def start_stirring(
     help="don't use feedback loop",
     is_flag=True,
 )
-def click_stirring(target_rpm, ignore_rpm):
+def click_stirring(target_rpm: float, ignore_rpm: bool):
     """
     Start the stirring of the Pioreactor.
     """
