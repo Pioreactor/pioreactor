@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # test_utils
+from __future__ import annotations
+
 import time
+
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import RepeatedTimer
 
@@ -43,6 +46,20 @@ def test_caches_will_always_save_the_lastest_value_provided():
         assert cache["B"] == b"2"
 
 
+def test_caches_will_delete_when_asked():
+    with local_intermittent_storage("test") as cache:
+        for k in cache.keys():
+            del cache[k]
+
+    with local_intermittent_storage("test") as cache:
+        cache["test"] = "1"
+
+    with local_intermittent_storage("test") as cache:
+        assert "test" in cache
+        del cache["test"]
+        assert "test" not in cache
+
+
 def test_repeated_timer_will_not_execute_if_killed_during_run_immediatly_pause():
     class Counter:
 
@@ -50,9 +67,7 @@ def test_repeated_timer_will_not_execute_if_killed_during_run_immediatly_pause()
 
         def __init__(self):
 
-            self.thread = RepeatedTimer(
-                5, self.run, run_immediately=True, run_after=60
-            ).start()
+            self.thread = RepeatedTimer(5, self.run, run_immediately=True, run_after=60).start()
 
         def run(self):
             self.counter += 1

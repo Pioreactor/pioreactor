@@ -515,14 +515,14 @@ class ADCReader(LoggerMixin):
                 )
 
                 # convert to voltage
-                best_estimate_of_signal_ = self.from_raw_to_voltage(best_estimate_of_signal_)
+                best_estimate_of_signal_v = self.from_raw_to_voltage(best_estimate_of_signal_)
 
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
-                batched_estimates_[channel] = max(best_estimate_of_signal_, 0)
+                batched_estimates_[channel] = max(best_estimate_of_signal_v, 0)
 
                 # check if more than 3.x V, and shut down to prevent damage to ADC.
                 # we use max_signal to modify the PGA, too
-                max_signal = max(max_signal, best_estimate_of_signal_)
+                max_signal = max(max_signal, best_estimate_of_signal_v)
 
             self.check_on_max(max_signal)
             self.batched_readings = batched_estimates_
@@ -564,10 +564,10 @@ class ADCReader(LoggerMixin):
 
             return argmin_freq
 
-        first_channel = self.channels[0]
-        argmin_freq1 = _compute_best_freq(
-            timestamps[first_channel], aggregated_signals[first_channel]
+        od_channel = next(
+            ch for ch, v in config["od_config.photodiode_channel"].items() if v != REF_keyword
         )
+        argmin_freq1 = _compute_best_freq(timestamps[od_channel], aggregated_signals[od_channel])
 
         self.logger.debug(f"AC hz estimate: {argmin_freq1}")
         return argmin_freq1

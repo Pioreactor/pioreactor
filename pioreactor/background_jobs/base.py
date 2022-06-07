@@ -253,11 +253,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         try:
             # this is one function in the __init__ that we may deliberately raise an error
             # if we do raise an error, the class needs to be cleaned up correctly
-            # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
+            # (hence the disconnected bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
         except ValueError as e:
-            self._cleanup()
+            self.disconnected()
             raise e
         finally:
             self._publish_properties_to_broker(self.published_settings)
@@ -693,22 +693,28 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
 
+        self._log_state(self.state)
+
         # remove attrs from MQTT
         self._clear_mqtt_cache()
 
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            if self.job_name in cache:
-                del cache[self.job_name]
+        # remove this job from any caches
+        self._remove_from_cache()
 
-        self._log_state(self.state)
-
-        # _cleanup disconnects from MQTT, clean up loggers, and "set" the blocking event
-        self._cleanup()
+        # disconnects from external resources gracefully
+        self._disconnect_from_mqtt_clients()
+        self._disconnect_from_loggers()
 
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
         self._blocking_event.set()
 
-    def _cleanup(self):
+    def _remove_from_cache(self):
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            if self.job_name in cache:
+                del cache[self.job_name]
+            assert self.job_name not in cache
+
+    def _disconnect_from_mqtt_clients(self):
         # Explicitly cleanup resources...
         # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
         # logger, sub_client, pub_client.
@@ -721,6 +727,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pub_client.disconnect()
 
+    def _disconnect_from_loggers(self):
         # clean up logger handlers
         while len(self.logger.handlers) > 0:
             handler = self.logger.handlers[0]
