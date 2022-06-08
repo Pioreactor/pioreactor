@@ -558,6 +558,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         else:
             self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
 
+        # we "set" the internal event, which will cause any event.waits to finishing blocking.
+        self._blocking_event.set()
+
         return
 
     def _publish_attr(self, attr: str) -> None:
@@ -589,6 +592,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 self.logger.debug(f"Exiting caused by {reason}.")
 
             self.clean_up()
+            self.block_until_disconnected()  # wait until clean up is done.
 
             if (reason == signal.SIGTERM) or (reason == signal.SIGHUP):
                 import sys
@@ -704,9 +708,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # disconnects from external resources gracefully
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
-
-        # we "set" the internal event, which will cause any event.waits to finishing blocking.
-        self._blocking_event.set()
 
     def _remove_from_cache(self):
         with local_intermittent_storage("pio_jobs_running") as cache:

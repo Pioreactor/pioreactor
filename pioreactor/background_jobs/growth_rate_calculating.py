@@ -258,11 +258,11 @@ class GrowthRateCalculator(BackgroundJob):
         # this means that the inoculant had near 0 impact on the turbidity => very dilute.
         # I think we should not use od_blank if so
         for channel in od_normalization_factors.keys():
-            if od_normalization_factors[channel] * 0.95 < od_blank[channel]:
+            if od_normalization_factors[channel] * 0.90 < od_blank[channel]:
                 self.logger.debug(
                     "Resetting od_blank because it is too close to current observations."
                 )
-                od_blank[channel] = od_normalization_factors[channel] * 0.95
+                od_blank[channel] = 0
 
         return (
             initial_growth_rate,
