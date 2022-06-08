@@ -547,6 +547,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if rc == mqtt.MQTT_ERR_SUCCESS:
             # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
+            # we "set" the internal event, which will cause any event.waits to finishing blocking.
+            self._blocking_event.set()
 
         # we won't exit, but the client object will try to reconnect
         # Error codes are below, but don't always align
@@ -557,9 +559,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             )
         else:
             self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
-
-        # we "set" the internal event, which will cause any event.waits to finishing blocking.
-        self._blocking_event.set()
 
         return
 
