@@ -255,12 +255,12 @@ class ADCReader(LoggerMixin):
 
             with local_intermittent_storage("led_locks") as cache:
                 for c in led_utils.ALL_LED_CHANNELS:
-                    cache[c] = led_utils.LED_UNLOCKED
+                    del cache[c]
 
             # turn off all LEDs that might be causing problems
             # however, ODReader may turn on the IR LED again.
             led_utils.led_intensity(
-                {c: 0 for c in led_utils.ALL_LED_CHANNELS},
+                {c: 0.0 for c in led_utils.ALL_LED_CHANNELS},
                 source_of_event="ADCReader",
                 unit=unit,
                 experiment=exp,
@@ -747,7 +747,7 @@ class ODReader(BackgroundJob):
 
         # setup the ADC and IrLedReference by turning off all LEDs.
         with led_utils.change_leds_intensities_temporarily(
-            {channel: 0 for channel in led_utils.ALL_LED_CHANNELS},
+            {channel: 0.0 for channel in led_utils.ALL_LED_CHANNELS},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -830,7 +830,7 @@ class ODReader(BackgroundJob):
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
         with led_utils.change_leds_intensities_temporarily(
-            {channel: 0 for channel in led_utils.ALL_LED_CHANNELS}
+            {channel: 0.0 for channel in led_utils.ALL_LED_CHANNELS}
             | {self.ir_channel: self.ir_led_intensity},
             unit=self.unit,
             experiment=self.experiment,
@@ -882,7 +882,7 @@ class ODReader(BackgroundJob):
 
     def stop_ir_led(self) -> None:
         led_utils.led_intensity(
-            {self.ir_channel: 0},
+            {self.ir_channel: 0.0},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,

@@ -25,8 +25,7 @@ from pioreactor.whoami import is_testing_env
 ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
 
 
-LED_LOCKED = b"1"
-LED_UNLOCKED = b"0"
+LED_LOCKED = b"locked"
 
 
 def _list(x) -> list:
@@ -70,12 +69,13 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
     finally:
         with local_intermittent_storage("led_locks") as cache:
             for c in channels:
-                cache[c] = LED_UNLOCKED
+                if c in cache:
+                    del cache[c]
 
 
 def is_led_channel_locked(channel: LedChannel) -> bool:
     with local_intermittent_storage("led_locks") as cache:
-        return cache.get(channel, LED_UNLOCKED) == LED_LOCKED
+        return cache.get(channel) == LED_LOCKED
 
 
 def _update_current_state(

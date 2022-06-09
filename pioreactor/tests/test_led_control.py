@@ -7,7 +7,6 @@ from msgspec.json import encode
 
 from pioreactor import pubsub
 from pioreactor import structs
-from pioreactor.actions.led_intensity import LED_UNLOCKED
 from pioreactor.actions.led_intensity import lock_leds_temporarily
 from pioreactor.automations.led.base import LEDAutomationJob
 from pioreactor.background_jobs.led_control import LEDController
@@ -91,10 +90,8 @@ def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     """
     experiment = "test_we_respect_any_locks_on_leds_we_want_to_modify"
     with local_intermittent_storage("led_locks") as cache:
-        cache["A"] = LED_UNLOCKED
-        cache["B"] = LED_UNLOCKED
-        cache["C"] = LED_UNLOCKED
-        cache["D"] = LED_UNLOCKED
+        for c in cache:
+            del cache[c]
 
     with LEDAutomationJob(duration=1, unit=unit, experiment=experiment) as ld:
         pause()
