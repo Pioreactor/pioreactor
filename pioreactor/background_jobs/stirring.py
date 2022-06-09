@@ -18,7 +18,6 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.utils import clamp
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.gpio_helpers import GPIO_states
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
@@ -61,7 +60,7 @@ class RpmCalculator:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
 
-        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_UNAVAILABLE)
+        set_gpio_availability(self.hall_sensor_pin, False)
 
         import RPi.GPIO as GPIO  # type: ignore
 
@@ -86,7 +85,7 @@ class RpmCalculator:
 
     def cleanup(self) -> None:
         self.GPIO.cleanup(self.hall_sensor_pin)
-        set_gpio_availability(self.hall_sensor_pin, GPIO_states.GPIO_AVAILABLE)
+        set_gpio_availability(self.hall_sensor_pin, True)
 
     def __call__(self, seconds_to_observe: float) -> float:
         return 0.0

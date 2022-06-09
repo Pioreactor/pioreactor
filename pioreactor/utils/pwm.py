@@ -87,7 +87,7 @@ class PWM:
                 f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
             )
 
-        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_states.GPIO_UNAVAILABLE)
+        gpio_helpers.set_gpio_availability(self.pin, False)
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
 
@@ -160,7 +160,7 @@ class PWM:
             if str(self.pin) in cache:
                 del cache[str(self.pin)]
 
-        gpio_helpers.set_gpio_availability(self.pin, gpio_helpers.GPIO_states.GPIO_AVAILABLE)
+        gpio_helpers.set_gpio_availability(self.pin, True)
 
         if self.using_hardware:
             # `stop` handles cleanup.

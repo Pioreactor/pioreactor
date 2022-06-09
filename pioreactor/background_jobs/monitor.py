@@ -19,7 +19,6 @@ from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
 from pioreactor.pubsub import QOS
 from pioreactor.types import MQTTMessage
-from pioreactor.utils.gpio_helpers import GPIO_states
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_timestamp
@@ -78,8 +77,8 @@ class Monitor(BackgroundJob):
         self.start_passive_listeners()
 
     def setup_GPIO(self) -> None:
-        set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_UNAVAILABLE)
-        set_gpio_availability(LED_PIN, GPIO_states.GPIO_UNAVAILABLE)
+        set_gpio_availability(BUTTON_PIN, False)
+        set_gpio_availability(LED_PIN, False)
 
         import RPi.GPIO as GPIO  # type: ignore
 
@@ -231,8 +230,8 @@ class Monitor(BackgroundJob):
     def on_disconnected(self) -> None:
         self.GPIO.cleanup(LED_PIN)
         self.GPIO.cleanup(BUTTON_PIN)
-        set_gpio_availability(BUTTON_PIN, GPIO_states.GPIO_AVAILABLE)
-        set_gpio_availability(LED_PIN, GPIO_states.GPIO_AVAILABLE)
+        set_gpio_availability(BUTTON_PIN, True)
+        set_gpio_availability(LED_PIN, True)
 
     def led_on(self) -> None:
         self.GPIO.output(LED_PIN, self.GPIO.HIGH)
