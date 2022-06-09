@@ -163,7 +163,7 @@ def od_blank(
             fallback=False,
         ):
             to_share = {"mean": means, "variance": variances}
-            to_share["ir_intensity"] = config["od_config"]["ir_intensity"]
+            to_share["ir_led_intensity"] = config["od_config"]["ir_led_intensity"]
             to_share["od_angle_channel1"] = od_angle_channel1  # type: ignore
             to_share["od_angle_channel2"] = od_angle_channel2  # type: ignore
             pubsub.publish_to_pioreactor_cloud("od_blank_mean", json=to_share)

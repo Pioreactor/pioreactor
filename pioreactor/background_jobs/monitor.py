@@ -54,10 +54,12 @@ class Monitor(BackgroundJob):
         def pretty_version(info: tuple[int, ...]) -> str:
             return ".".join((str(x) for x in info))
 
-        self.logger.info(
+        self.logger.debug(
             f"Pioreactor software version: {pretty_version(version.software_version_info)}"
         )
-        self.logger.info(f"Pioreactor HAT version: {pretty_version(version.hardware_version_info)}")
+        self.logger.debug(
+            f"Pioreactor HAT version: {pretty_version(version.hardware_version_info)}"
+        )
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
@@ -223,6 +225,7 @@ class Monitor(BackgroundJob):
 
     def on_ready(self) -> None:
         self.flicker_led_response_okay()
+        self.logger.notice(f"{self.unit} is online and ready.")  # type: ignore
 
         # we can delay this check until ready.
         self.check_state_of_jobs_on_machine()

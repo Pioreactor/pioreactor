@@ -124,7 +124,7 @@ def od_normalization(
         ):
 
             add_on = {
-                "ir_intensity": config["od_config"]["ir_intensity"],
+                "ir_led_intensity": config["od_config"]["ir_led_intensity"],
             }
 
             pubsub.publish_to_pioreactor_cloud(
