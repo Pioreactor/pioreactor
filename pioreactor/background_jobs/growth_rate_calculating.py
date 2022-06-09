@@ -240,7 +240,7 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization_factors, od_variances = od_normalization(
                 unit=self.unit,
                 experiment=self.experiment,
-                continue_check=lambda: (self.state in (self.READY, self.SLEEPING)),
+                continue_check=lambda: (self.state in (self.READY, self.INIT)),
             )
             self.logger.info("Completed OD normalization metrics.")
             initial_growth_rate = 0.0
@@ -304,7 +304,7 @@ class GrowthRateCalculator(BackgroundJob):
             means, _ = od_normalization(
                 unit=self.unit,
                 experiment=self.experiment,
-                continue_check=lambda: (self.state in (self.READY, self.SLEEPING)),
+                continue_check=lambda: (self.state in (self.READY, self.INIT)),
             )
             self.logger.info("Finished calculating OD normalization metrics.")
             return means
@@ -322,7 +322,7 @@ class GrowthRateCalculator(BackgroundJob):
             _, variances = od_normalization(
                 unit=self.unit,
                 experiment=self.experiment,
-                continue_check=lambda: (self.state in (self.READY, self.SLEEPING)),
+                continue_check=lambda: (self.state in (self.READY, self.INIT)),
             )
             self.logger.info("Finished calculating OD normalization metrics.")
 

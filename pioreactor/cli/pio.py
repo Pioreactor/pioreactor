@@ -83,11 +83,8 @@ def logs(n) -> None:
                 else:
                     sleep(sleep_sec)
 
-    try:
-        for line in follow(config["logging"]["log_file"]):
-            print(line, end="")
-    except BrokenPipeError:
-        pass
+    for line in follow(config["logging"]["log_file"]):
+        print(line, end="")
 
 
 @pio.command(name="log", short_help="logs a message from the CLI")
