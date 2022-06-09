@@ -270,7 +270,8 @@ def test_positive_correlation_between_rpm_and_stirring(
         sleep(1)
 
         for i in range(n_samples):
-            dc = start * (1 - i / n_samples) + (i / n_samples) * end
+            p = i / n_samples
+            dc = start * (1 - p) + p * end
 
             st.set_duty_cycle(dc)
             sleep(1)
@@ -328,9 +329,9 @@ class BatchTestRunner:
             try:
                 test(logger, unit, experiment_name)
             except Exception:
-                import traceback
+                from traceback import print_exc
 
-                traceback.print_exc()
+                print_exc()
                 res = False
             else:
                 res = True

@@ -565,7 +565,7 @@ class ADCReader(LoggerMixin):
             return argmin_freq
 
         od_channel = next(
-            ch for ch, v in config["od_config.photodiode_channel"].items() if v != REF_keyword
+            ch for ch, v in config["od_config.photodiode_channel"].items() if v in VALID_PD_ANGLES
         )
         argmin_freq1 = _compute_best_freq(timestamps[od_channel], aggregated_signals[od_channel])
 
