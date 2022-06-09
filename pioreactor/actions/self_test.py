@@ -310,7 +310,7 @@ class BatchTestRunner:
         self.count_tested = 0
         self.count_passed = 0
         self.tests_to_run = tests_to_run
-        self._thread = Thread(target=self._run, args=test_func_args, daemon=True)
+        self._thread = Thread(target=self._run, args=test_func_args)  # don't make me daemon: 295
 
     def start(self):
         self._thread.start()
