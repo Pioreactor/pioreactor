@@ -248,16 +248,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.sub_client = self._create_sub_client()
 
         self._set_up_exit_protocol()
-        self._blocking_event = threading.Event()
 
         try:
             # this is one function in the __init__ that we may deliberately raise an error
             # if we do raise an error, the class needs to be cleaned up correctly
-            # (hence the disconnected bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
+            # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
         except ValueError as e:
-            self.disconnected()
+            self._cleanup()
             raise e
         finally:
             self._publish_properties_to_broker(self.published_settings)
@@ -293,7 +292,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         pass
 
     def on_init(self) -> None:
-        # Note: this is called after this class's __init__, but before the subclass's __init__
+        # Note: this is called after this classes __init__, but before the subclasses __init__
         pass
 
     def on_sleeping(self) -> None:
@@ -547,8 +546,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if rc == mqtt.MQTT_ERR_SUCCESS:
             # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
+
+            # MQTT is the last thing to disconnect, so once this is done,
             # we "set" the internal event, which will cause any event.waits to finishing blocking.
             self._blocking_event.set()
+            return
 
         # we won't exit, but the client object will try to reconnect
         # Error codes are below, but don't always align
@@ -557,9 +559,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(
                 "Lost contact with MQTT server. Is the leader Pioreactor still online?"
             )
-        else:
-            self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
 
+        self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
+        self.logger.error("Disconnected from leader.")
         return
 
     def _publish_attr(self, attr: str) -> None:
@@ -580,8 +582,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-
-        def exit_gracefully(reason: int | str, *args) -> None:
+        def disconnect_gracefully(reason: int | str, *args) -> None:
             if self.state == self.DISCONNECTED:
                 return
 
@@ -591,7 +592,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 self.logger.debug(f"Exiting caused by {reason}.")
 
             self.clean_up()
-            self.block_until_disconnected()  # wait until clean up is done.
 
             if (reason == signal.SIGTERM) or (reason == signal.SIGHUP):
                 import sys
@@ -601,16 +601,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
-            atexit.register(exit_gracefully, "Python atexit")
+            atexit.register(disconnect_gracefully, "Python atexit")
 
             # terminate command, ex: pkill, kill
-            append_signal_handlers(signal.SIGTERM, [exit_gracefully])
+            append_signal_handlers(signal.SIGTERM, [disconnect_gracefully])
 
             # keyboard interrupt
             append_signal_handlers(
                 signal.SIGINT,
                 [
-                    exit_gracefully,
+                    disconnect_gracefully,
                     # add a "ignore all future SIGINTs" onto the top of the stack.
                     lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN),
                 ],
@@ -620,11 +620,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             append_signal_handlers(
                 signal.SIGHUP,
                 [
-                    exit_gracefully,
+                    disconnect_gracefully,
                     # add a "ignore all future SIGUPs" onto the top of the stack.
                     lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
                 ],
             )
+
+        self._blocking_event = threading.Event()
 
     def init(self) -> None:
         self.state = self.INIT
@@ -670,7 +672,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
     def lost(self) -> None:
-        # TODO: what should happen when a running job receives a lost signal? When does it ever
+        # TODO: what should happen when a running job recieves a lost signal? When does it ever
         # receive a lost signal?
         # 1. Monitor can send a lost signal if `check_against_processes_running` triggers.
         # I think it makes sense to ignore it?
@@ -696,28 +698,26 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # They are common when the user quickly starts a job then stops a job.
             self.logger.debug(e, exc_info=True)
 
-        self._log_state(self.state)
-
         # remove attrs from MQTT
         self._clear_mqtt_cache()
 
-        # remove this job from any caches
-        self._remove_from_cache()
-
-        # disconnects from external resources gracefully
-        self._disconnect_from_mqtt_clients()
-        self._disconnect_from_loggers()
-
-    def _remove_from_cache(self):
         with local_intermittent_storage("pio_jobs_running") as cache:
             if self.job_name in cache:
                 del cache[self.job_name]
-            assert self.job_name not in cache
 
-    def _disconnect_from_mqtt_clients(self):
+        self._log_state(self.state)
+        self._cleanup()
+
+    def _cleanup(self):
         # Explicitly cleanup resources...
         # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
         # logger, sub_client, pub_client.
+
+        # clean up logger handlers
+        while len(self.logger.handlers) > 0:
+            handler = self.logger.handlers[0]
+            handler.close()
+            self.logger.removeHandler(handler)
 
         # disconnect from MQTT
         self.sub_client.loop_stop()
@@ -726,13 +726,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this HAS to happen last, because this contains our publishing client
         self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pub_client.disconnect()
-
-    def _disconnect_from_loggers(self):
-        # clean up logger handlers
-        while len(self.logger.handlers) > 0:
-            handler = self.logger.handlers[0]
-            handler.close()
-            self.logger.removeHandler(handler)
 
     def _publish_properties_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
