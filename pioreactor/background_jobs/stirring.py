@@ -227,7 +227,7 @@ class Stirrer(BackgroundJob):
         target_rpm: float,
         unit: str,
         experiment: str,
-        rpm_calculator: Optional[RpmCalculator],
+        rpm_calculator: Optional[RpmCalculator] = None,
         hertz: float = config.getfloat("stirring", "pwm_hz"),
     ) -> None:
         super(Stirrer, self).__init__(job_name="stirring", unit=unit, experiment=experiment)

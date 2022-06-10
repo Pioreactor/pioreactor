@@ -449,6 +449,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         Disconnect from brokers, set state to "disconnected", stop any activity, etc.
         """
         self.set_state(self.DISCONNECTED)
+        self._cleanup()
 
     def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:
         """
@@ -546,10 +547,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if rc == mqtt.MQTT_ERR_SUCCESS:
             # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
-
-            # MQTT is the last thing to disconnect, so once this is done,
-            # we "set" the internal event, which will cause any event.waits to finishing blocking.
-            self._blocking_event.set()
             return
 
         # we won't exit, but the client object will try to reconnect
@@ -582,9 +579,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
-        def disconnect_gracefully(reason: int | str, *args) -> None:
-            if self.state == self.DISCONNECTED:
-                return
+        def exit_gracefully(reason: int | str, *args) -> None:
 
             if isinstance(reason, int):
                 self.logger.debug(f"Exiting caused by signal {signal.strsignal(reason)}.")
@@ -601,16 +596,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # signals only work in main thread - and if we set state via MQTT,
         # this would run in a thread - so just skip.
         if threading.current_thread() is threading.main_thread():
-            atexit.register(disconnect_gracefully, "Python atexit")
+            atexit.register(exit_gracefully, "Python atexit")
 
             # terminate command, ex: pkill, kill
-            append_signal_handlers(signal.SIGTERM, [disconnect_gracefully])
+            append_signal_handlers(signal.SIGTERM, [exit_gracefully])
 
             # keyboard interrupt
             append_signal_handlers(
                 signal.SIGINT,
                 [
-                    disconnect_gracefully,
+                    exit_gracefully,
                     # add a "ignore all future SIGINTs" onto the top of the stack.
                     lambda *args: signal.signal(signal.SIGINT, signal.SIG_IGN),
                 ],
@@ -620,7 +615,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             append_signal_handlers(
                 signal.SIGHUP,
                 [
-                    disconnect_gracefully,
+                    exit_gracefully,
                     # add a "ignore all future SIGUPs" onto the top of the stack.
                     lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
                 ],
@@ -706,7 +701,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 del cache[self.job_name]
 
         self._log_state(self.state)
-        self._cleanup()
+
+        # we "set" the internal event, which will cause any event.waits to finishing blocking.
+        self._blocking_event.set()
 
     def _cleanup(self):
         # Explicitly cleanup resources...
