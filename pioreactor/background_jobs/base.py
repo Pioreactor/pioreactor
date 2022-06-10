@@ -257,7 +257,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
         except ValueError as e:
-            self._cleanup()
+            self._clean_up_resources()
             raise e
         finally:
             self._publish_properties_to_broker(self.published_settings)
@@ -450,7 +450,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         Disconnect from brokers, set state to "disconnected", stop any activity.
         """
         self.set_state(self.DISCONNECTED)
-        self._cleanup()
+        self._clean_up_resources()
 
     def add_to_published_settings(self, setting: str, props: pt.PublishableSetting) -> None:
         """
@@ -724,7 +724,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pub_client.disconnect()
 
-    def _cleanup(self):
+    def _clean_up_resources(self):
         # Explicitly cleanup resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
