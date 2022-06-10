@@ -90,7 +90,7 @@ def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     """
     experiment = "test_we_respect_any_locks_on_leds_we_want_to_modify"
     with local_intermittent_storage("led_locks") as cache:
-        for c in cache:
+        for c in cache.keys():
             del cache[c]
 
     with LEDAutomationJob(duration=1, unit=unit, experiment=experiment) as ld:
