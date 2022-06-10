@@ -564,10 +564,8 @@ class ADCReader(LoggerMixin):
 
             return argmin_freq
 
-        od_channel = next(
-            ch for ch, v in config["od_config.photodiode_channel"].items() if v in VALID_PD_ANGLES
-        )
-        argmin_freq1 = _compute_best_freq(timestamps[od_channel], aggregated_signals[od_channel])
+        channel = self.channels[0]
+        argmin_freq1 = _compute_best_freq(timestamps[channel], aggregated_signals[channel])
 
         self.logger.debug(f"AC hz estimate: {argmin_freq1}")
         return argmin_freq1
