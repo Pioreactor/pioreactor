@@ -225,6 +225,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
+        self._clean = False
 
         self.logger = create_logger(
             self.job_name, unit=self.unit, experiment=self.experiment, source=source
@@ -548,7 +549,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if rc == mqtt.MQTT_ERR_SUCCESS:
             # MQTT_ERR_SUCCESS means that the client disconnected using disconnect()
             self.logger.debug("Disconnected successfully from MQTT.")
-            return
 
         # we won't exit, but the client object will try to reconnect
         # Error codes are below, but don't always align
@@ -557,9 +557,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.error(
                 "Lost contact with MQTT server. Is the leader Pioreactor still online?"
             )
-
-        self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
-        self.logger.error("Disconnected from leader.")
+        else:
+            self.logger.debug(f"Disconnected from MQTT with {rc=}: {mqtt.error_string(rc)}")
         return
 
     def _publish_attr(self, attr: str) -> None:
@@ -581,7 +580,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _set_up_exit_protocol(self) -> None:
         # here, we set up how jobs should disconnect and exit.
         def exit_gracefully(reason: int | str, *args) -> None:
+            if self._clean:
+                return
 
+            print("here", self.job_name)
             if isinstance(reason, int):
                 self.logger.debug(f"Exiting caused by signal {signal.strsignal(reason)}.")
             elif isinstance(reason, str):
@@ -728,6 +730,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # Explicitly cleanup resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
+
+        self._clean = True
 
     def _publish_properties_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
