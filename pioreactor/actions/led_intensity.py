@@ -112,7 +112,7 @@ def led_intensity(
     pubsub_client: Optional[Client] = None,
 ) -> bool:
     """
-    Change the intensity of the LED channels A,B,C, or D.
+    Change the intensity of the LED channels A,B,C, or D to a intensity between 0 and 100.
 
     Parameters
     ------------
@@ -136,7 +136,7 @@ def led_intensity(
 
     Notes
     -------
-    State is updated in MQTT:
+    State is updated in MQTT and the temporary cache `leds`:
 
         pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
