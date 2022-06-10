@@ -248,6 +248,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.sub_client = self._create_sub_client()
 
         self._set_up_exit_protocol()
+        self._blocking_event = threading.Event()
 
         try:
             # this is one function in the __init__ that we may deliberately raise an error
@@ -446,7 +447,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def clean_up(self):
         """
-        Disconnect from brokers, set state to "disconnected", stop any activity, etc.
+        Disconnect from brokers, set state to "disconnected", stop any activity.
         """
         self.set_state(self.DISCONNECTED)
         self._cleanup()
@@ -621,8 +622,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 ],
             )
 
-        self._blocking_event = threading.Event()
-
     def init(self) -> None:
         self.state = self.INIT
 
@@ -696,26 +695,27 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # remove attrs from MQTT
         self._clear_mqtt_cache()
 
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            if self.job_name in cache:
-                del cache[self.job_name]
+        # remove from temp. `pio_jobs_running` cache
+        self._remove_from_cache()
 
         self._log_state(self.state)
 
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
         self._blocking_event.set()
 
-    def _cleanup(self):
-        # Explicitly cleanup resources...
-        # it's pretty slow to disconnect from MQTT. Takes up to ~1 second. We do it three times here:
-        # logger, sub_client, pub_client.
+    def _remove_from_cache(self):
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            if self.job_name in cache:
+                del cache[self.job_name]
 
+    def _disconnect_from_loggers(self):
         # clean up logger handlers
         while len(self.logger.handlers) > 0:
             handler = self.logger.handlers[0]
             handler.close()
             self.logger.removeHandler(handler)
 
+    def _disconnect_from_mqtt_clients(self):
         # disconnect from MQTT
         self.sub_client.loop_stop()
         self.sub_client.disconnect()
@@ -723,6 +723,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this HAS to happen last, because this contains our publishing client
         self.pub_client.loop_stop()  # pretty sure this doesn't close the thread if in a thread: https://github.com/eclipse/paho.mqtt.python/blob/master/src/paho/mqtt/client.py#L1835
         self.pub_client.disconnect()
+
+    def _cleanup(self):
+        # Explicitly cleanup resources...
+        self._disconnect_from_mqtt_clients()
+        self._disconnect_from_loggers()
 
     def _publish_properties_to_broker(
         self, published_settings: dict[str, pt.PublishableSetting]
