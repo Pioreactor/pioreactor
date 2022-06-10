@@ -51,11 +51,7 @@ def test_states() -> None:
     publish(f"pioreactor/{unit}/{exp}/job/$state/set", "disconnected")
     pause()
     assert bj.state == bj.DISCONNECTED
-
-    pause()
-    pause()
-    pause()
-    pause()
+    bj.clean_up()
 
 
 @pytest.mark.skip(reason="hangs")
@@ -93,7 +89,9 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
         with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
             pause()
             pause()
+            pause()
             bj.logger.warning("test1")
+            pause()
             pause()
             pause()
 
@@ -137,9 +135,7 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
 def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect() -> None:
     class TestJob(BackgroundJob):
         def __init__(self, unit: str, experiment: str) -> None:
-            super(TestJob, self).__init__(
-                job_name="testjob", unit=unit, experiment=experiment
-            )
+            super(TestJob, self).__init__(job_name="testjob", unit=unit, experiment=experiment)
             try:
                 1 / 0
             except Exception as e:
@@ -177,9 +173,7 @@ def test_state_transition_callbacks() -> None:
         called_on_init_to_ready = False
 
         def __init__(self, unit: str, experiment: str) -> None:
-            super(TestJob, self).__init__(
-                job_name="testjob", unit=unit, experiment=experiment
-            )
+            super(TestJob, self).__init__(job_name="testjob", unit=unit, experiment=experiment)
 
         def on_init(self) -> None:
             self.called_on_init = True
