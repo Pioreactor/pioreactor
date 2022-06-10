@@ -583,7 +583,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if self._clean:
                 return
 
-            print("here", self.job_name)
             if isinstance(reason, int):
                 self.logger.debug(f"Exiting caused by signal {signal.strsignal(reason)}.")
             elif isinstance(reason, str):
