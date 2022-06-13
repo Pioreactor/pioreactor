@@ -150,7 +150,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     This will gracefully disconnect and cleanup the job, provided you clean up in the `on_disconnected` function.
 
-    2. Clean up yourself. The following is not recommended as it does not cleanup connections and state even after the function exits:
+    2. Clean up yourself. The following is **not** recommended as it does not cleanup connections and state even after the function exits:
 
     > def do_some_stirring():
     >     st = Stirrer(duty_cycle=50, unit=unit, experiment=experiment)

@@ -105,8 +105,8 @@ def _update_current_state(
 
 def led_intensity(
     desired_state: dict[LedChannel, float],
-    unit: str,
-    experiment: str,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
     verbose: bool = True,
     source_of_event: Optional[str] = None,
     pubsub_client: Optional[Client] = None,
@@ -141,8 +141,9 @@ def led_intensity(
         pioreactor/<unit>/<experiment>/leds/intensity    {'A': intensityA, 'B': intensityB, ...}
 
     """
-    assert experiment is not None, "experiment must be set"
-    assert unit is not None, "unit must be set"
+    experiment = experiment or get_latest_experiment_name()
+    unit = unit or get_unit_name()
+
     logger = create_logger("led_intensity", experiment=experiment, unit=unit)
     updated_successfully = True
     if not is_testing_env():

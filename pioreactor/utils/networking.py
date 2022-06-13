@@ -55,6 +55,9 @@ def discover_workers_on_network() -> list[str]:
             info = zc.get_service_info(type_, name)
             self.hostnames.append(info.server.removesuffix(".local."))
 
+        def update_service(self, *args, **kwargs):
+            pass
+
     listener = Listener()
     ServiceBrowser(Zeroconf(), "_pioreactor_worker._tcp.local.", listener)
     time.sleep(1)

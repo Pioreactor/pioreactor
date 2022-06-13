@@ -1,3 +1,9 @@
+### Upcoming
+ - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.
+ - In `config.ini`, `ir_intensity` -> `ir_led_intensity`
+ - caches that keep state (like `led_locks`) now use absence and presence to determine state, instead of specific value in the cache.
+
+
 ### 22.6.0
  - You can now edit the config.ini without having to boot a Pioreactor. By adding a file called `config.ini` to the `boot` folder when the SD card is interested in a computer, the `/boot/config.ini` will be merged with the Pioreactor's `config.ini`. This is useful for changing settings before ever starting up your Pioreactor for the first time. See below.
  - `config.ini` is now the place where the local-access-point's SSID and passphrase are stored.
