@@ -167,7 +167,7 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
             logger.debug(e, exc_info=True)
             return False
 
-    units = universal_identifier_to_all_active_workers(units)
+    units = universal_identifier_to_all_workers(units)
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -214,7 +214,7 @@ def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
             logger.debug(e, exc_info=True)
             return False
 
-    units = add_leader(universal_identifier_to_all_active_workers(units))
+    units = add_leader(universal_identifier_to_all_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -262,7 +262,7 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
             logger.debug(e, exc_info=True)
             return False
 
-    units = add_leader(universal_identifier_to_all_active_workers(units))
+    units = add_leader(universal_identifier_to_all_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
@@ -511,7 +511,7 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
             logger.error(f"Unable to connect to unit {unit}.")
             return False
 
-    units = remove_leader(universal_identifier_to_all_active_workers(units))
+    units = remove_leader(universal_identifier_to_all_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         results = executor.map(_thread_function, units)
 
