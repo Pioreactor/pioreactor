@@ -165,3 +165,8 @@ def get_active_workers_in_inventory() -> tuple[str, ...]:
         for (unit, available) in config["network.inventory"].items()
         if config.BOOLEAN_STATES[available]
     )
+
+
+def get_workers_in_inventory() -> tuple[str, ...]:
+    config = get_config()
+    return tuple(str(unit) for (unit, available) in config["network.inventory"].items())

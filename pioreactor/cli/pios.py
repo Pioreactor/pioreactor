@@ -13,6 +13,7 @@ import click
 from pioreactor.config import config
 from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.config import get_leader_hostname
+from pioreactor.config import get_workers_in_inventory
 from pioreactor.logging import create_logger
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
@@ -24,6 +25,12 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 def universal_identifier_to_all_active_workers(units: tuple[str, ...]) -> tuple[str, ...]:
     if units == (UNIVERSAL_IDENTIFIER,):
         units = get_active_workers_in_inventory()
+    return units
+
+
+def universal_identifier_to_all_workers(units: tuple[str, ...]) -> tuple[str, ...]:
+    if units == (UNIVERSAL_IDENTIFIER,):
+        units = get_workers_in_inventory()
     return units
 
 
@@ -292,7 +299,7 @@ def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
     logger = create_logger(
         "sync_configs", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
-    units = universal_identifier_to_all_active_workers(units)
+    units = universal_identifier_to_all_workers(units)
 
     if not shared and not specific:
         shared = specific = True
