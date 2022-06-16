@@ -434,6 +434,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
 
         """
+        self.logger.debug(f"{self.job_name} is blocking until disconnected")
         self._blocking_event.wait()
 
     def blink_error_code(self, error_code: int) -> None:
@@ -702,6 +703,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
+        self.logger.debug(f"{self.job_name} is unblocking.")
         self._blocking_event.set()
 
     def _remove_from_cache(self):
