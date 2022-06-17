@@ -10,9 +10,7 @@ class DosingProgram(t.Protocol):
     Should return a non-negative float representing (approx) how much liquid was moved, in ml.
     """
 
-    def __call__(
-        self, ml: float, unit: str, experiment: str, source_of_event: str
-    ) -> float:
+    def __call__(self, ml: float, unit: str, experiment: str, source_of_event: str) -> float:
         ...
 
 
@@ -95,7 +93,8 @@ LedChannel = t.Literal["A", "B", "C", "D"]
 PdChannel = t.Literal["1", "2"]
 PwmChannel = t.Literal["1", "2", "3", "4", "5"]
 
-PdAngle = t.Literal["45", "90", "135", "180", "REF"]
+PdAngle = t.Literal["45", "90", "135", "180"]
+PdAngleOrREF = t.Union[PdAngle, t.Literal["REF"]]
 
 
 # All GPIO pins below are BCM numbered

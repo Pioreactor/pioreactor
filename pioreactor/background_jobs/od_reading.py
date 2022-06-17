@@ -574,14 +574,15 @@ class ADCReader(LoggerMixin):
 class IrLedReferenceTracker(LoggerMixin):
 
     _logger_name = "ir_led_ref"
+    channel: pt.PdChannel
 
     def __init__(self) -> None:
         super().__init__()
 
-    def update(self, batched_reading: dict[pt.PdChannel, float]) -> None:
+    def update(self, ir_output_reading: float) -> None:
         pass
 
-    def set_blank(self, batched_reading: dict[pt.PdChannel, float]) -> None:
+    def set_blank(self, ir_output_reading: float) -> None:
         pass
 
     def __call__(self, od_signal: float) -> float:
@@ -624,11 +625,19 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         self.channel = channel
         self.ignore_blank = ignore_blank
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
+        self._count: int = 0
 
-    def update(self, batched_reading: dict[pt.PdChannel, float]) -> None:
-        ir_output_reading = batched_reading[self.channel]
+    def update(self, ir_output_reading: float) -> None:
         if self.initial_led_output is None:
             self.initial_led_output = ir_output_reading
+            self.logger.debug(f"{self.initial_led_output=}")
+            self._count = 1
+        elif self._count < 5:  # dumb way to take average of the first N values...
+            self.initial_led_output = (
+                self.initial_led_output * self._count + ir_output_reading
+            ) / (self._count + 1)
+            self._count += 1
+            self.logger.debug(f"{self.initial_led_output=}")
 
         # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
         self.led_output_ema.update(
@@ -636,19 +645,17 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             / (self.initial_led_output - self.blank_reading)
         )
 
-    def set_blank(self, batched_reading: dict[pt.PdChannel, float]) -> None:
-        if self.ignore_blank:
-            return
-        else:
-            self.blank_reading = batched_reading[self.channel]
-            return
+    def set_blank(self, ir_output_reading: float) -> None:
+        if not self.ignore_blank:
+            self.blank_reading = ir_output_reading
+            self.logger.debug(f"{self.blank_reading=}")
+        return
 
     def __call__(self, od_signal: float) -> float:
         led_output = self.led_output_ema()
         if led_output is None:
             return od_signal
         else:
-            assert isinstance(led_output, float)
             return od_signal / led_output
 
 
@@ -762,7 +769,9 @@ class ODReader(BackgroundJob):
                 # get blank values of reference PD.
                 # This slightly improves the accuracy of the IR LED output tracker,
                 # See that class's docs.
-                self.ir_led_reference_tracker.set_blank(self.adc_reader.take_reading())
+                blank_reading = self.adc_reader.take_reading()
+                blank_ir_output_reading = blank_reading[self.ir_led_reference_tracker.channel]
+                self.ir_led_reference_tracker.set_blank(blank_ir_output_reading)
 
         self.add_post_read_callback(self._publish_single)
         self.add_post_read_callback(self._publish_batch)
@@ -810,8 +819,8 @@ class ODReader(BackgroundJob):
         The IR LED needs to be turned on for this function to report accurate OD signals.
         """
         batched_readings = self.adc_reader.take_reading()
-        self.ir_led_reference_tracker.update(batched_readings)
-        batched_readings = {pd: batched_readings[pd] for pd in self.channel_angle_map.keys()}
+        ir_output_reading = batched_readings.pop(self.ir_led_reference_tracker.channel)
+        self.ir_led_reference_tracker.update(ir_output_reading)
         return self._normalize_by_led_output(batched_readings)
 
     def record_from_adc(self) -> structs.ODReadings:
@@ -823,7 +832,7 @@ class ODReader(BackgroundJob):
             try:
                 pre_function(self)
             except Exception:
-                self.logger.debug(f"Error in callback {pre_function}.", exc_info=True)
+                self.logger.debug(f"Error in {pre_function=}.", exc_info=True)
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
@@ -860,7 +869,7 @@ class ODReader(BackgroundJob):
             try:
                 post_function(self, od_readings)
             except Exception:
-                self.logger.debug(f"Error in callback {post_function}.", exc_info=True)
+                self.logger.debug(f"Error in {post_function=}.", exc_info=True)
 
         return od_readings
 
@@ -976,7 +985,7 @@ def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.P
 
 
 def create_channel_angle_map(
-    od_angle_channel1, od_angle_channel2
+    od_angle_channel1: Optional[pt.PdAngleOrREF], od_angle_channel2: Optional[pt.PdAngleOrREF]
 ) -> dict[pt.PdChannel, pt.PdAngle]:
     # Inputs are either None, or a string like "135", "90", "REF", ...
     # Example return dict: {"1": "90", "2": "45"}
@@ -987,6 +996,7 @@ def create_channel_angle_map(
             raise ValueError(
                 f"{od_angle_channel1=} is not a valid angle. Must be one of {VALID_PD_ANGLES}"
             )
+        od_angle_channel1 = cast(pt.PdAngle, od_angle_channel1)
         channel_angle_map["1"] = od_angle_channel1
 
     if od_angle_channel2 and od_angle_channel2 != REF_keyword:
@@ -994,14 +1004,16 @@ def create_channel_angle_map(
             raise ValueError(
                 f"{od_angle_channel2=} is not a valid angle. Must be one of {VALID_PD_ANGLES}"
             )
+
+        od_angle_channel2 = cast(pt.PdAngle, od_angle_channel2)
         channel_angle_map["2"] = od_angle_channel2
 
     return channel_angle_map
 
 
 def start_od_reading(
-    od_angle_channel1: Optional[pt.PdAngle] = None,
-    od_angle_channel2: Optional[pt.PdAngle] = None,
+    od_angle_channel1: Optional[pt.PdAngleOrREF] = None,
+    od_angle_channel2: Optional[pt.PdAngleOrREF] = None,
     interval: float = 1 / config.getfloat("od_config", "samples_per_second"),
     fake_data: bool = False,
     unit: Optional[str] = None,
@@ -1051,7 +1063,9 @@ def start_od_reading(
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
-def click_od_reading(od_angle_channel1: pt.PdAngle, od_angle_channel2: pt.PdAngle, fake_data: bool):
+def click_od_reading(
+    od_angle_channel1: pt.PdAngleOrREF, od_angle_channel2: pt.PdAngleOrREF, fake_data: bool
+):
     """
     Start the optical density reading job
     """
