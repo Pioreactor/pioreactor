@@ -425,8 +425,10 @@ class GrowthRateCalculator(BackgroundJob):
                 / 60
             )  # delta time in hours
 
-            if dt <= 0:
-                self.logger.debug("Late arriving data...")
+            if dt < 0:
+                self.logger.debug(
+                    f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
+                )
                 return self.growth_rate, self.od_filtered
 
             self.time_of_previous_observation = time_of_current_observation
