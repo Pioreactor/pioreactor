@@ -697,9 +697,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # remove attrs from MQTT
         self._clear_mqtt_cache()
 
-        # remove from temp. `pio_jobs_running` cache
-        self._remove_from_cache()
-
         self._log_state(self.state)
 
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
@@ -731,6 +728,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # Explicitly cleanup resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
+        # remove from temp. `pio_jobs_running` cache
+        self._remove_from_cache()
 
         self._clean = True
 
@@ -855,7 +854,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _check_for_duplicate_activity(self) -> None:
         with local_intermittent_storage("pio_jobs_running") as cache:
-            if not is_testing_env() and (cache.get(self.job_name, b"0") == b"1"):
+            if not is_testing_env() and (cache.get(self.job_name) == b"1"):
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
                 raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 
