@@ -585,6 +585,9 @@ class IrLedReferenceTracker(LoggerMixin):
     def set_blank(self, ir_output_reading: float) -> None:
         pass
 
+    def get_reference_reading(self, batched_readings: dict[pt.PdChannel, float]) -> float:
+        return batched_readings[self.channel]
+
     def __call__(self, od_signal: float) -> float:
         return od_signal
 
@@ -663,6 +666,9 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
     def __init__(self) -> None:
         super().__init__()
         self.logger.debug("Not using any IR LED reference.")
+
+    def get_reference_reading(self, batched_readings) -> float:
+        return 0.0
 
 
 class ODReader(BackgroundJob):
@@ -770,7 +776,9 @@ class ODReader(BackgroundJob):
                 # This slightly improves the accuracy of the IR LED output tracker,
                 # See that class's docs.
                 blank_reading = self.adc_reader.take_reading()
-                blank_ir_output_reading = blank_reading[self.ir_led_reference_tracker.channel]
+                blank_ir_output_reading = self.ir_led_reference_tracker.get_reference_reading(
+                    blank_reading
+                )
                 self.ir_led_reference_tracker.set_blank(blank_ir_output_reading)
 
         self.add_post_read_callback(self._publish_single)
@@ -819,7 +827,7 @@ class ODReader(BackgroundJob):
         The IR LED needs to be turned on for this function to report accurate OD signals.
         """
         batched_readings = self.adc_reader.take_reading()
-        ir_output_reading = batched_readings.pop(self.ir_led_reference_tracker.channel)
+        ir_output_reading = self.ir_led_reference_tracker.get_reference_reading(batched_readings)
         self.ir_led_reference_tracker.update(ir_output_reading)
         return self._normalize_by_led_output(batched_readings)
 
