@@ -481,7 +481,7 @@ if whoami.am_I_leader():
             f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
             bold=True,
         )
-        for hostname, inventory_status in config["network.inventory"].items():
+        for hostname, inventory_status in config["cluster.inventory"].items():
             if inventory_status == "0":
                 continue
 
@@ -493,5 +493,5 @@ if not whoami.am_I_leader() and not whoami.am_I_active_worker():
         "CLI", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
     logger.info(
-        f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `network.inventory` section in `config.ini`?"
+        f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
     )

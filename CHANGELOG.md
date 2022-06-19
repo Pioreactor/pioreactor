@@ -2,6 +2,8 @@
  - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.
  - In `config.ini`, `ir_intensity` -> `ir_led_intensity`
  - caches that keep state (like `led_locks`) now use absence and presence to determine state, instead of specific value in the cache.
+ - `network.inventory` -> `cluster.inventory`
+ - `network.topology` -> `cluster.topology`
 
 
 ### 22.6.0
@@ -143,7 +145,7 @@
  - Growth rate calculating is a bit more robust to i) users pausing the job to inspect the vial, and ii) to changing the stirring speed.
  - mDNS alias is now configurable via the config.ini, so users could have multiple clusters without domain aliases colliding in the DNS.
  - fixed GPIO mappings for PWM Amplifiers
- - `inventory` in config.ini is now called `network.inventory`
+ - `inventory` in config.ini is now called `cluster.inventory`
  - `ui.overview.rename` in config.ini is now called `ui.rename`
 
 ### 21.2.4

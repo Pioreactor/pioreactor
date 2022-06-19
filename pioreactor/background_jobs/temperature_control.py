@@ -108,9 +108,7 @@ class TemperatureController(BackgroundJob):
 
         if whoami.is_testing_env():
             self.logger.debug("TMP1075 not available; using MockTMP1075")
-            from pioreactor.utils.mock import MockTMP1075 as TMP1075
-        else:
-            from TMP1075 import TMP1075  # type: ignore
+            from pioreactor.utils.mock import MockTMP1075 as TMP1075  # type: ignore
 
         self.using_third_party_thermocouple = using_third_party_thermocouple
         self.pwm = self.setup_pwm()
@@ -345,6 +343,7 @@ class TemperatureController(BackgroundJob):
 
     @staticmethod
     def _get_room_temperature():
+        # TODO: improve somehow
         return 22.0
 
     def evaluate_temperature(self) -> None:

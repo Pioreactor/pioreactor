@@ -142,12 +142,12 @@ def get_config():
 
 @lru_cache(1)
 def get_leader_hostname() -> str:
-    return get_config().get("network.topology", "leader_hostname", fallback="localhost")
+    return get_config().get("cluster.topology", "leader_hostname", fallback="localhost")
 
 
 @lru_cache(1)
 def get_leader_address() -> str:
-    return get_config().get("network.topology", "leader_address", fallback="localhost")
+    return get_config().get("cluster.topology", "leader_address", fallback="localhost")
 
 
 def check_firstboot_successful() -> bool:
@@ -162,11 +162,11 @@ def get_active_workers_in_inventory() -> tuple[str, ...]:
     config = get_config()
     return tuple(
         str(unit)
-        for (unit, available) in config["network.inventory"].items()
+        for (unit, available) in config["cluster.inventory"].items()
         if config.BOOLEAN_STATES[available]
     )
 
 
 def get_workers_in_inventory() -> tuple[str, ...]:
     config = get_config()
-    return tuple(str(unit) for (unit, available) in config["network.inventory"].items())
+    return tuple(str(unit) for (unit, available) in config["cluster.inventory"].items())
