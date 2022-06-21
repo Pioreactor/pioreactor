@@ -70,7 +70,7 @@ class Monitor(BackgroundJob):
         # problems detected, we may want to block and not let the job continue.
         self.self_checks()
         self.self_check_thread = RepeatedTimer(
-            8 * 60 * 60,
+            6 * 60 * 60,
             self.self_checks,
             job_name=self.job_name,
             run_immediately=False,
@@ -282,7 +282,7 @@ class Monitor(BackgroundJob):
                 hr_status.append("Active undervoltage")
 
             hr_status.append(
-                "Suggestion: use a larger external power supply. See docs at: https://pioreactor.com/pages/using-an-external-power-supply"
+                "Suggestion: use a larger external power supply. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
             return ". ".join(hr_status)
 

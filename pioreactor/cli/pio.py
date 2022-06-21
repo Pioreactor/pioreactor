@@ -9,6 +9,7 @@ cmd line interface for running individual pioreactor units (including leader)
 from __future__ import annotations
 
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from json import dumps
 from time import sleep
 from typing import Optional
@@ -466,26 +467,34 @@ if whoami.am_I_leader():
 
             return ip, state, reachable
 
-        def display_data_for(hostname):
+        def display_data_for(hostname_status) -> bool:
+            hostname, status = hostname_status
+            if status == "0":
+                return True
+
             ip, state, reachable = get_network_metadata(hostname)
 
             statef = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
             ipf = f"{ip:20s}"
+
             reachablef = f"{(  click.style('Y', fg='green') if reachable else click.style('N', fg='red') ):10s}"
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
 
             click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef}")
+            return reachable & (state == "ready")
 
         click.secho(
             f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
             bold=True,
         )
-        for hostname, inventory_status in config["cluster.inventory"].items():
-            if inventory_status == "0":
-                continue
 
-            display_data_for(hostname)
+        units_statuses = list(config["cluster.inventory"].items())
+        with ThreadPoolExecutor(max_workers=len(units_statuses)) as executor:
+            results = executor.map(display_data_for, units_statuses)
+
+        if not all(results):
+            sys.exit(1)
 
 
 if not whoami.am_I_leader() and not whoami.am_I_active_worker():
