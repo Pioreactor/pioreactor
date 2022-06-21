@@ -47,6 +47,23 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 
 
+def is_TI_device():
+    # dev
+    from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
+    import busio  # type: ignore
+    import board  # type: ignore
+
+    comm_port = busio.I2C(board.SCL, board.SDA)
+    read_buffer = bytearray(2)
+    write_buffer = bytearray([0x04])
+    i2c = I2CDevice(comm_port, 0x4F)
+    try:
+        i2c.write_then_readinto(write_buffer, read_buffer)
+        return False
+    except Exception:
+        return True
+
+
 class TemperatureController(BackgroundJob):
     """
 
@@ -108,7 +125,9 @@ class TemperatureController(BackgroundJob):
 
         if whoami.is_testing_env():
             self.logger.debug("TMP1075 not available; using MockTMP1075")
-            from pioreactor.utils.mock import MockTMP1075 as TMP1075  # type: ignore
+            from pioreactor.utils.mock import MockTMP1075 as TMP1075
+        else:
+            from TMP1075 import TMP1075  # type: ignore
 
         self.using_third_party_thermocouple = using_third_party_thermocouple
         self.pwm = self.setup_pwm()

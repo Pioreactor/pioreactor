@@ -506,7 +506,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # to overwrite potential last-will losts...
         # also reconnect to our old topics.
         def reconnect_protocol(client: Client, userdata, flags, rc: int, properties=None):
-            self.logger.notice("Reconnected to MQTT broker.")  # type: ignore
+            self.logger.notice("Reconnected to the MQTT broker on leader.")  # type: ignore
             self._publish_attr("state")
             self.start_general_passive_listeners()
             self.start_passive_listeners()
