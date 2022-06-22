@@ -100,6 +100,8 @@ def get_config():
         waste=3
         media=4
 
+    and `od_config.photodiode_channel_reverse`
+
     """
     config = ConfigParserMod()
 

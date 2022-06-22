@@ -37,37 +37,34 @@ class MockAnalogIn:
 
     def __init__(self, ads, channel, **kwargs) -> None:
 
-        # import pandas as pd
-        # self.source = pd.read_csv(f"/Users/camerondavidson-pilon/code/pioreactor/demo_od{channel}.csv", index_col=0)
-
-        # subscribe to dosing events
         assert channel in [0, 1], "channel must be in 0, 1"
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
+        self.channel = channel
+        self.am_i_REF = str(channel + 1) == config.get(
+            "od_config.photodiode_channel_reverse", "REF"
+        )
 
     def growth_rate(self, duration_as_seconds: int) -> float:
+        if self.am_i_REF:
+            return 0.0
+
         import numpy as np
 
         return (
             self.max_gr
             / (1 + np.exp(-self.scale_factor * (duration_as_seconds - self.lag)))
-            * (
-                1
-                - 1
-                / (
-                    1
-                    + np.exp(
-                        -self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag)
-                    )
-                )
-            )
+            * (1 - 1 / (1 + np.exp(-self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag))))
         )
 
     @property
     def voltage(self) -> float:
         import random
         import numpy as np
+
+        if self.am_i_REF:
+            return (0.1 + random.normalvariate(0, sigma=0.0001)) / 2**10
 
         self.gr = self.growth_rate(
             self._counter / config.getfloat("od_config", "samples_per_second")

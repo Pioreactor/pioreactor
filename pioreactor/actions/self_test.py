@@ -24,6 +24,7 @@ from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import ALL_PD_CHANNELS
 from pioreactor.background_jobs.od_reading import IR_keyword
+from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.config import config
@@ -38,6 +39,8 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
+from pioreactor.utils.math_helpers import trimmed_mean
+from pioreactor.utils.math_helpers import trimmed_variance
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -49,7 +52,6 @@ def test_pioreactor_HAT_present(logger: Logger, unit: str, experiment: str) -> N
 
 
 def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) -> None:
-    from statistics import mean, variance
 
     od_stream = start_od_reading(
         od_angle_channel1="90",
@@ -64,35 +66,34 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     signal2 = []
 
     for i, reading in enumerate(od_stream):
-        if i < 5:
+        if i < 5:  # skip the first few values
             continue
 
         signal1.append(reading.od_raw["1"].voltage)
         signal2.append(reading.od_raw["2"].voltage)
 
-        if i == 25:
+        if i == 35:
             break
 
-    mean_signal1 = mean(signal1)
-    mean_signal2 = mean(signal2)
-
-    norm_variance_per_channel = {
-        "1": variance(signal1) / mean_signal1**2,
-        "2": variance(signal2) / mean_signal2**2,
-    }
-
-    ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
     od_stream.clean_up()
 
+    norm_variance_per_channel = {
+        "1": trimmed_variance(signal1) / trimmed_mean(signal1) ** 2,
+        "2": trimmed_variance(signal2) / trimmed_mean(signal2) ** 2,
+    }
+
+    ref_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
+
+    THRESHOLD = 10.0
     if ref_channel == "1":
         assert (
-            10 * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
-        ), norm_variance_per_channel
+            THRESHOLD * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
+        ), f"{ref_channel=}, {norm_variance_per_channel=}"
 
     if ref_channel == "2":
         assert (
-            10 * norm_variance_per_channel["2"] < norm_variance_per_channel["1"]
-        ), norm_variance_per_channel
+            THRESHOLD * norm_variance_per_channel["2"] < norm_variance_per_channel["1"]
+        ), f"{ref_channel=}, {norm_variance_per_channel=}"
 
 
 def test_all_positive_correlations_between_pds_and_leds(
@@ -232,32 +233,30 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
 
 def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment: str) -> None:
 
-    for (channel, angle_or_ref) in config["od_config.photodiode_channel"].items():
-        if angle_or_ref == "REF":
-            reference_channel = cast(PdChannel, channel)
-            ir_channel = config["leds_reverse"][IR_keyword]
-            ir_intensity = config.getfloat("od_config", "ir_led_intensity")
+    reference_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
+    ir_channel = config["leds_reverse"][IR_keyword]
+    ir_intensity = config.getfloat("od_config", "ir_led_intensity")
 
-            adc_reader = ADCReader(
-                channels=[reference_channel],
-                dynamic_gain=False,
-                initial_gain=1,
-                fake_data=is_testing_env(),
-            ).setup_adc()
+    adc_reader = ADCReader(
+        channels=[reference_channel],
+        dynamic_gain=False,
+        initial_gain=1,
+        fake_data=is_testing_env(),
+    ).setup_adc()
 
-            with change_leds_intensities_temporarily(
-                {ir_channel: ir_intensity},
-                unit=unit,
-                source_of_event="self_test",
-                experiment=experiment,
-                verbose=False,
-            ):
-                readings = adc_reader.take_reading()
+    with change_leds_intensities_temporarily(
+        {ir_channel: ir_intensity},
+        unit=unit,
+        source_of_event="self_test",
+        experiment=experiment,
+        verbose=False,
+    ):
+        readings = adc_reader.take_reading()
 
-            # provide a margin, since we have margins when determining change gain in od_reading
-            assert (
-                readings[reference_channel] < 0.256 * 0.9
-            ), f"Recorded {readings[reference_channel]} in REF, should be less than 0.256."
+    # provide a margin, since we have margins when determining change gain in od_reading
+    assert (
+        readings[reference_channel] < 0.256 * 0.9
+    ), f"Recorded {readings[reference_channel]} in REF, should be less than 0.256."
 
 
 def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
