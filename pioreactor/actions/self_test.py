@@ -82,20 +82,17 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     }
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
-    print(ref_channel)
     od_stream.clean_up()
 
     if ref_channel == "1":
-        assert 10 * norm_variance_per_channel["1"] < norm_variance_per_channel["2"], (
-            signal1,
-            signal2,
-        )
+        assert (
+            10 * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
+        ), norm_variance_per_channel
 
     if ref_channel == "2":
-        assert 10 * norm_variance_per_channel["2"] < norm_variance_per_channel["1"], (
-            signal1,
-            signal2,
-        )
+        assert (
+            10 * norm_variance_per_channel["2"] < norm_variance_per_channel["1"]
+        ), norm_variance_per_channel
 
 
 def test_all_positive_correlations_between_pds_and_leds(
