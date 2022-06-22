@@ -239,7 +239,6 @@ class ADCReader(LoggerMixin):
             self.check_on_gain(
                 max_signal, tol=0.80
             )  # be more liberal with our initial gain when setting up.
-            print(max_signal)
         self._setup_complete = True
         self.logger.debug(
             f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}, with gain {self.gain}."
@@ -637,7 +636,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             self.initial_led_output = ir_output_reading
             self.logger.debug(f"{self.initial_led_output=}")
             self._count = 1
-        elif self._count < 8:  # dumb way to take average of the first N values...
+        elif self._count < 10:  # dumb way to take average of the first N values...
             self.initial_led_output = (
                 self.initial_led_output * self._count + ir_output_reading
             ) / (self._count + 1)
@@ -776,6 +775,7 @@ class ODReader(BackgroundJob):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
+                sleep(0.5)
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
                 self.stop_ir_led()
 
