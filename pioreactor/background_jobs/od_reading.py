@@ -238,6 +238,7 @@ class ADCReader(LoggerMixin):
             self.check_on_max(max_signal)
             self.check_on_gain(max_signal)
             print(max_signal)
+
         self._setup_complete = True
         self.logger.debug(
             f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}, with gain {self.gain}."
@@ -532,7 +533,7 @@ class ADCReader(LoggerMixin):
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
-            if self.dynamic_gain and self.readings_completed % 5 == 1:
+            if self.dynamic_gain and self.readings_completed % 5 == 4:
                 self.check_on_gain(self.max_signal_moving_average())
 
             self.readings_completed += 1
@@ -774,7 +775,7 @@ class ODReader(BackgroundJob):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
-                sleep(0.5)
+                sleep(0.1)
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
                 self.stop_ir_led()
 
