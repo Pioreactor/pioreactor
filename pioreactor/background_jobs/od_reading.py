@@ -161,8 +161,8 @@ class ADCReader(LoggerMixin):
 
     oversampling_count: int = 26
     readings_completed: int = 0
-    most_appropriate_AC_hz: Optional[float] = None
     _setup_complete = False
+    most_appropriate_AC_hz: Optional[float] = None
 
     def __init__(
         self,
@@ -180,6 +180,9 @@ class ADCReader(LoggerMixin):
         self.channels = channels
         self.batched_readings: dict[pt.PdChannel, float] = {}
         self.interval = interval
+
+        if config.get("od_config", "local_ac_hz"):
+            self.most_appropriate_AC_hz = config.getfloat("od_config", "local_ac_hz")
 
         if not hardware.is_HAT_present():
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
@@ -237,7 +240,6 @@ class ADCReader(LoggerMixin):
 
             self.check_on_max(max_signal)
             self.check_on_gain(max_signal)
-            print(max_signal)
 
         self._setup_complete = True
         self.logger.debug(
