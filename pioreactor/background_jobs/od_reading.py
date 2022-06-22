@@ -635,7 +635,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             self.initial_led_output = ir_output_reading
             self.logger.debug(f"{self.initial_led_output=}")
             self._count = 1
-        elif self._count < 5:  # dumb way to take average of the first N values...
+        elif self._count < 6:  # dumb way to take average of the first N values...
             self.initial_led_output = (
                 self.initial_led_output * self._count + ir_output_reading
             ) / (self._count + 1)
@@ -756,6 +756,11 @@ class ODReader(BackgroundJob):
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
         )
 
+        self.add_post_read_callback(self._publish_single)
+        self.add_post_read_callback(self._publish_batch)
+        self.add_post_read_callback(self._log_relative_intensity_of_ir_led)
+        self.add_post_read_callback(self._unblock_internal_event)
+
         # setup the ADC and IrLedReference by turning off all LEDs.
         with led_utils.change_leds_intensities_temporarily(
             {channel: 0.0 for channel in led_utils.ALL_LED_CHANNELS},
@@ -780,11 +785,6 @@ class ODReader(BackgroundJob):
                     blank_reading
                 )
                 self.ir_led_reference_tracker.set_blank(blank_ir_output_reading)
-
-        self.add_post_read_callback(self._publish_single)
-        self.add_post_read_callback(self._publish_batch)
-        self.add_post_read_callback(self._log_relative_intensity_of_ir_led)
-        self.add_post_read_callback(self._unblock_internal_event)
 
         if self.interval is not None:
             if self.interval < 1.0:

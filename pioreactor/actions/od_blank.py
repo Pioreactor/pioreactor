@@ -31,8 +31,8 @@ from pioreactor.whoami import is_testing_env
 
 
 def od_blank(
-    od_angle_channel1: pt.PdAngle,
-    od_angle_channel2: pt.PdAngle,
+    od_angle_channel1: pt.PdAngleOrREF,
+    od_angle_channel2: pt.PdAngleOrREF,
     n_samples: int = 40,
     ignore_rpm=False,
 ) -> Optional[dict[pt.PdChannel, float]]:
@@ -66,26 +66,25 @@ def od_blank(
 
         # turn on stirring if not already on
         if not is_pio_job_running("stirring"):
-            # start stirring
             st = start_stirring(
                 target_rpm=config.getfloat("stirring", "target_rpm"),
                 unit=unit,
-                experiment=testing_experiment,
+                experiment=experiment,
                 ignore_rpm=ignore_rpm,
             )
             st.block_until_rpm_is_close_to_target()
         else:
-            # TODO: it could be paused, we should make sure it's running
-            ...
-
-        sampling_rate = 1 / config.getfloat("od_config", "samples_per_second")
+            logger.error(
+                "Stirring should not be running. Stop stirring before running this. Exiting."
+            )
+            return None
 
         # start od_reading
         start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
-            interval=sampling_rate,
             unit=unit,
+            interval=1.5,
             experiment=testing_experiment,
             fake_data=is_testing_env(),
         )
