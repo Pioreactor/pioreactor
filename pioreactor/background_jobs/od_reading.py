@@ -236,9 +236,8 @@ class ADCReader(LoggerMixin):
                 max_signal = max(raw_signal_, max_signal)
 
             self.check_on_max(max_signal)
-            self.check_on_gain(
-                max_signal, tol=0.80
-            )  # be more liberal with our initial gain when setting up.
+            self.check_on_gain(max_signal)
+            print(max_signal)
         self._setup_complete = True
         self.logger.debug(
             f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}, with gain {self.gain}."
