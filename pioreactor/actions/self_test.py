@@ -64,10 +64,13 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     signal2 = []
 
     for i, reading in enumerate(od_stream):
+        if i < 5:
+            continue
+
         signal1.append(reading.od_raw["1"].voltage)
         signal2.append(reading.od_raw["2"].voltage)
 
-        if i == 20:
+        if i == 25:
             break
 
     mean_signal1 = mean(signal1)
@@ -80,6 +83,7 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
     print(ref_channel)
+    od_stream.clean_up()
 
     if ref_channel == "1":
         assert 10 * norm_variance_per_channel["1"] < norm_variance_per_channel["2"], (
@@ -92,8 +96,6 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
             signal1,
             signal2,
         )
-
-    od_stream.clean_up()
 
 
 def test_all_positive_correlations_between_pds_and_leds(
