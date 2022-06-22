@@ -236,7 +236,9 @@ class ADCReader(LoggerMixin):
                 max_signal = max(raw_signal_, max_signal)
 
             self.check_on_max(max_signal)
-            self.check_on_gain(max_signal)
+            self.check_on_gain(
+                max_signal, tol=0.80
+            )  # be more liberal with our initial gain when setting up.
 
         self._setup_complete = True
         self.logger.debug(
@@ -289,12 +291,12 @@ class ADCReader(LoggerMixin):
             )
             return
 
-    def check_on_gain(self, value: Optional[float]) -> None:
+    def check_on_gain(self, value: Optional[float], tol=0.925) -> None:
         if value is None:
             return
 
         for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
-            if (0.925 * lb <= value < 0.925 * ub) and (self.gain != gain):
+            if (tol * lb <= value < tol * ub) and (self.gain != gain):
                 self.gain = gain
                 self.set_ads_gain(gain)
                 self.logger.debug(f"ADC gain updated to {self.gain}.")
@@ -635,7 +637,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             self.initial_led_output = ir_output_reading
             self.logger.debug(f"{self.initial_led_output=}")
             self._count = 1
-        elif self._count < 6:  # dumb way to take average of the first N values...
+        elif self._count < 8:  # dumb way to take average of the first N values...
             self.initial_led_output = (
                 self.initial_led_output * self._count + ir_output_reading
             ) / (self._count + 1)
