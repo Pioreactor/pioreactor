@@ -171,7 +171,7 @@ def od_blank(
         logger.debug(f"measured mean: {means}")
         logger.debug(f"measured variances: {variances}")
         logger.debug(f"measured autocorrelations: {autocorrelations}")
-        logger.debug("OD normalization finished.")
+        logger.info("Finished reading blank OD.")
 
         return means
 

@@ -136,6 +136,10 @@ def get_config():
         config["leds_reverse"] = config.invert_section("leds")
     if "PWM" in config:
         config["PWM_reverse"] = config.invert_section("PWM")
+    if "od_config.photodiode_channel" in config:
+        config["od_config.photodiode_channel_reverse"] = config.invert_section(
+            "od_config.photodiode_channel"
+        )
 
     return config
 

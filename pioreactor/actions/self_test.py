@@ -24,6 +24,7 @@ from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import ALL_PD_CHANNELS
 from pioreactor.background_jobs.od_reading import IR_keyword
+from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.config import config
 from pioreactor.hardware import is_HAT_present
@@ -45,6 +46,47 @@ from pioreactor.whoami import is_testing_env
 
 def test_pioreactor_HAT_present(logger: Logger, unit: str, experiment: str) -> None:
     assert is_HAT_present()
+
+
+def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) -> None:
+    from statistics import mean, variance
+
+    od_stream = start_od_reading(
+        od_angle_channel1="90",
+        od_angle_channel2="90",
+        interval=1.2,
+        unit=unit,
+        fake_data=is_testing_env(),
+        experiment=experiment,
+    )
+
+    signal1 = []
+    signal2 = []
+
+    for i, reading in enumerate(od_stream):
+        signal1.append(reading.od_raw["1"].voltage)
+        signal2.append(reading.od_raw["2"].voltage)
+
+        if i == 20:
+            break
+
+    mean_signal1 = mean(signal1)
+    mean_signal2 = mean(signal2)
+
+    norm_variance_per_channel = {
+        "1": variance(signal1) / mean_signal1**2,
+        "2": variance(signal2) / mean_signal2**2,
+    }
+
+    ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
+
+    if ref_channel == "1":
+        assert 10 * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
+
+    if ref_channel == "2":
+        assert 10 * norm_variance_per_channel["2"] < norm_variance_per_channel["1"]
+
+    od_stream.clean_up()
 
 
 def test_all_positive_correlations_between_pds_and_leds(
@@ -294,6 +336,7 @@ OD_TESTS = [
     test_all_positive_correlations_between_pds_and_leds,
     test_ambient_light_interference,
     test_REF_is_lower_than_0_dot_256_volts,
+    test_REF_is_in_correct_position,
 ]
 
 
