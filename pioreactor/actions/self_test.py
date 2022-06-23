@@ -84,7 +84,7 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
 
     ref_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
 
-    THRESHOLD = 5.0
+    THRESHOLD = 1.0
     if ref_channel == "1":
         assert (
             THRESHOLD * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
