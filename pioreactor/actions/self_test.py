@@ -40,7 +40,6 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import trimmed_mean
-from pioreactor.utils.math_helpers import trimmed_variance
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -52,6 +51,10 @@ def test_pioreactor_HAT_present(logger: Logger, unit: str, experiment: str) -> N
 
 
 def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) -> None:
+    from statistics import variance
+
+    signal1 = []
+    signal2 = []
 
     od_stream = start_od_reading(
         od_angle_channel1="90",
@@ -61,9 +64,6 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
         fake_data=is_testing_env(),
         experiment=experiment,
     )
-
-    signal1 = []
-    signal2 = []
 
     for i, reading in enumerate(od_stream):
         if i < 5:  # skip the first few values
@@ -78,19 +78,19 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     od_stream.clean_up()
 
     norm_variance_per_channel = {
-        "1": trimmed_variance(signal1) / trimmed_mean(signal1) ** 2,
-        "2": trimmed_variance(signal2) / trimmed_mean(signal2) ** 2,
+        "1": variance(signal1) / trimmed_mean(signal1) ** 2,
+        "2": variance(signal2) / trimmed_mean(signal2) ** 2,
     }
 
     ref_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
 
-    THRESHOLD = 10.0
+    THRESHOLD = 5.0
     if ref_channel == "1":
         assert (
             THRESHOLD * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
         ), f"{ref_channel=}, {norm_variance_per_channel=}"
 
-    if ref_channel == "2":
+    elif ref_channel == "2":
         assert (
             THRESHOLD * norm_variance_per_channel["2"] < norm_variance_per_channel["1"]
         ), f"{ref_channel=}, {norm_variance_per_channel=}"
