@@ -11,6 +11,7 @@ from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils.networking import add_local
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -79,7 +80,7 @@ def backup_database(output_file: str) -> None:
                     "--partial",
                     "--inplace",
                     output_file,
-                    f"{backup_unit}:{output_file}",
+                    f"{add_local(backup_unit)}:{output_file}",
                 )
             except ErrorReturnCode:
                 logger.debug(
