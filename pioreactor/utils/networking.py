@@ -62,3 +62,9 @@ def discover_workers_on_network() -> list[str]:
     ServiceBrowser(Zeroconf(), "_pioreactor_worker._tcp.local.", listener)
     time.sleep(1)
     return listener.hostnames
+
+
+def add_local(hostname: str) -> str:
+    if not hostname.endswith(".local"):
+        return hostname + ".local"
+    return hostname

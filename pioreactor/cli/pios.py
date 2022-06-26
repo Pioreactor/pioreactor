@@ -15,6 +15,7 @@ from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.config import get_leader_hostname
 from pioreactor.config import get_workers_in_inventory
 from pioreactor.logging import create_logger
+from pioreactor.utils.networking import add_local
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_latest_experiment_name
@@ -309,7 +310,7 @@ def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
         try:
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pioreactor", compress=True)
+                client.connect(add_local(unit), username="pioreactor", compress=True)
 
                 with client.open_sftp() as ftp_client:
                     sync_config_files(ftp_client, unit, shared, specific)
@@ -377,7 +378,7 @@ def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}.")
         try:
-            ssh(unit, command)
+            ssh(add_local(unit), command)
             if all_jobs:  # tech debt
                 ssh(
                     unit,
@@ -452,7 +453,7 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
     def _thread_function(unit: str) -> bool:
         click.echo(f"Executing `{core_command}` on {unit}.")
         try:
-            ssh(unit, command)
+            ssh(add_local(unit), command)
             return True
         except Exception as e:
             logger = create_logger(
@@ -501,7 +502,7 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
 
         click.echo(f"Executing `{command}` on {unit}.")
         try:
-            ssh(unit, command)
+            ssh(add_local(unit), command)
             return True
         except Exception as e:
             logger = create_logger(

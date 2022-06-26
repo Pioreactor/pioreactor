@@ -54,7 +54,7 @@ def backup_database(output_file: str) -> None:
         bck = sqlite3.connect(output_file)
 
         with bck:
-            con.backup(bck, pages=-1, progress=progress)
+            con.backup(bck, pages=50000, progress=progress)
 
         bck.close()
         con.close()

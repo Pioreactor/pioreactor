@@ -66,7 +66,7 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     )
 
     for i, reading in enumerate(od_stream):
-        if i < 5:  # skip the first few values
+        if i < 10:  # skip the first few values
             continue
 
         signal1.append(reading.od_raw["1"].voltage)
