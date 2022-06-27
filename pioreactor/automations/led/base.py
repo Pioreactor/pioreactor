@@ -252,6 +252,7 @@ class LEDAutomationJob(BackgroundSubJob):
             {channel: 0 for channel in self.edited_channels},
             unit=self.unit,
             experiment=self.experiment,
+            source_of_event=self.job_name,
         )
 
     def __setattr__(self, name, value) -> None:

@@ -108,7 +108,7 @@ def led_intensity(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     verbose: bool = True,
-    source_of_event: Optional[str] = None,
+    source_of_event: str = None,
     pubsub_client: Optional[Client] = None,
 ) -> bool:
     """
