@@ -155,7 +155,7 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
 
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pioreactor", compress=True)
+                client.connect(add_local(unit), username="pioreactor", compress=True)
 
                 (stdin, stdout, stderr) = client.exec_command(command)
                 for line in stderr.readlines():
@@ -202,7 +202,7 @@ def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
         try:
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pioreactor", compress=True)
+                client.connect(add_local(unit), username="pioreactor", compress=True)
 
                 (stdin, stdout, stderr) = client.exec_command(command)
                 for line in stderr.readlines():
@@ -250,7 +250,7 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
 
             with paramiko.SSHClient() as client:
                 client.load_system_host_keys()
-                client.connect(unit, username="pioreactor", compress=True)
+                client.connect(add_local(unit), username="pioreactor", compress=True)
 
                 (stdin, stdout, stderr) = client.exec_command(command)
                 for line in stderr.readlines():
