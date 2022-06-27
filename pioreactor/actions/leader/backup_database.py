@@ -92,6 +92,9 @@ def backup_database(output_file: str) -> None:
                 logger.debug(f"Backed up database to {backup_unit}:{output_file}.")
                 backups_complete += 1
 
+                with local_persistant_storage("database_backups") as cache:
+                    cache[f"latest_backup_in_{backup_unit}"] = current_utc_timestamp()
+
         return
 
 

@@ -231,6 +231,11 @@ class GrowthRateCalculator(BackgroundJob):
             raise
 
     def get_precomputed_values(self) -> tuple:
+        # check for stirring to be on
+        if not is_pio_job_running("stirring"):
+            self.logger.error("Stirring should be running. Stopping.")
+            raise exc.JobRequiredError("Stirring should be running. Stopping.")
+
         if self.ignore_cache:
             if not is_pio_job_running("od_reading"):
                 self.logger.error("OD reading should be running. Stopping.")

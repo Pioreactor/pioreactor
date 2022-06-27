@@ -56,7 +56,7 @@ def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool
     cur = conn.cursor()
 
     timestamp = current_utc_timestamp()
-    sql = "INSERT INTO config_files(timestamp,filename,data) VALUES(?,?,?)"
+    sql = "INSERT INTO config_files_histories(timestamp,filename,data) VALUES(?,?,?)"
 
     if specific:
         for unit in units:
