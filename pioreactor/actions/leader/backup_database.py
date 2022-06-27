@@ -49,13 +49,13 @@ def backup_database(output_file: str) -> None:
             logger.debug(f"Writing to local backup {output_file}.")
 
         logger.debug(f"Starting backup of database to {output_file}")
-        sleep(1)  # pause a second so the log entry above gets recorded into the DB.
+        sleep(0.5)  # pause a second so the log entry above gets recorded into the DB.
 
         con = sqlite3.connect(config.get("storage", "database"))
         bck = sqlite3.connect(output_file)
 
         with bck:
-            con.backup(bck, pages=50000, progress=progress)
+            con.backup(bck, pages=-1, progress=progress)
 
         bck.close()
         con.close()
