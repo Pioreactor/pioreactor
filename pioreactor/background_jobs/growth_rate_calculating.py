@@ -115,7 +115,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.clean_up()
             return
 
-        self.logger.debug(f"od_blank={self.od_blank}")
+        self.logger.debug(f"od_blank={dict(self.od_blank)}")
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
         self.logger.debug(f"od_normalization_variance={self.od_variances}")
         self.ekf = self.initialize_extended_kalman_filter()
@@ -231,11 +231,6 @@ class GrowthRateCalculator(BackgroundJob):
             raise
 
     def get_precomputed_values(self) -> tuple:
-        # check for stirring to be on
-        if not is_pio_job_running("stirring"):
-            self.logger.error("Stirring should be running. Stopping.")
-            raise exc.JobRequiredError("Stirring should be running. Stopping.")
-
         if self.ignore_cache:
             if not is_pio_job_running("od_reading"):
                 self.logger.error("OD reading should be running. Stopping.")

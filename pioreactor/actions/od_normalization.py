@@ -49,10 +49,12 @@ def od_normalization(
 
         if (
             not (is_pio_job_running("od_reading"))
-            # but if test mode, ignore
+            and not (is_pio_job_running("stirring"))
             and not is_testing_env()
         ):
-            logger.error(" OD Reading should be running. Run OD Reading first. Exiting.")
+            logger.error(
+                " OD Reading and/or Stirring should be running. Run OD Reading and Stirring first. Exiting."
+            )
             raise exc.JobRequiredError(
                 "OD Reading should be running. Run OD Reading first. Exiting."
             )
