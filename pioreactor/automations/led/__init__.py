@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from .light_dark_cycle import LightDarkCycle
 from pioreactor.automations import events
 from pioreactor.automations.led.base import LEDAutomationJob
+
+
+__all__ = ("Silent", "LightDarkCycle")
 
 
 class Silent(LEDAutomationJob):
