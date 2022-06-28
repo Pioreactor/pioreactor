@@ -216,8 +216,12 @@ class TemperatureController(BackgroundJob):
         This takes about ~0.001 seconds on a RPi.
         """
         try:
-            # check temp is fast, let's do it twice to reduce variance.
-            return 0.5 * (self.tmp_driver.get_temperature() + self.tmp_driver.get_temperature())
+            # check temp is fast, let's do it a few times to reduce variance.
+            return (
+                self.tmp_driver.get_temperature()
+                + self.tmp_driver.get_temperature()
+                + +self.tmp_driver.get_temperature()
+            ) / 3
         except OSError:
             # could not find temp driver on i2c
             self.logger.error(
