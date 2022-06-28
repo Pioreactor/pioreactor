@@ -29,6 +29,7 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
+from pioreactor.utils.networking import add_local
 
 
 @click.group()
@@ -446,7 +447,7 @@ if whoami.am_I_leader():
                 ip = networking.get_ip()
             else:
                 try:
-                    ip = socket.gethostbyname(hostname)
+                    ip = socket.gethostbyname(add_local(hostname))
                 except OSError:
                     ip = "Unknown"
 
@@ -462,7 +463,7 @@ if whoami.am_I_leader():
                 state = "Unknown"
 
             # is reachable?
-            reachable = networking.is_reachable(hostname)
+            reachable = networking.is_reachable(add_local(hostname))
 
             return ip, state, reachable
 
