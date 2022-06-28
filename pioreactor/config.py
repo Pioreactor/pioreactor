@@ -41,18 +41,6 @@ class ConfigParserMod(configparser.ConfigParser):
         """
         section_without_empties = {k: v for k, v in self[section].items() if v != ""}
         reversed_section = {v: k for k, v in section_without_empties.items()}
-
-        if len(reversed_section) != len(section_without_empties):
-
-            values = list(self[section].values())
-            dups = set([x for x in values if values.count(x) > 1])
-
-            # can't use logger, as the logger module uses config.py...
-            # TODO: I could use paho to publish to log topic in localhost mosquitto?
-            print(
-                f"WARNING Duplicate values, `{next(iter(dups))}`, found in section `{section}`. This may lead to unexpected behavior. Please give unique names."
-            )
-
         return reversed_section
 
     def get(self, section: str, option: str, *args, **kwargs):  # type: ignore

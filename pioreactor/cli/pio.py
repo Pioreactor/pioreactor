@@ -191,7 +191,6 @@ def run_always() -> None:
 @pio.command(name="version", short_help="print the Pioreactor software version")
 @click.option("--verbose", "-v", is_flag=True, help="show more system information")
 def version(verbose: bool) -> None:
-
     if verbose:
         import platform
         from pioreactor.version import hardware_version_info
