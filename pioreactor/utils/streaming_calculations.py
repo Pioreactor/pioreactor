@@ -173,9 +173,7 @@ class CultureGrowthEKF:
 
         assert initial_state.shape[0] == 3
         assert (
-            initial_state.shape[0]
-            == initial_covariance.shape[0]
-            == initial_covariance.shape[1]
+            initial_state.shape[0] == initial_covariance.shape[0] == initial_covariance.shape[1]
         ), f"Shapes are not correct,{initial_state.shape[0]=}, {initial_covariance.shape[0]=}, {initial_covariance.shape[1]=}"
         assert process_noise_covariance.shape == initial_covariance.shape
         assert self._is_positive_definite(process_noise_covariance)
@@ -209,9 +207,7 @@ class CultureGrowthEKF:
 
         # Update
         ### innovation
-        residual_state = observation - self.update_observations_from_state(
-            state_prediction
-        )
+        residual_state = observation - self.update_observations_from_state(state_prediction)
         H = self._J_update_observations_from_state(state_prediction)
         residual_covariance = (
             # see Scaling note above for why we multiple by state_[0]
@@ -220,15 +216,11 @@ class CultureGrowthEKF:
         )
 
         ### optimal gain
-        kalman_gain_ = np.linalg.solve(
-            residual_covariance.T, (H @ covariance_prediction.T)
-        ).T
+        kalman_gain_ = np.linalg.solve(residual_covariance.T, (H @ covariance_prediction.T)).T
 
         ### update estimates
         self.state_ = state_prediction + kalman_gain_ @ residual_state
-        self.covariance_ = (
-            np.eye(self.n_states) - kalman_gain_ @ H
-        ) @ covariance_prediction
+        self.covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
         return self.state_
 
     def scale_OD_variance_for_next_n_seconds(self, factor, seconds):

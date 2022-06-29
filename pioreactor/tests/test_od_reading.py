@@ -13,8 +13,8 @@ from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import collect_all_logs_of_level
 
 
-def pause() -> None:
-    time.sleep(0.25)
+def pause(n=1) -> None:
+    time.sleep(n * 0.25)
 
 
 def test_sin_regression_exactly() -> None:
@@ -78,9 +78,7 @@ def test_sin_regression_with_linear_change_should_return_close_to_mean() -> None
 
     y = [i for i in range(25)]
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
-        [i / 25 for i in range(25)], y, 60
-    )
+    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq([i / 25 for i in range(25)], y, 60)
     assert np.abs(C - np.mean(y)) < 0.001
 
 
@@ -151,10 +149,7 @@ def test_ADC_picks_to_correct_freq_even_if_slight_noise_in_freq() -> None:
     actual_freq = 50.0
 
     x = [i / 25 + 0.005 * np.random.randn() for i in range(25)]
-    y = [
-        10 + np.sin((actual_freq + 0.2) * 2 * np.pi * _x) + 0.1 * np.random.randn()
-        for _x in x
-    ]
+    y = [10 + np.sin((actual_freq + 0.2) * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
 
     adc_reader = ADCReader(channels=["1"])
 
@@ -289,11 +284,7 @@ def test_add_post_read_callback() -> None:
             experiment="test_add_post_read_callback",
             unit="test",
         )
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
+        pause(25)
         od.clean_up()
         assert len(bucket) > 0
 
@@ -360,9 +351,7 @@ def test_outliers_are_removed_in_sin_regression() -> None:
         118,
         100,
     ]
-    (C1, A, phi), _ = adc_reader.sin_regression_with_known_freq(
-        list(x), y_with_outlier, freq
-    )
+    (C1, A, phi), _ = adc_reader.sin_regression_with_known_freq(list(x), y_with_outlier, freq)
 
     y_without_outlier = [
         211,
@@ -391,8 +380,6 @@ def test_outliers_are_removed_in_sin_regression() -> None:
         118,
         100,
     ]
-    (C2, A, phi), _ = adc_reader.sin_regression_with_known_freq(
-        list(x), y_without_outlier, freq
-    )
+    (C2, A, phi), _ = adc_reader.sin_regression_with_known_freq(list(x), y_without_outlier, freq)
 
     assert np.abs(C1 - C2) < 5
