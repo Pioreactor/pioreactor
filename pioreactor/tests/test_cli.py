@@ -9,7 +9,9 @@ from click.testing import CliRunner
 
 from pioreactor import whoami
 from pioreactor.cli.pio import pio
+from pioreactor.cli.pios import pios
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import local_intermittent_storage
 
 
@@ -73,3 +75,28 @@ def test_pio_log():
     assert len(bucket) > 0
     assert bucket[0]["message"] == "test msg"
     assert bucket[0]["task"] == "job1"
+
+
+def test_pios_update_settings():
+
+    job_name = "test_job"
+    published_setting_name = "attr"
+
+    bucket = []
+
+    def put_into_bucket(msg):
+        bucket.append(msg)
+
+    subscribe_and_callback(
+        put_into_bucket,
+        f"pioreactor/+/{whoami.get_latest_experiment_name()}/{job_name}/{published_setting_name}/set",
+    )
+
+    runner = CliRunner()
+    runner.invoke(pios, ["update-settings", job_name, f"--{published_setting_name}", "1"])
+    pause()
+    pause()
+    pause()
+    pause()
+    pause()
+    assert len(bucket) > 1

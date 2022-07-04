@@ -31,11 +31,11 @@ from pioreactor.whoami import is_testing_env
 def od_blank(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
-    experiment=None,
-    unit=None,
+    experiment: Optional[str] = None,
+    unit: Optional[str] = None,
     n_samples: int = 40,
-    ignore_rpm=False,
-    interval=1.5,
+    ignore_rpm: bool = False,
+    interval: float = 1.5,
 ) -> Optional[dict[pt.PdChannel, float]]:
     """
     Compute a sample average of the photodiodes attached.

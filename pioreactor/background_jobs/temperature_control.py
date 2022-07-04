@@ -124,7 +124,6 @@ class TemperatureController(BackgroundJob):
             raise exc.HardwareNotFoundError("Heating PCB must be attached to Pioreactor HAT")
 
         if whoami.is_testing_env():
-            self.logger.debug("TMP1075 not available; using MockTMP1075")
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
             from TMP1075 import TMP1075  # type: ignore

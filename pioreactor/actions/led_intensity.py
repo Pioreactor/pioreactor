@@ -149,7 +149,6 @@ def led_intensity(
     if not is_testing_env():
         from DAC43608 import DAC43608
     else:
-        logger.debug("DAC43608 not available; using MockDAC43608")
         from pioreactor.utils.mock import MockDAC43608 as DAC43608  # type: ignore
 
     if pubsub_client is None:

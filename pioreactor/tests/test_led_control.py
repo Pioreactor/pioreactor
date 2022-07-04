@@ -119,7 +119,7 @@ def test_light_dark_cycle_starts_on() -> None:
 
         assert lc.automation_job.light_active
         with local_intermittent_storage("leds") as c:
-            assert float(c["B"]) == 50
+            assert float(c["D"]) == 50
             assert float(c["C"]) == 50
 
 

@@ -20,6 +20,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -117,7 +118,7 @@ def pios() -> None:
     """
     import sys
 
-    if not am_I_leader():
+    if not am_I_leader() and not is_testing_env():
         click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
         sys.exit(1)
 
