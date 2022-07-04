@@ -3,11 +3,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 from json import dumps
-from typing import Iterator
 from typing import Optional
 
 import click
-from msgspec.json import decode
 from msgspec.json import encode
 
 from pioreactor import pubsub
@@ -35,6 +33,8 @@ def od_blank(
     od_angle_channel2: pt.PdAngleOrREF,
     n_samples: int = 40,
     ignore_rpm=False,
+    experiment=None,
+    unit=None,
 ) -> Optional[dict[pt.PdChannel, float]]:
     """
     Compute a sample average of the photodiodes attached.
@@ -46,8 +46,8 @@ def od_blank(
     """
     action_name = "od_blank"
     logger = create_logger(action_name)
-    unit = get_unit_name()
-    experiment = get_latest_experiment_name()
+    unit = unit or get_unit_name()
+    experiment = experiment or get_latest_experiment_name()
     testing_experiment = get_latest_testing_experiment_name()
     logger.info("Starting reading of blank OD. This will take about a few minutes.")
 
@@ -80,7 +80,7 @@ def od_blank(
             return None
 
         # start od_reading
-        start_od_reading(
+        od_stream = start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
             unit=unit,
@@ -89,20 +89,10 @@ def od_blank(
             fake_data=is_testing_env(),
         )
 
-        def yield_from_mqtt() -> Iterator[structs.ODReadings]:
-            while True:
-                msg = pubsub.subscribe(
-                    f"pioreactor/{unit}/{testing_experiment}/od_reading/od_raw_batched"
-                )
-                assert msg is not None
-                assert msg.payload is not None
-                yield decode(msg.payload, type=structs.ODReadings)
-
-        signal = yield_from_mqtt()
         readings = defaultdict(list)
         angles = {}
 
-        for count, batched_reading in enumerate(signal, start=1):
+        for count, batched_reading in enumerate(od_stream, start=1):
             for (channel, reading) in batched_reading.od_raw.items():
                 readings[channel].append(reading.voltage)
                 angles[channel] = reading.angle
@@ -148,7 +138,7 @@ def od_blank(
         with local_persistant_storage(action_name) as cache:
             cache[experiment] = dumps(means)
 
-        # publish to UI...
+        # publish to UI... maybe delete?
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/{action_name}/means",
             dumps(means),

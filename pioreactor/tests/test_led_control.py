@@ -17,9 +17,9 @@ from pioreactor.whoami import get_unit_name
 unit = get_unit_name()
 
 
-def pause() -> None:
+def pause(n=1) -> None:
     # to avoid race conditions when updating state
-    time.sleep(0.5)
+    time.sleep(n * 0.5)
 
 
 def test_silent() -> None:
@@ -85,9 +85,6 @@ def test_changing_automation_over_mqtt() -> None:
 
 
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
-    """
-    This test works locally, but not in github CI
-    """
     experiment = "test_we_respect_any_locks_on_leds_we_want_to_modify"
     with local_intermittent_storage("led_locks") as cache:
         for c in cache.keys():
@@ -104,3 +101,44 @@ def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
             assert not ld.set_led_intensity("B", 2)
 
         assert ld.set_led_intensity("B", 3)
+
+
+def test_light_dark_cycle_starts_on() -> None:
+    experiment = "test_light_dark_cycle_starts_on"
+    unit = get_unit_name()
+    with LEDController(
+        "light_dark_cycle",
+        duration=60,
+        light_intensity=50,
+        light_duration_hours=16,
+        dark_duration_hours=8,
+        unit=unit,
+        experiment=experiment,
+    ) as lc:
+        pause(6)
+
+        assert lc.automation_job.light_active
+        with local_intermittent_storage("leds") as c:
+            assert float(c["B"]) == 50
+            assert float(c["C"]) == 50
+
+
+def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
+    experiment = "test_light_dark_cycle_turns_off_after_N_cycles"
+    unit = get_unit_name()
+    with LEDController(
+        "light_dark_cycle",
+        duration=0.01,
+        light_intensity=50,
+        light_duration_hours=16,
+        dark_duration_hours=8,
+        unit=unit,
+        experiment=experiment,
+    ) as lc:
+        while lc.automation_job.hours_online < 17:
+            pass
+
+        assert not lc.automation_job.light_active
+        with local_intermittent_storage("leds") as c:
+            assert float(c["D"]) == 0.0
+            assert float(c["C"]) == 0.0

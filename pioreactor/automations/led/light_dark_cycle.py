@@ -72,3 +72,8 @@ class LightDarkCycle(LEDAutomationJob):
                 self.set_led_intensity(channel, self.light_intensity)
         else:
             pass
+
+    def set_duration(self, duration: float) -> None:
+        if duration != 60:
+            self.logger.warning("Duration should be set to 60.")
+        super().set_duration(duration)
