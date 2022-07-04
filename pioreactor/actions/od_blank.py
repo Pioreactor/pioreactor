@@ -92,7 +92,13 @@ def od_blank(
         readings = defaultdict(list)
         angles = {}
 
+        # skip the first few
+        for count, _ in enumerate(od_stream, start=1):
+            if count == 5:
+                break
+
         for count, batched_reading in enumerate(od_stream, start=1):
+
             for (channel, reading) in batched_reading.od_raw.items():
                 readings[channel].append(reading.voltage)
                 angles[channel] = reading.angle
@@ -102,6 +108,7 @@ def od_blank(
                 int(count / n_samples * 100),
             )
             logger.debug(f"Progress: {count/n_samples:.0%}")
+
             if count == n_samples:
                 break
 
@@ -111,6 +118,7 @@ def od_blank(
 
         for channel, od_reading_series in readings.items():
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
+            assert len(od_reading_series) == n_samples
             means[channel] = trimmed_mean(od_reading_series)
             variances[channel] = trimmed_variance(od_reading_series)
             autocorrelations[channel] = correlation(od_reading_series[:-1], od_reading_series[1:])
