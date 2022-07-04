@@ -72,7 +72,7 @@ def od_blank(
                 experiment=experiment,
                 ignore_rpm=ignore_rpm,
             )
-            st.block_until_rpm_is_close_to_target()
+            st.block_until_rpm_is_close_to_target(timeout=120)  # wait for maximum 2 minutes
         else:
             logger.error(
                 "Stirring should not be running. Stop stirring before running this. Exiting."
@@ -97,6 +97,7 @@ def od_blank(
             if count == 5:
                 break
 
+        # okay now start collecting
         for count, batched_reading in enumerate(od_stream, start=1):
 
             for (channel, reading) in batched_reading.od_raw.items():

@@ -379,11 +379,22 @@ class Stirrer(BackgroundJob):
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
 
-    def block_until_rpm_is_close_to_target(self, abs_tolerance: float = 15) -> None:
+    def block_until_rpm_is_close_to_target(
+        self, abs_tolerance: float = 15, timeout: Optional[float] = None
+    ) -> None:
         """
         This function blocks until the stirring is "close enough" to the target RPM.
 
+        Parameters
+        -----------
+        abs_tolerance:
+            the maximum delta between current RPM and the target RPM.
+        timeout:
+            When timeout is not None, block at this function for maximum timeout seconds.
+
         """
+        running_wait_time = 0.0
+
         if self.rpm_calculator is None:
             # can't block if we aren't recording the RPM
             return
@@ -392,6 +403,11 @@ class Stirrer(BackgroundJob):
             self._measured_rpm - self.target_rpm
         ) > abs_tolerance:
             sleep(0.25)
+            running_wait_time += 0.25
+
+            if timeout and running_wait_time > timeout:
+                self.logger.debug("Waited too long for stirring to stabilize. Breaking early.")
+                return
 
 
 def start_stirring(
