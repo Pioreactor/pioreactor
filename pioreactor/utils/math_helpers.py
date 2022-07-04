@@ -79,13 +79,9 @@ def residuals_of_simple_linear_regression(x: list, y: list, trimmed=False):
     import numpy as np
 
     if trimmed:
-        argmin_y_, _ = argextrema(y)
-        y.pop(argmin_y_)
-        x.pop(argmin_y_)
-
-        _, argmax_y = argextrema(y)
-        y.pop(argmax_y)
-        x.pop(argmax_y)
+        argmin_y_, argmax_y_ = argextrema(y)
+        x = [v for (i, v) in enumerate(x) if (i != argmin_y_) and (i != argmax_y_)]
+        y = [v for (i, v) in enumerate(y) if (i != argmin_y_) and (i != argmax_y_)]
 
     x_ = np.array(x)
     y_ = np.array(y)

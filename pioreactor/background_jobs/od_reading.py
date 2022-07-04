@@ -362,15 +362,11 @@ class ADCReader(LoggerMixin):
 
         assert len(x) == len(y), "shape mismatch"
 
-        # remove the max and min values. We need to do this in two steps, since
-        # removing the first element may change the location of the second element.
-        argmin_y_, _ = argextrema(y)
-        y.pop(argmin_y_)
-        x.pop(argmin_y_)
+        # remove the max and min values.
+        argmin_y_, argmax_y_ = argextrema(y)
 
-        _, argmax_y = argextrema(y)
-        y.pop(argmax_y)
-        x.pop(argmax_y)
+        x = [v for (i, v) in enumerate(x) if (i != argmin_y_) and (i != argmax_y_)]
+        y = [v for (i, v) in enumerate(y) if (i != argmin_y_) and (i != argmax_y_)]
 
         x_ = np.asarray(x)
         y_ = np.asarray(y)
