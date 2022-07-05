@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import dbm
 import signal
 from contextlib import contextmanager
-from dbm import ndbm
 from threading import Event
 from typing import Callable
 from typing import Generator
@@ -173,7 +173,7 @@ def local_intermittent_storage(
 
     """
     try:
-        cache = ndbm.open(f"/tmp/{cache_name}", "c")
+        cache = dbm.open(f"/tmp/{cache_name}", "c")
         yield cache  # type: ignore
     finally:
         cache.close()
@@ -198,9 +198,9 @@ def local_persistant_storage(
 
     try:
         if is_testing_env():
-            cache = ndbm.open(f".pioreactor/storage/{cache_name}", "c")
+            cache = dbm.open(f".pioreactor/storage/{cache_name}", "c")
         else:
-            cache = ndbm.open(f"/home/pioreactor/.pioreactor/storage/{cache_name}", "c")
+            cache = dbm.open(f"/home/pioreactor/.pioreactor/storage/{cache_name}", "c")
         yield cache  # type: ignore
     finally:
         cache.close()
