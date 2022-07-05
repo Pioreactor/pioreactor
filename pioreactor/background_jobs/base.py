@@ -490,6 +490,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
                     f"setting {setting} has bad characters - must be alphanumeric, and only separated by underscore."
                 )
 
+            if properties["datatype"] not in {"string", "float", "integer", "json", "boolean"}:
+                raise ValueError(
+                    f"setting {setting}'s datatype is not allowed - must be one of 'string', 'float', 'integer', 'json', or 'boolean'"
+                )
+
     def _create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(

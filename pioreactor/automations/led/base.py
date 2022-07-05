@@ -39,7 +39,9 @@ class LEDAutomationJob(BackgroundSubJob):
 
     automation_name = "led_automation_base"  # is overwritten in subclasses
 
-    published_settings = {"duration": {"datatype": "float", "settable": True}}
+    published_settings: dict[str, pt.PublishableSetting] = {
+        "duration": {"datatype": "float", "settable": True}
+    }
 
     _latest_growth_rate: Optional[float] = None
     _latest_od: Optional[float] = None

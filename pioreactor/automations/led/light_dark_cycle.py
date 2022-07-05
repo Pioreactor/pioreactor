@@ -12,15 +12,15 @@ class LightDarkCycle(LEDAutomationJob):
     """
 
     automation_name: str = "light_dark_cycle"
-    published_settings: dict[str, dict] = {
+    published_settings = {
         "duration": {
             "datatype": "float",
             "settable": False,
             "unit": "min",
         },
         "light_intensity": {"datatype": "float", "settable": True, "unit": "%"},
-        "light_duration_hours": {"datatype": "int", "settable": True, "unit": "h"},
-        "dark_duration_hours": {"datatype": "int", "settable": True, "unit": "h"},
+        "light_duration_hours": {"datatype": "integer", "settable": True, "unit": "h"},
+        "dark_duration_hours": {"datatype": "integer", "settable": True, "unit": "h"},
     }
 
     def __init__(
