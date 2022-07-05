@@ -596,7 +596,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
             self.clean_up()
 
-            if (reason == signal.SIGTERM) or (reason == signal.SIGHUP):
+            if (reason == signal.SIGTERM) or (reason == getattr(signal, "SIGHUP", None)):
                 import sys
 
                 sys.exit()
@@ -619,15 +619,19 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 ],
             )
 
-            # ssh closes
-            append_signal_handlers(
-                signal.SIGHUP,
-                [
-                    exit_gracefully,
-                    # add a "ignore all future SIGUPs" onto the top of the stack.
-                    lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
-                ],
-            )
+            try:
+                # ssh closes
+                append_signal_handlers(
+                    signal.SIGHUP,
+                    [
+                        exit_gracefully,
+                        # add a "ignore all future SIGUPs" onto the top of the stack.
+                        lambda *args: signal.signal(signal.SIGHUP, signal.SIG_IGN),
+                    ],
+                )
+            except AttributeError:
+                # SIGHUP is only available on unix machines
+                pass
 
     def init(self) -> None:
         self.state = self.INIT
