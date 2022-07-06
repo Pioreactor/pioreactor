@@ -173,7 +173,7 @@ def local_intermittent_storage(
     See tests in test_utils.py for examples.
 
     """
-    # TMPDIR is OSX and RPI (we provide it), TMP is windows
+    # TMPDIR is in OSX and Pioreactor img (we provide it), TMP is windows
     tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
     try:
         cache = dbm.open(f"{tmp_dir}{cache_name}", "c")
