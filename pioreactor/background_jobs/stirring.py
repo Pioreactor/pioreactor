@@ -83,7 +83,7 @@ class RpmCalculator:
         self.collecting = True
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
-    def cleanup(self) -> None:
+    def clean_up(self) -> None:
         self.GPIO.cleanup(self.hall_sensor_pin)
         set_gpio_availability(self.hall_sensor_pin, True)
 
@@ -100,7 +100,7 @@ class RpmCalculator:
         return self
 
     def __exit__(self, *args) -> None:
-        self.cleanup()
+        self.clean_up()
 
 
 class RpmFromFrequency(RpmCalculator):
@@ -314,7 +314,7 @@ class Stirrer(BackgroundJob):
 
         with suppress(AttributeError):
             if self.rpm_calculator:
-                self.rpm_calculator.cleanup()
+                self.rpm_calculator.clean_up()
 
     def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
