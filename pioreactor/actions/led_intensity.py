@@ -82,8 +82,7 @@ def _update_current_state(
     new_state,
 ) -> tuple[structs.LEDsIntensity, structs.LEDsIntensity]:
     """
-    Previously this used MQTT, but network latency could really cause trouble.
-    Eventually I should try to modify the UI to not even need this `state` variable,
+    TODO: Eventually I should try to modify the UI to not even need this `state` variable,
     """
 
     with local_intermittent_storage("leds") as led_cache:
@@ -146,6 +145,7 @@ def led_intensity(
 
     logger = create_logger("led_intensity", experiment=experiment, unit=unit)
     updated_successfully = True
+
     if not is_testing_env():
         from DAC43608 import DAC43608
     else:

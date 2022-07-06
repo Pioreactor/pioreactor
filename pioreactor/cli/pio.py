@@ -215,12 +215,15 @@ def view_cache(cache: str) -> None:
     from pioreactor.utils import local_intermittent_storage, local_persistant_storage
 
     # is it a temp cache?
-    if os.path.isfile(f"/tmp/{cache}.db") or os.path.isfile(f"/tmp/{cache}.pag"):
+    tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
+    if os.path.isfile(f"{tmp_dir}{cache}.db") or os.path.isfile(f"{tmp_dir}{cache}.pag"):
         cacher = local_intermittent_storage
+
     elif os.path.isfile(f".pioreactor/storage/{cache}.db") or os.path.isfile(
         f".pioreactor/storage/{cache}.pag"
     ):
         cacher = local_persistant_storage
+
     else:
         click.echo(f"cache {cache} not found.")
         return
@@ -498,9 +501,6 @@ if whoami.am_I_leader():
 
 
 if not whoami.am_I_leader() and not whoami.am_I_active_worker():
-    logger = create_logger(
-        "CLI", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
-    )
-    logger.info(
+    click.echo(
         f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
     )
