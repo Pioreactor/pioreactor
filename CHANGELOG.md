@@ -1,4 +1,4 @@
-### Upcoming
+### 22.7.0
  - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.
  - In `config.ini`, `ir_intensity` -> `ir_led_intensity`
  - caches that keep state (like `led_locks`) now use absence and presence to determine state, instead of specific value in the cache.
@@ -6,6 +6,13 @@
  - `network.topology` -> `cluster.topology`
  - sql table `experiments.timestamp` ->  `experiments.created_at`
  - sql table `pioreactor_unit_labels` has new column `created_at`
+ - Added `TMPDIR` the env variables, which points to `/tmp/`
+ - Aided development on Windows machines
+ - Added new LED automation: `light_dark_cycle`. This allows for LEDs to follow a day/night cycle, at a specific LED intensity.
+ - Leader now accesses other machines always using the `.local` TLD.
+ - New config option `local_ac_hz`
+ - New self-test routine that checks if the REF is in the correct PD channel.
+ - IR REF now uses a moving average of the first few values, instead of only the initial value. This produces much more accurate normalization values.
 
 
 
