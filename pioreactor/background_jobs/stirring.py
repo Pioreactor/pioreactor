@@ -106,7 +106,9 @@ class RpmCalculator:
 class RpmFromFrequency(RpmCalculator):
     """
     Averages the duration between rises in an N second window. This is more accurate (but less robust)
-    than RpmFromCount
+    than RpmFromCount.
+
+    Can't reliably compute faster than 2000 rpm on an RPi.
     """
 
     _running_sum = 0
@@ -265,7 +267,7 @@ class Stirrer(BackgroundJob):
             experiment=self.experiment,
             job_name=self.job_name,
             target_name="rpm",
-            output_limits=(-15, 15),  # avoid whiplashing
+            output_limits=(-10, 10),  # avoid whiplashing
         )
 
         # set up thread to periodically check the rpm
@@ -309,7 +311,7 @@ class Stirrer(BackgroundJob):
             self.rpm_check_repeated_thread.cancel()
 
         with suppress(AttributeError):
-            self.stop_stirring()
+            self.set_duty_cycle(0)
             self.pwm.cleanup()
 
         with suppress(AttributeError):
@@ -356,13 +358,9 @@ class Stirrer(BackgroundJob):
         result = self.pid.update(self._measured_rpm)
         self.set_duty_cycle(self.duty_cycle + result)
 
-    def stop_stirring(self) -> None:
-        # if the user unpauses, we want to go back to their previous value, and not the default.
-        self.set_duty_cycle(0)
-
     def on_ready_to_sleeping(self) -> None:
         self.rpm_check_repeated_thread.pause()
-        self.stop_stirring()
+        self.set_duty_cycle(0)
 
     def on_sleeping_to_ready(self) -> None:
         self.duty_cycle = self._previous_duty_cycle
