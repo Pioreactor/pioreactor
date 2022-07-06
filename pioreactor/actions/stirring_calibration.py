@@ -50,6 +50,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             + list(range(min_dc, max_dc, 4))
             + list(range(max_dc, min_dc, -5))
         )
+        n_samples = len(dcs)
 
         with stirring.RpmFromFrequency() as rpm_calc, stirring.Stirrer(
             target_rpm=0,
@@ -58,12 +59,13 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             rpm_calculator=None,
         ) as st:
 
+            rpm_calc.setup()
             st.duty_cycle = (
                 min_dc  # we start with a somewhat low value, s.t. the stir bar is caught.
             )
             st.start_stirring()
             sleep(8)
-            n_samples = len(dcs)
+            
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
