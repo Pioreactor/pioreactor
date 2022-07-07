@@ -651,6 +651,10 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         if not self.ignore_blank:
             self.blank_reading = ir_output_reading
             self.logger.debug(f"{self.blank_reading=}")
+            if self.blank_reading > 0.0005:
+                self.logger.warning(
+                    "REF blank reading is unusually high. Is there lots of ambient IR light present (sunny window)...?"
+                )
         return
 
     def __call__(self, od_signal: float) -> float:

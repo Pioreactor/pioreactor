@@ -228,7 +228,7 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
 
     readings = adc_reader.take_reading()
 
-    assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
+    assert all([readings[pd_channel] < 0.0005 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
 def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment: str) -> None:

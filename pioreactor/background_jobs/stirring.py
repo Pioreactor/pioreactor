@@ -320,7 +320,7 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
-        sleep(0.10)
+        sleep(0.25)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.75)
         self.rpm_check_repeated_thread.start()  # .start is idempotent
