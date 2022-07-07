@@ -142,3 +142,102 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
         with local_intermittent_storage("leds") as c:
             assert float(c["D"]) == 0.0
             assert float(c["C"]) == 0.0
+            
+            
+def test_dark_duration_hour_to_zero() -> None:
+    experiment = "test_dark_duration_hour_to_zero"
+    unit = get_unit_name()
+    with LEDController(
+        "light_dark_cycle",
+        duration=0.01,
+        light_intensity=50,
+        light_duration_hours=16,
+        dark_duration_hours=8,
+        unit=unit,
+        experiment=experiment,
+    ) as lc:
+        while lc.automation_job.hours_online < 17:
+            pass
+
+        assert not lc.automation_job.light_active
+        
+        lc.automation_job.set_dark_duration_hours(0)
+        
+        assert lc.automation_job.light_active
+        
+        with local_intermittent_storage("leds") as c:
+            assert float(c["D"]) == 50.0
+            assert float(c["C"]) == 50.0
+            
+            
+def test_light_duration_hour_to_zero() -> None:
+    experiment = "test_light_duration_hour_to_zero"
+    unit = get_unit_name()
+    with LEDController(
+        "light_dark_cycle",
+        duration=0.01,
+        light_intensity=50,
+        light_duration_hours=16,
+        dark_duration_hours=8,
+        unit=unit,
+        experiment=experiment,
+    ) as lc:
+    
+        pause(6)
+        assert lc.automation_job.light_active
+
+        lc.automation_job.set_light_duration_hours(0)
+        
+        assert not lc.automation_job.light_active
+
+
+def test_add_dark_duration_hours() -> None:
+    experiment = "test_add_dark_duration_hours"
+    unit = get_unit_name()
+    with LEDController(
+        "light_dark_cycle",
+        duration=0.01,
+        light_intensity=50,
+        light_duration_hours=16,
+        dark_duration_hours=8,
+        unit=unit,
+        experiment=experiment,
+    ) as lc:
+        while lc.automation_job.hours_online < 17:
+            pass
+
+        assert not lc.automation_job.light_active
+        
+        lc.automation_job.set_dark_duration_hours(10)
+        
+        assert not lc.automation_job.light_active
+        
+        with local_intermittent_storage("leds") as c:
+            assert float(c["D"]) == 0.0
+            assert float(c["C"]) == 0.0
+            
+            
+def test_remove_dark_duration_hours() -> None:
+    experiment = "test_remove_dark_duration_hours"
+    unit = get_unit_name()
+    with LEDController(
+        "light_dark_cycle",
+        duration=0.01,
+        light_intensity=50,
+        light_duration_hours=16,
+        dark_duration_hours=8,
+        unit=unit,
+        experiment=experiment,
+    ) as lc:
+        while lc.automation_job.hours_online < 20:
+            pass
+
+        assert not lc.automation_job.light_active
+        
+        lc.automation_job.set_dark_duration_hours(3)
+        
+        assert lc.automation_job.light_active
+        
+        with local_intermittent_storage("leds") as c:
+            assert float(c["D"]) == 50.0
+            assert float(c["C"]) == 50.0

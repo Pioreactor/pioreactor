@@ -62,6 +62,20 @@ class LightDarkCycle(LEDAutomationJob):
 
         else:
             return events.NoEvent(f"{hours}h: no change.")
+            
+    def set_dark_duration_hours(self, hours: int):
+        
+        self.dark_duration_hours = hours
+        
+        self.trigger_leds(self.hours_online)
+        
+        
+    def set_light_duration_hours(self, hours: int):
+        
+        self.light_duration_hours = hours
+        
+        self.trigger_leds(self.hours_online)
+
 
     def set_light_intensity(self, intensity):
         # this is the settr of light_intensity attribute, eg. called when updated over MQTT
