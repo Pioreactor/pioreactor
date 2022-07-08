@@ -5,6 +5,7 @@ import json
 from contextlib import suppress
 from time import perf_counter
 from time import sleep
+from time import time
 from typing import Callable
 from typing import Optional
 
@@ -16,7 +17,9 @@ from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
@@ -275,7 +278,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            31,
+            27,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -329,6 +332,7 @@ class Stirrer(BackgroundJob):
         self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def kick_stirring(self) -> None:
+        self.logger.debug("Kicking stirring")
         self.set_duty_cycle(100)
         sleep(0.25)
         self.set_duty_cycle(1.01 * self._previous_duty_cycle)
@@ -341,12 +345,35 @@ class Stirrer(BackgroundJob):
             return None
 
         recent_rpm = self.rpm_calculator(poll_for_seconds)
+
         if recent_rpm == 0:
             self.logger.warning(
-                "Stirring RPM is 0 - has it failed? Attempting to restart it automatically."
+                "Stirring RPM is 0 - attempting to restart it automatically. Target RPM may be too low."
             )
             self.blink_error_code(error_codes.STIRRING_FAILED_ERROR_CODE)
-            self.kick_stirring()
+
+            with local_intermittent_storage("pio_jobs_running") as jobs:
+                is_od_running = jobs.get("od_reading") is not None
+
+            if not is_od_running:
+                self.kick_stirring()
+            else:
+                first_od_obs_time = float(
+                    subscribe(
+                        f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time"
+                    ).payload  # type: ignore
+                )
+                interval = float(
+                    subscribe(
+                        f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
+                    ).payload  # type: ignore
+                )
+
+                seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
+                sleep(
+                    seconds_to_next_reading + 2
+                )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
+                self.kick_stirring()
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(

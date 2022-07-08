@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import time
 
+from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import RpmCalculator
 from pioreactor.background_jobs.stirring import RpmFromFrequency
 from pioreactor.background_jobs.stirring import start_stirring
@@ -18,9 +19,9 @@ unit = get_unit_name()
 exp = get_latest_experiment_name()
 
 
-def pause() -> None:
+def pause(n=1) -> None:
     # to avoid race conditions
-    time.sleep(0.5)
+    time.sleep(n * 0.5)
 
 
 def test_stirring_runs() -> None:
@@ -95,24 +96,9 @@ def test_publish_measured_rpm() -> None:
         st.start_stirring()
         assert st.target_rpm == target_rpm
 
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
-        pause()
+        pause(20)
 
         message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=3)
-        pause()
-        pause()
-        pause()
-        pause()
         assert message is not None
         assert json.loads(message.payload)["measured_rpm"] == 0
 
@@ -142,3 +128,12 @@ def test_stirring_with_lookup_linear_v1() -> None:
         pause()
 
         assert st.duty_cycle == current_dc - 0.9 * (current_dc - (0.1 * target_rpm + 20))
+
+
+def test_stirring_will_try_to_restart_and_dodge_od_reading():
+    start_od_reading("90", interval=5.0, fake_data=True)
+
+    with Stirrer(500, unit, exp, rpm_calculator=RpmCalculator()) as st:  # type: ignore
+        st.start_stirring()
+
+        pause(20)
