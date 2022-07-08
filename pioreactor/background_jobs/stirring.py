@@ -51,7 +51,6 @@ class RpmCalculator:
     > rpm_calc.setup()
     > rpm_calc(seconds_to_observe=1.5)
 
-
     """
 
     hall_sensor_pin = hardware.HALL_SENSOR_PIN
@@ -145,47 +144,8 @@ class RpmFromFrequency(RpmCalculator):
         if self._running_sum == 0:
             return 0
         else:
-            # we should be able to detect if we are missing pings, as they would be a near integer
-            # of the average of "okay" values.
-            #    measured Δ time vs index
-            #    |
-            #  Δ |
-            #    |      x      x
-            #    |xxxxxxxxxxxxxxxxxxxx
-            #     --------------------|
-            #           index
-            #
-            # however, we need the array, but we only record the running counts/sums
-            # solution: running max and running min.
-            # False positives are when the duty cycle significantly changes however...
-
-            # if self._running_max > 1.75 * self._running_min:
-            #     self.logger.debug(
-            #         f"RpmCalculator is possible skipping some signal: {self._running_max=}, {self._running_min=}."
-            #     )
 
             return self._running_count * 60 / self._running_sum
-
-
-class RpmFromCount(RpmCalculator):
-    """
-    Counts the number of rises in an N second window.
-    """
-
-    _rpm_counter = 0
-
-    def callback(self, *args) -> None:
-        self._rpm_counter = self._rpm_counter + 1
-
-    def __call__(self, seconds_to_observe: float) -> float:
-
-        self._rpm_counter = 0
-
-        self.turn_on_collection()
-        self.sleep_for(seconds_to_observe)
-        self.turn_off_collection()
-
-        return self._rpm_counter * 60 / seconds_to_observe
 
 
 class Stirrer(BackgroundJob):
@@ -337,9 +297,9 @@ class Stirrer(BackgroundJob):
         sleep(0.25)
         self.set_duty_cycle(1.01 * self._previous_duty_cycle)
 
-    def poll(self, poll_for_seconds: float) -> Optional[float]:
+    def poll(self, poll_for_seconds: float) -> Optional[structs.MeasuredRPM]:
         """
-        Returns an RPM, or None if not measuring RPM.
+        Returns an MeasuredRPM, or None if not measuring RPM.
         """
         if self.rpm_calculator is None:
             return None

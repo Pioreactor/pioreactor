@@ -1,3 +1,7 @@
+### Upcoming
+ - Stirring now has the ability to restart itself if it detects it has stalled.
+ - Python 3.11?
+
 ### 22.7.0
  - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.
  - In `config.ini`, `ir_intensity` -> `ir_led_intensity`

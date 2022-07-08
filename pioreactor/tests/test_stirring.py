@@ -12,11 +12,9 @@ from pioreactor.background_jobs.stirring import Stirrer
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
-from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
-exp = get_latest_experiment_name()
 
 
 def pause(n=1) -> None:
@@ -31,7 +29,7 @@ def test_stirring_runs() -> None:
 
 def test_change_target_rpm_mid_cycle() -> None:
     original_rpm = 500
-
+    exp = "test_change_target_rpm_mid_cycle"
     with Stirrer(original_rpm, unit, exp, rpm_calculator=RpmCalculator()) as st:
         assert st.target_rpm == original_rpm
         pause()
@@ -50,7 +48,7 @@ def test_change_target_rpm_mid_cycle() -> None:
 
 
 def test_pause_stirring_mid_cycle() -> None:
-
+    exp = "test_pause_stirring_mid_cycle"
     with Stirrer(500, unit, exp, rpm_calculator=None) as st:
         original_dc = st.duty_cycle
         pause()
@@ -71,6 +69,7 @@ def test_pause_stirring_mid_cycle() -> None:
 
 
 def test_publish_target_rpm() -> None:
+    exp = "test_publish_target_rpm"
     publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm", None, retain=True)
     pause()
     target_rpm = 500
@@ -104,6 +103,8 @@ def test_publish_measured_rpm() -> None:
 
 
 def test_stirring_with_lookup_linear_v1() -> None:
+    exp = "test_stirring_with_lookup_linear_v1"
+
     class FakeRpmCalculator:
         def setup(self):
             return
@@ -131,7 +132,9 @@ def test_stirring_with_lookup_linear_v1() -> None:
 
 
 def test_stirring_will_try_to_restart_and_dodge_od_reading():
-    start_od_reading("90", interval=5.0, fake_data=True)
+    # TODO make this an actual test
+    exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
+    start_od_reading("90", interval=5.0, unit=unit, experiment=exp, fake_data=True)
 
     with Stirrer(500, unit, exp, rpm_calculator=RpmCalculator()) as st:  # type: ignore
         st.start_stirring()
