@@ -89,6 +89,7 @@ def od_blank(
             experiment=testing_experiment,
             fake_data=is_testing_env(),
         )
+        # TODO: clear callbacks??
 
         readings = defaultdict(list)
         angles = {}

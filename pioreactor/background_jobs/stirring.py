@@ -194,11 +194,13 @@ class Stirrer(BackgroundJob):
         Send message to "pioreactor/{unit}/{experiment}/stirring/target_rpm/set" to change the stirring speed.
     rpm_calculator: RpmCalculator
         See RpmCalculator and examples below.
+    hertz: float
+        The PWM's frequency, measured in hz
 
     Notes
     -------
 
-    The create a feedback loop between the duty-cycle level and the RPM, we set up a polling algorithm. We set up
+    To create a feedback loop between the duty-cycle level and the RPM, we set up a polling algorithm. We set up
     an edge detector on the hall sensor pin, and count the number of pulses in N seconds. We convert this count to RPM, and
     then use a PID system to update the amount of duty cycle to apply.
 
@@ -218,10 +220,11 @@ class Stirrer(BackgroundJob):
         "measured_rpm": {"datatype": "MeasuredRPM", "settable": False, "unit": "RPM"},
         "duty_cycle": {"datatype": "float", "settable": True, "unit": "%"},
     }
-    _previous_duty_cycle: float = 0
+
     duty_cycle: float = config.getfloat(
         "stirring", "initial_duty_cycle"
     )  # only used if calibration isn't defined.
+    _previous_duty_cycle: float = 0
     _measured_rpm: Optional[float] = None
 
     def __init__(
@@ -282,7 +285,7 @@ class Stirrer(BackgroundJob):
 
     def initialize_rpm_to_dc_lookup(self, target_rpm: float) -> Callable:
         if self.rpm_calculator is None:
-            # if we can't track RPM, no point in adjusting DC, use what is in config.ini
+            # if we can't track RPM, no point in adjusting DC, use current value
             return lambda rpm: self.duty_cycle
 
         with local_persistant_storage("stirring_calibration") as cache:
@@ -320,10 +323,15 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
-        sleep(0.25)
+        sleep(0.35)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.75)
         self.rpm_check_repeated_thread.start()  # .start is idempotent
+
+    def kick_stirring(self) -> None:
+        self.set_duty_cycle(100)
+        sleep(0.25)
+        self.set_duty_cycle(1.01 * self._previous_duty_cycle)
 
     def poll(self, poll_for_seconds: float) -> Optional[float]:
         """
@@ -334,20 +342,17 @@ class Stirrer(BackgroundJob):
 
         recent_rpm = self.rpm_calculator(poll_for_seconds)
         if recent_rpm == 0:
-            # TODO: attempt to restart stirring
-            self.logger.warning("Stirring RPM is 0 - has it failed?")
+            self.logger.warning(
+                "Stirring RPM is 0 - has it failed? Attempting to restart it automatically."
+            )
             self.blink_error_code(error_codes.STIRRING_FAILED_ERROR_CODE)
+            self.kick_stirring()
 
-        if self._measured_rpm is not None:
-            # use a simple EMA, alpha chosen arbitrarily, but should be a function of delta time.
-            self._measured_rpm = 0.1 * self._measured_rpm + 0.90 * recent_rpm
-        else:
-            self._measured_rpm = recent_rpm
-
+        self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(
             timestamp=current_utc_timestamp(), measured_rpm=self._measured_rpm
         )
-        return self._measured_rpm
+        return self.measured_rpm
 
     def poll_and_update_dc(self, poll_for_seconds: float) -> None:
         self.poll(poll_for_seconds)
@@ -392,6 +397,7 @@ class Stirrer(BackgroundJob):
 
         """
         running_wait_time = 0.0
+        sleep_time = 0.25
 
         if self.rpm_calculator is None:
             # can't block if we aren't recording the RPM
@@ -400,8 +406,8 @@ class Stirrer(BackgroundJob):
         while (self._measured_rpm is not None) and abs(
             self._measured_rpm - self.target_rpm
         ) > abs_tolerance:
-            sleep(0.25)
-            running_wait_time += 0.25
+            sleep(sleep_time)
+            running_wait_time += sleep_time
 
             if timeout and running_wait_time > timeout:
                 self.logger.debug("Waited too long for stirring to stabilize. Breaking early.")
