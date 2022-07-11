@@ -186,19 +186,23 @@ def run_tests(
                 ),
             )
             r = click.prompt(
-                click.style("Enter amount of water expelled (REDO to redo)", fg="green"),
+                click.style("Enter amount of water expelled, or REDO", fg="green"),
                 confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
             )
             if r == "REDO":
+                click.clear()
+                click.echo()
                 continue
 
             try:
                 results.append(float(r))
             except TypeError:
                 click.echo("Not a number - retrying.")
+                continue
             finally:
                 click.clear()
                 click.echo()
+                break
 
     return durations_to_test, results
 
@@ -225,6 +229,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             is_ready = click.confirm(
                 click.style("Do you want to change the frequency or duty cycle?", fg="green"),
                 prompt_suffix=" ",
+                default=False,
             )
 
         durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration)
