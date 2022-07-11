@@ -154,7 +154,7 @@ def od_blank(
         ) as st:
 
             # skip the first few
-            for count, _ in enumerate(od_stream, start=1):
+            for count, _ in enumerate(od_stream, start=0):
                 if count == 10:
                     break
 
@@ -166,7 +166,6 @@ def od_blank(
                 unit=unit,
                 experiment=experiment,
                 n_samples=n_samples,
-                ignore_rpm=ignore_rpm,
                 logger=logger,
             )
 

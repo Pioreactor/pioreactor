@@ -653,7 +653,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             self.logger.debug(f"{self.blank_reading=}")
             if self.blank_reading > 0.0005:
                 self.logger.warning(
-                    "REF blank reading is unusually high. Is there lots of ambient IR light present (sunny window)...?"
+                    "REF blank reading is unusually high. Is the cap secure, or is there lots of ambient IR light present from sunny window, etc.?"
                 )
         return
 
