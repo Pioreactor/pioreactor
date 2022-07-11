@@ -35,21 +35,21 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime
+from json import dumps
+from typing import Generator
 
 from click import command
 from click import option
 from msgspec.json import decode
 
-from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
-from pioreactor.actions.od_normalization import od_normalization
+from pioreactor.actions.od_blank import od_statistics
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
-from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
 from pioreactor.utils.timing import to_datetime
@@ -230,26 +230,37 @@ class GrowthRateCalculator(BackgroundJob):
 
             raise
 
+    def _compute_and_cache_od_statistics(
+        self,
+    ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
+        self.logger.info("Computing OD normalization metrics. This may take a few minutes")
+        means, variances = od_statistics(
+            self._yield_od_readings_from_mqtt(),
+            action_name="od_normalization",
+            unit=self.unit,
+            experiment=self.experiment,
+            logger=self.logger,
+        )
+        self.logger.info("Completed OD normalization metrics.")
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[self.experiment] = dumps(means)
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[self.experiment] = dumps(variances)
+
+        return means, variances
+
     def get_precomputed_values(self) -> tuple:
         if self.ignore_cache:
-            if not is_pio_job_running("od_reading"):
-                self.logger.error("OD reading should be running. Stopping.")
-                raise exc.JobRequiredError("OD reading should be running. Stopping.")
-
-            self.logger.info("Computing OD normalization metrics. This may take a few minutes")
-            od_normalization_factors, od_variances = od_normalization(
-                unit=self.unit,
-                experiment=self.experiment,
-                continue_check=lambda: (self.state in (self.READY, self.INIT)),
-            )
-            self.logger.info("Completed OD normalization metrics.")
+            od_normalization_factors, od_variances = self._compute_and_cache_od_statistics()
             initial_growth_rate = 0.0
             initial_od = 1.0
         else:
             od_normalization_factors = self.get_od_normalization_from_cache()
             od_variances = self.get_od_variances_from_cache()
             initial_growth_rate = self.get_growth_rate_from_cache()
-            initial_od = self.get_previous_od_from_cache()
+            initial_od = self.get_od_from_cache()
 
         initial_acc = 0.0
         od_blank = self.get_od_blank_from_cache()
@@ -287,7 +298,7 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("growth_rate") as cache:
             return float(cache.get(self.experiment, 0.0))
 
-    def get_previous_od_from_cache(self) -> float:
+    def get_od_from_cache(self) -> float:
         with local_persistant_storage("od_filtered") as cache:
             return float(cache.get(self.experiment, 1.0))
 
@@ -295,38 +306,25 @@ class GrowthRateCalculator(BackgroundJob):
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_mean") as cache:
             result = cache.get(self.experiment, None)
+            if result is not None:
+                return decode(result)
 
-        if result is not None:
-            return decode(result)
-        else:
-            self.logger.debug("od_normalization/mean not found in cache.")
-            self.logger.info("Calculating OD normalization metrics. This may take a few minutes")
-            means, _ = od_normalization(
-                unit=self.unit,
-                experiment=self.experiment,
-                continue_check=lambda: (self.state in (self.READY, self.INIT)),
-            )
-            self.logger.info("Finished calculating OD normalization metrics.")
-            return means
+        self.logger.debug("od_normalization/mean not found in cache.")
+        means, _ = self._compute_and_cache_od_statistics()
+
+        return means
 
     def get_od_variances_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_variance") as cache:
             result = cache.get(self.experiment, None)
+            if result:
+                return decode(result)
 
-        if result:
-            return decode(result)
-        else:
-            self.logger.debug("od_normalization/variance not found in cache.")
-            self.logger.info("Calculating OD normalization metrics. This may take a few minutes")
-            _, variances = od_normalization(
-                unit=self.unit,
-                experiment=self.experiment,
-                continue_check=lambda: (self.state in (self.READY, self.INIT)),
-            )
-            self.logger.info("Finished calculating OD normalization metrics.")
+        self.logger.debug("od_normalization/mean not found in cache.")
+        _, variances = self._compute_and_cache_od_statistics()
 
-            return variances
+        return variances
 
     def update_ekf_variance_after_event(self, minutes: float, factor: float) -> None:
         if whoami.is_testing_env():
@@ -343,7 +341,7 @@ class GrowthRateCalculator(BackgroundJob):
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
 
     @staticmethod
-    def _scale_and_shift(obs, shift, scale):
+    def _scale_and_shift(obs, shift, scale) -> float:
         return (obs - shift) / (scale - shift)
 
     def scale_raw_observations(
@@ -504,6 +502,22 @@ class GrowthRateCalculator(BackgroundJob):
             channel: float(raw_od_readings[channel].voltage)
             for channel in sorted(raw_od_readings, reverse=True)
         }
+
+    def _yield_od_readings_from_mqtt(self) -> Generator[structs.ODReadings, None, None]:
+        while True:
+            msg = subscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched",
+                allow_retained=False,
+                timeout=10,
+            )
+
+            if self.state not in (self.READY, self.INIT):
+                raise StopIteration("Ending early.")
+
+            if msg is None:
+                continue
+
+            yield decode(msg.payload, type=structs.ODReadings)
 
 
 @command(name="growth_rate_calculating")

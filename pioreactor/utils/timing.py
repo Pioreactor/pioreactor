@@ -148,6 +148,7 @@ class RepeatedTimer:
 
     def cancel(self) -> None:
         self.event.set()
+
         with suppress(RuntimeError):
             # possible to happen if self.thread hasn't started yet,
             # so cancelling doesn't make sense.

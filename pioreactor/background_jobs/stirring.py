@@ -107,21 +107,20 @@ class RpmCalculator:
 
 class RpmFromFrequency(RpmCalculator):
     """
-    Averages the duration between rises in an N second window. This is more accurate (but less robust)
-    than RpmFromCount.
+    Averages the duration between pings in an N second window.
 
     Can't reliably compute faster than 2000 rpm on an RPi.
     """
 
-    _running_sum = 0
+    _running_sum = 0.0
     _running_count = 0
     _start_time = None
 
     def callback(self, *args) -> None:
+        obs_time = perf_counter()
+
         if not self.collecting:
             return
-
-        obs_time = perf_counter()
 
         if self._start_time is not None:
             self._running_sum += obs_time - self._start_time
@@ -144,7 +143,6 @@ class RpmFromFrequency(RpmCalculator):
         if self._running_sum == 0:
             return 0
         else:
-
             return self._running_count * 60 / self._running_sum
 
 
@@ -272,14 +270,11 @@ class Stirrer(BackgroundJob):
                 return lambda rpm: self.duty_cycle
 
     def on_disconnected(self) -> None:
-
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
-
         with suppress(AttributeError):
             self.set_duty_cycle(0)
             self.pwm.cleanup()
-
         with suppress(AttributeError):
             if self.rpm_calculator:
                 self.rpm_calculator.clean_up()
@@ -318,16 +313,20 @@ class Stirrer(BackgroundJob):
             if not is_od_running:
                 self.kick_stirring()
             else:
-                first_od_obs_time = float(
-                    subscribe(
-                        f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time"
-                    ).payload  # type: ignore
+                first_od_obs_time_msg = subscribe(
+                    f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time",
+                    timeout=3,
                 )
-                interval = float(
-                    subscribe(
-                        f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
-                    ).payload  # type: ignore
+
+                if first_od_obs_time_msg is not None:
+                    first_od_obs_time = float(first_od_obs_time_msg.payload)
+
+                interval_msg = subscribe(
+                    f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3
                 )
+
+                if interval_msg is not None:
+                    interval = float(interval_msg.payload)
 
                 seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
                 sleep(
