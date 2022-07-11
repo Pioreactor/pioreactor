@@ -26,13 +26,34 @@ def pause(n=1):
 def setup_function():
     with local_persistant_storage("pump_calibration") as cache:
         cache["media_ml_calibration"] = json.dumps(
-            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100, "timestamp": "2010-01-01"}
+            {
+                "duration_": 1.0,
+                "bias_": 0,
+                "dc": 60,
+                "hz": 100,
+                "timestamp": "2010-01-01",
+                "voltage": -1.0,
+            }
         )
         cache["alt_media_ml_calibration"] = json.dumps(
-            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100, "timestamp": "2010-01-01"}
+            {
+                "duration_": 1.0,
+                "bias_": 0,
+                "dc": 60,
+                "hz": 100,
+                "timestamp": "2010-01-01",
+                "voltage": -1.0,
+            }
         )
         cache["waste_ml_calibration"] = json.dumps(
-            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100, "timestamp": "2010-01-01"}
+            {
+                "duration_": 1.0,
+                "bias_": 0,
+                "dc": 60,
+                "hz": 100,
+                "timestamp": "2010-01-01",
+                "voltage": -1.0,
+            }
         )
 
 
@@ -110,9 +131,7 @@ def test_pump_will_disconnect_via_mqtt() -> None:
             return self._return
 
     expected_ml = 20
-    t = ThreadWithReturnValue(
-        target=add_media, args=(unit, exp, expected_ml), daemon=True
-    )
+    t = ThreadWithReturnValue(target=add_media, args=(unit, exp, expected_ml), daemon=True)
     t.start()
 
     pause()

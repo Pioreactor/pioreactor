@@ -74,3 +74,14 @@ def is_heating_pcb_present() -> bool:
             present = False
 
     return present
+
+
+def voltage_in_aux() -> float:
+    from busio import I2C
+    from adafruit_ads1x15.ads1115 import ADS1115, P3
+    from adafruit_ads1x15.analog_in import AnalogIn
+
+    with I2C(SCL, SDA) as i2c:
+        ads = ADS1115(i2c, address=ADC)
+        chan = AnalogIn(ads, P3)
+        return chan.voltage

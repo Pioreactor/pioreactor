@@ -37,13 +37,34 @@ def pause() -> None:
 def setup_function() -> None:
     with local_persistant_storage("pump_calibration") as cache:
         cache["media_ml_calibration"] = json.dumps(
-            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100, "timestamp": "2010-01-01"}
+            {
+                "duration_": 1.0,
+                "bias_": 0,
+                "dc": 60,
+                "hz": 100,
+                "timestamp": "2010-01-01",
+                "voltage": -1.0,
+            }
         )
         cache["alt_media_ml_calibration"] = json.dumps(
-            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100, "timestamp": "2010-01-01"}
+            {
+                "duration_": 1.0,
+                "bias_": 0,
+                "dc": 60,
+                "hz": 100,
+                "timestamp": "2010-01-01",
+                "voltage": -1.0,
+            }
         )
         cache["waste_ml_calibration"] = json.dumps(
-            {"duration_": 1.0, "bias_": 0, "dc": 60, "hz": 100, "timestamp": "2010-01-01"}
+            {
+                "duration_": 1.0,
+                "bias_": 0,
+                "dc": 60,
+                "hz": 100,
+                "timestamp": "2010-01-01",
+                "voltage": -1.0,
+            }
         )
 
 
