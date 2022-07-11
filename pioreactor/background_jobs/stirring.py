@@ -292,6 +292,39 @@ class Stirrer(BackgroundJob):
         sleep(0.25)
         self.set_duty_cycle(1.01 * self._previous_duty_cycle)
 
+    def kick_stirring_but_avoid_od_reading(self) -> None:
+        """
+        This will determine when the next od reading occurs (if possible), and
+        wait until it completes before kicking stirring.
+        """
+        first_od_obs_time_msg = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time",
+            timeout=3,
+        )
+
+        if first_od_obs_time_msg is not None:
+            first_od_obs_time = float(first_od_obs_time_msg.payload)
+        else:
+            self.kick_stirring()
+            return
+
+        interval_msg = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3
+        )
+
+        if interval_msg is not None:
+            interval = float(interval_msg.payload)
+        else:
+            self.kick_stirring()
+            return
+
+        seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
+        sleep(
+            seconds_to_next_reading + 2
+        )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
+        self.kick_stirring()
+        return
+
     def poll(self, poll_for_seconds: float) -> Optional[structs.MeasuredRPM]:
         """
         Returns an MeasuredRPM, or None if not measuring RPM.
@@ -313,26 +346,7 @@ class Stirrer(BackgroundJob):
             if not is_od_running:
                 self.kick_stirring()
             else:
-                first_od_obs_time_msg = subscribe(
-                    f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time",
-                    timeout=3,
-                )
-
-                if first_od_obs_time_msg is not None:
-                    first_od_obs_time = float(first_od_obs_time_msg.payload)
-
-                interval_msg = subscribe(
-                    f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3
-                )
-
-                if interval_msg is not None:
-                    interval = float(interval_msg.payload)
-
-                seconds_to_next_reading = interval - (time() - first_od_obs_time) % interval
-                sleep(
-                    seconds_to_next_reading + 2
-                )  # add an additional 2 seconds to make sure we wait long enough for OD reading to complete.
-                self.kick_stirring()
+                self.kick_stirring_but_avoid_od_reading()
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(
