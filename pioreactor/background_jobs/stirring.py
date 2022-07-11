@@ -28,6 +28,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import is_testing_env
 
 
 class RpmCalculator:
@@ -399,7 +400,7 @@ class Stirrer(BackgroundJob):
         running_wait_time = 0.0
         sleep_time = 0.25
 
-        if self.rpm_calculator is None:
+        if (self.rpm_calculator is None) or is_testing_env():
             # can't block if we aren't recording the RPM
             return
 

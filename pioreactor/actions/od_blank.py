@@ -131,6 +131,7 @@ def od_blank(
     experiment=None,
 ):
     from pioreactor.background_jobs.od_reading import start_od_reading
+    from pioreactor.background_jobs.stirring import start_stirring
 
     action_name = "od_blank"
     logger = create_logger(action_name)
@@ -147,12 +148,19 @@ def od_blank(
             interval=1.5,
             experiment=testing_experiment,
             fake_data=is_testing_env(),
-        ) as od_stream:
+        ) as od_stream, start_stirring(
+            target_rpm=config.getfloat("stirring", "target_rpm"),
+            unit=unit,
+            experiment=testing_experiment,
+            ignore_rpm=ignore_rpm,
+        ) as st:
 
             # skip the first few
             for count, _ in enumerate(od_stream, start=1):
                 if count == 10:
                     break
+
+            st.block_until_rpm_is_close_to_target(timeout=120)  # wait for maximum 2 minutes:
 
             means, _ = od_statistics(
                 od_stream,
