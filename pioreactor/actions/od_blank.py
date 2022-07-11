@@ -48,9 +48,7 @@ def od_statistics(
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
     testing_experiment = get_latest_testing_experiment_name()
-    logger.info(
-        "Starting to compute statistics from OD readings. This will take about a few minutes."
-    )
+    logger.info("Starting to compute statistics from OD readings. This will take a few minutes.")
 
     # turn on stirring if not already on
     if not is_pio_job_running("stirring"):

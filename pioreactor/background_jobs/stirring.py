@@ -404,6 +404,8 @@ class Stirrer(BackgroundJob):
             # can't block if we aren't recording the RPM
             return
 
+        self.logger.debug(f"Blocking until RPM is near {self.target_rpm}.")
+
         while (self._measured_rpm is not None) and abs(
             self._measured_rpm - self.target_rpm
         ) > abs_tolerance:
