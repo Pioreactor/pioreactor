@@ -285,8 +285,8 @@ class DosingAutomationJob(BackgroundSubJob):
         """
         volumes_moved = SummableList([0.0, 0.0, 0.0])
 
-        max_ = 0.36  # arbitrary
-        if alt_media_ml > max_:
+        max_ = 0.50  # arbitrary, but should be some value that the pump is well calibrated for
+        if alt_media_ml >= max_:
             volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2,
                 media_ml=media_ml,
@@ -295,7 +295,7 @@ class DosingAutomationJob(BackgroundSubJob):
             volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2
             )
-        elif media_ml > max_:
+        elif media_ml >= max_:
             volumes_moved += self.execute_io_action(
                 alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2
             )
@@ -348,7 +348,6 @@ class DosingAutomationJob(BackgroundSubJob):
                     experiment=self.experiment,
                 )
                 volumes_moved[2] += waste_moved
-                brief_pause()
 
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(

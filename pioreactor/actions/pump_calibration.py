@@ -132,9 +132,9 @@ def choose_settings() -> tuple[float, float]:
     click.clear()
     click.echo()
     hz = click.prompt(
-        click.style("Enter frequency of PWM. [enter] for default 150 hz", fg="green"),
+        click.style("Enter frequency of PWM. [enter] for default 200 hz", fg="green"),
         type=click.FloatRange(0, 10000),
-        default=150,
+        default=200,
         show_default=False,
     )
     dc = click.prompt(
@@ -256,6 +256,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                     dc=dc,
                     bias_=bias,
                     timestamp=current_utc_timestamp(),
+                    voltage=-1.0,
                 )
             )
             cache[f"{pump_name}_calibration_data"] = encode(
@@ -282,7 +283,7 @@ def click_pump_calibration(min_duration, max_duration):
     """
 
     if max_duration is None and min_duration is None:
-        min_duration, max_duration = 0.75, 1.5
+        min_duration, max_duration = 0.45, 1.25
     elif (max_duration is not None) and (min_duration is not None):
         assert min_duration < max_duration, "min_duration >= max_duration"
     else:

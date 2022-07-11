@@ -36,7 +36,7 @@ def to_datetime(timestamp: str):
 
 
 def brief_pause() -> None:
-    time.sleep(3)
+    time.sleep(2.5)
     return
 
 

@@ -144,6 +144,7 @@ class PumpCalibration(Struct):
     dc: float
     duration_: float
     bias_: float
+    voltage: float
     timestamp: str
 
 
