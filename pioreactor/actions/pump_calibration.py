@@ -223,8 +223,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             setup(pump_name, execute_pump, hz, dc)
 
             is_ready = click.confirm(
-                click.style("Do you want to change the hz or dc%?", fg="green"),
-                abort=True,
+                click.style("Do you want to change the frequency or duty cycle?", fg="green"),
                 prompt_suffix=" ",
             )
 
