@@ -161,36 +161,44 @@ def run_tests(
         min_duration * 1.3,
     ] + [max_duration * 0.85, max_duration * 0.90, max_duration * 0.95, max_duration]
     for i, duration in enumerate(durations_to_test):
-        if i > 0:
-            click.echo("Remove the water from the measuring container.")
+        while True:
 
-        click.echo(
-            "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
-        )
-        click.echo(
-            "You can either use a container on top of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
-        )
-        click.echo("Place the outflow tube into the container (or graduated cylinder).")
-        while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
-            pass
+            if i > 0:
+                click.echo("Remove the water from the measuring container.")
 
-        execute_pump(
-            duration=duration,
-            source_of_event="pump_calibration",
-            unit=get_unit_name(),
-            experiment=get_latest_testing_experiment_name(),
-            calibration=structs.PumpCalibration(
-                duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_timestamp()
-            ),
-        )
-        r = click.prompt(
-            click.style("Enter amount of water expelled", fg="green"),
-            type=click.FLOAT,
-            confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
-        )
-        results.append(r)
-        click.clear()
-        click.echo()
+            click.echo(
+                "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
+            )
+            click.echo(
+                "You can either use a container on top of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
+            )
+            click.echo("Place the outflow tube into the container (or graduated cylinder).")
+            while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
+                pass
+
+            execute_pump(
+                duration=duration,
+                source_of_event="pump_calibration",
+                unit=get_unit_name(),
+                experiment=get_latest_testing_experiment_name(),
+                calibration=structs.PumpCalibration(
+                    duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_timestamp()
+                ),
+            )
+            r = click.prompt(
+                click.style("Enter amount of water expelled (REDO to redo)", fg="green"),
+                confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
+            )
+            if r == "REDO":
+                continue
+
+            try:
+                results.append(float(r))
+            except TypeError:
+                click.echo("Not a number - retrying.")
+            finally:
+                click.clear()
+                click.echo()
 
     return durations_to_test, results
 
@@ -209,9 +217,17 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         click.echo()
         pump_name, execute_pump = which_pump_are_you_calibrating()
 
-        hz, dc = choose_settings()
+        is_ready = True
+        while is_ready:
+            hz, dc = choose_settings()
+            setup(pump_name, execute_pump, hz, dc)
 
-        setup(pump_name, execute_pump, hz, dc)
+            is_ready = click.confirm(
+                click.style("Do you want to change the hz or dc%?", fg="green"),
+                abort=True,
+                prompt_suffix=" ",
+            )
+
         durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration)
 
         (slope, std_slope), (

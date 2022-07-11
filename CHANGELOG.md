@@ -1,6 +1,8 @@
 ### Upcoming
  - Stirring now has the ability to restart itself if it detects it has stalled.
  - od_normalization has been removed. Instead, there is a small routine `od_statistics` that is called by both `od_blank` and `growth_rate_calculating`. The latter also now stores the required od statistics to storage (previous it was the `od_normalization` job).
+ - The LEDs in the pioreactor have been moved up 0.5mm.
+
 
 ### 22.7.0
  - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.
