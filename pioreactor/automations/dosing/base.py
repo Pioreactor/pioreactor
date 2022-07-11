@@ -286,7 +286,7 @@ class DosingAutomationJob(BackgroundSubJob):
         volumes_moved = SummableList([0.0, 0.0, 0.0])
 
         max_ = 0.50  # arbitrary, but should be some value that the pump is well calibrated for
-        if alt_media_ml >= max_:
+        if alt_media_ml > max_:
             volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2,
                 media_ml=media_ml,
@@ -295,7 +295,7 @@ class DosingAutomationJob(BackgroundSubJob):
             volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2
             )
-        elif media_ml >= max_:
+        elif media_ml > max_:
             volumes_moved += self.execute_io_action(
                 alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2
             )
