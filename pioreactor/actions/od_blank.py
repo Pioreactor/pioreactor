@@ -33,7 +33,7 @@ def od_statistics(
     action_name,
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
-    n_samples: int = 40,
+    n_samples: int = 30,
     ignore_rpm: bool = False,
     logger=None,
 ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
@@ -125,7 +125,7 @@ def od_statistics(
 def od_blank(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
-    n_samples: int = 30,
+    n_samples: int = 40,
     ignore_rpm=False,
     unit=None,
     experiment=None,
@@ -190,6 +190,7 @@ def od_blank(
                 qos=pubsub.QOS.AT_LEAST_ONCE,
                 retain=True,
             )
+
             logger.info("Finished reading blank OD.")
 
     return means
