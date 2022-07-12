@@ -205,13 +205,12 @@ def run_tests(
 
             try:
                 results.append(float(r))
-            except ValueError:
-                click.echo("Not a number - retrying.")
-                continue
-            finally:
                 click.clear()
                 click.echo()
                 break
+            except ValueError:
+                click.echo("Not a number - retrying.")
+
 
     return durations_to_test, results
 
