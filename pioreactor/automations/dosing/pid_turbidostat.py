@@ -26,6 +26,8 @@ class PIDTurbidostat(DosingAutomationJob):
     def __init__(self, target_od: float, **kwargs) -> None:
         super(PIDTurbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
+        
+        assert self.duration is not None, "duration must be set"
 
         with local_persistant_storage("pump_calibration") as cache:
             if "media_ml_calibration" not in cache:
@@ -34,7 +36,7 @@ class PIDTurbidostat(DosingAutomationJob):
                 raise CalibrationError("Waste pump calibration must be performed first.")
 
         self.set_target_od(target_od)
-        self.volume_to_cycle = None
+        self.volume_to_cycle = 0.5
 
         # PID%20controller%20turbidostat.ipynb
         Kp = config.getfloat("dosing_automation.pid_turbidostat", "Kp")
@@ -61,19 +63,6 @@ class PIDTurbidostat(DosingAutomationJob):
                 f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}"
             )
         else:
-            assert self.duration is not None
-            if self.volume_to_cycle is None:
-                self.volume_to_cycle = (
-                    14
-                    - (
-                        14
-                        * np.exp(-(self.duration * self.latest_growth_rate) / 60)
-                        * self.target_od
-                    )
-                    / self.latest_od
-                )
-
-            assert isinstance(self.volume_to_cycle, float)
 
             pid_output = self.pid.update(self.latest_od, dt=self.duration)
             self.volume_to_cycle = max(0, self.volume_to_cycle + pid_output)
