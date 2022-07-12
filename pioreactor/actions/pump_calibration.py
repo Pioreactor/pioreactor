@@ -26,26 +26,26 @@ from pioreactor.whoami import get_unit_name
 
 
 def which_pump_are_you_calibrating():
-    media_timestamp, missing_media = "", True
-    waste_timestamp, missing_waste = "", True
-    alt_media_timestamp, missing_alt_media = "", True
+    media_timestamp, has_media = "", True
+    waste_timestamp, has_waste = "", True
+    alt_media_timestamp, has_alt_media = "", True
 
     with local_persistant_storage("pump_calibration") as cache:
-        missing_media = "media_ml_calibration" not in cache
-        missing_waste = "waste_ml_calibration" not in cache
-        missing_alt_media = "alt_media_ml_calibration" not in cache
+        has_media = "media_ml_calibration" in cache
+        has_waste = "waste_ml_calibration" in cache
+        has_alt_media = "alt_media_ml_calibration" in cache
 
-        if not missing_media:
+        if has_media:
             media_timestamp = decode(
                 cache["media_ml_calibration"], type=structs.PumpCalibration
             ).timestamp[:10]
 
-        if not missing_waste:
+        if has_waste:
             waste_timestamp = decode(
                 cache["waste_ml_calibration"], type=structs.PumpCalibration
             ).timestamp[:10]
 
-        if not missing_alt_media:
+        if has_alt_media:
             alt_media_timestamp = decode(
                 cache["alt_media_ml_calibration"], type=structs.PumpCalibration
             ).timestamp[:10]
@@ -53,9 +53,9 @@ def which_pump_are_you_calibrating():
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
-1. Media       {'[missing calibration]' if missing_media else f'[last ran {media_timestamp}]'}
-2. Alt-media   {'[missing calibration]' if missing_alt_media else f'[last ran {alt_media_timestamp}]'}
-3. Waste       {'[missing calibration]' if missing_waste else f'[last ran {waste_timestamp}]'}
+1. Media       {f'[last ran {media_timestamp}]' if has_media else '[missing calibration]'}
+2. Alt-media   {f'[last ran {alt_media_timestamp}]' if has_alt_media else '[missing calibration]'}
+3. Waste       {f'[last ran {waste_timestamp}]' if has_waste else '[missing calibration]'}
 """,
             fg="green",
         ),
@@ -64,7 +64,7 @@ def which_pump_are_you_calibrating():
     )
 
     if r == "1":
-        if not missing_media:
+        if has_media:
             click.confirm(
                 click.style("Confirm over-writing existing calibration?", fg="green"),
                 abort=True,
@@ -72,7 +72,7 @@ def which_pump_are_you_calibrating():
             )
         return ("media", add_media)
     elif r == "2":
-        if not missing_alt_media:
+        if has_alt_media:
             click.confirm(
                 click.style("Confirm over-writing existing calibration?", fg="green"),
                 abort=True,
@@ -80,14 +80,13 @@ def which_pump_are_you_calibrating():
             )
         return ("alt_media", add_alt_media)
     elif r == "3":
-        if not missing_waste:
+        if has_waste:
             click.confirm(
                 click.style("Confirm over-writing existing calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
         return ("waste", remove_waste)
-
 
 def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
     # set up...
@@ -143,8 +142,8 @@ def choose_settings() -> tuple[float, float]:
         show_default=False,
     )
     dc = click.prompt(
-        click.style("Enter duty cycle percent. [enter] for default 90%", fg="green"),
-        type=click.FloatRange(0, 100),
+        click.style("Enter duty cycle percent as a whole number. [enter] for default 90%", fg="green"),
+        type=click.IntRange(0, 100),
         default=90,
         show_default=False,
     )
@@ -169,15 +168,15 @@ def run_tests(
         while True:
 
             if i > 0:
-                click.echo("Remove the water from the measuring container.")
+                click.echo("Remove the water from the measuring container or tare your weighing scale.")
 
             click.echo(
                 "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
             )
             click.echo(
-                "You can either use a container on top of an accurate weighing scale, or a graduated cylinder (recall that 1 g = 1 ml water)."
+                "Use a small container placed on top of an accurate weighing scale."
             )
-            click.echo("Place the outflow tube into the container (or graduated cylinder).")
+            click.echo("Hold the end of the outflow tube above so the container catches the expelled liquid.")
             while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
                 pass
 
@@ -206,7 +205,7 @@ def run_tests(
 
             try:
                 results.append(float(r))
-            except TypeError:
+            except ValueError:
                 click.echo("Not a number - retrying.")
                 continue
             finally:
@@ -250,8 +249,8 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         ) = simple_linear_regression_with_forced_nil_intercept(durations, volumes)
 
         # check parameters for problems
-        if slope < 0:
-            logger.warning("Slope is negative - you probably want to rerun this calibration...")
+        if correlation(durations, volumes) < 0:
+            logger.warning("Correlation is negative - you probably want to rerun this calibration...")
         if slope / std_slope < 5.0:
             logger.warning(
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
