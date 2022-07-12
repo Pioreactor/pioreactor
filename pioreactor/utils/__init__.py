@@ -165,7 +165,7 @@ def local_intermittent_storage(
 
     Notes
     -------
-    Opening the same cache in a context manager are tricky, and should be avoided. The general rule is:
+    Opening the same cache in a context manager is tricky, and should be avoided. The general rule is:
 
     1. Outer-scoped caches can't access keys created by inner scope caches.
     2. The latest value given to a key, regardless of which scoped cache, is the one that is finally written.

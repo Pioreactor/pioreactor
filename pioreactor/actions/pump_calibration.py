@@ -116,7 +116,12 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
-                duration_=1.0, hz=hz, dc=dc, bias_=0, timestamp=current_utc_timestamp()
+                duration_=1.0,
+                hz=hz,
+                dc=dc,
+                bias_=0,
+                timestamp=current_utc_timestamp(),
+                voltage=-1.0,
             ),
         )
     except KeyboardInterrupt:
