@@ -17,7 +17,7 @@ from pioreactor.logging import create_logger
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import (
-    simple_linear_regression_with_forced_nil_intercept,
+    simple_linear_regression_with_forced_nil_intercept, correlation
 )
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
