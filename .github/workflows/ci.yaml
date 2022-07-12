@@ -58,3 +58,4 @@ jobs:
         run: pytest pioreactor/tests/ -vv --timeout 600 --random-order
         env:
           TESTING: 1
+          TMPDIR: /tmp/
