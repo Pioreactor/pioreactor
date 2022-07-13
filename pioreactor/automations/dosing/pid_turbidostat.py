@@ -9,6 +9,7 @@ from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.config import config
 from pioreactor.exc import CalibrationError
+from pioreactor.utils import clamp
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import PID
 
@@ -74,7 +75,7 @@ class PIDTurbidostat(DosingAutomationJob):
                 pid_output = self.pid.update(self.latest_od, dt=self.duration)
                 self.volume_to_cycle += pid_output
 
-            self.volume_to_cycle = max(0.0, self.volume_to_cycle)
+            self.volume_to_cycle = clamp(0.0, self.volume_to_cycle, 5.00)
 
             if self.volume_to_cycle < 0.05:
                 return events.NoEvent("Practically no volume to cycle")
