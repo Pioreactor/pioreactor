@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from math import exp
+from typing import Optional
 
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
@@ -37,7 +39,7 @@ class PIDTurbidostat(DosingAutomationJob):
                 raise CalibrationError("Waste pump calibration must be performed first.")
 
         self.set_target_od(target_od)
-        self.volume_to_cycle = 0.5
+        self.volume_to_cycle: Optional[float] = None
 
         # PID%20controller%20turbidostat.ipynb
         Kp = config.getfloat("dosing_automation.pid_turbidostat", "Kp")
@@ -63,9 +65,16 @@ class PIDTurbidostat(DosingAutomationJob):
                 f"current OD, {self.latest_od:.2f}, less than OD to start diluting, {self.min_od:.2f}"
             )
         else:
+            if self.volume_to_cycle is None:
+                # pick a good starting value. If GR is constant, then the PID will achieve a steady state. Pick this.
+                average_vial_volume = 12.5  # ml
+                F = exp(-self.latest_growth_rate * self.duration / 60.0)  # type: ignore
+                self.volume_to_cycle = average_vial_volume * (1.0 - F)
+            else:
+                pid_output = self.pid.update(self.latest_od, dt=self.duration)
+                self.volume_to_cycle += pid_output
 
-            pid_output = self.pid.update(self.latest_od, dt=self.duration)
-            self.volume_to_cycle = max(0, self.volume_to_cycle + pid_output)
+            self.volume_to_cycle = max(0.0, self.volume_to_cycle)
 
             if self.volume_to_cycle < 0.05:
                 return events.NoEvent("Practically no volume to cycle")
