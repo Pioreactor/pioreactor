@@ -14,6 +14,7 @@ from pioreactor.utils.streaming_calculations import PID
 class PIDTurbidostat(DosingAutomationJob):
     """
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
+    Ideally have a low duration, like 1min to 20min maximum.
 
     """
 
@@ -26,7 +27,7 @@ class PIDTurbidostat(DosingAutomationJob):
     def __init__(self, target_od: float, **kwargs) -> None:
         super(PIDTurbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
-        
+
         assert self.duration is not None, "duration must be set"
 
         with local_persistant_storage("pump_calibration") as cache:
@@ -56,7 +57,6 @@ class PIDTurbidostat(DosingAutomationJob):
         )
 
     def execute(self) -> events.AutomationEvent:
-        import numpy as np
 
         if self.latest_od <= self.min_od:
             return events.NoEvent(
@@ -67,7 +67,7 @@ class PIDTurbidostat(DosingAutomationJob):
             pid_output = self.pid.update(self.latest_od, dt=self.duration)
             self.volume_to_cycle = max(0, self.volume_to_cycle + pid_output)
 
-            if self.volume_to_cycle < 0.01:
+            if self.volume_to_cycle < 0.05:
                 return events.NoEvent("Practically no volume to cycle")
             else:
                 volumes_actually_moved = self.execute_io_action(

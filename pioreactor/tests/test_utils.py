@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import RepeatedTimer
 
 
+@pytest.mark.xfail(reason="This will fail if not using ndbm")
 def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache():
     """
     You can modify caches, and the last assignment is valid.
@@ -30,6 +33,7 @@ def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache():
         assert cache["B"] == b"2"
 
 
+@pytest.mark.xfail(reason="This will fail if not using ndbm")
 def test_caches_will_always_save_the_lastest_value_provided():
     with local_intermittent_storage("test") as cache:
         for k in cache.keys():
