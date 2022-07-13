@@ -109,11 +109,11 @@ class GrowthRateCalculator(BackgroundJob):
                 self.od_blank,
                 self.initial_acc,
             ) = self.get_precomputed_values()
-        except Exception:
+        except Exception as e:
             # something happened - abort
             self.logger.debug("Aborting `get_precomputed_values`.", exc_info=True)
             self.clean_up()
-            return
+            raise e
 
         self.logger.debug(f"od_blank={dict(self.od_blank)}")
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
@@ -233,7 +233,6 @@ class GrowthRateCalculator(BackgroundJob):
     def _compute_and_cache_od_statistics(
         self,
     ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
-        self.logger.info("Computing OD normalization metrics. This may take a few minutes")
         means, variances = od_statistics(
             self._yield_od_readings_from_mqtt(),
             action_name="od_normalization",

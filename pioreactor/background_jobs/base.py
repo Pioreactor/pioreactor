@@ -414,7 +414,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             return
 
         if hasattr(self, f"on_{self.state}_to_{new_state}"):
-            getattr(self, f"on_{self.state}_to_{new_state}")()
+            try:
+                getattr(self, f"on_{self.state}_to_{new_state}")()
+            except Exception as e:
+                self.logger.debug(e, exc_info=True)
+                self.logger.error(e)
+                return
+
         getattr(self, new_state)()
 
     def block_until_disconnected(self) -> None:
@@ -651,7 +657,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # sol for authors: move the long-running parts to the on_init_to_ready function.
             # TODO: a potential fix is to include a timestamp of when the value changed??
             cache[self.job_name] = b"1"
-
         try:
             self.on_ready()
         except Exception as e:
