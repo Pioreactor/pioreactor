@@ -110,7 +110,7 @@ class RepeatedTimer:
 
         """
         if not self.event.wait(self.run_after):
-            self.start_time = time.time()
+            self.start_time = time.perf_counter()
             if self.run_immediately:
                 self._execute_function()
         else:
@@ -131,7 +131,7 @@ class RepeatedTimer:
 
     @property
     def _time(self) -> float:
-        return self.interval - ((time.time() - self.start_time) % self.interval)
+        return self.interval - ((time.perf_counter() - self.start_time) % self.interval)
 
     def pause(self) -> None:
         """
