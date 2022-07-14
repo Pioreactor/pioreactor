@@ -17,7 +17,7 @@ from pioreactor.utils.streaming_calculations import PID
 class PIDTurbidostat(DosingAutomationJob):
     """
     turbidostat mode - try to keep cell density constant using a PID target at the OD.
-    Ideally have a low duration, like 1min to 20min maximum.
+    Ideally have a low duration, like 1min to 10min maximum.
 
     """
 
@@ -76,6 +76,11 @@ class PIDTurbidostat(DosingAutomationJob):
                 self.volume_to_cycle += pid_output
 
             self.volume_to_cycle = clamp(0.0, self.volume_to_cycle, 5.00)
+
+            if self.volume_to_cycle == 5.00:
+                self.logger.warning(
+                    "Maximum volume is being exchanged. You may need to decrease the duration between dosing events to keep up."
+                )
 
             if self.volume_to_cycle < 0.05:
                 return events.NoEvent("Practically no volume to cycle")
