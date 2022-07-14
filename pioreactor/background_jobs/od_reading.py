@@ -857,7 +857,7 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-                sleep(0.5)  # pause to make sure all LEDs are off, probably too aggressive
+                sleep(0.05)
                 timestamp_of_readings = timing.current_utc_timestamp()
                 adc_reading_by_channel = self._read_from_adc()
 
