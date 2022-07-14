@@ -425,6 +425,7 @@ class Monitor(BackgroundJob):
             elif job_name == "remove_waste":
                 pump = remove_waste
 
+            payload["config"] = config.get_config()  # techdebt
             exp = whoami._get_latest_experiment_name()
             t = Thread(target=pump, args=(self.unit, exp), kwargs=payload, daemon=True)
             t.start()

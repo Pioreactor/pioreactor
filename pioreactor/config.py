@@ -60,6 +60,7 @@ class ConfigParserMod(configparser.ConfigParser):
             raise
 
 
+@lru_cache(1)
 def get_config():
     """
     This function initializes the configuration logic for the Pioreactor cluster.

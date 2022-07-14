@@ -35,6 +35,7 @@ def _pump(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.PumpCalibration] = None,
     continuously: bool = False,
+    config=config,  # techdebt
 ) -> float:
     """
 
