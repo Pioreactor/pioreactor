@@ -484,7 +484,6 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
     help="specify a hostname, default is all active units",
 )
 @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
-@click.pass_context
 def reboot(units: tuple[str, ...], y: bool) -> None:
     """
     Reboot Pioreactor / Raspberry Pi
