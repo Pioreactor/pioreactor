@@ -51,12 +51,11 @@ def is_TI_device():
     # dev
     from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
     import busio  # type: ignore
-    import board  # type: ignore
 
-    comm_port = busio.I2C(board.SCL, board.SDA)
+    comm_port = busio.I2C(hardware.SCL, hardware.SDA)
     read_buffer = bytearray(2)
     write_buffer = bytearray([0x04])
-    i2c = I2CDevice(comm_port, 0x4F)
+    i2c = I2CDevice(comm_port, hardware.TEMP)
     try:
         i2c.write_then_readinto(write_buffer, read_buffer)
         return False
@@ -216,11 +215,18 @@ class TemperatureController(BackgroundJob):
         """
         try:
             # check temp is fast, let's do it a few times to reduce variance.
-            return (
+            averaged_temp = (
                 self.tmp_driver.get_temperature()
                 + self.tmp_driver.get_temperature()
                 + +self.tmp_driver.get_temperature()
             ) / 3
+
+            if averaged_temp == 0.0:
+                # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
+                self.logger.error("Temp sensor failure. Shutting down. See issue #308")
+                return 80.0
+
+            return averaged_temp
         except OSError:
             # could not find temp driver on i2c
             self.logger.error(
