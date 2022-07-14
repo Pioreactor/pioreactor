@@ -149,12 +149,12 @@ def test_turbidostat_automation() -> None:
 
 def test_pid_turbidostat_automation() -> None:
     experiment = "test_pid_turbidostat_automation"
-    target_od = 2.4
+    target_od = 2.0
     with PIDTurbidostat(target_od=target_od, duration=20, unit=unit, experiment=experiment) as algo:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+            json.dumps({"growth_rate": 0.4, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
@@ -166,11 +166,11 @@ def test_pid_turbidostat_automation() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+            json.dumps({"growth_rate": 0.41, "timestamp": current_utc_timestamp()}),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 2.8, "timestamp": current_utc_timestamp()}),
+            json.dumps({"od_filtered": 2.3, "timestamp": current_utc_timestamp()}),
         )
         pause()
         e = algo.run()

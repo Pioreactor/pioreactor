@@ -5,7 +5,6 @@ import json
 import time
 
 import numpy as np
-import pytest
 from msgspec.json import encode
 from numpy.testing import assert_array_equal
 
@@ -14,6 +13,7 @@ from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalcula
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.config import config
+from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
@@ -24,9 +24,7 @@ def pause() -> None:
     time.sleep(0.5)
 
 
-def create_od_raw_batched_json(
-    channels=None, voltages=None, angles=None, timestamp=None
-) -> bytes:
+def create_od_raw_batched_json(channels=None, voltages=None, angles=None, timestamp=None) -> bytes:
     """
     channel is a list, elements from {1, 2}
     raw_signal is a list
@@ -261,9 +259,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-            create_od_raw_batched_json(
-                ["1"], [1.153], ["90"], timestamp="2010-01-01 12:00:30"
-            ),
+            create_od_raw_batched_json(["1"], [1.153], ["90"], timestamp="2010-01-01 12:00:30"),
             retain=True,
         )
 
@@ -271,9 +267,7 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
-            create_od_raw_batched_json(
-                ["1"], [1.155], ["90"], timestamp="2010-01-01 12:00:35"
-            ),
+            create_od_raw_batched_json(["1"], [1.155], ["90"], timestamp="2010-01-01 12:00:35"),
         )
         pause()
 
@@ -718,9 +712,9 @@ class TestGrowthRateCalculating:
         with local_persistant_storage("od_blank") as cache:
             cache[experiment] = json.dumps({"1": 0})
 
-        with pytest.raises(ZeroDivisionError):
+        with collect_all_logs_of_level("ERROR", unit, experiment) as bucket:
             with GrowthRateCalculator(unit=unit, experiment=experiment):
-                ...
+                assert len(bucket) > 0
 
     def test_ability_to_yield_into_growth_rate_calc(self) -> None:
         unit = "unit"

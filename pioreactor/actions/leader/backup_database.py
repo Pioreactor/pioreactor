@@ -76,6 +76,7 @@ def backup_database(output_file: str) -> None:
             if backup_unit == get_unit_name():
                 continue
 
+            logger.debug(f"Attempting backing up database to {backup_unit}.")
             try:
                 rsync(
                     "-hz",

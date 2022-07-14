@@ -67,6 +67,7 @@ class PIDTurbidostat(DosingAutomationJob):
             )
         else:
             if self.volume_to_cycle is None:
+                pid_output = 0.0
                 # pick a good starting value. If GR is constant, then the PID will achieve a steady state. Pick this.
                 average_vial_volume = 12.5  # ml
                 F = exp(-self.latest_growth_rate * self.duration / 60.0)  # type: ignore

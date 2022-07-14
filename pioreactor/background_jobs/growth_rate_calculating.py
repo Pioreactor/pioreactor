@@ -211,7 +211,7 @@ class GrowthRateCalculator(BackgroundJob):
                 scaling_obs_variances
             )
             return obs_variances
-        except ZeroDivisionError:
+        except ZeroDivisionError as e:
             self.logger.debug(
                 "Is there an OD Reading that is 0? Maybe there's a loose photodiode connection?",
                 exc_info=True,
@@ -228,7 +228,7 @@ class GrowthRateCalculator(BackgroundJob):
             with local_persistant_storage("od_normalization_variance") as cache:
                 del cache[self.experiment]
 
-            raise
+            raise e
 
     def _compute_and_cache_od_statistics(
         self,
