@@ -99,7 +99,7 @@ class PIDTurbidostat(DosingAutomationJob):
 
     @property
     def min_od(self) -> float:
-        return 0.75 * self.target_od
+        return 0.95 * self.target_od
 
     def set_target_od(self, value: float) -> None:
         self.target_od = float(value)

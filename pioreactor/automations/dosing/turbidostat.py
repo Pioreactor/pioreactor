@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import Optional
+
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.exc import CalibrationError
@@ -19,7 +21,7 @@ class Turbidostat(DosingAutomationJob):
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
         "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
-        "duration": {"datatype": "float", "settable": True, "unit": "min"},
+        "duration": {"datatype": "float", "settable": False, "unit": "min"},
     }
 
     def __init__(self, target_od: float, volume: float, **kwargs) -> None:
@@ -34,15 +36,12 @@ class Turbidostat(DosingAutomationJob):
         self.target_od = float(target_od)
         self.volume = float(volume)
 
-    def execute(self) -> events.DilutionEvent | events.NoEvent:
+    def execute(self) -> Optional[events.DilutionEvent]:
         if self.latest_od >= self.target_od:
             self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return events.DilutionEvent(
-                f"latest OD={self.latest_od:.2f} >= target OD={self.target_od:.2f}",
+                f"{self.latest_od=:.2f} >= {self.target_od=:.2f}",
                 {"latest_od": self.latest_od, "target_od": self.target_od},
             )
         else:
-            return events.NoEvent(
-                f"latest OD={self.latest_od:.2f} < target OD={self.target_od:.2f}",
-                {"latest_od": self.latest_od, "target_od": self.target_od},
-            )
+            return None
