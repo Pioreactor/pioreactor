@@ -48,7 +48,7 @@ from pioreactor.utils.timing import RepeatedTimer
 
 
 def is_TI_device():
-    # dev
+    # WARNING: this may wipe the temperature sensor if used during operation.
     from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
     import busio  # type: ignore
 
@@ -210,16 +210,15 @@ class TemperatureController(BackgroundJob):
     def read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
-
-        This takes about ~0.001 seconds on a RPi.
         """
         try:
             # check temp is fast, let's do it a few times to reduce variance.
-            averaged_temp = (
-                self.tmp_driver.get_temperature()
-                + self.tmp_driver.get_temperature()
-                + +self.tmp_driver.get_temperature()
-            ) / 3
+            running_sum = 0.0
+            for i in range(3):
+                running_sum += self.tmp_driver.get_temperature()
+                sleep(0.1)
+
+            averaged_temp = running_sum / 3
 
             if averaged_temp == 0.0:
                 # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown

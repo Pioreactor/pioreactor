@@ -111,7 +111,6 @@ def test_turbidostat_automation() -> None:
             json.dumps({"od_filtered": 0.98, "timestamp": current_utc_timestamp()}),
         )
         pause()
-        assert isinstance(algo.run(), events.NoEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
@@ -144,7 +143,7 @@ def test_turbidostat_automation() -> None:
             json.dumps({"od_filtered": 0.99, "timestamp": current_utc_timestamp()}),
         )
         pause()
-        assert isinstance(algo.run(), events.NoEvent)
+        assert algo.run() is None
 
 
 def test_pid_turbidostat_automation() -> None:

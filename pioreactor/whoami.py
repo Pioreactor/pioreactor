@@ -31,7 +31,7 @@ def _get_latest_experiment_name() -> str:
 
     mqtt_msg = subscribe(
         "pioreactor/latest_experiment",
-        timeout=1,
+        timeout=30,
         retries=2,
         name="get_latest_experiment_name",
     )
@@ -40,8 +40,8 @@ def _get_latest_experiment_name() -> str:
     else:
         from pioreactor.logging import create_logger
 
-        logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT)
-        logger.info("No experiment found. Try creating a new experiment first.")
+        logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
+        logger.warning("No experiment found. Try creating a new experiment first.")
         return NO_EXPERIMENT
 
 
@@ -110,6 +110,4 @@ if is_testing_env():
     # allow Blinka to think we are an Rpi:
     # https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py
     os.environ["BLINKA_FORCECHIP"] = "BCM2XXX"  # RaspberryPi
-    os.environ[
-        "BLINKA_FORCEBOARD"
-    ] = "RASPBERRY_PI_3A_PLUS"  # Raspberry Pi 3 Model A Plus Rev 1.0
+    os.environ["BLINKA_FORCEBOARD"] = "RASPBERRY_PI_3A_PLUS"  # Raspberry Pi 3 Model A Plus Rev 1.0

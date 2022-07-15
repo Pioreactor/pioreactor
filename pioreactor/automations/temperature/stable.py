@@ -19,7 +19,7 @@ class Stable(TemperatureAutomationJob):
     }
 
     def __init__(self, target_temperature: float, **kwargs) -> None:
-        super(Stable, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         assert target_temperature is not None, "target_temperature must be set"
         self.target_temperature = float(target_temperature)
 
@@ -47,14 +47,12 @@ class Stable(TemperatureAutomationJob):
         return UpdatedHeaterDC(
             f"delta_dc={output}",
             data={
-                "current_dc": None
-                if self.parent is None
-                else self.parent.heater_duty_cycle,
+                "current_dc": None if self.parent is None else self.parent.heater_duty_cycle,
                 "delta_dc": output,
             },
         )
 
-    def set_target_temperature(self, value) -> None:
+    def set_target_temperature(self, value: float) -> None:
         value = float(value)
         if value > 50:
             self.logger.warning("Values over 50℃ are not supported. Setting to 50℃.")
