@@ -212,7 +212,7 @@ class TemperatureController(BackgroundJob):
         """
         try:
             # check temp is fast, let's do it a few times to reduce variance.
-            running_sum, N = 0.0, 3
+            running_sum, N = 0.0, 5
             for i in range(N):
                 running_sum += self.tmp_driver.get_temperature()
                 sleep(0.1)
