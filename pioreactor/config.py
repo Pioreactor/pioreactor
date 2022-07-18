@@ -13,9 +13,7 @@ def __getattr__(attr):  # type: ignore
     This dynamically creates the module level variables, so if
     we don't call them, they are never created, saving time - mostly in the CLI.
     """
-    if attr == "config":
-        return get_config()
-    elif attr == "leader_hostname":
+    if attr == "leader_hostname":
         return get_leader_hostname()
     elif attr == "leader_address":
         return get_leader_address()
@@ -60,10 +58,9 @@ class ConfigParserMod(configparser.ConfigParser):
             raise
 
 
-@lru_cache(1)
 def get_config():
     """
-    This function initializes the configuration logic for the Pioreactor cluster.
+    This function reads from disk and initializes the configuration logic for the Pioreactor cluster.
 
     Locally, `config.ini` configurations can be overwritten by `unit_config.ini` (hence the very
     specific order we use in `config.read`)
@@ -164,3 +161,6 @@ def get_active_workers_in_inventory() -> tuple[str, ...]:
 def get_workers_in_inventory() -> tuple[str, ...]:
     config = get_config()
     return tuple(str(unit) for (unit, available) in config["cluster.inventory"].items())
+
+
+config = get_config()

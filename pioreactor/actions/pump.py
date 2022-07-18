@@ -184,6 +184,7 @@ def add_media(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.PumpCalibration] = None,
     continuously: bool = False,
+    config=config,  # techdebt
 ) -> float:
     """
     Parameters
@@ -218,6 +219,7 @@ def add_media(
         source_of_event,
         calibration,
         continuously,
+        config=config,
     )
 
 
@@ -229,6 +231,7 @@ def remove_waste(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.PumpCalibration] = None,
     continuously: bool = False,
+    config=config,  # techdebt
 ) -> float:
     """
     Parameters
@@ -262,6 +265,7 @@ def remove_waste(
         source_of_event,
         calibration,
         continuously,
+        config=config,
     )
 
 
@@ -273,6 +277,7 @@ def add_alt_media(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.PumpCalibration] = None,
     continuously: bool = False,
+    config=config,  # techdebt
 ) -> float:
     """
     Parameters
@@ -307,6 +312,7 @@ def add_alt_media(
         source_of_event,
         calibration,
         continuously,
+        config=config,
     )
 
 
