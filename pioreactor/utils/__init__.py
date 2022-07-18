@@ -224,10 +224,10 @@ def is_pio_job_running(*target_jobs: str) -> bool:
     """
     with local_intermittent_storage("pio_jobs_running") as cache:
         for job in target_jobs:
-            if cache.get(job, b"0") == b"1":
-                return True
+            if cache.get(job) is None:
+                return False
 
-    return False
+    return True
 
 
 def pump_ml_to_duration(ml: float, duration_: float = 0, bias_: float = 0) -> float:
