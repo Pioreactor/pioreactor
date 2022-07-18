@@ -35,14 +35,10 @@ class TemperatureAutomationJob(BackgroundSubJob):
     _latest_od: Optional[float] = None
     previous_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
-    latest_od_at: datetime = datetime.min
-    latest_growth_rate_at: datetime = datetime.min
 
     latest_temperature = None
     previous_temperature = None
-    latest_temperture_at: datetime = datetime.min
 
-    _latest_settings_started_at = current_utc_timestamp()
     _latest_settings_ended_at = None
     automation_name = "temperature_automation_base"  # is overwritten in subclasses
     published_settings: dict[str, pt.PublishableSetting] = dict()
@@ -59,6 +55,11 @@ class TemperatureAutomationJob(BackgroundSubJob):
         super(TemperatureAutomationJob, self).__init__(
             job_name="temperature_automation", unit=unit, experiment=experiment
         )
+
+        self.latest_od_at: datetime = datetime.utcnow()
+        self.latest_growth_rate_at: datetime = datetime.utcnow()
+        self.latest_temperture_at: datetime = datetime.utcnow()
+        self._latest_settings_started_at = current_utc_timestamp()
 
         self.add_to_published_settings(
             "latest_event",
@@ -114,7 +115,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
                 raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be running."
+                    "`od_reading` and `growth_rate_calculating` should be Ready."
                 )
 
         # check most stale time

@@ -132,7 +132,6 @@ class DosingAutomationJob(BackgroundSubJob):
     previous_growth_rate: Optional[float] = None
 
     latest_event: Optional[events.AutomationEvent] = None
-    _latest_settings_started_at: str = current_utc_timestamp()
     _latest_settings_ended_at: Optional[str] = None
     _latest_run_at: Optional[datetime] = None
     run_thread: RepeatedTimer | Thread
@@ -155,9 +154,6 @@ class DosingAutomationJob(BackgroundSubJob):
     media_throughput: float = 0  # amount of media that has been expelled
     alt_media_throughput: float = 0  # amount of alt-media that has been expelled
 
-    latest_od_at: datetime = datetime.min
-    latest_growth_rate_at: datetime = datetime.min
-
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
@@ -178,6 +174,9 @@ class DosingAutomationJob(BackgroundSubJob):
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
         self.skip_first_run = skip_first_run
+        self._latest_settings_started_at: str = current_utc_timestamp()
+        self.latest_od_at: datetime = datetime.utcnow()
+        self.latest_growth_rate_at: datetime = datetime.utcnow()
 
         self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator()
         self._volume_throughput_calculator = self._init_volume_throughput_calculator()
@@ -372,7 +371,7 @@ class DosingAutomationJob(BackgroundSubJob):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
                 raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be running."
+                    "`od_reading` and `growth_rate_calculating` should be Ready."
                 )
 
         # check most stale time
@@ -391,7 +390,7 @@ class DosingAutomationJob(BackgroundSubJob):
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
                 raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be running."
+                    "`od_reading` and `growth_rate_calculating` should be Ready."
                 )
 
         # check most stale time
