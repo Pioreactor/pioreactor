@@ -72,12 +72,18 @@ def get_unit_name() -> str:
 
 
 def am_I_leader() -> bool:
+    if is_testing_env():
+        return True
+
     from pioreactor.config import leader_hostname
 
     return get_unit_name() == leader_hostname
 
 
 def am_I_active_worker() -> bool:
+    if is_testing_env():
+        return True
+
     from pioreactor.config import get_active_workers_in_inventory
 
     return get_unit_name() in get_active_workers_in_inventory()
