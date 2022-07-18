@@ -140,8 +140,7 @@ class TemperatureController(BackgroundJob):
             ).start()
 
             self.publish_temperature_timer = RepeatedTimer(
-                4 * 60
-                - 10,  # what's up with this minus-a-bit? I'm slowly testing reducing this period
+                4 * 60,
                 self.evaluate_temperature,
                 run_after=90,  # 90 is how long PWM is active for during a cycle (see evaluate_temperature's constants). This gives an automation a "full" cycle to be on.
                 run_immediately=True,
@@ -213,12 +212,12 @@ class TemperatureController(BackgroundJob):
         """
         try:
             # check temp is fast, let's do it a few times to reduce variance.
-            running_sum = 0.0
-            for i in range(3):
+            running_sum, N = 0.0, 3
+            for i in range(N):
                 running_sum += self.tmp_driver.get_temperature()
                 sleep(0.1)
 
-            averaged_temp = running_sum / 3
+            averaged_temp = running_sum / N
 
             if averaged_temp == 0.0:
                 # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
@@ -383,7 +382,7 @@ class TemperatureController(BackgroundJob):
         """
 
         # we pause heating for (N_sample_points * time_between_samples) seconds
-        N_sample_points = 29
+        N_sample_points = 30
         time_between_samples = 5
 
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
