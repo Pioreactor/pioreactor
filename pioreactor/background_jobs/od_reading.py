@@ -56,7 +56,7 @@ Dataflow of raw signal to final output:
 │                                                                                │
 │                                                                                │
 │   ┌──────────────────────────────────────────┐    ┌────────────────────────┐   │
-│   │ADCReader                                 │    │IrLedOutputTracker      │   │
+│   │ADCReader                                 │    │IrLedReferenceTracker   │   │
 │   │                                          │    │                        │   │
 │   │                                          │    │                        │   │
 │   │ ┌──────────────┐       ┌───────────────┐ │    │  ┌─────────────────┐   │   │
@@ -633,7 +633,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
             self.initial_led_output = ir_output_reading
             self.logger.debug(f"{self.initial_led_output=}")
             self._count = 1
-        elif self._count < 11:  # dumb way to take average of the first N values...
+        elif self._count < 12:  # dumb way to take average of the first N values...
             self.initial_led_output = (
                 self.initial_led_output * self._count + ir_output_reading
             ) / (self._count + 1)

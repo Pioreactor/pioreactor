@@ -501,23 +501,12 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
     def _thread_function(unit: str) -> bool:
 
         click.echo(f"Executing `{command}` on {unit}.")
-        try:
-            ssh(add_local(unit), command)
-            return True
-        except Exception as e:
-            logger = create_logger(
-                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-            )
-            logger.debug(e, exc_info=True)
-            logger.error(f"Unable to connect to unit {unit}.")
-            return False
+        ssh(add_local(unit), command)
+        return True
 
     units = remove_leader(universal_identifier_to_all_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        results = executor.map(_thread_function, units)
-
-    if not all(results):
-        sys.exit(1)
+        executor.map(_thread_function, units)
 
 
 @pios.command(

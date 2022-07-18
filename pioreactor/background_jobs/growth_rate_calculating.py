@@ -71,7 +71,7 @@ class GrowthRateCalculator(BackgroundJob):
             "datatype": "GrowthRate",
             "settable": False,
             "unit": "h⁻¹",
-            "persist": True,
+            "persist": True,  # why persist?
         },
         "od_filtered": {"datatype": "ODFiltered", "settable": False, "persist": True},
     }

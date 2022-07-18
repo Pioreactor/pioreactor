@@ -181,7 +181,11 @@ def kill(job: str, all_jobs: bool) -> None:
 
 @pio.group(short_help="run a job")
 def run() -> None:
-    pass
+    if not whoami.am_I_active_worker() or not whoami.am_I_leader():
+        click.echo(
+            f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
+        )
+        sys.exit(1)
 
 
 @pio.group(name="run-always", short_help="run a long-lived job")
@@ -503,9 +507,3 @@ if whoami.am_I_leader():
 
         if not all(results):
             sys.exit(1)
-
-
-if not whoami.am_I_leader() and not whoami.am_I_active_worker():
-    click.echo(
-        f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
-    )
