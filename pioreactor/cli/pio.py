@@ -181,7 +181,7 @@ def kill(job: str, all_jobs: bool) -> None:
 
 @pio.group(short_help="run a job")
 def run() -> None:
-    if not whoami.am_I_active_worker() or not whoami.am_I_leader():
+    if not (whoami.am_I_active_worker() or whoami.am_I_leader()):
         click.echo(
             f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
         )
