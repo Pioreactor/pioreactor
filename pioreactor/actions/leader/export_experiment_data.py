@@ -31,9 +31,7 @@ def generate_timestamp_to_localtimestamp_clause(cursor, table_name: str) -> str:
     # TODO: this assumes a timestamp column exists?
     columns = get_column_names(cursor, table_name)
     timestamp_columns = filter_to_timestamp_columns(columns)
-    clause = ",".join(
-        [f"datetime({c}, 'localtime') as {c}_localtime" for c in timestamp_columns]
-    )
+    clause = ",".join([f"datetime({c}, 'localtime') as {c}_localtime" for c in timestamp_columns])
     if clause:
         clause += ","
 
@@ -50,15 +48,14 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
     import csv
 
     logger = create_logger("export_experiment_data")
-    logger.info(
-        f"Starting export of table{'s' if len(tables) > 1 else ''}: {', '.join(tables)}."
-    )
+    logger.info(f"Starting export of table{'s' if len(tables) > 1 else ''}: {', '.join(tables)}.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED)
     con = sqlite3.connect(config["storage"]["database"])
 
     for table in tables:
+
         cursor = con.cursor()
 
         # so apparently, you can't parameterize the table name in python's sqlite3, so I

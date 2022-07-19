@@ -158,7 +158,7 @@ class Monitor(BackgroundJob):
                 f"Detected an extremely high temperature, {observed_tmp} ℃ on the heating PCB - shutting down for safety."
             )
 
-            call("sudo shutdown --poweroff", shell=True)
+            call("sudo shutdown now --poweroff", shell=True)
         self.logger.debug(f"Heating PCB temperature at {observed_tmp} ℃.")
 
     def check_for_mqtt_connection_to_leader(self) -> None:

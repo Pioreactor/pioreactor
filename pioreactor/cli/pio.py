@@ -2,8 +2,8 @@
 """
 cmd line interface for running individual pioreactor units (including leader)
 
-> pio run stirring
-> pio run od_reading --od-angle-channel 135,0
+> pio run od_reading
+> pio run stirring --ignore-rpm
 > pio log
 """
 from __future__ import annotations

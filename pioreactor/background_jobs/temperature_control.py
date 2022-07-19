@@ -219,10 +219,11 @@ class TemperatureController(BackgroundJob):
 
             averaged_temp = running_sum / N
 
-            if averaged_temp == 0.0:
+            if averaged_temp == 0.0 and self.automation_name != "silent":
                 # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
-                self.logger.error("Temp sensor failure. Shutting down. See issue #308")
-                return 80.0
+                self.logger.error("Temp sensor failure. Switching to Silent. See issue #308")
+                self._update_heater(0.0)
+                self.set_automation(TemperatureAutomation(automation_name="silent"))
 
             return averaged_temp
         except OSError:
@@ -312,7 +313,7 @@ class TemperatureController(BackgroundJob):
 
             from subprocess import call
 
-            call("sudo shutdown --poweroff", shell=True)
+            call("sudo shutdown now --poweroff", shell=True)
 
         elif temp > self.MAX_TEMP_TO_DISABLE_HEATING:
 
