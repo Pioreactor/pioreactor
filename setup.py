@@ -31,7 +31,7 @@ WORKER_REQUIREMENTS = [
     "RPi.GPIO>=0.7.1",
     "adafruit-circuitpython-ads1x15>=2.2.12",
     "DAC43608>=0.2.6",
-    "TMP1075>=0.2.0",
+    "TMP1075>=0.2.1",
     "rpi-hardware-pwm>=0.1.4",
     "simple-pid>=1.0.1",
 ]

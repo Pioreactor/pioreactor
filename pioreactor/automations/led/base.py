@@ -143,6 +143,10 @@ class LEDAutomationJob(BackgroundSubJob):
         else:
             try:
                 event = self.execute()
+            except exc.JobRequiredError as e:
+                self.logger.debug(e, exc_info=True)
+                self.logger.warning(e)
+                event = events.ErrorOccurred(str(e))
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
