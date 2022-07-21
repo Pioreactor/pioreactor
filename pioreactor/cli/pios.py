@@ -87,8 +87,8 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
     # move the global config.ini
     # there was a bug where if the leader == unit, the config.ini would get wiped
     if (get_leader_hostname() != unit) and shared:
-        localpath = ("/home/pioreactor/.pioreactor/config.ini",)
-        remotepath = ("/home/pioreactor/.pioreactor/config.ini",)
+        localpath = "/home/pioreactor/.pioreactor/config.ini"
+        remotepath = "/home/pioreactor/.pioreactor/config.ini"
         rsync(
             "-z",
             "--inplace",
@@ -99,8 +99,8 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
     # move the specific unit config.ini
     if specific:
         try:
-            localpath = (f"/home/pioreactor/.pioreactor/config_{unit}.ini",)
-            remotepath = ("/home/pioreactor/.pioreactor/unit_config.ini",)
+            localpath = f"/home/pioreactor/.pioreactor/config_{unit}.ini"
+            remotepath = "/home/pioreactor/.pioreactor/unit_config.ini"
             rsync(
                 "-z",
                 "--inplace",

@@ -481,8 +481,6 @@ if whoami.am_I_leader():
 
         def display_data_for(hostname_status) -> bool:
             hostname, status = hostname_status
-            if status == "0":
-                return True
 
             ip, state, reachable = get_network_metadata(hostname)
 
@@ -492,12 +490,13 @@ if whoami.am_I_leader():
             reachablef = f"{(  click.style('Y', fg='green') if reachable else click.style('N', fg='red') ):10s}"
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
+            status = "Y" if status == "1" else "N"
 
-            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef}")
+            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {status}")
             return reachable & (state == "ready")
 
         click.secho(
-            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s}",
+            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s} {'Active?' :10s}",
             bold=True,
         )
 
