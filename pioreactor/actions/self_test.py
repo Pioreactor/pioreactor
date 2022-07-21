@@ -72,7 +72,7 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
         signal1.append(reading.od_raw["1"].voltage)
         signal2.append(reading.od_raw["2"].voltage)
 
-        if i == 35:
+        if i == 30:
             break
 
     od_stream.clean_up()
