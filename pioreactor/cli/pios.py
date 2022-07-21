@@ -72,7 +72,7 @@ def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool
     conn.close()
 
 
-def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool) -> None:
+def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
     """
     Moves
 
@@ -81,20 +81,31 @@ def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool) -> No
 
     Note: this function occurs in a thread
     """
+
+    from sh import rsync
+
     # move the global config.ini
     # there was a bug where if the leader == unit, the config.ini would get wiped
     if (get_leader_hostname() != unit) and shared:
-        ftp_client.put(
-            localpath="/home/pioreactor/.pioreactor/config.ini",
-            remotepath="/home/pioreactor/.pioreactor/config.ini",
+        localpath = ("/home/pioreactor/.pioreactor/config.ini",)
+        remotepath = ("/home/pioreactor/.pioreactor/config.ini",)
+        rsync(
+            "-z",
+            "--inplace",
+            localpath,
+            f"{add_local(unit)}:{remotepath}",
         )
 
     # move the specific unit config.ini
     if specific:
         try:
-            ftp_client.put(
-                localpath=f"/home/pioreactor/.pioreactor/config_{unit}.ini",
-                remotepath="/home/pioreactor/.pioreactor/unit_config.ini",
+            localpath = (f"/home/pioreactor/.pioreactor/config_{unit}.ini",)
+            remotepath = ("/home/pioreactor/.pioreactor/unit_config.ini",)
+            rsync(
+                "-z",
+                "--inplace",
+                localpath,
+                f"{add_local(unit)}:{remotepath}",
             )
         except Exception as e:
             click.echo(
@@ -102,8 +113,6 @@ def sync_config_files(ftp_client, unit: str, shared: bool, specific: bool) -> No
                 err=True,
             )
             raise e
-
-    ftp_client.close()
     return
 
 
@@ -296,8 +305,6 @@ def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
 
     If neither `--shared` not `--specific` are specified, both are set to true.
     """
-    import paramiko
-
     logger = create_logger(
         "sync_configs", unit=get_unit_name(), experiment=get_latest_experiment_name()
     )
@@ -309,13 +316,7 @@ def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
     def _thread_function(unit: str) -> bool:
         logger.debug(f"Syncing configs on {unit}...")
         try:
-            with paramiko.SSHClient() as client:
-                client.load_system_host_keys()
-                client.connect(add_local(unit), username="pioreactor", compress=True)
-
-                with client.open_sftp() as ftp_client:
-                    sync_config_files(ftp_client, unit, shared, specific)
-
+            sync_config_files(unit, shared, specific)
             return True
         except Exception as e:
             logger.error(f"Unable to connect to unit {unit}.")
