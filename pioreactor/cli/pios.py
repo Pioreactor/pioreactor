@@ -326,8 +326,9 @@ def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
     # save config.inis to database
     save_config_files_to_db(units, shared, specific)
 
-    with ThreadPoolExecutor(max_workers=len(units)) as executor:
-        results = executor.map(_thread_function, units)
+    results = []
+    for unit in units:
+        results.append(_thread_function(unit))
 
     if not all(results):
         sys.exit(1)
