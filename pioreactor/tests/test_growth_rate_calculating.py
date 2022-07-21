@@ -303,18 +303,21 @@ class TestGrowthRateCalculating:
         unit = get_unit_name()
         experiment = "test_shock_from_dosing_works"
 
+        config["od_config.photodiode_channel"]["1"] = "90"
+        config["od_config.photodiode_channel"]["2"] = "REF"
+
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[experiment] = json.dumps({"1": 0.5, "2": 0.8})
+            cache[experiment] = json.dumps({"1": 0.5})
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[experiment] = json.dumps({"1": 8.2e-07, "2": 8.2e-07})
+            cache[experiment] = json.dumps({"1": 8.2e-07})
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2"],
-                [0.5, 0.8],
-                ["90,90", "135,45"],
+                ["1"],
+                [0.5],
+                ["90"],
                 timestamp="2010-01-01 12:00:35",
             ),
             retain=True,
@@ -324,9 +327,9 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2"],
-                [0.51, 0.82],
-                ["90,90", "135,45"],
+                ["1"],
+                [0.51],
+                ["90"],
                 timestamp="2010-01-01 12:00:40",
             ),
         )
@@ -335,9 +338,9 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2"],
-                [0.51, 0.82],
-                ["90,90", "135,45"],
+                ["1"],
+                [0.51],
+                ["90"],
                 timestamp="2010-01-01 12:00:45",
             ),
         )
@@ -362,9 +365,9 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2"],
-                [0.49, 0.80],
-                ["90,90", "135,45"],
+                ["1"],
+                [0.49],
+                ["90"],
                 timestamp="2010-01-01 12:00:50",
             ),
         )
@@ -372,9 +375,9 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2"],
-                [0.48, 0.80],
-                ["90,90", "135,45"],
+                ["1"],
+                [0.48],
+                ["90"],
                 timestamp="2010-01-01 12:00:55",
             ),
         )
@@ -397,9 +400,9 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/od_raw_batched",
             create_od_raw_batched_json(
-                ["1", "2"],
-                [0.40, 0.70],
-                ["90,90", "135,45"],
+                ["1"],
+                [0.40],
+                ["90"],
                 timestamp="2010-01-01 12:02:00",
             ),
         )
@@ -411,8 +414,11 @@ class TestGrowthRateCalculating:
 
         time.sleep(10)
         pause()
+
         # should revert back
-        assert not calc.ekf._currently_scaling_covariance
+        while calc.ekf._currently_scaling_covariance:
+            pass
+
         assert_array_equal(calc.ekf.covariance_, previous_covariance_matrix)
         calc.clean_up()
 

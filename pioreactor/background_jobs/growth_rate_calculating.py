@@ -334,7 +334,7 @@ class GrowthRateCalculator(BackgroundJob):
             if msg:
                 interval = float(msg.payload)
             else:
-                interval = 1
+                interval = 5
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * (12 * interval))
         else:
             self.ekf.scale_OD_variance_for_next_n_seconds(factor, minutes * 60)
