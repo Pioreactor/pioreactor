@@ -37,10 +37,14 @@ class Turbidostat(DosingAutomationJob):
         if self.latest_od >= self.target_od:
             latest_od_before_dosing = self.latest_od
             target_od_before_dosing = self.target_od
-            self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
+            media_moved, _, _ = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)
             return events.DilutionEvent(
-                f"{latest_od_before_dosing=:.2f} >= {target_od_before_dosing=:.2f}",
-                {"latest_od": latest_od_before_dosing, "target_od": target_od_before_dosing},
+                f"Latest OD = {latest_od_before_dosing:.2f} ≥ Target OD = {target_od_before_dosing:.2f}; cycled {media_moved:.2f} mL",
+                {
+                    "latest_od": latest_od_before_dosing,
+                    "target_od": target_od_before_dosing,
+                    "volume": media_moved,
+                },
             )
         else:
             return None

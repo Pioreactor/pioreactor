@@ -35,11 +35,6 @@ def to_datetime(timestamp: str):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def brief_pause() -> None:
-    time.sleep(2.5)
-    return
-
-
 class RepeatedTimer:
     """
     A class for repeating a function in the background exactly every N seconds.

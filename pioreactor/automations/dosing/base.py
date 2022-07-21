@@ -27,10 +27,14 @@ from pioreactor.config import config
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.timing import brief_pause
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
+
+
+def brief_pause() -> None:
+    time.sleep(5.0)
+    return
 
 
 class ThroughputCalculator:
@@ -288,7 +292,7 @@ class DosingAutomationJob(BackgroundSubJob):
         """
         volumes_moved = SummableList([0.0, 0.0, 0.0])
 
-        max_ = 0.50  # arbitrary, but should be some value that the pump is well calibrated for
+        max_ = 0.625  # arbitrary (2.5/4), but should be some value that the pump is well calibrated for
         if alt_media_ml > max_:
             volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2,
@@ -359,7 +363,6 @@ class DosingAutomationJob(BackgroundSubJob):
                     unit=self.unit,
                     experiment=self.experiment,
                 )
-                brief_pause()
 
         return volumes_moved
 

@@ -462,7 +462,7 @@ class GrowthRateCalculator(BackgroundJob):
     def respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
         # here we can add custom logic to handle dosing events.
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=1, factor=2500)
+        self.update_ekf_variance_after_event(minutes=0.5, factor=2500)
 
     def start_passive_listeners(self) -> None:
         # process incoming data

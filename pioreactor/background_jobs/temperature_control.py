@@ -87,9 +87,9 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 58.0
-    MAX_TEMP_TO_DISABLE_HEATING = 62.0  # ~PLA glass transition temp
-    MAX_TEMP_TO_SHUTDOWN = 64.0
+    MAX_TEMP_TO_REDUCE_HEATING = 58.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_DISABLE_HEATING = 62.0
+    MAX_TEMP_TO_SHUTDOWN = 65.0
 
     available_automations = {}  # type: ignore
 
@@ -209,30 +209,30 @@ class TemperatureController(BackgroundJob):
     def read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
+
+        TODO: allow for retries for OSError?
         """
         try:
             # check temp is fast, let's do it a few times to reduce variance.
             running_sum, N = 0.0, 5
             for i in range(N):
                 running_sum += self.tmp_driver.get_temperature()
-                sleep(0.1)
+                sleep(0.05)
 
             averaged_temp = running_sum / N
 
             if averaged_temp == 0.0 and self.automation_name != "silent":
                 # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
+                # todo: still needed? last observed on  July 18, 2022
                 self.logger.error("Temp sensor failure. Switching to Silent. See issue #308")
                 self._update_heater(0.0)
                 self.set_automation(TemperatureAutomation(automation_name="silent"))
 
             return averaged_temp
-        except OSError:
-            # could not find temp driver on i2c
-            self.logger.error(
-                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
-            )
+        except OSError as e:
+            self.logger.debug(e, exc_info=True)
             raise exc.HardwareNotFoundError(
-                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find I²C for temperature driver."
+                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find temperature sensor."
             )
 
     ##### internal and private methods ########
@@ -310,6 +310,8 @@ class TemperatureController(BackgroundJob):
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
             )
             self._update_heater(0)
+
+            self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             from subprocess import call
 
@@ -390,7 +392,6 @@ class TemperatureController(BackgroundJob):
         with self.pwm.lock_temporarily():
 
             previous_heater_dc = self.heater_duty_cycle
-            self._update_heater(0)
 
             features: dict[str, Any] = {}
             features["prev_temp"] = (
@@ -402,24 +403,33 @@ class TemperatureController(BackgroundJob):
             # users can override this function with something more accurate later.
             features["room_temp"] = self._get_room_temperature()
 
+            # turn off active heating, and start recording decay
+            self._update_heater(0)
             time_series_of_temp = []
-            for i in range(N_sample_points):
-                time_series_of_temp.append(self.read_external_temperature())
-                sleep(time_between_samples)
 
-                if self.state != self.READY:
-                    # if our state changes in this loop, exit.
-                    return
+            try:
+                for i in range(N_sample_points):
+                    time_series_of_temp.append(self.read_external_temperature())
+                    sleep(time_between_samples)
 
-            features["time_series_of_temp"] = time_series_of_temp
+                    if self.state != self.READY:
+                        # if our state changes in this loop, exit. Note that the finally block is still called.
+                        return
 
-            self.logger.debug(features)
+            except exc.HardwareNotFoundError as e:
+                self.logger.debug(e, exc_info=True)
+                self.logger.error(e)
+            finally:
+                # we turned off the heater above - we should always turn if back on if there is an error.
 
-            # update heater first, before publishing the temperature. Why? A downstream process
-            # might listen for the updating temperature, and update the heater (pid_stable),
-            # and if we update here too late, we may overwrite their changes.
-            # We also want to remove the lock first, so close this context early.
-            self._update_heater(previous_heater_dc)
+                # update heater first before publishing the temperature. Why? A downstream process
+                # might listen for the updating temperature, and update the heater (pid_stable),
+                # and if we update here too late, we may overwrite their changes.
+                # We also want to remove the lock first, so close this context early.
+                self._update_heater(previous_heater_dc)
+
+        features["time_series_of_temp"] = time_series_of_temp
+        self.logger.debug(features)
 
         try:
             approximated_temperature = self.approximate_temperature(features)
@@ -549,8 +559,6 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
             return features["prev_temp"]
-
-        self.logger.debug(f"{b=}, {c=}, {p=}, {q=}, {B=}, {A=}")
 
         alpha, beta = b, p
         temp_at_start_of_obs = room_temp + alpha * exp(beta * 0)
