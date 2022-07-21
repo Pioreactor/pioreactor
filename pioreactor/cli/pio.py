@@ -487,16 +487,16 @@ if whoami.am_I_leader():
             statef = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
             ipf = f"{ip:20s}"
 
-            reachablef = f"{(  click.style('Y', fg='green') if reachable else click.style('N', fg='red') ):10s}"
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
-            status = "Y" if status == "1" else "N"
+            reachablef = f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):15s}"
+            statusf = f"{(click.style('Y', fg='green') if (status == '1') else click.style('N', fg='red')):10s}"
 
-            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {status}")
+            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf}")
             return reachable & (state == "ready")
 
         click.secho(
-            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':10s} {'Active?' :10s}",
+            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':15s} {'Active?':10s}",
             bold=True,
         )
 
