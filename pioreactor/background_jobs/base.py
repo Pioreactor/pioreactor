@@ -417,6 +417,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             try:
                 getattr(self, f"on_{self.state}_to_{new_state}")()
             except Exception as e:
+                self.logger.debug(f"Error in on_{self.state}_to_{new_state}")
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
                 return

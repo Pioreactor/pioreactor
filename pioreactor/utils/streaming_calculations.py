@@ -200,7 +200,7 @@ class CultureGrowthEKF:
         assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
 
         # Predict
-        state_prediction = self.update_state_from_old_state(self.state_, dt)
+        state_prediction = self.update_state_from_previous_state(self.state_, dt)
         covariance_prediction = self.update_covariance_from_old_covariance(
             self.state_, self.covariance_, dt
         )
@@ -271,16 +271,16 @@ class CultureGrowthEKF:
         self._scale_covariance_timer.daemon = True
         self._scale_covariance_timer.start()
 
-        self._scale_process_covariance_timer = Timer(
-            2.5 * seconds, reverse_scale_process_covariance
-        )
-        self._scale_process_covariance_timer.daemon = True
-        self._scale_process_covariance_timer.start()
+        # self._scale_process_covariance_timer = Timer(
+        #     seconds, reverse_scale_process_covariance
+        # )
+        # self._scale_process_covariance_timer.daemon = True
+        # self._scale_process_covariance_timer.start()
 
         forward_scale_covariance()
-        forward_scale_process_covariance()
+        # forward_scale_process_covariance()
 
-    def update_state_from_old_state(self, state, dt):
+    def update_state_from_previous_state(self, state, dt):
         """
         Denoted "f" in literature, x_{k} = f(x_{k-1})
 
@@ -326,7 +326,7 @@ class CultureGrowthEKF:
         return J
 
     def update_covariance_from_old_covariance(self, state, covariance, dt):
-        jacobian = self._J_update_state_from_old_state(state, dt)
+        jacobian = self._J_update_state_from_previous_state(state, dt)
         return jacobian @ covariance @ jacobian.T + self.process_noise_covariance
 
     def update_observations_from_state(self, state_predictions):
@@ -345,9 +345,9 @@ class CultureGrowthEKF:
             obs[i] = od if (angle != "180") else np.exp(-(od - 1))
         return obs
 
-    def _J_update_state_from_old_state(self, state, dt):
+    def _J_update_state_from_previous_state(self, state, dt):
         """
-        The prediction process is (encoded in update_state_from_old_state)
+        The prediction process is (encoded in update_state_from_previous_state)
 
             state = [OD, r, a]
 
