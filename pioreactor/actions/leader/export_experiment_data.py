@@ -75,7 +75,7 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
             ).pop()  # just take first...
 
             partition_by_unit = False
-            if table == "pioreactor_unit_pioreactor_unit_activity_data":
+            if table == "pioreactor_unit_activity_data":
                 partition_by_unit = True
 
             if not partition_by_unit:
