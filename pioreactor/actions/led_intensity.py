@@ -163,7 +163,6 @@ def led_intensity(
             )
             del desired_state[channel]
 
-    timestamp_of_change = current_utc_timestamp()
     for channel, intensity in desired_state.items():
         try:
             assert 0.0 <= intensity <= 100.0, "intensity should be between 0 and 100, inclusive"
@@ -199,6 +198,8 @@ def led_intensity(
     )
 
     if verbose:
+        timestamp_of_change = current_utc_timestamp()
+
         for channel, intensity in desired_state.items():
             event = structs.LEDChangeEvent(
                 channel=channel,

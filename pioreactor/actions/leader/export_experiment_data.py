@@ -74,6 +74,7 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
                 get_column_names(cursor, table)
             ).pop()  # just take first...
 
+            partition_by_unit = False
             if table == "pioreactor_unit_accumulating_state":
                 partition_by_unit = True
 
@@ -82,12 +83,12 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
                 if experiment is None:
                     query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
                     cursor.execute(query, {"order_by": order_by})
-                    filename = f"{table}-{time}.dump.csv"
+                    filename = f"{table}-{time}.csv"
 
                 else:
                     query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
                     cursor.execute(query, {"experiment": experiment, "order_by": order_by})
-                    filename = f"{experiment}-{table}-{time}.dump.csv"
+                    filename = f"{experiment}-{table}-{time}.csv"
 
                 filename = filename.replace(" ", "_")
                 path_to_file = os.path.join(os.path.dirname(output), filename)
@@ -111,7 +112,7 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
                     for row in cursor:
                         unit = row[iloc_pioreactor_unit]
                         if unit not in file_map:
-                            filename = f"{experiment}-{table}-{unit}-{time}.dump.csv"
+                            filename = f"{experiment}-{table}-{unit}-{time}.csv"
                             filenames.append(filename)
                             file_map[unit] = csv.writer(
                                 stack.enter_context(open(filename, "w")), delimiter=","

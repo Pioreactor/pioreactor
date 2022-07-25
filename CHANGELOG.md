@@ -4,7 +4,7 @@
  - The LEDs in the pioreactor have been moved up 0.5mm.
  - Error-handling and user improvements to `pump_calibration`.
  - `pid_turbidostat` was removed, replaced with the simpler `turbidostat`.
- - adding new table `pioreactor_unit_accumulating_state` that makes analysis much easier.
+ - adding new table `pioreactor_unit_activity_data` that makes analysis much easier.
 
 
 ### 22.7.0
