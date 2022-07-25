@@ -166,7 +166,7 @@ class CultureGrowthEKF:
         process_noise_covariance,
         observation_noise_covariance,
         angles: list[str],
-    ):
+    ) -> None:
         import numpy as np
 
         initial_state = np.asarray(initial_state)
@@ -190,13 +190,13 @@ class CultureGrowthEKF:
 
         self._currently_scaling_covariance = False
         self._currently_scaling_process_covariance = False
-        self._scale_covariance_timer = None
+        self._scale_covariance_timer: Optional[Timer] = None
         self._covariance_pre_scale = None
 
-    def update(self, observation, dt):
+    def update(self, observation_: list[float], dt: float):
         import numpy as np
 
-        observation = np.asarray(observation)
+        observation = np.asarray(observation_)
         assert observation.shape[0] == self.n_sensors, (observation, self.n_sensors)
 
         # Predict
@@ -223,7 +223,7 @@ class CultureGrowthEKF:
         self.covariance_ = (np.eye(self.n_states) - kalman_gain_ @ H) @ covariance_prediction
         return self.state_
 
-    def scale_OD_variance_for_next_n_seconds(self, factor, seconds):
+    def scale_OD_variance_for_next_n_seconds(self, factor: float, seconds: float):
         """
         This is a bit tricky: we do some state handling here (eg: keeping track of the previous covariance matrix)
         but we will be invoking this function multiple times. So we start a Timer but cancel it
@@ -235,7 +235,7 @@ class CultureGrowthEKF:
         """
         import numpy as np
 
-        def reverse_scale_covariance():
+        def reverse_scale_covariance() -> None:
             self._currently_scaling_covariance = False
             self.covariance_ = self._covariance_pre_scale
             self._covariance_pre_scale = None
@@ -248,39 +248,17 @@ class CultureGrowthEKF:
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
             self.covariance_[0] *= factor
 
-        def forward_scale_process_covariance():
-            if not self._currently_scaling_process_covariance:
-                self._dummy = self.process_noise_covariance[2, 2]
-
-            self._currently_scaling_process_covariance = True
-            self.process_noise_covariance[0, 0] = 1e-7 * self.state_[0]
-            self.process_noise_covariance[2, 2] = 0
-
-        def reverse_scale_process_covariance():
-            self._currently_scaling_process_covariance = False
-            self.process_noise_covariance[0, 0] = 0
-            self.process_noise_covariance[2, 2] = self._dummy
-
         if self._currently_scaling_covariance:
+            assert self._scale_covariance_timer is not None
             self._scale_covariance_timer.cancel()
-
-        if self._currently_scaling_process_covariance:
-            self._scale_process_covariance_timer.cancel()
 
         self._scale_covariance_timer = Timer(seconds, reverse_scale_covariance)
         self._scale_covariance_timer.daemon = True
         self._scale_covariance_timer.start()
 
-        # self._scale_process_covariance_timer = Timer(
-        #     seconds, reverse_scale_process_covariance
-        # )
-        # self._scale_process_covariance_timer.daemon = True
-        # self._scale_process_covariance_timer.start()
-
         forward_scale_covariance()
-        # forward_scale_process_covariance()
 
-    def update_state_from_previous_state(self, state, dt):
+    def update_state_from_previous_state(self, state, dt: float):
         """
         Denoted "f" in literature, x_{k} = f(x_{k-1})
 
@@ -325,7 +303,7 @@ class CultureGrowthEKF:
             J[i, 0] = 1.0 if (angle != "180") else -np.exp(-(od - 1))
         return J
 
-    def update_covariance_from_old_covariance(self, state, covariance, dt):
+    def update_covariance_from_old_covariance(self, state, covariance, dt: float):
         jacobian = self._J_update_state_from_previous_state(state, dt)
         return jacobian @ covariance @ jacobian.T + self.process_noise_covariance
 
@@ -345,7 +323,7 @@ class CultureGrowthEKF:
             obs[i] = od if (angle != "180") else np.exp(-(od - 1))
         return obs
 
-    def _J_update_state_from_previous_state(self, state, dt):
+    def _J_update_state_from_previous_state(self, state, dt: float):
         """
         The prediction process is (encoded in update_state_from_previous_state)
 
