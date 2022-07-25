@@ -42,12 +42,10 @@ a serialized json blob like:
 Internally, the ODReader runs a function every `interval` seconds. The function
  1. turns off all non-IR LEDs
  2. turns on the IR LED
- 3. calls ADCReader tp read channels from the ADC.
+ 3. calls ADCReader to read channels from the ADC.
  4. Performs any transformations (see below)
  5. Switches back LEDs to previous state from step 1.
  6. Publishes data to MQTT
-
-Transforms are ex: sin regression, and LED output compensation. See diagram below.
 
 Dataflow of raw signal to final output:
 
@@ -162,7 +160,9 @@ class ADCReader(LoggerMixin):
     oversampling_count: int = 26
     readings_completed: int = 0
     _setup_complete = False
-    most_appropriate_AC_hz: Optional[float] = None
+    most_appropriate_AC_hz: Optional[float] = config.getfloat(
+        "od_config", "local_ac_hz", fallback=None
+    )
 
     def __init__(
         self,
@@ -180,9 +180,6 @@ class ADCReader(LoggerMixin):
         self.channels = channels
         self.batched_readings: dict[pt.PdChannel, float] = {}
         self.interval = interval
-
-        if config.get("od_config", "local_ac_hz"):
-            self.most_appropriate_AC_hz = config.getfloat("od_config", "local_ac_hz")
 
         if not hardware.is_HAT_present():
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from contextlib import contextmanager
 from contextlib import suppress
 from datetime import datetime
@@ -105,7 +104,7 @@ class RepeatedTimer:
 
         """
         if not self.event.wait(self.run_after):
-            self.start_time = time.perf_counter()
+            self.start_time = perf_counter()
             if self.run_immediately:
                 self._execute_function()
         else:
@@ -126,7 +125,7 @@ class RepeatedTimer:
 
     @property
     def _time(self) -> float:
-        return self.interval - ((time.perf_counter() - self.start_time) % self.interval)
+        return self.interval - ((perf_counter() - self.start_time) % self.interval)
 
     def pause(self) -> None:
         """
