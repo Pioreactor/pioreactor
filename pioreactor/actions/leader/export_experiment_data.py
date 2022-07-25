@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import os
+from contextlib import closing
+from contextlib import ExitStack
 from datetime import datetime
 
 import click
@@ -12,7 +14,7 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 
 
-def exists_table(cursor, table_name_to_check: str) -> bool:
+def table_exists(cursor, table_name_to_check: str) -> bool:
     query = "SELECT 1 FROM sqlite_master WHERE type='table' and name = ?"
     return cursor.execute(query, (table_name_to_check,)).fetchone() is not None
 
@@ -51,45 +53,76 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
     logger.info(f"Starting export of table{'s' if len(tables) > 1 else ''}: {', '.join(tables)}.")
 
     time = datetime.now().strftime("%Y%m%d%H%m%S")
-    zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED)
-    con = sqlite3.connect(config["storage"]["database"])
 
-    for table in tables:
+    with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as zf, closing(
+        sqlite3.connect(config["storage"]["database"])
+    ) as con:
 
-        cursor = con.cursor()
+        for table in tables:
 
-        # so apparently, you can't parameterize the table name in python's sqlite3, so I
-        # have to use string formatting (SQL-injection vector), but first check that the table exists (else fail)
-        if not exists_table(cursor, table):
-            raise ValueError(f"Table {table} does not exist.")
+            cursor = con.cursor()
 
-        timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
-            cursor, table
-        )
-        order_by = filter_to_timestamp_columns(
-            get_column_names(cursor, table)
-        ).pop()  # just take first...
+            # so apparently, you can't parameterize the table name in python's sqlite3, so I
+            # have to use string formatting (SQL-injection vector), but first check that the table exists (else fail)
+            if not table_exists(cursor, table):
+                raise ValueError(f"Table {table} does not exist.")
 
-        if experiment is None:
-            query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
-            cursor.execute(query, {"order_by": order_by})
-            _filename = f"{table}-{time}.dump.csv".replace(" ", "_")
+            timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
+                cursor, table
+            )
+            order_by = filter_to_timestamp_columns(
+                get_column_names(cursor, table)
+            ).pop()  # just take first...
 
-        else:
-            query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
-            cursor.execute(query, {"experiment": experiment, "order_by": order_by})
-            _filename = f"{experiment}-{table}-{time}.dump.csv".replace(" ", "_")
+            if table == "pioreactor_unit_accumulating_state":
+                partition_by_unit = True
 
-        path_to_file = os.path.join(os.path.dirname(output), _filename)
-        with open(path_to_file, "w") as csv_file:
-            csv_writer = csv.writer(csv_file, delimiter=",")
-            csv_writer.writerow([i[0] for i in cursor.description])
-            csv_writer.writerows(cursor)
+            if not partition_by_unit:
 
-        zf.write(path_to_file, arcname=_filename)
+                if experiment is None:
+                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
+                    cursor.execute(query, {"order_by": order_by})
+                    filename = f"{table}-{time}.dump.csv"
 
-    con.close()
-    zf.close()
+                else:
+                    query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
+                    cursor.execute(query, {"experiment": experiment, "order_by": order_by})
+                    filename = f"{experiment}-{table}-{time}.dump.csv"
+
+                filename = filename.replace(" ", "_")
+                path_to_file = os.path.join(os.path.dirname(output), filename)
+                with open(path_to_file, "w") as csv_file:
+                    csv_writer = csv.writer(csv_file, delimiter=",")
+                    csv_writer.writerow([_[0] for _ in cursor.description])
+                    csv_writer.writerows(cursor)
+
+                zf.write(path_to_file, arcname=filename)
+
+            else:
+                query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
+                cursor.execute(query, {"experiment": experiment, "order_by": order_by})
+
+                headers = [_[0] for _ in cursor.description]
+                iloc_pioreactor_unit = headers.index("pioreactor_unit")
+                filenames = []
+                file_map = {}
+
+                with ExitStack() as stack:
+                    for row in cursor:
+                        unit = row[iloc_pioreactor_unit]
+                        if unit not in file_map:
+                            filename = f"{experiment}-{table}-{unit}-{time}.dump.csv"
+                            filenames.append(filename)
+                            file_map[unit] = csv.writer(
+                                stack.enter_context(open(filename, "w")), delimiter=","
+                            )
+                            file_map[unit].writerow(headers)
+
+                        file_map[unit].writerow(row)
+
+                for filename in filenames:
+                    path_to_file = os.path.join(os.path.dirname(output), filename)
+                    zf.write(path_to_file, arcname=filename)
 
     logger.info("Finished export.")
     return

@@ -163,6 +163,7 @@ def led_intensity(
             )
             del desired_state[channel]
 
+    timestamp_of_change = current_utc_timestamp()
     for channel, intensity in desired_state.items():
         try:
             assert 0.0 <= intensity <= 100.0, "intensity should be between 0 and 100, inclusive"
@@ -203,7 +204,7 @@ def led_intensity(
                 channel=channel,
                 intensity=intensity,
                 source_of_event=source_of_event,
-                timestamp=current_utc_timestamp(),
+                timestamp=timestamp_of_change,
             )
 
             pubsub_client.publish(
