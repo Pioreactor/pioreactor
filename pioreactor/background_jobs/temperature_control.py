@@ -209,31 +209,33 @@ class TemperatureController(BackgroundJob):
     def read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
-
-        TODO: allow for retries for OSError?
         """
+        retries = 0
         try:
             # check temp is fast, let's do it a few times to reduce variance.
-            running_sum, N = 0.0, 5
-            for i in range(N):
+            running_sum, running_count = 0.0, 0
+            for i in range(5):
                 running_sum += self.tmp_driver.get_temperature()
+                running_count += 1
                 sleep(0.05)
 
-            averaged_temp = running_sum / N
-
-            if averaged_temp == 0.0 and self.automation_name != "silent":
-                # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
-                # todo: still needed? last observed on  July 18, 2022
-                self.logger.error("Temp sensor failure. Switching to Silent. See issue #308")
-                self._update_heater(0.0)
-                self.set_automation(TemperatureAutomation(automation_name="silent"))
-
-            return averaged_temp
         except OSError as e:
-            self.logger.debug(e, exc_info=True)
-            raise exc.HardwareNotFoundError(
-                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find temperature sensor."
-            )
+            retries += 1
+            if retries >= 3:
+                self.logger.debug(e, exc_info=True)
+                raise exc.HardwareNotFoundError(
+                    "Is the Heating PCB attached to the Pioreactor HAT? Unable to find temperature sensor."
+                )
+
+        averaged_temp = running_sum / running_count
+        if averaged_temp == 0.0 and self.automation_name != "silent":
+            # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
+            # todo: still needed? last observed on  July 18, 2022
+            self.logger.error("Temp sensor failure. Switching to Silent. See issue #308")
+            self._update_heater(0.0)
+            self.set_automation(TemperatureAutomation(automation_name="silent"))
+
+        return averaged_temp
 
     ##### internal and private methods ########
 
