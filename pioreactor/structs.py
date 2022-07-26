@@ -21,11 +21,10 @@ class Automation(Struct):
     args: dict = {}
 
     def __str__(self) -> str:
-        s = f"{self.automation_name}("
-        for k, v in self.args.items():
-            s += f"{k}={v}, "
-
-        s = s.rstrip(", ")
+        s = ""
+        s += f"{self.automation_name}"
+        s += "("
+        s += ", ".join(f"{k}={v}" for k, v in self.args.items())
         s += ")"
         return s
 

@@ -124,7 +124,7 @@ def od_blank(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
     n_samples: int = 40,
-    ignore_rpm=False,
+    ignore_rpm=False,  # TODO: delete me
     unit=None,
     experiment=None,
 ):
@@ -215,12 +215,6 @@ def od_blank(
     type=click.STRING,
     show_default=True,
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
-)
-@click.option(
-    "--n-samples",
-    default=30,
-    show_default=True,
-    help="Number of samples",
 )
 @click.option(
     "--n-samples",
