@@ -76,12 +76,19 @@ def is_heating_pcb_present() -> bool:
     return present
 
 
+def round_to_half_interger(x):
+    y = round(x * 2) / 2
+    return y
+
+
 def voltage_in_aux() -> float:
     from busio import I2C
     from adafruit_ads1x15.ads1115 import ADS1115, P3
     from adafruit_ads1x15.analog_in import AnalogIn
 
+    slope = 0.1325
+
     with I2C(SCL, SDA) as i2c:
-        ads = ADS1115(i2c, address=ADC)
+        ads = ADS1115(i2c, address=ADC, gain=1)
         chan = AnalogIn(ads, P3)
-        return chan.voltage
+        return round_to_half_interger(chan.voltage / slope)

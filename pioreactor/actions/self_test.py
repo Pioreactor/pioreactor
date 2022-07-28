@@ -30,6 +30,7 @@ from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.config import config
 from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import is_heating_pcb_present
+from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import Logger
 from pioreactor.pubsub import publish
@@ -284,10 +285,15 @@ def test_positive_correlation_between_temperature_and_heating(
         assert measured_correlation > 0.9, (dcs, measured_pcb_temps)
 
 
+def test_aux_power_is_not_too_high(logger: Logger, unit: str, experiment: str):
+    assert voltage_in_aux() <= 18.0
+
+
 def test_positive_correlation_between_rpm_and_stirring(
     logger: Logger, unit: str, experiment: str
 ) -> None:
     assert is_heating_pcb_present()
+    assert voltage_in_aux() <= 18.0
 
     with local_persistant_storage("stirring_calibration") as cache:
 
@@ -335,7 +341,10 @@ HEATING_TESTS = [
     test_detect_heating_pcb,
     test_positive_correlation_between_temperature_and_heating,
 ]
-STIRRING_TESTS = [test_positive_correlation_between_rpm_and_stirring]
+STIRRING_TESTS = [
+    test_positive_correlation_between_rpm_and_stirring,
+    test_aux_power_is_not_too_high,
+]
 OD_TESTS = [
     test_pioreactor_HAT_present,
     test_all_positive_correlations_between_pds_and_leds,

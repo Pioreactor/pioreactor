@@ -13,12 +13,12 @@ from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
 from pioreactor.config import config
+from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
-from pioreactor.utils.math_helpers import (
-    simple_linear_regression_with_forced_nil_intercept, correlation
-)
+from pioreactor.utils.math_helpers import correlation
+from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
@@ -88,6 +88,7 @@ def which_pump_are_you_calibrating():
             )
         return ("waste", remove_waste)
 
+
 def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
     # set up...
 
@@ -120,7 +121,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
                 dc=dc,
                 bias_=0,
                 timestamp=current_utc_timestamp(),
-                voltage=-1.0,
+                voltage=voltage_in_aux(),
             ),
         )
     except KeyboardInterrupt:
@@ -142,7 +143,9 @@ def choose_settings() -> tuple[float, float]:
         show_default=False,
     )
     dc = click.prompt(
-        click.style("Enter duty cycle percent as a whole number. [enter] for default 90%", fg="green"),
+        click.style(
+            "Enter duty cycle percent as a whole number. [enter] for default 90%", fg="green"
+        ),
         type=click.IntRange(0, 100),
         default=90,
         show_default=False,
@@ -168,15 +171,17 @@ def run_tests(
         while True:
 
             if i > 0:
-                click.echo("Remove the water from the measuring container or tare your weighing scale.")
+                click.echo(
+                    "Remove the water from the measuring container or tare your weighing scale."
+                )
 
             click.echo(
                 "We will run the pump for a set amount of time, and you will measure how much liquid is expelled."
             )
+            click.echo("Use a small container placed on top of an accurate weighing scale.")
             click.echo(
-                "Use a small container placed on top of an accurate weighing scale."
+                "Hold the end of the outflow tube above so the container catches the expelled liquid."
             )
-            click.echo("Hold the end of the outflow tube above so the container catches the expelled liquid.")
             while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
                 pass
 
@@ -191,7 +196,7 @@ def run_tests(
                     dc=dc,
                     bias_=0,
                     timestamp=current_utc_timestamp(),
-                    voltage=-1.0,
+                    voltage=voltage_in_aux(),
                 ),
             )
             r = click.prompt(
@@ -210,7 +215,6 @@ def run_tests(
                 break
             except ValueError:
                 click.echo("Not a number - retrying.")
-
 
     return durations_to_test, results
 
@@ -249,7 +253,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
 
         # check parameters for problems
         if correlation(durations, volumes) < 0:
-            logger.warning("Correlation is negative - you probably want to rerun this calibration...")
+            logger.warning(
+                "Correlation is negative - you probably want to rerun this calibration..."
+            )
         if slope / std_slope < 5.0:
             logger.warning(
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
@@ -264,7 +270,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                     dc=dc,
                     bias_=bias,
                     timestamp=current_utc_timestamp(),
-                    voltage=-1.0,
+                    voltage=voltage_in_aux(),
                 )
             )
             cache[f"{pump_name}_calibration_data"] = encode(
