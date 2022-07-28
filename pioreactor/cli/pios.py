@@ -92,6 +92,8 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
         rsync(
             "-z",
             "--inplace",
+            "-e",
+            '"ssh -o StrictHostKeyChecking=no"',
             localpath,
             f"{add_local(unit)}:{remotepath}",
         )
@@ -104,6 +106,8 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
             rsync(
                 "-z",
                 "--inplace",
+                "-e",
+                '"ssh -o StrictHostKeyChecking=no"',
                 localpath,
                 f"{add_local(unit)}:{remotepath}",
             )

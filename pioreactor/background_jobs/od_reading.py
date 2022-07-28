@@ -208,7 +208,7 @@ class ADCReader(LoggerMixin):
                 "1": 0,
                 "2": 1,
             }
-        if hardware_version_info[0] == 0 and hardware_version_info[1] <= 2:
+        if hardware_version_info[0] == 0 and hardware_version_info[1] <= 3:
             from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
 
         else:
