@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from json import dumps
 from json import loads
 from typing import Callable
 from typing import Optional
@@ -238,7 +239,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": current_utc_timestamp(),
             "message": event["message"],
-            "data": event["data"],
+            "data": dumps(event["data"]),
             "event_name": event["event_name"],
         }
 
