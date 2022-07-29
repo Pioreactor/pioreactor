@@ -86,7 +86,7 @@ def logs(n) -> None:
                     sleep(sleep_sec)
 
     for line in follow(config["logging"]["log_file"]):
-        print(line, end="")
+        click.echo(line, nl=False)
 
 
 @pio.command(name="log", short_help="logs a message from the CLI")
