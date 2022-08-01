@@ -123,15 +123,6 @@ class GrowthRateCalculator(BackgroundJob):
         if self.from_mqtt:
             self.start_passive_listeners()
 
-    def on_sleeping_to_ready(self) -> None:
-        # when the job sleeps, we expect a "big" jump in OD due to a few things:
-        # 1. The delay between sleeping and resuming can causing a change in OD (as OD will keep changing)
-        # 2. The user picks up the vial for inspection, places it back, but this causes an OD shift
-        #    due to variation in the glass
-        #
-        # so to "fix" this, we will treat it like a dilution event, and modify the variances
-        self.update_ekf_variance_after_event(minutes=0.5, factor=5e2)
-
     def initialize_extended_kalman_filter(self) -> CultureGrowthEKF:
         import numpy as np
 
@@ -462,7 +453,7 @@ class GrowthRateCalculator(BackgroundJob):
     def respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
         # here we can add custom logic to handle dosing events.
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=0.5, factor=2500)
+        self.update_ekf_variance_after_event(minutes=0.30, factor=2500)
 
     def start_passive_listeners(self) -> None:
         # process incoming data
@@ -479,15 +470,6 @@ class GrowthRateCalculator(BackgroundJob):
             allow_retained=False,
         )
 
-        # if the stirring is changed, this can effect the OD level, but not the
-        # growth rate. Let's treat it the same how we treat a dosing event.
-        # self.subscribe_and_callback(
-        #     lambda m: self.update_ekf_variance_after_event(0.3, 5e2),
-        #     f"pioreactor/{self.unit}/{self.experiment}/stirring/duty_cycle",
-        #     qos=QOS.EXACTLY_ONCE,
-        #     allow_retained=False,
-        # )
-
     @staticmethod
     def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[pt.PdChannel, float]:
         """
@@ -503,6 +485,8 @@ class GrowthRateCalculator(BackgroundJob):
         }
 
     def _yield_od_readings_from_mqtt(self) -> Generator[structs.ODReadings, None, None]:
+        counter = 0
+
         while True:
             msg = subscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched",
@@ -515,6 +499,10 @@ class GrowthRateCalculator(BackgroundJob):
 
             if msg is None:
                 continue
+
+            counter += 1
+            if counter <= 3:
+                continue  # skip the first few values. If users turn on growth_rate, THEN od_reading, we should ignore the noisiest part of od_reading.
 
             yield decode(msg.payload, type=structs.ODReadings)
 
