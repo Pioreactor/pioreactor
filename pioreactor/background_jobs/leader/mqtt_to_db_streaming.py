@@ -239,7 +239,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": current_utc_timestamp(),
             "message": event["message"],
-            "data": dumps(event["data"]),
+            "data": dumps(event["data"]) if (event["data"] is not None) else "",
             "event_name": event["event_name"],
         }
 
