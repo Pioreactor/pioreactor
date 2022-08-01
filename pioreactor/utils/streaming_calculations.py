@@ -227,7 +227,7 @@ class CultureGrowthEKF:
         """
         This is a bit tricky: we do some state handling here (eg: keeping track of the previous covariance matrix)
         but we will be invoking this function multiple times. So we start a Timer but cancel it
-        if we invoke this function again (i.e. a new dosing event). The if the Timer successfully
+        if we invoke this function again (i.e. a new dosing event). When the Timer successfully
         executes its function, then we restore state (add back the covariance matrix.)
 
         TODO: this should be decoupled from the EKF class.
@@ -246,7 +246,7 @@ class CultureGrowthEKF:
 
             self._currently_scaling_covariance = True
             self.covariance_ = np.diag(self._covariance_pre_scale.diagonal())
-            self.covariance_[0] *= factor
+            self.covariance_[0, 0] *= factor
 
         if self._currently_scaling_covariance:
             assert self._scale_covariance_timer is not None

@@ -47,10 +47,8 @@ def _pump(
     ml: float
         Amount of volume to pass, in mL
     duration: float
-        Duration to run pump, in s
-    calibration:
-        specify a calibration for the dosing. Should be a dict
-        with fields "duration_", "hz", "dc", and "bias_"
+        Duration to run pump, in seconds
+    calibration: structs.PumpCalibration
     continuously: bool
         Run pump continuously.
     source_of_event: str
@@ -194,10 +192,8 @@ def add_media(
     ml: float
         Amount of volume to pass, in mL
     duration: float
-        Duration to run pump, in s
-    calibration:
-        specify a calibration for the dosing. Should be a dict
-        with fields "duration_", "hz", "dc", and "bias_"
+        Duration to run pump, in seconds
+    calibration: structs.PumpCalibration
     continuously: bool
         Run pump continuously.
     source_of_event: str
@@ -241,10 +237,8 @@ def remove_waste(
     ml: float
         Amount of volume to pass, in mL
     duration: float
-        Duration to run pump, in s
-    calibration:
-        specify a calibration for the dosing. Should be a dict
-        with fields "duration_", "hz", "dc", and "bias_"
+        Duration to run pump, in seconds
+    calibration: structs.PumpCalibration
     continuously: bool
         Run pump continuously.
     source_of_event: str
@@ -287,10 +281,8 @@ def add_alt_media(
     ml: float
         Amount of volume to pass, in mL
     duration: float
-        Duration to run pump, in s
-    calibration:
-        specify a calibration for the dosing. Should be a dict
-        with fields "duration_", "hz", "dc", and "bias_"
+        Duration to run pump, in seconds
+    calibration: structs.PumpCalibration
     continuously: bool
         Run pump continuously.
     source_of_event: str

@@ -82,6 +82,7 @@ def round_to_half_interger(x):
 
 
 def voltage_in_aux() -> float:
+    # this _can_ mess with OD readings if running at the same time.
     from busio import I2C
     from adafruit_ads1x15.ads1115 import ADS1115, P3
     from adafruit_ads1x15.analog_in import AnalogIn
