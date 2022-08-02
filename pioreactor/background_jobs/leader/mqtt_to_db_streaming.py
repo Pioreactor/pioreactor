@@ -270,20 +270,20 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
 
     def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata = produce_metadata(topic)
-        payload_dict = loads(payload)
+        kf_output = msgspec_loads(payload, type=structs.KalmanFilterOutput)
         return {
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "state_0": payload_dict["state"][0],
-            "state_1": payload_dict["state"][1],
-            "state_2": payload_dict["state"][2],
-            "cov_00": payload_dict["covariance_matrix"][0][0],
-            "cov_01": payload_dict["covariance_matrix"][0][1],
-            "cov_02": payload_dict["covariance_matrix"][0][2],
-            "cov_11": payload_dict["covariance_matrix"][1][1],
-            "cov_12": payload_dict["covariance_matrix"][1][2],
-            "cov_22": payload_dict["covariance_matrix"][2][2],
+            "timestamp": kf_output.timestamp,
+            "state_0": kf_output.state[0],
+            "state_1": kf_output.state[1],
+            "state_2": kf_output.state[2],
+            "cov_00": kf_output.covariance_matrix[0][0],
+            "cov_01": kf_output.covariance_matrix[0][1],
+            "cov_02": kf_output.covariance_matrix[0][2],
+            "cov_11": kf_output.covariance_matrix[1][1],
+            "cov_12": kf_output.covariance_matrix[1][2],
+            "cov_22": kf_output.covariance_matrix[2][2],
         }
 
     def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> dict:

@@ -64,6 +64,7 @@ class PublishableSetting(t.TypedDict, total=False):
         "Temperature",
         "MeasuredRPM",
         "AutomationEvent",
+        "KalmanFilterOutput",
     ]
     unit: str
     settable: bool

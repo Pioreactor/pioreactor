@@ -153,3 +153,9 @@ class Log(Struct):
     task: str
     source: str
     timestamp: str
+
+
+class KalmanFilterOutput(Struct):
+    state: list[float]
+    covariance_matrix: list[list[float]]
+    timestamp: str

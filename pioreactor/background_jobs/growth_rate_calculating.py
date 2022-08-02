@@ -74,6 +74,11 @@ class GrowthRateCalculator(BackgroundJob):
             "persist": True,  # why persist?
         },
         "od_filtered": {"datatype": "ODFiltered", "settable": False, "persist": True},
+        "kalman_filter_outputs": {
+            "datatype": "KalmanFilterOutput",
+            "settable": False,
+            "persist": False,
+        },
     }
 
     def __init__(
@@ -363,12 +368,16 @@ class GrowthRateCalculator(BackgroundJob):
 
     def update_state_from_observation(
         self, od_readings: structs.ODReadings
-    ) -> tuple[structs.GrowthRate, structs.ODFiltered]:
+    ) -> tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]:
         """
         this is like _update_state_from_observation, but also updates attributes, caches, mqtt
         """
 
-        self.growth_rate, self.od_filtered = self._update_state_from_observation(od_readings)
+        (
+            self.growth_rate,
+            self.od_filtered,
+            self.kalman_filter_outputs,
+        ) = self._update_state_from_observation(od_readings)
 
         # save to cache
         with local_persistant_storage("growth_rate") as cache:
@@ -377,22 +386,11 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("od_filtered") as cache:
             cache[self.experiment] = str(self.od_filtered.od_filtered)
 
-        # publish EKF outputs
-        self.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/kalman_filter_outputs",
-            {
-                "state": self.ekf.state_.tolist(),
-                "covariance_matrix": self.ekf.covariance_.tolist(),
-                "timestamp": od_readings.timestamp,
-            },
-            qos=QOS.EXACTLY_ONCE,
-        )
-
-        return self.growth_rate, self.od_filtered
+        return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
     def _update_state_from_observation(
         self, od_readings: structs.ODReadings
-    ) -> tuple[structs.GrowthRate, structs.ODFiltered]:
+    ) -> tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]:
 
         timestamp = od_readings.timestamp
         scaled_observations = self.scale_raw_observations(
@@ -417,7 +415,7 @@ class GrowthRateCalculator(BackgroundJob):
                 self.logger.debug(
                     f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
                 )
-                return self.growth_rate, self.od_filtered
+                return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
             self.time_of_previous_observation = time_of_current_observation
 
@@ -426,7 +424,7 @@ class GrowthRateCalculator(BackgroundJob):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
-            return self.growth_rate, self.od_filtered
+            return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
         else:
 
             # TODO: EKF values can be nans...
@@ -444,7 +442,13 @@ class GrowthRateCalculator(BackgroundJob):
                 timestamp=timestamp,
             )
 
-            return growth_rate, od_filtered
+            kf_outputs = structs.KalmanFilterOutput(
+                state=self.ekf.state_.tolist(),
+                covariance_matrix=self.ekf.covariance_.tolist(),
+                timestamp=timestamp,
+            )
+
+            return growth_rate, od_filtered, kf_outputs
 
     def respond_to_dosing_event_from_mqtt(self, message: pt.MQTTMessage) -> None:
         dosing_event = decode(message.payload, type=structs.DosingEvent)
@@ -453,7 +457,7 @@ class GrowthRateCalculator(BackgroundJob):
     def respond_to_dosing_event(self, dosing_event: structs.DosingEvent) -> None:
         # here we can add custom logic to handle dosing events.
         # an improvement to this: the variance factor is proportional to the amount exchanged.
-        self.update_ekf_variance_after_event(minutes=0.30, factor=2500)
+        self.update_ekf_variance_after_event(minutes=0.40, factor=2500)
 
     def start_passive_listeners(self) -> None:
         # process incoming data

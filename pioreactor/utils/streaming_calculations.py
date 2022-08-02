@@ -264,9 +264,9 @@ class CultureGrowthEKF:
 
         state = [OD, r, a]
 
-        OD_t = OD_{t-1} * exp(r_{t-1} * Δt)
-        r_t = r_{t-1} + a_{t-1}Δt
-        a_t = a_{t-1}
+        OD_t = OD_{t-1}·exp(r_{t-1}·Δt)
+        r_t  = r_{t-1} + a_{t-1}·Δt
+        a_t  = a_{t-1}
 
         """
         import numpy as np
