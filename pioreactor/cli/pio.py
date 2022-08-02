@@ -36,7 +36,7 @@ from pioreactor.utils.networking import add_local
 def pio() -> None:
     """
     Execute commands on this Pioreactor.
-    See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface
+    See full documentation here: https://docs.pioreactor.com/user-guide/cli
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
 

@@ -32,9 +32,7 @@ class LEDController(BackgroundJob):
         "automation_name": {"datatype": "string", "settable": False},
     }
 
-    def __init__(
-        self, automation_name: str, unit: str, experiment: str, **kwargs
-    ) -> None:
+    def __init__(self, automation_name: str, unit: str, experiment: str, **kwargs) -> None:
         super(LEDController, self).__init__(
             job_name="led_control", unit=unit, experiment=experiment
         )
@@ -140,9 +138,7 @@ def start_led_control(
     help="set the automation of the system: silent, etc.",
     show_default=True,
 )
-@click.option(
-    "--duration", default=60.0, help="Time, in minutes, between every monitor check"
-)
+@click.option("--duration", default=60.0, help="Time, in minutes, between every monitor check")
 @click.option(
     "--skip-first-run",
     type=click.IntRange(min=0, max=1),
@@ -153,14 +149,15 @@ def click_led_control(ctx, automation_name, duration, skip_first_run):
     """
     Start an LED automation
     """
+    import os
+
+    os.nice(1)
+
     lc = start_led_control(
         automation_name=automation_name,
         duration=duration,
         skip_first_run=bool(skip_first_run),
-        **{
-            ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1]
-            for i in range(0, len(ctx.args), 2)
-        },
+        **{ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)},
     )
 
     lc.block_until_disconnected()

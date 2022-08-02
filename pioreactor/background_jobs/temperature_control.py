@@ -606,6 +606,10 @@ def click_temperature_control(ctx, automation_name: str) -> None:
     """
     Start a temperature automation.
     """
+    import os
+
+    os.nice(1)
+
     kwargs = {
         ctx.args[i][2:].replace("-", "_"): ctx.args[i + 1] for i in range(0, len(ctx.args), 2)
     }
