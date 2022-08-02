@@ -14,7 +14,7 @@ CORE_REQUIREMENTS = [
     "sh>=1.14.0",
     "JSON-log-formatter>=0.4.0",
     "colorlog>=6.6.0",
-    "msgspec>=0.7.0",
+    "msgspec>=0.8.0",
     # tech debt - this needed to be in the core req
     # leader requirement
     "sqlite3worker @ https://github.com/pioreactor/sqlite3worker/archive/master.zip#egg=sqlite3worker-0.0.1",
