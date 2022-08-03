@@ -93,7 +93,7 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
             "-z",
             "--inplace",
             "-e",
-            "ssh -o StrictHostKeyChecking=no",
+            "ssh",
             localpath,
             f"{add_local(unit)}:{remotepath}",
         )
@@ -107,7 +107,7 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
                 "-z",
                 "--inplace",
                 "-e",
-                "ssh -o StrictHostKeyChecking=no",
+                "ssh",
                 localpath,
                 f"{add_local(unit)}:{remotepath}",
             )
@@ -385,12 +385,10 @@ def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}.")
         try:
-            ssh(add_local(unit), "-o", "StrictHostKeyChecking=no", command)
+            ssh(add_local(unit), command)
             if all_jobs:  # tech debt
                 ssh(
                     add_local(unit),
-                    "-o",
-                    "StrictHostKeyChecking=no",
                     "pio run led_intensity --A 0 --B 0 --C 0 --D 0 --no-log",
                 )
             return True
@@ -462,7 +460,7 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
     def _thread_function(unit: str) -> bool:
         click.echo(f"Executing `{core_command}` on {unit}.")
         try:
-            ssh(add_local(unit), "-o", "StrictHostKeyChecking=no", command)
+            ssh(add_local(unit), command)
             return True
         except Exception as e:
             logger = create_logger(
@@ -509,7 +507,7 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
     def _thread_function(unit: str) -> bool:
 
         click.echo(f"Executing `{command}` on {unit}.")
-        ssh(add_local(unit), "-o", "StrictHostKeyChecking=no", command)
+        ssh(add_local(unit), command)
         return True
 
     units = remove_leader(universal_identifier_to_all_workers(units))
