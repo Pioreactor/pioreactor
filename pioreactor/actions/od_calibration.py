@@ -89,7 +89,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
         for _ in range(4):
             od_reader.record_from_adc()
 
-        while inferred_od600 <= minimum_od600:
+        while inferred_od600 > minimum_od600:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
 
