@@ -31,7 +31,14 @@ def introduction():
 
 
 def get_metadata_from_user():
-    name = click.prompt("Provide a unique name for this calibration", type=str)
+    with local_persistant_storage("od_calibration") as cache:
+        while True:
+            name = click.prompt("Provide a unique name for this calibration", type=str)
+            if name not in cache:
+                break
+            else:
+                click.echo("Name already exists.")
+
     initial_od600 = click.prompt(
         "Provide the OD600 measurement of your initial culture", type=float
     )
@@ -68,6 +75,17 @@ def start_stirring():
     return st
 
 
+def plot_data(x, y, title, x_min=None, x_max=None):
+    # plot
+    plt.clf()
+    plt.scatter(x, y)
+    plt.title(title)
+    plt.clc()
+    plt.plot_size(100, 20)
+    plt.xlim(x_min, x_max)
+    plt.show()
+
+
 def start_recording_and_diluting(initial_od600, minimum_od600):
 
     inferred_od600 = initial_od600
@@ -100,14 +118,13 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
 
             for i in range(10):  # 10 assumes 1ml dilutions
                 click.clear()
-                # plot
-                plt.clf()
-                plt.scatter(inferred_od600s, voltages)
-                plt.title("Calibration (ongoing)")
-                plt.clc()
-                plt.plot_size(100, 20)
-                plt.xlim(minimum_od600, initial_od600)
-                plt.show()
+                plot_data(
+                    inferred_od600s,
+                    voltages,
+                    title="OD Calibration (ongoing)",
+                    x_min=minimum_od600,
+                    x_max=initial_od600,
+                )
                 click.echo()
                 click.echo("Add 1ml of DI water to vial.")
 
@@ -134,6 +151,15 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
 
             else:
                 # excuted if the loop did not break
+                click.clear()
+                plot_data(
+                    inferred_od600s,
+                    voltages,
+                    title="OD Calibration (ongoing)",
+                    x_min=minimum_od600,
+                    x_max=initial_od600,
+                )
+
                 click.echo(
                     "Remove vial and reduce volume back to 10ml. Place back into Pioreactor."
                 )
@@ -149,12 +175,8 @@ def calculate_curve_of_best_fit(voltages, inferred_od600s):
 
 
 def show_results_and_confirm_with_user(curve, voltages, inferred_od600s):
-    plt.clf()
-    plt.scatter(inferred_od600s, voltages)
-    plt.title("Calibration (ongoing)")
-    plt.clc()
-    plt.plot_size(100, 20)
-    plt.show()
+    click.clear()
+    plot_data(inferred_od600s, voltages, title="OD Calibration with curve of best fit")
     click.confirm("Confirm?", abort=True)
 
 
