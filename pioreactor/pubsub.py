@@ -97,7 +97,7 @@ def publish(topic: str, message, hostname: str = leader_address, retries: int = 
 def subscribe(
     topics: str | list[str],
     hostname=leader_address,
-    retries: int = 10,
+    retries: int = 5,
     timeout: Optional[float] = None,
     allow_retained: bool = True,
     name: Optional[str] = None,
