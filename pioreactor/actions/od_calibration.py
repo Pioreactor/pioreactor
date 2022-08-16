@@ -79,8 +79,9 @@ def plot_data(x, y, title, x_min=None, x_max=None):
     # plot
     plt.clf()
     plt.scatter(x, y)
-    plt.title(title)
     plt.clc()
+    plt.scatter([x[-1]], [y[-1]], color="red")
+    plt.title(title)
     plt.plot_size(100, 20)
     plt.xlim(x_min, x_max)
     plt.show()
@@ -161,7 +162,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
                 )
 
                 click.echo(
-                    "Remove vial and reduce volume back to 10ml. Place back into Pioreactor."
+                    "Remove vial and reduce volume back to 10ml. Dry vial. Place back into Pioreactor."
                 )
                 click.confirm("Continue?", abort=True)
                 current_volume_in_vial = initial_volume_in_vial
