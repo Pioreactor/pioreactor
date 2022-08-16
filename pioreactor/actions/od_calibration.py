@@ -57,7 +57,12 @@ def setup_HDC_instructions():
 def start_stirring():
     while not click.confirm("Reading to start stirring?"):
         pass
-    st = stirring(unit=get_unit_name(), experiment=get_latest_testing_experiment_name())
+
+    st = stirring(
+        target_rpm=config.getfloat("stirring", "target_rpm"),
+        unit=get_unit_name(),
+        experiment=get_latest_testing_experiment_name(),
+    )
     click.echo("Starting stirring.")
     st.block_until_rpm_is_close_to_target()
     return st
@@ -84,7 +89,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
         for _ in range(4):
             od_reader.record_from_adc()
 
-        while True:
+        while inferred_od600 <= minimum_od600:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
 
@@ -127,11 +132,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
                     break
 
             else:
-                continue  # only executed if the inner loop did NOT break
-
-            if inferred_od600 <= minimum_od600:
-                break
-            else:
+                # excuted if the loop did not break
                 click.echo(
                     "Remove vial and reduce volume back to 10ml. Place back into Pioreactor."
                 )
