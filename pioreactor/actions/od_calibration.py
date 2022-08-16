@@ -64,7 +64,7 @@ def start_stirring():
         experiment=get_latest_testing_experiment_name(),
     )
     click.echo("Starting stirring.")
-    st.block_until_rpm_is_close_to_target()
+    st.block_until_rpm_is_close_to_target(abs_tolerance=100)
     return st
 
 
@@ -99,8 +99,9 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
             inferred_od600s.append(inferred_od600)
 
             for i in range(10):  # 10 assumes 1ml dilutions
-                plt.clf()
+                click.clear()
                 # plot
+                plt.clf()
                 plt.scatter(inferred_od600s, voltages)
                 plt.title("Calibration (ongoing)")
                 plt.clc()

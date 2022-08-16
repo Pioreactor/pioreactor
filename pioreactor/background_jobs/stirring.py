@@ -405,10 +405,10 @@ class Stirrer(BackgroundJob):
             return
 
         self.logger.debug(f"Blocking until RPM is near {self.target_rpm}.")
+        while self._measured_rpm is None:
+            sleep(sleep_time)
 
-        while (self._measured_rpm is not None) and abs(
-            self._measured_rpm - self.target_rpm
-        ) > abs_tolerance:
+        while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
             sleep(sleep_time)
             running_wait_time += sleep_time
 
@@ -418,7 +418,7 @@ class Stirrer(BackgroundJob):
 
 
 def start_stirring(
-    target_rpm: float = 0.0,
+    target_rpm: float,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     ignore_rpm: bool = False,
