@@ -10,33 +10,17 @@ from msgspec.json import encode
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.config import config
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
-"""
-0. CONFIRM: angle (what's in config.ini), unique name,
-1. Add 10ml of HDC to vial with stir bar.
-   - ASK What is the OD600 of that culture: float
-   - ASK what is the minimum OD600 you want to calibrate for.
-2. Put vial in Pioreactor. CONFIRM Y/N
-3. Start stirring.
-4. Record OD reading.
-5. For 10 times:
-    5.1 Ask to add 1ml of DI water (potential editable). Cap. CONFIRM Y/N
-    5.2 Record OD reading.
-    5.3 Confirm / ignore / redo reading? (maybe)
-6. Remove vial, reduce volume to 10ml (half). go back to 5.
-7. If inferred OD600 < minimum OD600, stop.
-9. Run curve fitting,
-8. Show plot with data and curve, CONFIRM Y/N
-9. save data locally, print JSON results to user.
-"""
-
 
 def introduction():
+    click.clear()
     click.echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
     1. A Pioreactor
@@ -110,7 +94,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
             inferred_od600s.append(inferred_od600)
 
             for i in range(10):  # 10 assumes 1ml dilutions
-                click.clear()
+                plt.clf()
                 # plot
                 plt.scatter(inferred_od600s, voltages)
                 plt.title("Calibration (ongoing)")
@@ -193,23 +177,31 @@ def save_results_locally(
 
 
 def od_calibration():
-    introduction()
-    name, initial_od600, minimum_od600, angle = get_metadata_from_user()
-    setup_HDC_instructions()
+    unit = get_unit_name()
+    experiment = get_latest_testing_experiment_name()
 
-    with start_stirring():
+    if is_pio_job_running("stirring", "od_reading"):
+        raise ValueError("Stirring and OD reading should be turned off.")
 
-        inferred_od600s, voltages = start_recording_and_diluting(initial_od600, minimum_od600)
+    with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):
 
-    curve = calculate_curve_of_best_fit(voltages, inferred_od600s)
+        introduction()
+        name, initial_od600, minimum_od600, angle = get_metadata_from_user()
+        setup_HDC_instructions()
 
-    show_results_and_confirm_with_user(curve, voltages, inferred_od600s)
-    save_results_locally(
-        curve, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
-    )
+        with start_stirring():
 
-    click.echo("Finished ✅")
-    return
+            inferred_od600s, voltages = start_recording_and_diluting(initial_od600, minimum_od600)
+
+        curve = calculate_curve_of_best_fit(voltages, inferred_od600s)
+
+        show_results_and_confirm_with_user(curve, voltages, inferred_od600s)
+        save_results_locally(
+            curve, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
+        )
+
+        click.echo("Finished ✅")
+        return
 
 
 @click.command(name="od_calibration")
