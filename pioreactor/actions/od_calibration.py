@@ -47,6 +47,13 @@ def get_metadata_from_user():
     dilution_amount = click.prompt(
         "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=float
     )
+
+    from math import log2
+
+    number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
+
+    click.echo(f"This will require about {number_of_points} measurements.")
+
     click.confirm(
         f"Confirm using angle {config['od_config.photodiode_channel']['2']}°",
         abort=True,
@@ -96,11 +103,11 @@ def plot_data(
     plt.theme("pro")
     plt.title(title)
     plt.plot_size(105, 22)
-    
+
     if interpolation_curve:
         plt.plot(x, [interpolation_curve(x_) for x_ in x], color=204)
         plt.plot_size(145, 42)
-    
+
     plt.xlim(x_min, x_max)
     plt.show()
 
@@ -129,13 +136,20 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
             od_reader.record_from_adc()
 
         while inferred_od600 > minimum_od600:
+
+            if inferred_od600 < initial_od600 and click.confirm(
+                "Do you want to enter a new OD600 value for the current density?"
+            ):
+                inferred_od600 = click.prompt("New measured OD600", type=float)
+
+            inferred_od600s.append(inferred_od600)
+
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
 
             voltages.append(
                 0.5 * (od_readings1.od_raw["2"].voltage + od_readings2.od_raw["2"].voltage)
             )
-            inferred_od600s.append(inferred_od600)
 
             for i in range(number_of_plotpoints):
                 click.clear()
@@ -187,7 +201,9 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
                 )
                 click.echo()
                 click.echo(click.style("Stop❗", fg="red"))
-                click.echo("Remove vial and reduce volume back to 10ml.")
+                click.echo("Carefully remove vial.")
+                click.echo("(Optional: take new OD600 reading with external instrument.)")
+                click.echo("Reduce volume in vial back to 10ml.")
                 click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
                 while not click.confirm("Continue?", default=True):
                     pass
@@ -269,7 +285,9 @@ def od_calibration():
         setup_HDC_instructions()
 
         with start_stirring():
-            inferred_od600s, voltages = start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount)
+            inferred_od600s, voltages = start_recording_and_diluting(
+                initial_od600, minimum_od600, dilution_amount
+            )
 
         curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s)
 
