@@ -85,9 +85,6 @@ def plot_data(
 
     plt.clf()
 
-    if interpolation_curve:
-        plt.plot(x, [interpolation_curve(x_) for x_ in x], color=204)
-
     plt.scatter(x, y)
 
     if highlight_recent_point:
@@ -96,6 +93,11 @@ def plot_data(
     plt.theme("pro")
     plt.title(title)
     plt.plot_size(105, 22)
+    
+    if interpolation_curve:
+        plt.plot(x, [interpolation_curve(x_) for x_ in x], color=204)
+        plt.plot_size(145, 42)
+    
     plt.xlim(x_min, x_max)
     plt.show()
 
@@ -191,7 +193,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
 def calculate_curve_of_best_fit(voltages, inferred_od600s):
     import numpy as np
 
-    coefs = np.polyfit(inferred_od600s, voltages, 3).tolist()
+    coefs = np.polyfit(inferred_od600s, voltages, 4).tolist()
 
     return coefs, "poly"
 
