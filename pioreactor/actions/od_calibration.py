@@ -191,7 +191,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
 def calculate_curve_of_best_fit(voltages, inferred_od600s):
     import numpy as np
 
-    coefs = np.polyfit(inferred_od600s, voltages, 1).tolist()
+    coefs = np.polyfit(inferred_od600s, voltages, 3).tolist()
 
     return coefs, "poly"
 
@@ -203,7 +203,7 @@ def show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od6
         import numpy as np
 
         def curve_callable(x):
-            np.polyval(curve, x)
+            return np.polyval(curve, x)
 
     else:
         curve_callable = None

@@ -692,7 +692,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
     def __init__(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
         super().__init__()
 
-        self.models = {}
+        self.models: dict[pt.PdChannel, Callable] = {}
 
         with local_persistant_storage("current_od_calibration") as c:
             for channel, angle in channel_angle_map.items():
@@ -705,11 +705,15 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                 else:
                     self.logger.debug(f"No calibration available for channel {channel}, skipping.")
 
-    def _hydrate_model(self, calibration_data: dict):
-        from numpy import polyval
+    def _hydrate_model(self, calibration_data: dict) -> Callable:
 
-        def calibration(x):
-            return polyval(calibration_data["curve_data"], x)
+        if calibration_data["curve_type"] == "poly":
+            from numpy import roots, zeros_like
+
+            def calibration(x):
+                coef_shift = zeros_like(calibration_data["curve_data"])
+                coef_shift[-1] = x
+                return float(roots(calibration_data["curve_data"] - coef_shift)[0])
 
         return calibration
 
