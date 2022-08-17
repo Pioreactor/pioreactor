@@ -44,6 +44,9 @@ def get_metadata_from_user():
     minimum_od600 = click.prompt(
         "Provide the minimum OD600 measurement you want to calibrate to", default=0.1, type=float
     )
+    dilution_amount = click.prompt(
+        "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=float
+    )
     click.confirm(
         f"Confirm using angle {config['od_config.photodiode_channel']['2']}°",
         abort=True,
@@ -102,12 +105,13 @@ def plot_data(
     plt.show()
 
 
-def start_recording_and_diluting(initial_od600, minimum_od600):
+def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
 
     inferred_od600 = initial_od600
     voltages = []
     inferred_od600s = []
-    current_volume_in_vial = initial_volume_in_vial = 10.0
+    current_volume_in_vial = initial_volume_in_vial = 10
+    number_of_plotpoints = initial_volume_in_vial / dilution_amount #dilution_amount of 2 mL, number of plotpoints is 5. 
     click.echo("Starting OD recordings.")
 
     with start_od_reading(
@@ -133,7 +137,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
             )
             inferred_od600s.append(inferred_od600)
 
-            for i in range(10):  # 10 assumes 1ml dilutions
+            for i in range(number_of_plotpoints):  # 10 assumes 1ml dilutions
                 click.clear()
                 plot_data(
                     inferred_od600s,
@@ -148,7 +152,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
                 while not click.confirm("Continue?", default=True):
                     pass
 
-                current_volume_in_vial = current_volume_in_vial + 1.0  # assumes 1ml
+                current_volume_in_vial = current_volume_in_vial + dilution_amount  # assumes 1ml
 
                 sleep(1.25)
 
@@ -258,11 +262,11 @@ def od_calibration():
     with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):
 
         introduction()
-        name, initial_od600, minimum_od600, angle = get_metadata_from_user()
+        name, initial_od600, minimum_od600, dilution_amount, angle = get_metadata_from_user()
         setup_HDC_instructions()
 
         with start_stirring():
-            inferred_od600s, voltages = start_recording_and_diluting(initial_od600, minimum_od600)
+            inferred_od600s, voltages = start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount)
 
         curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s)
 
