@@ -34,6 +34,7 @@ WORKER_REQUIREMENTS = [
     "TMP1075>=0.2.1",
     "rpi-hardware-pwm>=0.1.4",
     "simple-pid>=1.0.1",
+    "plotext>=5.0.2",
 ]
 
 setup(

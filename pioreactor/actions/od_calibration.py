@@ -151,16 +151,19 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
 
                 while not click.confirm("Continue?", default=True):
                     pass
+                click.echo(".", nl=False)
 
                 current_volume_in_vial = current_volume_in_vial + dilution_amount  # assumes 1ml
 
-                sleep(1.25)
-
+                sleep(1.20)
+                click.echo(".", nl=False)
                 od_readings1 = od_reader.record_from_adc()
+                click.echo(".", nl=False)
                 od_readings2 = od_reader.record_from_adc()
                 voltages.append(
                     0.5 * (od_readings1.od_raw["2"].voltage + od_readings2.od_raw["2"].voltage)
                 )
+                click.echo(".", nl=False)
 
                 inferred_od600 = (
                     inferred_od600
