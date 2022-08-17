@@ -37,7 +37,6 @@ class MockAnalogIn:
 
     def __init__(self, ads, channel, **kwargs) -> None:
 
-        assert channel in [0, 1], "channel must be in 0, 1"
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
