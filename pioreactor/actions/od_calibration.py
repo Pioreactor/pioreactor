@@ -53,7 +53,7 @@ def get_metadata_from_user():
         default=True,
     )
     angle = str(config["od_config.photodiode_channel"]["2"])
-    return name, initial_od600, minimum_od600, angle
+    return name, initial_od600, minimum_od600, dilution_amount, angle
 
 
 def setup_HDC_instructions():
