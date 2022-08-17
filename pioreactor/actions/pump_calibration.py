@@ -153,17 +153,28 @@ def choose_settings() -> tuple[float, float]:
 
     return hz, dc
 
-def plot_data(x, y, title, x_min=None, x_max=None):
+
+def plot_data(
+    x, y, title, x_min=None, x_max=None, interpolation_curve=None, highlight_recent_point=True
+):
     import plotext as plt
 
     plt.clf()
+
+    if interpolation_curve:
+        plt.plot(x, [interpolation_curve(x_) for x_ in x], color=204)
+
     plt.scatter(x, y)
-    plt.clc()
-    plt.scatter([x[-1]], [y[-1]], color="red")
+
+    if highlight_recent_point:
+        plt.scatter([x[-1]], [y[-1]], color=204)
+
+    plt.theme("pro")
     plt.title(title)
     plt.plot_size(105, 22)
     plt.xlim(x_min, x_max)
     plt.show()
+
 
 def run_tests(
     execute_pump: Callable, hz: float, dc: float, min_duration: float, max_duration: float
@@ -171,7 +182,8 @@ def run_tests(
     click.clear()
     click.echo()
     click.echo("Beginning tests.")
-    results = []
+
+    results: list[float] = []
     durations_to_test = [
         min_duration,
         min_duration * 1.1,
@@ -180,6 +192,14 @@ def run_tests(
     ] + [max_duration * 0.85, max_duration * 0.90, max_duration * 0.95, max_duration]
     for i, duration in enumerate(durations_to_test):
         while True:
+            if i != 0:
+                plot_data(
+                    durations_to_test[:i],
+                    results,
+                    title="Pump Calibration (ongoing)",
+                    x_min=min_duration,
+                    x_max=max_duration,
+                )
 
             if i > 0:
                 click.echo(
@@ -210,15 +230,7 @@ def run_tests(
                     voltage=voltage_in_aux(),
                 ),
             )
-            
-            plot_data(
-                durations_to_test[:i],
-                results,
-                title="Pump Calibration (ongoing)",
-                x_min=min_duration,
-                x_max=max_duration
-            )
-            
+
             r = click.prompt(
                 click.style("Enter amount of water expelled, or REDO", fg="green"),
                 confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
@@ -240,6 +252,7 @@ def run_tests(
 
 
 def pump_calibration(min_duration: float, max_duration: float) -> None:
+    import numpy as np
 
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -276,7 +289,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             volumes,
             title="Pump Calibration",
             x_min=min_duration,
-            x_max=max_duration
+            x_max=max_duration,
+            interpolation_curve=lambda x: np.polyval([slope, bias], x),
+            highlight_recent_point=False,
         )
 
         # check parameters for problems

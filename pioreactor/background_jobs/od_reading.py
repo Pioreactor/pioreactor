@@ -706,9 +706,12 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     self.logger.debug(f"No calibration available for channel {channel}, skipping.")
 
     def _hydrate_model(self, calibration_data: dict):
-        from numpy.polynomial import Polynomial
+        from numpy import polyval
 
-        return Polynomial(calibration_data["curve_data"])
+        def calibration(x):
+            return polyval(calibration_data["curve_data"], x)
+
+        return calibration
 
     def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
         return {

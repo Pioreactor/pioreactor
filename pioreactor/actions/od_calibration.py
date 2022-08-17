@@ -67,23 +67,33 @@ def start_stirring():
     while not click.confirm("Reading to start stirring?", default=True):
         pass
 
+    click.echo("Starting stirring.")
+
     st = stirring(
         target_rpm=config.getfloat("stirring", "target_rpm"),
         unit=get_unit_name(),
         experiment=get_latest_testing_experiment_name(),
     )
-    click.echo("Starting stirring.")
     st.block_until_rpm_is_close_to_target(abs_tolerance=100)
     return st
 
 
-def plot_data(x, y, title, x_min=None, x_max=None):
+def plot_data(
+    x, y, title, x_min=None, x_max=None, interpolation_curve=None, highlight_recent_point=True
+):
     import plotext as plt
 
     plt.clf()
+
+    if interpolation_curve:
+        plt.plot(x, [interpolation_curve(x_) for x_ in x], color=204)
+
     plt.scatter(x, y)
-    plt.clc()
-    plt.scatter([x[-1]], [y[-1]], color="red")
+
+    if highlight_recent_point:
+        plt.scatter([x[-1]], [y[-1]], color=204)
+
+    plt.theme("pro")
     plt.title(title)
     plt.plot_size(105, 22)
     plt.xlim(x_min, x_max)
@@ -179,17 +189,37 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
 
 
 def calculate_curve_of_best_fit(voltages, inferred_od600s):
-    return None
+    import numpy as np
+
+    coefs = np.polyfit(inferred_od600s, voltages, 1).tolist()
+
+    return coefs, "poly"
 
 
-def show_results_and_confirm_with_user(curve, voltages, inferred_od600s):
+def show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od600s):
     click.clear()
-    plot_data(inferred_od600s, voltages, title="OD Calibration with curve of best fit")
+
+    if curve_type == "poly":
+        import numpy as np
+
+        def curve_callable(x):
+            np.polyval(curve, x)
+
+    else:
+        curve_callable = None
+
+    plot_data(
+        inferred_od600s,
+        voltages,
+        title="OD Calibration with curve of best fit",
+        interpolation_curve=curve_callable,
+        highlight_recent_point=False,
+    )
     click.confirm("Save calibration?", abort=True, default=True)
 
 
 def save_results_locally(
-    curve, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
+    curve, curve_type, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
 ):
     timestamp = current_utc_timestamp()
     data_blob = encode(
@@ -200,7 +230,7 @@ def save_results_locally(
             "initial_od600": initial_od600,
             "minimum_od600": minimum_od600,
             "curve_data": curve,
-            "curve_type": "poly",
+            "curve_type": curve_type,  # poly
             "voltages": voltages,
             "inferred_od600s": inferred_od600s,
             "ir_led_intensity": config["od_config"]["ir_led_intensity"],
@@ -232,11 +262,11 @@ def od_calibration():
         with start_stirring():
             inferred_od600s, voltages = start_recording_and_diluting(initial_od600, minimum_od600)
 
-        curve = calculate_curve_of_best_fit(voltages, inferred_od600s)
+        curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s)
 
-        show_results_and_confirm_with_user(curve, voltages, inferred_od600s)
+        show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od600s)
         data_blob = save_results_locally(
-            curve, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
+            curve, curve_type, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
         )
 
         click.echo(data_blob)
