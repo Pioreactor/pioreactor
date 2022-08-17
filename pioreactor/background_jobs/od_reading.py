@@ -713,7 +713,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             def calibration(x):
                 coef_shift = zeros_like(calibration_data["curve_data"])
                 coef_shift[-1] = x
-                return float(roots(calibration_data["curve_data"] - coef_shift)[0])
+                return float(min(roots(calibration_data["curve_data"] - coef_shift)))
 
         else:
 
