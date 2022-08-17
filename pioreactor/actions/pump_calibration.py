@@ -153,6 +153,17 @@ def choose_settings() -> tuple[float, float]:
 
     return hz, dc
 
+def plot_data(x, y, title, x_min=None, x_max=None):
+    import plotext as plt
+
+    plt.clf()
+    plt.scatter(x, y)
+    plt.clc()
+    plt.scatter([x[-1]], [y[-1]], color="red")
+    plt.title(title)
+    plt.plot_size(105, 22)
+    plt.xlim(x_min, x_max)
+    plt.show()
 
 def run_tests(
     execute_pump: Callable, hz: float, dc: float, min_duration: float, max_duration: float
@@ -199,6 +210,15 @@ def run_tests(
                     voltage=voltage_in_aux(),
                 ),
             )
+            
+            plot_data(
+                durations_to_test[:i],
+                results,
+                title="Pump Calibration (ongoing)",
+                x_min=min_duration,
+                x_max=max_duration
+            )
+            
             r = click.prompt(
                 click.style("Enter amount of water expelled, or REDO", fg="green"),
                 confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
@@ -250,6 +270,14 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             bias,
             std_bias,
         ) = simple_linear_regression_with_forced_nil_intercept(durations, volumes)
+
+        plot_data(
+            durations,
+            volumes,
+            title="Pump Calibration",
+            x_min=min_duration,
+            x_max=max_duration
+        )
 
         # check parameters for problems
         if correlation(durations, volumes) < 0:
@@ -304,3 +332,7 @@ def click_pump_calibration(min_duration, max_duration):
         raise ValueError("min_duration and max_duration must both be set.")
 
     pump_calibration(min_duration, max_duration)
+
+
+if __name__ == "__main__":
+    click_pump_calibration()
