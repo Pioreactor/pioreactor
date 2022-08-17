@@ -111,7 +111,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
     voltages = []
     inferred_od600s = []
     current_volume_in_vial = initial_volume_in_vial = 10
-    number_of_plotpoints = initial_volume_in_vial / dilution_amount #dilution_amount of 2 mL, number of plotpoints is 5. 
+    number_of_plotpoints = int((20 - initial_volume_in_vial) / dilution_amount)
     click.echo("Starting OD recordings.")
 
     with start_od_reading(
@@ -137,7 +137,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
             )
             inferred_od600s.append(inferred_od600)
 
-            for i in range(number_of_plotpoints):  # 10 assumes 1ml dilutions
+            for i in range(number_of_plotpoints):
                 click.clear()
                 plot_data(
                     inferred_od600s,
@@ -147,13 +147,13 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
                     x_max=initial_od600,
                 )
                 click.echo()
-                click.echo("Add 1ml of DI water to vial.")
+                click.echo(f"Add {dilution_amount}ml of DI water to vial.")
 
                 while not click.confirm("Continue?", default=True):
                     pass
                 click.echo(".", nl=False)
 
-                current_volume_in_vial = current_volume_in_vial + dilution_amount  # assumes 1ml
+                current_volume_in_vial = current_volume_in_vial + dilution_amount
 
                 sleep(1.20)
                 click.echo(".", nl=False)
@@ -167,8 +167,8 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
 
                 inferred_od600 = (
                     inferred_od600
-                    * (current_volume_in_vial - 1)
-                    / current_volume_in_vial  # assumes 1ml
+                    * (current_volume_in_vial - dilution_amount)
+                    / current_volume_in_vial
                 )
                 inferred_od600s.append(inferred_od600)
 
