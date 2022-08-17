@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import configparser
 import os
-from functools import lru_cache
+from functools import cache
 
 from pioreactor.whoami import is_testing_env
 
@@ -131,12 +131,12 @@ def get_config():
     return config
 
 
-@lru_cache(1)
+@cache
 def get_leader_hostname() -> str:
     return get_config().get("cluster.topology", "leader_hostname", fallback="localhost")
 
 
-@lru_cache(1)
+@cache
 def get_leader_address() -> str:
     return get_config().get("cluster.topology", "leader_address", fallback="localhost")
 

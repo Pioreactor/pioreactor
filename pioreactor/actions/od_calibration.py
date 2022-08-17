@@ -4,7 +4,6 @@ from __future__ import annotations
 from time import sleep
 
 import click
-import plotext as plt
 from msgspec.json import encode
 
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -31,13 +30,13 @@ def introduction():
 
 
 def get_metadata_from_user():
-    with local_persistant_storage("od_calibration") as cache:
+    with local_persistant_storage("od_calibrations") as cache:
         while True:
             name = click.prompt("Provide a unique name for this calibration", type=str)
             if name not in cache:
                 break
             else:
-                click.echo("Name already exists.")
+                click.echo("❗️ Name already exists. Try again.")
 
     initial_od600 = click.prompt(
         "Provide the OD600 measurement of your initial culture", type=float
@@ -45,9 +44,12 @@ def get_metadata_from_user():
     minimum_od600 = click.prompt(
         "Provide the minimum OD600 measurement you want to calibrate to", default=0.1, type=float
     )
-    angle = click.confirm(
-        f"Confirm using angle {config['od_config.photodiode_channel']['2']}°", abort=True
+    click.confirm(
+        f"Confirm using angle {config['od_config.photodiode_channel']['2']}°",
+        abort=True,
+        default=True,
     )
+    angle = str(config["od_config.photodiode_channel"]["2"])
     return name, initial_od600, minimum_od600, angle
 
 
@@ -62,7 +64,7 @@ def setup_HDC_instructions():
 
 
 def start_stirring():
-    while not click.confirm("Reading to start stirring?"):
+    while not click.confirm("Reading to start stirring?", default=True):
         pass
 
     st = stirring(
@@ -76,13 +78,14 @@ def start_stirring():
 
 
 def plot_data(x, y, title, x_min=None, x_max=None):
-    # plot
+    import plotext as plt
+
     plt.clf()
     plt.scatter(x, y)
     plt.clc()
     plt.scatter([x[-1]], [y[-1]], color="red")
     plt.title(title)
-    plt.plot_size(100, 20)
+    plt.plot_size(105, 22)
     plt.xlim(x_min, x_max)
     plt.show()
 
@@ -101,7 +104,8 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
         interval=None,
         unit=get_unit_name(),
         fake_data=is_testing_env(),
-        experiment=get_latest_testing_experiment_name()
+        experiment=get_latest_testing_experiment_name(),
+        use_calibration=False,
         # calibration=False,,..
     ) as od_reader:
 
@@ -129,12 +133,12 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
                 click.echo()
                 click.echo("Add 1ml of DI water to vial.")
 
-                while not click.confirm("Continue?"):
+                while not click.confirm("Continue?", default=True):
                     pass
 
                 current_volume_in_vial = current_volume_in_vial + 1.0  # assumes 1ml
 
-                sleep(1.0)
+                sleep(1.25)
 
                 od_readings1 = od_reader.record_from_adc()
                 od_readings2 = od_reader.record_from_adc()
@@ -143,7 +147,9 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
                 )
 
                 inferred_od600 = (
-                    inferred_od600 * (current_volume_in_vial - 1) / current_volume_in_vial
+                    inferred_od600
+                    * (current_volume_in_vial - 1)
+                    / current_volume_in_vial  # assumes 1ml
                 )
                 inferred_od600s.append(inferred_od600)
 
@@ -151,7 +157,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
                     break
 
             else:
-                # excuted if the loop did not break
+                # executed if the loop did not break
                 click.clear()
                 plot_data(
                     inferred_od600s,
@@ -160,11 +166,12 @@ def start_recording_and_diluting(initial_od600, minimum_od600):
                     x_min=minimum_od600,
                     x_max=initial_od600,
                 )
-
-                click.echo(
-                    "Remove vial and reduce volume back to 10ml. Dry vial. Place back into Pioreactor."
-                )
-                click.confirm("Continue?", abort=True)
+                click.echo()
+                click.echo(click.style("Stop❗", fg="red"))
+                click.echo("Remove vial and reduce volume back to 10ml.")
+                click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
+                while not click.confirm("Continue?", default=True):
+                    pass
                 current_volume_in_vial = initial_volume_in_vial
                 sleep(1.0)
 
@@ -178,27 +185,35 @@ def calculate_curve_of_best_fit(voltages, inferred_od600s):
 def show_results_and_confirm_with_user(curve, voltages, inferred_od600s):
     click.clear()
     plot_data(inferred_od600s, voltages, title="OD Calibration with curve of best fit")
-    click.confirm("Confirm?", abort=True)
+    click.confirm("Save calibration?", abort=True, default=True)
 
 
 def save_results_locally(
     curve, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
 ):
     timestamp = current_utc_timestamp()
+    data_blob = encode(
+        {
+            "angle": angle,
+            "timestamp": timestamp,
+            "name": name,
+            "initial_od600": initial_od600,
+            "minimum_od600": minimum_od600,
+            "curve_data": curve,
+            "curve_type": "poly",
+            "voltages": voltages,
+            "inferred_od600s": inferred_od600s,
+            "ir_led_intensity": config["od_config"]["ir_led_intensity"],
+        }
+    )
 
-    with local_persistant_storage("calibration") as cache:
-        cache[name] = encode(
-            {
-                "angle": angle,
-                "timestamp": timestamp,
-                "name": name,
-                "initial_od600": initial_od600,
-                "minimum_od600": minimum_od600,
-                "curve": curve,
-                "voltages": voltages,
-                "inferred_od600s": inferred_od600s,
-            }
-        )
+    with local_persistant_storage("od_calibrations") as cache:
+        cache[name] = data_blob
+
+    with local_persistant_storage("current_od_calibration") as cache:
+        cache[angle] = data_blob
+
+    return data_blob
 
 
 def od_calibration():
@@ -215,17 +230,17 @@ def od_calibration():
         setup_HDC_instructions()
 
         with start_stirring():
-
             inferred_od600s, voltages = start_recording_and_diluting(initial_od600, minimum_od600)
 
         curve = calculate_curve_of_best_fit(voltages, inferred_od600s)
 
         show_results_and_confirm_with_user(curve, voltages, inferred_od600s)
-        save_results_locally(
+        data_blob = save_results_locally(
             curve, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
         )
 
-        click.echo("Finished ✅")
+        click.echo(data_blob)
+        click.echo(f"Finished calibration of {name} ✅")
         return
 
 

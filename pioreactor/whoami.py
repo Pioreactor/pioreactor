@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
-from functools import lru_cache
+from functools import cache
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
@@ -15,7 +15,7 @@ def get_latest_testing_experiment_name() -> str:
     return f"_testing_{exp}"
 
 
-@lru_cache(maxsize=1)
+@cache
 def get_latest_experiment_name() -> str:
     return _get_latest_experiment_name()
 
@@ -45,7 +45,7 @@ def _get_latest_experiment_name() -> str:
         return NO_EXPERIMENT
 
 
-@lru_cache(maxsize=1)
+@cache
 def is_testing_env() -> bool:
     return ("pytest" in sys.modules) or (os.environ.get("TESTING") is not None)
 
@@ -89,7 +89,7 @@ def am_I_active_worker() -> bool:
     return get_unit_name() in get_active_workers_in_inventory()
 
 
-@lru_cache(maxsize=1)
+@cache
 def get_uuid() -> str:
     from uuid import getnode
     from hashlib import md5

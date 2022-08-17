@@ -61,10 +61,16 @@ def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Op
 class LoggerMixin:
 
     _logger_name: t.Optional[str] = None
+    _logger = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.logger = create_logger(name=self._logger_name or self.__class__.__name__)
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = create_logger(name=self._logger_name or self.__class__.__name__)
+        return self._logger
 
 
 class PostInitCaller(type):

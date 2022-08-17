@@ -49,28 +49,27 @@ Internally, the ODReader runs a function every `interval` seconds. The function
 
 Dataflow of raw signal to final output:
 
-┌────────────────────────────────────────────────────────────────────────────────┐
-│ODReader                                                                        │
-│                                                                                │
-│                                                                                │
-│   ┌──────────────────────────────────────────┐    ┌────────────────────────┐   │
-│   │ADCReader                                 │    │IrLedReferenceTracker   │   │
-│   │                                          │    │                        │   │
-│   │                                          │    │                        │   │
-│   │ ┌──────────────┐       ┌───────────────┐ │    │  ┌─────────────────┐   │   │
-│   │ │              ├───────►               │ │    │  │                 │   │   │
-│   │ │              │       │               │ │    │  │                 │   │   │    MQTT
-│   │ │ samples from ├───────►      sin      ├─┼────┼──►  IR output      ├───┼───┼───────►
-│   │ │     ADC      │       │   regression  │ │    │  │  compensation   │   │   │
-│   │ │              ├───────►               │ │    │  │                 │   │   │
-│   │ └──────────────┘       └───────────────┘ │    │  └─────────────────┘   │   │
-│   │                                          │    │                        │   │
-│   │                                          │    │                        │   │
-│   └──────────────────────────────────────────┘    └────────────────────────┘   │
-│                                                                                │
-│                                                                                │
-└────────────────────────────────────────────────────────────────────────────────┘
-
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ODReader                                                                                                  │
+│                                                                                                          │
+│                                                                                                          │
+│   ┌──────────────────────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐   │
+│   │ADCReader                                 │  │IrLedReferenceTracker   │  │CalibrationTransformer  │   │
+│   │                                          │  │                        │  │                        │   │
+│   │                                          │  │                        │  │                        │   │
+│   │ ┌──────────────┐       ┌───────────────┐ │  │  ┌─────────────────┐   │  │  ┌─────────────────┐   │   │
+│   │ │              ├───────►               │ │  │  │                 │   │  │  │                 │   │   │
+│   │ │              │       │               │ │  │  │                 │   │  │  │                 │   │   │
+│   │ │ samples from ├───────►      sin      ├─┼──┼──►  IR output      ├───┼──┼──►  Transform via  ├───┼───┼───►
+│   │ │     ADC      │       │   regression  │ │  │  │  compensation   │   │  │  │  calibration    │   │   │
+│   │ │              ├───────►               │ │  │  │                 │   │  │  │  curve          │   │   │
+│   │ └──────────────┘       └───────────────┘ │  │  └─────────────────┘   │  │  │                 │   │   │
+│   │                                          │  │                        │  │  └─────────────────┘   │   │
+│   │                                          │  │                        │  │                        │   │
+│   └──────────────────────────────────────────┘  └────────────────────────┘  └────────────────────────┘   │
+│                                                                                                          │
+│                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
 In the ODReader class, we publish the `first_od_obs_time` to MQTT so other jobs can read it and
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
@@ -89,6 +88,7 @@ from typing import cast
 from typing import Optional
 
 import click
+from msgspec.json import decode
 from msgspec.json import encode
 
 import pioreactor.actions.led_intensity as led_utils
@@ -105,6 +105,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.timing import catchtime
@@ -584,8 +585,8 @@ class IrLedReferenceTracker(LoggerMixin):
     def get_reference_reading(self, batched_readings: dict[pt.PdChannel, float]) -> float:
         return batched_readings[self.channel]
 
-    def __call__(self, od_signal: float) -> float:
-        return od_signal
+    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+        return batched_readings
 
 
 class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
@@ -653,12 +654,13 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
                 )
         return
 
-    def __call__(self, od_signal: float) -> float:
+    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+        return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
+
+    def transform(self, od_reading: float) -> float:
         led_output = self.led_output_ema()
-        if led_output is None:
-            return od_signal
-        else:
-            return od_signal / led_output
+        assert led_output is not None
+        return od_reading / led_output
 
 
 class NullIrLedReferenceTracker(IrLedReferenceTracker):
@@ -668,6 +670,51 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
 
     def get_reference_reading(self, batched_readings) -> float:
         return 0.0
+
+
+class CalibrationTransformer(LoggerMixin):
+    _logger_name = "calibration_transformer"
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+        return batched_readings
+
+
+class NullCalibrationTransformer(CalibrationTransformer):
+    def __init__(self) -> None:
+        super().__init__()
+        self.logger.debug("Not using any calibration.")
+
+
+class CachedCalibrationTransformer(CalibrationTransformer):
+    def __init__(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
+        super().__init__()
+
+        self.models = {}
+
+        with local_persistant_storage("current_od_calibration") as c:
+            for channel, angle in channel_angle_map.items():
+                if angle in c:
+                    calibration_data = decode(c[angle])
+                    self.models[channel] = self._hydrate_model(calibration_data)
+                    self.logger.debug(
+                        f"Using calibration `{calibration_data['name']}` for channel {channel}"
+                    )
+                else:
+                    self.logger.debug(f"No calibration available for channel {channel}, skipping.")
+
+    def _hydrate_model(self, calibration_data: dict):
+        from numpy.polynomial import Polynomial
+
+        return Polynomial(calibration_data["curve_data"])
+
+    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+        return {
+            ch: self.models[ch](od) if self.models.get(ch) else od
+            for ch, od in batched_readings.items()
+        }
 
 
 class ODReader(BackgroundJob):
@@ -727,16 +774,25 @@ class ODReader(BackgroundJob):
         channel_angle_map: dict[pt.PdChannel, pt.PdAngle],
         interval: Optional[float],
         adc_reader: ADCReader,
-        ir_led_reference_tracker: IrLedReferenceTracker,
         unit: str,
         experiment: str,
+        ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
+        calibration_transformer: Optional[CalibrationTransformer] = None,
     ) -> None:
         super(ODReader, self).__init__(job_name="od_reading", unit=unit, experiment=experiment)
 
         self.adc_reader = adc_reader
         self.channel_angle_map = channel_angle_map
         self.interval = interval
-        self.ir_led_reference_tracker = ir_led_reference_tracker
+        if ir_led_reference_tracker is None:
+            self.ir_led_reference_tracker = NullIrLedReferenceTracker()
+        else:
+            self.ir_led_reference_tracker = ir_led_reference_tracker  # type: ignore
+
+        if calibration_transformer is None:
+            self.calibration_transformer = NullCalibrationTransformer()
+        else:
+            self.calibration_transformer = calibration_transformer  # type: ignore
 
         self.first_od_obs_time: Optional[float] = None
         self._set_for_iterating = threading.Event()
@@ -829,7 +885,8 @@ class ODReader(BackgroundJob):
         batched_readings = self.adc_reader.take_reading()
         ir_output_reading = self.ir_led_reference_tracker.get_reference_reading(batched_readings)
         self.ir_led_reference_tracker.update(ir_output_reading)
-        return self._normalize_by_led_output(batched_readings)
+
+        return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
 
     def record_from_adc(self) -> structs.ODReadings:
 
@@ -954,7 +1011,7 @@ class ODReader(BackgroundJob):
         if int(od_readings.timestamp[-3:-1]) % 3 == 0:  # some pseudo randomness
             cls.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
-                "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker(1.0),
+                "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker.transform(1.0),
                 "timestamp": od_readings.timestamp,
             }
 
@@ -965,14 +1022,6 @@ class ODReader(BackgroundJob):
             return
 
         cls._set_for_iterating.set()
-
-    def _normalize_by_led_output(
-        self, batched_readings: dict[pt.PdChannel, float]
-    ) -> dict[pt.PdChannel, float]:
-        return {
-            ch: self.ir_led_reference_tracker(od_signal)
-            for (ch, od_signal) in batched_readings.items()
-        }
 
     def __iter__(self):
         return self
@@ -1026,6 +1075,7 @@ def start_od_reading(
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
+    use_calibration: bool = True,
 ) -> ODReader:
 
     unit = unit or whoami.get_unit_name()
@@ -1033,17 +1083,22 @@ def start_od_reading(
 
     ir_led_reference_channel = find_ir_led_reference(od_angle_channel1, od_angle_channel2)
     channel_angle_map = create_channel_angle_map(od_angle_channel1, od_angle_channel2)
-
     channels = list(channel_angle_map.keys())
 
-    ir_led_reference_tracker: IrLedReferenceTracker
+    # use IR LED reference to normalize?
     if ir_led_reference_channel is not None:
         ir_led_reference_tracker = PhotodiodeIrLedReferenceTracker(
             ir_led_reference_channel, ignore_blank=fake_data
         )
         channels.append(ir_led_reference_channel)
     else:
-        ir_led_reference_tracker = NullIrLedReferenceTracker()
+        ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
+
+    # use OD600 calibration?
+    if use_calibration:
+        calibration_transformer = CachedCalibrationTransformer(channel_angle_map)
+    else:
+        calibration_transformer = NullCalibrationTransformer()  # type: ignore
 
     return ODReader(
         channel_angle_map,
@@ -1052,6 +1107,7 @@ def start_od_reading(
         experiment=experiment,
         adc_reader=ADCReader(channels=channels, fake_data=fake_data, interval=interval),
         ir_led_reference_tracker=ir_led_reference_tracker,
+        calibration_transformer=calibration_transformer,
     )
 
 
