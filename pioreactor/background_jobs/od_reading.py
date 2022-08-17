@@ -715,6 +715,11 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                 coef_shift[-1] = x
                 return float(roots(calibration_data["curve_data"] - coef_shift)[0])
 
+        else:
+
+            def calibration(x):
+                return x
+
         return calibration
 
     def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
@@ -791,6 +796,7 @@ class ODReader(BackgroundJob):
         self.adc_reader = adc_reader
         self.channel_angle_map = channel_angle_map
         self.interval = interval
+
         if ir_led_reference_tracker is None:
             self.ir_led_reference_tracker = NullIrLedReferenceTracker()
         else:
@@ -804,7 +810,7 @@ class ODReader(BackgroundJob):
         self.first_od_obs_time: Optional[float] = None
         self._set_for_iterating = threading.Event()
 
-        self.ir_channel: pt.LedChannel = self.get_ir_channel_from_configuration()
+        self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
         self.ir_led_intensity: float = config.getfloat("od_config", "ir_led_intensity")
         self.non_ir_led_channels: list[pt.LedChannel] = [
             ch for ch in led_utils.ALL_LED_CHANNELS if ch != self.ir_channel
@@ -869,34 +875,11 @@ class ODReader(BackgroundJob):
     def add_post_read_callback(cls, function: Callable):
         cls._post_read.append(function)
 
-    def get_ir_channel_from_configuration(self) -> pt.LedChannel:
-        try:
-            return cast(pt.LedChannel, config.get("leds_reverse", IR_keyword))
-        except Exception:
-            self.logger.error(
-                """`leds` section must contain `IR` value. Ex:
-        [leds]
-        A=IR
-            """
-            )
-            raise KeyError("`IR` value not found in section.")
-
-    def _read_from_adc(self) -> dict[pt.PdChannel, float]:
-        """
-        Read from the ADC. This function normalizes by the IR ref.
-
-        Note
-        -----
-        The IR LED needs to be turned on for this function to report accurate OD signals.
-        """
-        batched_readings = self.adc_reader.take_reading()
-        ir_output_reading = self.ir_led_reference_tracker.get_reference_reading(batched_readings)
-        self.ir_led_reference_tracker.update(ir_output_reading)
-
-        return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
-
     def record_from_adc(self) -> structs.ODReadings:
+        """
+        Take a recording of the current OD of the culture.
 
+        """
         if self.first_od_obs_time is None:
             self.first_od_obs_time = time()
 
@@ -969,6 +952,10 @@ class ODReader(BackgroundJob):
             verbose=False,
         )
 
+    ###########
+    # Private
+    ############
+
     def on_sleeping(self) -> None:
         self.record_from_adc_timer.pause()
 
@@ -988,6 +975,32 @@ class ODReader(BackgroundJob):
             self.record_from_adc_timer.cancel()
         except Exception:
             pass
+
+    def _get_ir_led_channel_from_configuration(self) -> pt.LedChannel:
+        try:
+            return cast(pt.LedChannel, config.get("leds_reverse", IR_keyword))
+        except Exception:
+            self.logger.error(
+                """`leds` section must contain `IR` value. Ex:
+        [leds]
+        A=IR
+            """
+            )
+            raise KeyError("`IR` value not found in section.")
+
+    def _read_from_adc(self) -> dict[pt.PdChannel, float]:
+        """
+        Read from the ADC. This function normalizes by the IR ref.
+
+        Note
+        -----
+        The IR LED needs to be turned on for this function to report accurate OD signals.
+        """
+        batched_readings = self.adc_reader.take_reading()
+        ir_output_reading = self.ir_led_reference_tracker.get_reference_reading(batched_readings)
+        self.ir_led_reference_tracker.update(ir_output_reading)
+
+        return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
 
     @staticmethod
     def _publish_batch(cls, od_readings: structs.ODReadings) -> None:
