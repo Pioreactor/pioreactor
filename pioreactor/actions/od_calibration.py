@@ -4,6 +4,7 @@ from __future__ import annotations
 from time import sleep
 
 import click
+from msgspec.json import decode
 from msgspec.json import encode
 
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -23,8 +24,9 @@ def introduction():
     click.echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
     1. A Pioreactor
-    2. 10ml of a culture with density the most you'll ever observe, with it's OD600 measurement.
-    3. Micro-pipette with available range 100-1000 uL volume
+    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement
+    3. Micro-pipette
+    4. Accurate 10mL scale
 """
     )
 
@@ -42,7 +44,7 @@ def get_metadata_from_user():
         "Provide the OD600 measurement of your initial culture", type=float
     )
     minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you want to calibrate to", default=0.1, type=float
+        "Provide the minimum OD600 measurement you want to calibrate to", type=float
     )
     dilution_amount = click.prompt(
         "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=float
@@ -55,7 +57,7 @@ def get_metadata_from_user():
     click.echo(f"This will require about {number_of_points} measurements.")
 
     click.confirm(
-        f"Confirm using angle {config['od_config.photodiode_channel']['2']}°",
+        f"Confirm using angle {config['od_config.photodiode_channel']['2']}° photodiode position in the Pioreactor",
         abort=True,
         default=True,
     )
@@ -95,10 +97,10 @@ def plot_data(
 
     plt.clf()
 
-    plt.scatter(x, y)
+    plt.scatter(x, y, marker="hd")
 
     if highlight_recent_point:
-        plt.scatter([x[-1]], [y[-1]], color=204)
+        plt.scatter([x[-1]], [y[-1]], color=204, marker="hd")
 
     plt.theme("pro")
     plt.title(title)
@@ -165,11 +167,13 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
 
                 while not click.confirm("Continue?", default=True):
                     pass
-                click.echo(".", nl=False)
 
                 current_volume_in_vial = current_volume_in_vial + dilution_amount
 
-                sleep(1.20)
+                for i in range(4):
+                    click.echo(".", nl=False)
+                    sleep(0.5)
+
                 click.echo(".", nl=False)
                 od_readings1 = od_reader.record_from_adc()
                 click.echo(".", nl=False)
@@ -213,10 +217,17 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
         return inferred_od600s, voltages
 
 
-def calculate_curve_of_best_fit(voltages, inferred_od600s):
+def calculate_curve_of_best_fit(voltages, inferred_od600s, degree):
     import numpy as np
 
-    coefs = np.polyfit(inferred_od600s, voltages, 4).tolist()
+    # weigh the last point, the "blank measurement", more.
+    # 1. It's far away from the other points
+    # 2. We have prior knowledge that OD~0 when V~0.
+    n = len(voltages)
+    weights = np.ones_like(voltages)
+    weights[-1] = n
+
+    coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
 
     return coefs, "poly"
 
@@ -252,8 +263,10 @@ def save_results_locally(
             "angle": angle,
             "timestamp": timestamp,
             "name": name,
-            "initial_od600": initial_od600,
+            "maximum_od600": initial_od600,
             "minimum_od600": minimum_od600,
+            "minimum_voltage": min(voltages),
+            "maximum_voltage": max(voltages),
             "curve_data": curve,
             "curve_type": curve_type,  # poly
             "voltages": voltages,
@@ -271,7 +284,7 @@ def save_results_locally(
     return data_blob
 
 
-def od_calibration():
+def od_calibration(degree):
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
@@ -289,7 +302,7 @@ def od_calibration():
                 initial_od600, minimum_od600, dilution_amount
             )
 
-        curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s)
+        curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
 
         show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od600s)
         data_blob = save_results_locally(
@@ -302,8 +315,27 @@ def od_calibration():
 
 
 @click.command(name="od_calibration")
-def click_od_calibration():
+@click.option("--display-current", is_flag=True)
+@click.option("--degree", type=int, default=4)
+def click_od_calibration(display_current, degree):
     """
     Calibrate OD600 to voltages
     """
-    od_calibration()
+    if display_current:
+        from pprint import pprint
+
+        with local_persistant_storage("current_od_calibration") as c:
+            for angle in c.keys():
+                data_blob = decode(c[angle])
+                voltages = data_blob["voltages"]
+                ods = data_blob["inferred_od600s"]
+                name, angle = data_blob["name"], data_blob["angle"]
+                plot_data(ods, voltages, title=f"{name}, {angle}°")  # add interpolation curve
+                click.echo(click.style(f"Data for {name}", underline=True, bold=True))
+                pprint(data_blob)
+                click.echo()
+                click.echo()
+                click.echo()
+
+    else:
+        od_calibration(degree)
