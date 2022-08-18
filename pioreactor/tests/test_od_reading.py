@@ -2,15 +2,20 @@
 # test_od_reading.py
 from __future__ import annotations
 
+import json
 import time
 
 import numpy as np
 import pytest
 
 from pioreactor.background_jobs.od_reading import ADCReader
+from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
+from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.utils import local_persistant_storage
+from pioreactor.whoami import get_unit_name
 
 
 def pause(n=1) -> None:
@@ -383,3 +388,93 @@ def test_outliers_are_removed_in_sin_regression() -> None:
     (C2, A, phi), _ = adc_reader.sin_regression_with_known_freq(list(x), y_without_outlier, freq)
 
     assert np.abs(C1 - C2) < 5
+
+
+def test_calibration_not_requested():
+
+    with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=False) as od:
+        assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
+
+
+def test_calibration_not_present():
+
+    with local_persistant_storage("current_od_calibration") as c:
+        if "90" in c:
+            del c["90"]
+
+    with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        assert len(od.calibration_transformer.models) == 0
+
+
+def test_calibration_simple_linear_calibration():
+    experiment = "test_calibration_simple_linear_calibration"
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = json.dumps(
+            {
+                "curve_type": "poly",
+                "curve_data": [2.0, 0.5],
+                "name": "linear",
+                "maximum_od600": 2.0,
+                "minimum_od600": 0.0,
+            }
+        )
+
+    with start_od_reading(
+        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+    ) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        x = 0.5
+        assert od.calibration_transformer.models["1"](x) == (x - 0.5) / 2
+
+        x = 0.5
+        assert od.calibration_transformer.models["1"](x) == (x - 0.5) / 2
+
+        with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
+            x = 10.0
+            assert od.calibration_transformer.models["1"](x) == 2.0
+            pause()
+            assert "suggested" in bucket[0]["message"]
+
+
+def test_calibration_simple_quadratic_calibration():
+    experiment = "test_calibration_simple_linear_calibration"
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = json.dumps(
+            {
+                "curve_type": "poly",
+                "curve_data": [1.0, 0, -0.1],
+                "name": "quad_test",
+                "maximum_od600": 2.0,
+                "minimum_od600": 0.0,
+            }
+        )
+
+    with start_od_reading(
+        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+    ) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        x = 0.5
+        assert abs(od.calibration_transformer.models["1"](x) - np.sqrt(3 / 5)) < 0.001
+
+
+def test_calibration_multi_modal():
+    experiment = "test_calibration_simple_linear_calibration"
+    poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near x=~0.125
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = (
+            '{"angle":"90","timestamp":"2022-08-17T18:53:34.201218Z","name":"multi_test","maximum_od600":1.0,"minimum_od600":0.0,"curve_data": %s,"curve_type":"poly"}'
+            % str(poly)
+        )
+
+    with start_od_reading(
+        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+    ) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+        for i in range(0, 1000):
+
+            voltage = np.polyval(poly, i / 1000)
+            print(voltage, od.calibration_transformer.models["1"](voltage))
