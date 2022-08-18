@@ -708,20 +708,36 @@ class CachedCalibrationTransformer(CalibrationTransformer):
     def _hydrate_model(self, calibration_data: dict) -> Callable:
 
         if calibration_data["curve_type"] == "poly":
-            from numpy import roots, zeros_like
+
+            """
+            Finds the smallest root in the range [minOD, maxOD] calibrated against.
+
+            Note: if the calibration curve is non-monotonic, ie. has a maximum not on the boundary of the range,
+            this procedure effectively ignores it.
+
+            """
+
+            from numpy import roots, zeros_like, iscomplex, real
 
             def calibration(x):
+                poly = calibration_data["curve_data"]
+
                 coef_shift = zeros_like(calibration_data["curve_data"])
                 coef_shift[-1] = x
-                roots_ = roots(calibration_data["curve_data"] - coef_shift)
-                min_, max_ = 0, float(calibration_data["initial_od600"])
+                roots_ = roots(poly - coef_shift)
+                min_OD, max_OD = 0, float(calibration_data["maximum_od600"])
+                roots_ = sorted(
+                    [real(r) for r in roots_ if not iscomplex(r) and (min_OD <= r <= max_OD)]
+                )
 
-                ideal_root = max_
-                for root in roots_:
-                    if min_ < root < max_:
-                        ideal_root = min(root, ideal_root)
+                try:
+                    # Q: when do I pick the second root? (for unimodal calibration curves)
+                    ideal_root = roots_[0]
+                    return ideal_root
 
-                return float(ideal_root)
+                except IndexError:
+                    self.logger.debug(f"Outside suggested calibration range [{min_OD}, {max_OD}].")
+                    return max_OD
 
         else:
 
