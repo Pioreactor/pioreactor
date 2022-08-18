@@ -154,7 +154,7 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
     """
     Pulls and installs the latest code
     """
-    import paramiko  # type: ignore
+    from sh import ssh  # type: ignore
 
     logger = create_logger("update", unit=get_unit_name(), experiment=get_latest_experiment_name())
 
@@ -166,17 +166,8 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
-
-            with paramiko.SSHClient() as client:
-                client.load_system_host_keys()
-                client.connect(add_local(unit), username="pioreactor", compress=True)
-
-                (stdin, stdout, stderr) = client.exec_command(command)
-                for line in stderr.readlines():
-                    pass
-
+            ssh(add_local(unit), command)
             return True
-
         except Exception as e:
             logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)
@@ -203,7 +194,7 @@ def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
     """
     Installs a plugin to worker and leader
     """
-    import paramiko
+    from sh import ssh  # type: ignore
 
     logger = create_logger(
         "install_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -214,16 +205,8 @@ def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
-            with paramiko.SSHClient() as client:
-                client.load_system_host_keys()
-                client.connect(add_local(unit), username="pioreactor", compress=True)
-
-                (stdin, stdout, stderr) = client.exec_command(command)
-                for line in stderr.readlines():
-                    pass
-
+            ssh(add_local(unit), command)
             return True
-
         except Exception as e:
             logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)
@@ -250,7 +233,8 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
     """
     Uninstalls a plugin from worker and leader
     """
-    import paramiko
+
+    from sh import ssh  # type: ignore
 
     logger = create_logger(
         "uninstall_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -261,17 +245,8 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")
         try:
-
-            with paramiko.SSHClient() as client:
-                client.load_system_host_keys()
-                client.connect(add_local(unit), username="pioreactor", compress=True)
-
-                (stdin, stdout, stderr) = client.exec_command(command)
-                for line in stderr.readlines():
-                    pass
-
+            ssh(add_local(unit), command)
             return True
-
         except Exception as e:
             logger.error(f"Unable to connect to unit {unit}.")
             logger.debug(e, exc_info=True)

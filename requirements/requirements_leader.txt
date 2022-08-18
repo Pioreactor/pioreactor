@@ -1,3 +1,2 @@
-paramiko==2.10.1
 sqlite3worker @ git+https://github.com/pioreactor/sqlite3worker.git
 zeroconf==0.38.6
