@@ -26,7 +26,7 @@ def introduction():
     1. A Pioreactor
     2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement
     3. Micro-pipette
-    4. Accurate 10mL scale
+    4. Accurate 10mL measurement tool
 """
     )
 
@@ -213,6 +213,25 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
                 sleep(1.0)
+        click.clear()
+        plot_data(
+            inferred_od600s,
+            voltages,
+            title="OD Calibration (ongoing)",
+            x_min=minimum_od600,
+            x_max=initial_od600,
+        )
+        click.echo("Empty the vial and replace with 10 mL of the media you used.")
+        inferred_od600 = click.prompt("What is the OD600 of your blank?", default=0, type=float)
+        click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
+        while not click.confirm("Continue?", default=True):
+            pass
+
+        od_readings1 = od_reader.record_from_adc()
+        od_readings2 = od_reader.record_from_adc()
+
+        voltages.append(0.5 * (od_readings1.od_raw["2"].voltage + od_readings2.od_raw["2"].voltage))
+        inferred_od600s.append(inferred_od600)
 
         return inferred_od600s, voltages
 
@@ -264,7 +283,7 @@ def save_results_locally(
             "timestamp": timestamp,
             "name": name,
             "maximum_od600": initial_od600,
-            "minimum_od600": minimum_od600,
+            "minimum_od600": 0,
             "minimum_voltage": min(voltages),
             "maximum_voltage": max(voltages),
             "curve_data": curve,
