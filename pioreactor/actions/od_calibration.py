@@ -209,7 +209,14 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
                 sleep(1.0)
-
+        click.clear()
+        plot_data(
+            inferred_od600s,
+            voltages,
+            title="OD Calibration (ongoing)",
+            x_min=minimum_od600,
+            x_max=initial_od600,
+        )
         click.echo("Empty the vial and replace with 10 mL of the media you used.")
         inferred_od600 = click.prompt("What is the OD600 of your blank?", default=0, type=float
         )
@@ -268,7 +275,7 @@ def save_results_locally(
             "timestamp": timestamp,
             "name": name,
             "initial_od600": initial_od600,
-            "minimum_od600": minimum_od600,
+            "minimum_od600": 0,
             "curve_data": curve,
             "curve_type": curve_type,  # poly
             "voltages": voltages,
