@@ -281,10 +281,9 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_address):
 class collect_all_logs_of_level:
     def __init__(self, log_level, unit, experiment):
         self.unit = unit
-        self.log_level = log_level
+        self.log_level = log_level.upper()
         self.experiment = experiment
         self.bucket = []
-
         self.client = subscribe_and_callback(
             self._collect_logs_into_bucket,
             f"pioreactor/{self.unit}/{self.experiment}/logs/app",
