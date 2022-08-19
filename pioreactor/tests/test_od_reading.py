@@ -8,11 +8,13 @@ import time
 import numpy as np
 import pytest
 
+from pioreactor import exc
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
@@ -461,7 +463,7 @@ def test_calibration_simple_quadratic_calibration():
 
 
 def test_calibration_multi_modal():
-    experiment = "test_calibration_simple_linear_calibration"
+    experiment = "test_calibration_multi_modal"
     poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near x=~0.125
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -470,11 +472,31 @@ def test_calibration_multi_modal():
             % str(poly)
         )
 
-    with start_od_reading(
-        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
-    ) as od:
+    with start_od_reading("90", "REF", interval=None, fake_data=True, experiment=experiment) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         for i in range(0, 1000):
 
             voltage = np.polyval(poly, i / 1000)
             print(voltage, od.calibration_transformer.models["1"](voltage))
+
+
+def test_calibration_errors_when_ir_led_differs():
+
+    experiment = "test_calibration_simple_linear_calibration"
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = json.dumps(
+            {
+                "curve_type": "poly",
+                "curve_data": [1.0, 0, -0.1],
+                "name": "quad_test",
+                "maximum_od600": 2.0,
+                "minimum_od600": 0.0,
+                "ir_led_intensity": 50,
+            }
+        )
+
+    config["od_config"]["ir_led_intensity"] = "85"
+    with pytest.raises(exc.CalibrationError):
+        with start_od_reading("90", "REF", interval=1, fake_data=True, experiment=experiment):
+            pass

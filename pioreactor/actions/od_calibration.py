@@ -56,13 +56,16 @@ def get_metadata_from_user():
 
     click.echo(f"This will require about {number_of_points} measurements.")
 
+    ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
+    signal_channel = "1" if ref_channel == "2" else "2"
+
     click.confirm(
-        f"Confirm using angle {config['od_config.photodiode_channel']['2']}° photodiode position in the Pioreactor",
+        f"Confirm using angle {config['od_config.photodiode_channel'][signal_channel]}° photodiode position in the Pioreactor",
         abort=True,
         default=True,
     )
-    angle = str(config["od_config.photodiode_channel"]["2"])
-    return name, initial_od600, minimum_od600, dilution_amount, angle
+    angle = str(config["od_config.photodiode_channel"][signal_channel])
+    return name, initial_od600, minimum_od600, dilution_amount, angle, signal_channel
 
 
 def setup_HDC_instructions():
@@ -114,7 +117,7 @@ def plot_data(
     plt.show()
 
 
-def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
+def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount, signal_channel):
 
     inferred_od600 = initial_od600
     voltages = []
@@ -131,8 +134,15 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
         fake_data=is_testing_env(),
         experiment=get_latest_testing_experiment_name(),
         use_calibration=False,
-        # calibration=False,,..
     ) as od_reader:
+
+        def get_voltage_from_adc() -> float:
+            od_readings1 = od_reader.record_from_adc()
+            od_readings2 = od_reader.record_from_adc()
+            return 0.5 * (
+                od_readings1.od_raw[signal_channel].voltage
+                + od_readings2.od_raw[signal_channel].voltage
+            )
 
         for _ in range(4):
             od_reader.record_from_adc()
@@ -146,12 +156,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
 
             inferred_od600s.append(inferred_od600)
 
-            od_readings1 = od_reader.record_from_adc()
-            od_readings2 = od_reader.record_from_adc()
-
-            voltages.append(
-                0.5 * (od_readings1.od_raw["2"].voltage + od_readings2.od_raw["2"].voltage)
-            )
+            voltages.append(get_voltage_from_adc())
 
             for i in range(number_of_plotpoints):
                 click.clear()
@@ -175,12 +180,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
                     sleep(0.5)
 
                 click.echo(".", nl=False)
-                od_readings1 = od_reader.record_from_adc()
-                click.echo(".", nl=False)
-                od_readings2 = od_reader.record_from_adc()
-                voltages.append(
-                    0.5 * (od_readings1.od_raw["2"].voltage + od_readings2.od_raw["2"].voltage)
-                )
+                voltages.append(get_voltage_from_adc())
                 click.echo(".", nl=False)
 
                 inferred_od600 = (
@@ -227,10 +227,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount):
         while not click.confirm("Continue?", default=True):
             pass
 
-        od_readings1 = od_reader.record_from_adc()
-        od_readings2 = od_reader.record_from_adc()
-
-        voltages.append(0.5 * (od_readings1.od_raw["2"].voltage + od_readings2.od_raw["2"].voltage))
+        voltages.append(get_voltage_from_adc())
         inferred_od600s.append(inferred_od600)
 
         return inferred_od600s, voltages
@@ -274,7 +271,7 @@ def show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od6
 
 
 def save_results_locally(
-    curve, curve_type, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
+    curve_data, curve_type, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
 ):
     timestamp = current_utc_timestamp()
     data_blob = encode(
@@ -286,11 +283,12 @@ def save_results_locally(
             "minimum_od600": 0,
             "minimum_voltage": min(voltages),
             "maximum_voltage": max(voltages),
-            "curve_data": curve,
-            "curve_type": curve_type,  # poly
+            "curve_data": curve_data,
+            "curve_type": curve_type,
             "voltages": voltages,
             "inferred_od600s": inferred_od600s,
-            "ir_led_intensity": config["od_config"]["ir_led_intensity"],
+            "ir_led_intensity": float(config["od_config"]["ir_led_intensity"]),
+            "ref_channel": config["od_config.photodiode_channel_reverse"]["REF"],
         }
     )
 
@@ -313,12 +311,19 @@ def od_calibration(degree):
     with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):
 
         introduction()
-        name, initial_od600, minimum_od600, dilution_amount, angle = get_metadata_from_user()
+        (
+            name,
+            initial_od600,
+            minimum_od600,
+            dilution_amount,
+            angle,
+            signal_channel,
+        ) = get_metadata_from_user()
         setup_HDC_instructions()
 
         with start_stirring():
             inferred_od600s, voltages = start_recording_and_diluting(
-                initial_od600, minimum_od600, dilution_amount
+                initial_od600, minimum_od600, dilution_amount, signal_channel
             )
 
         curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
@@ -349,7 +354,9 @@ def click_od_calibration(display_current, degree):
                 voltages = data_blob["voltages"]
                 ods = data_blob["inferred_od600s"]
                 name, angle = data_blob["name"], data_blob["angle"]
-                plot_data(ods, voltages, title=f"{name}, {angle}°")  # add interpolation curve
+                plot_data(
+                    ods, voltages, title=f"{name}, {angle}°", highlight_recent_point=False
+                )  # add interpolation curve
                 click.echo(click.style(f"Data for {name}", underline=True, bold=True))
                 pprint(data_blob)
                 click.echo()

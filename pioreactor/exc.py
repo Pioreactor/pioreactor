@@ -22,5 +22,5 @@ class JobRequiredError(Exception):
 
 class CalibrationError(Exception):
     """
-    An issue with hardware calibration (pump, stirring, etc.)
+    An issue with calibration (pump, stirring, OD, etc.)
     """

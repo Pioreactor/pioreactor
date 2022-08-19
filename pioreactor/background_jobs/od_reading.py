@@ -698,10 +698,18 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             for channel, angle in channel_angle_map.items():
                 if angle in c:
                     calibration_data = decode(c[angle])
+                    name = calibration_data["name"]
                     self.models[channel] = self._hydrate_model(calibration_data)
-                    self.logger.debug(
-                        f"Using calibration `{calibration_data['name']}` for channel {channel}"
-                    )
+                    self.logger.debug(f"Using calibration `{name}` for channel {channel}")
+
+                    # confirm that current IR intensity is the same as when calibration was performed
+                    if calibration_data["ir_led_intensity"] != config.getfloat(
+                        "od_config", "ir_led_intensity"
+                    ):
+                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data['ir_led_intensity']} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate or change the ir_led_intensity in the config.ini."
+                        self.logger.error(msg)
+                        raise exc.CalibrationError(msg)
+
                 else:
                     self.logger.debug(f"No calibration available for channel {channel}, skipping.")
 
