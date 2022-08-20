@@ -89,7 +89,7 @@ def start_stirring():
         unit=get_unit_name(),
         experiment=get_latest_testing_experiment_name(),
     )
-    st.block_until_rpm_is_close_to_target(abs_tolerance=100)
+    st.block_until_rpm_is_close_to_target(abs_tolerance=120)
     return st
 
 
@@ -213,6 +213,7 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount, 
                     pass
                 current_volume_in_vial = initial_volume_in_vial
                 sleep(1.0)
+
         click.clear()
         plot_data(
             inferred_od600s,
@@ -241,7 +242,7 @@ def calculate_curve_of_best_fit(voltages, inferred_od600s, degree):
     # 2. We have prior knowledge that OD~0 when V~0.
     n = len(voltages)
     weights = np.ones_like(voltages)
-    weights[-1] = n
+    weights[-1] = n / 2
 
     coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
 
@@ -267,7 +268,24 @@ def show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od6
         interpolation_curve=curve_callable,
         highlight_recent_point=False,
     )
-    click.confirm("Save calibration?", abort=True, default=True)
+    r = click.prompt(
+        """
+What next?
+
+Y: confirm and save to disk
+n: abort
+d: choose a new degree for polynomial fit
+
+""",
+        type=click.Choice(["Y", "n", "d"]),
+    )
+    if r == "Y":
+        return True, None
+    elif r == "n":
+        click.exit()
+    elif r == "d":
+        d = click.prompt("Enter new degree", type=int)
+        return False, d
 
 
 def save_results_locally(
@@ -301,7 +319,7 @@ def save_results_locally(
     return data_blob
 
 
-def od_calibration(degree):
+def od_calibration():
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
@@ -326,13 +344,19 @@ def od_calibration(degree):
                 initial_od600, minimum_od600, dilution_amount, signal_channel
             )
 
-        curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
+        degree = 4
+        while True:
+            curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
+            okay_with_result, degree = show_results_and_confirm_with_user(
+                curve, curve_type, voltages, inferred_od600s
+            )
+            if okay_with_result:
+                break
 
-        show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od600s)
         data_blob = save_results_locally(
             curve, curve_type, voltages, inferred_od600s, angle, name, initial_od600, minimum_od600
         )
-
+        click.echo(click.style(f"Data for {name}", underline=True, bold=True))
         click.echo(data_blob)
         click.echo(f"Finished calibration of {name} ✅")
         return
@@ -340,8 +364,7 @@ def od_calibration(degree):
 
 @click.command(name="od_calibration")
 @click.option("--display-current", is_flag=True)
-@click.option("--degree", type=int, default=4)
-def click_od_calibration(display_current, degree):
+def click_od_calibration(display_current):
     """
     Calibrate OD600 to voltages
     """
@@ -356,7 +379,7 @@ def click_od_calibration(display_current, degree):
                 name, angle = data_blob["name"], data_blob["angle"]
                 plot_data(
                     ods, voltages, title=f"{name}, {angle}°", highlight_recent_point=False
-                )  # add interpolation curve
+                )  # TODO: add interpolation curve
                 click.echo(click.style(f"Data for {name}", underline=True, bold=True))
                 pprint(data_blob)
                 click.echo()
@@ -364,4 +387,4 @@ def click_od_calibration(display_current, degree):
                 click.echo()
 
     else:
-        od_calibration(degree)
+        od_calibration()

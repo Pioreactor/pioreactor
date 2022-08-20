@@ -5,7 +5,11 @@
  - Error-handling and user improvements to `pump_calibration`.
  - `pid_turbidostat` was removed, replaced with the simpler `turbidostat`.
  - adding new table `pioreactor_unit_activity_data` that makes analysis much easier.
-
+ - New action `od_calibration` that easily allows you to add an OD600 calibration to your pioreactor. See docs: https://docs.pioreactor.com/user-guide/calibrate-od600
+ - _paramiko_ library is no longer a dependency
+ - in `growth_rate_calculating` job, `kalman_filter_outputs` is now included in `published_settings`
+ - Fix bug that wasn't saving automation events to the database.
+ - new function `voltage_in_aux` that measures what voltage is in the AUX.
 
 ### 22.7.0
  - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.

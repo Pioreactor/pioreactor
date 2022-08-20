@@ -464,7 +464,8 @@ def test_calibration_simple_quadratic_calibration():
 
 def test_calibration_multi_modal():
     experiment = "test_calibration_multi_modal"
-    poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near x=~0.125
+    # note: not a realistic calibration curve, using only because it's unimodal
+    poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near ~(0.74, 0.120)
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = (
