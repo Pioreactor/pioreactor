@@ -179,7 +179,7 @@ def od_blank(
                         structs.ODReading(
                             timestamp=current_utc_timestamp(),
                             channel=channel,
-                            voltage=means[channel],
+                            od=means[channel],
                             angle=config.get(
                                 "od_config.photodiode_channel", channel, fallback=None
                             ),

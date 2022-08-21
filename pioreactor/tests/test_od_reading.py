@@ -14,7 +14,6 @@ from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
-from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
@@ -500,7 +499,6 @@ def test_calibration_errors_when_ir_led_differs():
             }
         )
 
-    config["od_config"]["ir_led_intensity"] = "85"
     with pytest.raises(exc.CalibrationError):
         with start_od_reading("90", "REF", interval=1, fake_data=True, experiment=experiment):
             pass
