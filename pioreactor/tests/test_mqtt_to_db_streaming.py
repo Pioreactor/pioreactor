@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
         fake_data=True,
         unit=unit,
         experiment=exp,
+        use_calibration=False,
     )
 
     with local_persistant_storage("od_normalization_mean") as cache:

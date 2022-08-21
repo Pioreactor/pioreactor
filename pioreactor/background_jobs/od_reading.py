@@ -3,11 +3,11 @@
 Continuously take an optical density reading (more accurately: a turbidity reading, which is a proxy for OD).
 Topics published to
 
-    pioreactor/<unit>/<experiment>/od_reading/od_raw/<channel>
+    pioreactor/<unit>/<experiment>/od_reading/od/<channel>
 
 Ex:
 
-    pioreactor/pioreactor1/trial15/od_reading/od_raw/1
+    pioreactor/pioreactor1/trial15/od_reading/od/1
 
 a json blob like:
 
@@ -20,18 +20,18 @@ a json blob like:
 
 All signals published together to
 
-    pioreactor/<unit>/<experiment>/od_reading/od_raw_batched
+    pioreactor/<unit>/<experiment>/od_reading/ods
 
 a serialized json blob like:
 
     {
-      "od_raw": {
+      "ods": {
         "2": {
-          "voltage": 0.1008556663221068,
+          "od": 0.1008556663221068,
           "angle": "135,45"
         },
         "1": {
-          "voltage": 0.10030799136835057,
+          "od": 0.10030799136835057,
           "angle": "90,135"
         }
       },
@@ -588,6 +588,9 @@ class IrLedReferenceTracker(LoggerMixin):
     def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
         return batched_readings
 
+    def transform(self, x) -> float:
+        return x
+
 
 class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     """
@@ -740,7 +743,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
                 try:
                     # Q: when do I pick the second root? (for unimodal calibration curves)
-                    ideal_root = roots_[0]
+                    ideal_root = float(roots_[0])
                     return ideal_root
 
                 except IndexError:
@@ -935,13 +938,13 @@ class ODReader(BackgroundJob):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 sleep(0.05)
                 timestamp_of_readings = timing.current_utc_timestamp()
-                adc_reading_by_channel = self._read_from_adc()
+                od_reading_by_channel = self._read_from_adc_and_transform()
 
                 od_readings = structs.ODReadings(
                     timestamp=timestamp_of_readings,
-                    od_raw={
+                    ods={
                         channel: structs.ODReading(
-                            voltage=adc_reading_by_channel[channel],
+                            od=od_reading_by_channel[channel],
                             angle=angle,
                             timestamp=timestamp_of_readings,
                             channel=channel,
@@ -1020,7 +1023,7 @@ class ODReader(BackgroundJob):
             )
             raise KeyError("`IR` value not found in section.")
 
-    def _read_from_adc(self) -> dict[pt.PdChannel, float]:
+    def _read_from_adc_and_transform(self) -> dict[pt.PdChannel, float]:
         """
         Read from the ADC. This function normalizes by the IR ref.
 
@@ -1041,7 +1044,7 @@ class ODReader(BackgroundJob):
             return
 
         cls.publish(
-            f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/od_raw_batched",
+            f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/ods",
             encode(od_readings),
             qos=QOS.EXACTLY_ONCE,
         )
@@ -1053,8 +1056,8 @@ class ODReader(BackgroundJob):
 
         for channel, _ in cls.channel_angle_map.items():
             cls.publish(
-                f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/od_raw/{channel}",
-                encode(od_readings.od_raw[channel]),
+                f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/od/{channel}",
+                encode(od_readings.ods[channel]),
                 qos=QOS.EXACTLY_ONCE,
             )
 
@@ -1127,7 +1130,7 @@ def start_od_reading(
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_calibration: bool = True,
+    use_calibration: bool = config.get("od_config", "use_calibration"),
 ) -> ODReader:
 
     unit = unit or whoami.get_unit_name()
@@ -1179,8 +1182,12 @@ def start_od_reading(
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
+@click.option("--use-calibration", is_flag=True, help="Using an on-disk calibration, if available")
 def click_od_reading(
-    od_angle_channel1: pt.PdAngleOrREF, od_angle_channel2: pt.PdAngleOrREF, fake_data: bool
+    od_angle_channel1: pt.PdAngleOrREF,
+    od_angle_channel2: pt.PdAngleOrREF,
+    fake_data: bool,
+    use_calibration,
 ):
     """
     Start the optical density reading job
@@ -1189,5 +1196,6 @@ def click_od_reading(
         od_angle_channel1,
         od_angle_channel2,
         fake_data=fake_data or whoami.is_testing_env(),
+        use_calibration=use_calibration,
     )
     od.block_until_disconnected()

@@ -34,11 +34,12 @@ def introduction():
 def get_metadata_from_user():
     with local_persistant_storage("od_calibrations") as cache:
         while True:
-            name = click.prompt("Provide a unique name for this calibration", type=str)
+            name = click.prompt("Provide a name for this calibration", type=str)
             if name not in cache:
                 break
             else:
-                click.echo("❗️ Name already exists. Try again.")
+                if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
+                    break
 
     initial_od600 = click.prompt(
         "Provide the OD600 measurement of your initial culture", type=float
@@ -273,7 +274,7 @@ def show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od6
 What next?
 
 Y: confirm and save to disk
-n: abort
+n: abort completely
 d: choose a new degree for polynomial fit
 
 """,

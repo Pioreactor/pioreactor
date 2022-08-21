@@ -69,8 +69,8 @@ def od_statistics(
         # okay now start collecting
         for count, batched_reading in enumerate(od_stream, start=1):
 
-            for (channel, reading) in batched_reading.od_raw.items():
-                readings[channel].append(reading.voltage)
+            for (channel, reading) in batched_reading.ods.items():
+                readings[channel].append(reading.od)
                 angles[channel] = reading.angle
 
             pubsub.publish(
@@ -179,7 +179,7 @@ def od_blank(
                         structs.ODReading(
                             timestamp=current_utc_timestamp(),
                             channel=channel,
-                            voltage=means[channel],
+                            od=means[channel],
                             angle=config.get(
                                 "od_config.photodiode_channel", channel, fallback=None
                             ),

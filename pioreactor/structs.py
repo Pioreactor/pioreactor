@@ -124,13 +124,13 @@ class ODFiltered(Struct):
 class ODReading(Struct):
     timestamp: str
     angle: str
-    voltage: float
+    od: float
     channel: pt.PdChannel
 
 
 class ODReadings(Struct):
     timestamp: str
-    od_raw: dict[pt.PdChannel, ODReading]
+    ods: dict[pt.PdChannel, ODReading]
 
 
 class Temperature(Struct):

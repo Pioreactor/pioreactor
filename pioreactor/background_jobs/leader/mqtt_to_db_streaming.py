@@ -138,7 +138,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": od_reading.timestamp,
-            "od_reading_v": od_reading.voltage,
+            "od_reading": od_reading.od,
             "angle": angle,
             "channel": od_reading.channel,
         }
@@ -162,7 +162,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "experiment": metadata.experiment,
             "pioreactor_unit": metadata.pioreactor_unit,
             "timestamp": od_reading.timestamp,
-            "od_reading_v": od_reading.voltage,
+            "od_reading": od_reading.od,
             "channel": od_reading.channel,
             "angle": od_reading.angle,
         }
@@ -307,7 +307,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             parse_od_filtered,
             "od_readings_filtered",
         ),
-        TopicToParserToTable("pioreactor/+/+/od_reading/od_raw/+", parse_od, "od_readings_raw"),
+        TopicToParserToTable("pioreactor/+/+/od_reading/od/+", parse_od, "od_readings_raw"),
         TopicToParserToTable("pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"),
         TopicToParserToTable(
             "pioreactor/+/+/led_change_events",

@@ -44,8 +44,8 @@ class LEDAutomationJob(BackgroundSubJob):
     }
 
     _latest_growth_rate: Optional[float] = None
-    _latest_od: Optional[float] = None
-    previous_od: Optional[float] = None
+    _latest_normalized_od: Optional[float] = None
+    previous_normalized_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
 
     _latest_settings_ended_at: Optional[str] = None
@@ -76,7 +76,7 @@ class LEDAutomationJob(BackgroundSubJob):
 
         self.skip_first_run = skip_first_run
         self._latest_settings_started_at: str = current_utc_timestamp()
-        self.latest_od_at: datetime = datetime.utcnow()
+        self.latest_normalized_od_at: datetime = datetime.utcnow()
         self.latest_growth_rate_at: datetime = datetime.utcnow()
         self.edited_channels: set[pt.LedChannel] = set()
 
@@ -164,7 +164,7 @@ class LEDAutomationJob(BackgroundSubJob):
 
     @property
     def most_stale_time(self) -> datetime:
-        return min(self.latest_od_at, self.latest_growth_rate_at)
+        return min(self.latest_normalized_od_at, self.latest_growth_rate_at)
 
     def set_led_intensity(self, channel: pt.LedChannel, intensity: float) -> bool:
         """
@@ -223,12 +223,12 @@ class LEDAutomationJob(BackgroundSubJob):
         return cast(float, self._latest_growth_rate)
 
     @property
-    def latest_od(self) -> float:
+    def latest_normalized_od(self) -> float:
         """
         Access the latest normalized optical density.
         """
         # check if None
-        if self._latest_od is None:
+        if self._latest_normalized_od is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
             if not is_pio_job_running("od_reading", "growth_rate_calculating"):
@@ -242,7 +242,7 @@ class LEDAutomationJob(BackgroundSubJob):
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
 
-        return cast(float, self._latest_od)
+        return cast(float, self._latest_normalized_od)
 
     ########## Private & internal methods
 
@@ -275,10 +275,10 @@ class LEDAutomationJob(BackgroundSubJob):
         self.latest_growth_rate_at = to_datetime(payload.timestamp)
 
     def _set_OD(self, message: pt.MQTTMessage) -> None:
-        self.previous_od = self._latest_od
+        self.previous_normalized_od = self._latest_normalized_od
         payload = decode(message.payload, type=structs.ODFiltered)
-        self._latest_od = payload.od_filtered
-        self.latest_od_at = to_datetime(payload.timestamp)
+        self._latest_normalized_od = payload.od_filtered
+        self.latest_normalized_od_at = to_datetime(payload.timestamp)
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(
