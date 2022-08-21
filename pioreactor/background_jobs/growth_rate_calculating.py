@@ -394,7 +394,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         timestamp = od_readings.timestamp
         scaled_observations = self.scale_raw_observations(
-            self.batched_raw_od_readings_to_dict(od_readings.od_raw)
+            self.batched_raw_od_readings_to_dict(od_readings.ods)
         )
 
         if whoami.is_testing_env():
@@ -463,7 +463,7 @@ class GrowthRateCalculator(BackgroundJob):
         # process incoming data
         self.subscribe_and_callback(
             self.respond_to_od_readings_from_mqtt,
-            f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched",
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods",
             qos=QOS.EXACTLY_ONCE,
             allow_retained=False,
         )
@@ -479,12 +479,12 @@ class GrowthRateCalculator(BackgroundJob):
         """
         Inputs looks like
         {
-            0: {"voltage": 0.13, "angle": "135"},
-            1: {"voltage": 0.03, "angle": "90"}
+            0: {"od": 0.13, "angle": "135"},
+            1: {"od": 0.03, "angle": "90"}
         }
         """
         return {
-            channel: float(raw_od_readings[channel].voltage)
+            channel: float(raw_od_readings[channel].od)
             for channel in sorted(raw_od_readings, reverse=True)
         }
 
@@ -493,7 +493,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         while True:
             msg = subscribe(
-                f"pioreactor/{self.unit}/{self.experiment}/od_reading/od_raw_batched",
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods",
                 allow_retained=False,
                 timeout=10,
             )

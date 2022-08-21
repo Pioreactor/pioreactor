@@ -17,7 +17,6 @@ from pioreactor.automations.dosing.base import AltMediaCalculator
 from pioreactor.automations.dosing.continuous_cycle import ContinuousCycle
 from pioreactor.automations.dosing.morbidostat import Morbidostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
-from pioreactor.automations.dosing.pid_turbidostat import PIDTurbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_control import DosingController
@@ -99,7 +98,7 @@ def test_turbidostat_automation() -> None:
     experiment = "test_turbidostat_automation"
     target_od = 1.0
     with Turbidostat(
-        target_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
+        target_normalized_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
     ) as algo:
 
         pubsub.publish(
@@ -146,36 +145,6 @@ def test_turbidostat_automation() -> None:
         assert algo.run() is None
 
 
-def test_pid_turbidostat_automation() -> None:
-    experiment = "test_pid_turbidostat_automation"
-    target_od = 2.0
-    with PIDTurbidostat(target_od=target_od, duration=20, unit=unit, experiment=experiment) as algo:
-
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.4, "timestamp": current_utc_timestamp()}),
-        )
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 2.6, "timestamp": current_utc_timestamp()}),
-        )
-        pause()
-        e = algo.run()
-        assert isinstance(e, events.DilutionEvent)
-
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.41, "timestamp": current_utc_timestamp()}),
-        )
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 2.3, "timestamp": current_utc_timestamp()}),
-        )
-        pause()
-        e = algo.run()
-        assert isinstance(e, events.DilutionEvent)
-
-
 def test_morbidostat_automation() -> None:
     experiment = "test_morbidostat_automation"
     pubsub.publish(
@@ -191,7 +160,7 @@ def test_morbidostat_automation() -> None:
 
     target_od = 1.0
     algo = Morbidostat(
-        target_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
+        target_normalized_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
     )
 
     pubsub.publish(
@@ -345,7 +314,7 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     og_target_od = 1.0
     algo = Turbidostat(
         volume=og_volume,
-        target_od=og_target_od,
+        target_normalized_od=og_target_od,
         duration=60,
         unit=unit,
         experiment=experiment,
@@ -379,9 +348,11 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
     assert algo.volume == 1.0
 
     new_od = 1.5
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_od/set", new_od)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", new_od
+    )
     pause()
-    assert algo.target_od == new_od
+    assert algo.target_normalized_od == new_od
     algo.clean_up()
 
 
@@ -429,7 +400,7 @@ def test_pause_in_dosing_control_also_pauses_automation() -> None:
     experiment = "test_pause_in_dosing_control_also_pauses_automation"
     algo = DosingController(
         "turbidostat",
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
@@ -458,12 +429,12 @@ def test_old_readings_will_not_execute_io() -> None:
         experiment=experiment,
     ) as algo:
         algo._latest_growth_rate = 1
-        algo._latest_od = 1
+        algo._latest_normalized_od = 1
 
-        algo.latest_od_at = datetime.utcnow() - timedelta(minutes=10)
+        algo.latest_normalized_od_at = datetime.utcnow() - timedelta(minutes=10)
         algo.latest_growth_rate_at = datetime.utcnow() - timedelta(minutes=4)
 
-        assert algo.most_stale_time == algo.latest_od_at
+        assert algo.most_stale_time == algo.latest_normalized_od_at
 
         assert isinstance(algo.run(), events.NoEvent)
 
@@ -551,7 +522,7 @@ def test_throughput_calculator_restart() -> None:
 
     with DosingController(
         "turbidostat",
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
@@ -572,7 +543,7 @@ def test_throughput_calculator_manual_set() -> None:
 
     with DosingController(
         "turbidostat",
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
@@ -810,7 +781,7 @@ def test_changing_algo_over_mqtt_with_wrong_automation_type() -> None:
     experiment = "test_changing_algo_over_mqtt_with_wrong_automation_type"
     with DosingController(
         "turbidostat",
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
@@ -840,7 +811,7 @@ def test_changing_algo_over_mqtt_solo() -> None:
     experiment = "test_changing_algo_over_mqtt_solo"
     with DosingController(
         "turbidostat",
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
@@ -872,7 +843,7 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
     experiment = "test_changing_algo_over_mqtt_when_it_fails_will_rollback"
     with DosingController(
         "turbidostat",
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
         unit=unit,
@@ -894,7 +865,7 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
         time.sleep(10)
         assert algo.automation.automation_name == "turbidostat"
         assert isinstance(algo.automation_job, Turbidostat)
-        assert algo.automation_job.target_od == 1.0
+        assert algo.automation_job.target_normalized_od == 1.0
         pause()
         pause()
         pause()
@@ -912,14 +883,14 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
         c[experiment] = "0.0"
 
     algo = DosingController(
-        "pid_turbidostat",
+        "turbidostat",
         volume=1.0,
-        target_od=0.4,
+        target_normalized_od=0.4,
         duration=60,
         unit=unit,
         experiment=experiment,
     )
-    assert algo.automation.automation_name == "pid_turbidostat"
+    assert algo.automation.automation_name == "turbidostat"
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/automation/set",
@@ -929,7 +900,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
                 "type": "dosing",
                 "args": {
                     "duration": 60,
-                    "target_od": 1.0,
+                    "target_normalized_od": 1.0,
                     "volume": 1.0,
                     "skip_first_run": 1,
                 },
@@ -954,10 +925,12 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
     time.sleep(5)
     assert algo.automation_job.media_throughput == 1.0
 
-    pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/target_od/set", 1.5)
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/dosing_automation/target_normalized_od/set", 1.5
+    )
     pause()
     pause()
-    assert algo.automation_job.target_od == 1.5
+    assert algo.automation_job.target_normalized_od == 1.5
     algo.clean_up()
 
 
@@ -967,29 +940,29 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
         c[experiment] = "0.0"
 
     algo = DosingController(
-        "pid_turbidostat",
+        "turbidostat",
         volume=1.0,
-        target_od=0.4,
+        target_normalized_od=0.4,
         duration=2 / 60,
         unit=unit,
         experiment=experiment,
     )
-    assert algo.automation.automation_name == "pid_turbidostat"
-    assert algo.automation_name == "pid_turbidostat"
+    assert algo.automation.automation_name == "turbidostat"
+    assert algo.automation_name == "turbidostat"
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/dosing_control/automation/set",
         json.dumps(
             {
-                "automation_name": "pid_turbidostat",
+                "automation_name": "turbidostat",
                 "type": "dosing",
-                "args": {"duration": "60", "target_od": "1.0", "volume": "1.0"},
+                "args": {"duration": "60", "target_normalized_od": "1.0", "volume": "1.0"},
             }
         ),
     )
     time.sleep(7)  # need to wait for all jobs to disconnect correctly and threads to join.
-    assert isinstance(algo.automation_job, PIDTurbidostat)
-    assert algo.automation_job.target_od == 1.0
+    assert isinstance(algo.automation_job, Turbidostat)
+    assert algo.automation_job.target_normalized_od == 1.0
     algo.clean_up()
 
 
@@ -997,7 +970,7 @@ def test_disconnect_cleanly() -> None:
     experiment = "test_disconnect_cleanly"
     algo = DosingController(
         "turbidostat",
-        target_od=1.0,
+        target_normalized_od=1.0,
         duration=50,
         unit=unit,
         volume=1.0,
@@ -1043,7 +1016,7 @@ def test_custom_class_will_register_and_run() -> None:
             self.target_od = target_od
 
         def execute(self) -> None:
-            if self.latest_od > self.target_od:
+            if self.latest_normalized_od > self.target_od:
                 self.execute_io_action(media_ml=1.0, waste_ml=1.0)
 
     with DosingController(
@@ -1070,7 +1043,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
     )
 
     algo = Turbidostat(
-        target_od=0.1, duration=40 / 60, volume=0.25, unit=unit, experiment=experiment
+        target_normalized_od=0.1, duration=40 / 60, volume=0.25, unit=unit, experiment=experiment
     )
     pause()
     event = algo.run()

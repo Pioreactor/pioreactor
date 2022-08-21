@@ -231,7 +231,7 @@ def test_simple_API() -> None:
         od_job.start_ir_led()
         assert od_job.ir_led_intensity == led_int
         results = od_job.record_from_adc()
-        assert list(results.od_raw.keys()) == ["1"]
+        assert list(results.ods.keys()) == ["1"]
 
     od_job.clean_up()
 
@@ -262,7 +262,7 @@ def test_add_pre_read_callback() -> None:
 
     ODReader.add_pre_read_callback(cb)
 
-    od = start_od_reading("45", "REF", interval=1, fake_data=True)
+    od = start_od_reading("45", "REF", interval=1, fake_data=True, use_calibration=False)
     pause()
     pause()
     pause()
@@ -290,6 +290,7 @@ def test_add_post_read_callback() -> None:
             fake_data=True,
             experiment="test_add_post_read_callback",
             unit="test",
+            use_calibration=False,
         )
         pause(25)
         od.clean_up()
@@ -420,6 +421,7 @@ def test_calibration_simple_linear_calibration():
                 "name": "linear",
                 "maximum_od600": 2.0,
                 "minimum_od600": 0.0,
+                "ir_led_intensity": 90.0,
             }
         )
 
@@ -451,6 +453,7 @@ def test_calibration_simple_quadratic_calibration():
                 "name": "quad_test",
                 "maximum_od600": 2.0,
                 "minimum_od600": 0.0,
+                "ir_led_intensity": 90.0,
             }
         )
 
@@ -469,7 +472,7 @@ def test_calibration_multi_modal():
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = (
-            '{"angle":"90","timestamp":"2022-08-17T18:53:34.201218Z","name":"multi_test","maximum_od600":1.0,"minimum_od600":0.0,"curve_data": %s,"curve_type":"poly"}'
+            '{"angle":"90","timestamp":"2022-08-17T18:53:34.201218Z","name":"multi_test","maximum_od600":1.0,"minimum_od600":0.0,"curve_data": %s,"curve_type":"poly", "ir_led_intensity": 90.0}'
             % str(poly)
         )
 

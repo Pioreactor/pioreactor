@@ -4,14 +4,15 @@ Dosing automations intervene in the environment of the bioreactor by introducing
 (or not introducing) media into the vial, called dosing. The automations execute
 based on signals from sensors, or simply based on time.
 """
+from __future__ import annotations
+
 from .chemostat import Chemostat
 from .continuous_cycle import ContinuousCycle
+from .fed_batch import FedBatch
 from .morbidostat import Morbidostat
 from .pid_morbidostat import PIDMorbidostat
-from .pid_turbidostat import PIDTurbidostat
-from .turbidostat import Turbidostat
 from .silent import Silent
-from .fed_batch import FedBatch
+from .turbidostat import Turbidostat
 
 
 __all__ = (
@@ -19,7 +20,6 @@ __all__ = (
     "ContinuousCycle",
     "Morbidostat",
     "PIDMorbidostat",
-    "PIDTurbidostat",
     "Turbidostat",
     "Silent",
     "FedBatch",

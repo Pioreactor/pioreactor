@@ -38,9 +38,7 @@ class PIDMorbidostat(DosingAutomationJob):
             elif "waste_ml_calibration" not in cache:
                 raise CalibrationError("Waste pump calibration must be performed first.")
             elif "alt_media_ml_calibration" not in cache:
-                raise CalibrationError(
-                    "Alt-Media pump calibration must be performed first."
-                )
+                raise CalibrationError("Alt-Media pump calibration must be performed first.")
 
         self.set_target_growth_rate(target_growth_rate)
         self.target_od = float(target_od)
@@ -68,15 +66,11 @@ class PIDMorbidostat(DosingAutomationJob):
             )
 
         assert isinstance(self.duration, float)
-        self.volume = round(
-            self.target_growth_rate * VIAL_VOLUME * (self.duration / 60), 4
-        )
+        self.volume = round(self.target_growth_rate * VIAL_VOLUME * (self.duration / 60), 4)
 
     def execute(self) -> events.AutomationEvent:
-        if self.latest_od <= self.min_od:
-            return events.NoEvent(
-                f"latest OD less than OD to start diluting, {self.min_od:.2f}"
-            )
+        if self.latest_normalized_od <= self.min_od:
+            return events.NoEvent(f"latest OD less than OD to start diluting, {self.min_od:.2f}")
         else:
             assert isinstance(self.duration, float)
             fraction_of_alt_media_to_add = self.pid.update(
@@ -84,7 +78,7 @@ class PIDMorbidostat(DosingAutomationJob):
             )  # duration is measured in hours, not seconds (as simple_pid would want)
 
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
-            if self.latest_od > self.max_od:
+            if self.latest_normalized_od > self.max_od:
                 self.logger.info(
                     f"executing triple dilution since we are above max OD, {self.max_od:.2f}AU."
                 )
@@ -95,9 +89,7 @@ class PIDMorbidostat(DosingAutomationJob):
             alt_media_ml = fraction_of_alt_media_to_add * volume
             media_ml = (1 - fraction_of_alt_media_to_add) * volume
 
-            self.execute_io_action(
-                alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume
-            )
+            self.execute_io_action(alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume)
             return events.AddAltMediaEvent(
                 f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL",
                 data={

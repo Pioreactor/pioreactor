@@ -10,6 +10,14 @@
  - in `growth_rate_calculating` job, `kalman_filter_outputs` is now included in `published_settings`
  - Fix bug that wasn't saving automation events to the database.
  - new function `voltage_in_aux` that measures what voltage is in the AUX.
+ - `od_readings_raw` db table renamed to `od_readings`
+ - `od_readings_raw.od_reading_v` renamed to `od_readings`
+ - Changes to `structs.ODReadings` and `structs.ODReading`
+ - Changes to where job `od_reading` publishes data in MQTT: now `.../od_reading/ods/` and `.../od_reading/od/<channel>`
+ - Rename `latest_od` property in all automations to `latest_normalized_od`. Later we will introduce `latest_od` which refers to data directly from od_reading job.
+ - `turbidostat` automation now accepts `target_normalized_od` instead of `target_od`. Likewise for `pid_morbidostat`.
+ - new config option under `od_config`: `use_calibration` is a boolean to ask the od_reading job to use the current calibration or not.
+ - `PIDTurbidostat` automation has been nuked completely.
 
 ### 22.7.0
  - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.
