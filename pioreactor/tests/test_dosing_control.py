@@ -8,9 +8,11 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from msgspec.json import encode
 
 from pioreactor import exc
 from pioreactor import pubsub
+from pioreactor import structs
 from pioreactor.automations import DosingAutomationJob
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import AltMediaCalculator
@@ -35,35 +37,38 @@ def pause() -> None:
 
 def setup_function() -> None:
     with local_persistant_storage("pump_calibration") as cache:
-        cache["media_ml_calibration"] = json.dumps(
-            {
-                "duration_": 1.0,
-                "bias_": 0,
-                "dc": 60,
-                "hz": 100,
-                "timestamp": "2010-01-01",
-                "voltage": -1.0,
-            }
+        cache["media_ml_calibration"] = encode(
+            structs.PumpCalibration(
+                duration_=1.0,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp="2010-01-01",
+                voltage=-1.0,
+                pump="media",
+            )
         )
-        cache["alt_media_ml_calibration"] = json.dumps(
-            {
-                "duration_": 1.0,
-                "bias_": 0,
-                "dc": 60,
-                "hz": 100,
-                "timestamp": "2010-01-01",
-                "voltage": -1.0,
-            }
+        cache["alt_media_ml_calibration"] = encode(
+            structs.PumpCalibration(
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp="2010-01-01",
+                voltage=-1.0,
+                pump="alt_media",
+            )
         )
-        cache["waste_ml_calibration"] = json.dumps(
-            {
-                "duration_": 1.0,
-                "bias_": 0,
-                "dc": 60,
-                "hz": 100,
-                "timestamp": "2010-01-01",
-                "voltage": -1.0,
-            }
+        cache["waste_ml_calibration"] = encode(
+            structs.PumpCalibration(
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp="2010-01-01",
+                voltage=-1.0,
+                pump="waste",
+            )
         )
 
 

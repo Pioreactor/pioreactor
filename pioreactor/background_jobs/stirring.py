@@ -355,7 +355,7 @@ class Stirrer(BackgroundJob):
         )
         return self.measured_rpm
 
-    def poll_and_update_dc(self, poll_for_seconds: float) -> None:
+    def poll_and_update_dc(self, poll_for_seconds: float = 4) -> None:
         self.poll(poll_for_seconds)
 
         if self._measured_rpm is None:
@@ -411,7 +411,7 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"Blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
-        self.poll_and_update_dc(4)
+        self.poll_and_update_dc()
         assert self._measured_rpm is not None
 
         while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
@@ -419,12 +419,12 @@ class Stirrer(BackgroundJob):
 
             running_wait_time += sleep_time
 
-            if timeout and running_wait_time > timeout:
+            if (timeout and running_wait_time > timeout) or (self.state != self.READY):
                 self.logger.debug("Waited too long for stirring to stabilize. Breaking early.")
                 self.rpm_check_repeated_thread.unpause()
                 return False
 
-            self.poll_and_update_dc(4)
+            self.poll_and_update_dc()
 
         self.rpm_check_repeated_thread.unpause()
         return True

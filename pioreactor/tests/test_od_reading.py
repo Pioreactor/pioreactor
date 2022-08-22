@@ -223,7 +223,7 @@ def test_sin_regression_all_negative() -> None:
 
 
 def test_simple_API() -> None:
-    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True)
+    od_job = start_od_reading("90", "REF", interval=100_000, fake_data=True, use_calibration=False)
 
     for led_int in range(5, 70, 15):
         time.sleep(2)
@@ -243,6 +243,7 @@ def test_ability_to_be_iterated() -> None:
         interval=1.0,
         fake_data=True,
         experiment="test_ability_to_be_iterated",
+        use_calibration=False,
     )
     results = []
 
