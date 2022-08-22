@@ -47,9 +47,14 @@ def get_metadata_from_user():
     initial_od600 = click.prompt(
         "Provide the OD600 measurement of your initial culture", type=float
     )
-    minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you want to calibrate to", type=float
-    )
+
+    while True:
+        minimum_od600 = click.prompt(
+            "Provide the minimum OD600 measurement you want to calibrate to", type=float
+        )
+        if minimum_od600 < initial_od600:
+            break
+
     dilution_amount = click.prompt(
         "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=float
     )
@@ -245,7 +250,11 @@ def calculate_curve_of_best_fit(voltages, inferred_od600s, degree):
     weights = np.ones_like(voltages)
     weights[-1] = n / 2
 
-    coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
+    try:
+        coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
+    except Exception:
+        click.echo("Unable to fit.")
+        coefs = np.zeros(degree)
 
     return coefs, "poly"
 

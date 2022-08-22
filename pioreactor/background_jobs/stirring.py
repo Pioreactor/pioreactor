@@ -385,7 +385,7 @@ class Stirrer(BackgroundJob):
 
     def block_until_rpm_is_close_to_target(
         self, abs_tolerance: float = 15, timeout: Optional[float] = None
-    ) -> None:
+    ) -> bool:
         """
         This function blocks until the stirring is "close enough" to the target RPM.
 
@@ -396,25 +396,38 @@ class Stirrer(BackgroundJob):
         timeout:
             When timeout is not None, block at this function for maximum timeout seconds.
 
+        Returns
+        --------
+        bool: True if successfully waited until RPM is correct.
+
         """
         running_wait_time = 0.0
         sleep_time = 0.25
 
         if (self.rpm_calculator is None) or is_testing_env():
             # can't block if we aren't recording the RPM
-            return
+            return False
 
         self.logger.debug(f"Blocking until RPM is near {self.target_rpm}.")
-        while self._measured_rpm is None:
-            sleep(sleep_time)
+
+        self.rpm_check_repeated_thread.pause()
+        self.poll_and_update_dc(4)
+        assert self._measured_rpm is not None
 
         while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
             sleep(sleep_time)
+
             running_wait_time += sleep_time
 
             if timeout and running_wait_time > timeout:
                 self.logger.debug("Waited too long for stirring to stabilize. Breaking early.")
-                return
+                self.rpm_check_repeated_thread.unpause()
+                return False
+
+            self.poll_and_update_dc(4)
+
+        self.rpm_check_repeated_thread.unpause()
+        return True
 
 
 def start_stirring(
@@ -459,4 +472,5 @@ def click_stirring(target_rpm: float, ignore_rpm: bool):
     Start the stirring of the Pioreactor.
     """
     st = start_stirring(target_rpm=target_rpm, ignore_rpm=ignore_rpm)
+    st.block_until_rpm_is_close_to_target()
     st.block_until_disconnected()
