@@ -31,9 +31,7 @@ def test_check_job_states_in_monitor() -> None:
     with Monitor(unit=unit, experiment=exp):
 
         pause(20)
-        message = subscribe(
-            f"pioreactor/{unit}/{get_latest_experiment_name()}/od_reading/$state"
-        )
+        message = subscribe(f"pioreactor/{unit}/{get_latest_experiment_name()}/od_reading/$state")
         assert message is not None
         assert message.payload.decode() == "lost"
 
@@ -44,7 +42,9 @@ def test_update_leds_with_monitor() -> None:
     exp = UNIVERSAL_EXPERIMENT
 
     with Monitor(unit=unit, experiment=exp):
-
+        pause()
+        pause()
+        pause()
         publish(
             f"pioreactor/{unit}/{get_latest_experiment_name()}/run/led_intensity",
             '{"A": 10, "B": 11}',

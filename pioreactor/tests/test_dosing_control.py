@@ -839,6 +839,7 @@ def test_changing_algo_over_mqtt_solo() -> None:
         assert algo.automation_job.target_growth_rate == 0.07
 
 
+@pytest.mark.skip(reason="this doesn't clean up properly")
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
     experiment = "test_changing_algo_over_mqtt_when_it_fails_will_rollback"
     with DosingController(

@@ -134,9 +134,11 @@ def test_stirring_with_lookup_linear_v1() -> None:
 def test_stirring_will_try_to_restart_and_dodge_od_reading():
     # TODO make this an actual test
     exp = "test_stirring_will_try_to_restart_and_dodge_od_reading"
-    start_od_reading("90", interval=5.0, unit=unit, experiment=exp, fake_data=True)
 
-    with Stirrer(500, unit, exp, rpm_calculator=RpmCalculator()) as st:  # type: ignore
-        st.start_stirring()
+    with start_od_reading(
+        "90", interval=5.0, unit=unit, experiment=exp, fake_data=True, use_calibration=False
+    ):
+        with Stirrer(500, unit, exp, rpm_calculator=RpmCalculator()) as st:  # type: ignore
+            st.start_stirring()
 
-        pause(20)
+            pause(20)

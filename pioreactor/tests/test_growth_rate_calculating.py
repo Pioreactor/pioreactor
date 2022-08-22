@@ -732,7 +732,7 @@ class TestGrowthRateCalculating:
         with local_persistant_storage("od_normalization_variance") as cache:
             cache[experiment] = json.dumps({1: 1.0})
 
-        od_stream = start_od_reading(
+        with start_od_reading(
             "90",
             "REF",
             interval=1.0,
@@ -740,15 +740,14 @@ class TestGrowthRateCalculating:
             unit=unit,
             experiment=experiment,
             use_calibration=False,
-        )
-        gr = GrowthRateCalculator(unit=unit, experiment=experiment, from_mqtt=False)
-        results = []
+        ) as od_stream:
+            with GrowthRateCalculator(unit=unit, experiment=experiment, from_mqtt=False) as gr:
+                results = []
 
-        for i, reading in enumerate(od_stream):
-            results.append(gr.update_state_from_observation(reading))
-            if i == 5:
-                break
+                for i, reading in enumerate(od_stream):
+                    results.append(gr.update_state_from_observation(reading))
+                    if i == 5:
+                        break
 
-        assert len(results) > 0
-        assert results[0][0].timestamp < results[1][0].timestamp < results[2][0].timestamp  # type: ignore
-        od_stream.clean_up()
+                assert len(results) > 0
+                assert results[0][0].timestamp < results[1][0].timestamp < results[2][0].timestamp  # type: ignore
