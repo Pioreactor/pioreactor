@@ -15,6 +15,7 @@ from pioreactor.actions.pump import remove_waste
 from pioreactor.config import config
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
@@ -23,6 +24,7 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def which_pump_are_you_calibrating():
@@ -89,7 +91,7 @@ def which_pump_are_you_calibrating():
         return ("waste", remove_waste)
 
 
-def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
+def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:
     # set up...
 
     click.clear()
@@ -116,11 +118,12 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float) -> None:
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
+                timestamp=current_utc_timestamp(),
+                unit=unit,
                 duration_=1.0,
                 hz=hz,
                 dc=dc,
                 bias_=0,
-                timestamp=current_utc_timestamp(),
                 voltage=voltage_in_aux(),
             ),
         )
@@ -177,7 +180,12 @@ def plot_data(
 
 
 def run_tests(
-    execute_pump: Callable, hz: float, dc: float, min_duration: float, max_duration: float
+    execute_pump: Callable,
+    hz: float,
+    dc: float,
+    min_duration: float,
+    max_duration: float,
+    pump_name: str,
 ) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
@@ -223,6 +231,7 @@ def run_tests(
                 experiment=get_latest_testing_experiment_name(),
                 calibration=structs.PumpCalibration(
                     duration_=1.0,
+                    pump=pump_name,
                     hz=hz,
                     dc=dc,
                     bias_=0,
@@ -269,7 +278,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         is_ready = True
         while is_ready:
             hz, dc = choose_settings()
-            setup(pump_name, execute_pump, hz, dc)
+            setup(pump_name, execute_pump, hz, dc, unit)
 
             is_ready = click.confirm(
                 click.style("Do you want to change the frequency or duty cycle?", fg="green"),
@@ -277,7 +286,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 default=False,
             )
 
-        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration)
+        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_name)
 
         (slope, std_slope), (
             bias,
@@ -304,24 +313,27 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
+        pump_calibration_result = structs.PumpCalibration(
+            timestamp=current_utc_timestamp(),
+            pump=pump_name,
+            duration_=slope,
+            hz=hz,
+            dc=dc,
+            bias_=bias,
+            voltage=voltage_in_aux(),
+            durations=durations,
+            volumes=volumes,
+        )
+
         # save to cache
         with local_persistant_storage("pump_calibration") as cache:
-            cache[f"{pump_name}_ml_calibration"] = encode(
-                structs.PumpCalibration(
-                    duration_=slope,
-                    hz=hz,
-                    dc=dc,
-                    bias_=bias,
-                    timestamp=current_utc_timestamp(),
-                    voltage=voltage_in_aux(),
-                )
-            )
-            cache[f"{pump_name}_calibration_data"] = encode(
-                {
-                    "timestamp": current_utc_timestamp(),
-                    "data": {"durations": durations, "volumes": volumes},
-                }
-            )
+            cache[f"{pump_name}_ml_calibration"] = encode(pump_calibration_result)
+
+        # send to MQTT
+        publish(
+            f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/calibrations",
+            encode(pump_calibration_result),
+        )
 
         logger.debug(f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}")
 

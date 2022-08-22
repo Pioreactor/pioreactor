@@ -5,6 +5,7 @@ from json import dumps
 from json import loads
 from typing import Callable
 from typing import Optional
+from typing import Union
 
 import click
 from msgspec import Struct
@@ -301,6 +302,19 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "measured_rpm": rpms.measured_rpm,
         }
 
+    def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+        metadata = produce_metadata(topic)
+        calibration = msgspec_loads(
+            payload, type=Union[structs.ODCalibration, structs.PumpCalibration]
+        )
+
+        return {
+            "pioreactor_unit": metadata.pioreactor_unit,
+            "created_at": calibration.timestamp,
+            "type": calibration.type,
+            "data": payload,
+        }
+
     topics_to_tables = [
         TopicToParserToTable(
             "pioreactor/+/+/growth_rate_calculating/od_filtered",
@@ -373,6 +387,11 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
             "pioreactor/+/+/temperature_automation/latest_event",
             parse_automation_event,
             "temperature_automation_events",
+        ),
+        TopicToParserToTable(
+            "pioreactor/+/+/calibrations",
+            parse_calibrations,
+            "calibrations",
         ),
     ]
 

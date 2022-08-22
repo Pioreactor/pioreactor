@@ -2,13 +2,14 @@
 # test_od_reading.py
 from __future__ import annotations
 
-import json
 import time
 
 import numpy as np
 import pytest
+from msgspec.json import encode
 
 from pioreactor import exc
+from pioreactor import structs
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
@@ -413,15 +414,22 @@ def test_calibration_simple_linear_calibration():
     experiment = "test_calibration_simple_linear_calibration"
 
     with local_persistant_storage("current_od_calibration") as c:
-        c["90"] = json.dumps(
-            {
-                "curve_type": "poly",
-                "curve_data": [2.0, 0.5],
-                "name": "linear",
-                "maximum_od600": 2.0,
-                "minimum_od600": 0.0,
-                "ir_led_intensity": 90.0,
-            }
+        c["90"] = encode(
+            structs.ODCalibration(
+                timestamp="2022-01-01",
+                curve_type="poly",
+                curve_data_=[2.0, 0.5],
+                name="linear",
+                maximum_od600=2.0,
+                minimum_od600=0.0,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.0,
+                maximum_voltage=1.0,
+                voltages=[],
+                inferred_od600s=[],
+                pd_channel="2",
+            )
         )
 
     with start_od_reading(
@@ -445,15 +453,22 @@ def test_calibration_simple_quadratic_calibration():
     experiment = "test_calibration_simple_linear_calibration"
 
     with local_persistant_storage("current_od_calibration") as c:
-        c["90"] = json.dumps(
-            {
-                "curve_type": "poly",
-                "curve_data": [1.0, 0, -0.1],
-                "name": "quad_test",
-                "maximum_od600": 2.0,
-                "minimum_od600": 0.0,
-                "ir_led_intensity": 90.0,
-            }
+        c["90"] = encode(
+            structs.ODCalibration(
+                timestamp="2022-01-01",
+                curve_type="poly",
+                curve_data_=[1.0, 0, -0.1],
+                name="quad_test",
+                maximum_od600=2.0,
+                minimum_od600=0.0,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.0,
+                maximum_voltage=1.0,
+                voltages=[],
+                inferred_od600s=[],
+                pd_channel="2",
+            )
         )
 
     with start_od_reading(
@@ -470,9 +485,22 @@ def test_calibration_multi_modal():
     poly = [0.2983, -0.585, 0.146, 0.261, 0.0]  # unimodal, peak near ~(0.74, 0.120)
 
     with local_persistant_storage("current_od_calibration") as c:
-        c["90"] = (
-            '{"angle":"90","timestamp":"2022-08-17T18:53:34.201218Z","name":"multi_test","maximum_od600":1.0,"minimum_od600":0.0,"curve_data": %s,"curve_type":"poly", "ir_led_intensity": 90.0}'
-            % str(poly)
+        c["90"] = encode(
+            structs.ODCalibration(
+                timestamp="2022-01-01",
+                curve_type="poly",
+                curve_data_=poly,
+                name="multi_test",
+                maximum_od600=2.0,
+                minimum_od600=0.0,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.0,
+                maximum_voltage=1.0,
+                voltages=[],
+                inferred_od600s=[],
+                pd_channel="2",
+            )
         )
 
     with start_od_reading("90", "REF", interval=None, fake_data=True, experiment=experiment) as od:
@@ -488,15 +516,22 @@ def test_calibration_errors_when_ir_led_differs():
     experiment = "test_calibration_simple_linear_calibration"
 
     with local_persistant_storage("current_od_calibration") as c:
-        c["90"] = json.dumps(
-            {
-                "curve_type": "poly",
-                "curve_data": [1.0, 0, -0.1],
-                "name": "quad_test",
-                "maximum_od600": 2.0,
-                "minimum_od600": 0.0,
-                "ir_led_intensity": 50,
-            }
+        c["90"] = encode(
+            structs.ODCalibration(
+                timestamp="2022-01-01",
+                curve_type="poly",
+                curve_data_=[1.0, 0, -0.1],
+                name="quad_test",
+                maximum_od600=2.0,
+                minimum_od600=0.0,
+                ir_led_intensity=50.0,
+                angle="90",
+                minimum_voltage=0.0,
+                maximum_voltage=1.0,
+                voltages=[],
+                inferred_od600s=[],
+                pd_channel="2",
+            )
         )
 
     with pytest.raises(exc.CalibrationError):

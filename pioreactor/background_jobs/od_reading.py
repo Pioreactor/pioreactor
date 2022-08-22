@@ -700,25 +700,25 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         with local_persistant_storage("current_od_calibration") as c:
             for channel, angle in channel_angle_map.items():
                 if angle in c:
-                    calibration_data = decode(c[angle])
-                    name = calibration_data["name"]
+                    calibration_data = decode(c[angle], type=structs.ODCalibration)
+                    name = calibration_data.name
                     self.models[channel] = self._hydrate_model(calibration_data)
                     self.logger.debug(f"Using calibration `{name}` for channel {channel}")
 
                     # confirm that current IR intensity is the same as when calibration was performed
-                    if calibration_data["ir_led_intensity"] != config.getfloat(
+                    if calibration_data.ir_led_intensity != config.getfloat(
                         "od_config", "ir_led_intensity"
                     ):
-                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data['ir_led_intensity']} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate or change the ir_led_intensity in the config.ini."
+                        msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate or change the ir_led_intensity in the config.ini."
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
 
                 else:
                     self.logger.debug(f"No calibration available for channel {channel}, skipping.")
 
-    def _hydrate_model(self, calibration_data: dict) -> Callable:
+    def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[float], float]:
 
-        if calibration_data["curve_type"] == "poly":
+        if calibration_data.curve_type == "poly":
 
             """
             Finds the smallest root in the range [minOD, maxOD] calibrated against.
@@ -730,20 +730,20 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
             from numpy import roots, zeros_like, iscomplex, real
 
-            def calibration(x):
-                poly = calibration_data["curve_data"]
+            def calibration(x: float) -> float:
+                poly = calibration_data.curve_data_
 
-                coef_shift = zeros_like(calibration_data["curve_data"])
+                coef_shift = zeros_like(calibration_data.curve_data_)
                 coef_shift[-1] = x
                 roots_ = roots(poly - coef_shift)
-                min_OD, max_OD = 0, float(calibration_data["maximum_od600"])
-                roots_ = sorted(
+                min_OD, max_OD = 0, float(calibration_data.maximum_od600)
+                plausible_roots_ = sorted(
                     [real(r) for r in roots_ if not iscomplex(r) and (min_OD <= r <= max_OD)]
                 )
 
                 try:
                     # Q: when do I pick the second root? (for unimodal calibration curves)
-                    ideal_root = float(roots_[0])
+                    ideal_root = float(plausible_roots_[0])
                     return ideal_root
 
                 except IndexError:
@@ -752,7 +752,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
         else:
 
-            def calibration(x):
+            def calibration(x: float) -> float:
                 return x
 
         return calibration

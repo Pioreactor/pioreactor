@@ -138,13 +138,36 @@ class Temperature(Struct):
     temperature: float
 
 
-class PumpCalibration(Struct):
+class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
+    pass
+
+
+class PumpCalibration(Calibration, tag="pump_calibration"):  # type: ignore
+    timestamp: str
+    pump: str
     hz: float
     dc: float
     duration_: float
     bias_: float
     voltage: float
+    volumes: Optional[list[float]] = None
+    durations: Optional[list[float]] = None
+
+
+class ODCalibration(Calibration, tag="od_calibration"):  # type: ignore
     timestamp: str
+    name: str
+    angle: pt.PdAngle
+    maximum_od600: float
+    minimum_od600: float
+    minimum_voltage: float
+    maximum_voltage: float
+    curve_type: str
+    curve_data_: list[float]
+    voltages: list[float]
+    inferred_od600s: list[float]
+    ir_led_intensity: float
+    pd_channel: pt.PdChannel
 
 
 class Log(Struct):

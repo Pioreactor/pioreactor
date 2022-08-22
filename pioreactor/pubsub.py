@@ -68,7 +68,9 @@ def create_client(
     return client
 
 
-def publish(topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs):
+def publish(
+    topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs
+) -> None:
     from paho.mqtt import publish as mqtt_publish  # type: ignore
     import socket
 
