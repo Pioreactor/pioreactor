@@ -306,12 +306,12 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         metadata = produce_metadata(topic)
         calibration = msgspec_loads(
             payload, type=Union[structs.ODCalibration, structs.PumpCalibration]
-        )
+        )  # type: ignore
 
         return {
             "pioreactor_unit": metadata.pioreactor_unit,
             "created_at": calibration.timestamp,
-            "type": calibration.type,
+            "type": calibration.__class__.__struct_tag__,
             "data": payload,
         }
 

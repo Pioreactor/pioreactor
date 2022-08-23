@@ -445,7 +445,12 @@ def test_calibration_simple_linear_calibration():
 
         with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
             x = 10.0
+            pause()
+            pause()
+            pause()
             assert od.calibration_transformer.models["1"](x) == 2.0
+            pause()
+            pause()
             pause()
             assert "suggested" in bucket[0]["message"]
 
@@ -538,3 +543,6 @@ def test_calibration_errors_when_ir_led_differs():
     with pytest.raises(exc.CalibrationError):
         with start_od_reading("90", "REF", interval=1, fake_data=True, experiment=experiment):
             pass
+
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]

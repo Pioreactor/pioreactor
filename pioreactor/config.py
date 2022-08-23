@@ -58,7 +58,7 @@ class ConfigParserMod(configparser.ConfigParser):
             raise
 
 
-def get_config():
+def get_config() -> ConfigParserMod:
     """
     This function reads from disk and initializes the configuration logic for the Pioreactor cluster.
 

@@ -46,7 +46,7 @@ class TestGrowthRateCalculating:
     def setup_class(cls) -> None:
         # clear the caches and MQTT
         config["od_config.photodiode_channel"]["1"] = "90"
-        config["od_config.photodiode_channel"]["2"] = None
+        config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
         with local_persistant_storage("od_blank") as cache:
             for experiment in list(cache.keys()):
@@ -462,7 +462,7 @@ class TestGrowthRateCalculating:
         samples_per_second = 0.2
         config["od_config"]["samples_per_second"] = str(samples_per_second)
         config["od_config.photodiode_channel"]["1"] = "180"
-        config["od_config.photodiode_channel"]["2"] = None
+        config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 3.3})
@@ -514,7 +514,7 @@ class TestGrowthRateCalculating:
         samples_per_second = 0.2
         config["od_config"]["samples_per_second"] = str(samples_per_second)
         config["od_config.photodiode_channel"]["1"] = "90"
-        config["od_config.photodiode_channel"]["2"] = None
+        config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
         with local_persistant_storage("od_normalization_mean") as cache:
             cache[experiment] = json.dumps({"1": 0.1})

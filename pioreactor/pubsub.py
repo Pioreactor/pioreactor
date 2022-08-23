@@ -126,11 +126,11 @@ def subscribe(
 
             lock: Optional[threading.Lock]
 
-            def on_connect(client, userdata, flags, rc):
+            def on_connect(client: Client, userdata, flags, rc) -> None:
                 client.subscribe(userdata["topics"])
                 return
 
-            def on_message(client, userdata, message: MQTTMessage):
+            def on_message(client: Client, userdata, message: MQTTMessage) -> None:
                 if not allow_retained and message.retain:
                     return
 
@@ -266,7 +266,7 @@ def subscribe_and_callback(
     return client
 
 
-def prune_retained_messages(topics_to_prune="#", hostname=leader_address):
+def prune_retained_messages(topics_to_prune: str = "#", hostname=leader_address):
     topics = []
 
     def on_message(message):
@@ -281,11 +281,11 @@ def prune_retained_messages(topics_to_prune="#", hostname=leader_address):
 
 
 class collect_all_logs_of_level:
-    def __init__(self, log_level, unit, experiment):
+    def __init__(self, log_level: str, unit: str, experiment: str) -> None:
         self.unit = unit
         self.log_level = log_level.upper()
         self.experiment = experiment
-        self.bucket = []
+        self.bucket: list[dict] = []
         self.client = subscribe_and_callback(
             self._collect_logs_into_bucket,
             f"pioreactor/{self.unit}/{self.experiment}/logs/app",
@@ -306,7 +306,7 @@ class collect_all_logs_of_level:
         self.client.disconnect()
 
 
-def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None):
+def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None) -> None:
     """
     Parameters
     ------------

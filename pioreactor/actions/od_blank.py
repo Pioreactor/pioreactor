@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
+from typing import Any
 from typing import Optional
 
 import click
@@ -108,7 +109,7 @@ def od_statistics(
             "send_od_statistics_to_Pioreactor",
             fallback=False,
         ):
-            to_share = {"mean": means, "variance": variances}
+            to_share: dict[str, Any] = {"mean": means, "variance": variances}
             to_share["ir_led_intensity"] = config["od_config"]["ir_led_intensity"]
             pubsub.publish_to_pioreactor_cloud(action_name, json=to_share)
 

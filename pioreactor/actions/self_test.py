@@ -195,7 +195,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             channel = cast(PdChannel, channel)
             pd_channels_to_test.append(channel)
 
-    ir_led_channel = config["leds_reverse"][IR_keyword]
+    ir_led_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
 
     for ir_pd_channel in pd_channels_to_test:
         assert (
@@ -234,7 +234,7 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
 
 def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment: str) -> None:
 
-    reference_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
+    reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     ir_channel = config["leds_reverse"][IR_keyword]
     ir_intensity = config.getfloat("od_config", "ir_led_intensity")
 
@@ -246,7 +246,7 @@ def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment
     ).setup_adc()
 
     with change_leds_intensities_temporarily(
-        {ir_channel: ir_intensity},
+        {cast(LedChannel, ir_channel): ir_intensity},
         unit=unit,
         source_of_event="self_test",
         experiment=experiment,
