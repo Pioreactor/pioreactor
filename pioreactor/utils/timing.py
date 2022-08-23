@@ -30,7 +30,7 @@ def current_utc_timestamp() -> str:
     return current_utc_datetime().isoformat().replace("+00:00", "Z")
 
 
-def to_datetime(timestamp: str):
+def to_datetime(timestamp: str) -> datetime:
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
 
 

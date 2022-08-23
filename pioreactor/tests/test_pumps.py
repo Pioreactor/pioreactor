@@ -33,6 +33,7 @@ def setup_function():
                 "hz": 100,
                 "timestamp": "2010-01-01",
                 "voltage": -1.0,
+                "pump": "media",
             }
         )
         cache["alt_media_ml_calibration"] = json.dumps(
@@ -43,6 +44,7 @@ def setup_function():
                 "hz": 100,
                 "timestamp": "2010-01-01",
                 "voltage": -1.0,
+                "pump": "alt_media",
             }
         )
         cache["waste_ml_calibration"] = json.dumps(
@@ -53,6 +55,7 @@ def setup_function():
                 "hz": 100,
                 "timestamp": "2010-01-01",
                 "voltage": -1.0,
+                "pump": "waste",
             }
         )
 

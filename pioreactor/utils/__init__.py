@@ -135,7 +135,7 @@ class publish_ready_to_disconnected_state:
         if message.payload.decode() == "disconnected":
             self._exit()
 
-    def start_passive_listeners(self):
+    def start_passive_listeners(self) -> None:
         subscribe_and_callback(
             self.exit_from_mqtt,
             [
@@ -146,6 +146,7 @@ class publish_ready_to_disconnected_state:
             ],
             client=self.client,
         )
+        return
 
 
 @contextmanager

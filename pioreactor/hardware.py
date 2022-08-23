@@ -76,7 +76,7 @@ def is_heating_pcb_present() -> bool:
     return present
 
 
-def round_to_half_interger(x):
+def round_to_half_interger(x: float) -> float:
     y = round(x * 2) / 2
     return y
 

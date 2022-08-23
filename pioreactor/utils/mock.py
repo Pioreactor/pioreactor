@@ -45,7 +45,7 @@ class MockAnalogIn:
             "od_config.photodiode_channel_reverse", "REF"
         )
 
-    def growth_rate(self, duration_as_seconds: int) -> float:
+    def growth_rate(self, duration_as_seconds: float) -> float:
         if self.am_i_REF:
             return 0.0
 
