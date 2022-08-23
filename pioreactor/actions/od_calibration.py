@@ -48,15 +48,12 @@ def get_metadata_from_user():
         "Provide the OD600 measurement of your initial culture", type=float
     )
 
-    while True:
-        minimum_od600 = click.prompt(
-            "Provide the minimum OD600 measurement you want to calibrate to", type=float
-        )
-        if minimum_od600 < initial_od600:
-            break
+    minimum_od600 = click.prompt(
+        "Provide the minimum OD600 measurement you want to calibrate to", type=FloatRange(min=0.01, max=initial_od600, clamp=True)
+    )
 
     dilution_amount = click.prompt(
-        "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=float
+        "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=FloatRange(min=0.01, max=10, clamp=True)
     )
 
     from math import log2
