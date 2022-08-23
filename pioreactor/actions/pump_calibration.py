@@ -120,7 +120,6 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float, unit: st
             calibration=structs.PumpCalibration(
                 timestamp=current_utc_timestamp(),
                 pump=pump_name,
-                unit=unit,
                 duration_=1.0,
                 hz=hz,
                 dc=dc,
