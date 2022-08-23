@@ -45,7 +45,7 @@ def get_metadata_from_user():
                     break
 
     initial_od600 = click.prompt(
-        "Provide the OD600 measurement of your initial culture", type=click.FloatRange(min=0.01, clamp=True)
+        "Provide the OD600 measurement of your initial culture", type=click.FloatRange(min=0.01, clamp=False)
     )
 
     minimum_od600 = click.prompt(
@@ -53,7 +53,7 @@ def get_metadata_from_user():
     )
 
     dilution_amount = click.prompt(
-        "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=click.FloatRange(min=0.01, max=10, clamp=True)
+        "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=click.FloatRange(min=0.01, max=10, clamp=False)
     )
 
     from math import log2
