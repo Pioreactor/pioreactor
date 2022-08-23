@@ -54,7 +54,7 @@ def get_metadata_from_user():
 
     while minimum_od600 == initial_od600:
         minimum_od600 == click.prompt("The minimum OD600 measurement must be less than the initial OD600 culture measurement", type=click.FloatRange(min=0, max=initial_od600, clamp=False)
-    )
+        )
     
     if minimum_od600 == 0:
         minimum_od600 == 0.01
