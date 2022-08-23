@@ -49,8 +49,14 @@ def get_metadata_from_user():
     )
 
     minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you want to calibrate to", type=click.FloatRange(min=0.01, max=initial_od600, clamp=True)
+        "Provide the minimum OD600 measurement you want to calibrate to", type=click.FloatRange(min=0, max=initial_od600, clamp=False)
     )
+    
+    if minimum_od600 == 0:
+        minimum_od600 == 0.01
+        
+    if minimum_od600 == maximum_od600:
+        click.exit()
 
     dilution_amount = click.prompt(
         "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=click.FloatRange(min=0.01, max=10, clamp=False)
