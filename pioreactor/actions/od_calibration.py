@@ -55,7 +55,7 @@ def get_metadata_from_user():
     if minimum_od600 == 0:
         minimum_od600 == 0.01
         
-    if minimum_od600 == maximum_od600:
+    if minimum_od600 == initial_od600:
         click.exit()
 
     dilution_amount = click.prompt(
