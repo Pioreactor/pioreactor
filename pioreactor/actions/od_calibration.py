@@ -56,7 +56,7 @@ def get_metadata_from_user():
         minimum_od600 == 0.01
         
     if minimum_od600 == initial_od600:
-        click.exit()
+        click.Abort()
 
     dilution_amount = click.prompt(
         "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=click.FloatRange(min=0.01, max=10, clamp=False)
@@ -295,7 +295,7 @@ d: choose a new degree for polynomial fit
     if r == "Y":
         return True, None
     elif r == "n":
-        click.exit()
+        click.Abort()
     elif r == "d":
         d = click.prompt("Enter new degree", type=int)
         return False, d
