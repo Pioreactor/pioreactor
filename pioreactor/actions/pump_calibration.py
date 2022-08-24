@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from typing import Callable
+from typing import Type
 
 import click
 from msgspec.json import decode
@@ -27,7 +28,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def which_pump_are_you_calibrating():
+def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     media_timestamp, has_media = "", True
     waste_timestamp, has_waste = "", True
     alt_media_timestamp, has_alt_media = "", True
@@ -39,17 +40,17 @@ def which_pump_are_you_calibrating():
 
         if has_media:
             media_timestamp = decode(
-                cache["media_ml_calibration"], type=structs.PumpCalibration
+                cache["media_ml_calibration"], type=structs.MediaPumpCalibration
             ).timestamp[:10]
 
         if has_waste:
             waste_timestamp = decode(
-                cache["waste_ml_calibration"], type=structs.PumpCalibration
+                cache["waste_ml_calibration"], type=structs.WastePumpCalibration
             ).timestamp[:10]
 
         if has_alt_media:
             alt_media_timestamp = decode(
-                cache["alt_media_ml_calibration"], type=structs.PumpCalibration
+                cache["alt_media_ml_calibration"], type=structs.AltMediaPumpCalibration
             ).timestamp[:10]
 
     r = click.prompt(
@@ -89,6 +90,8 @@ def which_pump_are_you_calibrating():
                 prompt_suffix=" ",
             )
         return ("waste", remove_waste)
+    else:
+        raise ValueError()
 
 
 def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:
@@ -119,7 +122,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float, unit: st
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
                 timestamp=current_utc_timestamp(),
-                unit=unit,
+                pump=pump_name,
                 duration_=1.0,
                 hz=hz,
                 dc=dc,
@@ -276,6 +279,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         pump_name, execute_pump = which_pump_are_you_calibrating()
 
         is_ready = True
+        hz, dc = 0.0, 0.0
         while is_ready:
             hz, dc = choose_settings()
             setup(pump_name, execute_pump, hz, dc, unit)
@@ -313,7 +317,16 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
-        pump_calibration_result = structs.PumpCalibration(
+        if pump_name == "waste":
+            calibration: Type[structs.AnyPumpCalibration] = structs.WastePumpCalibration
+        elif pump_name == "media":
+            calibration = structs.MediaPumpCalibration
+        elif pump_name == "alt_media":
+            calibration = structs.AltMediaPumpCalibration
+        else:
+            raise ValueError()
+
+        pump_calibration_result = calibration(
             timestamp=current_utc_timestamp(),
             pump=pump_name,
             duration_=slope,

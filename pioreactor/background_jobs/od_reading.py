@@ -169,7 +169,7 @@ class ADCReader(LoggerMixin):
         self,
         channels: list[pt.PdChannel],
         fake_data: bool = False,
-        interval: float = 1.0,
+        interval: Optional[float] = 1.0,
         dynamic_gain: bool = True,
         initial_gain: float = 1,
     ) -> None:
@@ -312,8 +312,8 @@ class ADCReader(LoggerMixin):
         x: list,
         y: list,
         freq: float,
-        prior_C: float = None,
-        penalizer_C: float = None,
+        prior_C: Optional[float] = None,
+        penalizer_C: Optional[float] = 0,
     ) -> tuple[tuple[float, Optional[float], Optional[float]], float]:
         r"""
         Assumes a known frequency.
@@ -700,7 +700,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         with local_persistant_storage("current_od_calibration") as c:
             for channel, angle in channel_angle_map.items():
                 if angle in c:
-                    calibration_data = decode(c[angle], type=structs.ODCalibration)
+                    calibration_data = decode(c[angle], type=structs.AnyODCalibration)
                     name = calibration_data.name
                     self.models[channel] = self._hydrate_model(calibration_data)
                     self.logger.debug(f"Using calibration `{name}` for channel {channel}")
@@ -1126,11 +1126,11 @@ def create_channel_angle_map(
 def start_od_reading(
     od_angle_channel1: Optional[pt.PdAngleOrREF] = None,
     od_angle_channel2: Optional[pt.PdAngleOrREF] = None,
-    interval: float = 1 / config.getfloat("od_config", "samples_per_second"),
+    interval: Optional[float] = 1 / config.getfloat("od_config", "samples_per_second"),
     fake_data: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_calibration: bool = config.get("od_config", "use_calibration"),
+    use_calibration: bool = config.getboolean("od_config", "use_calibration"),
 ) -> ODReader:
 
     unit = unit or whoami.get_unit_name()
@@ -1182,12 +1182,10 @@ def start_od_reading(
     help="specify the angle(s) between the IR LED(s) and the PD in channel 2, separated by commas. Don't specify if channel is empty.",
 )
 @click.option("--fake-data", is_flag=True, help="produce fake data (for testing)")
-@click.option("--use-calibration", is_flag=True, help="Using an on-disk calibration, if available")
 def click_od_reading(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
     fake_data: bool,
-    use_calibration,
 ):
     """
     Start the optical density reading job
@@ -1196,6 +1194,5 @@ def click_od_reading(
         od_angle_channel1,
         od_angle_channel2,
         fake_data=fake_data or whoami.is_testing_env(),
-        use_calibration=use_calibration,
     )
     od.block_until_disconnected()

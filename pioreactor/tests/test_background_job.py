@@ -137,7 +137,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
         def __init__(self, unit: str, experiment: str) -> None:
             super(TestJob, self).__init__(job_name="testjob", unit=unit, experiment=experiment)
             try:
-                1 / 0
+                raise ZeroDivisionError()
             except Exception as e:
                 self.logger.error("Error!")
                 self.clean_up()

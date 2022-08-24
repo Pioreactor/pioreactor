@@ -70,8 +70,8 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
         if i < 10:  # skip the first few values
             continue
 
-        signal1.append(reading.od_raw["1"].voltage)
-        signal2.append(reading.od_raw["2"].voltage)
+        signal1.append(reading.ods["1"].od)
+        signal2.append(reading.ods["2"].od)
 
         if i == 30:
             break
@@ -200,11 +200,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     for ir_pd_channel in pd_channels_to_test:
         assert (
             results[(ir_led_channel, ir_pd_channel)] > 0.925
-        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}, {list(zip(INTENSITIES, varying_intensity_results[pd_channel]))}"
-
-        assert (
-            varying_intensity_results[pd_channel][-1] > 1e-4
-        ), f"{pd_channel} channel too low: {varying_intensity_results[pd_channel]}"
+        ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
 def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:

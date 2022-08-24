@@ -33,7 +33,7 @@ def _pump(
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[structs.PumpCalibration] = None,
+    calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt
 ) -> float:
@@ -76,7 +76,7 @@ def _pump(
             with utils.local_persistant_storage("pump_calibration") as cache:
                 try:
                     calibration = decode(
-                        cache[f"{pump_name}_ml_calibration"], type=structs.PumpCalibration
+                        cache[f"{pump_name}_ml_calibration"], type=structs.AnyPumpCalibration
                     )
                 except KeyError:
                     logger.error(
@@ -180,7 +180,7 @@ def add_media(
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[structs.PumpCalibration] = None,
+    calibration: Optional[structs.MediaPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt
 ) -> float:
@@ -225,7 +225,7 @@ def remove_waste(
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[structs.PumpCalibration] = None,
+    calibration: Optional[structs.WastePumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt
 ) -> float:
@@ -269,7 +269,7 @@ def add_alt_media(
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
-    calibration: Optional[structs.PumpCalibration] = None,
+    calibration: Optional[structs.AltMediaPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt
 ) -> float:

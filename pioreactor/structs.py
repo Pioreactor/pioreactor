@@ -6,6 +6,7 @@ These define structs for MQTT messages, and are type-checkable + runtime-checked
 from __future__ import annotations
 
 from typing import Optional
+from typing import Union
 
 from msgspec import Struct
 
@@ -32,16 +33,19 @@ class Automation(Struct):
         return str(self)
 
 
-class TemperatureAutomation(Automation, tag="temperature"):  # type: ignore
+class TemperatureAutomation(Automation, tag="temperature"):
     ...
 
 
-class DosingAutomation(Automation, tag="dosing"):  # type: ignore
+class DosingAutomation(Automation, tag="dosing"):
     ...
 
 
-class LEDAutomation(Automation, tag="led"):  # type: ignore
+class LEDAutomation(Automation, tag="led"):
     ...
+
+
+AnyAutomation = Union[LEDAutomation, TemperatureAutomation, DosingAutomation]
 
 
 class AutomationSettings(Struct):
@@ -57,7 +61,7 @@ class AutomationSettings(Struct):
     settings: bytes
 
 
-class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
+class AutomationEvent(Struct, tag=True, tag_field="event_name"):
     """
     Automations can return an AutomationEvent from their `execute` method, and it
     will get published to MQTT under /latest_event
@@ -138,11 +142,11 @@ class Temperature(Struct):
     temperature: float
 
 
-class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
+class Calibration(Struct, tag=True, tag_field="type"):
     pass
 
 
-class PumpCalibration(Calibration, tag="pump_calibration"):  # type: ignore
+class PumpCalibration(Calibration):
     timestamp: str
     pump: str
     hz: float
@@ -154,7 +158,22 @@ class PumpCalibration(Calibration, tag="pump_calibration"):  # type: ignore
     durations: Optional[list[float]] = None
 
 
-class ODCalibration(Calibration, tag="od_calibration"):  # type: ignore
+class MediaPumpCalibration(PumpCalibration, tag="media_pump"):
+    pass
+
+
+class AltMediaPumpCalibration(PumpCalibration, tag="alt_media_pump"):
+    pass
+
+
+class WastePumpCalibration(PumpCalibration, tag="waste_pump"):
+    pass
+
+
+AnyPumpCalibration = Union[MediaPumpCalibration, AltMediaPumpCalibration, WastePumpCalibration]
+
+
+class ODCalibration(Calibration):
     timestamp: str
     name: str
     angle: pt.PdAngle
@@ -168,6 +187,25 @@ class ODCalibration(Calibration, tag="od_calibration"):  # type: ignore
     inferred_od600s: list[float]
     ir_led_intensity: float
     pd_channel: pt.PdChannel
+
+
+class OD45Calibration(ODCalibration, tag="od_45"):
+    pass
+
+
+class OD90Calibration(ODCalibration, tag="od_90"):
+    pass
+
+
+class OD135Calibration(ODCalibration, tag="od_135"):
+    pass
+
+
+class OD180Calibration(ODCalibration, tag="od_180"):
+    pass
+
+
+AnyODCalibration = Union[OD90Calibration, OD45Calibration, OD180Calibration, OD135Calibration]
 
 
 class Log(Struct):

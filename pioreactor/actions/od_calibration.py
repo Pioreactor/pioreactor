@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from time import sleep
+from typing import Type
 
 import click
 from msgspec.json import decode
@@ -45,22 +46,28 @@ def get_metadata_from_user():
                     break
 
     initial_od600 = click.prompt(
-        "Provide the OD600 measurement of your initial culture", type=click.FloatRange(min=0.01, clamp=False)
+        "Provide the OD600 measurement of your initial culture",
+        type=click.FloatRange(min=0.01, clamp=False),
     )
 
     minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you want to calibrate to", type=click.FloatRange(min=0, max=initial_od600, clamp=False)
+        "Provide the minimum OD600 measurement you want to calibrate to",
+        type=click.FloatRange(min=0, max=initial_od600, clamp=False),
     )
 
     while minimum_od600 == initial_od600:
-        minimum_od600 = click.prompt("The minimum OD600 measurement must be less than the initial OD600 culture measurement", type=click.FloatRange(min=0, max=initial_od600, clamp=False)
-    )
-    
+        minimum_od600 = click.prompt(
+            "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
+            type=click.FloatRange(min=0, max=initial_od600, clamp=False),
+        )
+
     if minimum_od600 == 0:
         minimum_od600 = 0.01
-    
+
     dilution_amount = click.prompt(
-        "Provide the volume to be added to your vial (default = 1 mL)", default=1, type=click.FloatRange(min=0.01, max=10, clamp=False)
+        "Provide the volume to be added to your vial (default = 1 mL)",
+        default=1,
+        type=click.FloatRange(min=0.01, max=10, clamp=False),
     )
 
     from math import log2
@@ -313,7 +320,19 @@ def save_results_locally(
     minimum_od600: float,
     signal_channel,
 ) -> structs.ODCalibration:
-    data_blob = structs.ODCalibration(
+
+    if angle == "45":
+        od_calibration: Type[structs.ODCalibration] = structs.OD45Calibration
+    elif angle == "90":
+        od_calibration = structs.OD90Calibration
+    elif angle == "135":
+        od_calibration = structs.OD135Calibration
+    elif angle == "180":
+        od_calibration = structs.OD180Calibration
+    else:
+        raise ValueError()
+
+    data_blob = od_calibration(
         timestamp=current_utc_timestamp(),
         name=name,
         angle=angle,

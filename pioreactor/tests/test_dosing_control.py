@@ -1111,11 +1111,10 @@ def test_latest_event_goes_to_mqtt():
     ) as dc:
         assert "latest_event" in dc.automation_job.published_settings
 
-        latest_event_from_mqtt = json.loads(
-            pubsub.subscribe(
-                f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event"
-            ).payload
-        )
+        msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event")
+        assert msg is None
+
+        latest_event_from_mqtt = json.loads(msg.payload)
         assert latest_event_from_mqtt["event_name"] == "NoEvent"
         assert latest_event_from_mqtt["message"] == "demo"
         assert latest_event_from_mqtt["data"]["d"] == 1.0

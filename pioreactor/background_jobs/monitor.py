@@ -419,11 +419,11 @@ class Monitor(BackgroundJob):
             from threading import Thread
 
             if job_name == "add_media":
-                pump = add_media
+                pump = add_media  # type: ignore
             elif job_name == "add_alt_media":
-                pump = add_alt_media
+                pump = add_alt_media  # type: ignore
             elif job_name == "remove_waste":
-                pump = remove_waste
+                pump = remove_waste  # type: ignore
 
             payload["config"] = config.get_config()  # techdebt
             exp = whoami._get_latest_experiment_name()

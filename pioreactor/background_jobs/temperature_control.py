@@ -99,7 +99,6 @@ class TemperatureController(BackgroundJob):
         "temperature": {"datatype": "Temperature", "settable": False, "unit": "℃"},
         "heater_duty_cycle": {"datatype": "float", "settable": False, "unit": "%"},
     }
-    temperature: Temperature | None = None
 
     def __init__(
         self,
@@ -211,9 +210,9 @@ class TemperatureController(BackgroundJob):
         Read the current temperature from our sensor, in Celsius
         """
         retries = 0
+        running_sum, running_count = 0.0, 0
         try:
             # check temp is fast, let's do it a few times to reduce variance.
-            running_sum, running_count = 0.0, 0
             for i in range(5):
                 running_sum += self.tmp_driver.get_temperature()
                 running_count += 1
@@ -396,9 +395,6 @@ class TemperatureController(BackgroundJob):
             previous_heater_dc = self.heater_duty_cycle
 
             features: dict[str, Any] = {}
-            features["prev_temp"] = (
-                self.temperature.temperature if (self.temperature is not None) else None
-            )
             features["previous_heater_dc"] = previous_heater_dc
 
             # figure out a better way to estimate this... luckily inference is not too sensitive to this parameter.
@@ -434,15 +430,13 @@ class TemperatureController(BackgroundJob):
         self.logger.debug(features)
 
         try:
-            approximated_temperature = self.approximate_temperature(features)
+            self.temperature = Temperature(
+                temperature=self.approximate_temperature(features),
+                timestamp=current_utc_timestamp(),
+            )
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
-
-        self.temperature = Temperature(
-            temperature=approximated_temperature,
-            timestamp=current_utc_timestamp(),
-        )
 
     def approximate_temperature(self, features: dict[str, Any]) -> float:
         """
@@ -527,7 +521,7 @@ class TemperatureController(BackgroundJob):
             self.logger.debug("Error in temperature inference", exc_info=True)
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
-            return features["prev_temp"]
+            raise ValueError()
 
         if (B**2 + 4 * A) < 0:
             # something when wrong in the data collection - the data doesn't look enough like a sum of two expos
@@ -535,7 +529,7 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(f"Error in temperature inference: {(B ** 2 + 4 * A)=} < 0")
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
-            return features["prev_temp"]
+            raise ValueError()
 
         p = 0.5 * (
             B + np.sqrt(B**2 + 4 * A)
@@ -560,7 +554,7 @@ class TemperatureController(BackgroundJob):
             self.logger.debug("Error in temperature inference's second regression.", exc_info=True)
             self.logger.debug(f"x={x}")
             self.logger.debug(f"y={y}")
-            return features["prev_temp"]
+            raise ValueError()
 
         alpha, beta = b, p
         temp_at_start_of_obs = room_temp + alpha * exp(beta * 0)

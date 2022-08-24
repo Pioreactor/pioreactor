@@ -34,11 +34,11 @@ def cast_bytes_to_type(value: bytes, type_: str):
         elif type_ == "integer":
             return int(value)
         elif type_ == "boolean":
-            return bool(value)
+            return value.decode().lower() in ["true", "1", "t", "y"]
         elif type_ == "json":
             return loads(value)
         elif type_ == "Automation":
-            return loads(value, type=t.Union[structs.LEDAutomation, structs.TemperatureAutomation, structs.DosingAutomation])  # type: ignore
+            return loads(value, type=structs.AnyAutomation)
         raise TypeError(f"{type_} not found.")
     except Exception as e:
         raise e
