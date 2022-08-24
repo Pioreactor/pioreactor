@@ -88,7 +88,7 @@ def get_metadata_from_user():
     return name, initial_od600, minimum_od600, dilution_amount, angle, signal_channel
 
 
-def setup_HDC_instructions():
+def setup_HDC_instructions() -> None:
     click.clear()
     click.echo(
         """ Setting up:
@@ -360,7 +360,7 @@ def save_results_locally(
     return data_blob
 
 
-def od_calibration():
+def od_calibration() -> None:
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
@@ -411,29 +411,32 @@ def od_calibration():
         return
 
 
+def display_current_calibrations():
+    from pprint import pprint
+
+    with local_persistant_storage("current_od_calibration") as c:
+        for angle in c.keys():
+            data_blob = decode(c[angle])
+            voltages = data_blob["voltages"]
+            ods = data_blob["inferred_od600s"]
+            name, angle = data_blob["name"], data_blob["angle"]
+            plot_data(
+                ods, voltages, title=f"{name}, {angle}°", highlight_recent_point=False
+            )  # TODO: add interpolation curve
+            click.echo(click.style(f"Data for {name}", underline=True, bold=True))
+            pprint(data_blob)
+            click.echo()
+            click.echo()
+            click.echo()
+
+
 @click.command(name="od_calibration")
 @click.option("--display-current", is_flag=True)
-def click_od_calibration(display_current):
+def click_od_calibration(display_current: bool):
     """
     Calibrate OD600 to voltages
     """
     if display_current:
-        from pprint import pprint
-
-        with local_persistant_storage("current_od_calibration") as c:
-            for angle in c.keys():
-                data_blob = decode(c[angle])
-                voltages = data_blob["voltages"]
-                ods = data_blob["inferred_od600s"]
-                name, angle = data_blob["name"], data_blob["angle"]
-                plot_data(
-                    ods, voltages, title=f"{name}, {angle}°", highlight_recent_point=False
-                )  # TODO: add interpolation curve
-                click.echo(click.style(f"Data for {name}", underline=True, bold=True))
-                pprint(data_blob)
-                click.echo()
-                click.echo()
-                click.echo()
-
+        display_current_calibrations()
     else:
         od_calibration()

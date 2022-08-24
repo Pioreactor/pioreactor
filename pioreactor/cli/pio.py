@@ -296,12 +296,10 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
             version_installed = latest_release_metadata["name"]
             url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{version_installed}/pioreactor-{version_installed}-py3-none-any.whl"
 
-            command = (
-                f'sudo pip3 install --disable-pip-version-check "pioreactor @ {url_to_get_whl}"'
-            )
+            command = f'sudo pip3 install --root-user-action=ignore --disable-pip-version-check "pioreactor @ {url_to_get_whl}"'
         else:
             version_installed = branch
-            command = f"sudo pip3 install --disable-pip-version-check -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
+            command = f"sudo pip3 install --root-user-action=ignore --disable-pip-version-check -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
 
         p = subprocess.run(
             command,
