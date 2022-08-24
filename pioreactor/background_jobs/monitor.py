@@ -123,6 +123,7 @@ class Monitor(BackgroundJob):
         if whoami.am_I_leader():
             # report on last database backup, if leader
             self.check_for_last_backup()
+            self.check_for_required_jobs_running()
 
         if whoami.am_I_active_worker():
             # check the PCB temperature
@@ -131,6 +132,10 @@ class Monitor(BackgroundJob):
         if not whoami.am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
+
+    def check_for_required_jobs_running(self):
+        if not utils.is_pio_job_running("watchdog", "mqtt_to_db_streaming"):
+            self.logger.warning("watchdog and mqtt_to_db_streaming should be running on leader.")
 
     def check_heater_pcb_temperature(self) -> None:
         """

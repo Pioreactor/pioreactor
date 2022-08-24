@@ -305,7 +305,7 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         metadata = produce_metadata(topic)
         calibration = msgspec_loads(
-            payload, type=Union[structs.ODCalibration, structs.PumpCalibration]
+            payload, type=Union[structs.AnyODCalibration, structs.AnyPumpCalibration]
         )  # type: ignore
 
         return {

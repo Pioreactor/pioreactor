@@ -4,9 +4,10 @@ from __future__ import annotations
 import threading
 import time
 
-from msgspec.json import encode
 import pytest
+from msgspec.json import encode
 
+from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
@@ -15,7 +16,6 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
-from pioreactor import structs
 
 unit = get_unit_name()
 
