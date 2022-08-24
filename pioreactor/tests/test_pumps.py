@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
 import threading
 import time
 
+from msgspec.json import encode
 import pytest
 
 from pioreactor.actions.pump import add_alt_media
@@ -15,6 +15,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
+from pioreactor import structs
 
 unit = get_unit_name()
 
@@ -25,38 +26,38 @@ def pause(n=1):
 
 def setup_function():
     with local_persistant_storage("pump_calibration") as cache:
-        cache["media_ml_calibration"] = json.dumps(
-            {
-                "duration_": 1.0,
-                "bias_": 0,
-                "dc": 60,
-                "hz": 100,
-                "timestamp": "2010-01-01",
-                "voltage": -1.0,
-                "pump": "media",
-            }
+        cache["media_ml_calibration"] = encode(
+            structs.MediaPumpCalibration(
+                duration_=1.0,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp="2010-01-01",
+                voltage=-1.0,
+                pump="media",
+            )
         )
-        cache["alt_media_ml_calibration"] = json.dumps(
-            {
-                "duration_": 1.0,
-                "bias_": 0,
-                "dc": 60,
-                "hz": 100,
-                "timestamp": "2010-01-01",
-                "voltage": -1.0,
-                "pump": "alt_media",
-            }
+        cache["alt_media_ml_calibration"] = encode(
+            structs.AltMediaPumpCalibration(
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp="2010-01-01",
+                voltage=-1.0,
+                pump="alt_media",
+            )
         )
-        cache["waste_ml_calibration"] = json.dumps(
-            {
-                "duration_": 1.0,
-                "bias_": 0,
-                "dc": 60,
-                "hz": 100,
-                "timestamp": "2010-01-01",
-                "voltage": -1.0,
-                "pump": "waste",
-            }
+        cache["waste_ml_calibration"] = encode(
+            structs.WastePumpCalibration(
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp="2010-01-01",
+                voltage=-1.0,
+                pump="waste",
+            )
         )
 
 

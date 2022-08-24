@@ -38,7 +38,7 @@ def pause() -> None:
 def setup_function() -> None:
     with local_persistant_storage("pump_calibration") as cache:
         cache["media_ml_calibration"] = encode(
-            structs.PumpCalibration(
+            structs.MediaPumpCalibration(
                 duration_=1.0,
                 bias_=0.0,
                 dc=60,
@@ -49,7 +49,7 @@ def setup_function() -> None:
             )
         )
         cache["alt_media_ml_calibration"] = encode(
-            structs.PumpCalibration(
+            structs.AltMediaPumpCalibration(
                 duration_=1.0,
                 bias_=0,
                 dc=60,
@@ -60,7 +60,7 @@ def setup_function() -> None:
             )
         )
         cache["waste_ml_calibration"] = encode(
-            structs.PumpCalibration(
+            structs.WastePumpCalibration(
                 duration_=1.0,
                 bias_=0,
                 dc=60,
@@ -1112,7 +1112,7 @@ def test_latest_event_goes_to_mqtt():
         assert "latest_event" in dc.automation_job.published_settings
 
         msg = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/latest_event")
-        assert msg is None
+        assert msg is not None
 
         latest_event_from_mqtt = json.loads(msg.payload)
         assert latest_event_from_mqtt["event_name"] == "NoEvent"

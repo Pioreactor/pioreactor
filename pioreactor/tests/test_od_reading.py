@@ -416,7 +416,7 @@ def test_calibration_simple_linear_calibration():
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
-            structs.ODCalibration(
+            structs.OD90Calibration(
                 timestamp="2022-01-01",
                 curve_type="poly",
                 curve_data_=[2.0, 0.5],
@@ -460,7 +460,7 @@ def test_calibration_simple_quadratic_calibration():
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
-            structs.ODCalibration(
+            structs.OD90Calibration(
                 timestamp="2022-01-01",
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
@@ -492,7 +492,7 @@ def test_calibration_multi_modal():
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
-            structs.ODCalibration(
+            structs.OD90Calibration(
                 timestamp="2022-01-01",
                 curve_type="poly",
                 curve_data_=poly,
@@ -523,7 +523,7 @@ def test_calibration_errors_when_ir_led_differs():
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
-            structs.ODCalibration(
+            structs.OD90Calibration(
                 timestamp="2022-01-01",
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
