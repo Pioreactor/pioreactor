@@ -79,13 +79,27 @@ def _pump(
                         cache[f"{pump_name}_ml_calibration"], type=structs.AnyPumpCalibration
                     )
                 except KeyError:
-                    logger.error(
-                        f"Calibration not defined. Run {pump_name} pump calibration first."
-                    )
-                    raise exc.CalibrationError(
-                        f"Calibration not defined. Run {pump_name} pump calibration first."
-                    )
+                    if continuously:
+                        calibration = (
+                            structs.PumpCalibration(
+                                timestamp=current_utc_timestamp(),
+                                pump=pump_name,
+                                duration_=1.0,
+                                hz=200.0,
+                                dc=100.0,
+                                bias_=0,
+                                voltage=-1,
+                            ),
+                        )
+                    else:
+                        logger.error(
+                            f"Calibration not defined. Run {pump_name} pump calibration first."
+                        )
+                        raise exc.CalibrationError(
+                            f"Calibration not defined. Run {pump_name} pump calibration first."
+                        )
 
+        assert calibration is not None
         try:
             GPIO_PIN = PWM_TO_PIN[config.get("PWM_reverse", pump_name)]
         except NoOptionError:
