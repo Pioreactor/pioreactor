@@ -6,8 +6,11 @@ import time
 import pytest
 
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.base import BackgroundJobWithDodging
 from pioreactor.background_jobs.leader.watchdog import WatchDog
 from pioreactor.background_jobs.monitor import Monitor
+from pioreactor.background_jobs.od_reading import start_od_reading
+from pioreactor.config import config
 from pioreactor.config import leader_hostname
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
@@ -393,3 +396,33 @@ def test_cleans_up_mqtt() -> None:
 
     msg = subscribe(f"pioreactor/+/{exp}/job/$state", timeout=0.5)
     assert msg is not None
+
+
+def test_dodging():
+
+    config["just_pause"]["post_delay_duration"] = "0.2"
+    config["just_pause"]["pre_delay_duration"] = "0.1"
+
+    class JustPause(BackgroundJobWithDodging):
+        def __init__(self):
+            super().__init__(job_name="just_pause", unit=get_unit_name(), experiment="test_dodging")
+
+        def action_to_do_before_od_reading(self):
+            self.logger.notice("Pausing")
+
+        def action_to_do_after_od_reading(self):
+            self.logger.notice("Unpausing")
+
+    with collect_all_logs_of_level(
+        "NOTICE", unit=get_unit_name(), experiment="test_dodging"
+    ) as bucket:
+        jp = JustPause()
+        od = start_od_reading(
+            "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
+        )
+        time.sleep(20)
+
+        assert len(bucket) > 4, bucket
+
+    od.clean_up()
+    jp.clean_up()

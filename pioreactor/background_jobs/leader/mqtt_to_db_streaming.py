@@ -228,17 +228,15 @@ def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
 def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
-    event = loads(
-        payload
-    )  # structs.AutomationEvent, but see https://github.com/jcrist/msgspec/issues/115#issuecomment-1146097674
+    event = msgspec_loads(payload, type=structs.subclass_union(structs.AutomationEvent))
 
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": current_utc_timestamp(),
-        "message": event["message"],
-        "data": dumps(event["data"]) if (event["data"] is not None) else "",
-        "event_name": event["event_name"],
+        "message": event.message,
+        "data": dumps(event.data) if (event.data is not None) else "",
+        "event_name": event.event_name,  # type: ignore
     }
 
 
@@ -314,7 +312,7 @@ def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     return {
         "pioreactor_unit": metadata.pioreactor_unit,
         "created_at": calibration.timestamp,
-        "type": calibration.__class__.__struct_tag__,
+        "type": calibration.__class__.__struct_tag__,  # type: ignore
         "data": payload,
     }
 

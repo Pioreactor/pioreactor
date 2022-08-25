@@ -4,20 +4,24 @@ from __future__ import annotations
 import atexit
 import signal
 import threading
-import time
 import typing as t
+from time import sleep
+from time import time
 
 from msgspec.json import decode as loads
 from msgspec.json import encode as dumps
 
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_uuid
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
@@ -549,7 +553,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # our reconnect callback
         for _ in range(200):
             if not client.is_connected():
-                time.sleep(0.01)
+                sleep(0.01)
             else:
                 break
 
@@ -896,6 +900,125 @@ class BackgroundJob(_BackgroundJob):
 
 
 class BackgroundJobContrib(_BackgroundJob):
+    """
+    Plugin jobs should inherit from this class.
+    """
+
+    def __init__(self, job_name: str, experiment: str, unit: str, plugin_name: str) -> None:
+        super().__init__(job_name=job_name, source=plugin_name, experiment=experiment, unit=unit)
+
+
+class BackgroundJobWithDodging(_BackgroundJob):
+    """
+    This utility class allows for a change in behaviour when an OD reading is about to taken. Example: shutting
+    off a air-bubbler, or shutting off a pump or valve, with appropriate delay between.
+
+    The methods `action_to_do_before_od_reading` and `action_to_do_after_od_reading` need to be overwritten, and
+    config needs to be added:
+
+        [<job_name>]
+        post_delay_duration=
+        pre_delay_duration=
+
+    Example
+    ------------
+
+
+        class JustPause(BackgroundJobWithDodging):
+
+            def __init__(self):
+                super().__init__(job_name="just_pause", unit=get_unit_name(), experiment=get_latest_experiment_name())
+
+            def action_to_do_before_od_reading(self):
+                self.logger.debug("Pausing")
+
+            def action_to_do_after_od_reading(self):
+                self.logger.debug("Unpausing")
+
+
+    """
+
+    sneak_in_timer: RepeatedTimer
+
+    def __init__(self, *args, source="app", **kwargs):
+        super().__init__(*args, source=source, **kwargs)
+        self._start_passive_listeners()
+
+    def action_to_do_before_od_reading(self):
+        raise NotImplementedError()
+
+    def action_to_do_after_od_reading(self):
+        raise NotImplementedError()
+
+    def _start_passive_listeners(self) -> None:
+        self.subscribe_and_callback(
+            self._setup_actions,
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
+        )
+
+    def _setup_actions(self, msg: pt.MQTTMessage):
+
+        if not msg.payload:
+            # OD reading stopped, turn on and exit
+            self.sneak_in_timer.cancel()
+            self.action_to_do_after_od_reading()
+            return
+
+        # OD started - turn off immediately
+        self.action_to_do_before_od_reading()
+
+        try:
+            self.sneak_in_timer.cancel()
+        except AttributeError:
+            pass
+
+        post_delay, pre_delay = config.getfloat(
+            self.job_name, "post_delay_duration"
+        ), config.getfloat(self.job_name, "pre_delay_duration")
+
+        def sneak_in():
+            if self.state != self.READY:
+                return
+
+            self.action_to_do_after_od_reading()
+            sleep(ads_interval - (post_delay + pre_delay))
+            self.action_to_do_before_od_reading()
+
+        # this could fail in the following way:
+        # in the same experiment, the od_reading fails catastrophically so that the ADC attributes are never
+        # cleared. Later, this job starts, and it will pick up the _old_ ADC attributes.
+        ads_start_time_msg = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time"
+        )
+        if ads_start_time_msg is not None:
+            ads_start_time = float(ads_start_time_msg.payload)
+        else:
+            return
+
+        ads_interval_msg = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
+        )
+        if ads_interval_msg is not None:
+            ads_interval = float(ads_interval_msg.payload)
+        else:
+            return
+
+        # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval
+        if ads_interval <= (post_delay + pre_delay) - 1:  # one second for the ADS reading
+            self.logger.error(
+                f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1/ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
+            )
+            self.clean_up()
+
+        self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
+
+        time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
+
+        sleep(time_to_next_ads_reading + post_delay)
+        self.sneak_in_timer.start()
+
+
+class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
     """
     Plugin jobs should inherit from this class.
     """
