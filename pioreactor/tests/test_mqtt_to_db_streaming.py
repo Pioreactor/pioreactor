@@ -3,15 +3,93 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import time
+from time import sleep
+
+from msgspec.json import encode
 
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
+from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
+from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
+from pioreactor.whoami import get_unit_name
+
+
+def test_calibration_gets_saved() -> None:
+    experiment = "test_calibration_gets_saved"
+    config["storage"]["database"] = "test.sqlite"
+
+    # init the database
+    connection = sqlite3.connect(config["storage"]["database"])
+    cursor = connection.cursor()
+
+    cursor.executescript(
+        """
+DROP TABLE IF EXISTS calibrations;
+
+CREATE TABLE IF NOT EXISTS calibrations (
+    pioreactor_unit          TEXT NOT NULL,
+    created_at               TEXT NOT NULL,
+    type                     TEXT NOT NULL,
+    data                     TEXT NOT NULL
+);
+
+    """
+    )
+    connection.commit()
+
+    parsers = [
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/calibrations",
+            m2db.parse_calibrations,
+            "calibrations",
+        )
+    ]
+
+    with m2db.MqttToDBStreamer(parsers, unit=get_unit_name(), experiment=experiment):
+        sleep(1)
+        publish(
+            f"pioreactor/{get_unit_name()}/test/calibrations",
+            encode(
+                structs.WastePumpCalibration(
+                    timestamp="2012",
+                    pump="waste",
+                    hz=120,
+                    dc=60.0,
+                    duration_=1.0,
+                    bias_=0.0,
+                    voltage=12.0,
+                )
+            ),
+        )
+        sleep(1)
+
+        cursor.execute("SELECT * FROM calibrations WHERE pioreactor_unit=?", (get_unit_name(),))
+        results = cursor.fetchall()
+        assert len(results) == 1
+
+        # create some new calibration, like from a plugin
+        class LEDCalibration(structs.Calibration, tag="led"):
+            timestamp: str
+
+        publish(
+            f"pioreactor/{get_unit_name()}/test/calibrations",
+            encode(
+                LEDCalibration(
+                    timestamp="2012",
+                )
+            ),
+        )
+        sleep(1)
+
+        cursor.execute("SELECT * FROM calibrations WHERE pioreactor_unit=?", (get_unit_name(),))
+        results = cursor.fetchall()
+        assert len(results) == 2
+        assert results[1][2] == "led"
 
 
 def test_kalman_filter_entries() -> None:
@@ -22,24 +100,6 @@ def test_kalman_filter_entries() -> None:
 
     unit = "unit"
     exp = "test_kalman_filter_entries"
-
-    def parse_kalman_filter_outputs(topic: str, payload) -> dict:
-        metadata = m2db.produce_metadata(topic)
-        payload_dict = json.loads(payload)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "state_0": payload_dict["state"][0],
-            "state_1": payload_dict["state"][1],
-            "state_2": payload_dict["state"][2],
-            "cov_00": payload_dict["covariance_matrix"][0][0],
-            "cov_01": payload_dict["covariance_matrix"][0][1],
-            "cov_02": payload_dict["covariance_matrix"][0][2],
-            "cov_11": payload_dict["covariance_matrix"][1][1],
-            "cov_12": payload_dict["covariance_matrix"][1][2],
-            "cov_22": payload_dict["covariance_matrix"][2][2],
-        }
 
     # init the database
     connection = sqlite3.connect(config["storage"]["database"])
@@ -92,7 +152,7 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     parsers = [
         m2db.TopicToParserToTable(
             "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
-            parse_kalman_filter_outputs,
+            m2db.parse_kalman_filter_outputs,
             "kalman_filter_outputs",
         )
     ]
@@ -100,7 +160,7 @@ CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
     m = m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp)
 
     # let data collect
-    time.sleep(10)
+    sleep(10)
 
     cursor.execute("SELECT * FROM kalman_filter_outputs WHERE experiment = ?", (exp,))
     results = cursor.fetchall()
@@ -162,6 +222,6 @@ def test_empty_payload_is_filtered_early() -> None:
         with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
             t = TestJob(unit=unit, experiment=exp)
             t.clean_up()
-            time.sleep(1)
+            sleep(1)
 
         assert len(bucket) == 0

@@ -5,7 +5,6 @@ from json import dumps
 from json import loads
 from typing import Callable
 from typing import Optional
-from typing import Union
 
 import click
 from msgspec import Struct
@@ -116,206 +115,212 @@ def produce_metadata(topic: str) -> MetaData:
     return MetaData(split_topic[1], split_topic[2])
 
 
-def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
+def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    od_reading = msgspec_loads(payload, type=structs.ODReading)
 
-    ###################
-    # parsers
-    ###################
-    # - must return a dictionary with the column names (order isn't important)
-    # - `produce_metadata` is a helper function, see definition.
-    # - parsers can return None as well, to skip adding the message to the database.
-    #
+    try:
+        angle = int(od_reading.angle)
+    except TypeError:
+        angle = -1
 
-    def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        od_reading = msgspec_loads(payload, type=structs.ODReading)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": od_reading.timestamp,
+        "od_reading": od_reading.od,
+        "angle": angle,
+        "channel": od_reading.channel,
+    }
 
-        try:
-            angle = int(od_reading.angle)
-        except TypeError:
-            angle = -1
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": od_reading.timestamp,
-            "od_reading": od_reading.od,
-            "angle": angle,
-            "channel": od_reading.channel,
-        }
+def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    od_reading = msgspec_loads(payload, type=structs.ODFiltered)
 
-    def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        od_reading = msgspec_loads(payload, type=structs.ODFiltered)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": od_reading.timestamp,
+        "normalized_od_reading": od_reading.od_filtered,
+    }
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": od_reading.timestamp,
-            "normalized_od_reading": od_reading.od_filtered,
-        }
 
-    def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> Optional[dict]:
-        metadata = produce_metadata(topic)
-        od_reading = msgspec_loads(payload, type=structs.ODReading)
+def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> Optional[dict]:
+    metadata = produce_metadata(topic)
+    od_reading = msgspec_loads(payload, type=structs.ODReading)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": od_reading.timestamp,
-            "od_reading": od_reading.od,
-            "channel": od_reading.channel,
-            "angle": od_reading.angle,
-        }
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": od_reading.timestamp,
+        "od_reading": od_reading.od,
+        "channel": od_reading.channel,
+        "angle": od_reading.angle,
+    }
 
-    def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
-        metadata = produce_metadata(topic)
+def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
-        payload_dict = loads(payload)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": payload_dict["timestamp"],
-            "relative_intensity": payload_dict["relative_intensity_of_ir_led"],
-        }
+    metadata = produce_metadata(topic)
 
-    def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        dosing_event = msgspec_loads(payload, type=structs.DosingEvent)
-        metadata = produce_metadata(topic)
+    payload_dict = loads(payload)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": payload_dict["timestamp"],
+        "relative_intensity": payload_dict["relative_intensity_of_ir_led"],
+    }
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": dosing_event.timestamp,
-            "volume_change_ml": dosing_event.volume_change,
-            "event": dosing_event.event,
-            "source_of_event": dosing_event.source_of_event,
-        }
 
-    def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        led_event = msgspec_loads(payload, type=structs.LEDChangeEvent)
-        metadata = produce_metadata(topic)
+def parse_dosing_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    dosing_event = msgspec_loads(payload, type=structs.DosingEvent)
+    metadata = produce_metadata(topic)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": led_event.timestamp,
-            "channel": led_event.channel,
-            "intensity": led_event.intensity,
-            "source_of_event": led_event.source_of_event,
-        }
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": dosing_event.timestamp,
+        "volume_change_ml": dosing_event.volume_change,
+        "event": dosing_event.event,
+        "source_of_event": dosing_event.source_of_event,
+    }
 
-    def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        gr = msgspec_loads(payload, type=structs.GrowthRate)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": gr.timestamp,
-            "rate": gr.growth_rate,
-        }
+def parse_led_change_events(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    led_event = msgspec_loads(payload, type=structs.LEDChangeEvent)
+    metadata = produce_metadata(topic)
 
-    def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": led_event.timestamp,
+        "channel": led_event.channel,
+        "intensity": led_event.intensity,
+        "source_of_event": led_event.source_of_event,
+    }
 
-        temp = msgspec_loads(payload, type=structs.Temperature)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": temp.timestamp,
-            "temperature_c": temp.temperature,
-        }
+def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    gr = msgspec_loads(payload, type=structs.GrowthRate)
 
-    def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        event = loads(
-            payload
-        )  # structs.AutomationEvent, but see https://github.com/jcrist/msgspec/issues/115#issuecomment-1146097674
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": gr.timestamp,
+        "rate": gr.growth_rate,
+    }
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": current_utc_timestamp(),
-            "message": event["message"],
-            "data": dumps(event["data"]) if (event["data"] is not None) else "",
-            "event_name": event["event_name"],
-        }
 
-    def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        payload = loads(payload)
+def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": current_utc_timestamp(),
-            "alt_media_fraction": float(payload),
-        }
+    temp = msgspec_loads(payload, type=structs.Temperature)
 
-    def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        log = msgspec_loads(payload, type=structs.Log)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": temp.timestamp,
+        "temperature_c": temp.temperature,
+    }
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": log.timestamp,
-            "message": log.message,
-            "task": log.task,
-            "level": log.level,
-            "source": log.source,  # should be app, ui, etc.
-        }
 
-    def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        kf_output = msgspec_loads(payload, type=structs.KalmanFilterOutput)
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": kf_output.timestamp,
-            "state_0": kf_output.state[0],
-            "state_1": kf_output.state[1],
-            "state_2": kf_output.state[2],
-            "cov_00": kf_output.covariance_matrix[0][0],
-            "cov_01": kf_output.covariance_matrix[0][1],
-            "cov_02": kf_output.covariance_matrix[0][2],
-            "cov_11": kf_output.covariance_matrix[1][1],
-            "cov_12": kf_output.covariance_matrix[1][2],
-            "cov_22": kf_output.covariance_matrix[2][2],
-        }
+def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    event = loads(
+        payload
+    )  # structs.AutomationEvent, but see https://github.com/jcrist/msgspec/issues/115#issuecomment-1146097674
 
-    def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        payload_dict = loads(payload)
-        return payload_dict
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": current_utc_timestamp(),
+        "message": event["message"],
+        "data": dumps(event["data"]) if (event["data"] is not None) else "",
+        "event_name": event["event_name"],
+    }
 
-    def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        rpms = msgspec_loads(payload, type=structs.MeasuredRPM)
 
-        return {
-            "experiment": metadata.experiment,
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "timestamp": rpms.timestamp,
-            "measured_rpm": rpms.measured_rpm,
-        }
+def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    payload = loads(payload)
 
-    def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-        metadata = produce_metadata(topic)
-        calibration = msgspec_loads(
-            payload, type=Union[structs.AnyODCalibration, structs.AnyPumpCalibration]
-        )  # type: ignore
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": current_utc_timestamp(),
+        "alt_media_fraction": float(payload),
+    }
 
-        return {
-            "pioreactor_unit": metadata.pioreactor_unit,
-            "created_at": calibration.timestamp,
-            "type": calibration.__class__.__struct_tag__,
-            "data": payload,
-        }
 
-    topics_to_tables = [
+def parse_logs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    log = msgspec_loads(payload, type=structs.Log)
+
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": log.timestamp,
+        "message": log.message,
+        "task": log.task,
+        "level": log.level,
+        "source": log.source,  # should be app, ui, etc.
+    }
+
+
+def parse_kalman_filter_outputs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    kf_output = msgspec_loads(payload, type=structs.KalmanFilterOutput)
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": kf_output.timestamp,
+        "state_0": kf_output.state[0],
+        "state_1": kf_output.state[1],
+        "state_2": kf_output.state[2],
+        "cov_00": kf_output.covariance_matrix[0][0],
+        "cov_01": kf_output.covariance_matrix[0][1],
+        "cov_02": kf_output.covariance_matrix[0][2],
+        "cov_11": kf_output.covariance_matrix[1][1],
+        "cov_12": kf_output.covariance_matrix[1][2],
+        "cov_22": kf_output.covariance_matrix[2][2],
+    }
+
+
+def parse_automation_settings(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    payload_dict = loads(payload)
+    return payload_dict
+
+
+def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    rpms = msgspec_loads(payload, type=structs.MeasuredRPM)
+
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": rpms.timestamp,
+        "measured_rpm": rpms.measured_rpm,
+    }
+
+
+def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    calibration = msgspec_loads(
+        payload, type=structs.subclass_union(structs.Calibration)
+    )  # type: ignore
+
+    return {
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "created_at": calibration.timestamp,
+        "type": calibration.__class__.__struct_tag__,
+        "data": payload,
+    }
+
+
+def create_default_parsers() -> list:
+    return [
         TopicToParserToTable(
             "pioreactor/+/+/growth_rate_calculating/od_filtered",
             parse_od_filtered,
@@ -395,7 +400,20 @@ def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
         ),
     ]
 
-    return MqttToDBStreamer(topics_to_tables, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name())
+
+def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
+
+    ###################
+    # parsers
+    ###################
+    # - must return a dictionary with the column names (order isn't important)
+    # - `produce_metadata` is a helper function, see definition.
+    # - parsers can return None as well, to skip adding the message to the database.
+    #
+
+    return MqttToDBStreamer(
+        create_default_parsers(), experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name()
+    )
 
 
 @click.command(name="mqtt_to_db_streaming")

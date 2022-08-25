@@ -6,11 +6,30 @@ These define structs for MQTT messages, and are type-checkable + runtime-checked
 from __future__ import annotations
 
 from typing import Optional
+from typing import Type
+from typing import TypeVar
 from typing import Union
 
 from msgspec import Struct
 
 from pioreactor import types as pt
+
+
+T = TypeVar("T")
+
+
+def subclass_union(cls: Type[T]) -> Type[T]:
+    """Returns a Union of all subclasses of `cls` (excluding `cls` itself)"""
+    classes = set()
+
+    def _add(cls):
+        for c in cls.__subclasses__():
+            _add(c)
+        classes.add(cls)
+
+    for c in cls.__subclasses__():
+        _add(c)
+    return Union[tuple(classes)]  # type: ignore
 
 
 class Automation(Struct):
