@@ -80,8 +80,7 @@ def _pump(
                     )
                 except KeyError:
                     if continuously:
-                        calibration = (
-                            structs.PumpCalibration(
+                        calibration = structs.PumpCalibration(
                                 timestamp=current_utc_timestamp(),
                                 pump=pump_name,
                                 duration_=1.0,
@@ -89,8 +88,7 @@ def _pump(
                                 dc=100.0,
                                 bias_=0,
                                 voltage=-1,
-                            ),
-                        )
+                            )
                     else:
                         logger.error(
                             f"Calibration not defined. Run {pump_name} pump calibration first."
