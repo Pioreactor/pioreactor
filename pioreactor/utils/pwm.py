@@ -134,6 +134,9 @@ class PWM:
         self.pwm.start(round(initial_duty_cycle, 5))
 
     def stop(self) -> None:
+        with local_intermittent_storage("pwm_dc") as cache:
+            cache[str(self.pin)] = str(0)
+
         self.pwm.stop()
 
     def change_duty_cycle(self, duty_cycle: float) -> None:

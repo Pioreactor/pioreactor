@@ -919,6 +919,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         [<job_name>]
         post_delay_duration=
         pre_delay_duration=
+        enable_dodging_od=True
 
     Example
     ------------
@@ -942,26 +943,48 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     def __init__(self, *args, source="app", **kwargs):
         super().__init__(*args, source=source, **kwargs)
-        self._start_passive_listeners()
 
-    def action_to_do_before_od_reading(self):
+        self.add_to_published_settings(
+            "enable_dodging_od", {"datatype": "boolean", "settable": True}
+        )
+        self.set_enable_dodging_od(
+            config.getboolean(self.job_name, "enable_dodging_od", fallback=True)
+        )
+
+    def action_to_do_before_od_reading(self) -> None:
         raise NotImplementedError()
 
-    def action_to_do_after_od_reading(self):
+    def action_to_do_after_od_reading(self) -> None:
         raise NotImplementedError()
 
-    def _start_passive_listeners(self) -> None:
+    def _listen_for_od_reading(self) -> None:
         self.subscribe_and_callback(
             self._setup_actions,
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval",
         )
 
-    def _setup_actions(self, msg: pt.MQTTMessage):
+    def set_enable_dodging_od(self, value: bool) -> None:
+        self.enable_dodging_od = value
+        if self.enable_dodging_od:
+            self._listen_for_od_reading()
+        else:
+            if hasattr(self, "sneak_in_timer"):
+                self.sneak_in_timer.cancel()
+            self.action_to_do_after_od_reading()
+            self.sub_client.unsubscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
+            )
+
+    def _setup_actions(self, msg: pt.MQTTMessage) -> None:
 
         if not msg.payload:
-            # OD reading stopped, turn on and exit
-            self.sneak_in_timer.cancel()
+            # OD reading stopped: reset and exit
+            if hasattr(self, "sneak_in_timer"):
+                self.sneak_in_timer.cancel()
             self.action_to_do_after_od_reading()
+            self.sub_client.unsubscribe(
+                f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
+            )
             return
 
         # OD started - turn off immediately
@@ -972,11 +995,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
         except AttributeError:
             pass
 
-        post_delay, pre_delay = config.getfloat(
-            self.job_name, "post_delay_duration"
-        ), config.getfloat(self.job_name, "pre_delay_duration")
+        post_delay = config.getfloat(self.job_name, "post_delay_duration", fallback=1.0)
+        pre_delay = config.getfloat(self.job_name, "pre_delay_duration", fallback=1.0)
 
-        def sneak_in():
+        def sneak_in() -> None:
             if self.state != self.READY:
                 return
 

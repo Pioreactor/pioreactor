@@ -52,15 +52,15 @@ class Automation(Struct):
         return str(self)
 
 
-class TemperatureAutomation(Automation, tag="temperature"):
+class TemperatureAutomation(Automation, tag="temperature"):  # type: ignore
     ...
 
 
-class DosingAutomation(Automation, tag="dosing"):
+class DosingAutomation(Automation, tag="dosing"):  # type: ignore
     ...
 
 
-class LEDAutomation(Automation, tag="led"):
+class LEDAutomation(Automation, tag="led"):  # type: ignore
     ...
 
 
@@ -80,7 +80,7 @@ class AutomationSettings(Struct):
     settings: bytes
 
 
-class AutomationEvent(Struct, tag=True, tag_field="event_name"):
+class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
     """
     Automations can return an AutomationEvent from their `execute` method, and it
     will get published to MQTT under /latest_event
@@ -161,7 +161,7 @@ class Temperature(Struct):
     temperature: float
 
 
-class Calibration(Struct, tag=True, tag_field="type"):
+class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
     pass
 
 
@@ -177,15 +177,15 @@ class PumpCalibration(Calibration):
     durations: Optional[list[float]] = None
 
 
-class MediaPumpCalibration(PumpCalibration, tag="media_pump"):
+class MediaPumpCalibration(PumpCalibration, tag="media_pump"):  # type: ignore
     pass
 
 
-class AltMediaPumpCalibration(PumpCalibration, tag="alt_media_pump"):
+class AltMediaPumpCalibration(PumpCalibration, tag="alt_media_pump"):  # type: ignore
     pass
 
 
-class WastePumpCalibration(PumpCalibration, tag="waste_pump"):
+class WastePumpCalibration(PumpCalibration, tag="waste_pump"):  # type: ignore
     pass
 
 
@@ -208,19 +208,19 @@ class ODCalibration(Calibration):
     pd_channel: pt.PdChannel
 
 
-class OD45Calibration(ODCalibration, tag="od_45"):
+class OD45Calibration(ODCalibration, tag="od_45"):  # type: ignore
     pass
 
 
-class OD90Calibration(ODCalibration, tag="od_90"):
+class OD90Calibration(ODCalibration, tag="od_90"):  # type: ignore
     pass
 
 
-class OD135Calibration(ODCalibration, tag="od_135"):
+class OD135Calibration(ODCalibration, tag="od_135"):  # type: ignore
     pass
 
 
-class OD180Calibration(ODCalibration, tag="od_180"):
+class OD180Calibration(ODCalibration, tag="od_180"):  # type: ignore
     pass
 
 

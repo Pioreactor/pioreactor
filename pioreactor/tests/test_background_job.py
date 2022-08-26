@@ -400,8 +400,10 @@ def test_cleans_up_mqtt() -> None:
 
 def test_dodging():
 
+    config["just_pause"] = {}
     config["just_pause"]["post_delay_duration"] = "0.2"
     config["just_pause"]["pre_delay_duration"] = "0.1"
+    config["just_pause"]["enable_dodging_od"] = "1"
 
     class JustPause(BackgroundJobWithDodging):
         def __init__(self):
@@ -423,6 +425,48 @@ def test_dodging():
         time.sleep(20)
 
         assert len(bucket) > 4, bucket
+
+    od.clean_up()
+    jp.clean_up()
+
+
+def test_dodging_disabled():
+
+    config["just_pause"] = {}
+    config["just_pause"]["post_delay_duration"] = "0.2"
+    config["just_pause"]["pre_delay_duration"] = "0.1"
+    config["just_pause"]["enable_dodging_od"] = "1"
+
+    class JustPause(BackgroundJobWithDodging):
+
+        published_settings = {"test": {"datatype": "float", "settable": True}}
+
+        def __init__(self):
+            super().__init__(job_name="just_pause", unit=get_unit_name(), experiment="test_dodging")
+
+        def action_to_do_before_od_reading(self):
+            self.logger.notice("Pausing")
+
+        def action_to_do_after_od_reading(self):
+            self.logger.notice("Unpausing")
+
+    with collect_all_logs_of_level(
+        "NOTICE", unit=get_unit_name(), experiment="test_dodging"
+    ) as bucket:
+        jp = JustPause()
+        assert set(jp.published_settings.keys()) == set(["test", "state", "enable_dodging_od"])
+
+        od = start_od_reading(
+            "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
+        )
+        time.sleep(5)
+        jp.set_enable_dodging_od(False)
+        time.sleep(20)
+        assert len(bucket) == 2
+
+        jp.set_enable_dodging_od(True)
+        time.sleep(12)
+        assert len(bucket) == 4
 
     od.clean_up()
     jp.clean_up()
