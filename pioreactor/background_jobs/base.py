@@ -970,7 +970,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
         else:
             if hasattr(self, "sneak_in_timer"):
                 self.sneak_in_timer.cancel()
-            self.action_to_do_after_od_reading()
+            try:
+                self.action_to_do_after_od_reading()
+            except Exception:
+                pass
             self.sub_client.unsubscribe(
                 f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
             )
@@ -1003,7 +1006,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 return
 
             self.action_to_do_after_od_reading()
-            sleep(ads_interval - (post_delay + pre_delay))
+            sleep(ads_interval - 1 - (post_delay + pre_delay))
             self.action_to_do_before_od_reading()
 
         # this could fail in the following way:
@@ -1025,8 +1028,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         else:
             return
 
-        # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval
-        if ads_interval <= (post_delay + pre_delay) - 1:  # one second for the ADS reading
+        # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - 1, one second for the ADS reading
+        if not (ads_interval - 1 > (post_delay + pre_delay)):
             self.logger.error(
                 f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1/ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
             )
