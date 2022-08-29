@@ -29,12 +29,11 @@ from __future__ import annotations
 
 import glob
 import importlib
+import importlib.metadata as entry_point
 import os
 import pathlib
 import sys
-from importlib.metadata import entry_points
-from importlib.metadata import metadata
-from typing import Any
+import typing as t
 
 from msgspec import Struct
 
@@ -45,7 +44,7 @@ from pioreactor.whoami import is_testing_env
 
 
 class Plugin(Struct):
-    module: Any
+    module: t.Any
     description: str
     version: str
     homepage: str
@@ -61,12 +60,12 @@ def get_plugins() -> dict[str, Plugin]:
     # get entry point plugins
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
-    eps = entry_points()
-    pioreactor_plugins: tuple = eps.get("pioreactor.plugins", tuple())
+    eps = entry_point.entry_points()
+    pioreactor_plugins: t.List[entry_point.EntryPoint] = eps.get("pioreactor.plugins", [])
     plugins: dict[str, Plugin] = {}
     for plugin in pioreactor_plugins:
         try:
-            md = metadata(plugin.name)
+            md = entry_point.metadata(plugin.name)
             plugins[md["Name"]] = Plugin(
                 plugin.load(),
                 md["Summary"],

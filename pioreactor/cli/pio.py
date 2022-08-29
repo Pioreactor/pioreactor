@@ -359,6 +359,7 @@ if whoami.am_I_active_worker():
     run.add_command(actions.pump_calibration.click_pump_calibration)
     run.add_command(actions.od_calibration.click_od_calibration)
 
+    # TODO: this only adds to `pio run` - what if users want to add a high level coomand? Examples?
     for plugin in pioreactor.plugin_management.get_plugins().values():
         for possible_entry_point in dir(plugin.module):
             if possible_entry_point.startswith("click_"):
@@ -460,7 +461,7 @@ if whoami.am_I_leader():
                 try:
                     ip = socket.gethostbyname(add_local(hostname))
                 except OSError:
-                    ip = "Unknown"
+                    ip = "unknown"
 
             # get state
             result = pubsub.subscribe(
@@ -471,7 +472,7 @@ if whoami.am_I_leader():
             if result:
                 state = result.payload.decode()
             else:
-                state = "Unknown"
+                state = "unknown"
 
             # is reachable?
             reachable = networking.is_reachable(add_local(hostname))
@@ -484,7 +485,7 @@ if whoami.am_I_leader():
             ip, state, reachable = get_network_metadata(hostname)
 
             statef = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
-            ipf = f"{ip if (ip is not None) else 'Unknown':20s}"
+            ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
