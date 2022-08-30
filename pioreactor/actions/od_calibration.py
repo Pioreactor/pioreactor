@@ -411,7 +411,7 @@ def od_calibration() -> None:
         return
 
 
-def display_current_calibrations():
+def display_current() -> None:
     from pprint import pprint
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -430,13 +430,60 @@ def display_current_calibrations():
             click.echo()
 
 
-@click.command(name="od_calibration")
-@click.option("--display-current", is_flag=True)
-def click_od_calibration(display_current: bool):
+def change_current(name) -> None:
+    try:
+        with local_persistant_storage("od_calibrations") as c:
+            calibration = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
+
+        angle = calibration.angle
+        with local_persistant_storage("current_od_calibration") as c:
+            name_being_bumped = decode(
+                c[angle], type=structs.subclass_union(structs.ODCalibration)
+            ).name
+            c[angle] = encode(calibration)
+        click.echo(f"Swapped {name_being_bumped} for {name} ✅")
+    except Exception:
+        click.echo("Failed to swap.")
+        click.Abort()
+
+
+def list_():
+    click.secho(
+        f"{'Name':15s} {'Timestamp':35s} {'Angle':20s}",
+        bold=True,
+    )
+    with local_persistant_storage("od_calibrations") as c:
+        for name in c.keys():
+            try:
+                cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
+                click.secho(
+                    f"{cal.name:15s} {cal.timestamp:35s} {cal.angle:20s}",
+                )
+            except Exception:
+                pass
+
+
+@click.group(invoke_without_command=True, name="od_calibration")
+@click.pass_context
+def click_od_calibration(ctx):
     """
     Calibrate OD600 to voltages
     """
-    if display_current:
-        display_current_calibrations()
-    else:
+    if ctx.invoked_subcommand is None:
         od_calibration()
+
+
+@click_od_calibration.command(name="display_current")
+def click_display_current():
+    display_current()
+
+
+@click_od_calibration.command(name="change_current")
+@click.argument("name", type=click.STRING)
+def click_change_current(name):
+    change_current(name)
+
+
+@click_od_calibration.command(name="list")
+def click_list():
+    list_()

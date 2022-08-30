@@ -313,7 +313,7 @@ class Stirrer(BackgroundJob):
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval", timeout=3
         )
 
-        if interval_msg is not None:
+        if interval_msg is not None and interval_msg.payload:
             interval = float(interval_msg.payload)
         else:
             self.kick_stirring()

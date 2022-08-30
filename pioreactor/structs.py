@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-These define structs for MQTT messages, and are type-checkable + runtime-checked.
+These define structs for internal data structures including MQTT messages, and are type-checkable + runtime-checked.
 
 """
 from __future__ import annotations
@@ -189,7 +189,9 @@ class WastePumpCalibration(PumpCalibration, tag="waste_pump"):  # type: ignore
     pass
 
 
-AnyPumpCalibration = Union[MediaPumpCalibration, AltMediaPumpCalibration, WastePumpCalibration]
+AnyPumpCalibration = Union[
+    PumpCalibration, MediaPumpCalibration, AltMediaPumpCalibration, WastePumpCalibration
+]
 
 
 class ODCalibration(Calibration):
