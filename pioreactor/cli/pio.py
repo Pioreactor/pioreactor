@@ -103,12 +103,15 @@ def logs(n) -> None:
     default="CLI",
     type=str,
 )
-def log(message, level, name):
-    logger = create_logger(
-        name, unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
-    )
-    getattr(logger, level)(message)
-    return
+def log(message: str, level: str, name: str):
+    try:
+        logger = create_logger(
+            name, unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+        )
+        getattr(logger, level)(message)
+    except Exception:
+        # don't let a logging error bring down a script...
+        pass
 
 
 @pio.command(name="blink", short_help="blink LED")

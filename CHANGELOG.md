@@ -4,7 +4,8 @@
  - The LEDs in the pioreactor have been moved up 0.5mm.
  - Error-handling and user improvements to `pump_calibration`.
  - `pid_turbidostat` was removed, replaced with the simpler `turbidostat`.
- - adding new table `pioreactor_unit_activity_data` that makes analysis much easier.
+ - Adding new table `pioreactor_unit_activity_data` that makes analysis much easier.
+ - Adding new table `calibrations`.
  - New action `od_calibration` that easily allows you to add an OD600 calibration to your pioreactor. See docs: https://docs.pioreactor.com/user-guide/calibrate-od600
  - _paramiko_ library is no longer a dependency
  - in `growth_rate_calculating` job, `kalman_filter_outputs` is now included in `published_settings`
@@ -18,6 +19,7 @@
  - `turbidostat` automation now accepts `target_normalized_od` instead of `target_od`. Likewise for `pid_morbidostat`.
  - new config option under `od_config`: `use_calibration` is a boolean to ask the od_reading job to use the current calibration or not.
  - `PIDTurbidostat` automation has been nuked completely.
+ - New base background job, `BackgroundJobWithDodging`, that makes it easy to change an action during od reading
 
 ### 22.7.0
  - Subtle changes to how jobs disconnect and clean up. `job.set_state("disconnected")` won't clean up connections to loggers, MQTT, etc, but will signal to the app that it's no longer available to use.

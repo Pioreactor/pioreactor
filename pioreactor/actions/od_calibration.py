@@ -38,7 +38,7 @@ def introduction():
 def get_metadata_from_user():
     with local_persistant_storage("od_calibrations") as cache:
         while True:
-            name = click.prompt("Provide a name for this calibration", type=str)
+            name = click.prompt("Provide a name for this calibration", type=str).strip()
             if name not in cache:
                 break
             else:

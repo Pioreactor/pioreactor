@@ -14,9 +14,7 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 class WatchDog(BackgroundJob):
     def __init__(self, unit: str, experiment: str) -> None:
-        super(WatchDog, self).__init__(
-            job_name="watchdog", unit=unit, experiment=experiment
-        )
+        super(WatchDog, self).__init__(job_name="watchdog", unit=unit, experiment=experiment)
 
         self.start_passive_listeners()
 
@@ -30,9 +28,7 @@ class WatchDog(BackgroundJob):
 
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
 
-            self.logger.warning(
-                f"{unit} seems to be lost. Trying to re-establish connection..."
-            )
+            self.logger.warning(f"{unit} seems to be lost. Trying to re-establish connection...")
             time.sleep(5)
 
             if self.state != self.READY:
@@ -54,6 +50,7 @@ class WatchDog(BackgroundJob):
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state",
                 timeout=15,
                 name=self.job_name,
+                retries=1,
             )
             if msg is None:
                 return
@@ -68,9 +65,7 @@ class WatchDog(BackgroundJob):
 
     def watch_for_new_experiment(self, msg: MQTTMessage) -> None:
         new_experiment_name = msg.payload.decode()
-        self.logger.debug(
-            f"New latest experiment detected in MQTT: {new_experiment_name}"
-        )
+        self.logger.debug(f"New latest experiment detected in MQTT: {new_experiment_name}")
         self.logger.info(f"New experiment created: {new_experiment_name}")
 
     def start_passive_listeners(self) -> None:
