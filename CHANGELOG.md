@@ -1,4 +1,10 @@
-### Upcoming
+### 22.9.1
+ - `local_ac_hz` is now optional
+ - maybe fix bugs for local AP
+ - add retries for button detection
+
+
+###  22.9.0
  - Stirring now has the ability to restart itself if it detects it has stalled.
  - od_normalization has been removed. Instead, there is a small routine `od_statistics` that is called by both `od_blank` and `growth_rate_calculating`. The latter also now stores the required od statistics to storage (previous it was the `od_normalization` job).
  - The LEDs in the pioreactor have been moved up 0.5mm.
