@@ -236,7 +236,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "timestamp": current_utc_timestamp(),
         "message": event.message,
         "data": dumps(event.data) if (event.data is not None) else "",
-        "event_name": event.event_name,  # type: ignore
+        "event_name": event.__class__.__struct_tag__,  # type: ignore
     }
 
 
