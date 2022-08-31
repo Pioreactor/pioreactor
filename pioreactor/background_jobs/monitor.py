@@ -327,7 +327,7 @@ class Monitor(BackgroundJob):
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
 
-        cpu_temperature_celcius = utils.get_cpu_temperature()
+        cpu_temperature_celcius = round(utils.get_cpu_temperature())
 
         if disk_usage_percent <= 80:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
