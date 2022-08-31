@@ -59,10 +59,11 @@ def logs(n) -> None:
     """
 
     def file_len(filename) -> int:
+        count = 0
         with open(filename) as f:
-            for i, _ in enumerate(f):
-                pass
-        return i + 1
+            for _ in f:
+                count += 1
+        return count
 
     def follow(filename, sleep_sec=0.1):
         """Yield each line from a file as they are written.

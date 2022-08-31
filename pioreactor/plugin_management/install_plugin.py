@@ -10,7 +10,7 @@ from pioreactor.logging import create_logger
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def install_plugin(name_of_plugin, url=None):
+def install_plugin(name_of_plugin, source=None):
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
 
     result = subprocess.run(
@@ -18,7 +18,7 @@ def install_plugin(name_of_plugin, url=None):
             "bash",
             "/usr/local/bin/install_pioreactor_plugin.sh",
             quote(name_of_plugin),
-            url or "",
+            source or "",
         ],
         capture_output=True,
     )
@@ -34,9 +34,9 @@ def install_plugin(name_of_plugin, url=None):
 @click.command(name="install-plugin", short_help="install a plugin")
 @click.argument("name-of-plugin")
 @click.option(
-    "--url",
+    "--source",
     type=str,
-    help="Install from a url, ex: https://github.com/user/repository/archive/branch.zip ",
+    help="Install from a url, ex: https://github.com/user/repository/archive/branch.zip, or wheel file",
 )
-def click_install_plugin(name_of_plugin, url):
-    install_plugin(name_of_plugin, url)
+def click_install_plugin(name_of_plugin, source):
+    install_plugin(name_of_plugin, source)
