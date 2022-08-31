@@ -19,6 +19,49 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
 
 
+def test_updated_heater_dc():
+    unit = get_unit_name()
+    exp = "test_updated_heater_dc"
+    connection = sqlite3.connect(config["storage"]["database"])
+    cursor = connection.cursor()
+
+    cursor.executescript(
+        """
+DROP TABLE IF EXISTS temperature_automation_events;
+
+CREATE TABLE IF NOT EXISTS temperature_automation_events (
+    experiment               TEXT NOT NULL,
+    pioreactor_unit          TEXT NOT NULL,
+    timestamp                TEXT NOT NULL,
+    event_name               TEXT NOT NULL,
+    message                  TEXT,
+    data                     TEXT
+);
+
+    """
+    )
+    connection.commit()
+    
+    parsers = [
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/temperature_automation/latest_event",
+            m2db.parse_automation_event,
+            "temperature_automation_events",
+        )
+    ]
+
+    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp) as job:
+        sleep(1)
+        publish(
+            f"pioreactor/{get_unit_name()}/test/temperature_automation/latest_event", '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}'
+        )
+        sleep(1)
+        
+    cursor.execute("SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?",(get_unit_name(),))
+    results = cursor.fetchall()
+    assert len(results) == 1
+
+
 def test_calibration_gets_saved() -> None:
     experiment = "test_calibration_gets_saved"
     config["storage"]["database"] = "test.sqlite"
