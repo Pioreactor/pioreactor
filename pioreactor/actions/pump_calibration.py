@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import time
 from typing import Callable
-from typing import Type
 
 import click
 from msgspec.json import decode
@@ -28,29 +27,52 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def which_pump_are_you_calibrating() -> tuple[str, Callable]:
+def introduction():
+    click.clear()
+    click.echo(
+        """This routine will calibrate the pumps on your current Pioreactor. You'll need:
+    1. A Pioreactor
+    2. A vial placed on a scale
+    3. A larger container with water
+    4. Pumps connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configurations.
+"""
+    )
+
+def get_metadata_from_user():
+    with local_persistant_storage("pump_calibrations") as cache:
+        while True:
+            name = click.prompt("Provide a unique name for this calibration", type=str).strip()
+            if name not in cache:
+                break
+            else:
+                if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
+                    break
+    return name
+    
+
+def which_pump_are_you_calibrating():
     media_timestamp, has_media = "", True
     waste_timestamp, has_waste = "", True
     alt_media_timestamp, has_alt_media = "", True
 
-    with local_persistant_storage("pump_calibration") as cache:
-        has_media = "media_ml_calibration" in cache
-        has_waste = "waste_ml_calibration" in cache
-        has_alt_media = "alt_media_ml_calibration" in cache
+    with local_persistant_storage("current_pump_calibration") as cache:
+        has_media = "media" in cache
+        has_waste = "waste" in cache
+        has_alt_media = "alt_media" in cache
 
         if has_media:
             media_timestamp = decode(
-                cache["media_ml_calibration"], type=structs.MediaPumpCalibration
+                cache["media"], type=structs.PumpCalibration
             ).timestamp[:10]
 
         if has_waste:
             waste_timestamp = decode(
-                cache["waste_ml_calibration"], type=structs.WastePumpCalibration
+                cache["waste"], type=structs.PumpCalibration
             ).timestamp[:10]
 
         if has_alt_media:
             alt_media_timestamp = decode(
-                cache["alt_media_ml_calibration"], type=structs.AltMediaPumpCalibration
+                cache["alt_media"], type=structs.PumpCalibration
             ).timestamp[:10]
 
     r = click.prompt(
@@ -90,11 +112,9 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
                 prompt_suffix=" ",
             )
         return ("waste", remove_waste)
-    else:
-        raise ValueError()
 
 
-def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:
+def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:
     # set up...
 
     click.clear()
@@ -104,7 +124,7 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float, unit: st
     click.echo("2. Place free ends of the tube into the water.")
     click.echo(
         "Make sure the pump's power is connected to "
-        + click.style(f"PWM channel {config.get('PWM_reverse', pump_name)}.", bold=True)
+        + click.style(f"PWM channel {config.get('PWM_reverse', pump_type)}.", bold=True)
     )
     click.echo("We'll run the pumps continuously until the tubes are filled.")
     click.echo(
@@ -121,8 +141,9 @@ def setup(pump_name: str, execute_pump: Callable, hz: float, dc: float, unit: st
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
+                name="calibration",
                 timestamp=current_utc_timestamp(),
-                pump=pump_name,
+                pump=pump_type,
                 duration_=1.0,
                 hz=hz,
                 dc=dc,
@@ -188,7 +209,7 @@ def run_tests(
     dc: float,
     min_duration: float,
     max_duration: float,
-    pump_name: str,
+    pump_type: str,
 ) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
@@ -234,7 +255,7 @@ def run_tests(
                 experiment=get_latest_testing_experiment_name(),
                 calibration=structs.PumpCalibration(
                     duration_=1.0,
-                    pump=pump_name,
+                    pump=pump_type,
                     hz=hz,
                     dc=dc,
                     bias_=0,
@@ -263,6 +284,46 @@ def run_tests(
     return durations_to_test, results
 
 
+def save_results_locally(
+    name: str,
+    pump: str,
+    duration: float,
+    hz: float,
+    dc: float,
+    bias_: float,
+    voltage: float,
+    durations: list[float],
+    volumes: list[float],
+) -> structs.PumpCalibration:
+    pump_calibration_result = structs.PumpCalibration(
+        name=name,
+        timestamp=current_utc_timestamp(),
+        pump=pump_type,
+        duration_=slope,
+        hz=hz,
+        dc=dc,
+        bias_=bias,
+        voltage=voltage_in_aux(),
+        durations=durations,
+        volumes=volumes,
+    )
+
+    # save to cache
+    with local_persistant_storage("pump_calibrations") as cache:
+        cache[name] = encode(pump_calibration_result)
+    
+    with local_persistant_storage("current_pump_calibration") as cache:    
+        cache[pump_type] = encode(pump_calibration_result)
+
+
+    # send to MQTT
+    publish(
+        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/calibrations",
+        encode(pump_calibration_result),
+    )
+
+    return pump_calibration_result
+    
 def pump_calibration(min_duration: float, max_duration: float) -> None:
     import numpy as np
 
@@ -274,15 +335,14 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
 
     with publish_ready_to_disconnected_state(unit, experiment, "pump_calibration"):
 
-        click.clear()
-        click.echo()
-        pump_name, execute_pump = which_pump_are_you_calibrating()
+        introduction()
+        name = get_metadata_from_user()
+        pump_type, execute_pump = which_pump_are_you_calibrating()
 
         is_ready = True
-        hz, dc = 0.0, 0.0
         while is_ready:
             hz, dc = choose_settings()
-            setup(pump_name, execute_pump, hz, dc, unit)
+            setup(pump_type, execute_pump, hz, dc, unit)
 
             is_ready = click.confirm(
                 click.style("Do you want to change the frequency or duty cycle?", fg="green"),
@@ -290,7 +350,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 default=False,
             )
 
-        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_name)
+        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_type)
 
         (slope, std_slope), (
             bias,
@@ -316,19 +376,10 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             logger.warning(
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
-
-        if pump_name == "waste":
-            calibration: Type[structs.AnyPumpCalibration] = structs.WastePumpCalibration
-        elif pump_name == "media":
-            calibration = structs.MediaPumpCalibration
-        elif pump_name == "alt_media":
-            calibration = structs.AltMediaPumpCalibration
-        else:
-            raise ValueError()
-
-        pump_calibration_result = calibration(
-            timestamp=current_utc_timestamp(),
-            pump=pump_name,
+            
+        pump_calibration_result = save_results_locally(
+            name=name,
+            pump=pump_type,
             duration_=slope,
             hz=hz,
             dc=dc,
@@ -336,16 +387,6 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             voltage=voltage_in_aux(),
             durations=durations,
             volumes=volumes,
-        )
-
-        # save to cache
-        with local_persistant_storage("pump_calibration") as cache:
-            cache[f"{pump_name}_ml_calibration"] = encode(pump_calibration_result)
-
-        # send to MQTT
-        publish(
-            f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/calibrations",
-            encode(pump_calibration_result),
         )
 
         logger.debug(f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}")
@@ -356,23 +397,94 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         logger.info("Finished pump calibration.")
 
 
+def display_current() -> None:
+    from pprint import pprint
+
+    with local_persistant_storage("current_pump_calibration") as c:
+        for pump_type in c.keys():
+            pump_calibration_result = decode(c[pump])
+            volumes = pump_calibration_result["volumes"]
+            durations = pump_calibration_result["durations"]
+            name, pump = pump_calibration_result["name"], pump_calibration_result["pump"]
+            plot_data(
+                durations,
+                volumes,
+                title=f"Calibration for {pump} pump",
+                highlight_recent_point=False,
+            )  # TODO: add interpolation curve
+            click.echo(click.style(f"Data for {name}", underline=True, bold=True))
+            pprint(pump_calibration_result)
+            click.echo()
+            click.echo()
+            click.echo()
+   
+
+def change_current(name) -> None:
+    try:
+        with local_persistant_storage("pump_calibrations") as all_calibrations:
+            new_calibration = decode(all_calibrations[name], type=PumpCalibration) #decode name from list of all names 
+
+        pump_type_from_new_calibration = calibration.pump_type #retrieve the pump type 
+        
+        with local_persistant_storage("current_pump_calibration") as current_calibrations:
+            old_calibration = decode(current_calibrations[pump_type_from_new_calibration], type=PumpCalibration)
+            current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
+        click.echo(f"Replaced {old_calibration.name} with {new_calibration.name} ✅")
+    except Exception:
+        click.echo("Failed to swap.")
+        click.Abort()
+
+
+def list_():
+    click.secho(
+        f"{'Name':15s} {'Timestamp':35s} {'Pump type':20s}",
+        bold=True,
+    )
+    with local_persistant_storage("pump_calibrations") as c:
+        for name in c.keys():
+            try:
+                cal = decode(c[name], type=PumpCalibration)
+                click.secho(
+                    f"{cal.name:15s} {cal.timestamp:35s} {cal.pump:20s}",
+                )
+            except Exception as e:
+                raise e
+   
+
+@click.group(invoke_without_command=True, name="pump_calibration")
+@click.pass_context
 @click.option("--min-duration", type=float)
 @click.option("--max-duration", type=float)
-@click.command(name="pump_calibration")
-def click_pump_calibration(min_duration, max_duration):
+def click_pump_calibration(ctx, min_duration, max_duration):
     """
     Calibrate a pump
     """
+    if ctx.invoked_subcommand is None:
+        if max_duration is None and min_duration is None:
+            min_duration, max_duration = 0.45, 1.25
+        elif (max_duration is not None) and (min_duration is not None):
+            assert min_duration < max_duration, "min_duration >= max_duration"
+        else:
+            raise ValueError("min_duration and max_duration must both be set.")
 
-    if max_duration is None and min_duration is None:
-        min_duration, max_duration = 0.45, 1.25
-    elif (max_duration is not None) and (min_duration is not None):
-        assert min_duration < max_duration, "min_duration >= max_duration"
-    else:
-        raise ValueError("min_duration and max_duration must both be set.")
+        pump_calibration(min_duration, max_duration)
 
-    pump_calibration(min_duration, max_duration)
 
+@click_pump_calibration.command(name="display_current")
+def click_display_current():
+    display_current()
+
+
+@click_pump_calibration.command(name="change_current")
+@click.argument("name", type=click.STRING)
+def click_change_current(name):
+    change_current(name)
+
+
+@click_pump_calibration.command(name="list")
+def click_list():
+    list_()
+    
 
 if __name__ == "__main__":
     click_pump_calibration()
