@@ -36,8 +36,8 @@ def pause() -> None:
 
 
 def setup_function() -> None:
-    with local_persistant_storage("pump_calibration") as cache:
-        cache["media_ml_calibration"] = encode(
+    with local_persistant_storage("pump_calibrations") as cache:
+        cache["media"] = encode(
             structs.MediaPumpCalibration(
                 duration_=1.0,
                 bias_=0.0,
@@ -48,7 +48,7 @@ def setup_function() -> None:
                 pump="media",
             )
         )
-        cache["alt_media_ml_calibration"] = encode(
+        cache["alt_media"] = encode(
             structs.AltMediaPumpCalibration(
                 duration_=1.0,
                 bias_=0,
@@ -59,7 +59,7 @@ def setup_function() -> None:
                 pump="alt_media",
             )
         )
-        cache["waste_ml_calibration"] = encode(
+        cache["waste"] = encode(
             structs.WastePumpCalibration(
                 duration_=1.0,
                 bias_=0,
@@ -651,18 +651,18 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
     with local_persistant_storage("alt_media_fraction") as c:
         c[experiment] = "0.0"
 
-    with local_persistant_storage("pump_calibration") as cache:
-        del cache["media_ml_calibration"]
-        del cache["alt_media_ml_calibration"]
+    with local_persistant_storage("pump_calibrations") as cache:
+        del cache["media"]
+        del cache["alt_media"]
 
     with pytest.raises(exc.CalibrationError):
         with DosingAutomationJob(unit=unit, experiment=experiment, skip_first_run=True) as ca:
             ca.execute_io_action(media_ml=0.1, alt_media_ml=0.1, waste_ml=0.2)
 
     # add back to cache
-    with local_persistant_storage("pump_calibration") as cache:
-        cache["media_ml_calibration"] = json.dumps({"duration_": 1.0})
-        cache["alt_media_ml_calibration"] = json.dumps({"duration_": 1.0})
+    with local_persistant_storage("pump_calibrations") as cache:
+        cache["media"] = json.dumps({"duration_": 1.0})
+        cache["alt_media"] = json.dumps({"duration_": 1.0})
 
 
 def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
