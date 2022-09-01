@@ -238,6 +238,7 @@ def view_cache(cache: str) -> None:
     elif (
         os.path.isfile(f".pioreactor/storage/{cache}.db")
         or os.path.isfile(f".pioreactor/storage/{cache}.pag")
+        or os.path.isfile(f".pioreactor/storage/{cache}")
         or os.path.isfile(f"{tmp_dir}{cache}")
     ):
         cacher = local_persistant_storage
