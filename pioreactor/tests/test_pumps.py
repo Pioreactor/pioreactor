@@ -28,6 +28,7 @@ def setup_function():
     with local_persistant_storage("pump_calibrations") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
+                name="setup_function",
                 duration_=1.0,
                 bias_=0.0,
                 dc=60,
@@ -39,6 +40,7 @@ def setup_function():
         )
         cache["alt_media"] = encode(
             structs.AltMediaPumpCalibration(
+                name="setup_function",
                 duration_=1.0,
                 bias_=0,
                 dc=60,
@@ -50,6 +52,7 @@ def setup_function():
         )
         cache["waste"] = encode(
             structs.WastePumpCalibration(
+                name="setup_function",
                 duration_=1.0,
                 bias_=0,
                 dc=60,
