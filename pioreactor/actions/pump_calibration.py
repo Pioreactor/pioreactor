@@ -38,6 +38,7 @@ def introduction():
 """
     )
 
+
 def get_metadata_from_user():
     with local_persistant_storage("pump_calibrations") as cache:
         while True:
@@ -48,7 +49,7 @@ def get_metadata_from_user():
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
                     break
     return name
-    
+
 
 def which_pump_are_you_calibrating():
     media_timestamp, has_media = "", True
@@ -61,14 +62,10 @@ def which_pump_are_you_calibrating():
         has_alt_media = "alt_media" in cache
 
         if has_media:
-            media_timestamp = decode(
-                cache["media"], type=structs.PumpCalibration
-            ).timestamp[:10]
+            media_timestamp = decode(cache["media"], type=structs.PumpCalibration).timestamp[:10]
 
         if has_waste:
-            waste_timestamp = decode(
-                cache["waste"], type=structs.PumpCalibration
-            ).timestamp[:10]
+            waste_timestamp = decode(cache["waste"], type=structs.PumpCalibration).timestamp[:10]
 
         if has_alt_media:
             alt_media_timestamp = decode(
@@ -254,6 +251,7 @@ def run_tests(
                 unit=get_unit_name(),
                 experiment=get_latest_testing_experiment_name(),
                 calibration=structs.PumpCalibration(
+                    name="",
                     duration_=1.0,
                     pump=pump_type,
                     hz=hz,
@@ -286,23 +284,24 @@ def run_tests(
 
 def save_results_locally(
     name: str,
-    pump: str,
-    duration: float,
+    pump_type: str,
+    duration_: float,
+    bias_: float,
     hz: float,
     dc: float,
-    bias_: float,
     voltage: float,
     durations: list[float],
     volumes: list[float],
+    unit: str,
 ) -> structs.PumpCalibration:
     pump_calibration_result = structs.PumpCalibration(
         name=name,
         timestamp=current_utc_timestamp(),
         pump=pump_type,
-        duration_=slope,
+        duration_=duration_,
+        bias_=bias_,
         hz=hz,
         dc=dc,
-        bias_=bias,
         voltage=voltage_in_aux(),
         durations=durations,
         volumes=volumes,
@@ -311,10 +310,9 @@ def save_results_locally(
     # save to cache
     with local_persistant_storage("pump_calibrations") as cache:
         cache[name] = encode(pump_calibration_result)
-    
-    with local_persistant_storage("current_pump_calibration") as cache:    
-        cache[pump_type] = encode(pump_calibration_result)
 
+    with local_persistant_storage("current_pump_calibration") as cache:
+        cache[pump_type] = encode(pump_calibration_result)
 
     # send to MQTT
     publish(
@@ -323,7 +321,8 @@ def save_results_locally(
     )
 
     return pump_calibration_result
-    
+
+
 def pump_calibration(min_duration: float, max_duration: float) -> None:
     import numpy as np
 
@@ -376,17 +375,18 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             logger.warning(
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
-            
-        pump_calibration_result = save_results_locally(
+
+        save_results_locally(
             name=name,
-            pump=pump_type,
+            pump_type=pump_type,
             duration_=slope,
+            bias_=bias,
             hz=hz,
             dc=dc,
-            bias_=bias,
             voltage=voltage_in_aux(),
             durations=durations,
             volumes=volumes,
+            unit=unit,
         )
 
         logger.debug(f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}")
@@ -401,7 +401,7 @@ def display_current() -> None:
     from pprint import pprint
 
     with local_persistant_storage("current_pump_calibration") as c:
-        for pump_type in c.keys():
+        for pump in c.keys():
             pump_calibration_result = decode(c[pump])
             volumes = pump_calibration_result["volumes"]
             durations = pump_calibration_result["durations"]
@@ -417,21 +417,25 @@ def display_current() -> None:
             click.echo()
             click.echo()
             click.echo()
-   
+
 
 def change_current(name) -> None:
     try:
         with local_persistant_storage("pump_calibrations") as all_calibrations:
-            new_calibration = decode(all_calibrations[name], type=PumpCalibration) #decode name from list of all names 
+            new_calibration = decode(
+                all_calibrations[name], type=structs.PumpCalibration
+            )  # decode name from list of all names
 
-        pump_type_from_new_calibration = calibration.pump_type #retrieve the pump type 
-        
+        pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
+
         with local_persistant_storage("current_pump_calibration") as current_calibrations:
-            old_calibration = decode(current_calibrations[pump_type_from_new_calibration], type=PumpCalibration)
+            old_calibration = decode(
+                current_calibrations[pump_type_from_new_calibration], type=structs.PumpCalibration
+            )
             current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
         click.echo(f"Replaced {old_calibration.name} with {new_calibration.name} ✅")
-    except Exception:
-        click.echo("Failed to swap.")
+    except Exception as e:
+        click.echo(f"Failed to swap. {e}")
         click.Abort()
 
 
@@ -443,13 +447,13 @@ def list_():
     with local_persistant_storage("pump_calibrations") as c:
         for name in c.keys():
             try:
-                cal = decode(c[name], type=PumpCalibration)
+                cal = decode(c[name], type=structs.PumpCalibration)
                 click.secho(
                     f"{cal.name:15s} {cal.timestamp:35s} {cal.pump:20s}",
                 )
             except Exception as e:
                 raise e
-   
+
 
 @click.group(invoke_without_command=True, name="pump_calibration")
 @click.pass_context
@@ -484,7 +488,7 @@ def click_change_current(name):
 @click_pump_calibration.command(name="list")
 def click_list():
     list_()
-    
+
 
 if __name__ == "__main__":
     click_pump_calibration()
