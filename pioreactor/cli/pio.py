@@ -503,14 +503,18 @@ if whoami.am_I_leader():
             click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf}")
             return reachable & (state == "ready")
 
+        worker_statuses = list(config["cluster.inventory"].items())
+        n_workers = len(worker_statuses)
+
         click.secho(
             f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':14s} {'Active?':14s}",
             bold=True,
         )
+        if n_workers == 0:
+            return
 
-        units_statuses = list(config["cluster.inventory"].items())
-        with ThreadPoolExecutor(max_workers=len(units_statuses)) as executor:
-            results = executor.map(display_data_for, units_statuses)
+        with ThreadPoolExecutor(max_workers=n_workers) as executor:
+            results = executor.map(display_data_for, worker_statuses)
 
         if not all(results):
             sys.exit(1)
