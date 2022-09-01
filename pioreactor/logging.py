@@ -194,10 +194,10 @@ def create_logger(
             max_connection_attempts=2,
         )
 
-        exp = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
+        experiment = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
 
         # create MQTT handlers for logs table
-        topic = f"pioreactor/{unit}/{exp}/logs/{source}"
+        topic = f"pioreactor/{unit}/{experiment}/logs/{source}"
         mqtt_to_db_handler = MQTTHandler(topic, pub_client)
         mqtt_to_db_handler.setLevel(logging.DEBUG)
         mqtt_to_db_handler.setFormatter(CustomisedJSONFormatter())

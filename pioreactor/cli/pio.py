@@ -104,10 +104,14 @@ def logs(n) -> None:
     default="CLI",
     type=str,
 )
-def log(message: str, level: str, name: str):
+@click.option("--local-only", is_flag=True, help="don't send to MQTT; write only to local disk")
+def log(message: str, level: str, name: str, local_only: bool):
     try:
         logger = create_logger(
-            name, unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+            name,
+            unit=whoami.get_unit_name(),
+            experiment=whoami.UNIVERSAL_EXPERIMENT,
+            to_mqtt=not local_only,
         )
         getattr(logger, level)(message)
     except Exception:
