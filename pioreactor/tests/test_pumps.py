@@ -25,8 +25,8 @@ def pause(n=1):
 
 
 def setup_function():
-    with local_persistant_storage("pump_calibration") as cache:
-        cache["media_ml_calibration"] = encode(
+    with local_persistant_storage("pump_calibrations") as cache:
+        cache["media"] = encode(
             structs.MediaPumpCalibration(
                 duration_=1.0,
                 bias_=0.0,
@@ -37,7 +37,7 @@ def setup_function():
                 pump="media",
             )
         )
-        cache["alt_media_ml_calibration"] = encode(
+        cache["alt_media"] = encode(
             structs.AltMediaPumpCalibration(
                 duration_=1.0,
                 bias_=0,
@@ -48,7 +48,7 @@ def setup_function():
                 pump="alt_media",
             )
         )
-        cache["waste_ml_calibration"] = encode(
+        cache["waste"] = encode(
             structs.WastePumpCalibration(
                 duration_=1.0,
                 bias_=0,
@@ -77,10 +77,10 @@ def test_pump_io() -> None:
 def test_pump_fails_if_calibration_not_present():
     exp = "test_pump_fails_if_calibration_not_present"
 
-    with local_persistant_storage("pump_calibration") as cache:
-        del cache["media_ml_calibration"]
-        del cache["alt_media_ml_calibration"]
-        del cache["waste_ml_calibration"]
+    with local_persistant_storage("pump_calibrations") as cache:
+        del cache["media"]
+        del cache["alt_media"]
+        del cache["waste"]
 
     with pytest.raises(CalibrationError):
         add_media(duration=1.0, unit=unit, experiment=exp)

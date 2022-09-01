@@ -29,7 +29,7 @@ __all__ = ["add_media", "remove_waste", "add_alt_media"]
 def _pump(
     unit: str,
     experiment: str,
-    pump_name: str,
+    pump_type: str,
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
@@ -43,7 +43,7 @@ def _pump(
     ------------
     unit: str
     experiment: str
-    pump_name: one of "media", "alt_media", "waste"
+    pump_type: one of "media", "alt_media", "waste"
     ml: float
         Amount of volume to pass, in mL
     duration: float
@@ -64,7 +64,7 @@ def _pump(
         "media": "add_media",
         "alt_media": "add_alt_media",
         "waste": "remove_waste",
-    }[pump_name]
+    }[pump_type]
     logger = create_logger(action_name, experiment=experiment, unit=unit)
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         assert (
@@ -73,16 +73,16 @@ def _pump(
         assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
         if calibration is None:
-            with utils.local_persistant_storage("pump_calibration") as cache:
+            with utils.local_persistant_storage("pump_calibrations") as cache:
                 try:
                     calibration = decode(
-                        cache[f"{pump_name}_ml_calibration"], type=structs.AnyPumpCalibration
+                        cache[pump_type], type=structs.AnyPumpCalibration
                     )
                 except KeyError:
                     if continuously:
                         calibration = structs.PumpCalibration(
                                 timestamp=current_utc_timestamp(),
-                                pump=pump_name,
+                                pump=pump_type,
                                 duration_=1.0,
                                 hz=200.0,
                                 dc=100.0,
@@ -91,17 +91,17 @@ def _pump(
                             )
                     else:
                         logger.error(
-                            f"Calibration not defined. Run {pump_name} pump calibration first."
+                            f"Calibration not defined. Run {pump_type} pump calibration first."
                         )
                         raise exc.CalibrationError(
-                            f"Calibration not defined. Run {pump_name} pump calibration first."
+                            f"Calibration not defined. Run {pump_type} pump calibration first."
                         )
 
         assert calibration is not None
         try:
-            GPIO_PIN = PWM_TO_PIN[config.get("PWM_reverse", pump_name)]
+            GPIO_PIN = PWM_TO_PIN[config.get("PWM_reverse", pump_type)]
         except NoOptionError:
-            logger.error(f"Add `{pump_name}` to `PWM` section to config_{unit}.ini.")
+            logger.error(f"Add `{pump_type}` to `PWM` section to config_{unit}.ini.")
             return 0.0
 
         if ml is not None:
@@ -175,7 +175,7 @@ def _pump(
             pwm.stop()
             pwm.cleanup()
             if continuously:
-                logger.info(f"Stopping {pump_name} pump.")
+                logger.info(f"Stopping {pump_type} pump.")
 
             if state.exit_event.is_set():
                 # ended early for some reason
@@ -217,11 +217,11 @@ def add_media(
     Amount of volume passed (approximate in some cases)
 
     """
-    pump_name = "media"
+    pump_type = "media"
     return _pump(
         unit,
         experiment,
-        pump_name,
+        pump_type,
         ml,
         duration,
         source_of_event,
@@ -261,11 +261,11 @@ def remove_waste(
     Amount of volume passed (approximate in some cases)
 
     """
-    pump_name = "waste"
+    pump_type = "waste"
     return _pump(
         unit,
         experiment,
-        pump_name,
+        pump_type,
         ml,
         duration,
         source_of_event,
@@ -306,11 +306,11 @@ def add_alt_media(
     Amount of volume passed (approximate in some cases)
 
     """
-    pump_name = "alt_media"
+    pump_type = "alt_media"
     return _pump(
         unit,
         experiment,
-        pump_name,
+        pump_type,
         ml,
         duration,
         source_of_event,
