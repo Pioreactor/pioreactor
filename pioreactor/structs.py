@@ -167,6 +167,7 @@ class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
 
 class PumpCalibration(Calibration):
     timestamp: str
+    name: str
     pump: str
     hz: float
     dc: float
