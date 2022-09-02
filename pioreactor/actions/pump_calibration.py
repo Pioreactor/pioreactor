@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from typing import Callable
+from typing import Optional
 
 import click
 from msgspec.json import decode
@@ -324,7 +325,6 @@ def save_results_locally(
 
 
 def pump_calibration(min_duration: float, max_duration: float) -> None:
-    import numpy as np
 
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -362,7 +362,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             title="Pump Calibration",
             x_min=min_duration,
             x_max=max_duration,
-            interpolation_curve=lambda x: np.polyval([slope, bias], x),
+            interpolation_curve=curve_to_callable("poly", [slope, bias]),
             highlight_recent_point=False,
         )
 
@@ -397,23 +397,39 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         logger.info("Finished pump calibration.")
 
 
+def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
+    if curve_type == "poly":
+        import numpy as np
+
+        def curve_callable(x):
+            return np.polyval(curve_data, x)
+
+        return curve_callable
+
+    else:
+        return None
+
+
 def display_current() -> None:
     from pprint import pprint
 
     with local_persistant_storage("current_pump_calibration") as c:
         for pump in c.keys():
-            pump_calibration_result = decode(c[pump])
-            volumes = pump_calibration_result["volumes"]
-            durations = pump_calibration_result["durations"]
-            name, pump = pump_calibration_result["name"], pump_calibration_result["pump"]
+            pump_calibration = decode(c[pump])
+            volumes = pump_calibration["volumes"]
+            durations = pump_calibration["durations"]
+            name, pump = pump_calibration["name"], pump_calibration["pump"]
             plot_data(
                 durations,
                 volumes,
                 title=f"Calibration for {pump} pump",
                 highlight_recent_point=False,
-            )  # TODO: add interpolation curve
+                interpolation_curve=curve_to_callable(
+                    "poly", [pump_calibration["duration_"], pump_calibration["bias_"]]
+                ),
+            )
             click.echo(click.style(f"Data for {name}", underline=True, bold=True))
-            pprint(pump_calibration_result)
+            pprint(pump_calibration)
             click.echo()
             click.echo()
             click.echo()

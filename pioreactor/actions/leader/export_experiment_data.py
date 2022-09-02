@@ -40,7 +40,9 @@ def generate_timestamp_to_localtimestamp_clause(cursor, table_name: str) -> str:
     return clause
 
 
-def export_experiment_data(experiment: str, output: str, tables: list) -> None:
+def export_experiment_data(
+    experiment: str, output: str, partition_by_unit: bool, tables: list
+) -> None:
     """
     Set an experiment, else it defaults to the entire table.
 
@@ -74,7 +76,6 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
                 get_column_names(cursor, table)
             ).pop()  # just take first...
 
-            partition_by_unit = False
             if table == "pioreactor_unit_activity_data":
                 partition_by_unit = True
 
@@ -106,20 +107,20 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
                 headers = [_[0] for _ in cursor.description]
                 iloc_pioreactor_unit = headers.index("pioreactor_unit")
                 filenames = []
-                file_map = {}
+                unit_to_writer_map = {}
 
                 with ExitStack() as stack:
                     for row in cursor:
                         unit = row[iloc_pioreactor_unit]
-                        if unit not in file_map:
+                        if unit not in unit_to_writer_map:
                             filename = f"{experiment}-{table}-{unit}-{time}.csv"
                             filenames.append(filename)
-                            file_map[unit] = csv.writer(
+                            unit_to_writer_map[unit] = csv.writer(
                                 stack.enter_context(open(filename, "w")), delimiter=","
                             )
-                            file_map[unit].writerow(headers)
+                            unit_to_writer_map[unit].writerow(headers)
 
-                        file_map[unit].writerow(row)
+                        unit_to_writer_map[unit].writerow(row)
 
                 for filename in filenames:
                     path_to_file = os.path.join(os.path.dirname(output), filename)
@@ -132,9 +133,10 @@ def export_experiment_data(experiment: str, output: str, tables: list) -> None:
 @click.command(name="export_experiment_data")
 @click.option("--experiment", default=None)
 @click.option("--output", default="/home/pioreactor/exports/export.zip")
+@click.option("--partition-by-unit", is_flag=True)
 @click.option("--tables", multiple=True, default=[])
-def click_export_experiment_data(experiment, output, tables):
+def click_export_experiment_data(experiment, output, partition_by_unit, tables):
     """
     (leader only) Export tables from db.
     """
-    export_experiment_data(experiment, output, tables)
+    export_experiment_data(experiment, output, partition_by_unit, tables)
