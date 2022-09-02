@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from time import sleep
+from typing import Callable
+from typing import Optional
 from typing import Type
 
 import click
@@ -270,17 +272,10 @@ def calculate_curve_of_best_fit(voltages, inferred_od600s, degree):
     return coefs, "poly"
 
 
-def show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od600s):
+def show_results_and_confirm_with_user(curve_data, curve_type, voltages, inferred_od600s):
     click.clear()
 
-    if curve_type == "poly":
-        import numpy as np
-
-        def curve_callable(x):
-            return np.polyval(curve, x)
-
-    else:
-        curve_callable = None
+    curve_callable = curve_to_callable(curve_type, curve_data)
 
     plot_data(
         inferred_od600s,
@@ -289,6 +284,8 @@ def show_results_and_confirm_with_user(curve, curve_type, voltages, inferred_od6
         interpolation_curve=curve_callable,
         highlight_recent_point=False,
     )
+    click.echo()
+    click.echo(f"Calibration curve: {curve_to_functional_form(curve_type, curve_data)}")
     r = click.prompt(
         """
 What next?
@@ -387,15 +384,15 @@ def od_calibration() -> None:
 
         degree = 4
         while True:
-            curve, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
+            curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
             okay_with_result, degree = show_results_and_confirm_with_user(
-                curve, curve_type, voltages, inferred_od600s
+                curve_data_, curve_type, voltages, inferred_od600s
             )
             if okay_with_result:
                 break
 
         data_blob = save_results_locally(
-            curve,
+            curve_data_,
             curve_type,
             voltages,
             inferred_od600s,
@@ -407,8 +404,38 @@ def od_calibration() -> None:
         )
         click.echo(click.style(f"Data for {name}", underline=True, bold=True))
         click.echo(data_blob)
+        click.echo()
+        click.echo(click.style(f"Calibration curve for `{name}`", underline=True, bold=True))
+        click.echo(curve_to_functional_form(curve_type, curve_data_))
+        click.echo()
         click.echo(f"Finished calibration of {name} ✅")
         return
+
+
+def curve_to_functional_form(curve_type: str, curve_data) -> str:
+    if curve_type == "poly":
+        d = len(curve_data)
+        return " + ".join(
+            [
+                (f"{c:0.3f}x^{d - i - 1}" if (i < d - 1) else f"{c:0.3f}")
+                for i, c in enumerate(curve_data)
+            ]
+        )
+    else:
+        raise ValueError()
+
+
+def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
+    if curve_type == "poly":
+        import numpy as np
+
+        def curve_callable(x):
+            return np.polyval(curve_data, x)
+
+        return curve_callable
+
+    else:
+        return None
 
 
 def display_current() -> None:
@@ -420,10 +447,22 @@ def display_current() -> None:
             voltages = data_blob["voltages"]
             ods = data_blob["inferred_od600s"]
             name, angle = data_blob["name"], data_blob["angle"]
+            click.echo()
+            click.echo(click.style(f"Calibration `{name}`", underline=True, bold=True))
             plot_data(
-                ods, voltages, title=f"{name}, {angle}°", highlight_recent_point=False
-            )  # TODO: add interpolation curve
-            click.echo(click.style(f"Data for {name}", underline=True, bold=True))
+                ods,
+                voltages,
+                title=f"`{name}`, calibration of {angle}°",
+                highlight_recent_point=False,
+                interpolation_curve=curve_to_callable(
+                    data_blob["curve_type"], data_blob["curve_data_"]
+                ),
+            )
+            click.echo()
+            click.echo(click.style(f"Calibration curve for `{name}`", underline=True, bold=True))
+            click.echo(curve_to_functional_form(data_blob["curve_type"], data_blob["curve_data_"]))
+            click.echo()
+            click.echo(click.style(f"Data for `{name}`", underline=True, bold=True))
             pprint(data_blob)
             click.echo()
             click.echo()
@@ -441,7 +480,7 @@ def change_current(name) -> None:
                 c[angle], type=structs.subclass_union(structs.ODCalibration)
             ).name
             c[angle] = encode(calibration)
-        click.echo(f"Swapped {name_being_bumped} for {name} ✅")
+        click.echo(f"Swapped {name_being_bumped} for `{name}` ✅")
     except Exception:
         click.echo("Failed to swap.")
         click.Abort()
