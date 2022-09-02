@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS calibrations (
             f"pioreactor/{get_unit_name()}/test/calibrations",
             encode(
                 structs.WastePumpCalibration(
+                    name="test",
                     timestamp="2012",
                     pump="waste",
                     hz=120,
