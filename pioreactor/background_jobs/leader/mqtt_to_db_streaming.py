@@ -324,7 +324,7 @@ def create_default_parsers() -> list:
             parse_od_filtered,
             "od_readings_filtered",
         ),
-        TopicToParserToTable("pioreactor/+/+/od_reading/od/+", parse_od, "od_readings_raw"),
+        TopicToParserToTable("pioreactor/+/+/od_reading/od/+", parse_od, "od_readings"),
         TopicToParserToTable("pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"),
         TopicToParserToTable(
             "pioreactor/+/+/led_change_events",
