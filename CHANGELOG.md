@@ -1,6 +1,7 @@
 ### next
- - added subcommands 'display-current', 'change-current', 'list' to pump calibration
+ - added subcommands `display_current`, `change_current`, `list` to pump calibration
  - Pump calibration follows the same format as LED calibrations. Current calibrations can be replaced with previous.
+ - Adding calibration curves to calibrations' `display_current`
 
 ### 22.9.1
  - `local_ac_hz` is now optional
