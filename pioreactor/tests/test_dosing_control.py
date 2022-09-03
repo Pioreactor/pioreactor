@@ -36,7 +36,7 @@ def pause() -> None:
 
 
 def setup_function() -> None:
-    with local_persistant_storage("pump_calibrations") as cache:
+    with local_persistant_storage("current_pump_calibration") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
                 name="setup_function",

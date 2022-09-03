@@ -1,4 +1,19 @@
 # -*- coding: utf-8 -*-
+"""
+All calibrations, including od_calibration, should behave similarly:
+
+1. Interface should have the following:
+    - `pio run x_calibration` starts the calibration and saves it keyed by a unique name (see 2. for storage)
+    - `pio run x_calibration list` lists all saved calibrations, keyed by their unique name.
+    - `pio run x_calibration display_current` displays information about the current calibration to be used.
+    - `pio run x_calibration change_current <name>` changes the current calibration to <name> calibration.
+
+2. On disk, all run calibrations should be stored in local persistent storage under `x_calibrations` keyed by a unique name, and the current calibration
+should be stored in `x_current_calibration`, with appropriate key that is not the unique name, but something consistant.
+3. A struct should be created / sub-classed from structs.Calibration that will encode / decode the calibration data blob.
+4. All calibrations' data blobs should be published to the topic `pioreactor/<unit>/UNIVERSAL_EXPERIMENT/calibrations`
+
+"""
 from __future__ import annotations
 
 from time import sleep

@@ -2,6 +2,9 @@
  - added subcommands `display_current`, `change_current`, `list` to pump calibration
  - Pump calibration follows the same format as LED calibrations. Current calibrations can be replaced with previous.
  - Adding calibration curves to calibrations' `display_current`
+ - `pio run export_experiment_data` now has an flag argument to partition csvs by unit.
+ - pump calibrations are now keyed by `media`, `waste`, `alt_media` in storage `current_pump_calibrations`
+
 
 ### 22.9.1
  - `local_ac_hz` is now optional
