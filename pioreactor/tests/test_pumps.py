@@ -25,7 +25,7 @@ def pause(n=1):
 
 
 def setup_function():
-    with local_persistant_storage("pump_calibrations") as cache:
+    with local_persistant_storage("current_pump_calibration") as cache:
         cache["media"] = encode(
             structs.MediaPumpCalibration(
                 name="setup_function",
@@ -80,7 +80,7 @@ def test_pump_io() -> None:
 def test_pump_fails_if_calibration_not_present():
     exp = "test_pump_fails_if_calibration_not_present"
 
-    with local_persistant_storage("pump_calibrations") as cache:
+    with local_persistant_storage("current_pump_calibration") as cache:
         del cache["media"]
         del cache["alt_media"]
         del cache["waste"]

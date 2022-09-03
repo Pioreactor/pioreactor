@@ -73,22 +73,20 @@ def _pump(
         assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
         if calibration is None:
-            with utils.local_persistant_storage("pump_calibrations") as cache:
+            with utils.local_persistant_storage("current_pump_calibration") as cache:
                 try:
-                    calibration = decode(
-                        cache[pump_type], type=structs.AnyPumpCalibration
-                    )
+                    calibration = decode(cache[pump_type], type=structs.AnyPumpCalibration)
                 except KeyError:
                     if continuously:
                         calibration = structs.PumpCalibration(
-                                timestamp=current_utc_timestamp(),
-                                pump=pump_type,
-                                duration_=1.0,
-                                hz=200.0,
-                                dc=100.0,
-                                bias_=0,
-                                voltage=-1,
-                            )
+                            timestamp=current_utc_timestamp(),
+                            pump=pump_type,
+                            duration_=1.0,
+                            hz=200.0,
+                            dc=100.0,
+                            bias_=0,
+                            voltage=-1,
+                        )
                     else:
                         logger.error(
                             f"Calibration not defined. Run {pump_type} pump calibration first."
