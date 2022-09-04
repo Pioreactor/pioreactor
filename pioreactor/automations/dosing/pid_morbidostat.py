@@ -32,7 +32,7 @@ class PIDMorbidostat(DosingAutomationJob):
         assert target_od is not None, "`target_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
 
-        with local_persistant_storage("pump_calibrations") as cache:
+        with local_persistant_storage("current_pump_calibration") as cache:
             if "media" not in cache:
                 raise CalibrationError("Media pump calibration must be performed first.")
             elif "waste" not in cache:
