@@ -654,7 +654,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
     with local_persistant_storage("alt_media_fraction") as c:
         c[experiment] = "0.0"
 
-    with local_persistant_storage("pump_calibrations") as cache:
+    with local_persistant_storage("current_pump_calibration") as cache:
         del cache["media"]
         del cache["alt_media"]
 
@@ -663,7 +663,7 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
             ca.execute_io_action(media_ml=0.1, alt_media_ml=0.1, waste_ml=0.2)
 
     # add back to cache
-    with local_persistant_storage("pump_calibrations") as cache:
+    with local_persistant_storage("current_pump_calibration") as cache:
         cache["media"] = json.dumps({"duration_": 1.0})
         cache["alt_media"] = json.dumps({"duration_": 1.0})
 
