@@ -90,7 +90,6 @@ def publish(
             sleep(3 * retry_count)  # linear backoff
 
     else:
-
         logger = create_logger("pubsub.publish", to_mqtt=False)
         logger.error(f"Unable to connect to host: {hostname}.")
         raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
@@ -183,6 +182,7 @@ def subscribe(
             sleep(3 * retry_count)  # linear backoff
 
     else:
+
         logger = create_logger(name or "pubsub.subscribe", to_mqtt=False)
         logger.error(f"Unable to connect to host: {hostname}. Exiting.")
         raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")

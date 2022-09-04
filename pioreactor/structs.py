@@ -162,7 +162,7 @@ class Temperature(Struct):
 
 
 class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
-    pass
+    timestamp: str
 
 
 class PumpCalibration(Calibration):

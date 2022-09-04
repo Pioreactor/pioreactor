@@ -342,14 +342,12 @@ class GrowthRateCalculator(BackgroundJob):
     def scale_raw_observations(
         self, observations: dict[pt.PdChannel, float]
     ) -> dict[pt.PdChannel, float]:
-
         scaled_signals = {
             channel: self._scale_and_shift(
                 raw_signal, self.od_blank[channel], self.od_normalization_factors[channel]
             )
             for channel, raw_signal in observations.items()
         }
-
         if any(v <= 0.0 for v in scaled_signals.values()):
             self.logger.warning(f"Negative normalized value(s) observed: {scaled_signals}")
             self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")
@@ -475,7 +473,9 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
     @staticmethod
-    def batched_raw_od_readings_to_dict(raw_od_readings) -> dict[pt.PdChannel, float]:
+    def batched_raw_od_readings_to_dict(
+        raw_od_readings: dict[pt.PdChannel, structs.ODReading]
+    ) -> dict[pt.PdChannel, float]:
         """
         Inputs looks like
         {

@@ -10,7 +10,7 @@ class DosingProgram(t.Protocol):
     Should return a non-negative float representing (approx) how much liquid was moved, in ml.
     """
 
-    def __call__(self, ml: float, unit: str, experiment: str, source_of_event: str) -> float:
+    def __call__(self, unit: str, experiment: str, ml: float, source_of_event: str) -> float:
         ...
 
 
