@@ -40,7 +40,7 @@ def introduction():
     )
 
 
-def get_metadata_from_user():
+def get_metadata_from_user() -> str:
     with local_persistant_storage("pump_calibrations") as cache:
         while True:
             name = click.prompt("Provide a unique name for this calibration", type=str).strip()
@@ -52,10 +52,7 @@ def get_metadata_from_user():
     return name
 
 
-def which_pump_are_you_calibrating():
-    media_timestamp, has_media = "", True
-    waste_timestamp, has_waste = "", True
-    alt_media_timestamp, has_alt_media = "", True
+def which_pump_are_you_calibrating() -> tuple[str, Callable]:
 
     with local_persistant_storage("current_pump_calibration") as cache:
         has_media = "media" in cache
@@ -64,14 +61,20 @@ def which_pump_are_you_calibrating():
 
         if has_media:
             media_timestamp = decode(cache["media"], type=structs.PumpCalibration).timestamp[:10]
+        else:
+            media_timestamp = ""
 
         if has_waste:
             waste_timestamp = decode(cache["waste"], type=structs.PumpCalibration).timestamp[:10]
+        else:
+            waste_timestamp = ""
 
         if has_alt_media:
             alt_media_timestamp = decode(
                 cache["alt_media"], type=structs.PumpCalibration
             ).timestamp[:10]
+        else:
+            alt_media_timestamp = ""
 
     r = click.prompt(
         click.style(
@@ -110,6 +113,8 @@ def which_pump_are_you_calibrating():
                 prompt_suffix=" ",
             )
         return ("waste", remove_waste)
+    else:
+        raise ValueError()
 
 
 def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:

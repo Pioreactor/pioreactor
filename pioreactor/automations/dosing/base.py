@@ -147,10 +147,10 @@ class DosingAutomationJob(BackgroundSubJob):
         add_media, duration=None, calibration=None, continuously=False
     )
     remove_waste_from_bioreactor: pt.DosingProgram = partial(
-        remove_waste, duration=None, calibration=None
+        remove_waste, duration=None, calibration=None, continuously=False
     )
     add_alt_media_to_bioreactor: pt.DosingProgram = partial(
-        add_alt_media, duration=None, calibration=None
+        add_alt_media, duration=None, calibration=None, continuously=False
     )
 
     # dosing metrics that are available, and published to MQTT
@@ -320,10 +320,10 @@ class DosingAutomationJob(BackgroundSubJob):
                 and self.wait_until_not_sleeping()
             ):
                 media_moved = self.add_media_to_bioreactor(
-                    ml=media_ml,
-                    source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
+                    ml=media_ml,
+                    source_of_event=source_of_event,
                 )
                 volumes_moved[0] += media_moved
                 brief_pause()
@@ -334,10 +334,10 @@ class DosingAutomationJob(BackgroundSubJob):
                 and self.wait_until_not_sleeping()
             ):  # always check that we are still in a valid state, as state can change between pump runs.
                 alt_media_moved = self.add_alt_media_to_bioreactor(
-                    ml=alt_media_ml,
-                    source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
+                    ml=alt_media_ml,
+                    source_of_event=source_of_event,
                 )
                 volumes_moved[1] += alt_media_moved
                 brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
@@ -349,19 +349,19 @@ class DosingAutomationJob(BackgroundSubJob):
                 and self.wait_until_not_sleeping()
             ):
                 waste_moved = self.remove_waste_from_bioreactor(
-                    ml=waste_ml,
-                    source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
+                    ml=waste_ml,
+                    source_of_event=source_of_event,
                 )
                 volumes_moved[2] += waste_moved
 
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(
-                    ml=waste_ml * 2,
-                    source_of_event=source_of_event,
                     unit=self.unit,
                     experiment=self.experiment,
+                    ml=waste_ml * 2,
+                    source_of_event=source_of_event,
                 )
 
         return volumes_moved

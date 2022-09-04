@@ -91,11 +91,11 @@ class Monitor(BackgroundJob):
         self.GPIO.setmode(GPIO.BCM)
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
-        
+
         i = 0
-        
+
         while i < 2:
-            i =+ 1
+            i = +1
             try:
                 self.GPIO.add_event_detect(
                     BUTTON_PIN,
@@ -106,7 +106,7 @@ class Monitor(BackgroundJob):
                 return
             except RuntimeError:
                 sleep(3)
-                
+
         self.logger.debug("Failed to add button detect.", exc_info=True)
         self.logger.warning("Failed to add button detect.")
 
@@ -437,6 +437,8 @@ class Monitor(BackgroundJob):
                 pump = add_alt_media  # type: ignore
             elif job_name == "remove_waste":
                 pump = remove_waste  # type: ignore
+            else:
+                raise ValueError()
 
             payload["config"] = config.get_config()  # techdebt
             exp = whoami._get_latest_experiment_name()

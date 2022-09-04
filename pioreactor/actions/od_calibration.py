@@ -40,7 +40,7 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def introduction():
+def introduction() -> None:
     click.clear()
     click.echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
@@ -53,6 +53,8 @@ def introduction():
 
 
 def get_metadata_from_user():
+    from math import log2
+
     with local_persistant_storage("od_calibrations") as cache:
         while True:
             name = click.prompt("Provide a name for this calibration", type=str).strip()
@@ -86,8 +88,6 @@ def get_metadata_from_user():
         default=1,
         type=click.FloatRange(min=0.01, max=10, clamp=False),
     )
-
-    from math import log2
 
     number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
 
@@ -154,12 +154,14 @@ def plot_data(
     plt.show()
 
 
-def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount, signal_channel):
+def start_recording_and_diluting(
+    initial_od600: float, minimum_od600: float, dilution_amount: float, signal_channel
+):
 
     inferred_od600 = initial_od600
     voltages = []
     inferred_od600s = []
-    current_volume_in_vial = initial_volume_in_vial = 10
+    current_volume_in_vial = initial_volume_in_vial = 10.0
     number_of_plotpoints = int((20 - initial_volume_in_vial) / dilution_amount)
     click.echo("Starting OD recordings.")
 
@@ -268,7 +270,9 @@ def start_recording_and_diluting(initial_od600, minimum_od600, dilution_amount, 
         return inferred_od600s, voltages
 
 
-def calculate_curve_of_best_fit(voltages, inferred_od600s, degree):
+def calculate_curve_of_best_fit(
+    voltages: list[float], inferred_od600s: list[float], degree: int
+) -> tuple[list[float], str]:
     import numpy as np
 
     # weigh the last point, the "blank measurement", more.
@@ -284,10 +288,12 @@ def calculate_curve_of_best_fit(voltages, inferred_od600s, degree):
         click.echo("Unable to fit.")
         coefs = np.zeros(degree)
 
-    return coefs, "poly"
+    return coefs.tolist(), "poly"
 
 
-def show_results_and_confirm_with_user(curve_data, curve_type, voltages, inferred_od600s):
+def show_results_and_confirm_with_user(
+    curve_data: list[float], curve_type: str, voltages: list[float], inferred_od600s: list[float]
+):
     click.clear()
 
     curve_callable = curve_to_callable(curve_type, curve_data)
@@ -501,7 +507,7 @@ def change_current(name) -> None:
         click.Abort()
 
 
-def list_():
+def list_() -> None:
     click.secho(
         f"{'Name':15s} {'Timestamp':35s} {'Angle':20s}",
         bold=True,

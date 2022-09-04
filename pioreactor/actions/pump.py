@@ -79,6 +79,7 @@ def _pump(
                 except KeyError:
                     if continuously:
                         calibration = structs.PumpCalibration(
+                            name="cont",
                             timestamp=current_utc_timestamp(),
                             pump=pump_type,
                             duration_=1.0,

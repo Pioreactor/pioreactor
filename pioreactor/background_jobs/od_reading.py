@@ -1087,6 +1087,7 @@ class ODReader(BackgroundJob):
     def __next__(self):
         while self._set_for_iterating.wait():
             self._set_for_iterating.clear()
+            assert self.latest_reading is not None
             return self.latest_reading
 
 
