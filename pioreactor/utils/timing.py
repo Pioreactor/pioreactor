@@ -105,7 +105,7 @@ class RepeatedTimer:
         """
         if not self.event.wait(self.run_after):
             self.start_time = perf_counter()
-            if self.run_immediately:
+            if self.run_immediately and not self.is_paused:
                 self._execute_function()
         else:
             # thread exited early
