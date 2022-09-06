@@ -139,7 +139,7 @@ class TemperatureController(BackgroundJob):
             ).start()
 
             self.publish_temperature_timer = RepeatedTimer(
-                4 * 60,
+                4 * 60 - 15,  # starting to move this down...
                 self.evaluate_temperature,
                 run_after=90,  # 90 is how long PWM is active for during a cycle (see evaluate_temperature's constants). This gives an automation a "full" cycle to be on.
                 run_immediately=True,
@@ -386,7 +386,7 @@ class TemperatureController(BackgroundJob):
         """
 
         # we pause heating for (N_sample_points * time_between_samples) seconds
-        N_sample_points = 30
+        N_sample_points = 29
         time_between_samples = 5
 
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
