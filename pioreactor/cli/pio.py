@@ -284,7 +284,8 @@ def update_settings(ctx, job: str) -> None:
 @click.option("--ui", is_flag=True, help="update the PioreactorUI to latest")
 @click.option("--app", is_flag=True, help="update the Pioreactor to latest")
 @click.option("-b", "--branch", help="update to a branch on github")
-def update(ui: bool, app: bool, branch: Optional[str]) -> None:
+@click.option("--source", help="use a URL or whl file")
+def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) -> None:
     import subprocess
     from json import loads
     from pioreactor.mureq import get
@@ -297,8 +298,13 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
         click.echo("Nothing to do. Specify either --app or --ui.")
 
     if app:
+        if source is not None:
+            command = f"sudo pip3 install --root-user-action=ignore --disable-pip-version-check -U --force-reinstall {source}"
 
-        if branch is None:
+        elif branch is not None:
+            version_installed = branch
+            command = f"sudo pip3 install --root-user-action=ignore --disable-pip-version-check -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
+        else:
             latest_release_metadata = loads(
                 get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest").body
             )
@@ -306,9 +312,6 @@ def update(ui: bool, app: bool, branch: Optional[str]) -> None:
             url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{version_installed}/pioreactor-{version_installed}-py3-none-any.whl"
 
             command = f'sudo pip3 install --root-user-action=ignore --disable-pip-version-check "pioreactor @ {url_to_get_whl}"'
-        else:
-            version_installed = branch
-            command = f"sudo pip3 install --root-user-action=ignore --disable-pip-version-check -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
 
         p = subprocess.run(
             command,
