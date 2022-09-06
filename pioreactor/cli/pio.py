@@ -299,6 +299,7 @@ def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) ->
 
     if app:
         if source is not None:
+            version_installed = source
             command = f"sudo pip3 install --root-user-action=ignore --disable-pip-version-check -U --force-reinstall {source}"
 
         elif branch is not None:
