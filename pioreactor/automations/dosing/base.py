@@ -132,8 +132,10 @@ class DosingAutomationJob(BackgroundSubJob):
 
     _latest_growth_rate: Optional[float] = None
     _latest_normalized_od: Optional[float] = None
+    _latest_od: Optional[dict[pt.PdChannel, float]] = None
     previous_normalized_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
+    previous_od: Optional[dict[pt.PdChannel, float]] = None
 
     latest_event: Optional[events.AutomationEvent] = None
     _latest_settings_ended_at: Optional[str] = None
@@ -178,9 +180,10 @@ class DosingAutomationJob(BackgroundSubJob):
             job_name="dosing_automation", unit=unit, experiment=experiment
         )
         self.skip_first_run = skip_first_run
-        self._latest_settings_started_at: str = current_utc_timestamp()
-        self.latest_normalized_od_at: datetime = datetime.utcnow()
-        self.latest_growth_rate_at: datetime = datetime.utcnow()
+        self._latest_settings_started_at = current_utc_timestamp()
+        self.latest_normalized_od_at = datetime.utcnow()
+        self.latest_growth_rate_at = datetime.utcnow()
+        self.latest_od_at = datetime.utcnow()
 
         self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator()
         self._volume_throughput_calculator = self._init_volume_throughput_calculator()
@@ -408,6 +411,26 @@ class DosingAutomationJob(BackgroundSubJob):
 
         return cast(float, self._latest_normalized_od)
 
+    @property
+    def latest_od(self) -> dict[pt.PdChannel, float]:
+        # check if None
+        if self._latest_od is None:
+            # this should really only happen on the initialization.
+            self.logger.debug("Waiting for OD and growth rate data to arrive")
+            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+                raise exc.JobRequiredError(
+                    "`od_reading` and `growth_rate_calculating` should be Ready."
+                )
+
+        # check most stale time
+        if (datetime.utcnow() - self.most_stale_time).seconds > 5 * 60:
+            raise exc.JobRequiredError(
+                f"readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?. Last reading occurred at {self.most_stale_time}."
+            )
+
+        assert self._latest_od is not None
+        return self._latest_od
+
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
@@ -444,8 +467,10 @@ class DosingAutomationJob(BackgroundSubJob):
         self.latest_normalized_od_at = to_datetime(payload.timestamp)
 
     def _set_ods(self, message: pt.MQTTMessage) -> None:
-        # TODO
-        pass
+        self.previous_od = self._latest_od
+        payload = decode(message.payload, type=structs.ODReadings)
+        self._latest_od: dict[pt.PdChannel, float] = {c: payload.ods[c].od for c in payload.ods}
+        self.latest_od_at = to_datetime(payload.timestamp)
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(
