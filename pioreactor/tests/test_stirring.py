@@ -95,7 +95,7 @@ def test_publish_measured_rpm() -> None:
         st.start_stirring()
         assert st.target_rpm == target_rpm
 
-        pause(20)
+        pause(22)
 
         message = subscribe(f"pioreactor/{unit}/{exp}/stirring/measured_rpm", timeout=3)
         assert message is not None
