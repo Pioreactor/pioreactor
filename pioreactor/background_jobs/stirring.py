@@ -402,7 +402,7 @@ class Stirrer(BackgroundJob):
 
         """
         running_wait_time = 0.0
-        sleep_time = 0.25
+        sleep_time = 1.0
 
         if (self.rpm_calculator is None) or is_testing_env():
             # can't block if we aren't recording the RPM
