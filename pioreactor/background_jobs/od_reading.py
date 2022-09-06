@@ -669,6 +669,75 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
         return od_reading / led_output
 
 
+class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
+    """
+    This class contains the logic on how we incorporate the
+    direct IR LED output into OD readings.
+
+    Tracking and "normalizing" (see below) the OD signals by the IR LED output is important
+    because the OD signal is linearly proportional to the LED output.
+
+    The following are causes of LED output changing:
+    - change in temperature of LED, caused by change in ambient temperature, or change in intensity of LED
+    - LED dimming over time
+    - drop in 3.3V rail -> changes the reference voltage for LED driver -> changes the output
+
+    Unlike PhotodiodeIrLedReferenceTracker, instead of recording the _initial_ led value, we hardcode it to something. Why?
+    In PhotodiodeIrLedReferenceTracker, the transform OD reading is proportional to the initial LED value:
+
+    OD = RAW / (REF / INITIAL)
+       = INITIAL * RAW / REF
+
+    This has problems because as the LED ages, the INITIAL will decrease, and then any calibrations will be start to be off.
+
+    Note: The reason we have INITIAL is so that our transformed OD reading is not some uninterpretable large number (as RAW / REF would be).
+
+    So in this class, we hardcode the INITIAL to be a STATIC value for all experiments:
+
+    OD = RAW / (REF / STATIC)
+       = STATIC * RAW / REF
+    """
+
+    _INITIAL = 0.04
+
+    def __init__(self, channel: pt.PdChannel, ignore_blank: bool = False) -> None:
+        super().__init__()
+        self.led_output_ema = ExponentialMovingAverage(
+            config.getfloat("od_config", "pd_reference_ema")
+        )
+        self.initial_led_output = self._INITIAL
+        self.channel = channel
+        self.ignore_blank = ignore_blank
+        self._count = 0
+        self.blank_reading = 0.0
+        self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
+
+    def update(self, ir_output_reading: float) -> None:
+
+        # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
+        self.led_output_ema.update(
+            (ir_output_reading - self.blank_reading) / self.initial_led_output
+        )
+
+    def set_blank(self, ir_output_reading: float) -> None:
+        if not self.ignore_blank:
+            self.blank_reading = ir_output_reading
+            self.logger.debug(f"{self.blank_reading=}")
+            if self.blank_reading > 0.0005:
+                self.logger.warning(
+                    "REF blank reading is unusually high. Is the cap secure, or is there lots of ambient IR light present from sunny window, etc.?"
+                )
+        return
+
+    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+        return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
+
+    def transform(self, od_reading: float) -> float:
+        led_output = self.led_output_ema()
+        assert led_output is not None
+        return od_reading / led_output
+
+
 class NullIrLedReferenceTracker(IrLedReferenceTracker):
     def __init__(self) -> None:
         super().__init__()
@@ -1066,7 +1135,7 @@ class ODReader(BackgroundJob):
 
     @staticmethod
     def _log_relative_intensity_of_ir_led(cls, od_readings) -> None:
-        if int(od_readings.timestamp[-3:-1]) % 3 == 0:  # some pseudo randomness
+        if int(od_readings.timestamp[-3:-1]) % 10 == 0:  # some pseudo randomness
             cls.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker.transform(1.0),
@@ -1146,7 +1215,7 @@ def start_od_reading(
 
     # use IR LED reference to normalize?
     if ir_led_reference_channel is not None:
-        ir_led_reference_tracker = PhotodiodeIrLedReferenceTracker(
+        ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
             ir_led_reference_channel, ignore_blank=fake_data
         )
         channels.append(ir_led_reference_channel)
