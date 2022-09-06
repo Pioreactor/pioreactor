@@ -402,7 +402,7 @@ class Stirrer(BackgroundJob):
 
         """
         running_wait_time = 0.0
-        sleep_time = 1.0
+        sleep_time = 0.5
 
         if (self.rpm_calculator is None) or is_testing_env():
             # can't block if we aren't recording the RPM
@@ -411,7 +411,9 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"stirring is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
+        sleep(sleep_time)
         self.poll_and_update_dc()
+
         assert self._measured_rpm is not None
 
         while abs(self._measured_rpm - self.target_rpm) > abs_tolerance:
