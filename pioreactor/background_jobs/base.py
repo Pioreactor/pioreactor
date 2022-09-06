@@ -451,7 +451,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
 
         """
-        self.logger.debug(f"{self.job_name} is blocking until disconnected")
+        self.logger.debug(f"{self.job_name} is blocking until disconnected.")
         self._blocking_event.wait()
 
     def blink_error_code(self, error_code: int) -> None:
