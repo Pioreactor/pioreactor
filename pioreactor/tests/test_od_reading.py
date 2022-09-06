@@ -395,7 +395,6 @@ def test_outliers_are_removed_in_sin_regression() -> None:
 
 
 def test_calibration_not_requested():
-
     with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
 
@@ -437,19 +436,64 @@ def test_calibration_simple_linear_calibration():
         "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
-        x = 0.5
-        assert od.calibration_transformer.models["1"](x) == (x - 0.5) / 2
 
-        x = 0.5
-        assert od.calibration_transformer.models["1"](x) == (x - 0.5) / 2
+        voltage = 0.0
+        assert od.calibration_transformer.models["1"](voltage) == (voltage - 0.5) / 2
+
+        voltage = 0.5
+        assert od.calibration_transformer.models["1"](voltage) == (voltage - 0.5) / 2
 
         with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
-            x = 10.0
+            voltage = 10.0
             pause()
             pause()
             pause()
-            assert od.calibration_transformer.models["1"](x) == 2.0
+            assert od.calibration_transformer.models["1"](voltage) == 2.0
             pause()
+            pause()
+            pause()
+            assert "suggested" in bucket[0]["message"]
+
+
+def test_calibration_simple_linear_calibration_negative_slope():
+    experiment = "test_calibration_simple_linear_calibration"
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = encode(
+            structs.OD90Calibration(
+                timestamp="2022-01-01",
+                curve_type="poly",
+                curve_data_=[-0.1, 2],
+                name="linear",
+                maximum_od600=20.0,
+                minimum_od600=0.0,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.0,
+                maximum_voltage=2.0,
+                voltages=[],
+                inferred_od600s=[],
+                pd_channel="2",
+            )
+        )
+
+    with start_od_reading(
+        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+    ) as od:
+        assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
+
+        voltage = 0.0
+        assert od.calibration_transformer.models["1"](voltage) == (voltage - 2) / (-0.1)
+
+        voltage = 0.5
+        assert od.calibration_transformer.models["1"](voltage) == (voltage - 2) / (-0.1)
+
+        with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
+            voltage = 12.0
+            assert voltage > 2.0
+
+            pause()
+            assert od.calibration_transformer.models["1"](voltage) == 20.0
             pause()
             pause()
             assert "suggested" in bucket[0]["message"]

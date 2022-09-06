@@ -63,7 +63,7 @@ class MockAnalogIn:
         import numpy as np
 
         if self.am_i_REF:
-            return (0.1 + random.normalvariate(0, sigma=0.0001)) / 2**10
+            return (0.1 + random.normalvariate(0, sigma=0.0001)) / 2**10 * 40
 
         self.gr = self.growth_rate(
             self._counter / config.getfloat("od_config", "samples_per_second")
