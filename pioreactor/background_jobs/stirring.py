@@ -335,7 +335,7 @@ class Stirrer(BackgroundJob):
 
         recent_rpm = self.rpm_calculator(poll_for_seconds)
 
-        if recent_rpm == 0:
+        if recent_rpm == 0 and not is_testing_env():
             self.logger.warning(
                 "Stirring RPM is 0 - attempting to restart it automatically. Target RPM may be too low."
             )
