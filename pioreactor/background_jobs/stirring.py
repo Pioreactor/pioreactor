@@ -232,12 +232,12 @@ class Stirrer(BackgroundJob):
             experiment=self.experiment,
             job_name=self.job_name,
             target_name="rpm",
-            output_limits=(-10, 10),  # avoid whiplashing
+            output_limits=(-5, 5),  # avoid whiplashing
         )
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            27,
+            37,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
