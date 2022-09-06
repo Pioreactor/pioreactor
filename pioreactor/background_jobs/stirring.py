@@ -241,7 +241,7 @@ class Stirrer(BackgroundJob):
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
-            run_after=5,
+            run_after=7,
             poll_for_seconds=4,  # technically should be a function of the RPM: lower RPM, longer to get sufficient estimate with low variance.
         )
 
@@ -408,7 +408,7 @@ class Stirrer(BackgroundJob):
             # can't block if we aren't recording the RPM
             return False
 
-        self.logger.debug(f"Blocking until RPM is near {self.target_rpm}.")
+        self.logger.debug(f"stirring is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
         self.poll_and_update_dc()
