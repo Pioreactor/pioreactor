@@ -241,7 +241,7 @@ class Stirrer(BackgroundJob):
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
-            run_after=10,
+            run_after=6,
             poll_for_seconds=4,  # technically should be a function of the RPM: lower RPM, longer to get sufficient estimate with low variance.
         )
 
