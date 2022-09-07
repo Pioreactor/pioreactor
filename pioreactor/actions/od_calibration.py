@@ -291,7 +291,7 @@ def calculate_curve_of_best_fit(
         click.echo("Unable to fit.")
         coefs = np.zeros(degree).tolist()
 
-    return coefs, "poly"
+    return coefs.tolist(), "poly"
 
 
 def show_results_and_confirm_with_user(
