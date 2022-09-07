@@ -64,6 +64,7 @@ class Monitor(BackgroundJob):
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
         self.setup_GPIO()
+        self.led_on()
 
         # set up a self check function to periodically check vitals and log them
         # we manually run a self_check outside of a thread first, as if there are
@@ -143,7 +144,7 @@ class Monitor(BackgroundJob):
 
     def check_for_required_jobs_running(self):
         if not utils.is_pio_job_running("watchdog", "mqtt_to_db_streaming"):
-            self.logger.warning("watchdog and mqtt_to_db_streaming should be running on leader.")
+            self.logger.debug("watchdog and mqtt_to_db_streaming should be running on leader.")
 
     def check_heater_pcb_temperature(self) -> None:
         """
@@ -172,7 +173,7 @@ class Monitor(BackgroundJob):
             )
 
             call("sudo shutdown now --poweroff", shell=True)
-        self.logger.debug(f"Heating PCB temperature at {observed_tmp} ℃.")
+        self.logger.debug(f"Heating PCB temperature at {round(observed_tmp)} ℃.")
 
     def check_for_mqtt_connection_to_leader(self) -> None:
         while (not self.pub_client.is_connected()) or (not self.sub_client.is_connected()):
