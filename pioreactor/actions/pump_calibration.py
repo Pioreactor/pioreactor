@@ -168,7 +168,7 @@ def choose_settings() -> tuple[float, float]:
     click.echo()
     hz = click.prompt(
         click.style("Enter frequency of PWM. [enter] for default 200 hz", fg="green"),
-        type=click.FloatRange(0, 10000),
+        type=click.FloatRange(0.1 10000),
         default=200,
         show_default=False,
     )
