@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
-
-from .silent import Silent
 from .constant_duty_cycle import ConstantDutyCycle
+from .only_record_ambient_temperture import OnlyRecordAmbientTemperature
 from .stable import Stable
 
 
-__all__ = ("Silent", "ConstantDutyCycle", "Stable")
+__all__ = ("OnlyRecordAmbientTemperature", "ConstantDutyCycle", "Stable")

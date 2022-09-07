@@ -9,7 +9,7 @@ from msgspec.json import encode
 from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations.temperature import ConstantDutyCycle
-from pioreactor.automations.temperature import Silent
+from pioreactor.automations.temperature import OnlyRecordAmbientTemperature
 from pioreactor.automations.temperature import Stable
 from pioreactor.background_jobs import temperature_control
 from pioreactor.whoami import get_unit_name
@@ -56,10 +56,10 @@ def test_changing_temperature_algo_over_mqtt() -> None:
     )
 
     with temperature_control.TemperatureController(
-        "silent", unit=unit, experiment=experiment
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
     ) as tc:
-        assert tc.automation_name == "silent"
-        assert isinstance(tc.automation_job, Silent)
+        assert tc.automation_name == "only_record_ambient_temperature"
+        assert isinstance(tc.automation_job, OnlyRecordAmbientTemperature)
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
@@ -86,10 +86,10 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
     )
 
     with temperature_control.TemperatureController(
-        "silent", unit=unit, experiment=experiment
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
     ) as algo:
-        assert algo.automation_name == "silent"
-        assert isinstance(algo.automation_job, Silent)
+        assert algo.automation_name == "only_record_ambient_temperature"
+        assert isinstance(algo.automation_job, OnlyRecordAmbientTemperature)
         pause()
         pause()
         pubsub.publish(
@@ -112,7 +112,9 @@ def test_changing_temperature_algo_over_mqtt_and_then_update_params() -> None:
 
 def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
     experiment = "test_heating_is_reduced_when_set_temp_is_exceeded"
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         t.tmp_driver.get_temperature = lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1
         pause()
         t._update_heater(50)
@@ -157,13 +159,16 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
         pause()
 
         assert t.heater_duty_cycle == 0
-        assert t.automation_name == "silent"
+        assert t.automation_name == "only_record_ambient_temperature"
 
 
 def test_child_cant_update_heater_when_locked() -> None:
     experiment = "test_child_cant_update_heater_when_locked"
     with temperature_control.TemperatureController(
-        "silent", unit=unit, experiment=experiment, eval_and_publish_immediately=False
+        "only_record_ambient_temperature",
+        unit=unit,
+        experiment=experiment,
+        eval_and_publish_immediately=False,
     ) as t:
         assert t.automation_job.update_heater(50)
 
@@ -214,7 +219,9 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
         f"pioreactor/{unit}/{experiment}/temperature_control/heater_duty_cycle",
     )
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment):
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ):
         # change to PID stable
 
         pubsub.publish(
@@ -264,7 +271,9 @@ def test_temperature_inference_if_less_than_hardcoded_room_temp() -> None:
             19.5,
         ],
     }
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 19.0 <= t.approximate_temperature(features) <= 20.0
 
 
@@ -294,7 +303,9 @@ def test_temperature_approximation1() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 31.5 <= t.approximate_temperature(features) <= 33.0
 
 
@@ -338,7 +349,9 @@ def test_temperature_approximation21() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 28.0 <= t.approximate_temperature(features) <= 35.0
 
 
@@ -368,7 +381,9 @@ def test_temperature_approximation2() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 37 <= t.approximate_temperature(features) <= 38
 
 
@@ -398,7 +413,9 @@ def test_temperature_approximation3() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 36.5 <= t.approximate_temperature(features) <= 38
 
 
@@ -441,7 +458,9 @@ def test_temperature_approximation4() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 38 <= t.approximate_temperature(features) <= 40
 
 
@@ -484,7 +503,9 @@ def test_temperature_approximation5() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 27.5 <= t.approximate_temperature(features) <= 27.75
 
 
@@ -527,7 +548,9 @@ def test_temperature_approximation6() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 26.8125 <= t.approximate_temperature(features) <= 27.0
 
 
@@ -570,7 +593,9 @@ def test_temperature_approximation7() -> None:
         ],
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert 26.3 <= t.approximate_temperature(features) <= 27.1875
 
 
@@ -578,7 +603,9 @@ def test_temperature_approximation_if_constant() -> None:
     experiment = "test_temperature_approximation_if_constant"
     features = {"previous_heater_dc": 17, "time_series_of_temp": 30 * [32.0]}
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         for temp in range(20, 45):
             features = {
                 "room_temp": 20,
@@ -600,7 +627,9 @@ def test_temperature_approximation_even_if_very_tiny_heat_source() -> None:
         ),
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert (32 * np.exp(-0.008 * 17)) < t.approximate_temperature(features) < 32
 
 
@@ -616,7 +645,9 @@ def test_temperature_approximation_even_if_very_large_heat_source() -> None:
         ),
     }
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert (24 * np.exp(-0.008 * 17)) < t.approximate_temperature(features) < 25
 
 
@@ -624,7 +655,9 @@ def test_temperature_approximation_if_dc_is_nil() -> None:
     experiment = "test_temperature_approximation_if_dc_is_nil"
     features = {"previous_heater_dc": 0, "time_series_of_temp": [37.8125, 32.1875]}
 
-    with temperature_control.TemperatureController("silent", unit=unit, experiment=experiment) as t:
+    with temperature_control.TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as t:
         assert t.approximate_temperature(features) == 32.1875
 
 
@@ -700,7 +733,10 @@ def test_using_external_thermocouple() -> None:
 
     experiment = "test_using_external_thermocouple"
     with temperature_control.TemperatureController(
-        "silent", unit=unit, experiment=experiment, using_third_party_thermocouple=True
+        "only_record_ambient_temperature",
+        unit=unit,
+        experiment=experiment,
+        using_third_party_thermocouple=True,
     ) as tc:
 
         pubsub.publish(
