@@ -58,11 +58,14 @@ def get_metadata_from_user():
     with local_persistant_storage("od_calibrations") as cache:
         while True:
             name = click.prompt("Provide a name for this calibration", type=str).strip()
-            if name not in cache:
-                break
-            else:
+            if name == "":
+                name = click.echo("Name cannot be empty")
+                continue
+            elif name in cache:
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
                     break
+            else:
+                break
 
     initial_od600 = click.prompt(
         "Provide the OD600 measurement of your initial culture",
@@ -259,7 +262,7 @@ def start_recording_and_diluting(
             x_max=initial_od600,
         )
         click.echo("Empty the vial and replace with 10 mL of the media you used.")
-        inferred_od600 = click.prompt("What is the OD600 of your blank?", default=0, type=float)
+        inferred_od600 = click.prompt("What is the OD600 of your blank?", type=float)
         click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
         while not click.confirm("Continue?", default=True):
             pass
@@ -286,9 +289,9 @@ def calculate_curve_of_best_fit(
         coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
     except Exception:
         click.echo("Unable to fit.")
-        coefs = np.zeros(degree)
+        coefs = np.zeros(degree).tolist()
 
-    return coefs.tolist(), "poly"
+    return coefs, "poly"
 
 
 def show_results_and_confirm_with_user(
@@ -321,9 +324,9 @@ d: choose a new degree for polynomial fit
     if r == "Y":
         return True, None
     elif r == "n":
-        click.Abort()
+        raise click.Abort()
     elif r == "d":
-        d = click.prompt("Enter new degree", type=int)
+        d = click.prompt("Enter new degree", type=click.IntRange(1, 5, clamp=True))
         return False, d
 
 
@@ -504,7 +507,7 @@ def change_current(name) -> None:
         click.echo(f"Swapped {name_being_bumped} for `{name}` ✅")
     except Exception:
         click.echo("Failed to swap.")
-        click.Abort()
+        raise click.Abort()
 
 
 def list_() -> None:

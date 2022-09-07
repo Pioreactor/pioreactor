@@ -168,16 +168,16 @@ def choose_settings() -> tuple[float, float]:
     click.echo()
     hz = click.prompt(
         click.style("Enter frequency of PWM. [enter] for default 200 hz", fg="green"),
-        type=click.FloatRange(0, 10000),
+        type=click.FloatRange(0.1, 10000),
         default=200,
         show_default=False,
     )
     dc = click.prompt(
         click.style(
-            "Enter duty cycle percent as a whole number. [enter] for default 90%", fg="green"
+            "Enter duty cycle percent as a whole number. [enter] for default 50%", fg="green"
         ),
         type=click.IntRange(0, 100),
-        default=90,
+        default=50,
         show_default=False,
     )
 

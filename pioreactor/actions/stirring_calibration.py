@@ -125,6 +125,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
                     "data": {"dcs": dcs, "measured_rpms": measured_rpms},
                 }
             )
+            
 
 
 @click.option(
