@@ -1,6 +1,7 @@
 ### 22.9.3
  - temperature automation `silent` is now `only_record_ambient_temperature`.
  - using new RPi image from 2022-09-06.
+ - fixes
 
 
 ### 22.9.2
