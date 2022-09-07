@@ -1,7 +1,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os
+import time
 from typing import Optional
+
+
+def is_using_local_access_point() -> bool:
+    return os.path.isfile("/boot/local_access_point")
 
 
 def is_hostname_on_network(hostname: str) -> bool:
@@ -44,7 +50,6 @@ def get_ip() -> Optional[str]:
 
 
 def discover_workers_on_network() -> list[str]:
-    import time
     from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
 
     class Listener(ServiceListener):
