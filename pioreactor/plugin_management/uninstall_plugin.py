@@ -24,7 +24,7 @@ def uninstall_plugin(name_of_plugin):
     )
 
     if result.returncode == 0:
-        logger.info(f"Successfully uninstalled plugin {name_of_plugin}.")
+        logger.notice(f"Successfully uninstalled plugin {name_of_plugin}.")
     else:
         logger.error(f"Failed to uninstall plugin {name_of_plugin}. See logs.")
         logger.debug(result.stdout)

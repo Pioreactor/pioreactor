@@ -4,6 +4,8 @@
  - Adding calibration curves to calibrations' `display_current`
  - `pio run export_experiment_data` now has an flag argument to partition csvs by unit.
  - pump calibrations are now keyed by `media`, `waste`, `alt_media` in storage `current_pump_calibrations`
+ - Dosing automation have access to `latest_od` now.
+ - Bump plotext.
 
 
 ### 22.9.1

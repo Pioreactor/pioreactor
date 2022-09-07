@@ -80,6 +80,19 @@ def test_silent_automation() -> None:
     with Silent(volume=None, duration=60, unit=unit, experiment=experiment) as algo:
         pause()
         pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_timestamp(),
+                    ods={
+                        "2": structs.ODReading(
+                            timestamp=current_utc_timestamp(), angle="45", od=0.05, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
+        pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
         )
@@ -89,7 +102,23 @@ def test_silent_automation() -> None:
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
+        assert algo.latest_normalized_od == 1.0
+        assert algo.latest_growth_rate == 0.01
+        assert algo.latest_od == {"2": 0.05}
 
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            encode(
+                structs.ODReadings(
+                    timestamp=current_utc_timestamp(),
+                    ods={
+                        "2": structs.ODReading(
+                            timestamp=current_utc_timestamp(), angle="45", od=0.06, channel="2"
+                        )
+                    },
+                )
+            ),
+        )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             json.dumps({"growth_rate": 0.02, "timestamp": current_utc_timestamp()}),
@@ -100,6 +129,14 @@ def test_silent_automation() -> None:
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
+        assert algo.latest_normalized_od == 1.1
+        assert algo.previous_normalized_od == 1.0
+
+        assert algo.latest_growth_rate == 0.02
+        assert algo.previous_growth_rate == 0.01
+
+        assert algo.latest_od == {"2": 0.06}
+        assert algo.previous_od == {"2": 0.05}
 
 
 def test_turbidostat_automation() -> None:
