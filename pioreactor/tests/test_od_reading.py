@@ -397,6 +397,8 @@ def test_outliers_are_removed_in_sin_regression() -> None:
 def test_calibration_not_requested():
     with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
+        assert od.calibration_transformer({"2": 0.1}) == {"2": 0.1}
+        assert od.calibration_transformer({"2": 0.5, "1": 0.0}) == {"2": 0.5, "1": 0.0}
 
 
 def test_calibration_not_present():
@@ -405,7 +407,7 @@ def test_calibration_not_present():
         if "90" in c:
             del c["90"]
 
-    with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
+    with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=True) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         assert len(od.calibration_transformer.models) == 0
 
@@ -418,7 +420,7 @@ def test_calibration_simple_linear_calibration():
             structs.OD90Calibration(
                 timestamp="2022-01-01",
                 curve_type="poly",
-                curve_data_=[2.0, 0.5],
+                curve_data_=[2.0, 0.0],
                 name="linear",
                 maximum_od600=2.0,
                 minimum_od600=0.0,
@@ -433,22 +435,28 @@ def test_calibration_simple_linear_calibration():
         )
 
     with start_od_reading(
-        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+        "REF",
+        "90",
+        interval=None,
+        fake_data=True,
+        experiment=experiment,
+        unit=get_unit_name(),
+        use_calibration=True,
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
 
         voltage = 0.0
-        assert od.calibration_transformer.models["1"](voltage) == (voltage - 0.5) / 2
+        assert od.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
 
         voltage = 0.5
-        assert od.calibration_transformer.models["1"](voltage) == (voltage - 0.5) / 2
+        assert od.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
 
         with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
             voltage = 10.0
             pause()
             pause()
             pause()
-            assert od.calibration_transformer.models["1"](voltage) == 2.0
+            assert od.calibration_transformer.models["2"](voltage) == 2.0
             pause()
             pause()
             pause()
@@ -456,7 +464,7 @@ def test_calibration_simple_linear_calibration():
 
 
 def test_calibration_simple_linear_calibration_negative_slope():
-    experiment = "test_calibration_simple_linear_calibration"
+    experiment = "test_calibration_simple_linear_calibration_negative_slope"
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
@@ -478,29 +486,29 @@ def test_calibration_simple_linear_calibration_negative_slope():
         )
 
     with start_od_reading(
-        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+        "REF", "90", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
 
         voltage = 0.0
-        assert od.calibration_transformer.models["1"](voltage) == (voltage - 2) / (-0.1)
+        assert od.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
 
         voltage = 0.5
-        assert od.calibration_transformer.models["1"](voltage) == (voltage - 2) / (-0.1)
+        assert od.calibration_transformer.models["2"](voltage) == (voltage - 2) / (-0.1)
 
         with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
             voltage = 12.0
             assert voltage > 2.0
 
             pause()
-            assert od.calibration_transformer.models["1"](voltage) == 20.0
+            assert od.calibration_transformer.models["2"](voltage) == 20.0
             pause()
             pause()
             assert "suggested" in bucket[0]["message"]
 
 
 def test_calibration_simple_quadratic_calibration():
-    experiment = "test_calibration_simple_linear_calibration"
+    experiment = "test_calibration_simple_quadratic_calibration"
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
@@ -522,11 +530,11 @@ def test_calibration_simple_quadratic_calibration():
         )
 
     with start_od_reading(
-        "90", "REF", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
+        "REF", "90", interval=None, fake_data=True, experiment=experiment, unit=get_unit_name()
     ) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         x = 0.5
-        assert abs(od.calibration_transformer.models["1"](x) - np.sqrt(3 / 5)) < 0.001
+        assert abs(od.calibration_transformer.models["2"](x) - np.sqrt(3 / 5)) < 0.001
 
 
 def test_calibration_multi_modal():
@@ -553,17 +561,17 @@ def test_calibration_multi_modal():
             )
         )
 
-    with start_od_reading("90", "REF", interval=None, fake_data=True, experiment=experiment) as od:
+    with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         for i in range(0, 1000):
 
             voltage = np.polyval(poly, i / 1000)
-            print(voltage, od.calibration_transformer.models["1"](voltage))
+            print(voltage, od.calibration_transformer.models["2"](voltage))
 
 
 def test_calibration_errors_when_ir_led_differs():
 
-    experiment = "test_calibration_simple_linear_calibration"
+    experiment = "test_calibration_errors_when_ir_led_differs"
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
@@ -584,9 +592,40 @@ def test_calibration_errors_when_ir_led_differs():
             )
         )
 
-    with pytest.raises(exc.CalibrationError):
-        with start_od_reading("90", "REF", interval=1, fake_data=True, experiment=experiment):
+    with pytest.raises(exc.CalibrationError) as error:
+        with start_od_reading("REF", "90", interval=1, fake_data=True, experiment=experiment):
             pass
+    assert "LED intensity" in str(error.value)
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
+
+
+def test_calibration_errors_when_pd_channel_differs():
+
+    experiment = "test_calibration_errors_when_pd_channel_differs"
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = encode(
+            structs.OD90Calibration(
+                timestamp="2022-01-01",
+                curve_type="poly",
+                curve_data_=[1.0, 0, -0.1],
+                name="quad_test",
+                maximum_od600=2.0,
+                minimum_od600=0.0,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.0,
+                maximum_voltage=1.0,
+                voltages=[],
+                inferred_od600s=[],
+                pd_channel="2",
+            )
+        )
+
+    with pytest.raises(exc.CalibrationError) as error:
+        with start_od_reading("90", "REF", interval=1, fake_data=True, experiment=experiment):
+            pass
+
+    assert "channel" in str(error.value)
