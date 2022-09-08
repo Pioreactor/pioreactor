@@ -265,7 +265,7 @@ def test_positive_correlation_between_temperature_and_heating(
 ) -> None:
     assert is_heating_pcb_present()
 
-    with TemperatureController("silent", unit=unit, experiment=experiment) as tc:
+    with TemperatureController("only_record_ambient_temperature", unit=unit, experiment=experiment) as tc:
 
         measured_pcb_temps = []
         dcs = list(range(0, 22, 3))
