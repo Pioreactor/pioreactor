@@ -418,16 +418,13 @@ def test_dodging():
     with collect_all_logs_of_level(
         "NOTICE", unit=get_unit_name(), experiment="test_dodging"
     ) as bucket:
-        jp = JustPause()
-        od = start_od_reading(
-            "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
-        )
-        time.sleep(20)
+        with JustPause():
+            with start_od_reading(
+                "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
+            ):
+                time.sleep(20)
 
-        assert len(bucket) > 4, bucket
-
-    od.clean_up()
-    jp.clean_up()
+                assert len(bucket) > 4, bucket
 
 
 def test_dodging_disabled():
