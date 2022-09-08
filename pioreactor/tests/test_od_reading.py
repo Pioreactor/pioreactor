@@ -544,6 +544,7 @@ def test_calibration_simple_quadratic_calibration():
         del c["90"]
 
 
+
 def test_calibration_multi_modal():
     experiment = "test_calibration_multi_modal"
     # note: not a realistic calibration curve, using only because it's unimodal
@@ -577,6 +578,7 @@ def test_calibration_multi_modal():
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
+
 
 
 def test_calibration_errors_when_ir_led_differs():
@@ -637,7 +639,38 @@ def test_calibration_errors_when_pd_channel_differs():
     with pytest.raises(exc.CalibrationError) as error:
         with start_od_reading("90", "REF", interval=1, fake_data=True, experiment=experiment):
             pass
+    assert "LED intensity" in str(error.value)
 
     assert "channel" in str(error.value)
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
+
+
+def test_calibration_errors_when_pd_channel_differs():
+
+    experiment = "test_calibration_errors_when_pd_channel_differs"
+
+    with local_persistant_storage("current_od_calibration") as c:
+        c["90"] = encode(
+            structs.OD90Calibration(
+                timestamp="2022-01-01",
+                curve_type="poly",
+                curve_data_=[1.0, 0, -0.1],
+                name="quad_test",
+                maximum_od600=2.0,
+                minimum_od600=0.0,
+                ir_led_intensity=90.0,
+                angle="90",
+                minimum_voltage=0.0,
+                maximum_voltage=1.0,
+                voltages=[],
+                inferred_od600s=[],
+                pd_channel="2",
+            )
+        )
+
+    with pytest.raises(exc.CalibrationError) as error:
+        with start_od_reading("90", "REF", interval=1, fake_data=True, experiment=experiment):
+            pass
+
+    assert "channel" in str(error.value)
