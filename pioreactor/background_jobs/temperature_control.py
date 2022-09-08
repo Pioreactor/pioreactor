@@ -285,7 +285,7 @@ class TemperatureController(BackgroundJob):
 
             # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
             # pass it on to the new automation.
-            # this is most useful when temp-control is initialized with silent, and then quickly switched over to stable.
+            # this is most useful when temp-control is initialized with only_record_ambient_temperature, and then quickly switched over to stable.
             self.automation_job._set_latest_temperature(self.temperature)
 
         except KeyError:
@@ -330,8 +330,10 @@ class TemperatureController(BackgroundJob):
 
             self._update_heater(0)
 
-            if self.automation_name != "silent":
-                self.set_automation(TemperatureAutomation(automation_name="silent"))
+            if self.automation_name != "only_record_ambient_temperature":
+                self.set_automation(
+                    TemperatureAutomation(automation_name="only_record_ambient_temperature")
+                )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
@@ -593,7 +595,7 @@ def start_temperature_control(
 )
 @click.option(
     "--automation-name",
-    default="silent",
+    default="only_record_ambient_temperature",
     help="set the automation of the system",
     show_default=True,
 )

@@ -682,14 +682,6 @@ def test_execute_io_action_outputs1() -> None:
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined"
-    with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
-
-    with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = "0.0"
-
-    with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = "0.0"
 
     with local_persistant_storage("current_pump_calibration") as cache:
         del cache["media"]
@@ -698,11 +690,6 @@ def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() 
     with pytest.raises(exc.CalibrationError):
         with DosingAutomationJob(unit=unit, experiment=experiment, skip_first_run=True) as ca:
             ca.execute_io_action(media_ml=0.1, alt_media_ml=0.1, waste_ml=0.2)
-
-    # add back to cache
-    with local_persistant_storage("current_pump_calibration") as cache:
-        cache["media"] = json.dumps({"duration_": 1.0})
-        cache["alt_media"] = json.dumps({"duration_": 1.0})
 
 
 def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
