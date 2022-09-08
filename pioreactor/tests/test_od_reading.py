@@ -462,6 +462,9 @@ def test_calibration_simple_linear_calibration():
             pause()
             assert "suggested" in bucket[0]["message"]
 
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]
+
 
 def test_calibration_simple_linear_calibration_negative_slope():
     experiment = "test_calibration_simple_linear_calibration_negative_slope"
@@ -505,6 +508,8 @@ def test_calibration_simple_linear_calibration_negative_slope():
             pause()
             pause()
             assert "suggested" in bucket[0]["message"]
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]
 
 
 def test_calibration_simple_quadratic_calibration():
@@ -535,6 +540,8 @@ def test_calibration_simple_quadratic_calibration():
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         x = 0.5
         assert abs(od.calibration_transformer.models["2"](x) - np.sqrt(3 / 5)) < 0.001
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]
 
 
 def test_calibration_multi_modal():
@@ -567,6 +574,9 @@ def test_calibration_multi_modal():
 
             voltage = np.polyval(poly, i / 1000)
             print(voltage, od.calibration_transformer.models["2"](voltage))
+
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]
 
 
 def test_calibration_errors_when_ir_led_differs():
@@ -629,3 +639,5 @@ def test_calibration_errors_when_pd_channel_differs():
             pass
 
     assert "channel" in str(error.value)
+    with local_persistant_storage("current_od_calibration") as c:
+        del c["90"]

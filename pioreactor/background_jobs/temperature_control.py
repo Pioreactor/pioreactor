@@ -227,12 +227,14 @@ class TemperatureController(BackgroundJob):
                 )
 
         averaged_temp = running_sum / running_count
-        if averaged_temp == 0.0 and self.automation_name != "silent":
+        if averaged_temp == 0.0 and self.automation_name != "only_record_ambient_temperature":
             # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
             # todo: still needed? last observed on  July 18, 2022
-            self.logger.error("Temp sensor failure. Switching to Silent. See issue #308")
+            self.logger.error("Temp sensor failure. Switching off. See issue #308")
             self._update_heater(0.0)
-            self.set_automation(TemperatureAutomation(automation_name="silent"))
+            self.set_automation(
+                TemperatureAutomation(automation_name="only_record_ambient_temperature")
+            )
 
         return averaged_temp
 
