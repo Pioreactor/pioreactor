@@ -1,3 +1,9 @@
+### 22.9.3
+ - temperature automation `silent` is now `only_record_ambient_temperature`.
+ - using new RPi image from 2022-09-06.
+ - fixes
+
+
 ### 22.9.2
  - added subcommands `display_current`, `change_current`, `list` to pump calibration
  - Pump calibration follows the same format as LED calibrations. Current calibrations can be replaced with previous.

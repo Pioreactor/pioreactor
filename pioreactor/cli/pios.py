@@ -45,9 +45,7 @@ def add_leader(units: tuple[str, ...]) -> tuple[str, ...]:
 
 def remove_leader(units: tuple[str, ...]) -> tuple[str, ...]:
     leader = get_leader_hostname()
-    if leader not in units:
-        return units
-    return tuple(u for u in units if u != leader)
+    return tuple(unit for unit in units if unit != leader)
 
 
 def save_config_files_to_db(units: tuple[str, ...], shared: bool, specific: bool) -> None:
