@@ -80,7 +80,7 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
     Note: this function occurs in a thread
     """
 
-    from sh import rsync
+    from sh import rsync  # type: ignore
 
     # move the global config.ini
     # there was a bug where if the leader == unit, the config.ini would get wiped

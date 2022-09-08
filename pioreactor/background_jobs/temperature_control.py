@@ -227,12 +227,14 @@ class TemperatureController(BackgroundJob):
                 )
 
         averaged_temp = running_sum / running_count
-        if averaged_temp == 0.0 and self.automation_name != "silent":
+        if averaged_temp == 0.0 and self.automation_name != "only_record_ambient_temperature":
             # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
             # todo: still needed? last observed on  July 18, 2022
-            self.logger.error("Temp sensor failure. Switching to Silent. See issue #308")
+            self.logger.error("Temp sensor failure. Switching off. See issue #308")
             self._update_heater(0.0)
-            self.set_automation(TemperatureAutomation(automation_name="silent"))
+            self.set_automation(
+                TemperatureAutomation(automation_name="only_record_ambient_temperature")
+            )
 
         return averaged_temp
 
@@ -283,7 +285,7 @@ class TemperatureController(BackgroundJob):
 
             # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
             # pass it on to the new automation.
-            # this is most useful when temp-control is initialized with silent, and then quickly switched over to stable.
+            # this is most useful when temp-control is initialized with only_record_ambient_temperature, and then quickly switched over to stable.
             self.automation_job._set_latest_temperature(self.temperature)
 
         except KeyError:
@@ -328,8 +330,10 @@ class TemperatureController(BackgroundJob):
 
             self._update_heater(0)
 
-            if self.automation_name != "silent":
-                self.set_automation(TemperatureAutomation(automation_name="silent"))
+            if self.automation_name != "only_record_ambient_temperature":
+                self.set_automation(
+                    TemperatureAutomation(automation_name="only_record_ambient_temperature")
+                )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
@@ -591,7 +595,7 @@ def start_temperature_control(
 )
 @click.option(
     "--automation-name",
-    default="silent",
+    default="only_record_ambient_temperature",
     help="set the automation of the system",
     show_default=True,
 )
