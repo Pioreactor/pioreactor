@@ -4,7 +4,7 @@ jupyter_notebooks/
 plugins_dev
 *.sqlite3
 *.sqlite
-*.ini
+config*.ini
 *.log
 
 
