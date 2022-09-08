@@ -187,7 +187,7 @@ def choose_settings() -> tuple[float, float]:
 def plot_data(
     x, y, title, x_min=None, x_max=None, interpolation_curve=None, highlight_recent_point=True
 ):
-    import plotext as plt
+    import plotext as plt  # type: ignore
 
     plt.clf()
 
