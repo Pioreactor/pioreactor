@@ -172,6 +172,7 @@ def kill(job: str, all_jobs: bool) -> None:
     """
 
     from sh import pkill  # type: ignore
+    from pioreactor.actions.led_intensity import led_intensity
 
     def safe_pkill(*args: str) -> None:
         try:
@@ -181,6 +182,7 @@ def kill(job: str, all_jobs: bool) -> None:
 
     if all_jobs:
         safe_pkill("-f", "pio run ")
+        led_intensity({"A": 0, "B": 0, "C": 0, "D": 0}, verbose=False)
     else:
         for j in job:
             safe_pkill("-f", f"pio run {j}")
