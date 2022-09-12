@@ -8,6 +8,7 @@ from time import sleep
 from msgspec.json import encode
 
 import pioreactor.background_jobs.leader.mqtt_to_db_streaming as m2db
+from pioreactor import mureq
 from pioreactor import structs
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.growth_rate_calculating import GrowthRateCalculator
@@ -25,23 +26,17 @@ def test_updated_heater_dc():
     connection = sqlite3.connect(config["storage"]["database"])
     cursor = connection.cursor()
 
+    cursor.executescript("DROP TABLE IF EXISTS temperature_automation_events;")
     cursor.executescript(
-        """
-DROP TABLE IF EXISTS temperature_automation_events;
-
-CREATE TABLE IF NOT EXISTS temperature_automation_events (
-    experiment               TEXT NOT NULL,
-    pioreactor_unit          TEXT NOT NULL,
-    timestamp                TEXT NOT NULL,
-    event_name               TEXT NOT NULL,
-    message                  TEXT,
-    data                     TEXT
-);
-
-    """
+        cursor.executescript(
+            mureq.get(
+                "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
+            ).content.decode("utf-8")
+        )
     )
+
     connection.commit()
-    
+
     parsers = [
         m2db.TopicToParserToTable(
             "pioreactor/+/+/temperature_automation/latest_event",
@@ -50,14 +45,17 @@ CREATE TABLE IF NOT EXISTS temperature_automation_events (
         )
     ]
 
-    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp) as job:
+    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
         sleep(1)
         publish(
-            f"pioreactor/{get_unit_name()}/test/temperature_automation/latest_event", '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}'
+            f"pioreactor/{get_unit_name()}/test/temperature_automation/latest_event",
+            '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}',
         )
         sleep(1)
-        
-    cursor.execute("SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?",(get_unit_name(),))
+
+    cursor.execute(
+        "SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?", (get_unit_name(),)
+    )
     results = cursor.fetchall()
     assert len(results) == 1
 
@@ -70,18 +68,11 @@ def test_calibration_gets_saved() -> None:
     connection = sqlite3.connect(config["storage"]["database"])
     cursor = connection.cursor()
 
+    cursor.executescript("DROP TABLE IF EXISTS calibrations;")
     cursor.executescript(
-        """
-DROP TABLE IF EXISTS calibrations;
-
-CREATE TABLE IF NOT EXISTS calibrations (
-    pioreactor_unit          TEXT NOT NULL,
-    created_at               TEXT NOT NULL,
-    type                     TEXT NOT NULL,
-    data                     TEXT NOT NULL
-);
-
-    """
+        mureq.get(
+            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
+        ).content.decode("utf-8")
     )
     connection.commit()
 
@@ -117,7 +108,7 @@ CREATE TABLE IF NOT EXISTS calibrations (
         assert len(results) == 1
 
         # create some new calibration, like from a plugin
-        class LEDCalibration(structs.Calibration, tag="led"):
+        class LEDCalibration(structs.Calibration, tag="led"):  # type: ignore
             timestamp: str
 
         publish(
@@ -149,26 +140,11 @@ def test_kalman_filter_entries() -> None:
     connection = sqlite3.connect(config["storage"]["database"])
     cursor = connection.cursor()
 
+    cursor.executescript("DROP TABLE IF EXISTS kalman_filter_outputs;")
     cursor.executescript(
-        """
-DROP TABLE IF EXISTS kalman_filter_outputs;
-
-CREATE TABLE IF NOT EXISTS kalman_filter_outputs (
-    timestamp                TEXT NOT NULL,
-    pioreactor_unit          TEXT NOT NULL,
-    experiment               TEXT NOT NULL,
-    state_0                  REAL NOT NULL,
-    state_1                  REAL NOT NULL,
-    state_2                  REAL NOT NULL,
-    cov_00                   REAL NOT NULL,
-    cov_01                   REAL NOT NULL,
-    cov_02                   REAL NOT NULL,
-    cov_11                   REAL NOT NULL,
-    cov_12                   REAL NOT NULL,
-    cov_22                   REAL NOT NULL
-);
-
-    """
+        mureq.get(
+            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
+        ).content.decode("utf-8")
     )
     connection.commit()
 

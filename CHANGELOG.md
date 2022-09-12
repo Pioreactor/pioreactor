@@ -1,3 +1,6 @@
+### 2.9.5
+ - The SQL triggers were not added to the images, so `pioreactor_unit_activity_data` was never populated. This is fixed.
+
 ### 22.9.4
  - Bug fixes
 

@@ -87,9 +87,9 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 58.0  # ~PLA glass transition temp
-    MAX_TEMP_TO_DISABLE_HEATING = 62.0
-    MAX_TEMP_TO_SHUTDOWN = 65.0
+    MAX_TEMP_TO_REDUCE_HEATING = 59.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_DISABLE_HEATING = 63.5
+    MAX_TEMP_TO_SHUTDOWN = 66.0
 
     available_automations = {}  # type: ignore
 
@@ -310,7 +310,7 @@ class TemperatureController(BackgroundJob):
 
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
             )
             self._update_heater(0)
 
@@ -325,7 +325,7 @@ class TemperatureController(BackgroundJob):
             self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to Silent. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to only_record_ambient_temperature. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
@@ -338,10 +338,10 @@ class TemperatureController(BackgroundJob):
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self._update_heater(self.heater_duty_cycle * 0.9)
+            self._update_heater(self.heater_duty_cycle * 0.8)
 
     def on_sleeping(self) -> None:
         self.automation_job.set_state(self.SLEEPING)
