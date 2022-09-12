@@ -486,7 +486,7 @@ class TemperatureController(BackgroundJob):
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
         # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
-        # TODO: update these priors as we develop more pioreactors
+        # TODO: update these priors as we develop more Pioreactors
         # observed data:
         #  B=-0.1244534657804866,  A=-0.00012566629719875475 (May 24, 2022)
         #  B=-0.14928314914531557, A=-0.000376953627819461
@@ -551,6 +551,7 @@ class TemperatureController(BackgroundJob):
         )
         Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
 
+        self.logger.debug(f"{A=}, {B=}, {p=}, {q=}")
         try:
             b, c = np.linalg.solve(M2, Y2)
         except np.linalg.LinAlgError:

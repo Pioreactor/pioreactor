@@ -142,7 +142,7 @@ class GrowthRateCalculator(BackgroundJob):
         initial_covariance = 1e-4 * np.eye(
             3
         )  # empirically selected - TODO: this should probably scale with `expected_dt`
-        self.logger.debug(f"Initial covariance matrix:\n{str(initial_covariance)}")
+        self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
 
         acc_std = config.getfloat("growth_rate_kalman", "acc_std")
         acc_process_variance = (acc_std * self.expected_dt) ** 2
@@ -155,11 +155,11 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[0, 0] = od_process_variance
         process_noise_covariance[1, 1] = rate_process_variance
         process_noise_covariance[2, 2] = acc_process_variance
-        self.logger.debug(f"Process noise covariance matrix:\n{str(process_noise_covariance)}")
+        self.logger.debug(f"Process noise covariance matrix:\n{repr(process_noise_covariance)}")
 
         observation_noise_covariance = self.create_obs_noise_covariance()
         self.logger.debug(
-            f"Observation noise covariance matrix:\n{str(observation_noise_covariance)}"
+            f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}"
         )
 
         angles = [
