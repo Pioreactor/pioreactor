@@ -41,6 +41,7 @@ class Monitor(BackgroundJob):
 
     """
 
+    job_name = "monitor"
     published_settings = {
         "computer_statistics": {"datatype": "json", "settable": False},
         "button_down": {"datatype": "boolean", "settable": False},
@@ -49,7 +50,7 @@ class Monitor(BackgroundJob):
     led_in_use: bool = False
 
     def __init__(self, unit: str, experiment: str) -> None:
-        super().__init__(job_name="monitor", unit=unit, experiment=experiment)
+        super().__init__(unit=unit, experiment=experiment)
 
         def pretty_version(info: tuple[int, ...]) -> str:
             return ".".join((str(x) for x in info))

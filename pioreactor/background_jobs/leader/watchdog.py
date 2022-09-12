@@ -13,8 +13,10 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 class WatchDog(BackgroundJob):
+    job_name = "watchdog"
+
     def __init__(self, unit: str, experiment: str) -> None:
-        super(WatchDog, self).__init__(job_name="watchdog", unit=unit, experiment=experiment)
+        super(WatchDog, self).__init__(unit=unit, experiment=experiment)
 
         self.start_passive_listeners()
 

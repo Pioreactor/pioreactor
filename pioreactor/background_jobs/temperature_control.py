@@ -90,7 +90,7 @@ class TemperatureController(BackgroundJob):
     MAX_TEMP_TO_REDUCE_HEATING = 58.0  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 62.0
     MAX_TEMP_TO_SHUTDOWN = 65.0
-
+    job_name = "temperature_control"
     available_automations = {}  # type: ignore
 
     published_settings = {
@@ -109,7 +109,7 @@ class TemperatureController(BackgroundJob):
         using_third_party_thermocouple: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(job_name="temperature_control", unit=unit, experiment=experiment)
+        super().__init__(unit=unit, experiment=experiment)
 
         if not hardware.is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")

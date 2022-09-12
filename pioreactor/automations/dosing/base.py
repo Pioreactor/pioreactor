@@ -27,6 +27,7 @@ from pioreactor.config import config
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import SummableList
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
@@ -107,14 +108,6 @@ class AltMediaCalculator:
         return alt_media_ml / cls.vial_volume
 
 
-class SummableList(list):
-    def __add__(self, other) -> SummableList:
-        return SummableList([s + o for (s, o) in zip(self, other)])
-
-    def __iadd__(self, other) -> SummableList:
-        return self + other
-
-
 class DosingAutomationJob(BackgroundSubJob):
     """
     This is the super class that automations inherit from. The `run` function will
@@ -128,6 +121,7 @@ class DosingAutomationJob(BackgroundSubJob):
     """
 
     automation_name = "dosing_automation_base"  # is overwritten in subclasses
+    job_name = "dosing_automation"
     published_settings: dict[str, pt.PublishableSetting] = {}
 
     _latest_growth_rate: Optional[float] = None
@@ -179,9 +173,7 @@ class DosingAutomationJob(BackgroundSubJob):
         skip_first_run: bool = False,
         **kwargs,
     ) -> None:
-        super(DosingAutomationJob, self).__init__(
-            job_name="dosing_automation", unit=unit, experiment=experiment
-        )
+        super(DosingAutomationJob, self).__init__(unit=unit, experiment=experiment)
         self.skip_first_run = skip_first_run
         self._latest_settings_started_at = current_utc_timestamp()
         self.latest_normalized_od_at = datetime.utcnow()

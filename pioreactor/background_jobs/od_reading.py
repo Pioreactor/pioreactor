@@ -883,6 +883,7 @@ class ODReader(BackgroundJob):
 
     """
 
+    job_name = "od_reading"
     published_settings = {
         "first_od_obs_time": {"datatype": "float", "settable": False},
         "ir_led_intensity": {"datatype": "float", "settable": True, "unit": "%"},
@@ -904,7 +905,7 @@ class ODReader(BackgroundJob):
         ir_led_reference_tracker: Optional[IrLedReferenceTracker] = None,
         calibration_transformer: Optional[CalibrationTransformer] = None,
     ) -> None:
-        super(ODReader, self).__init__(job_name="od_reading", unit=unit, experiment=experiment)
+        super(ODReader, self).__init__(unit=unit, experiment=experiment)
 
         self.adc_reader = adc_reader
         self.channel_angle_map = channel_angle_map

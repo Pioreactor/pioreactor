@@ -26,16 +26,14 @@ class LEDController(BackgroundJob):
 
     # this is automagically populated
     available_automations = {}  # type: ignore
-
+    job_name = "led_control"
     published_settings = {
         "automation": {"datatype": "Automation", "settable": True},
         "automation_name": {"datatype": "string", "settable": False},
     }
 
     def __init__(self, automation_name: str, unit: str, experiment: str, **kwargs) -> None:
-        super(LEDController, self).__init__(
-            job_name="led_control", unit=unit, experiment=experiment
-        )
+        super(LEDController, self).__init__(unit=unit, experiment=experiment)
 
         try:
             automation_class = self.available_automations[automation_name]

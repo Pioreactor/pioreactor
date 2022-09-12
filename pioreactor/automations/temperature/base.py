@@ -41,6 +41,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
 
     _latest_settings_ended_at = None
     automation_name = "temperature_automation_base"  # is overwritten in subclasses
+    job_name = "temperature_automation"
     published_settings: dict[str, pt.PublishableSetting] = dict()
 
     def __init_subclass__(cls, **kwargs):
@@ -55,9 +56,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
             TemperatureController.available_automations[cls.automation_name] = cls
 
     def __init__(self, unit: str, experiment: str, parent: TemperatureController, **kwargs) -> None:
-        super(TemperatureAutomationJob, self).__init__(
-            job_name="temperature_automation", unit=unit, experiment=experiment
-        )
+        super(TemperatureAutomationJob, self).__init__(unit=unit, experiment=experiment)
 
         self.latest_normalized_od_at: datetime = datetime.utcnow()
         self.latest_growth_rate_at: datetime = datetime.utcnow()

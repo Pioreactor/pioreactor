@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS temperature_automation_events (
     """
     )
     connection.commit()
-    
+
     parsers = [
         m2db.TopicToParserToTable(
             "pioreactor/+/+/temperature_automation/latest_event",
@@ -50,14 +50,17 @@ CREATE TABLE IF NOT EXISTS temperature_automation_events (
         )
     ]
 
-    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp) as job:
+    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
         sleep(1)
         publish(
-            f"pioreactor/{get_unit_name()}/test/temperature_automation/latest_event", '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}'
+            f"pioreactor/{get_unit_name()}/test/temperature_automation/latest_event",
+            '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}',
         )
         sleep(1)
-        
-    cursor.execute("SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?",(get_unit_name(),))
+
+    cursor.execute(
+        "SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?", (get_unit_name(),)
+    )
     results = cursor.fetchall()
     assert len(results) == 1
 
@@ -117,7 +120,7 @@ CREATE TABLE IF NOT EXISTS calibrations (
         assert len(results) == 1
 
         # create some new calibration, like from a plugin
-        class LEDCalibration(structs.Calibration, tag="led"):
+        class LEDCalibration(structs.Calibration, tag="led"):  # type: ignore
             timestamp: str
 
         publish(
@@ -239,6 +242,7 @@ def test_empty_payload_is_filtered_early() -> None:
     exp = "test_empty_payload_is_filtered_early"
 
     class TestJob(BackgroundJob):
+        job_name = "test_job"
         published_settings = {
             "some_key": {
                 "datatype": "json",
@@ -247,7 +251,7 @@ def test_empty_payload_is_filtered_early() -> None:
         }
 
         def __init__(self, unit, experiment) -> None:
-            super(TestJob, self).__init__(job_name="test_job", unit=unit, experiment=experiment)
+            super(TestJob, self).__init__(unit=unit, experiment=experiment)
             self.some_key = {"int": 4, "ts": 1}
 
     def parse_setting(topic, payload) -> dict:
