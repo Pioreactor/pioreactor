@@ -45,7 +45,7 @@ export default function ActionPumpForm(props) {
     if (mL !== EMPTYSTATE || duration !== EMPTYSTATE) {
       setClicked(true)
       const params = mL !== "" ? { ml: mL, source_of_event: "UI"} : { duration: duration, source_of_event: "UI"};
-      fetch(`/run/${props.action}/${props.unit}`, {
+      fetch(`/api/run/${props.action}/${props.unit}`, {
         method: "POST",
         body: JSON.stringify(params),
         headers: {
@@ -64,11 +64,11 @@ export default function ActionPumpForm(props) {
   }
 
   function stopPump(e) {
-    fetch(`/stop/${props.action}/${props.unit}`, {method: "POST"})
+    fetch(`/api/stop/${props.action}/${props.unit}`, {method: "POST"})
   }
 
   function runPumpContinuously(e) {
-    fetch(`/run/${props.action}/${props.unit}`, {
+    fetch(`/api/run/${props.action}/${props.unit}`, {
       method: "POST",
       body: JSON.stringify({continuously: true, source_of_event: "UI"}),
       headers: {
