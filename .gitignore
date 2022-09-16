@@ -7,7 +7,7 @@ scripts/flow/*/.flowconfig
 .grunt
 _SpecRunner.html
 __benchmarks__
-build/
+
 remote-repo/
 coverage/
 .module-cache
@@ -30,7 +30,7 @@ chrome-user-data
 package-lock.json
 /coverage
 npm-debug.log*
-/build
+
 
 
 packages/react-devtools-core/dist

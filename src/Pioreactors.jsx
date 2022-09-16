@@ -383,7 +383,7 @@ function AddNewPioreactor(props){
     setIsSuccess(false)
     setIsRunning(true)
     setExpectedPathMsg("Installation is occurring...")
-    fetch('add_new_pioreactor', {
+    fetch('/api/add_new_pioreactor', {
         method: "POST",
         body: JSON.stringify({newPioreactorName: name}),
         headers: {
