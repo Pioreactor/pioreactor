@@ -51,7 +51,7 @@ def export_experiment_data(
     import zipfile
     import csv
 
-    if output.endswith(".zip"):
+    if not output.endswith(".zip"):
         print("output should end with .zip")
         return
 
