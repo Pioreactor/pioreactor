@@ -508,7 +508,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(350.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(500.0 / self.oversampling_count / self.interval)
                     if self.interval
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -774,8 +774,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                 if angle in c:
                     calibration_data = decode(c[angle], type=structs.AnyODCalibration)
                     name = calibration_data.name
-                    self.models[channel] = self._hydrate_model(calibration_data)
-                    self.logger.debug(f"Using calibration `{name}` for channel {channel}")
 
                     # confirm that current IR intensity is the same as when calibration was performed
                     if calibration_data.ir_led_intensity != config.getfloat(
@@ -784,6 +782,14 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         msg = f"The calibration `{name}` was calibrated with a different IR LED intensity ({calibration_data.ir_led_intensity} vs current: {config.getfloat('od_config', 'ir_led_intensity')}). Either re-calibrate or change the ir_led_intensity in the config.ini."
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
+                    # confirm that PD channel is the same as when calibration was performed
+                    elif calibration_data.pd_channel != channel:
+                        msg = f"The calibration `{name}` was calibrated with a different PD channel ({calibration_data.pd_channel} vs current: {channel})."
+                        self.logger.error(msg)
+                        raise exc.CalibrationError(msg)
+                    else:
+                        self.models[channel] = self._hydrate_model(calibration_data)
+                        self.logger.debug(f"Using calibration `{name}` for channel {channel}")
 
                     # confirm that PD channel is the same as when calibration was performed
                     if calibration_data.pd_channel != channel:
@@ -792,12 +798,13 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         raise exc.CalibrationError(msg)
 
                 else:
-                    self.logger.debug(f"No calibration available for channel {channel}, skipping.")
+                    self.logger.debug(
+                        f"No calibration available for channel {channel}, angle {angle}, skipping."
+                    )
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[float], float]:
 
         if calibration_data.curve_type == "poly":
-
             """
             Finds the smallest root in the range [minOD, maxOD] calibrated against.
 
@@ -805,7 +812,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
             this procedure effectively ignores it.
 
             """
-
             from numpy import roots, zeros_like, iscomplex, real
 
             def calibration(x: float) -> float:

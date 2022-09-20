@@ -87,9 +87,9 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 58.0  # ~PLA glass transition temp
-    MAX_TEMP_TO_DISABLE_HEATING = 62.0
-    MAX_TEMP_TO_SHUTDOWN = 65.0
+    MAX_TEMP_TO_REDUCE_HEATING = 59.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_DISABLE_HEATING = 63.5
+    MAX_TEMP_TO_SHUTDOWN = 66.0
 
     available_automations = {}  # type: ignore
 
@@ -227,12 +227,14 @@ class TemperatureController(BackgroundJob):
                 )
 
         averaged_temp = running_sum / running_count
-        if averaged_temp == 0.0 and self.automation_name != "silent":
+        if averaged_temp == 0.0 and self.automation_name != "only_record_ambient_temperature":
             # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
             # todo: still needed? last observed on  July 18, 2022
-            self.logger.error("Temp sensor failure. Switching to Silent. See issue #308")
+            self.logger.error("Temp sensor failure. Switching off. See issue #308")
             self._update_heater(0.0)
-            self.set_automation(TemperatureAutomation(automation_name="silent"))
+            self.set_automation(
+                TemperatureAutomation(automation_name="only_record_ambient_temperature")
+            )
 
         return averaged_temp
 
@@ -283,7 +285,7 @@ class TemperatureController(BackgroundJob):
 
             # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
             # pass it on to the new automation.
-            # this is most useful when temp-control is initialized with silent, and then quickly switched over to stable.
+            # this is most useful when temp-control is initialized with only_record_ambient_temperature, and then quickly switched over to stable.
             self.automation_job._set_latest_temperature(self.temperature)
 
         except KeyError:
@@ -308,7 +310,7 @@ class TemperatureController(BackgroundJob):
 
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
             )
             self._update_heater(0)
 
@@ -323,21 +325,23 @@ class TemperatureController(BackgroundJob):
             self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to Silent. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to only_record_ambient_temperature. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
 
-            if self.automation_name != "silent":
-                self.set_automation(TemperatureAutomation(automation_name="silent"))
+            if self.automation_name != "only_record_ambient_temperature":
+                self.set_automation(
+                    TemperatureAutomation(automation_name="only_record_ambient_temperature")
+                )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self._update_heater(self.heater_duty_cycle * 0.9)
+            self._update_heater(self.heater_duty_cycle * 0.8)
 
     def on_sleeping(self) -> None:
         self.automation_job.set_state(self.SLEEPING)
@@ -482,7 +486,7 @@ class TemperatureController(BackgroundJob):
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
         # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
-        # TODO: update these priors as we develop more pioreactors
+        # TODO: update these priors as we develop more Pioreactors
         # observed data:
         #  B=-0.1244534657804866,  A=-0.00012566629719875475 (May 24, 2022)
         #  B=-0.14928314914531557, A=-0.000376953627819461
@@ -547,6 +551,7 @@ class TemperatureController(BackgroundJob):
         )
         Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
 
+        self.logger.debug(f"{A=}, {B=}, {p=}, {q=}")
         try:
             b, c = np.linalg.solve(M2, Y2)
         except np.linalg.LinAlgError:
@@ -591,7 +596,7 @@ def start_temperature_control(
 )
 @click.option(
     "--automation-name",
-    default="silent",
+    default="only_record_ambient_temperature",
     help="set the automation of the system",
     show_default=True,
 )

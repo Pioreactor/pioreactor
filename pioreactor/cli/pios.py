@@ -80,7 +80,7 @@ def sync_config_files(unit: str, shared: bool, specific: bool) -> None:
     Note: this function occurs in a thread
     """
 
-    from sh import rsync
+    from sh import rsync  # type: ignore
 
     # move the global config.ini
     # there was a bug where if the leader == unit, the config.ini would get wiped
@@ -359,11 +359,6 @@ def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
         logger.debug(f"Executing `{command}` on {unit}.")
         try:
             ssh(add_local(unit), command)
-            if all_jobs:  # tech debt
-                ssh(
-                    add_local(unit),
-                    "pio run led_intensity --A 0 --B 0 --C 0 --D 0 --no-log",
-                )
             return True
 
         except Exception as e:

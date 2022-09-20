@@ -57,26 +57,25 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     signal1 = []
     signal2 = []
 
-    od_stream = start_od_reading(
+    with start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
-        interval=1.2,
+        interval=1.1,
         unit=unit,
         fake_data=is_testing_env(),
         experiment=experiment,
-    )
+        use_calibration=False,
+    ) as od_stream:
 
-    for i, reading in enumerate(od_stream):
-        if i < 10:  # skip the first few values
-            continue
+        for i, reading in enumerate(od_stream):
+            if i < 8:  # skip the first few values
+                continue
 
-        signal1.append(reading.ods["1"].od)
-        signal2.append(reading.ods["2"].od)
+            signal1.append(reading.ods["1"].od)
+            signal2.append(reading.ods["2"].od)
 
-        if i == 30:
-            break
-
-    od_stream.clean_up()
+            if i == 25:
+                break
 
     norm_variance_per_channel = {
         "1": variance(signal1) / trimmed_mean(signal1) ** 2,
@@ -265,7 +264,9 @@ def test_positive_correlation_between_temperature_and_heating(
 ) -> None:
     assert is_heating_pcb_present()
 
-    with TemperatureController("only_record_ambient_temperature", unit=unit, experiment=experiment) as tc:
+    with TemperatureController(
+        "only_record_ambient_temperature", unit=unit, experiment=experiment
+    ) as tc:
 
         measured_pcb_temps = []
         dcs = list(range(0, 22, 3))
@@ -381,13 +382,12 @@ class BatchTestRunner:
 
             try:
                 test(logger, unit, experiment_name)
+                res = True
             except Exception:
                 from traceback import print_exc
 
                 print_exc()
                 res = False
-            else:
-                res = True
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 
