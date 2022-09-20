@@ -93,12 +93,6 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         }
-      }).then((response) => {
-        if (response.ok) {
-          window.location.reload();
-        } else {
-          setSnackbarMsg("Error occurred. See logs.")
-        }
       })
   }
 
@@ -188,12 +182,6 @@ function ListInstalledPlugins({installedPlugins}){
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
-        }
-      }).then((response) => {
-        if (response.ok) {
-          window.location.reload();
-        } else {
-          throw new Error('Uninstallation went wrong');
         }
       })
   }

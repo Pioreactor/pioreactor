@@ -300,7 +300,7 @@ function ExportDataContainer() {
     }
 
     setIsRunning(true)
-    fetch('export_datasets',{
+    fetch('/api/export_datasets',{
         method: "POST",
         body: JSON.stringify(state),
         headers: {
@@ -320,7 +320,7 @@ function ExportDataContainer() {
     }).catch(e => {
       setIsRunning(false)
       setIsError(true)
-      setErrorMsg("Server error occurred. Check logs.")
+      setErrorMsg("Server error occurred. Check UI logs.")
     });
   }
 
