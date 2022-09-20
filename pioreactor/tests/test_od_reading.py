@@ -574,12 +574,9 @@ def test_calibration_multi_modal():
 
             voltage = np.polyval(poly, i / 1000)
             print(voltage, od.calibration_transformer.models["2"](voltage))
-<<<<<<< HEAD
-=======
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
->>>>>>> 6a7117b808f128e9be8fb1a3ea300f4ab6a6dbb1
 
 
 def test_calibration_errors_when_ir_led_differs():
@@ -642,8 +639,6 @@ def test_calibration_errors_when_pd_channel_differs():
             pass
 
     assert "channel" in str(error.value)
-<<<<<<< HEAD
-=======
+
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
->>>>>>> 6a7117b808f128e9be8fb1a3ea300f4ab6a6dbb1

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-__version__ = "22.9.4"
+__version__ = "22.9.5"
 
 
 def _get_hardware_version() -> tuple[int, int]:

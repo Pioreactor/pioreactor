@@ -1,5 +1,9 @@
+
 ### 2.9.5
  - The SQL triggers were not added to the images, so `pioreactor_unit_activity_data` was never populated. This is fixed.
+ - New web server backend. Went from js/Node to python (Flask)/lighttp.
+ - Export datasets now cleans up its csvs.
+
 
 ### 22.9.4
  - Bug fixes
