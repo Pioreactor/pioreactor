@@ -81,9 +81,11 @@ def export_experiment_data(
             ).pop()  # just take first...
 
             if table == "pioreactor_unit_activity_data":
-                partition_by_unit = True
+                _partition_by_unit = True
+            else:
+                _partition_by_unit = partition_by_unit
 
-            if not partition_by_unit:
+            if not _partition_by_unit:
 
                 if experiment is None:
                     query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
