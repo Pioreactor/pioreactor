@@ -791,6 +791,12 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         self.models[channel] = self._hydrate_model(calibration_data)
                         self.logger.debug(f"Using calibration `{name}` for channel {channel}")
 
+                    # confirm that PD channel is the same as when calibration was performed
+                    if calibration_data.pd_channel != channel:
+                        msg = f"The calibration `{name}` was calibrated with a different PD channel ({calibration_data.pd_channel} vs current: {channel})."
+                        self.logger.error(msg)
+                        raise exc.CalibrationError(msg)
+
                 else:
                     self.logger.debug(
                         f"No calibration available for channel {channel}, angle {angle}, skipping."
