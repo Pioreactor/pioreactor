@@ -122,7 +122,8 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: "15px"
   },
   unitSettingsSubtext:{
-    fontSize: "11px"
+    fontSize: "11px",
+    wordBreak: "break-word"
   },
   unitSettingsSubtextEmpty:{
     minHeight: "15px"
