@@ -53,7 +53,7 @@ def export_experiment_data(
 
     if not output.endswith(".zip"):
         print("output should end with .zip")
-        return
+        raise click.Abort()
 
     logger = create_logger("export_experiment_data")
     logger.info(f"Starting export of table{'s' if len(tables) > 1 else ''}: {', '.join(tables)}.")
@@ -105,7 +105,7 @@ def export_experiment_data(
                     csv_writer.writerows(cursor)
 
                 zf.write(path_to_file, arcname=filename)
-                os.remove(path_to_file)  # TODO: test
+                os.remove(path_to_file)
 
             else:
                 query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
@@ -122,8 +122,9 @@ def export_experiment_data(
                         if unit not in unit_to_writer_map:
                             filename = f"{experiment}-{table}-{unit}-{time}.csv"
                             filenames.append(filename)
+                            path_to_file = os.path.join(os.path.dirname(output), filename)
                             unit_to_writer_map[unit] = csv.writer(
-                                stack.enter_context(open(filename, "w")), delimiter=","
+                                stack.enter_context(open(path_to_file, "w")), delimiter=","
                             )
                             unit_to_writer_map[unit].writerow(headers)
 
