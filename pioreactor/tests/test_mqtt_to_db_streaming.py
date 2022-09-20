@@ -28,11 +28,9 @@ def test_updated_heater_dc():
 
     cursor.executescript("DROP TABLE IF EXISTS temperature_automation_events;")
     cursor.executescript(
-        cursor.executescript(
-            mureq.get(
-                "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
-            ).content.decode("utf-8")
-        )
+        mureq.get(
+            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
+        ).content.decode("utf-8")
     )
 
     connection.commit()
@@ -42,20 +40,18 @@ def test_updated_heater_dc():
             "pioreactor/+/+/temperature_automation/latest_event",
             m2db.parse_automation_event,
             "temperature_automation_events",
-        )
+        ),
     ]
 
     with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
         sleep(1)
         publish(
-            f"pioreactor/{get_unit_name()}/test/temperature_automation/latest_event",
+            f"pioreactor/{unit}/test/temperature_automation/latest_event",
             '{"event_name":"UpdatedHeaterDC","message":"delta_dc=3.28125","data":{"current_dc":null,"delta_dc":3.28125}}',
         )
-        sleep(1)
+        sleep(5)
 
-    cursor.execute(
-        "SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?", (get_unit_name(),)
-    )
+    cursor.execute("SELECT * FROM temperature_automation_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()
     assert len(results) == 1
 
@@ -91,7 +87,7 @@ def test_calibration_gets_saved() -> None:
             encode(
                 structs.WastePumpCalibration(
                     name="test",
-                    timestamp="2012",
+                    timestamp="2012-01-01",
                     pump="waste",
                     hz=120,
                     dc=60.0,
@@ -115,13 +111,16 @@ def test_calibration_gets_saved() -> None:
             f"pioreactor/{get_unit_name()}/test/calibrations",
             encode(
                 LEDCalibration(
-                    timestamp="2012",
+                    timestamp="2012-01-02",
                 )
             ),
         )
         sleep(1)
 
-        cursor.execute("SELECT * FROM calibrations WHERE pioreactor_unit=?", (get_unit_name(),))
+        cursor.execute(
+            "SELECT * FROM calibrations WHERE pioreactor_unit=? ORDER BY created_at",
+            (get_unit_name(),),
+        )
         results = cursor.fetchall()
         assert len(results) == 2
         assert results[1][2] == "led"

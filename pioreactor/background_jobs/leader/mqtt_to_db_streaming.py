@@ -90,6 +90,7 @@ class MqttToDBStreamer(BackgroundJob):
             cols_placeholder = ", ".join(new_row.keys())
             values_placeholder = ", ".join(":" + c for c in new_row.keys())
             SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
+
             try:
                 self.sqliteworker.execute(SQL, new_row)  # type: ignore
             except Exception as e:
