@@ -330,7 +330,7 @@ def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) ->
 
     if ui and whoami.am_I_leader():
         gitp = "git pull origin master"
-        restart_lighttp = "sudo systemctl restart lighttp"
+        restart_lighttp = "sudo systemctl restart lighttpd.service"
         command = " && ".join([gitp, restart_lighttp])
         p = subprocess.run(
             command,
