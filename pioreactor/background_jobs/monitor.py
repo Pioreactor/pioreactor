@@ -144,7 +144,9 @@ class Monitor(BackgroundJob):
 
     def check_for_required_jobs_running(self):
         if not utils.is_pio_job_running("watchdog", "mqtt_to_db_streaming"):
-            self.logger.debug("watchdog and mqtt_to_db_streaming should be running on leader.")
+            self.logger.debug(
+                "watchdog and mqtt_to_db_streaming should be running on leader. Double check."
+            )
 
     def check_heater_pcb_temperature(self) -> None:
         """
@@ -410,7 +412,7 @@ class Monitor(BackgroundJob):
         )  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
         job_name = quote(msg.topic.split("/")[-1])
-        payload = loads(msg.payload)
+        payload = loads(msg.payload) if msg.payload else {}
 
         # this is a performance hack and should be changed later...
         if job_name == "led_intensity":

@@ -87,7 +87,7 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 59.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
 
@@ -341,7 +341,7 @@ class TemperatureController(BackgroundJob):
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
-            self._update_heater(self.heater_duty_cycle * 0.8)
+            self._update_heater(self.heater_duty_cycle * 0.9)
 
     def on_sleeping(self) -> None:
         self.automation_job.set_state(self.SLEEPING)
@@ -493,8 +493,19 @@ class TemperatureController(BackgroundJob):
         #  B=-0.13807398778473443, A=-0.00021395682471394434
         #  B=-0.14123191941209473, A=-0.0005287562253399032 (May 25, 2022)
         #  B=-0.15192316555127186, A=-0.000894869124798112
-        A_penalizer, A_prior = 100.0, -0.00050
-        B_penalizer, B_prior = 20.0, -0.140
+        #  A=-0.001295916914002933, B=-0.17905413150045976 (Sept 13, 2022, two modern Pioreactors)
+        #  A=-0.0010803409392903384, B=-0.17152656184261297
+        #  A=-0.0010674444548854495, B=-0.17115312722794235
+        #  A=-0.0011996267624624331, B=-0.17190309667476145
+        #  A=-0.0011066911804701845, B=-0.17196962637032628
+        #  A=-0.001150016228923988, B=-0.18975899991350298
+        #  A=-0.001082333547509889, B=-0.18685445997491493
+        #  A=-0.0010607908095388548, B=-0.18749701076543562
+        #  A=-0.0010514517340740343, B=-0.18756448817069307
+        #  A=-0.0012910773630121675, B=-0.19066684235126932
+
+        A_penalizer, A_prior = 100.0, -0.0011
+        B_penalizer, B_prior = 20.0, -0.170
 
         M1 = np.array(
             [

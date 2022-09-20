@@ -384,7 +384,7 @@ def test_temperature_approximation2() -> None:
     with temperature_control.TemperatureController(
         "only_record_ambient_temperature", unit=unit, experiment=experiment
     ) as t:
-        assert 37 <= t.approximate_temperature(features) <= 38
+        assert 37.5 <= t.approximate_temperature(features) <= 38.5
 
 
 def test_temperature_approximation3() -> None:

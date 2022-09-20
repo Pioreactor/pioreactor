@@ -370,7 +370,6 @@ class GrowthRateCalculator(BackgroundJob):
         """
         this is like _update_state_from_observation, but also updates attributes, caches, mqtt
         """
-
         (
             self.growth_rate,
             self.od_filtered,

@@ -51,6 +51,10 @@ def export_experiment_data(
     import zipfile
     import csv
 
+    if output.endswith(".zip"):
+        print("output should end with .zip")
+        return
+
     logger = create_logger("export_experiment_data")
     logger.info(f"Starting export of table{'s' if len(tables) > 1 else ''}: {', '.join(tables)}.")
 
@@ -99,6 +103,7 @@ def export_experiment_data(
                     csv_writer.writerows(cursor)
 
                 zf.write(path_to_file, arcname=filename)
+                os.remove(path_to_file)  # TODO: test
 
             else:
                 query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} WHERE experiment=:experiment ORDER BY :order_by"
@@ -125,6 +130,7 @@ def export_experiment_data(
                 for filename in filenames:
                     path_to_file = os.path.join(os.path.dirname(output), filename)
                     zf.write(path_to_file, arcname=filename)
+                    os.remove(path_to_file)
 
     logger.info("Finished export.")
     return
@@ -132,7 +138,7 @@ def export_experiment_data(
 
 @click.command(name="export_experiment_data")
 @click.option("--experiment", default=None)
-@click.option("--output", default="/home/pioreactor/exports/export.zip")
+@click.option("--output", default="./output.zip")
 @click.option("--partition-by-unit", is_flag=True)
 @click.option("--tables", multiple=True, default=[])
 def click_export_experiment_data(experiment, output, partition_by_unit, tables):
