@@ -351,9 +351,6 @@ class TemperatureController(BackgroundJob):
 
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
-            self.automation_job.clean_up()
-
-        with suppress(AttributeError):
             self.read_external_temperature_timer.cancel()
             self.publish_temperature_timer.cancel()
 
@@ -361,6 +358,9 @@ class TemperatureController(BackgroundJob):
             self._update_heater(0)
             self.pwm.stop()
             self.pwm.cleanup()
+
+        with suppress(AttributeError):
+            self.automation_job.clean_up()
 
         with local_intermittent_storage("last_heating_timestamp") as cache:
             cache["last_heating_timestamp"] = current_utc_timestamp()

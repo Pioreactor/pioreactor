@@ -745,11 +745,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.disconnect()
 
     def _clean_up_resources(self):
+        # remove from temp `pio_jobs_running` cache. It's very important this runs, so we do it first.
+        self._remove_from_cache()
         # Explicitly cleanup resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
-        # remove from temp. `pio_jobs_running` cache
-        self._remove_from_cache()
 
         self._clean = True
 

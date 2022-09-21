@@ -1147,7 +1147,7 @@ class ODReader(BackgroundJob):
 
     @staticmethod
     def _log_relative_intensity_of_ir_led(cls, od_readings) -> None:
-        if int(od_readings.timestamp[-3:-1]) % 10 == 0:  # some pseudo randomness
+        if int(od_readings.timestamp[-3:-1]) % 5 == 0:  # some pseudo randomness
             cls.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker.transform(1.0),
