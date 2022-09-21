@@ -56,6 +56,7 @@ def pio() -> None:
 def logs(n) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
+    TODO: this consumes a full CPU core!
     """
 
     def file_len(filename) -> int:

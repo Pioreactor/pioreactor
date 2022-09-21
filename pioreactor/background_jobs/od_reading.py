@@ -436,9 +436,13 @@ class ADCReader(LoggerMixin):
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
         return raw / 32767 * self.ADS1X15_PGA_RANGE[self.gain]
 
+    def clear_batched_readings(self) -> None:
+        self.batched_readings = {}
+
     def take_reading(self) -> dict[pt.PdChannel, float]:
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
+
 
         Returns
         ---------
@@ -508,8 +512,8 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(500.0 / self.oversampling_count / self.interval)
-                    if self.interval
+                    penalizer_C=(350.0 / self.oversampling_count / self.interval)
+                    if (self.interval is not None)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
                 )
@@ -974,6 +978,9 @@ class ODReader(BackgroundJob):
                 )
                 self.ir_led_reference_tracker.set_blank(blank_ir_output_reading)
 
+                # clear the history in adc_reader, so that we don't blank readings in later inference.
+                self.adc_reader.clear_batched_readings()
+
         if self.interval is not None:
             if self.interval < 1.0:
                 self.logger.warning(
@@ -1147,7 +1154,7 @@ class ODReader(BackgroundJob):
 
     @staticmethod
     def _log_relative_intensity_of_ir_led(cls, od_readings) -> None:
-        if int(od_readings.timestamp[-3:-1]) % 5 == 0:  # some pseudo randomness
+        if int(od_readings.timestamp[-3:-1]) % 4 == 0:  # some pseudo randomness
             cls.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker.transform(1.0),

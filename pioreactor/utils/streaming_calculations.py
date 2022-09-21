@@ -10,7 +10,11 @@ from pioreactor.pubsub import publish
 
 class ExponentialMovingAverage:
     """
+    Models the following:
+
     y_n = (1 - ⍺)·x + ⍺·y_{n-1}
+
+    If alpha = 0, use latest value only.
     """
 
     def __init__(self, alpha: float):

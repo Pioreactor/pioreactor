@@ -95,7 +95,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         self.from_mqtt = from_mqtt
         self.ignore_cache = ignore_cache
-        self.time_of_previous_observation = datetime.utcnow()
+        self.time_of_previous_observation: datetime | None = None
         self.expected_dt = 1 / (60 * 60 * config.getfloat("od_config", "samples_per_second"))
 
     def on_init_to_ready(self) -> None:
@@ -402,17 +402,22 @@ class GrowthRateCalculator(BackgroundJob):
             # TODO this should use the internal timestamp reference
 
             time_of_current_observation = to_datetime(timestamp)
-            dt = (
-                (time_of_current_observation - self.time_of_previous_observation).total_seconds()
-                / 60
-                / 60
-            )  # delta time in hours
+            if self.time_of_previous_observation is not None:
+                dt = (
+                    (
+                        time_of_current_observation - self.time_of_previous_observation
+                    ).total_seconds()
+                    / 60
+                    / 60
+                )  # delta time in hours
 
-            if dt < 0:
-                self.logger.debug(
-                    f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
-                )
-                return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+                if dt < 0:
+                    self.logger.debug(
+                        f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
+                    )
+                    return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+            else:
+                dt = 0.0
 
             self.time_of_previous_observation = time_of_current_observation
 
