@@ -214,6 +214,7 @@ def test_empty_payload_is_filtered_early() -> None:
     exp = "test_empty_payload_is_filtered_early"
 
     class TestJob(BackgroundJob):
+        job_name = "test_job"
         published_settings = {
             "some_key": {
                 "datatype": "json",
@@ -222,7 +223,7 @@ def test_empty_payload_is_filtered_early() -> None:
         }
 
         def __init__(self, unit, experiment) -> None:
-            super(TestJob, self).__init__(job_name="test_job", unit=unit, experiment=experiment)
+            super(TestJob, self).__init__(unit=unit, experiment=experiment)
             self.some_key = {"int": 4, "ts": 1}
 
     def parse_setting(topic, payload) -> dict:

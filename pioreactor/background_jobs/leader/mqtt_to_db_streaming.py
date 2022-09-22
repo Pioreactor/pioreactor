@@ -34,6 +34,7 @@ class TopicToParserToTable(Struct):
 class MqttToDBStreamer(BackgroundJob):
 
     topics_to_tables_from_plugins: list[TopicToParserToTable] = []
+    job_name = "mqtt_to_db_streaming"
 
     def __init__(
         self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
@@ -41,7 +42,7 @@ class MqttToDBStreamer(BackgroundJob):
 
         from sqlite3worker import Sqlite3Worker
 
-        super().__init__(job_name="mqtt_to_db_streaming", experiment=experiment, unit=unit)
+        super().__init__(experiment=experiment, unit=unit)
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["database"], max_queue_size=250, raise_on_error=False
         )

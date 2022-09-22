@@ -39,6 +39,7 @@ from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.utils import SummableList
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.whoami import get_latest_experiment_name
@@ -63,7 +64,7 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     ), start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
-        interval=1.1,
+        interval=1.15,
         unit=unit,
         fake_data=is_testing_env(),
         experiment=experiment,
@@ -352,14 +353,6 @@ OD_TESTS = [
 ]
 
 
-class SummableList(list):
-    def __add__(self, other) -> SummableList:
-        return SummableList([s + o for (s, o) in zip(self, other)])
-
-    def __iadd__(self, other) -> SummableList:
-        return self + other
-
-
 class BatchTestRunner:
     def __init__(self, tests_to_run: list[Callable], *test_func_args):
 
@@ -384,9 +377,10 @@ class BatchTestRunner:
             try:
                 test(logger, unit, experiment_name)
                 res = True
-            except Exception:
-                logger.debug(f"{experiment_name} failed", exc_info=True)
+            except Exception as e:
                 res = False
+                self.logger.info(e)
+                self.logger.debug(e, exec_info=True)
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 

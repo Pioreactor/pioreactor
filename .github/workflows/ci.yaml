@@ -44,9 +44,9 @@ jobs:
            __plugin_version__ = "0.0.1"
 
            class ExamplePlugin(BackgroundJob):
-
+              job_name="example_plugin"
               def __init__(self):
-                  super().__init__(unit="test", experiment="test", job_name="example_plugin")
+                  super().__init__(unit="test", experiment="test")
 
 
            @click.command(name="example_plugin")

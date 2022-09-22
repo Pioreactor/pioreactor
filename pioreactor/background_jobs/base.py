@@ -211,6 +211,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     # initial state is disconnected
     state: pt.JobState = DISCONNECTED
+    job_name: str = "background_job"
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
@@ -228,11 +229,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         "unit_label",
     }
 
-    def __init__(self, job_name: str, source: str, experiment: str, unit: str) -> None:
-        if job_name in self.DISALLOWED_JOB_NAMES:
+    def __init__(self, source: str, experiment: str, unit: str) -> None:
+        if self.job_name in self.DISALLOWED_JOB_NAMES:
             raise ValueError("job name not allowed")
 
-        self.job_name = job_name
         self.experiment = experiment
         self.unit = unit
         self._clean = False
@@ -745,9 +745,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.disconnect()
 
     def _clean_up_resources(self):
-        # remove from temp `pio_jobs_running` cache. It's very important this runs, so we do it first.
+        # remove from temp. `pio_jobs_running` cache
         self._remove_from_cache()
-        # Explicitly cleanup resources...
+        # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()
         self._disconnect_from_loggers()
 
@@ -895,8 +895,8 @@ class BackgroundJob(_BackgroundJob):
     Native jobs should inherit from this class.
     """
 
-    def __init__(self, job_name: str, experiment: str, unit: str) -> None:
-        super().__init__(job_name=job_name, source="app", experiment=experiment, unit=unit)
+    def __init__(self, experiment: str, unit: str) -> None:
+        super().__init__(source="app", experiment=experiment, unit=unit)
 
 
 class BackgroundJobContrib(_BackgroundJob):
@@ -904,8 +904,8 @@ class BackgroundJobContrib(_BackgroundJob):
     Plugin jobs should inherit from this class.
     """
 
-    def __init__(self, job_name: str, experiment: str, unit: str, plugin_name: str) -> None:
-        super().__init__(job_name=job_name, source=plugin_name, experiment=experiment, unit=unit)
+    def __init__(self, experiment: str, unit: str, plugin_name: str) -> None:
+        super().__init__(source=plugin_name, experiment=experiment, unit=unit)
 
 
 class BackgroundJobWithDodging(_BackgroundJob):
@@ -926,9 +926,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
 
         class JustPause(BackgroundJobWithDodging):
+            job_name="just_pause"
 
             def __init__(self):
-                super().__init__(job_name="just_pause", unit=get_unit_name(), experiment=get_latest_experiment_name())
+                super().__init__(unit=get_unit_name(), experiment=get_latest_experiment_name())
 
             def action_to_do_before_od_reading(self):
                 self.logger.debug("Pausing")
@@ -1048,5 +1049,5 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
     Plugin jobs should inherit from this class.
     """
 
-    def __init__(self, job_name: str, experiment: str, unit: str, plugin_name: str) -> None:
-        super().__init__(job_name=job_name, source=plugin_name, experiment=experiment, unit=unit)
+    def __init__(self, experiment: str, unit: str, plugin_name: str) -> None:
+        super().__init__(source=plugin_name, experiment=experiment, unit=unit)

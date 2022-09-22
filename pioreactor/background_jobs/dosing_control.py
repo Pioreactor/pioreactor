@@ -53,14 +53,14 @@ class DosingController(BackgroundJob):
     # }
     # this includes plugins
     available_automations = {}  # type: ignore
-
+    job_name = "dosing_control"
     published_settings = {
         "automation": {"datatype": "Automation", "settable": True},
         "automation_name": {"datatype": "string", "settable": False},
     }
 
     def __init__(self, automation_name: str, unit: str, experiment: str, **kwargs) -> None:
-        super().__init__(job_name="dosing_control", unit=unit, experiment=experiment)
+        super().__init__(unit=unit, experiment=experiment)
 
         try:
             automation_class = self.available_automations[automation_name]

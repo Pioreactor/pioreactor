@@ -38,6 +38,7 @@ class LEDAutomationJob(BackgroundSubJob):
     """
 
     automation_name = "led_automation_base"  # is overwritten in subclasses
+    job_name = "led_automation"
 
     published_settings: dict[str, pt.PublishableSetting] = {
         "duration": {"datatype": "float", "settable": True}
@@ -73,9 +74,7 @@ class LEDAutomationJob(BackgroundSubJob):
         experiment: str = None,
         **kwargs,
     ) -> None:
-        super(LEDAutomationJob, self).__init__(
-            job_name="led_automation", unit=unit, experiment=experiment
-        )
+        super(LEDAutomationJob, self).__init__(unit=unit, experiment=experiment)
 
         self.skip_first_run = skip_first_run
         self._latest_settings_started_at: str = current_utc_timestamp()
