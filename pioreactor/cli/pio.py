@@ -66,7 +66,7 @@ def logs(n) -> None:
                 count += 1
         return count
 
-    def follow(filename, sleep_sec=0.1):
+    def follow(filename, sleep_sec=0.2):
         """Yield each line from a file as they are written.
         `sleep_sec` is the time to sleep after empty reads."""
 
