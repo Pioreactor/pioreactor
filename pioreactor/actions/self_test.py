@@ -168,6 +168,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             verbose=False,
             source_of_event="self_test",
         )
+        adc_reader.clear_batched_readings()
 
     logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
     detected_relationships = []
