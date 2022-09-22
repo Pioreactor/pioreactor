@@ -31,19 +31,19 @@ def test_states() -> None:
     unit = get_unit_name()
     exp = "test_states"
 
-    bj = BackgroundJob(job_name="job", unit=unit, experiment=exp)
+    bj = BackgroundJob(unit=unit, experiment=exp)
     pause()
     assert bj.state == "ready"
 
-    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "sleeping")
+    publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "sleeping")
     pause()
     assert bj.state == "sleeping"
 
-    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "ready")
+    publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "ready")
     pause()
     assert bj.state == "ready"
 
-    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "init")
+    publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "init")
     pause()
     assert bj.state == "init"
 
@@ -51,7 +51,7 @@ def test_states() -> None:
     # thread. Better, if in the main thread and able to, to call bj.cleanup().
     # There's no 100% guarantee that this cleans up properly since it is called
     # in the sub thread, which means it's cleaning itself up?? Not clear!
-    publish(f"pioreactor/{unit}/{exp}/job/$state/set", "disconnected")
+    publish(f"pioreactor/{unit}/{exp}/background_job/$state/set", "disconnected")
     pause()
     assert bj.state == bj.DISCONNECTED
     bj.clean_up()
@@ -89,7 +89,7 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     exp = "test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt"
 
     with collect_all_logs_of_level("WARNING", unit, exp) as bucket:
-        with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
+        with BackgroundJob(unit=unit, experiment=exp) as bj:
             pause()
             pause()
             pause()
@@ -98,7 +98,7 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
             pause()
             pause()
 
-        with BackgroundJob(job_name="job", unit=unit, experiment=exp) as bj:
+        with BackgroundJob(unit=unit, experiment=exp) as bj:
             pause()
             pause()
             bj.logger.warning("test2")
@@ -110,6 +110,8 @@ def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
 
 def test_error_in_subscribe_and_callback_is_logged() -> None:
     class TestJob(BackgroundJob):
+        job_name = "test_job"
+
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
             self.start_passive_listeners()
@@ -123,7 +125,7 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
     experiment = "test_error_in_subscribe_and_callback_is_logged"
 
     with collect_all_logs_of_level("ERROR", get_unit_name(), experiment) as error_logs:
-        with TestJob(job_name="job", unit=get_unit_name(), experiment=experiment):
+        with TestJob(unit=get_unit_name(), experiment=experiment):
             pause()
             pause()
             publish("pioreactor/testing/subscription", "test", retain=False)
@@ -137,8 +139,10 @@ def test_error_in_subscribe_and_callback_is_logged() -> None:
 
 def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect() -> None:
     class TestJob(BackgroundJob):
+        job_name = "testjob"
+
         def __init__(self, unit: str, experiment: str) -> None:
-            super(TestJob, self).__init__(job_name="testjob", unit=unit, experiment=experiment)
+            super(TestJob, self).__init__(unit=unit, experiment=experiment)
             try:
                 raise ZeroDivisionError()
             except Exception as e:
@@ -168,6 +172,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
 
 def test_state_transition_callbacks() -> None:
     class TestJob(BackgroundJob):
+        job_name = "testjob"
         called_on_init = False
         called_on_ready = False
         called_on_sleeping = False
@@ -176,7 +181,7 @@ def test_state_transition_callbacks() -> None:
         called_on_init_to_ready = False
 
         def __init__(self, unit: str, experiment: str) -> None:
-            super(TestJob, self).__init__(job_name="testjob", unit=unit, experiment=experiment)
+            super(TestJob, self).__init__(unit=unit, experiment=experiment)
 
         def on_init(self) -> None:
             self.called_on_init = True
@@ -219,7 +224,7 @@ def test_state_transition_callbacks() -> None:
 
 def test_bad_key_in_published_settings() -> None:
     class TestJob(BackgroundJob):
-
+        job_name = "testjob"
         published_settings = {
             "some_key": {
                 "datatype": "float",
@@ -233,13 +238,13 @@ def test_bad_key_in_published_settings() -> None:
 
     exp = "test_bad_key_in_published_settings"
     with pytest.raises(ValueError):
-        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+        with TestJob(unit=get_unit_name(), experiment=exp):
             pass
 
 
 def test_bad_setting_name_in_published_settings() -> None:
     class TestJob(BackgroundJob):
-
+        job_name = "job"
         published_settings = {
             "some--!4key": {
                 "datatype": "float",
@@ -252,13 +257,13 @@ def test_bad_setting_name_in_published_settings() -> None:
 
     exp = "test_bad_setting_name_in_published_settings"
     with pytest.raises(ValueError):
-        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+        with TestJob(unit=get_unit_name(), experiment=exp):
             pass
 
 
 def test_editing_readonly_attr_via_mqtt() -> None:
     class TestJob(BackgroundJob):
-
+        job_name = "job"
         published_settings = {
             "readonly_attr": {
                 "datatype": "float",
@@ -269,7 +274,7 @@ def test_editing_readonly_attr_via_mqtt() -> None:
     exp = "test_editing_readonly_attr_via_mqtt"
 
     with collect_all_logs_of_level("DEBUG", get_unit_name(), exp) as logs:
-        with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+        with TestJob(unit=get_unit_name(), experiment=exp):
             publish(
                 f"pioreactor/{get_unit_name()}/{exp}/job/readonly_attr/set",
                 1.0,
@@ -284,7 +289,7 @@ def test_editing_readonly_attr_via_mqtt() -> None:
 
 def test_persist_in_published_settings() -> None:
     class TestJob(BackgroundJob):
-
+        job_name = "test_job"
         published_settings = {
             "persist_this": {"datatype": "float", "settable": True, "persist": True},
             "dont_persist_this": {
@@ -300,7 +305,7 @@ def test_persist_in_published_settings() -> None:
 
     exp = "test_persist_in_published_settings"
 
-    with TestJob(job_name="test_job", unit=get_unit_name(), experiment=exp):
+    with TestJob(unit=get_unit_name(), experiment=exp):
         pause()
         pause()
 
@@ -327,6 +332,8 @@ def test_sys_exit_does_exit() -> None:
             sys.exit()
 
     class TestJob(BackgroundJob):
+        job_name = "job"
+
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
             self.all_i_do_is_exit = AllIDoIsExit()
@@ -335,9 +342,7 @@ def test_sys_exit_does_exit() -> None:
             self.all_i_do_is_exit.exit()
 
     with pytest.raises(SystemExit):
-        with TestJob(
-            unit=get_unit_name(), experiment="test_sys_exit_does_exit", job_name="job"
-        ) as t:
+        with TestJob(unit=get_unit_name(), experiment="test_sys_exit_does_exit") as t:
             t.call_all_i_do_is_exit()
 
 
@@ -345,17 +350,15 @@ def test_adding_key_in_published_settings() -> None:
     exp = "test_adding_key_in_published_settings"
 
     class TestJob(BackgroundJob):
+        job_name = "test_job"
+
         def __init__(self, *args, **kwargs) -> None:
             super(TestJob, self).__init__(*args, **kwargs)
             self.add_to_published_settings(
                 "test", {"datatype": "string", "persist": True, "settable": True}
             )
 
-    with TestJob(
-        unit=get_unit_name(),
-        experiment=exp,
-        job_name="test_job",
-    ):
+    with TestJob(unit=get_unit_name(), experiment=exp):
         msg = subscribe(f"pioreactor/testing_unit/{exp}/test_job/test/$settable")
         assert msg is not None
         assert msg.payload.decode() == "True"
@@ -366,7 +369,7 @@ def test_adding_key_in_published_settings() -> None:
 
 def test_cleans_up_mqtt() -> None:
     class TestJob(BackgroundJob):
-
+        job_name = "job"
         published_settings = {
             "readonly_attr": {
                 "datatype": "float",
@@ -376,7 +379,7 @@ def test_cleans_up_mqtt() -> None:
 
     exp = "test_cleans_up_mqtt"
 
-    with TestJob(job_name="job", unit=get_unit_name(), experiment=exp):
+    with TestJob(unit=get_unit_name(), experiment=exp):
         msg = subscribe(f"pioreactor/+/{exp}/job/readonly_attr/#", timeout=0.5)
         assert msg is not None
 
@@ -398,7 +401,7 @@ def test_cleans_up_mqtt() -> None:
     assert msg is not None
 
 
-def test_dodging():
+def test_dodging() -> None:
 
     config["just_pause"] = {}
     config["just_pause"]["post_delay_duration"] = "0.2"
@@ -406,8 +409,10 @@ def test_dodging():
     config["just_pause"]["enable_dodging_od"] = "1"
 
     class JustPause(BackgroundJobWithDodging):
+        job_name = "just_pause"
+
         def __init__(self):
-            super().__init__(job_name="just_pause", unit=get_unit_name(), experiment="test_dodging")
+            super().__init__(unit=get_unit_name(), experiment="test_dodging")
 
         def action_to_do_before_od_reading(self):
             self.logger.notice("Pausing")
@@ -427,7 +432,7 @@ def test_dodging():
                 assert len(bucket) > 4, bucket
 
 
-def test_dodging_disabled():
+def test_dodging_disabled() -> None:
 
     config["just_pause"] = {}
     config["just_pause"]["post_delay_duration"] = "0.2"
@@ -435,11 +440,11 @@ def test_dodging_disabled():
     config["just_pause"]["enable_dodging_od"] = "1"
 
     class JustPause(BackgroundJobWithDodging):
-
+        job_name = "just_pause"
         published_settings = {"test": {"datatype": "float", "settable": True}}
 
         def __init__(self):
-            super().__init__(job_name="just_pause", unit=get_unit_name(), experiment="test_dodging")
+            super().__init__(unit=get_unit_name(), experiment="test_dodging")
 
         def action_to_do_before_od_reading(self):
             self.logger.notice("Pausing")

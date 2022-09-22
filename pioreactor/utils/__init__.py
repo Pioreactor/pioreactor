@@ -267,3 +267,11 @@ def argextrema(x: list) -> tuple[int, int]:
             max_ = value
             argmax_ = i
     return argmin_, argmax_
+
+
+class SummableList(list):
+    def __add__(self, other) -> SummableList:
+        return SummableList([s + o for (s, o) in zip(self, other)])
+
+    def __iadd__(self, other) -> SummableList:
+        return self + other

@@ -87,9 +87,12 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
+
+    
     MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
+    job_name = "temperature_control"
 
     available_automations = {}  # type: ignore
 
@@ -109,7 +112,7 @@ class TemperatureController(BackgroundJob):
         using_third_party_thermocouple: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(job_name="temperature_control", unit=unit, experiment=experiment)
+        super().__init__(unit=unit, experiment=experiment)
 
         if not hardware.is_HAT_present():
             self.logger.error("Pioreactor HAT must be present.")

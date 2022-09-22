@@ -177,6 +177,7 @@ class Stirrer(BackgroundJob):
     > st.start_stirring()
     """
 
+    job_name = "stirring"
     published_settings = {
         "target_rpm": {"datatype": "float", "settable": True, "unit": "RPM"},
         "measured_rpm": {"datatype": "MeasuredRPM", "settable": False, "unit": "RPM"},
@@ -197,7 +198,7 @@ class Stirrer(BackgroundJob):
         rpm_calculator: Optional[RpmCalculator] = None,
         hertz: float = config.getfloat("stirring", "pwm_hz"),
     ) -> None:
-        super(Stirrer, self).__init__(job_name="stirring", unit=unit, experiment=experiment)
+        super(Stirrer, self).__init__(unit=unit, experiment=experiment)
         self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
         self.rpm_calculator = rpm_calculator
 

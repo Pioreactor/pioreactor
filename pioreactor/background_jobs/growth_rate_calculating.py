@@ -66,6 +66,7 @@ class GrowthRateCalculator(BackgroundJob):
 
     """
 
+    job_name = "growth_rate_calculating"
     published_settings = {
         "growth_rate": {
             "datatype": "GrowthRate",
@@ -89,9 +90,7 @@ class GrowthRateCalculator(BackgroundJob):
         from_mqtt=True,
     ):
 
-        super(GrowthRateCalculator, self).__init__(
-            job_name="growth_rate_calculating", unit=unit, experiment=experiment
-        )
+        super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
 
         self.from_mqtt = from_mqtt
         self.ignore_cache = ignore_cache
