@@ -4,6 +4,7 @@ from __future__ import annotations
 import time
 from typing import Callable
 from typing import Optional
+from typing import Type
 
 import click
 from msgspec.json import decode
@@ -60,18 +61,22 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
         has_alt_media = "alt_media" in cache
 
         if has_media:
-            media_timestamp = decode(cache["media"], type=structs.PumpCalibration).timestamp[:10]
+            media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).timestamp[
+                :10
+            ]
         else:
             media_timestamp = ""
 
         if has_waste:
-            waste_timestamp = decode(cache["waste"], type=structs.PumpCalibration).timestamp[:10]
+            waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).timestamp[
+                :10
+            ]
         else:
             waste_timestamp = ""
 
         if has_alt_media:
             alt_media_timestamp = decode(
-                cache["alt_media"], type=structs.PumpCalibration
+                cache["alt_media"], type=structs.AltMediaPumpCalibration
             ).timestamp[:10]
         else:
             alt_media_timestamp = ""
@@ -288,7 +293,7 @@ def run_tests(
     return durations_to_test, results
 
 
-def save_results_locally(
+def save_results(
     name: str,
     pump_type: str,
     duration_: float,
@@ -300,7 +305,15 @@ def save_results_locally(
     volumes: list[float],
     unit: str,
 ) -> structs.PumpCalibration:
-    pump_calibration_result = structs.PumpCalibration(
+
+    if pump_type == "media":
+        struct: Type[structs.AnyPumpCalibration] = structs.MediaPumpCalibration
+    elif pump_type == "waste":
+        struct = structs.WastePumpCalibration
+    elif pump_type == "alt_media":
+        struct = structs.AltMediaPumpCalibration
+
+    pump_calibration_result = struct(
         name=name,
         timestamp=current_utc_timestamp(),
         pump=pump_type,
@@ -381,7 +394,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
-        save_results_locally(
+        save_results(
             name=name,
             pump_type=pump_type,
             duration_=slope,
