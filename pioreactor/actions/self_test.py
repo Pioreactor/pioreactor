@@ -68,9 +68,6 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     ) as od_stream:
 
         for i, reading in enumerate(od_stream):
-            if i < 8:  # skip the first few values
-                continue
-
             signal1.append(reading.ods["1"].od)
             signal2.append(reading.ods["2"].od)
 
@@ -83,6 +80,10 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     }
 
     ref_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
+
+    print(norm_variance_per_channel)
+    print(signal1)
+    print(signal2)
 
     THRESHOLD = 1.0
     if ref_channel == "1":
