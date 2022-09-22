@@ -87,10 +87,13 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 58.0  # ~PLA glass transition temp
-    MAX_TEMP_TO_DISABLE_HEATING = 62.0
-    MAX_TEMP_TO_SHUTDOWN = 65.0
+
+    
+    MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_DISABLE_HEATING = 63.5
+    MAX_TEMP_TO_SHUTDOWN = 66.0
     job_name = "temperature_control"
+
     available_automations = {}  # type: ignore
 
     published_settings = {
@@ -310,7 +313,7 @@ class TemperatureController(BackgroundJob):
 
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp} ℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
             )
             self._update_heater(0)
 
@@ -325,7 +328,7 @@ class TemperatureController(BackgroundJob):
             self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp} ℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to Silent. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to only_record_ambient_temperature. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
@@ -338,7 +341,7 @@ class TemperatureController(BackgroundJob):
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
 
             self.logger.debug(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp} ℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(self.heater_duty_cycle * 0.9)
@@ -351,9 +354,6 @@ class TemperatureController(BackgroundJob):
 
     def on_disconnected(self) -> None:
         with suppress(AttributeError):
-            self.automation_job.clean_up()
-
-        with suppress(AttributeError):
             self.read_external_temperature_timer.cancel()
             self.publish_temperature_timer.cancel()
 
@@ -361,6 +361,9 @@ class TemperatureController(BackgroundJob):
             self._update_heater(0)
             self.pwm.stop()
             self.pwm.cleanup()
+
+        with suppress(AttributeError):
+            self.automation_job.clean_up()
 
         with local_intermittent_storage("last_heating_timestamp") as cache:
             cache["last_heating_timestamp"] = current_utc_timestamp()
@@ -486,15 +489,26 @@ class TemperatureController(BackgroundJob):
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
         # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
-        # TODO: update these priors as we develop more pioreactors
+        # TODO: update these priors as we develop more Pioreactors
         # observed data:
         #  B=-0.1244534657804866,  A=-0.00012566629719875475 (May 24, 2022)
         #  B=-0.14928314914531557, A=-0.000376953627819461
         #  B=-0.13807398778473443, A=-0.00021395682471394434
         #  B=-0.14123191941209473, A=-0.0005287562253399032 (May 25, 2022)
         #  B=-0.15192316555127186, A=-0.000894869124798112
-        A_penalizer, A_prior = 100.0, -0.00050
-        B_penalizer, B_prior = 20.0, -0.140
+        #  A=-0.001295916914002933, B=-0.17905413150045976 (Sept 13, 2022, two modern Pioreactors)
+        #  A=-0.0010803409392903384, B=-0.17152656184261297
+        #  A=-0.0010674444548854495, B=-0.17115312722794235
+        #  A=-0.0011996267624624331, B=-0.17190309667476145
+        #  A=-0.0011066911804701845, B=-0.17196962637032628
+        #  A=-0.001150016228923988, B=-0.18975899991350298
+        #  A=-0.001082333547509889, B=-0.18685445997491493
+        #  A=-0.0010607908095388548, B=-0.18749701076543562
+        #  A=-0.0010514517340740343, B=-0.18756448817069307
+        #  A=-0.0012910773630121675, B=-0.19066684235126932
+
+        A_penalizer, A_prior = 100.0, -0.0011
+        B_penalizer, B_prior = 20.0, -0.170
 
         M1 = np.array(
             [
@@ -551,6 +565,7 @@ class TemperatureController(BackgroundJob):
         )
         Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
 
+        self.logger.debug(f"{A=}, {B=}, {p=}, {q=}")
         try:
             b, c = np.linalg.solve(M2, Y2)
         except np.linalg.LinAlgError:

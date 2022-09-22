@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import socket
 import threading
 from enum import IntEnum
 from time import sleep
@@ -14,17 +15,17 @@ from pioreactor.config import leader_address
 from pioreactor.types import MQTTMessage
 
 
-class QOS(IntEnum):
-    AT_MOST_ONCE = 0
-    AT_LEAST_ONCE = 1
-    EXACTLY_ONCE = 2
-
-
 class Client(PahoClient):
     def loop_stop(self):
         super().loop_stop()
         self._reset_sockets(sockpair_only=True)
         return self
+
+
+class QOS(IntEnum):
+    AT_MOST_ONCE = 0
+    AT_LEAST_ONCE = 1
+    EXACTLY_ONCE = 2
 
 
 def create_client(
@@ -34,13 +35,14 @@ def create_client(
     keepalive=60,
     max_connection_attempts=3,
     clean_session=None,
-) -> Client:
+    on_connect: Optional[Callable] = None,
+    on_message: Optional[Callable] = None,
+):
     """
     Create a MQTT client and connect to a host.
     """
-    import socket
 
-    def on_connect(client: Client, userdata, flags, rc: int, properties=None):
+    def default_on_connect(client: Client, userdata, flags, rc: int, properties=None):
         if rc > 1:
             from pioreactor.logging import create_logger
             from paho.mqtt.client import connack_string  # type: ignore
@@ -49,7 +51,14 @@ def create_client(
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
     client = Client(client_id=client_id, clean_session=clean_session)
-    client.on_connect = on_connect
+
+    if on_connect:
+        client.on_connect = on_connect
+    else:
+        client.on_connect = default_on_connect
+
+    if on_message:
+        client.on_message = on_message
 
     if last_will is not None:
         client.will_set(**last_will)
@@ -97,7 +106,7 @@ def publish(
 
 def subscribe(
     topics: str | list[str],
-    hostname=leader_address,
+    hostname: str = leader_address,
     retries: int = 5,
     timeout: Optional[float] = None,
     allow_retained: bool = True,
@@ -156,7 +165,7 @@ def subscribe(
             client = Client(userdata=userdata)
             client.on_connect = on_connect
             client.on_message = on_message
-            client.connect(leader_address)
+            client.connect(hostname)
 
             if timeout is None:
                 client.loop_forever()
@@ -252,7 +261,7 @@ def subscribe_and_callback(
         client.on_connect = on_connect
         client.on_message = wrap_callback(callback)
 
-        client.connect(leader_address, **mqtt_kwargs)
+        client.connect(hostname, **mqtt_kwargs)
         client.loop_start()
     else:
         # user provided a client

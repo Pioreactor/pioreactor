@@ -61,7 +61,7 @@ def get_metadata_from_user():
             if name == "":
                 name = click.echo("Name cannot be emoty")
                 continue
-            elif name in cache: 
+            elif name in cache:
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
                     break
             else:
@@ -184,6 +184,7 @@ def start_recording_and_diluting(
             return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
 
         for _ in range(4):
+            # warm up
             od_reader.record_from_adc()
 
         while inferred_od600 > minimum_od600:

@@ -154,12 +154,12 @@ def od_blank(
             ignore_rpm=ignore_rpm,
         ) as st:
 
-            # skip the first few
+            # warm up OD reader
             for count, _ in enumerate(od_stream, start=0):
-                if count == 10:
+                if count == 5:
                     break
 
-            st.block_until_rpm_is_close_to_target(timeout=120)  # wait for maximum 2 minutes:
+            st.block_until_rpm_is_close_to_target(timeout=30)
 
             means, _ = od_statistics(
                 od_stream,

@@ -639,5 +639,6 @@ def test_calibration_errors_when_pd_channel_differs():
             pass
 
     assert "channel" in str(error.value)
+
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]

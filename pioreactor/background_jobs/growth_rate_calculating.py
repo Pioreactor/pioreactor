@@ -94,7 +94,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         self.from_mqtt = from_mqtt
         self.ignore_cache = ignore_cache
-        self.time_of_previous_observation = datetime.utcnow()
+        self.time_of_previous_observation: datetime | None = None
         self.expected_dt = 1 / (60 * 60 * config.getfloat("od_config", "samples_per_second"))
 
     def on_init_to_ready(self) -> None:
@@ -141,7 +141,7 @@ class GrowthRateCalculator(BackgroundJob):
         initial_covariance = 1e-4 * np.eye(
             3
         )  # empirically selected - TODO: this should probably scale with `expected_dt`
-        self.logger.debug(f"Initial covariance matrix:\n{str(initial_covariance)}")
+        self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
 
         acc_std = config.getfloat("growth_rate_kalman", "acc_std")
         acc_process_variance = (acc_std * self.expected_dt) ** 2
@@ -154,11 +154,11 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[0, 0] = od_process_variance
         process_noise_covariance[1, 1] = rate_process_variance
         process_noise_covariance[2, 2] = acc_process_variance
-        self.logger.debug(f"Process noise covariance matrix:\n{str(process_noise_covariance)}")
+        self.logger.debug(f"Process noise covariance matrix:\n{repr(process_noise_covariance)}")
 
         observation_noise_covariance = self.create_obs_noise_covariance()
         self.logger.debug(
-            f"Observation noise covariance matrix:\n{str(observation_noise_covariance)}"
+            f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}"
         )
 
         angles = [
@@ -369,7 +369,6 @@ class GrowthRateCalculator(BackgroundJob):
         """
         this is like _update_state_from_observation, but also updates attributes, caches, mqtt
         """
-
         (
             self.growth_rate,
             self.od_filtered,
@@ -402,17 +401,22 @@ class GrowthRateCalculator(BackgroundJob):
             # TODO this should use the internal timestamp reference
 
             time_of_current_observation = to_datetime(timestamp)
-            dt = (
-                (time_of_current_observation - self.time_of_previous_observation).total_seconds()
-                / 60
-                / 60
-            )  # delta time in hours
+            if self.time_of_previous_observation is not None:
+                dt = (
+                    (
+                        time_of_current_observation - self.time_of_previous_observation
+                    ).total_seconds()
+                    / 60
+                    / 60
+                )  # delta time in hours
 
-            if dt < 0:
-                self.logger.debug(
-                    f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
-                )
-                return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+                if dt < 0:
+                    self.logger.debug(
+                        f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
+                    )
+                    return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+            else:
+                dt = 0.0
 
             self.time_of_previous_observation = time_of_current_observation
 

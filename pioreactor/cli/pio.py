@@ -56,6 +56,7 @@ def pio() -> None:
 def logs(n) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
+    TODO: this consumes a full CPU core!
     """
 
     def file_len(filename) -> int:
@@ -172,6 +173,7 @@ def kill(job: str, all_jobs: bool) -> None:
     """
 
     from sh import pkill  # type: ignore
+    from pioreactor.actions.led_intensity import led_intensity
 
     def safe_pkill(*args: str) -> None:
         try:
@@ -181,6 +183,7 @@ def kill(job: str, all_jobs: bool) -> None:
 
     if all_jobs:
         safe_pkill("-f", "pio run ")
+        led_intensity({"A": 0, "B": 0, "C": 0, "D": 0}, verbose=False)
     else:
         for j in job:
             safe_pkill("-f", f"pio run {j}")
@@ -300,11 +303,11 @@ def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) ->
     if app:
         if source is not None:
             version_installed = source
-            command = f"sudo pip3 install --root-user-action=ignore --disable-pip-version-check -U --force-reinstall {source}"
+            command = f"sudo pip3 install --root-user-action=ignore -U --force-reinstall {source}"
 
         elif branch is not None:
             version_installed = branch
-            command = f"sudo pip3 install --root-user-action=ignore --disable-pip-version-check -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
+            command = f"sudo pip3 install --root-user-action=ignore -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
         else:
             latest_release_metadata = loads(
                 get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest").body
@@ -312,7 +315,7 @@ def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) ->
             version_installed = latest_release_metadata["name"]
             url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{version_installed}/pioreactor-{version_installed}-py3-none-any.whl"
 
-            command = f'sudo pip3 install --root-user-action=ignore --disable-pip-version-check "pioreactor @ {url_to_get_whl}"'
+            command = f'sudo pip3 install --root-user-action=ignore "pioreactor @ {url_to_get_whl}"'
 
         p = subprocess.run(
             command,
@@ -327,18 +330,17 @@ def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) ->
             logger.error(p.stderr)
 
     if ui and whoami.am_I_leader():
-        cd = "cd ~/pioreactorui/backend"
         gitp = "git pull origin master"
-        npm_install = "npm install"
-        setup = "pm2 restart ui"
-        unedit_edited_files = "git checkout ."  # TODO: why do I do this. Can I be more specific than `.`? This blocks edits to the contrib folder from sticking around.
-        command = " && ".join([cd, gitp, setup, npm_install, unedit_edited_files])
+        restart_lighttp = "sudo systemctl restart lighttpd.service"
+        restart_huey = "sudo systemctl restart huey.service"
+        command = " && ".join([gitp, restart_lighttp, restart_huey])
         p = subprocess.run(
             command,
             shell=True,
             universal_newlines=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
+            cwd="/var/www/pioreactorui/",
         )
         if p.returncode == 0:
             logger.notice("Updated PioreactorUI to latest version.")  # type: ignore
@@ -425,16 +427,17 @@ if whoami.am_I_leader():
 
         # check to make sure X.local is on network
         checks, max_checks = 0, 20
+        sleep_time = 3
         while not networking.is_hostname_on_network(hostname_dot_local):
             checks += 1
             try:
                 socket.gethostbyname(hostname_dot_local)
             except socket.gaierror:
-                sleep(3)
+                sleep(sleep_time)
                 click.echo(f"`{hostname}` not found on network - checking again.")
                 if checks >= max_checks:
                     logger.error(
-                        f"`{hostname}` not found on network after {max_checks} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
+                        f"`{hostname}` not found on network after more than {max_checks * sleep_time} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
                     )
                     sys.exit(1)
 

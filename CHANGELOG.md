@@ -1,11 +1,16 @@
+
+### 2.9.5
+ - The SQL triggers were not added to the images, so `pioreactor_unit_activity_data` was never populated. This is fixed.
+ - New web server backend. Went from js/Node to python (Flask)/lighttp.
+ - Export datasets now cleans up its csvs.
+
 ### 22.9.4
  - Bug fixes
 
 ### 22.9.3
  - temperature automation `silent` is now `only_record_ambient_temperature`.
- - using new RPi image from 2022-09-06.
+ - using new official RPi image from 2022-09-06 as a source image.
  - Bug fixes
-
 
 ### 22.9.2
  - added subcommands `display_current`, `change_current`, `list` to pump calibration

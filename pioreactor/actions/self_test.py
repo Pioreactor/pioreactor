@@ -53,12 +53,15 @@ def test_pioreactor_HAT_present(logger: Logger, unit: str, experiment: str) -> N
 
 
 def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) -> None:
+    # this _also_ uses stirring to increase the variance in the non-REF, so...
     from statistics import variance
 
     signal1 = []
     signal2 = []
 
-    with start_od_reading(
+    with stirring.start_stirring(
+        target_rpm=500, unit=unit, experiment=experiment
+    ), start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
         interval=1.15,
@@ -69,9 +72,6 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     ) as od_stream:
 
         for i, reading in enumerate(od_stream):
-            if i < 8:  # skip the first few values
-                continue
-
             signal1.append(reading.ods["1"].od)
             signal2.append(reading.ods["2"].od)
 
@@ -169,6 +169,7 @@ def test_all_positive_correlations_between_pds_and_leds(
             verbose=False,
             source_of_event="self_test",
         )
+        adc_reader.clear_batched_readings()
 
     logger.debug(f"Correlations between LEDs and PD:\n{pformat(results)}")
     detected_relationships = []
