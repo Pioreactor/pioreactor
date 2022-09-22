@@ -57,7 +57,7 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     signal1 = []
     signal2 = []
 
-    with start_od_reading(
+    with stirring.Stirrer(target_rpm=500, unit=unit, experiment=experiment), start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
         interval=1.1,
@@ -386,9 +386,7 @@ class BatchTestRunner:
                 test(logger, unit, experiment_name)
                 res = True
             except Exception:
-                from traceback import print_exc
-
-                print_exc()
+                logger.debug(f"{experiment_name} failed", exc_info=True)
                 res = False
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
