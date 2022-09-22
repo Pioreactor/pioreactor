@@ -52,6 +52,7 @@ def test_pioreactor_HAT_present(logger: Logger, unit: str, experiment: str) -> N
 
 
 def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) -> None:
+    # this _also_ uses stirring to increase the variance in the non-REF, so...
     from statistics import variance
 
     signal1 = []
@@ -82,10 +83,6 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
     }
 
     ref_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
-
-    print(norm_variance_per_channel)
-    print(signal1)
-    print(signal2)
 
     THRESHOLD = 1.0
     if ref_channel == "1":
