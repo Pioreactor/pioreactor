@@ -1,6 +1,7 @@
 ### 2.9.6
  - improve reliability of self-test `test_REF_is_in_correct_position`
- - improve the early OD reading signal behaviour
+ - improve the early OD reading signal behaviour.
+ - new API on jobs for `job_name` (class level now)
 
 ### 2.9.5
  - The SQL triggers were not added to the images, so `pioreactor_unit_activity_data` was never populated. This is fixed.
