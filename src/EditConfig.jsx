@@ -14,6 +14,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Select from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/Save';
 import { CodeFlaskReact } from "react-codeflask"
+import moment from "moment";
 
 
 const useStyles = makeStyles((theme) => ({
@@ -40,6 +41,8 @@ class EditableCodeDiv extends React.Component {
       filename: "config.ini",
       snackbarMsg: "",
       saving: false,
+      historicalConfigs: [{filename: "config.ini", data: "", timestamp: "2000-01-01"}],
+      timestamp_ix: 0,
       hasChangedSinceSave: true,
       availableConfigs: [
         {name: "shared config.ini", filename: "config.ini"},
@@ -59,7 +62,7 @@ class EditableCodeDiv extends React.Component {
       })
   }
 
-  getListOfConfigFiles(filename) {
+  getListOfConfigFiles() {
     fetch("/api/get_configs")
       .then(response => {
         return response.json();
@@ -68,6 +71,19 @@ class EditableCodeDiv extends React.Component {
         this.setState(prevState => ({
           availableConfigs: [...prevState.availableConfigs, ...json.filter(e => (e !== 'config.ini')).map(e => ({name: e, filename: e}))]
         }));
+      })
+  }
+
+  getHistoricalConfigFiles(filename) {
+    fetch("/api/get_historical_configs/" + filename)
+      .then(response => {
+        return response.json();
+      })
+      .then(listOfHistoricalConfigs => {
+        this.setState({
+          historicalConfigs: listOfHistoricalConfigs,
+          timestamp_ix: 0
+        });
       })
   }
 
@@ -116,11 +132,22 @@ class EditableCodeDiv extends React.Component {
   componentDidMount() {
     this.getConfig(this.state.filename)
     this.getListOfConfigFiles()
+    this.getHistoricalConfigFiles(this.state.filename)
+    this.setState({timestamp: this.state.historicalConfigs[0].timestamp})
   }
 
   onSelectionChange = (e) => {
-    this.setState({filename: e.target.value})
-    this.getConfig(e.target.value)
+    const filename = e.target.value
+    this.setState({filename: filename})
+    this.getConfig(filename)
+    this.getHistoricalConfigFiles(filename)
+  }
+
+  onSelectionHistoricalChange = (e) => {
+    const timestamp = e.target.value
+    const ix = this.state.historicalConfigs.findIndex((c) => c.timestamp == timestamp)
+    const configBlob = this.state.historicalConfigs[ix]
+    this.setState({code: configBlob.data, timestamp_ix: ix})
   }
 
   getCodeFlaskRef = (codeFlask) => {
@@ -138,26 +165,49 @@ class EditableCodeDiv extends React.Component {
   render() {
     return (
       <React.Fragment>
-        <div style={{maxWidth: "200px", margin: "10px"}}>
-          <FormControl fullWidth>
-
-            <InputLabel id="configSelect" variant="standard">Config file</InputLabel>
-            <Select
-              native
-              labelId="configSelect"
-              variant="standard"
-              value={this.state.filename}
-              onChange={this.onSelectionChange}
-              inputProps={{
-                name: 'config',
-                id: 'config',
-              }}
-            >
-              {this.state.availableConfigs.map((v) => {
-                return <option key={v.filename} value={v.filename}>{v.name}</option>
-                }
-              )}
-            </Select>
+        <div style={{width: "100%", margin: "10px", display: "flex", justifyContent:"space-between"}}>
+          <FormControl>
+            <div>
+              <InputLabel id="configSelect" variant="standard">Config file</InputLabel>
+              <Select
+                native
+                labelId="configSelect"
+                variant="standard"
+                value={this.state.filename}
+                onChange={this.onSelectionChange}
+                inputProps={{
+                  name: 'config',
+                  id: 'config',
+                }}
+              >
+                {this.state.availableConfigs.map((v) => {
+                  return <option key={v.filename} value={v.filename}>{v.name}</option>
+                  }
+                )}
+              </Select>
+            </div>
+          </FormControl>
+          <FormControl style={{marginRight: "20px"}}>
+            <div>
+              <InputLabel id="configSelect" variant="standard">Previous versions</InputLabel>
+              <Select
+                native
+                labelId="historicalConfigSelect"
+                variant="standard"
+                value={this.state.historicalConfigs.length > 0 ? this.state.historicalConfigs[this.state.timestamp_ix].timestamp : ""}
+                displayEmpty={true}
+                onChange={this.onSelectionHistoricalChange}
+                inputProps={{
+                  name: 'historicalConfig',
+                  id: 'historicalConfig',
+                }}
+              >
+                {this.state.historicalConfigs.map((v, i) => {
+                  return <option key={v.timestamp} value={v.timestamp}>{i === 0 ? moment(v.timestamp).format("YYYY-MM-DD HH:mm:ss") + " (latest)" : moment(v.timestamp).format("YYYY-MM-DD HH:mm:ss") }</option>
+                  }
+                )}
+              </Select>
+            </div>
           </FormControl>
 
         </div>
@@ -181,7 +231,7 @@ class EditableCodeDiv extends React.Component {
             loadingPosition="end"
             endIcon={<SaveIcon />}
             >
-            Save
+            {this.state.timestamp_ix === 0 ? "Save" : "Revert"}
           </LoadingButton>
           <Button
             style={{margin: "5px 10px 5px 10px"}}

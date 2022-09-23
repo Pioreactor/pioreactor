@@ -119,7 +119,7 @@ function AssignLabels(props){
           {activeUnits.map((unit) => (
               <React.Fragment key={unit}>
               <Grid item xs={2}/>
-              <Grid item xs={7}>
+              <Grid item xs={8}>
                 <div style={{display: "flex", justifyContent:"space-between"}}>
                   <div>
                     <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.0em"}}/>
@@ -131,7 +131,7 @@ function AssignLabels(props){
                   </div>
                 </div>
               </Grid>
-              <Grid item xs={3}/>
+              <Grid item xs={2}/>
               </React.Fragment>
             )
             )}
