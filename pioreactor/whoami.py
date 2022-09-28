@@ -30,7 +30,7 @@ def _get_latest_experiment_name() -> str:
     from pioreactor.pubsub import subscribe
 
     mqtt_msg = subscribe(
-        "pioreactor/latest_experiment",
+        "pioreactor/latest_experiment/experiment",
         timeout=30,
         retries=2,
         name="get_latest_experiment_name",

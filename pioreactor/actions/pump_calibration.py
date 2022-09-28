@@ -34,9 +34,10 @@ def introduction():
     click.echo(
         """This routine will calibrate the pumps on your current Pioreactor. You'll need:
     1. A Pioreactor
-    2. A vial placed on a scale
-    3. A larger container with water
-    4. Pumps connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configurations.
+    2. A vial placed on a scale with accuracy at least 0.1g
+       OR an accurate graduated cylinder.
+    3. A larger container filled with water
+    4. A pump connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configurations.
 """
     )
 
@@ -223,13 +224,20 @@ def run_tests(
     click.echo()
     click.echo("Beginning tests.")
 
+    empty_calibration = structs.PumpCalibration(
+        name="_test",
+        duration_=1.0,
+        pump=pump_type,
+        hz=hz,
+        dc=dc,
+        bias_=0,
+        timestamp=current_utc_timestamp(),
+        voltage=voltage_in_aux(),
+    )
+
     results: list[float] = []
-    durations_to_test = [
-        min_duration,
-        min_duration * 1.1,
-        min_duration * 1.2,
-        min_duration * 1.3,
-    ] + [max_duration * 0.85, max_duration * 0.90, max_duration * 0.95, max_duration]
+    durations_to_test = [min_duration] * 4 + [max_duration] * 4
+
     for i, duration in enumerate(durations_to_test):
         while True:
             if i != 0:
@@ -261,16 +269,7 @@ def run_tests(
                 source_of_event="pump_calibration",
                 unit=get_unit_name(),
                 experiment=get_latest_testing_experiment_name(),
-                calibration=structs.PumpCalibration(
-                    name="",
-                    duration_=1.0,
-                    pump=pump_type,
-                    hz=hz,
-                    dc=dc,
-                    bias_=0,
-                    timestamp=current_utc_timestamp(),
-                    voltage=voltage_in_aux(),
-                ),
+                calibration=empty_calibration,
             )
 
             r = click.prompt(
@@ -499,7 +498,7 @@ def click_pump_calibration(ctx, min_duration, max_duration):
     """
     if ctx.invoked_subcommand is None:
         if max_duration is None and min_duration is None:
-            min_duration, max_duration = 0.45, 1.25
+            min_duration, max_duration = 0.5, 1.5
         elif (max_duration is not None) and (min_duration is not None):
             assert min_duration < max_duration, "min_duration >= max_duration"
         else:

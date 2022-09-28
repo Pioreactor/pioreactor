@@ -8,7 +8,6 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 from __future__ import annotations
 
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from json import dumps
 from time import sleep
@@ -196,7 +195,7 @@ def run() -> None:
         click.echo(
             f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
         )
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pio.group(name="run-always", short_help="run a long-lived job")
@@ -439,7 +438,7 @@ if whoami.am_I_leader():
                     logger.error(
                         f"`{hostname}` not found on network after more than {max_checks * sleep_time} seconds. Check that you provided the right WiFi credentials to the network, and that the Raspberry Pi is turned on."
                     )
-                    sys.exit(1)
+                    raise click.Abort()
 
         res = subprocess.call(
             [f"bash /usr/local/bin/add_new_pioreactor_worker_from_leader.sh {hostname}"],
@@ -525,4 +524,4 @@ if whoami.am_I_leader():
             results = executor.map(display_data_for, worker_statuses)
 
         if not all(results):
-            sys.exit(1)
+            raise click.Abort()

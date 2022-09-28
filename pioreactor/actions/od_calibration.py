@@ -436,6 +436,15 @@ def od_calibration() -> None:
         click.echo(curve_to_functional_form(curve_type, curve_data_))
         click.echo()
         click.echo(f"Finished calibration of {name} ✅")
+
+        if not config.getboolean("od_config", "od_calibration"):
+            click.echo()
+            click.echo(
+                click.style(
+                    "Currently [od_config][od_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
+                    bold=True,
+                )
+            )
         return
 
 

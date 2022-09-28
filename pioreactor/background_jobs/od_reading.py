@@ -512,7 +512,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(350.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(400.0 / self.oversampling_count / self.interval)
                     if (self.interval is not None)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
