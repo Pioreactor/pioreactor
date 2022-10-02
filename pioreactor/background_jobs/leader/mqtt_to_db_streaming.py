@@ -23,9 +23,18 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 class MetaData(Struct):
     pioreactor_unit: str
     experiment: str
+    rest_of_topic: list[str]
 
 
 class TopicToParserToTable(Struct):
+    """
+
+    parser:
+     - must return a dictionary with the column names (order isn't important)
+     - `produce_metadata` is a helper function, see definition.
+     - parsers can return None as well, to skip adding the row to the database.
+    """
+
     topic: str | list[str]
     parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]]
     table: str
@@ -55,6 +64,7 @@ class MqttToDBStreamer(BackgroundJob):
                 "callback": self.create_on_message_callback(
                     topic_to_table.parser, topic_to_table.table  # type: ignore
                 ),
+                "table": topic_to_table.table,
             }
             for topic_to_table in topics_to_tables
         ]
@@ -67,7 +77,7 @@ class MqttToDBStreamer(BackgroundJob):
     def create_on_message_callback(
         self, parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]], table: str
     ) -> Callable:
-        def _callback(message: pt.MQTTMessage) -> None:
+        def callback(message: pt.MQTTMessage) -> None:
             # TODO: filter testing experiments here?
 
             if not message.payload:
@@ -99,7 +109,7 @@ class MqttToDBStreamer(BackgroundJob):
                 self.logger.debug(f"SQL that caused error: `{SQL}`")
                 return
 
-        return _callback
+        return callback
 
     def initialize_callbacks(self, topics_and_callbacks: list[dict]) -> None:
         for topic_and_callback in topics_and_callbacks:
@@ -109,12 +119,15 @@ class MqttToDBStreamer(BackgroundJob):
                 qos=QOS.EXACTLY_ONCE,
                 allow_retained=False,
             )
+            self.logger.debug(
+                f"Creating {topic_and_callback['topic']} → {topic_and_callback['table']}."
+            )
 
 
 def produce_metadata(topic: str) -> MetaData:
     # helper function for parsers below
     split_topic = topic.split("/")
-    return MetaData(split_topic[1], split_topic[2])
+    return MetaData(split_topic[1], split_topic[2], split_topic[3:])
 
 
 def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
@@ -319,101 +332,112 @@ def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def create_default_parsers() -> list:
-    return [
-        TopicToParserToTable(
-            "pioreactor/+/+/growth_rate_calculating/od_filtered",
-            parse_od_filtered,
-            "od_readings_filtered",
-        ),
-        TopicToParserToTable("pioreactor/+/+/od_reading/od/+", parse_od, "od_readings"),
-        TopicToParserToTable("pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"),
-        TopicToParserToTable(
-            "pioreactor/+/+/led_change_events",
-            parse_led_change_events,
-            "led_change_events",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/growth_rate_calculating/growth_rate",
-            parse_growth_rate,
-            "growth_rates",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/temperature_control/temperature",
-            parse_temperature,
-            "temperature_readings",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/dosing_automation/alt_media_fraction",
-            parse_alt_media_fraction,
-            "alt_media_fractions",
-        ),
-        TopicToParserToTable("pioreactor/+/+/logs/+", parse_logs, "logs"),
-        TopicToParserToTable(
-            "pioreactor/+/+/dosing_automation/dosing_automation_settings",
-            parse_automation_settings,
-            "dosing_automation_settings",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/led_automation/led_automation_settings",
-            parse_automation_settings,
-            "led_automation_settings",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/temperature_automation/temperature_automation_settings",
-            parse_automation_settings,
-            "temperature_automation_settings",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
-            parse_kalman_filter_outputs,
-            "kalman_filter_outputs",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
-        ),
-        TopicToParserToTable("pioreactor/+/+/od_blank/mean/+", parse_od_blank, "od_blanks"),
-        TopicToParserToTable(
-            "pioreactor/+/+/od_reading/relative_intensity_of_ir_led",
-            parse_ir_led_intensity,
-            "ir_led_intensities",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/dosing_automation/latest_event",
-            parse_automation_event,
-            "dosing_automation_events",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/led_automation/latest_event",
-            parse_automation_event,
-            "led_automation_events",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/temperature_automation/latest_event",
-            parse_automation_event,
-            "temperature_automation_events",
-        ),
-        TopicToParserToTable(
-            "pioreactor/+/+/calibrations",
-            parse_calibrations,
-            "calibrations",
-        ),
-    ]
+source_to_sinks: list[TopicToParserToTable] = []
+
+
+def add_default_source_to_sinks() -> list[TopicToParserToTable]:
+    register_source_to_sink(
+        [
+            TopicToParserToTable(
+                "pioreactor/+/+/growth_rate_calculating/od_filtered",
+                parse_od_filtered,
+                "od_readings_filtered",
+            ),
+            TopicToParserToTable("pioreactor/+/+/od_reading/od/+", parse_od, "od_readings"),
+            TopicToParserToTable(
+                "pioreactor/+/+/dosing_events", parse_dosing_events, "dosing_events"
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/led_change_events",
+                parse_led_change_events,
+                "led_change_events",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/growth_rate_calculating/growth_rate",
+                parse_growth_rate,
+                "growth_rates",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/temperature_control/temperature",
+                parse_temperature,
+                "temperature_readings",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/dosing_automation/alt_media_fraction",
+                parse_alt_media_fraction,
+                "alt_media_fractions",
+            ),
+            TopicToParserToTable("pioreactor/+/+/logs/+", parse_logs, "logs"),
+            TopicToParserToTable(
+                "pioreactor/+/+/dosing_automation/dosing_automation_settings",
+                parse_automation_settings,
+                "dosing_automation_settings",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/led_automation/led_automation_settings",
+                parse_automation_settings,
+                "led_automation_settings",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/temperature_automation/temperature_automation_settings",
+                parse_automation_settings,
+                "temperature_automation_settings",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/growth_rate_calculating/kalman_filter_outputs",
+                parse_kalman_filter_outputs,
+                "kalman_filter_outputs",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/stirring/measured_rpm", parse_stirring_rates, "stirring_rates"
+            ),
+            TopicToParserToTable("pioreactor/+/+/od_blank/mean/+", parse_od_blank, "od_blanks"),
+            TopicToParserToTable(
+                "pioreactor/+/+/od_reading/relative_intensity_of_ir_led",
+                parse_ir_led_intensity,
+                "ir_led_intensities",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/dosing_automation/latest_event",
+                parse_automation_event,
+                "dosing_automation_events",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/led_automation/latest_event",
+                parse_automation_event,
+                "led_automation_events",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/temperature_automation/latest_event",
+                parse_automation_event,
+                "temperature_automation_events",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/calibrations",
+                parse_calibrations,
+                "calibrations",
+            ),
+        ]
+    )
+    return source_to_sinks
+
+
+def register_source_to_sink(t2p2t: TopicToParserToTable | list[TopicToParserToTable]):
+    """
+    Entry point for adding parsers to be used in the job.
+
+    Plugins can use this to register new source -> sinks pairs.
+    """
+    if isinstance(t2p2t, list):
+        source_to_sinks.extend(t2p2t)
+    else:
+        source_to_sinks.append(t2p2t)
+    return source_to_sinks
 
 
 def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
-
-    ###################
-    # parsers
-    ###################
-    # - must return a dictionary with the column names (order isn't important)
-    # - `produce_metadata` is a helper function, see definition.
-    # - parsers can return None as well, to skip adding the message to the database.
-    #
-
-    return MqttToDBStreamer(
-        create_default_parsers(), experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name()
-    )
+    source_to_sinks = add_default_source_to_sinks()
+    return MqttToDBStreamer(source_to_sinks, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name())
 
 
 @click.command(name="mqtt_to_db_streaming")

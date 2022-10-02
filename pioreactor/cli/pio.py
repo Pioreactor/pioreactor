@@ -373,7 +373,7 @@ if whoami.am_I_active_worker():
     run.add_command(actions.pump_calibration.click_pump_calibration)
     run.add_command(actions.od_calibration.click_od_calibration)
 
-    # TODO: this only adds to `pio run` - what if users want to add a high level coomand? Examples?
+    # TODO: this only adds to `pio run` - what if users want to add a high level command? Examples?
     for plugin in pioreactor.plugin_management.get_plugins().values():
         for possible_entry_point in dir(plugin.module):
             if possible_entry_point.startswith("click_"):

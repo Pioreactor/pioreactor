@@ -920,6 +920,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         post_delay_duration=
         pre_delay_duration=
         enable_dodging_od=True
+        ...
 
     Example
     ------------
@@ -928,8 +929,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         class JustPause(BackgroundJobWithDodging):
             job_name="just_pause"
 
-            def __init__(self):
-                super().__init__(unit=get_unit_name(), experiment=get_latest_experiment_name())
+            def __init__(self, unit, experiment):
+                super().__init__(unit=unit, experiment=experiment)
 
             def action_to_do_before_od_reading(self):
                 self.logger.debug("Pausing")
@@ -937,6 +938,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
             def action_to_do_after_od_reading(self):
                 self.logger.debug("Unpausing")
 
+        start_od_reading("90", "REF", interval=5, fake_data=True)
+
+        job = JustPause("test", "test")
+        job.block_until_disconnected()
 
     """
 
@@ -1042,6 +1047,24 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
         sleep(time_to_next_ads_reading + post_delay)
         self.sneak_in_timer.start()
+
+    def on_sleeping(self):
+        try:
+            self.sneak_in_timer.pause()
+        except AttributeError:
+            pass
+
+    def on_disconnected(self):
+        try:
+            self.sneak_in_timer.cancel()
+        except AttributeError:
+            pass
+
+    def on_sleeping_to_ready(self):
+        try:
+            self.sneak_in_timer.unpause()
+        except AttributeError:
+            pass
 
 
 class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
