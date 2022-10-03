@@ -41,7 +41,7 @@ const useStyles = makeStyles((theme) => ({
 
 
 const defaultAutomations = {
-  temperature: "stable",
+  temperature: "thermostat",
   dosing: "chemostat",
   led: "light_dark_cycle"
 }

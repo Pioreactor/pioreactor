@@ -43,6 +43,8 @@ class EditableCodeDiv extends React.Component {
       saving: false,
       historicalConfigs: [{filename: "config.ini", data: "", timestamp: "2000-01-01"}],
       timestamp_ix: 0,
+      errorMsg: "",
+      isError: false,
       hasChangedSinceSave: true,
       availableConfigs: [
         {name: "shared config.ini", filename: "config.ini"},
@@ -88,7 +90,7 @@ class EditableCodeDiv extends React.Component {
   }
 
   saveCurrentCode() {
-    this.setState({saving: true})
+    this.setState({saving: true, isError: false})
     fetch('/api/save_new_config',{
         method: "POST",
         body: JSON.stringify({code :this.state.code, filename: this.state.filename}),
@@ -100,10 +102,12 @@ class EditableCodeDiv extends React.Component {
     .then(res => {
       if (res.ok) {
         this.setState({snackbarMsg: this.state.filename + " saved and synced.", hasChangedSinceSave: false, saving: false})
+        this.setState({openSnackbar: true});
       } else {
-        this.setState({snackbarMsg: "Hm. Something when wrong saving or syncing...", hasChangedSinceSave: true, saving: false})
+        res.json().then(parsedJson =>
+          this.setState({errorMsg: parsedJson['msg'], isError: true, hasChangedSinceSave: true, saving: false})
+        )
       }
-      this.setState({openSnackbar: true});
     })
   }
 
@@ -189,7 +193,7 @@ class EditableCodeDiv extends React.Component {
           </FormControl>
           <FormControl style={{marginRight: "20px"}}>
             <div>
-              <InputLabel id="configSelect" variant="standard">Previous versions</InputLabel>
+              <InputLabel id="configSelect" variant="standard">Versions</InputLabel>
               <Select
                 native
                 labelId="historicalConfigSelect"
@@ -203,7 +207,7 @@ class EditableCodeDiv extends React.Component {
                 }}
               >
                 {this.state.historicalConfigs.map((v, i) => {
-                  return <option key={v.timestamp} value={v.timestamp}>{i === 0 ? moment(v.timestamp).format("YYYY-MM-DD HH:mm:ss") + " (latest)" : moment(v.timestamp).format("YYYY-MM-DD HH:mm:ss") }</option>
+                  return <option key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : moment(v.timestamp).format("MMM DD [at] hh:mm a") }</option>
                   }
                 )}
               </Select>
@@ -221,18 +225,21 @@ class EditableCodeDiv extends React.Component {
           />
         </div>
         <div style={{display: "flex", justifyContent: "space-between"}}>
-          <LoadingButton
-            style={{margin: "5px 12px 5px 12px"}}
-            color="primary"
-            variant="contained"
-            onClick={this.saveCurrentCode}
-            disabled={!this.state.hasChangedSinceSave}
-            loading={this.state.saving}
-            loadingPosition="end"
-            endIcon={<SaveIcon />}
-            >
-            {this.state.timestamp_ix === 0 ? "Save" : "Revert"}
-          </LoadingButton>
+          <div>
+            <LoadingButton
+              style={{margin: "5px 12px 5px 12px"}}
+              color="primary"
+              variant="contained"
+              onClick={this.saveCurrentCode}
+              disabled={!this.state.hasChangedSinceSave}
+              loading={this.state.saving}
+              loadingPosition="end"
+              endIcon={<SaveIcon />}
+              >
+              {this.state.timestamp_ix === 0 ? "Save" : "Revert"}
+            </LoadingButton>
+            <p style={{marginLeft: 12}}>{this.state.isError ? <Box color="error.main">{this.state.errorMsg}</Box>: ""}</p>
+          </div>
           <Button
             style={{margin: "5px 10px 5px 10px"}}
             color="secondary"
