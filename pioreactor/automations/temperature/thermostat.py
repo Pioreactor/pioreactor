@@ -8,12 +8,12 @@ from pioreactor.utils import clamp
 from pioreactor.utils.streaming_calculations import PID
 
 
-class Stable(TemperatureAutomationJob):
+class Thermostat(TemperatureAutomationJob):
     """
     Uses a PID controller to change the DC% to match a target temperature.
     """
 
-    automation_name = "stable"
+    automation_name = "thermostat"
     published_settings = {
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }
@@ -24,9 +24,9 @@ class Stable(TemperatureAutomationJob):
         self.target_temperature = float(target_temperature)
 
         self.pid = PID(
-            Kp=config.getfloat("temperature_automation.stable", "Kp"),
-            Ki=config.getfloat("temperature_automation.stable", "Ki"),
-            Kd=config.getfloat("temperature_automation.stable", "Kd"),
+            Kp=config.getfloat("temperature_automation.thermostat", "Kp"),
+            Ki=config.getfloat("temperature_automation.thermostat", "Ki"),
+            Kd=config.getfloat("temperature_automation.thermostat", "Kd"),
             setpoint=self.target_temperature,
             unit=self.unit,
             experiment=self.experiment,

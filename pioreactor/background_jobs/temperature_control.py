@@ -87,8 +87,6 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-
-    
     MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
@@ -251,15 +249,15 @@ class TemperatureController(BackgroundJob):
 
         assert isinstance(algo_metadata, TemperatureAutomation)
 
-        # users sometimes take the "wrong path" and create a _new_ Stable with target_temperature=X
-        # instead of just changing the target_temperature in their current Stable. We check for this condition,
+        # users sometimes take the "wrong path" and create a _new_ Thermostat with target_temperature=X
+        # instead of just changing the target_temperature in their current Thermostat. We check for this condition,
         # and do the "right" thing for them.
-        if (algo_metadata.automation_name == "stable") and (
-            self.automation.automation_name == "stable"
+        if (algo_metadata.automation_name == "thermostat") and (
+            self.automation.automation_name == "thermostat"
         ):
             # just update the setting, and return
             self.logger.debug(
-                "Bypassing changing automations, and just updating the setting on the existing Stable automation."
+                "Bypassing changing automations, and just updating the setting on the existing Thermostat automation."
             )
             self.automation_job.target_temperature = float(algo_metadata.args["target_temperature"])
             self.automation = algo_metadata
@@ -288,7 +286,7 @@ class TemperatureController(BackgroundJob):
 
             # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
             # pass it on to the new automation.
-            # this is most useful when temp-control is initialized with only_record_ambient_temperature, and then quickly switched over to stable.
+            # this is most useful when temp-control is initialized with only_record_ambient_temperature, and then quickly switched over to thermostat.
             self.automation_job._set_latest_temperature(self.temperature)
 
         except KeyError:
@@ -428,7 +426,7 @@ class TemperatureController(BackgroundJob):
                 # we turned off the heater above - we should always turn if back on if there is an error.
 
                 # update heater first before publishing the temperature. Why? A downstream process
-                # might listen for the updating temperature, and update the heater (pid_stable),
+                # might listen for the updating temperature, and update the heater (pid_thermostat),
                 # and if we update here too late, we may overwrite their changes.
                 # We also want to remove the lock first, so close this context early.
                 self._update_heater(previous_heater_dc)

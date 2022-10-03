@@ -10,7 +10,7 @@ from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations.temperature import ConstantDutyCycle
 from pioreactor.automations.temperature import OnlyRecordAmbientTemperature
-from pioreactor.automations.temperature import Stable
+from pioreactor.automations.temperature import Thermostat
 from pioreactor.background_jobs import temperature_control
 from pioreactor.whoami import get_unit_name
 
@@ -22,10 +22,10 @@ def pause(n=1) -> None:
     time.sleep(n)
 
 
-def test_stable_automation() -> None:
-    experiment = "test_stable_automation"
+def test_thermostat_automation() -> None:
+    experiment = "test_thermostat_automation"
     with temperature_control.TemperatureController(
-        "stable", target_temperature=50, unit=unit, experiment=experiment
+        "thermostat", target_temperature=50, unit=unit, experiment=experiment
     ) as algo:
         pause(2)
 
@@ -65,13 +65,13 @@ def test_changing_temperature_algo_over_mqtt() -> None:
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
                 structs.TemperatureAutomation(
-                    automation_name="stable", args={"target_temperature": 36}
+                    automation_name="thermostat", args={"target_temperature": 36}
                 )
             ),
         )
         time.sleep(8)
-        assert tc.automation_name == "stable"
-        assert isinstance(tc.automation_job, Stable)
+        assert tc.automation_name == "thermostat"
+        assert isinstance(tc.automation_job, Thermostat)
         assert tc.automation_job.target_temperature == 36
         assert tc.automation_job.latest_temperature is not None
         assert tc.heater_duty_cycle > 0
@@ -127,10 +127,10 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
         assert 0 < t.heater_duty_cycle < 50
 
 
-def test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
-    experiment = "test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature"
+def test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature() -> None:
+    experiment = "test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_temperature"
     with temperature_control.TemperatureController(
-        "stable", unit=unit, experiment=experiment, target_temperature=20
+        "thermostat", unit=unit, experiment=experiment, target_temperature=20
     ) as t:
 
         pause(3)
@@ -141,7 +141,7 @@ def test_stable_doesnt_fail_when_initial_target_is_less_than_initial_temperature
 def test_heating_stops_when_max_temp_is_exceeded() -> None:
     experiment = "test_heating_stops_when_max_temp_is_exceeded"
     with temperature_control.TemperatureController(
-        "stable",
+        "thermostat",
         unit=unit,
         experiment=experiment,
         target_temperature=25,
@@ -199,7 +199,7 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     # this test tries to replicate what a user does in the UI
     experiment = "test_setting_pid_control_after_startup_will_start_some_heating"
     with temperature_control.TemperatureController(
-        "stable", unit=unit, experiment=experiment, target_temperature=35
+        "thermostat", unit=unit, experiment=experiment, target_temperature=35
     ) as t:
 
         pause(3)
@@ -222,13 +222,13 @@ def test_duty_cycle_is_published_and_not_settable() -> None:
     with temperature_control.TemperatureController(
         "only_record_ambient_temperature", unit=unit, experiment=experiment
     ):
-        # change to PID stable
+        # change to PID thermostat
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
                 structs.TemperatureAutomation(
-                    automation_name="stable", args={"target_temperature": 35}
+                    automation_name="thermostat", args={"target_temperature": 35}
                 )
             ),
         )
@@ -661,21 +661,21 @@ def test_temperature_approximation_if_dc_is_nil() -> None:
         assert t.approximate_temperature(features) == 32.1875
 
 
-def test_temperature_control_and_stables_relationship() -> None:
-    experiment = "test_temperature_control_and_stables_relationship"
+def test_temperature_control_and_thermostats_relationship() -> None:
+    experiment = "test_temperature_control_and_thermostats_relationship"
     with temperature_control.TemperatureController(
-        "stable", unit=unit, experiment=experiment, target_temperature=30
+        "thermostat", unit=unit, experiment=experiment, target_temperature=30
     ) as tc:
         tc.publish_temperature_timer.pause()  # pause this for now. we will manually run evaluate_and_publish_temperature
         pause()
         pause()
-        stable_automation = tc.automation_job
+        thermostat_automation = tc.automation_job
         initial_dc = tc.heater_duty_cycle
 
         assert initial_dc > 0
 
         # suppose we want to update target_temperature...
-        stable_automation.set_target_temperature(35)
+        thermostat_automation.set_target_temperature(35)
         pause()
 
         # should have changed the dc immediately.
@@ -692,7 +692,7 @@ def test_temperature_control_and_stables_relationship() -> None:
         pause()
 
         # suppose we want to update target_temperature...
-        stable_automation.set_target_temperature(40)
+        thermostat_automation.set_target_temperature(40)
         pause()
 
         # should still be 0!
@@ -712,7 +712,7 @@ def test_coprime() -> None:
 
     experiment = "test_coprime"
     with temperature_control.TemperatureController(
-        "stable", unit=unit, experiment=experiment, target_temperature=30
+        "thermostat", unit=unit, experiment=experiment, target_temperature=30
     ) as tc:
         assert coprime2(
             tc.read_external_temperature_timer.interval,
@@ -775,15 +775,15 @@ def test_using_external_thermocouple() -> None:
         assert tc.automation_job.latest_value_arrived == 41
 
 
-def test_that_if_a_user_tries_to_change_stable_X_to_stable_Y_we_just_change_the_attr_instead_of_the_entire_automation():
+def test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation():
 
-    experiment = "test_that_if_a_user_tries_to_change_stable_X_to_stable_Y_we_just_change_the_attr_instead_of_the_entire_automation"
+    experiment = "test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation"
 
     with temperature_control.TemperatureController(
-        "stable", target_temperature=30, unit=unit, experiment=experiment
+        "thermostat", target_temperature=30, unit=unit, experiment=experiment
     ) as tc:
-        assert tc.automation_name == "stable"
-        assert isinstance(tc.automation_job, Stable)
+        assert tc.automation_name == "thermostat"
+        assert isinstance(tc.automation_job, Thermostat)
 
         tc.automation_job.test_attr = True
 
@@ -793,14 +793,14 @@ def test_that_if_a_user_tries_to_change_stable_X_to_stable_Y_we_just_change_the_
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(
                 structs.TemperatureAutomation(
-                    automation_name="stable", args={"target_temperature": 36}
+                    automation_name="thermostat", args={"target_temperature": 36}
                 )
             ),
         )
 
         pause(8)
-        assert tc.automation_name == "stable"
-        assert isinstance(tc.automation_job, Stable)
+        assert tc.automation_name == "thermostat"
+        assert isinstance(tc.automation_job, Thermostat)
         assert tc.automation_job.target_temperature == 36
 
         assert hasattr(tc.automation_job, "test_attr")

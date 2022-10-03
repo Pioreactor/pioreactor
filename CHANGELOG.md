@@ -2,6 +2,7 @@
  - New API for adding SQL tables via plugins, and for registering MQTT -> DB parsers.
  - New topic for experiment name in MQTT: `pioreactor/latest_experiment/experiment`.
  - New topic for experiment timestamp in MQTT: `pioreactor/latest_experiment/created_at`.
+ - `stable` renamed to `thermostat`
 
 ### 22.9.6
  - improve reliability of self-test `test_REF_is_in_correct_position`
