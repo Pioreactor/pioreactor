@@ -419,12 +419,9 @@ class Monitor(BackgroundJob):
         if job_name == "led_intensity":
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
-            state = {c: payload.get(c) for c in ALL_LED_CHANNELS if c in payload}
+            state = {ch: payload.pop(ch) for ch in ALL_LED_CHANNELS if ch in payload}
 
             exp = whoami._get_latest_experiment_name()
-
-            for c in ALL_LED_CHANNELS:
-                payload.pop(c, None)
 
             led_intensity(state, unit=self.unit, experiment=exp, **payload)
 

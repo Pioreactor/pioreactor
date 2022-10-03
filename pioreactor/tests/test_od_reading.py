@@ -68,6 +68,78 @@ def test_sin_regression_all_zeros_should_return_zeros() -> None:
         assert np.isinf(AIC)
 
 
+def test_sin_regression_real_data_and_that_60hz_is_the_minimum() -> None:
+
+    y = [
+        8694,
+        8622,
+        8587,
+        8537,
+        8533,
+        8529,
+        8556,
+        8582,
+        8698,
+        8734,
+        8841,
+        8980,
+        9005,
+        9050,
+        9077,
+        9091,
+        9107,
+        9118,
+        9102,
+        9037,
+        9006,
+        8893,
+        8855,
+        8755,
+        8597,
+        8565,
+    ]
+    x = [
+        6.849016062915325e-05,
+        0.03225604514591396,
+        0.06504625407978892,
+        0.09745802800171077,
+        0.13046979811042547,
+        0.1631201640702784,
+        0.19538412615656853,
+        0.22827485506422818,
+        0.2607731909956783,
+        0.29389490908943117,
+        0.3266107430681586,
+        0.35897407913580537,
+        0.39195163105614483,
+        0.42453178903087974,
+        0.45695877098478377,
+        0.48978127096779644,
+        0.5222139300312847,
+        0.5552757519762963,
+        0.5879572120029479,
+        0.6202454441227019,
+        0.6531873710919172,
+        0.6857172690797597,
+        0.7188976851757616,
+        0.751680811168626,
+        0.7840821680147201,
+        0.8170840430539101,
+    ]
+
+    adc_reader = ADCReader(channels=[])
+    (C, A, phi), AIC_60 = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    assert abs(C - np.mean(y)) < 10
+
+    for i in range(2, 75):
+        # skip i=32, noise
+        if i == 32:
+            continue
+
+        (C, A, phi), AIC_i = adc_reader.sin_regression_with_known_freq(x, y, i)
+        assert AIC_i >= AIC_60
+
+
 def test_sin_regression_constant_should_return_constant() -> None:
 
     adc_reader = ADCReader(channels=[])

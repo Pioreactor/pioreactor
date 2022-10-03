@@ -512,7 +512,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(400.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(500.0 / self.oversampling_count / self.interval)
                     if (self.interval is not None)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -966,7 +966,7 @@ class ODReader(BackgroundJob):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
-                sleep(0.1)
+                sleep(0.15)
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
                 self.stop_ir_led()
 

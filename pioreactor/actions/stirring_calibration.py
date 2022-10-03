@@ -15,7 +15,6 @@ from pioreactor.background_jobs import stirring
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import publish
-from pioreactor.pubsub import publish_to_pioreactor_cloud
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
@@ -65,7 +64,6 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             )
             st.start_stirring()
             sleep(8)
-            
 
             for count, dc in enumerate(dcs, start=1):
                 st.set_duty_cycle(dc)
@@ -80,9 +78,6 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
                     count / n_samples * 100,
                 )
                 logger.debug(f"Progress: {count/n_samples:.0%}")
-
-        publish_to_pioreactor_cloud(action_name, json=dict(zip(dcs, measured_rpms)))
-        logger.debug(list(zip(dcs, measured_rpms)))
 
         # drop any 0 in RPM, too little DC
         try:

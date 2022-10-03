@@ -4,7 +4,6 @@ from __future__ import annotations
 from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
-from typing import Any
 from typing import Optional
 
 import click
@@ -103,15 +102,6 @@ def od_statistics(
                 logger.warning(
                     f"OD reading for PD Channel {channel} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"
                 )
-
-        if config.getboolean(
-            "data_sharing_with_pioreactor",
-            "send_od_statistics_to_Pioreactor",
-            fallback=False,
-        ):
-            to_share: dict[str, Any] = {"mean": means, "variance": variances}
-            to_share["ir_led_intensity"] = config["od_config"]["ir_led_intensity"]
-            pubsub.publish_to_pioreactor_cloud(action_name, json=to_share)
 
         logger.debug(f"observed data: {od_reading_series}")
         logger.debug(f"measured mean: {means}")
