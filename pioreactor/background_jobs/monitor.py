@@ -281,7 +281,7 @@ class Monitor(BackgroundJob):
 
         for pre_function in self._pre_button:
             try:
-                pre_function(self)
+                pre_function()
             except Exception:
                 self.logger.debug(f"Error in {pre_function=}.", exc_info=True)
 
@@ -290,7 +290,7 @@ class Monitor(BackgroundJob):
 
         for post_function in self._post_button:
             try:
-                post_function(self)
+                post_function()
             except Exception:
                 self.logger.debug(f"Error in {post_function=}.", exc_info=True)
 
