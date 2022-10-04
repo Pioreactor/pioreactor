@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from json import loads
 from time import sleep
+from typing import Callable
 from typing import Optional
 
 import click
@@ -48,6 +49,8 @@ class Monitor(BackgroundJob):
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
+    _pre_button: list[Callable] = []
+    _post_button: list[Callable] = []
 
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit=unit, experiment=experiment)
@@ -78,7 +81,18 @@ class Monitor(BackgroundJob):
             run_immediately=False,
         ).start()
 
+        self.add_pre_button_callback(self.led_on)
+        self.add_post_button_callback(self.led_off)
+
         self.start_passive_listeners()
+
+    @classmethod
+    def add_pre_button_callback(cls, function: Callable):
+        cls._pre_button.append(function)
+
+    @classmethod
+    def add_post_button_callback(cls, function: Callable):
+        cls._post_button.append(function)
 
     def setup_GPIO(self) -> None:
         set_gpio_availability(BUTTON_PIN, False)
@@ -263,14 +277,22 @@ class Monitor(BackgroundJob):
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
         # don't put anything that is not idempotent in here.
 
-        self.led_on()
-
         self.button_down = True
+
+        for pre_function in self._pre_button:
+            try:
+                pre_function(self)
+            except Exception:
+                self.logger.debug(f"Error in {pre_function=}.", exc_info=True)
 
         while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
             sleep(0.02)
 
-        self.led_off()
+        for post_function in self._post_button:
+            try:
+                post_function(self)
+            except Exception:
+                self.logger.debug(f"Error in {post_function=}.", exc_info=True)
 
         self.button_down = False
 
