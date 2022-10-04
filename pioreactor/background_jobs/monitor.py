@@ -117,7 +117,7 @@ class Monitor(BackgroundJob):
                     BUTTON_PIN,
                     self.GPIO.RISING,
                     callback=self.button_down_and_up,
-                    bouncetime=200,
+                    bouncetime=2000,
                 )
                 return
             except RuntimeError:
