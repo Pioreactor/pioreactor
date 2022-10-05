@@ -31,7 +31,7 @@ class Monitor(BackgroundJob):
     This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
 
      1. Reports metadata (voltage, CPU usage, etc.) about the Rpi / Pioreactor to the leader
-     2. Controls the LED / Button interaction
+     2. Controls the LED / Button interaction. Plus any additional callbacks to the button down/up.
      3. Correction after a restart
      4. Check database backup if leader
      5. Use the LED blinks to report error codes to the user, see error_codes module
@@ -39,6 +39,24 @@ class Monitor(BackgroundJob):
          pioreactor/{unit}/+/monitor/flicker_led_with_error_code   error_code as message
      6. Listens to MQTT for job to start, on the topic
          pioreactor/{unit}/$experiment/run/{job_name}   json-encoded args as message
+
+
+    Notes
+    -------
+
+    Use `Monitor.add_post_button_callback` and `Monitor.add_pre_button_callback` to change what the button can do. Ex:
+
+        from pioreactor.background_jobs.monitor import  Monitor
+        from pioreactor.actions.led_intensity import led_intensity
+
+        def on(*args):
+            led_intensity({'B': 20}, verbose=False, source_of_event="button", unit="demo", experiment="demo")
+
+        def off(*args):
+            led_intensity({'B': 0}, verbose=False, source_of_event="button", unit="demo", experiment="demo")
+
+        Monitor.add_pre_button_callback(on)
+        Monitor.add_post_button_callback(off)
 
     """
 
@@ -109,19 +127,18 @@ class Monitor(BackgroundJob):
         self.GPIO.setup(LED_PIN, GPIO.OUT)
 
         i = 0
-
         while i < 2:
-            i = +1
             try:
                 self.GPIO.add_event_detect(
                     BUTTON_PIN,
                     self.GPIO.RISING,
                     callback=self.button_down_and_up,
-                    bouncetime=2000,
+                    bouncetime=100,
                 )
                 return
             except RuntimeError:
                 sleep(3)
+                i = +1
 
         self.logger.debug("Failed to add button detect.", exc_info=True)
         self.logger.warning("Failed to add button detect.")

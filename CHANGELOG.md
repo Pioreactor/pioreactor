@@ -3,6 +3,7 @@
  - New topic for experiment name in MQTT: `pioreactor/latest_experiment/experiment`.
  - New topic for experiment timestamp in MQTT: `pioreactor/latest_experiment/created_at`.
  - `stable` renamed to `thermostat`
+ - new callback API for pushing the HAT button down, see `Monitor` class.
 
 ### 22.9.6
  - improve reliability of self-test `test_REF_is_in_correct_position`
