@@ -459,16 +459,22 @@ class Monitor(BackgroundJob):
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
             state = {ch: payload.pop(ch) for ch in ALL_LED_CHANNELS if ch in payload}
-
             exp = whoami._get_latest_experiment_name()
 
-            led_intensity(state, unit=self.unit, experiment=exp, **payload)
+            led_intensity(
+                state,
+                unit=self.unit,
+                experiment=exp,
+                source_of_event="ui",
+                pubsub_client=self.pub_client,
+                **payload,
+            )
 
         elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
             from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
 
             # we use a thread here since we want to exit this callback without blocking it.
-            # a blocked callback can disconnect from MQTT broker.
+            # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
             from threading import Thread
 
             if job_name == "add_media":
@@ -481,9 +487,9 @@ class Monitor(BackgroundJob):
                 raise ValueError()
 
             payload["config"] = config.get_config()  # techdebt
-            exp = whoami._get_latest_experiment_name()
-            t = Thread(target=pump, args=(self.unit, exp), kwargs=payload, daemon=True)
-            t.start()
+            payload["unit"] = self.unit
+            payload["experiment"] = whoami._get_latest_experiment_name()
+            Thread(target=pump, kwargs=payload, daemon=True).start()
 
         else:
             prefix = ["nohup"]

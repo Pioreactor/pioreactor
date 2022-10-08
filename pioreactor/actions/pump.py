@@ -27,9 +27,9 @@ __all__ = ["add_media", "remove_waste", "add_alt_media"]
 
 
 def _pump(
-    unit: str,
-    experiment: str,
     pump_type: str,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
@@ -60,17 +60,27 @@ def _pump(
     Amount of volume passed (approximate in some cases)
 
     """
-    action_name = {
-        "media": "add_media",
-        "alt_media": "add_alt_media",
-        "waste": "remove_waste",
-    }[pump_type]
+
+    experiment = experiment or get_latest_experiment_name()
+    unit = unit or get_unit_name()
+
+    if pump_type == "media":
+        action_name = "add_media"
+    elif pump_type == "alt_media":
+        action_name = "add_alt_media"
+    elif pump_type == "waste":
+        action_name = "remove_waste"
+    else:
+        raise ValueError(f"{pump_type} not valid.")
+
     logger = create_logger(action_name, experiment=experiment, unit=unit)
+
+    assert (
+        (ml is not None) or (duration is not None) or continuously
+    ), "either ml or duration must be set"
+    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
+
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
-        assert (
-            (ml is not None) or (duration is not None) or continuously
-        ), "either ml or duration must be set"
-        assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
         if calibration is None:
             with utils.local_persistant_storage("current_pump_calibration") as cache:
@@ -113,7 +123,7 @@ def _pump(
             ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
             logger.info(f"{round(duration, 2)}s")
         elif continuously:
-            duration = 600.0
+            duration = 60.0
             ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
             logger.info("Running pump continuously.")
 
@@ -140,14 +150,12 @@ def _pump(
         )
 
         try:
-
-            try:
-                pwm = PWM(GPIO_PIN, calibration.hz, experiment=experiment, unit=unit)
-            except exc.PWMError:
-                return 0.0
-
+            pwm = PWM(GPIO_PIN, calibration.hz, experiment=experiment, unit=unit)
             pwm.lock()
+        except exc.PWMError:
+            return 0.0
 
+        try:
             with catchtime() as delta_time:
                 pwm.start(calibration.dc)
                 pump_start_time = time.monotonic()
@@ -169,10 +177,10 @@ def _pump(
             # some other unexpected error
             logger.debug(e, exc_info=True)
             logger.error(e)
-
         finally:
             pwm.stop()
             pwm.cleanup()
+
             if continuously:
                 logger.info(f"Stopping {pump_type} pump.")
 
@@ -182,12 +190,13 @@ def _pump(
                 ml = utils.pump_duration_to_ml(
                     shortened_duration, calibration.duration_, calibration.bias_
                 )
+
         return ml
 
 
 def add_media(
-    unit: str,
-    experiment: str,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
@@ -218,9 +227,9 @@ def add_media(
     """
     pump_type = "media"
     return _pump(
+        pump_type,
         unit,
         experiment,
-        pump_type,
         ml,
         duration,
         source_of_event,
@@ -231,8 +240,8 @@ def add_media(
 
 
 def remove_waste(
-    unit: str,
-    experiment: str,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
@@ -262,9 +271,9 @@ def remove_waste(
     """
     pump_type = "waste"
     return _pump(
+        pump_type,
         unit,
         experiment,
-        pump_type,
         ml,
         duration,
         source_of_event,
@@ -275,8 +284,8 @@ def remove_waste(
 
 
 def add_alt_media(
-    unit: str,
-    experiment: str,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
     ml: Optional[float] = None,
     duration: Optional[float] = None,
     source_of_event: Optional[str] = None,
@@ -307,9 +316,9 @@ def add_alt_media(
     """
     pump_type = "alt_media"
     return _pump(
+        pump_type,
         unit,
         experiment,
-        pump_type,
         ml,
         duration,
         source_of_event,

@@ -9,7 +9,7 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-from paho.mqtt.client import Client as PahoClient  # type: ignore
+from paho.mqtt.client import Client as PahoClient
 
 from pioreactor.config import leader_address
 from pioreactor.types import MQTTMessage
@@ -31,7 +31,7 @@ class QOS(IntEnum):
 def create_client(
     hostname: str = leader_address,
     last_will: Optional[dict] = None,
-    client_id: Optional[str] = None,
+    client_id: str = "",
     keepalive=60,
     max_connection_attempts=3,
     clean_session=None,
