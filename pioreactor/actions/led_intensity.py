@@ -17,7 +17,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel
 from pioreactor.utils import local_intermittent_storage
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -198,7 +198,7 @@ def led_intensity(
     )
 
     if verbose:
-        timestamp_of_change = current_utc_timestamp()
+        timestamp_of_change = current_utc_datetime()
 
         for channel, intensity in desired_state.items():
             event = structs.LEDChangeEvent(

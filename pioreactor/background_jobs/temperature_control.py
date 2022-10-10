@@ -87,7 +87,7 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_REDUCE_HEATING = 61.5  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
     job_name = "temperature_control"
@@ -502,6 +502,7 @@ class TemperatureController(BackgroundJob):
         #  A=-0.0010607908095388548, B=-0.18749701076543562
         #  A=-0.0010514517340740343, B=-0.18756448817069307
         #  A=-0.0012910773630121675, B=-0.19066684235126932
+        #  A=-0.0010558024149891808, B=-0.1613921733824975 (Oct 10, 2022)
 
         A_penalizer, A_prior = 100.0, -0.0011
         B_penalizer, B_prior = 20.0, -0.170

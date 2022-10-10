@@ -9,7 +9,7 @@ from typing import Optional
 from typing import Type
 from typing import TypeVar
 from typing import Union
-
+from datetime import datetime
 from msgspec import Struct
 
 from pioreactor import types as pt
@@ -74,8 +74,8 @@ class AutomationSettings(Struct):
 
     pioreactor_unit: str
     experiment: str
-    started_at: str
-    ended_at: str
+    started_at: datetime
+    ended_at: datetime
     automation_name: str
     settings: bytes
 
@@ -108,7 +108,7 @@ class LEDChangeEvent(Struct):
     channel: pt.LedChannel
     intensity: float
     source_of_event: str
-    timestamp: str
+    timestamp: datetime
 
 
 class LEDsIntensity(Struct):
@@ -126,47 +126,47 @@ class DosingEvent(Struct):
     volume_change: float
     event: str
     source_of_event: str
-    timestamp: str
+    timestamp: datetime
 
 
 class MeasuredRPM(Struct):
     measured_rpm: float
-    timestamp: str
+    timestamp: datetime
 
 
 class GrowthRate(Struct):
     growth_rate: float
-    timestamp: str
+    timestamp: datetime
 
 
 class ODFiltered(Struct):
     od_filtered: float
-    timestamp: str
+    timestamp: datetime
 
 
 class ODReading(Struct):
-    timestamp: str
+    timestamp: datetime
     angle: str
     od: float
     channel: pt.PdChannel
 
 
 class ODReadings(Struct):
-    timestamp: str
+    timestamp: datetime
     ods: dict[pt.PdChannel, ODReading]
 
 
 class Temperature(Struct):
-    timestamp: str
+    timestamp: datetime
     temperature: float
 
 
 class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
-    timestamp: str
+    timestamp: datetime
 
 
 class PumpCalibration(Calibration):
-    timestamp: str
+    timestamp: datetime
     name: str
     pump: str
     hz: float
