@@ -43,7 +43,7 @@ from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
@@ -169,7 +169,7 @@ class TemperatureController(BackgroundJob):
         if not self.using_third_party_thermocouple:
             self.temperature = Temperature(
                 temperature=self.read_external_temperature(),
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
             )
 
     def turn_off_heater(self) -> None:
@@ -362,7 +362,7 @@ class TemperatureController(BackgroundJob):
             self.automation_job.clean_up()
 
         with local_intermittent_storage("last_heating_timestamp") as cache:
-            cache["last_heating_timestamp"] = current_utc_timestamp()
+            cache["last_heating_timestamp"] = current_utc_datetime()
 
     def setup_pwm(self) -> PWM:
         hertz = 6  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -435,7 +435,7 @@ class TemperatureController(BackgroundJob):
         try:
             self.temperature = Temperature(
                 temperature=self.approximate_temperature(features),
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
             )
         except Exception as e:
             self.logger.debug(e, exc_info=True)

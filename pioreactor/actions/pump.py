@@ -90,7 +90,7 @@ def _pump(
                     if continuously:
                         calibration = structs.PumpCalibration(
                             name="cont",
-                            timestamp=current_utc_timestamp(),
+                            timestamp=current_utc_datetime(),
                             pump=pump_type,
                             duration_=1.0,
                             hz=200.0,

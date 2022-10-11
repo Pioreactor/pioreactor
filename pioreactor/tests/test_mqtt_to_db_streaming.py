@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime
 from time import sleep
 
 from msgspec.json import encode
@@ -129,7 +130,7 @@ def test_calibration_gets_saved() -> None:
 
         # create some new calibration, like from a plugin
         class LEDCalibration(structs.Calibration, tag="led"):  # type: ignore
-            timestamp: str
+            timestamp: datetime
 
         publish(
             f"pioreactor/{unit}/test/calibrations",
@@ -142,12 +143,13 @@ def test_calibration_gets_saved() -> None:
         sleep(1)
 
         cursor.execute(
-            "SELECT * FROM calibrations WHERE pioreactor_unit=? ORDER BY created_at",
+            "SELECT pioreactor_unit, created_at, type, data FROM calibrations WHERE pioreactor_unit=? ORDER BY created_at",
             (unit,),
         )
         results = cursor.fetchall()
         assert len(results) == 3
         assert results[2][2] == "led"
+        assert datetime.strptime(results[2][1], "%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def test_kalman_filter_entries() -> None:

@@ -31,7 +31,7 @@ def current_utc_timestamp() -> str:
 
 
 def to_datetime(timestamp: str) -> datetime:
-    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
 
 
 class RepeatedTimer:

@@ -22,14 +22,14 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def introduction():
+def introduction() -> None:
     click.clear()
     click.echo(
         """This routine will calibrate the pumps on your current Pioreactor. You'll need:
@@ -62,23 +62,22 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
         has_alt_media = "alt_media" in cache
 
         if has_media:
-            media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).timestamp[
-                :10
-            ]
-        else:
+            media_timestamp = decode(
+                cache["media"], type=structs.MediaPumpCalibration
+            ).timestamp.strftime("%d %b, %Y")
             media_timestamp = ""
 
         if has_waste:
-            waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).timestamp[
-                :10
-            ]
+            waste_timestamp = decode(
+                cache["waste"], type=structs.WastePumpCalibration
+            ).timestamp.strftime("%d %b, %Y")
         else:
             waste_timestamp = ""
 
         if has_alt_media:
             alt_media_timestamp = decode(
                 cache["alt_media"], type=structs.AltMediaPumpCalibration
-            ).timestamp[:10]
+            ).timestamp.strftime("%d %b, %Y")
         else:
             alt_media_timestamp = ""
 
@@ -151,7 +150,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
                 name="calibration",
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
                 pump=pump_type,
                 duration_=1.0,
                 hz=hz,
@@ -231,7 +230,7 @@ def run_tests(
         hz=hz,
         dc=dc,
         bias_=0,
-        timestamp=current_utc_timestamp(),
+        timestamp=current_utc_datetime(),
         voltage=voltage_in_aux(),
     )
 
@@ -314,7 +313,7 @@ def save_results(
 
     pump_calibration_result = struct(
         name=name,
-        timestamp=current_utc_timestamp(),
+        timestamp=current_utc_datetime(),
         pump=pump_type,
         duration_=duration_,
         bias_=bias_,
@@ -452,7 +451,7 @@ def display_current() -> None:
             click.echo()
 
 
-def change_current(name) -> None:
+def change_current(name: str) -> None:
     try:
         with local_persistant_storage("pump_calibrations") as all_calibrations:
             new_calibration = decode(

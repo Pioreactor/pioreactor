@@ -5,11 +5,12 @@ These define structs for internal data structures including MQTT messages, and a
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 from typing import Type
 from typing import TypeVar
 from typing import Union
-from datetime import datetime
+
 from msgspec import Struct
 
 from pioreactor import types as pt
@@ -196,7 +197,7 @@ AnyPumpCalibration = Union[
 
 
 class ODCalibration(Calibration):
-    timestamp: str
+    timestamp: datetime
     name: str
     angle: pt.PdAngle
     maximum_od600: float
@@ -235,10 +236,10 @@ class Log(Struct):
     level: str
     task: str
     source: str
-    timestamp: str
+    timestamp: datetime
 
 
 class KalmanFilterOutput(Struct):
     state: list[float]
     covariance_matrix: list[list[float]]
-    timestamp: str
+    timestamp: datetime

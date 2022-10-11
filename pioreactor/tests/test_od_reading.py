@@ -17,6 +17,7 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
@@ -562,7 +563,7 @@ def test_calibration_simple_linear_calibration():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[2.0, 0.0],
                 name="linear",
@@ -616,7 +617,7 @@ def test_calibration_simple_linear_calibration_negative_slope():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[-0.1, 2],
                 name="linear",
@@ -662,7 +663,7 @@ def test_calibration_simple_quadratic_calibration():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",
@@ -696,7 +697,7 @@ def test_calibration_multi_modal():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=poly,
                 name="multi_test",
@@ -730,7 +731,7 @@ def test_calibration_errors_when_ir_led_differs():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",
@@ -762,7 +763,7 @@ def test_calibration_errors_when_pd_channel_differs():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",

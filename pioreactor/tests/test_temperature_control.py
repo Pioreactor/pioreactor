@@ -722,7 +722,7 @@ def test_coprime() -> None:
 
 def test_using_external_thermocouple() -> None:
     from pioreactor.automations.temperature.base import TemperatureAutomationJob
-    from pioreactor.utils.timing import current_utc_timestamp
+    from pioreactor.utils.timing import current_utc_datetime
 
     class MySuperSimpleAutomation(TemperatureAutomationJob):
         automation_name = "my_super_simple_automation"
@@ -753,22 +753,22 @@ def test_using_external_thermocouple() -> None:
         # start publishing from our external temperature
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-            encode(structs.Temperature(temperature=38, timestamp=current_utc_timestamp())),
+            encode(structs.Temperature(temperature=38, timestamp=current_utc_datetime())),
         )
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-            encode(structs.Temperature(temperature=39, timestamp=current_utc_timestamp())),
+            encode(structs.Temperature(temperature=39, timestamp=current_utc_datetime())),
         )
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-            encode(structs.Temperature(temperature=40, timestamp=current_utc_timestamp())),
+            encode(structs.Temperature(temperature=40, timestamp=current_utc_datetime())),
         )
         pause()
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/temperature",
-            encode(structs.Temperature(temperature=41, timestamp=current_utc_timestamp())),
+            encode(structs.Temperature(temperature=41, timestamp=current_utc_datetime())),
         )
         pause()
 
