@@ -118,7 +118,7 @@ def od_blank(
     ignore_rpm=False,  # TODO: delete me
     unit=None,
     experiment=None,
-):
+) -> dict[pt.PdChannel, float]:
     from pioreactor.background_jobs.od_reading import start_od_reading
     from pioreactor.background_jobs.stirring import start_stirring
 
