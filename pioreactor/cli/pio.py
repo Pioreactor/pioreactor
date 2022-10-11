@@ -182,6 +182,7 @@ def kill(job: str, all_jobs: bool) -> None:
 
     if all_jobs:
         safe_pkill("-f", "pio run ")
+        sleep(1)
         led_intensity({"A": 0, "B": 0, "C": 0, "D": 0}, verbose=False)
     else:
         for j in job:

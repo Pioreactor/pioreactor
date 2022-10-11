@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from threading import Event
 from typing import Callable
 from typing import Generator
+from typing import overload
 
 from pioreactor import types as pt
 from pioreactor import whoami
@@ -214,7 +215,17 @@ def clamp(minimum: float | int, x: float | int, maximum: float | int) -> float:
     return max(minimum, min(x, maximum))
 
 
-def is_pio_job_running(*target_jobs: str) -> bool:
+@overload
+def is_pio_job_running(target_jobs: list[str]) -> list[bool]:
+    ...
+
+
+@overload
+def is_pio_job_running(target_jobs: str) -> bool:
+    ...
+
+
+def is_pio_job_running(target_jobs):
     """
     pass in jobs to check if they are running
     ex:
@@ -223,12 +234,18 @@ def is_pio_job_running(*target_jobs: str) -> bool:
 
     > result = is_pio_job_running("od_reading", "stirring")
     """
+    results = []
     with local_intermittent_storage("pio_jobs_running") as cache:
         for job in target_jobs:
             if cache.get(job) is None:
-                return False
+                results.append(False)
+            else:
+                results.append(True)
 
-    return True
+    if len(target_jobs) == 1:
+        return results[0]
+    else:
+        return results
 
 
 def pump_ml_to_duration(ml: float, duration_: float = 0, bias_: float = 0) -> float:

@@ -373,7 +373,7 @@ class DosingAutomationJob(BackgroundSubJob):
         if self._latest_growth_rate is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be Ready."
                 )
@@ -392,7 +392,7 @@ class DosingAutomationJob(BackgroundSubJob):
         if self._latest_normalized_od is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be Ready."
                 )
@@ -411,15 +411,13 @@ class DosingAutomationJob(BackgroundSubJob):
         if self._latest_od is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
-                raise exc.JobRequiredError(
-                    "`od_reading` and `growth_rate_calculating` should be Ready."
-                )
+            if not is_pio_job_running("od_reading"):
+                raise exc.JobRequiredError("`od_reading` should be Ready.")
 
         # check most stale time
         if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
             raise exc.JobRequiredError(
-                f"readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?. Last reading occurred at {self.most_stale_time}."
+                f"readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.most_stale_time}."
             )
 
         assert self._latest_od is not None

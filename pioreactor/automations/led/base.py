@@ -210,7 +210,7 @@ class LEDAutomationJob(BackgroundSubJob):
         if self._latest_growth_rate is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be Ready."
                 )
@@ -232,7 +232,7 @@ class LEDAutomationJob(BackgroundSubJob):
         if self._latest_normalized_od is None:
             # this should really only happen on the initialization.
             self.logger.debug("Waiting for OD and growth rate data to arrive")
-            if not is_pio_job_running("od_reading", "growth_rate_calculating"):
+            if not all(is_pio_job_running(["od_reading", "growth_rate_calculating"])):
                 raise exc.JobRequiredError(
                     "`od_reading` and `growth_rate_calculating` should be Ready."
                 )

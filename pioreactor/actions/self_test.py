@@ -352,7 +352,7 @@ OD_TESTS = [
 
 
 class BatchTestRunner:
-    def __init__(self, tests_to_run: list[Callable], *test_func_args):
+    def __init__(self, tests_to_run: list[Callable], *test_func_args) -> None:
 
         self.count_tested = 0
         self.count_passed = 0
@@ -367,18 +367,18 @@ class BatchTestRunner:
         self._thread.join()
         return SummableList([self.count_tested, self.count_passed])
 
-    def _run(self, logger, unit, experiment_name):
+    def _run(self, logger: Logger, unit: str, experiment_name: str) -> None:
 
         for test in self.tests_to_run:
+            res = False
             test_name = test.__name__
 
             try:
                 test(logger, unit, experiment_name)
                 res = True
             except Exception as e:
-                res = False
-                self.logger.info(e)
-                self.logger.debug(e, exec_info=True)
+                logger.info(e)
+                logger.debug(e, exc_info=True)
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
 
@@ -406,7 +406,7 @@ def click_self_test(k: str) -> int:
     logger = create_logger("self_test", unit=unit, experiment=experiment)
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
-        if is_pio_job_running("od_reading", "temperature_automation", "stirring"):
+        if any(is_pio_job_running(["od_reading", "temperature_automation", "stirring"])):
             logger.error(
                 "Make sure Optical Density, Temperature Automation, and Stirring are off before running a self test. Exiting."
             )
