@@ -4,6 +4,7 @@ from __future__ import annotations
 import time
 from typing import Callable
 from typing import Optional
+from typing import Type
 
 import click
 from msgspec.json import decode
@@ -21,21 +22,22 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def introduction():
+def introduction() -> None:
     click.clear()
     click.echo(
         """This routine will calibrate the pumps on your current Pioreactor. You'll need:
     1. A Pioreactor
-    2. A vial placed on a scale
-    3. A larger container with water
-    4. Pumps connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configurations.
+    2. A vial placed on a scale with accuracy at least 0.1g
+       OR an accurate graduated cylinder.
+    3. A larger container filled with water
+    4. A pump connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configurations.
 """
     )
 
@@ -60,19 +62,22 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
         has_alt_media = "alt_media" in cache
 
         if has_media:
-            media_timestamp = decode(cache["media"], type=structs.PumpCalibration).timestamp[:10]
-        else:
+            media_timestamp = decode(
+                cache["media"], type=structs.MediaPumpCalibration
+            ).timestamp.strftime("%d %b, %Y")
             media_timestamp = ""
 
         if has_waste:
-            waste_timestamp = decode(cache["waste"], type=structs.PumpCalibration).timestamp[:10]
+            waste_timestamp = decode(
+                cache["waste"], type=structs.WastePumpCalibration
+            ).timestamp.strftime("%d %b, %Y")
         else:
             waste_timestamp = ""
 
         if has_alt_media:
             alt_media_timestamp = decode(
-                cache["alt_media"], type=structs.PumpCalibration
-            ).timestamp[:10]
+                cache["alt_media"], type=structs.AltMediaPumpCalibration
+            ).timestamp.strftime("%d %b, %Y")
         else:
             alt_media_timestamp = ""
 
@@ -145,7 +150,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
                 name="calibration",
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
                 pump=pump_type,
                 duration_=1.0,
                 hz=hz,
@@ -218,13 +223,20 @@ def run_tests(
     click.echo()
     click.echo("Beginning tests.")
 
+    empty_calibration = structs.PumpCalibration(
+        name="_test",
+        duration_=1.0,
+        pump=pump_type,
+        hz=hz,
+        dc=dc,
+        bias_=0,
+        timestamp=current_utc_datetime(),
+        voltage=voltage_in_aux(),
+    )
+
     results: list[float] = []
-    durations_to_test = [
-        min_duration,
-        min_duration * 1.1,
-        min_duration * 1.2,
-        min_duration * 1.3,
-    ] + [max_duration * 0.85, max_duration * 0.90, max_duration * 0.95, max_duration]
+    durations_to_test = [min_duration] * 4 + [max_duration] * 4
+
     for i, duration in enumerate(durations_to_test):
         while True:
             if i != 0:
@@ -256,16 +268,7 @@ def run_tests(
                 source_of_event="pump_calibration",
                 unit=get_unit_name(),
                 experiment=get_latest_testing_experiment_name(),
-                calibration=structs.PumpCalibration(
-                    name="",
-                    duration_=1.0,
-                    pump=pump_type,
-                    hz=hz,
-                    dc=dc,
-                    bias_=0,
-                    timestamp=current_utc_timestamp(),
-                    voltage=voltage_in_aux(),
-                ),
+                calibration=empty_calibration,
             )
 
             r = click.prompt(
@@ -288,7 +291,7 @@ def run_tests(
     return durations_to_test, results
 
 
-def save_results_locally(
+def save_results(
     name: str,
     pump_type: str,
     duration_: float,
@@ -300,9 +303,17 @@ def save_results_locally(
     volumes: list[float],
     unit: str,
 ) -> structs.PumpCalibration:
-    pump_calibration_result = structs.PumpCalibration(
+
+    if pump_type == "media":
+        struct: Type[structs.AnyPumpCalibration] = structs.MediaPumpCalibration
+    elif pump_type == "waste":
+        struct = structs.WastePumpCalibration
+    elif pump_type == "alt_media":
+        struct = structs.AltMediaPumpCalibration
+
+    pump_calibration_result = struct(
         name=name,
-        timestamp=current_utc_timestamp(),
+        timestamp=current_utc_datetime(),
         pump=pump_type,
         duration_=duration_,
         bias_=bias_,
@@ -381,7 +392,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
-        save_results_locally(
+        save_results(
             name=name,
             pump_type=pump_type,
             duration_=slope,
@@ -440,7 +451,7 @@ def display_current() -> None:
             click.echo()
 
 
-def change_current(name) -> None:
+def change_current(name: str) -> None:
     try:
         with local_persistant_storage("pump_calibrations") as all_calibrations:
             new_calibration = decode(
@@ -486,7 +497,7 @@ def click_pump_calibration(ctx, min_duration, max_duration):
     """
     if ctx.invoked_subcommand is None:
         if max_duration is None and min_duration is None:
-            min_duration, max_duration = 0.45, 1.25
+            min_duration, max_duration = 0.5, 1.5
         elif (max_duration is not None) and (min_duration is not None):
             assert min_duration < max_duration, "min_duration >= max_duration"
         else:

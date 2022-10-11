@@ -113,6 +113,7 @@ from pioreactor.version import hardware_version_info
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
+PdChannelToFloat = dict[pt.PdChannel, float]
 
 REF_keyword = "REF"
 IR_keyword = "IR"
@@ -176,7 +177,7 @@ class ADCReader(LoggerMixin):
         self.gain = initial_gain
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels = channels
-        self.batched_readings: dict[pt.PdChannel, float] = {}
+        self.batched_readings: PdChannelToFloat = {}
         self.interval = interval
         if "local_ac_hz" in config["od_config"]:
             self.most_appropriate_AC_hz: Optional[float] = config.getfloat(
@@ -439,7 +440,7 @@ class ADCReader(LoggerMixin):
     def clear_batched_readings(self) -> None:
         self.batched_readings = {}
 
-    def take_reading(self) -> dict[pt.PdChannel, float]:
+    def take_reading(self) -> PdChannelToFloat:
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
 
@@ -447,7 +448,7 @@ class ADCReader(LoggerMixin):
         Returns
         ---------
         readings: dict
-            a dict with specified channels (as ints) and their reading
+            a dict with specified channels and their reading
             Ex: {"1": 0.10240, "2": 0.1023459}
 
 
@@ -490,7 +491,7 @@ class ADCReader(LoggerMixin):
                         )
                     )
 
-            batched_estimates_: dict[pt.PdChannel, float] = {}
+            batched_estimates_: PdChannelToFloat = {}
 
             if self.most_appropriate_AC_hz is None:
                 self.most_appropriate_AC_hz = self.determine_most_appropriate_AC_hz(
@@ -512,7 +513,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(350.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(500.0 / self.oversampling_count / self.interval)
                     if (self.interval is not None)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -589,10 +590,10 @@ class IrLedReferenceTracker(LoggerMixin):
     def set_blank(self, ir_output_reading: float) -> None:
         pass
 
-    def get_reference_reading(self, batched_readings: dict[pt.PdChannel, float]) -> float:
+    def get_reference_reading(self, batched_readings: PdChannelToFloat) -> float:
         return batched_readings[self.channel]
 
-    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+    def __call__(self, batched_readings: PdChannelToFloat) -> PdChannelToFloat:
         return batched_readings
 
     def transform(self, x) -> float:
@@ -664,7 +665,7 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
                 )
         return
 
-    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+    def __call__(self, batched_readings: PdChannelToFloat) -> PdChannelToFloat:
         return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
 
     def transform(self, od_reading: float) -> float:
@@ -702,7 +703,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
        = STATIC * RAW / REF
     """
 
-    _INITIAL = 0.04
+    _INITIAL = 0.05
 
     def __init__(self, channel: pt.PdChannel, ignore_blank: bool = False) -> None:
         super().__init__()
@@ -733,7 +734,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
                 )
         return
 
-    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+    def __call__(self, batched_readings: PdChannelToFloat) -> PdChannelToFloat:
         return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
 
     def transform(self, od_reading: float) -> float:
@@ -757,7 +758,7 @@ class CalibrationTransformer(LoggerMixin):
     def __init__(self) -> None:
         super().__init__()
 
-    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+    def __call__(self, batched_readings: PdChannelToFloat) -> PdChannelToFloat:
         return batched_readings
 
 
@@ -845,7 +846,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
 
         return calibration
 
-    def __call__(self, batched_readings: dict[pt.PdChannel, float]) -> dict[pt.PdChannel, float]:
+    def __call__(self, batched_readings: PdChannelToFloat) -> PdChannelToFloat:
         return {
             ch: self.models[ch](od) if self.models.get(ch) else od
             for ch, od in batched_readings.items()
@@ -966,7 +967,7 @@ class ODReader(BackgroundJob):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
-                sleep(0.1)
+                sleep(0.05)
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
                 self.stop_ir_led()
 
@@ -1029,7 +1030,7 @@ class ODReader(BackgroundJob):
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 sleep(0.05)
-                timestamp_of_readings = timing.current_utc_timestamp()
+                timestamp_of_readings = timing.current_utc_datetime()
                 od_reading_by_channel = self._read_from_adc_and_transform()
 
                 od_readings = structs.ODReadings(
@@ -1115,7 +1116,7 @@ class ODReader(BackgroundJob):
             )
             raise KeyError("`IR` value not found in section.")
 
-    def _read_from_adc_and_transform(self) -> dict[pt.PdChannel, float]:
+    def _read_from_adc_and_transform(self) -> PdChannelToFloat:
         """
         Read from the ADC. This function normalizes by the IR ref.
 
@@ -1155,7 +1156,7 @@ class ODReader(BackgroundJob):
 
     @staticmethod
     def _log_relative_intensity_of_ir_led(cls, od_readings) -> None:
-        if int(od_readings.timestamp[-3:-1]) % 8 == 0:  # some pseudo randomness
+        if od_readings.timestamp.microsecond % 8 == 0:  # some pseudo randomness
             cls.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker.transform(1.0),

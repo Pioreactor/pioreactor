@@ -1,4 +1,4 @@
-RPi.GPIO==0.7.1
+RPi.GPIO==0.7.1; platform_machine == "armv7l"
 adafruit-circuitpython-ads1x15==2.2.12
 simple-pid==1.0.1
 DAC43608==0.2.6

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime
 from time import sleep
 
 from msgspec.json import encode
@@ -17,10 +18,11 @@ from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
-def test_updated_heater_dc():
+def test_updated_heater_dc() -> None:
     unit = get_unit_name()
     exp = "test_updated_heater_dc"
     connection = sqlite3.connect(config["storage"]["database"])
@@ -59,6 +61,7 @@ def test_updated_heater_dc():
 def test_calibration_gets_saved() -> None:
     experiment = "test_calibration_gets_saved"
     config["storage"]["database"] = "test.sqlite"
+    unit = get_unit_name()
 
     # init the database
     connection = sqlite3.connect(config["storage"]["database"])
@@ -80,50 +83,74 @@ def test_calibration_gets_saved() -> None:
         )
     ]
 
-    with m2db.MqttToDBStreamer(parsers, unit=get_unit_name(), experiment=experiment):
-        sleep(1)
-        publish(
-            f"pioreactor/{get_unit_name()}/test/calibrations",
-            encode(
-                structs.WastePumpCalibration(
-                    name="test",
-                    timestamp="2012-01-01",
-                    pump="waste",
-                    hz=120,
-                    dc=60.0,
-                    duration_=1.0,
-                    bias_=0.0,
-                    voltage=12.0,
-                )
-            ),
+    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=experiment):
+        from pioreactor.actions.pump_calibration import save_results as pc_save_results
+
+        pc_save_results(
+            name="test",
+            pump_type="waste",
+            hz=120,
+            dc=60.0,
+            duration_=1.0,
+            bias_=0.0,
+            voltage=12.0,
+            durations=[],
+            volumes=[],
+            unit=unit,
         )
         sleep(1)
 
-        cursor.execute("SELECT * FROM calibrations WHERE pioreactor_unit=?", (get_unit_name(),))
+        cursor.execute(
+            "SELECT * FROM calibrations WHERE pioreactor_unit=? and type=?", (unit, "waste_pump")
+        )
+        results = cursor.fetchall()
+        assert len(results) == 1
+
+        from pioreactor.actions.od_calibration import save_results as od_save_results
+
+        od_save_results(
+            curve_data_=[1, 0],
+            curve_type="poly",
+            voltages=[1.0],
+            inferred_od600s=[1.0],
+            angle="45",
+            name="test",
+            maximum_od600=1.0,
+            minimum_od600=0.0,
+            signal_channel="1",
+            unit=unit,
+        )
+        sleep(1)
+
+        cursor.execute(
+            "SELECT * FROM calibrations WHERE pioreactor_unit=? and type=?", (unit, "od_45")
+        )
         results = cursor.fetchall()
         assert len(results) == 1
 
         # create some new calibration, like from a plugin
         class LEDCalibration(structs.Calibration, tag="led"):  # type: ignore
-            timestamp: str
+            timestamp: datetime
 
         publish(
-            f"pioreactor/{get_unit_name()}/test/calibrations",
+            f"pioreactor/{unit}/test/calibrations",
             encode(
                 LEDCalibration(
-                    timestamp="2012-01-02",
+                    timestamp=current_utc_datetime(),
                 )
             ),
         )
         sleep(1)
 
         cursor.execute(
-            "SELECT * FROM calibrations WHERE pioreactor_unit=? ORDER BY created_at",
-            (get_unit_name(),),
+            "SELECT pioreactor_unit, created_at, type, data FROM calibrations WHERE pioreactor_unit=? ORDER BY created_at",
+            (unit,),
         )
         results = cursor.fetchall()
-        assert len(results) == 2
-        assert results[1][2] == "led"
+        assert len(results) == 3
+        assert results[2][2] == "led"
+        assert datetime.fromisoformat(results[2][1])
+        assert datetime.strptime(results[2][1], "%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def test_kalman_filter_entries() -> None:
@@ -245,3 +272,10 @@ def test_empty_payload_is_filtered_early() -> None:
             sleep(1)
 
         assert len(bucket) == 0
+
+
+def test_produce_metadata():
+    v = m2db.produce_metadata("pioreactor/leader/exp1/this/is/a/test")
+    assert v.pioreactor_unit == "leader"
+    assert v.experiment == "exp1"
+    assert v.rest_of_topic == ["this", "is", "a", "test"]

@@ -4,7 +4,6 @@ from __future__ import annotations
 from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
-from typing import Any
 from typing import Optional
 
 import click
@@ -22,7 +21,7 @@ from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import residuals_of_simple_linear_regression
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.math_helpers import trimmed_variance
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -104,15 +103,6 @@ def od_statistics(
                     f"OD reading for PD Channel {channel} is 0.0 - that shouldn't be. Is there a loose connection, or an extra channel in the configuration's [od_config.photodiode_channel] section?"
                 )
 
-        if config.getboolean(
-            "data_sharing_with_pioreactor",
-            "send_od_statistics_to_Pioreactor",
-            fallback=False,
-        ):
-            to_share: dict[str, Any] = {"mean": means, "variance": variances}
-            to_share["ir_led_intensity"] = config["od_config"]["ir_led_intensity"]
-            pubsub.publish_to_pioreactor_cloud(action_name, json=to_share)
-
         logger.debug(f"observed data: {od_reading_series}")
         logger.debug(f"measured mean: {means}")
         logger.debug(f"measured variances: {variances}")
@@ -128,7 +118,7 @@ def od_blank(
     ignore_rpm=False,  # TODO: delete me
     unit=None,
     experiment=None,
-):
+) -> dict[pt.PdChannel, float]:
     from pioreactor.background_jobs.od_reading import start_od_reading
     from pioreactor.background_jobs.stirring import start_stirring
 
@@ -178,7 +168,7 @@ def od_blank(
                     f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
                     encode(
                         structs.ODReading(
-                            timestamp=current_utc_timestamp(),
+                            timestamp=current_utc_datetime(),
                             channel=channel,
                             od=means[channel],
                             angle=config.get(
@@ -228,7 +218,7 @@ def od_blank(
     help="don't use feedback loop for stirring",
     is_flag=True,
 )
-def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples, ignore_rpm):
+def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples: int, ignore_rpm: bool) -> None:
     """
     Compute statistics about the blank OD time series
     """

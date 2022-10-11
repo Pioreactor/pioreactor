@@ -78,7 +78,7 @@ class WatchDog(BackgroundJob):
         )
         self.subscribe_and_callback(
             self.watch_for_new_experiment,
-            "pioreactor/latest_experiment",
+            "pioreactor/latest_experiment/experiment",
             allow_retained=False,
         )
 

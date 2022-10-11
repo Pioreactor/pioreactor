@@ -4,7 +4,6 @@ CLI for running the commands on workers
 """
 from __future__ import annotations
 
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
@@ -127,16 +126,14 @@ def pios() -> None:
 
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
-    import sys
-
     if not am_I_leader() and not is_testing_env():
         click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
-        sys.exit(1)
+        raise click.Abort()
 
     if len(get_active_workers_in_inventory()) == 0:
         logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
         logger.warning("No active workers. See `cluster.inventory` section in config.ini.")
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pios.command("update", short_help="update PioreactorApp on workers")
@@ -176,7 +173,7 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
         results = executor.map(_thread_function, units)
 
     if not all(results):
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pios.command("install-plugin", short_help="install a plugin on workers")
@@ -215,7 +212,7 @@ def install_plugin(plugin: str, units: tuple[str, ...]) -> None:
         results = executor.map(_thread_function, units)
 
     if not all(results):
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pios.command("uninstall-plugin", short_help="uninstall a plugin on workers")
@@ -255,7 +252,7 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
         results = executor.map(_thread_function, units)
 
     if not all(results):
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pios.command(name="sync-configs", short_help="sync config")
@@ -276,7 +273,12 @@ def uninstall_plugin(plugin: str, units: tuple[str, ...]) -> None:
     is_flag=True,
     help="sync the worker specific config.ini(s)",
 )
-def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
+@click.option(
+    "--skip-save",
+    is_flag=True,
+    help="don't save to db",
+)
+def sync_configs(units: tuple[str, ...], shared: bool, specific: bool, skip_save: bool) -> None:
     """
     Deploys the shared config.ini and worker specific config.inis to the workers.
 
@@ -300,15 +302,16 @@ def sync_configs(units: tuple[str, ...], shared: bool, specific: bool) -> None:
             logger.debug(e, exc_info=True)
             return False
 
-    # save config.inis to database
-    save_config_files_to_db(units, shared, specific)
+    if not skip_save:
+        # save config.inis to database
+        save_config_files_to_db(units, shared, specific)
 
     results = []
     for unit in units:
         results.append(_thread_function(unit))
 
     if not all(results):
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pios.command("kill", short_help="kill a job(s) on workers")
@@ -371,7 +374,7 @@ def kill(job: str, units: tuple[str, ...], all_jobs: bool, y: bool) -> None:
         results = executor.map(_thread_function, units)
 
     if not all(results):
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pios.command(
@@ -413,7 +416,7 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
 
     if "unit" in extra_args:
         click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
-        sys.exit(1)
+        raise click.Abort()
 
     core_command = " ".join(["pio", "run", quote(job), *extra_args])
 
@@ -443,7 +446,7 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
         results = executor.map(_thread_function, units)
 
     if not all(results):
-        sys.exit(1)
+        raise click.Abort()
 
 
 @pios.command(
@@ -512,7 +515,7 @@ def update_settings(ctx, job: str, units: tuple[str, ...]) -> None:
 
     if "unit" in extra_args:
         click.echo("Did you mean to use 'units' instead of 'unit'? Exiting.", err=True)
-        sys.exit(1)
+        raise click.Abort()
 
     assert len(extra_args) > 0
 
@@ -528,7 +531,7 @@ def update_settings(ctx, job: str, units: tuple[str, ...]) -> None:
         results = executor.map(_thread_function, units)
 
     if not all(results):
-        sys.exit(1)
+        raise click.Abort()
 
 
 if __name__ == "__main__":

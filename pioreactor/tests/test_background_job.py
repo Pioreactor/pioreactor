@@ -7,11 +7,8 @@ import pytest
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
-from pioreactor.background_jobs.leader.watchdog import WatchDog
-from pioreactor.background_jobs.monitor import Monitor
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
-from pioreactor.config import leader_hostname
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
@@ -19,7 +16,6 @@ from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.types import MQTTMessage
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def pause() -> None:
@@ -55,32 +51,6 @@ def test_states() -> None:
     pause()
     assert bj.state == bj.DISCONNECTED
     bj.clean_up()
-
-
-@pytest.mark.skip(reason="hangs")
-def test_watchdog_will_try_to_fix_lost_job() -> None:
-    wd = WatchDog(leader_hostname, UNIVERSAL_EXPERIMENT)
-    pause()
-
-    # start a monitor job
-    monitor = Monitor(leader_hostname, UNIVERSAL_EXPERIMENT)
-    pause()
-    pause()
-
-    # suppose it disconnects from broker for long enough that the last will is sent
-    publish(f"pioreactor/{leader_hostname}/{UNIVERSAL_EXPERIMENT}/monitor/$state", "lost")
-
-    pause()
-    pause()
-    pause()
-    pause()
-    pause()
-    pause()
-    pause()
-    assert monitor.sub_client._will
-
-    wd.clean_up()
-    monitor.clean_up()
 
 
 def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
@@ -425,7 +395,12 @@ def test_dodging() -> None:
     ) as bucket:
         with JustPause():
             with start_od_reading(
-                "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
+                "90",
+                None,
+                unit=get_unit_name(),
+                experiment="test_dodging",
+                fake_data=True,
+                use_calibration=False,
             ):
                 time.sleep(20)
 
@@ -459,7 +434,12 @@ def test_dodging_disabled() -> None:
         assert set(jp.published_settings.keys()) == set(["test", "state", "enable_dodging_od"])
 
         od = start_od_reading(
-            "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
+            "90",
+            None,
+            unit=get_unit_name(),
+            experiment="test_dodging",
+            fake_data=True,
+            use_calibration=False,
         )
         time.sleep(5)
         jp.set_enable_dodging_od(False)

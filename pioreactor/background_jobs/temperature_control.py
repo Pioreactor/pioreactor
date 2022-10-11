@@ -43,7 +43,7 @@ from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
@@ -87,9 +87,7 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-
-    
-    MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_REDUCE_HEATING = 61.5  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
     job_name = "temperature_control"
@@ -171,7 +169,7 @@ class TemperatureController(BackgroundJob):
         if not self.using_third_party_thermocouple:
             self.temperature = Temperature(
                 temperature=self.read_external_temperature(),
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
             )
 
     def turn_off_heater(self) -> None:
@@ -230,14 +228,12 @@ class TemperatureController(BackgroundJob):
                 )
 
         averaged_temp = running_sum / running_count
-        if averaged_temp == 0.0 and self.automation_name != "only_record_ambient_temperature":
+        if averaged_temp == 0.0 and self.automation_name != "only_record_temperature":
             # this is a hardware fluke, not sure why, see #308. We will return something very high to make it shutdown
             # todo: still needed? last observed on  July 18, 2022
             self.logger.error("Temp sensor failure. Switching off. See issue #308")
             self._update_heater(0.0)
-            self.set_automation(
-                TemperatureAutomation(automation_name="only_record_ambient_temperature")
-            )
+            self.set_automation(TemperatureAutomation(automation_name="only_record_temperature"))
 
         return averaged_temp
 
@@ -251,15 +247,15 @@ class TemperatureController(BackgroundJob):
 
         assert isinstance(algo_metadata, TemperatureAutomation)
 
-        # users sometimes take the "wrong path" and create a _new_ Stable with target_temperature=X
-        # instead of just changing the target_temperature in their current Stable. We check for this condition,
+        # users sometimes take the "wrong path" and create a _new_ Thermostat with target_temperature=X
+        # instead of just changing the target_temperature in their current Thermostat. We check for this condition,
         # and do the "right" thing for them.
-        if (algo_metadata.automation_name == "stable") and (
-            self.automation.automation_name == "stable"
+        if (algo_metadata.automation_name == "thermostat") and (
+            self.automation.automation_name == "thermostat"
         ):
             # just update the setting, and return
             self.logger.debug(
-                "Bypassing changing automations, and just updating the setting on the existing Stable automation."
+                "Bypassing changing automations, and just updating the setting on the existing Thermostat automation."
             )
             self.automation_job.target_temperature = float(algo_metadata.args["target_temperature"])
             self.automation = algo_metadata
@@ -288,7 +284,7 @@ class TemperatureController(BackgroundJob):
 
             # since we are changing automations inside a controller, we know that the latest temperature reading is recent, so we can
             # pass it on to the new automation.
-            # this is most useful when temp-control is initialized with only_record_ambient_temperature, and then quickly switched over to stable.
+            # this is most useful when temp-control is initialized with only_record_temperature, and then quickly switched over to thermostat.
             self.automation_job._set_latest_temperature(self.temperature)
 
         except KeyError:
@@ -328,14 +324,14 @@ class TemperatureController(BackgroundJob):
             self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
-                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to only_record_ambient_temperature. Take caution when touching the heating surface and wetware."
+                f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_DISABLE_HEATING}℃ - currently {temp}℃. This is beyond our recommendations. The heating PWM channel will be forced to 0 and the automation turned to only_record_temperature. Take caution when touching the heating surface and wetware."
             )
 
             self._update_heater(0)
 
-            if self.automation_name != "only_record_ambient_temperature":
+            if self.automation_name != "only_record_temperature":
                 self.set_automation(
-                    TemperatureAutomation(automation_name="only_record_ambient_temperature")
+                    TemperatureAutomation(automation_name="only_record_temperature")
                 )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
@@ -366,7 +362,7 @@ class TemperatureController(BackgroundJob):
             self.automation_job.clean_up()
 
         with local_intermittent_storage("last_heating_timestamp") as cache:
-            cache["last_heating_timestamp"] = current_utc_timestamp()
+            cache["last_heating_timestamp"] = current_utc_datetime()
 
     def setup_pwm(self) -> PWM:
         hertz = 6  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -428,7 +424,7 @@ class TemperatureController(BackgroundJob):
                 # we turned off the heater above - we should always turn if back on if there is an error.
 
                 # update heater first before publishing the temperature. Why? A downstream process
-                # might listen for the updating temperature, and update the heater (pid_stable),
+                # might listen for the updating temperature, and update the heater (pid_thermostat),
                 # and if we update here too late, we may overwrite their changes.
                 # We also want to remove the lock first, so close this context early.
                 self._update_heater(previous_heater_dc)
@@ -439,7 +435,7 @@ class TemperatureController(BackgroundJob):
         try:
             self.temperature = Temperature(
                 temperature=self.approximate_temperature(features),
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
             )
         except Exception as e:
             self.logger.debug(e, exc_info=True)
@@ -506,6 +502,7 @@ class TemperatureController(BackgroundJob):
         #  A=-0.0010607908095388548, B=-0.18749701076543562
         #  A=-0.0010514517340740343, B=-0.18756448817069307
         #  A=-0.0012910773630121675, B=-0.19066684235126932
+        #  A=-0.0010558024149891808, B=-0.1613921733824975 (Oct 10, 2022)
 
         A_penalizer, A_prior = 100.0, -0.0011
         B_penalizer, B_prior = 20.0, -0.170
@@ -610,7 +607,7 @@ def start_temperature_control(
 )
 @click.option(
     "--automation-name",
-    default="only_record_ambient_temperature",
+    default="only_record_temperature",
     help="set the automation of the system",
     show_default=True,
 )

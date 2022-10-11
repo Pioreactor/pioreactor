@@ -5,6 +5,7 @@ import json
 import time
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from typing import Any
 
 import pytest
@@ -23,7 +24,7 @@ from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
@@ -44,7 +45,7 @@ def setup_function() -> None:
                 bias_=0.0,
                 dc=60,
                 hz=100,
-                timestamp="2010-01-01",
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="media",
             )
@@ -56,7 +57,7 @@ def setup_function() -> None:
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp="2010-01-01",
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="alt_media",
             )
@@ -68,7 +69,7 @@ def setup_function() -> None:
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp="2010-01-01",
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="waste",
             )
@@ -83,10 +84,10 @@ def test_silent_automation() -> None:
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             encode(
                 structs.ODReadings(
-                    timestamp=current_utc_timestamp(),
+                    timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            timestamp=current_utc_timestamp(), angle="45", od=0.05, channel="2"
+                            timestamp=current_utc_datetime(), angle="45", od=0.05, channel="2"
                         )
                     },
                 )
@@ -94,11 +95,11 @@ def test_silent_automation() -> None:
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
+            encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
@@ -110,10 +111,10 @@ def test_silent_automation() -> None:
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             encode(
                 structs.ODReadings(
-                    timestamp=current_utc_timestamp(),
+                    timestamp=current_utc_datetime(),
                     ods={
                         "2": structs.ODReading(
-                            timestamp=current_utc_timestamp(), angle="45", od=0.06, channel="2"
+                            timestamp=current_utc_datetime(), angle="45", od=0.06, channel="2"
                         )
                     },
                 )
@@ -121,11 +122,11 @@ def test_silent_automation() -> None:
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.02, "timestamp": current_utc_timestamp()}),
+            encode(structs.GrowthRate(growth_rate=0.02, timestamp=current_utc_datetime())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.1, "timestamp": current_utc_timestamp()}),
+            encode(structs.ODFiltered(od_filtered=1.1, timestamp=current_utc_datetime())),
         )
         pause()
         assert isinstance(algo.run(), events.NoEvent)
@@ -148,43 +149,43 @@ def test_turbidostat_automation() -> None:
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.98, "timestamp": current_utc_timestamp()}),
+            encode(structs.ODFiltered(od_filtered=0.98, timestamp=current_utc_datetime())),
         )
         pause()
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
-        )
-        pause()
-        assert isinstance(algo.run(), events.DilutionEvent)
-
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
-        )
-        pubsub.publish(
-            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 1.01, "timestamp": current_utc_timestamp()}),
+            encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
         )
         pause()
         assert isinstance(algo.run(), events.DilutionEvent)
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.99, "timestamp": current_utc_timestamp()}),
+            encode(structs.ODFiltered(od_filtered=1.01, timestamp=current_utc_datetime())),
+        )
+        pause()
+        assert isinstance(algo.run(), events.DilutionEvent)
+
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.99, timestamp=current_utc_datetime())),
         )
         pause()
         assert algo.run() is None
@@ -210,66 +211,66 @@ def test_morbidostat_automation() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.99, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.99, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.05, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=1.05, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.03, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=1.03, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.04, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=1.04, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.01, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.99, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.99, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.DilutionEvent)
@@ -289,41 +290,41 @@ def test_pid_morbidostat_automation() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.NoEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.07, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.07, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.065, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.065, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
     pause()
     assert isinstance(algo.run(), events.AddAltMediaEvent)
@@ -368,11 +369,11 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.05, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.05, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
     )
     pause()
     algo.run()
@@ -382,11 +383,11 @@ def test_changing_turbidostat_params_over_mqtt() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.05, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.05, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
     )
     algo.run()
 
@@ -476,8 +477,8 @@ def test_old_readings_will_not_execute_io() -> None:
         algo._latest_growth_rate = 1
         algo._latest_normalized_od = 1
 
-        algo.latest_normalized_od_at = datetime.utcnow() - timedelta(minutes=10)
-        algo.latest_growth_rate_at = datetime.utcnow() - timedelta(minutes=4)
+        algo.latest_normalized_od_at = current_utc_datetime() - timedelta(minutes=10)
+        algo.latest_growth_rate_at = current_utc_datetime() - timedelta(minutes=4)
 
         assert algo.most_stale_time == algo.latest_normalized_od_at
 
@@ -507,35 +508,22 @@ def test_throughput_calculator() -> None:
     pause()
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
     )
     pause()
     algo.automation_job.run()
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
-    )
-    pause()
-    algo.automation_job.run()
-    assert algo.automation_job.media_throughput > 0
-    assert algo.automation_job.alt_media_throughput > 0
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.07, "timestamp": current_utc_timestamp()}),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
     pause()
     algo.automation_job.run()
@@ -544,11 +532,24 @@ def test_throughput_calculator() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.065, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.07, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
+    )
+    pause()
+    algo.automation_job.run()
+    assert algo.automation_job.media_throughput > 0
+    assert algo.automation_job.alt_media_throughput > 0
+
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+        encode(structs.GrowthRate(growth_rate=0.065, timestamp=current_utc_datetime())),
+    )
+    pubsub.publish(
+        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
     pause()
     algo.automation_job.run()
@@ -724,11 +725,11 @@ def test_PIDMorbidostat() -> None:
     assert algo.latest_event is None
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
     )
     time.sleep(10)
     pause()
@@ -736,11 +737,11 @@ def test_PIDMorbidostat() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 0.95, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
     )
     time.sleep(20)
     pause()
@@ -760,11 +761,11 @@ def test_changing_duration_over_mqtt() -> None:
         assert algo.latest_event is None
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+            encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
+            encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
         )
         time.sleep(10)
 
@@ -790,11 +791,11 @@ def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
         assert algo.latest_event is None
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-            json.dumps({"growth_rate": 0.08, "timestamp": current_utc_timestamp()}),
+            encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
         )
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-            json.dumps({"od_filtered": 0.5, "timestamp": current_utc_timestamp()}),
+            encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
         )
         time.sleep(15)
 
@@ -945,11 +946,11 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
 
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        json.dumps({"growth_rate": 1.0, "timestamp": current_utc_timestamp()}),
+        encode(structs.GrowthRate(growth_rate=1.0, timestamp=current_utc_datetime())),
     )
     pubsub.publish(
         f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        json.dumps({"od_filtered": 1.0, "timestamp": current_utc_timestamp()}),
+        encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
     )
     pause()
 

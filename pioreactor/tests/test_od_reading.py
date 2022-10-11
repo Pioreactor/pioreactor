@@ -17,6 +17,7 @@ from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
@@ -66,6 +67,150 @@ def test_sin_regression_all_zeros_should_return_zeros() -> None:
         assert C == 0
         assert A == 0
         assert np.isinf(AIC)
+
+
+def test_sin_regression_real_data_and_that_60hz_is_the_minimum() -> None:
+
+    y = [
+        8694,
+        8622,
+        8587,
+        8537,
+        8533,
+        8529,
+        8556,
+        8582,
+        8698,
+        8734,
+        8841,
+        8980,
+        9005,
+        9050,
+        9077,
+        9091,
+        9107,
+        9118,
+        9102,
+        9037,
+        9006,
+        8893,
+        8855,
+        8755,
+        8597,
+        8565,
+    ]
+    x = [
+        6.849016062915325e-05,
+        0.03225604514591396,
+        0.06504625407978892,
+        0.09745802800171077,
+        0.13046979811042547,
+        0.1631201640702784,
+        0.19538412615656853,
+        0.22827485506422818,
+        0.2607731909956783,
+        0.29389490908943117,
+        0.3266107430681586,
+        0.35897407913580537,
+        0.39195163105614483,
+        0.42453178903087974,
+        0.45695877098478377,
+        0.48978127096779644,
+        0.5222139300312847,
+        0.5552757519762963,
+        0.5879572120029479,
+        0.6202454441227019,
+        0.6531873710919172,
+        0.6857172690797597,
+        0.7188976851757616,
+        0.751680811168626,
+        0.7840821680147201,
+        0.8170840430539101,
+    ]
+
+    adc_reader = ADCReader(channels=[])
+    (C, A, phi), AIC_60 = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    assert abs(C - np.mean(y)) < 10
+
+    for i in range(2, 75):
+        # skip i=32, noise
+        if i == 32:
+            continue
+
+        (C, A, phi), AIC_i = adc_reader.sin_regression_with_known_freq(x, y, i)
+        assert AIC_i >= AIC_60
+
+
+def test_sin_regression_real_data_and_that_60hz_is_the_minimum2() -> None:
+
+    y = [
+        6393,
+        6470,
+        6523,
+        6373,
+        6375,
+        6234,
+        6147,
+        6283,
+        6264,
+        6206,
+        6276,
+        6070,
+        6047,
+        6018,
+        6162,
+        6323,
+        6044,
+        5887,
+        6100,
+        6032,
+        5988,
+        6021,
+        6043,
+        6189,
+        6299,
+        6279,
+    ]
+    x = [
+        0.011080539086833596,
+        0.043024661019444466,
+        0.07600112399086356,
+        0.10825863108038902,
+        0.14143993705511093,
+        0.17404911015182734,
+        0.2063259920105338,
+        0.2390361011493951,
+        0.2709076199680567,
+        0.30479230894707143,
+        0.337737939087674,
+        0.3699464879464358,
+        0.40293430513702333,
+        0.4354570710565895,
+        0.4678043171297759,
+        0.5005605730693787,
+        0.5329271419905126,
+        0.5661279789637774,
+        0.5986463711597025,
+        0.6308952320832759,
+        0.6638960181735456,
+        0.6964425339829177,
+        0.7295078509487212,
+        0.7623454600106925,
+        0.7947157791350037,
+        0.8276583361439407,
+    ]
+
+    adc_reader = ADCReader(channels=[])
+    (C, A, phi), AIC_60 = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    assert abs(C - np.mean(y)) < 10
+
+    for i in range(2, 75):
+        if i == 30 or i == 31 or i == 62:
+            continue
+
+        (C_, _, _), AIC_i = adc_reader.sin_regression_with_known_freq(x, y, i)
+
+        assert AIC_i >= AIC_60, i
 
 
 def test_sin_regression_constant_should_return_constant() -> None:
@@ -418,7 +563,7 @@ def test_calibration_simple_linear_calibration():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[2.0, 0.0],
                 name="linear",
@@ -472,7 +617,7 @@ def test_calibration_simple_linear_calibration_negative_slope():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[-0.1, 2],
                 name="linear",
@@ -518,7 +663,7 @@ def test_calibration_simple_quadratic_calibration():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",
@@ -552,7 +697,7 @@ def test_calibration_multi_modal():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=poly,
                 name="multi_test",
@@ -586,7 +731,7 @@ def test_calibration_errors_when_ir_led_differs():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",
@@ -618,7 +763,7 @@ def test_calibration_errors_when_pd_channel_differs():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp="2022-01-01",
+                timestamp=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",

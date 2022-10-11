@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from .constant_duty_cycle import ConstantDutyCycle
-from .only_record_ambient_temperature import OnlyRecordAmbientTemperature
-from .stable import Stable
+from .only_record_temperature import OnlyRecordTemperature
+from .thermostat import Thermostat
 
 
-__all__ = ("OnlyRecordAmbientTemperature", "ConstantDutyCycle", "Stable")
+__all__ = ("OnlyRecordTemperature", "ConstantDutyCycle", "Thermostat")

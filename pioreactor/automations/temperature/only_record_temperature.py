@@ -5,12 +5,12 @@ from pioreactor.automations.events import NoEvent
 from pioreactor.automations.temperature.base import TemperatureAutomationJob
 
 
-class OnlyRecordAmbientTemperature(TemperatureAutomationJob):
+class OnlyRecordTemperature(TemperatureAutomationJob):
 
-    automation_name = "only_record_ambient_temperature"
+    automation_name = "only_record_temperature"
 
     def __init__(self, **kwargs) -> None:
-        super(OnlyRecordAmbientTemperature, self).__init__(**kwargs)
+        super(OnlyRecordTemperature, self).__init__(**kwargs)
         self.update_heater(0)
 
     def execute(self) -> NoEvent:

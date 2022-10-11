@@ -1,9 +1,16 @@
-### 2.9.6
+### 22.10.0
+ - New API for adding SQL tables via plugins, and for registering MQTT -> DB parsers.
+ - New topic for experiment name in MQTT: `pioreactor/latest_experiment/experiment`.
+ - New topic for experiment timestamp in MQTT: `pioreactor/latest_experiment/created_at`.
+ - `stable` renamed to `thermostat`
+ - new callback API for pushing the HAT button down, see `Monitor` class.
+
+### 22.9.6
  - improve reliability of self-test `test_REF_is_in_correct_position`
  - improve the early OD reading signal behaviour.
  - new API on jobs for `job_name` (class level now)
 
-### 2.9.5
+### 22.9.5
  - The SQL triggers were not added to the images, so `pioreactor_unit_activity_data` was never populated. This is fixed.
  - New web server backend. Went from js/Node to python (Flask)/lighttp.
  - Export datasets now cleans up its csvs.
@@ -12,7 +19,7 @@
  - Bug fixes
 
 ### 22.9.3
- - temperature automation `silent` is now `only_record_ambient_temperature`.
+ - temperature automation `silent` is now `only_record_temperature`.
  - using new official RPi image from 2022-09-06 as a source image.
  - Bug fixes
 

@@ -20,6 +20,10 @@ def catchtime() -> Generator[Callable, None, None]:
     yield lambda: perf_counter() - start
 
 
+def to_iso_format(dt: datetime) -> str:
+    return dt.isoformat().replace("+00:00", "Z")
+
+
 def current_utc_datetime() -> datetime:
     # this is timezone aware.
     return datetime.now(timezone.utc)
@@ -27,11 +31,11 @@ def current_utc_datetime() -> datetime:
 
 def current_utc_timestamp() -> str:
     # this is timezone aware.
-    return current_utc_datetime().isoformat().replace("+00:00", "Z")
+    return to_iso_format(current_utc_datetime())
 
 
 def to_datetime(timestamp: str) -> datetime:
-    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
 
 
 class RepeatedTimer:

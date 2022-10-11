@@ -33,7 +33,7 @@ from pioreactor.pubsub import publish
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -331,7 +331,7 @@ d: choose a new degree for polynomial fit
         return False, d
 
 
-def save_results_locally(
+def save_results(
     curve_data_: list[float],
     curve_type: str,
     voltages: list[float],
@@ -340,22 +340,23 @@ def save_results_locally(
     name: str,
     maximum_od600: float,
     minimum_od600: float,
-    signal_channel,
+    signal_channel: str,
+    unit: str,
 ) -> structs.ODCalibration:
 
     if angle == "45":
-        od_calibration: Type[structs.ODCalibration] = structs.OD45Calibration
+        struct: Type[structs.ODCalibration] = structs.OD45Calibration
     elif angle == "90":
-        od_calibration = structs.OD90Calibration
+        struct = structs.OD90Calibration
     elif angle == "135":
-        od_calibration = structs.OD135Calibration
+        struct = structs.OD135Calibration
     elif angle == "180":
-        od_calibration = structs.OD180Calibration
+        struct = structs.OD180Calibration
     else:
         raise ValueError()
 
-    data_blob = od_calibration(
-        timestamp=current_utc_timestamp(),
+    data_blob = struct(
+        timestamp=current_utc_datetime(),
         name=name,
         angle=angle,
         maximum_od600=maximum_od600,
@@ -377,7 +378,7 @@ def save_results_locally(
         cache[angle] = encode(data_blob)
 
     # send to MQTT
-    publish(f"pioreactor/{get_unit_name()}/{UNIVERSAL_EXPERIMENT}/calibrations", encode(data_blob))
+    publish(f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/calibrations", encode(data_blob))
 
     return data_blob
 
@@ -416,7 +417,7 @@ def od_calibration() -> None:
             if okay_with_result:
                 break
 
-        data_blob = save_results_locally(
+        data_blob = save_results(
             curve_data_,
             curve_type,
             voltages,
@@ -426,6 +427,7 @@ def od_calibration() -> None:
             initial_od600,
             minimum_od600,
             signal_channel,
+            unit,
         )
         click.echo(click.style(f"Data for {name}", underline=True, bold=True))
         click.echo(data_blob)
@@ -434,6 +436,15 @@ def od_calibration() -> None:
         click.echo(curve_to_functional_form(curve_type, curve_data_))
         click.echo()
         click.echo(f"Finished calibration of {name} ✅")
+
+        if not config.getboolean("od_config", "od_calibration"):
+            click.echo()
+            click.echo(
+                click.style(
+                    "Currently [od_config][od_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
+                    bold=True,
+                )
+            )
         return
 
 

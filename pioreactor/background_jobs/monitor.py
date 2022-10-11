@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from json import loads
 from time import sleep
+from typing import Callable
 from typing import Optional
 
 import click
@@ -30,7 +31,7 @@ class Monitor(BackgroundJob):
     This job starts at Rpi startup, and isn't connected to any experiment. It has the following roles:
 
      1. Reports metadata (voltage, CPU usage, etc.) about the Rpi / Pioreactor to the leader
-     2. Controls the LED / Button interaction
+     2. Controls the LED / Button interaction. Plus any additional callbacks to the button down/up.
      3. Correction after a restart
      4. Check database backup if leader
      5. Use the LED blinks to report error codes to the user, see error_codes module
@@ -38,6 +39,24 @@ class Monitor(BackgroundJob):
          pioreactor/{unit}/+/monitor/flicker_led_with_error_code   error_code as message
      6. Listens to MQTT for job to start, on the topic
          pioreactor/{unit}/$experiment/run/{job_name}   json-encoded args as message
+
+
+    Notes
+    -------
+
+    Use `Monitor.add_post_button_callback` and `Monitor.add_pre_button_callback` to change what the button can do. Ex:
+
+        from pioreactor.background_jobs.monitor import  Monitor
+        from pioreactor.actions.led_intensity import led_intensity
+
+        def on(*args):
+            led_intensity({'B': 20}, verbose=False, source_of_event="button", unit="demo", experiment="demo")
+
+        def off(*args):
+            led_intensity({'B': 0}, verbose=False, source_of_event="button", unit="demo", experiment="demo")
+
+        Monitor.add_pre_button_callback(on)
+        Monitor.add_post_button_callback(off)
 
     """
 
@@ -48,6 +67,8 @@ class Monitor(BackgroundJob):
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
+    _pre_button: list[Callable] = []
+    _post_button: list[Callable] = []
 
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit=unit, experiment=experiment)
@@ -78,7 +99,18 @@ class Monitor(BackgroundJob):
             run_immediately=False,
         ).start()
 
+        self.add_pre_button_callback(self.led_on)
+        self.add_post_button_callback(self.led_off)
+
         self.start_passive_listeners()
+
+    @classmethod
+    def add_pre_button_callback(cls, function: Callable):
+        cls._pre_button.append(function)
+
+    @classmethod
+    def add_post_button_callback(cls, function: Callable):
+        cls._post_button.append(function)
 
     def setup_GPIO(self) -> None:
         set_gpio_availability(BUTTON_PIN, False)
@@ -95,19 +127,18 @@ class Monitor(BackgroundJob):
         self.GPIO.setup(LED_PIN, GPIO.OUT)
 
         i = 0
-
         while i < 2:
-            i = +1
             try:
                 self.GPIO.add_event_detect(
                     BUTTON_PIN,
                     self.GPIO.RISING,
                     callback=self.button_down_and_up,
-                    bouncetime=200,
+                    bouncetime=100,
                 )
                 return
             except RuntimeError:
                 sleep(3)
+                i = +1
 
         self.logger.debug("Failed to add button detect.", exc_info=True)
         self.logger.warning("Failed to add button detect.")
@@ -263,14 +294,22 @@ class Monitor(BackgroundJob):
         # Warning: this might be called twice: See "Switch debounce" in https://sourceforge.net/p/raspberry-gpio-python/wiki/Inputs/
         # don't put anything that is not idempotent in here.
 
-        self.led_on()
-
         self.button_down = True
+
+        for pre_function in self._pre_button:
+            try:
+                pre_function()
+            except Exception:
+                self.logger.debug(f"Error in {pre_function=}.", exc_info=True)
 
         while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
             sleep(0.02)
 
-        self.led_off()
+        for post_function in self._post_button:
+            try:
+                post_function()
+            except Exception:
+                self.logger.debug(f"Error in {post_function=}.", exc_info=True)
 
         self.button_down = False
 
@@ -419,20 +458,23 @@ class Monitor(BackgroundJob):
         if job_name == "led_intensity":
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
-            state = {c: payload.get(c) for c in ALL_LED_CHANNELS if c in payload}
-
+            state = {ch: payload.pop(ch) for ch in ALL_LED_CHANNELS if ch in payload}
             exp = whoami._get_latest_experiment_name()
 
-            for c in ALL_LED_CHANNELS:
-                payload.pop(c, None)
-
-            led_intensity(state, unit=self.unit, experiment=exp, **payload)
+            led_intensity(
+                state,
+                unit=self.unit,
+                experiment=exp,
+                source_of_event="ui",
+                pubsub_client=self.pub_client,
+                **payload,
+            )
 
         elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
             from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
 
             # we use a thread here since we want to exit this callback without blocking it.
-            # a blocked callback can disconnect from MQTT broker.
+            # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
             from threading import Thread
 
             if job_name == "add_media":
@@ -445,9 +487,9 @@ class Monitor(BackgroundJob):
                 raise ValueError()
 
             payload["config"] = config.get_config()  # techdebt
-            exp = whoami._get_latest_experiment_name()
-            t = Thread(target=pump, args=(self.unit, exp), kwargs=payload, daemon=True)
-            t.start()
+            payload["unit"] = self.unit
+            payload["experiment"] = whoami._get_latest_experiment_name()
+            Thread(target=pump, kwargs=payload, daemon=True).start()
 
         else:
             prefix = ["nohup"]

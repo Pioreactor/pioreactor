@@ -16,6 +16,7 @@ from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils.timing import to_datetime
 from pioreactor.whoami import get_unit_name
 
 
@@ -24,18 +25,18 @@ def pause() -> None:
     time.sleep(0.5)
 
 
-def create_od_raw_batched_json(channels=None, voltages=None, angles=None, timestamp=None) -> bytes:
+def create_od_raw_batched_json(channels, voltages: list[float], angles, timestamp: str) -> bytes:
     """
     channel is a list, elements from {1, 2}
     raw_signal is a list
     angle is a list, elements from {45, 90, 135, 180}
 
     """
-    readings = structs.ODReadings(timestamp=timestamp, ods=dict())
+    readings = structs.ODReadings(timestamp=to_datetime(timestamp), ods=dict())
     for channel, voltage, angle in zip(channels, voltages, angles):
         assert int(channel) in [1, 2]
         readings.ods[channel] = structs.ODReading(
-            od=voltage, angle=angle, timestamp=timestamp, channel=channel
+            od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel
         )
 
     return encode(readings)
@@ -88,7 +89,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01 12:00:00"
+                ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01T12:00:00.000000Z"
             ),
             retain=True,
         )
@@ -103,7 +104,7 @@ class TestGrowthRateCalculating:
                     ["1", "2"],
                     [1.12, 0.88],
                     ["90", "135"],
-                    timestamp="2010-01-01 12:00:05",
+                    timestamp="2010-01-01T12:00:05.000000Z",
                 ),
             )
             pause()
@@ -113,7 +114,7 @@ class TestGrowthRateCalculating:
                     ["2", "1"],
                     [0.87, 1.14],
                     ["135", "90"],
-                    timestamp="2010-01-01 12:00:05",
+                    timestamp="2010-01-01T12:00:05.000000Z",
                 ),
             )
             pause()
@@ -123,7 +124,7 @@ class TestGrowthRateCalculating:
                     ["2", "1"],
                     [0.85, 1.16],
                     ["135", "90"],
-                    timestamp="2010-01-01 12:00:05",
+                    timestamp="2010-01-01T12:00:05.000000Z",
                 ),
             )
             pause()
@@ -136,7 +137,7 @@ class TestGrowthRateCalculating:
                     ["1", "2"],
                     [1.14, 0.92],
                     ["90", "135"],
-                    timestamp="2010-01-01 12:00:10",
+                    timestamp="2010-01-01T12:00:10.000000Z",
                 ),
             )
             publish(
@@ -146,7 +147,7 @@ class TestGrowthRateCalculating:
                         volume_change=1.5,
                         event="add_media",
                         source_of_event="test",
-                        timestamp="2010-01-01 12:00:12",
+                        timestamp="2010-01-01T12:00:12.000000Z",
                     )
                 ),
             )
@@ -156,7 +157,7 @@ class TestGrowthRateCalculating:
                     ["1", "2"],
                     [1.15, 0.93],
                     ["90", "135"],
-                    timestamp="2010-01-01 12:00:15",
+                    timestamp="2010-01-01T12:00:15.000000Z",
                 ),
             )
 
@@ -186,7 +187,7 @@ class TestGrowthRateCalculating:
                     0.93,
                 ],
                 ["90", "135"],
-                timestamp="2010-01-01 12:00:15",
+                timestamp="2010-01-01T12:00:15.000000Z",
             ),
             retain=True,
         )
@@ -206,7 +207,7 @@ class TestGrowthRateCalculating:
                 ["1", "2"],
                 [1.151, 0.931],
                 ["90", "135"],
-                timestamp="2010-01-01 12:00:20",
+                timestamp="2010-01-01T12:00:20.000000Z",
             ),
         )
         publish(
@@ -215,7 +216,7 @@ class TestGrowthRateCalculating:
                 ["1", "2"],
                 [1.152, 0.932],
                 ["90", "135"],
-                timestamp="2010-01-01 12:00:25",
+                timestamp="2010-01-01T12:00:25.000000Z",
             ),
         )
         publish(
@@ -224,7 +225,7 @@ class TestGrowthRateCalculating:
                 ["1", "2"],
                 [1.153, 0.933],
                 ["90", "135"],
-                timestamp="2010-01-01 12:00:30",
+                timestamp="2010-01-01T12:00:30.000000Z",
             ),
         )
         publish(
@@ -233,7 +234,7 @@ class TestGrowthRateCalculating:
                 ["1", "2"],
                 [1.154, 0.934],
                 ["90", "135"],
-                timestamp="2010-01-01 12:00:35",
+                timestamp="2010-01-01T12:00:35.000000Z",
             ),
         )
         pause()
@@ -259,7 +260,9 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(["1"], [1.153], ["90"], timestamp="2010-01-01 12:00:30"),
+            create_od_raw_batched_json(
+                ["1"], [1.153], ["90"], timestamp="2010-01-01T12:00:30.000000Z"
+            ),
             retain=True,
         )
 
@@ -267,7 +270,9 @@ class TestGrowthRateCalculating:
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
-            create_od_raw_batched_json(["1"], [1.155], ["90"], timestamp="2010-01-01 12:00:35"),
+            create_od_raw_batched_json(
+                ["1"], [1.155], ["90"], timestamp="2010-01-01T12:00:35.000000Z"
+            ),
         )
         pause()
 
@@ -287,7 +292,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:00:35"
+                ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:00:35.000000Z"
             ),
             retain=True,
         )
@@ -318,7 +323,7 @@ class TestGrowthRateCalculating:
                 ["1"],
                 [0.5],
                 ["90"],
-                timestamp="2010-01-01 12:00:35",
+                timestamp="2010-01-01T12:00:35.000000Z",
             ),
             retain=True,
         )
@@ -330,7 +335,7 @@ class TestGrowthRateCalculating:
                 ["1"],
                 [0.51],
                 ["90"],
-                timestamp="2010-01-01 12:00:40",
+                timestamp="2010-01-01T12:00:40.000000Z",
             ),
         )
         pause()
@@ -341,7 +346,7 @@ class TestGrowthRateCalculating:
                 ["1"],
                 [0.51],
                 ["90"],
-                timestamp="2010-01-01 12:00:45",
+                timestamp="2010-01-01T12:00:45.000000Z",
             ),
         )
         pause()
@@ -356,7 +361,7 @@ class TestGrowthRateCalculating:
                     volume_change=1.0,
                     event="add_media",
                     source_of_event="algo",
-                    timestamp="2010-01-01 12:00:48",
+                    timestamp="2010-01-01T12:00:48.000000Z",
                 )
             ),
         )
@@ -368,7 +373,7 @@ class TestGrowthRateCalculating:
                 ["1"],
                 [0.49],
                 ["90"],
-                timestamp="2010-01-01 12:00:50",
+                timestamp="2010-01-01T12:00:50.000000Z",
             ),
         )
         pause()
@@ -378,7 +383,7 @@ class TestGrowthRateCalculating:
                 ["1"],
                 [0.48],
                 ["90"],
-                timestamp="2010-01-01 12:00:55",
+                timestamp="2010-01-01T12:00:55.000000Z",
             ),
         )
         pause()
@@ -392,7 +397,7 @@ class TestGrowthRateCalculating:
                     volume_change=1.0,
                     event="add_media",
                     source_of_event="algo",
-                    timestamp="2010-01-01 12:01:55",
+                    timestamp="2010-01-01T12:01:55.000000Z",
                 )
             ),
         )
@@ -403,7 +408,7 @@ class TestGrowthRateCalculating:
                 ["1"],
                 [0.40],
                 ["90"],
-                timestamp="2010-01-01 12:02:00",
+                timestamp="2010-01-01T12:02:00.000000Z",
             ),
         )
         pause()
@@ -484,11 +489,11 @@ class TestGrowthRateCalculating:
                         "1": {
                             "od": voltage,
                             "angle": "180",
-                            "timestamp": "2021-06-06T15:08:12.081153",
+                            "timestamp": "2021-06-06T15:08:12.081153Z",
                             "channel": "1",
                         }
                     },
-                    "timestamp": "2021-06-06T15:08:12.081153",
+                    "timestamp": "2021-06-06T15:08:12.081153Z",
                 }
 
                 publish(
@@ -536,11 +541,11 @@ class TestGrowthRateCalculating:
                         "1": {
                             "od": voltage,
                             "angle": "90",
-                            "timestamp": "2021-06-06T15:08:12.081153",
+                            "timestamp": "2021-06-06T15:08:12.081153Z",
                             "channel": "1",
                         }
                     },
-                    "timestamp": "2021-06-06T15:08:12.081153",
+                    "timestamp": "2021-06-06T15:08:12.081153Z",
                 }
 
                 publish(
@@ -577,7 +582,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01 12:02:00"
+                ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000000Z"
             ),
             retain=True,
         )
@@ -588,7 +593,6 @@ class TestGrowthRateCalculating:
         assert calc.od_normalization_factors == {"2": 0.8, "1": 0.5}
         assert calc.od_blank == {"2": 0.4, "1": 0.25}
         results = calc.scale_raw_observations({"2": 1.0, "1": 0.6})
-        print(results)
         assert abs(results["2"] - 1.5) < 0.00001
         assert abs(results["1"] - 1.4) < 0.00001
         calc.clean_up()
@@ -612,7 +616,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01 12:02:00"
+                ["1", "2"], [0.50, 0.80], ["90", "135"], timestamp="2010-01-01T12:02:00.000000Z"
             ),
             retain=True,
         )
@@ -621,7 +625,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01 12:02:05"
+                ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:05.000000Z"
             ),
             retain=True,
         )
@@ -631,7 +635,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01 12:02:10"
+                ["1", "2"], [0.1, 0.1], ["90", "135"], timestamp="2010-01-01T12:02:10.000000Z"
             ),
             retain=True,
         )
@@ -655,7 +659,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:02:10"
+                ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:02:10.000000Z"
             ),
             retain=True,
         )
@@ -667,7 +671,7 @@ class TestGrowthRateCalculating:
             publish(
                 f"pioreactor/{unit}/{experiment}/od_reading/ods",
                 create_od_raw_batched_json(
-                    ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01 12:02:15"
+                    ["1", "2"], [0.5, 0.8], ["90", "135"], timestamp="2010-01-01T12:02:15.000000Z"
                 ),
                 retain=True,
             )
@@ -694,7 +698,7 @@ class TestGrowthRateCalculating:
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",
             create_od_raw_batched_json(
-                ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01 12:00:00"
+                ["2", "1"], [0.9, 1.1], ["135", "90"], timestamp="2010-01-01T12:00:00.000000Z"
             ),
             retain=True,
         )

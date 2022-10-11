@@ -24,7 +24,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -352,7 +352,7 @@ class Stirrer(BackgroundJob):
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(
-            timestamp=current_utc_timestamp(), measured_rpm=self._measured_rpm
+            timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
         )
         return self.measured_rpm
 

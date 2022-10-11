@@ -47,12 +47,12 @@ from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.actions.od_blank import od_statistics
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.background_jobs.od_reading import VALID_PD_ANGLES
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
-from pioreactor.utils.timing import to_datetime
 
 
 class GrowthRateCalculator(BackgroundJob):
@@ -122,12 +122,19 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.debug(f"od_blank={dict(self.od_blank)}")
         self.logger.debug(f"od_normalization_mean={self.od_normalization_factors}")
         self.logger.debug(f"od_normalization_variance={self.od_variances}")
-        self.ekf = self.initialize_extended_kalman_filter()
+        self.ekf = self.initialize_extended_kalman_filter(
+            acc_std=config.getfloat("growth_rate_kalman", "acc_std"),
+            od_std=config.getfloat("growth_rate_kalman", "od_std"),
+            rate_std=config.getfloat("growth_rate_kalman", "rate_std"),
+            obs_std=config.getfloat("growth_rate_kalman", "obs_std"),
+        )
 
         if self.from_mqtt:
             self.start_passive_listeners()
 
-    def initialize_extended_kalman_filter(self) -> CultureGrowthEKF:
+    def initialize_extended_kalman_filter(
+        self, acc_std: float, od_std: float, rate_std: float, obs_std: float
+    ) -> CultureGrowthEKF:
         import numpy as np
 
         initial_state = np.array(
@@ -143,11 +150,8 @@ class GrowthRateCalculator(BackgroundJob):
         )  # empirically selected - TODO: this should probably scale with `expected_dt`
         self.logger.debug(f"Initial covariance matrix:\n{repr(initial_covariance)}")
 
-        acc_std = config.getfloat("growth_rate_kalman", "acc_std")
         acc_process_variance = (acc_std * self.expected_dt) ** 2
-        od_std = config.getfloat("growth_rate_kalman", "od_std")
         od_process_variance = (od_std * self.expected_dt) ** 2
-        rate_std = config.getfloat("growth_rate_kalman", "rate_std")
         rate_process_variance = (rate_std * self.expected_dt) ** 2
 
         process_noise_covariance = np.zeros((3, 3))
@@ -156,7 +160,7 @@ class GrowthRateCalculator(BackgroundJob):
         process_noise_covariance[2, 2] = acc_process_variance
         self.logger.debug(f"Process noise covariance matrix:\n{repr(process_noise_covariance)}")
 
-        observation_noise_covariance = self.create_obs_noise_covariance()
+        observation_noise_covariance = self.create_obs_noise_covariance(obs_std)
         self.logger.debug(
             f"Observation noise covariance matrix:\n{repr(observation_noise_covariance)}"
         )
@@ -164,7 +168,7 @@ class GrowthRateCalculator(BackgroundJob):
         angles = [
             angle
             for (_, angle) in config["od_config.photodiode_channel"].items()
-            if angle in ["45", "90", "135", "180"]
+            if angle in VALID_PD_ANGLES
         ]
 
         self.logger.debug(f"{angles=}")
@@ -177,7 +181,7 @@ class GrowthRateCalculator(BackgroundJob):
             angles,
         )
 
-    def create_obs_noise_covariance(self):  # typing: ignore
+    def create_obs_noise_covariance(self, obs_std):  # typing: ignore
         """
         Our sensor measurements have initial variance V, but in our KF, we scale them their
         initial mean, M. Hence the observed variance of the _normalized_ measurements is
@@ -202,9 +206,7 @@ class GrowthRateCalculator(BackgroundJob):
                 ]
             )
 
-            obs_variances = config.getfloat("growth_rate_kalman", "obs_std") ** 2 * np.diag(
-                scaling_obs_variances
-            )
+            obs_variances = obs_std**2 * np.diag(scaling_obs_variances)
             return obs_variances
         except ZeroDivisionError as e:
             self.logger.debug(
@@ -400,25 +402,20 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             # TODO this should use the internal timestamp reference
 
-            time_of_current_observation = to_datetime(timestamp)
             if self.time_of_previous_observation is not None:
                 dt = (
-                    (
-                        time_of_current_observation - self.time_of_previous_observation
-                    ).total_seconds()
-                    / 60
-                    / 60
+                    (timestamp - self.time_of_previous_observation).total_seconds() / 60 / 60
                 )  # delta time in hours
 
                 if dt < 0:
                     self.logger.debug(
-                        f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
+                        f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
                     )
                     return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
             else:
                 dt = 0.0
 
-            self.time_of_previous_observation = time_of_current_observation
+            self.time_of_previous_observation = timestamp
 
         try:
             updated_state = self.ekf.update(list(scaled_observations.values()), dt)

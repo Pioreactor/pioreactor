@@ -8,12 +8,13 @@ from pioreactor.utils import clamp
 from pioreactor.utils.streaming_calculations import PID
 
 
-class Stable(TemperatureAutomationJob):
+class Thermostat(TemperatureAutomationJob):
     """
     Uses a PID controller to change the DC% to match a target temperature.
     """
 
-    automation_name = "stable"
+    MAX_TARGET_TEMP = 50
+    automation_name = "thermostat"
     published_settings = {
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }
@@ -24,9 +25,9 @@ class Stable(TemperatureAutomationJob):
         self.target_temperature = float(target_temperature)
 
         self.pid = PID(
-            Kp=config.getfloat("temperature_automation.stable", "Kp"),
-            Ki=config.getfloat("temperature_automation.stable", "Ki"),
-            Kd=config.getfloat("temperature_automation.stable", "Kd"),
+            Kp=config.getfloat("temperature_automation.thermostat", "Kp"),
+            Ki=config.getfloat("temperature_automation.thermostat", "Ki"),
+            Kd=config.getfloat("temperature_automation.thermostat", "Kd"),
             setpoint=self.target_temperature,
             unit=self.unit,
             experiment=self.experiment,
@@ -54,10 +55,12 @@ class Stable(TemperatureAutomationJob):
 
     def set_target_temperature(self, value: float) -> None:
         value = float(value)
-        if value > 50:
-            self.logger.warning("Values over 50℃ are not supported. Setting to 50℃.")
+        if value > self.MAX_TARGET_TEMP:
+            self.logger.warning(
+                f"Values over {self.MAX_TARGET_TEMP}℃ are not supported. Setting to {self.MAX_TARGET_TEMP}℃."
+            )
 
-        target_temperature = clamp(0, value, 50)
+        target_temperature = clamp(0, value, self.MAX_TARGET_TEMP)
         self.target_temperature = target_temperature
         self.pid.set_setpoint(self.target_temperature)
 
