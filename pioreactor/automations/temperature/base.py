@@ -15,8 +15,7 @@ from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.background_jobs.temperature_control import TemperatureController
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
-from pioreactor.utils.timing import current_utc_timestamp
-from pioreactor.utils.timing import to_datetime
+from pioreactor.utils.timing import current_utc_datetime
 
 
 class TemperatureAutomationJob(BackgroundSubJob):
@@ -58,10 +57,10 @@ class TemperatureAutomationJob(BackgroundSubJob):
     def __init__(self, unit: str, experiment: str, parent: TemperatureController, **kwargs) -> None:
         super(TemperatureAutomationJob, self).__init__(unit=unit, experiment=experiment)
 
-        self.latest_normalized_od_at: datetime = datetime.utcnow()
-        self.latest_growth_rate_at: datetime = datetime.utcnow()
-        self.latest_temperture_at: datetime = datetime.utcnow()
-        self._latest_settings_started_at = current_utc_timestamp()
+        self.latest_normalized_od_at: datetime = current_utc_datetime()
+        self.latest_growth_rate_at: datetime = current_utc_datetime()
+        self.latest_temperture_at: datetime = current_utc_datetime()
+        self._latest_settings_started_at = current_utc_datetime()
 
         self.add_to_published_settings(
             "latest_event",
@@ -121,7 +120,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
                 )
 
         # check most stale time
-        if (datetime.utcnow() - self.most_stale_time).seconds > 5 * 60:
+        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -140,7 +139,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
                 )
 
         # check most stale time
-        if (datetime.utcnow() - self.most_stale_time).seconds > 5 * 60:
+        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
             raise exc.JobRequiredError(
                 "readings are too stale (over 5 minutes old) - are `od_reading` and `growth_rate_calculating` running?"
             )
@@ -150,16 +149,16 @@ class TemperatureAutomationJob(BackgroundSubJob):
     ########## Private & internal methods
 
     def on_disconnected(self) -> None:
-        self._latest_settings_ended_at = current_utc_timestamp()
+        self._latest_settings_ended_at = current_utc_datetime()
         self._send_details_to_mqtt()
 
     def __setattr__(self, name, value) -> None:
         super(TemperatureAutomationJob, self).__setattr__(name, value)
         if name in self.published_settings and name not in ["state", "latest_event"]:
-            self._latest_settings_ended_at = current_utc_timestamp()
+            self._latest_settings_ended_at = current_utc_datetime()
             self._send_details_to_mqtt()
             self._latest_settings_started_at, self._latest_settings_ended_at = (
-                current_utc_timestamp(),
+                current_utc_datetime(),
                 None,
             )
 
@@ -167,7 +166,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
         self.previous_growth_rate = self._latest_growth_rate
         payload = decode(message.payload, type=structs.GrowthRate)
         self._latest_growth_rate = payload.growth_rate
-        self.latest_growth_rate_at = to_datetime(payload.timestamp)
+        self.latest_growth_rate_at = payload.timestamp
 
     def _set_temperature(self, message: pt.MQTTMessage) -> None:
         if not message.payload:
@@ -179,7 +178,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
     def _set_latest_temperature(self, temperature_struct: structs.Temperature) -> None:
         self.previous_temperature = self.latest_temperature
         self.latest_temperature = temperature_struct.temperature
-        self.latest_temperature_at = to_datetime(temperature_struct.timestamp)
+        self.latest_temperature_at = temperature_struct.timestamp
 
         if self.state == self.READY or self.state == self.INIT:
             self.latest_event = self.execute()
@@ -190,7 +189,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
         self.previous_normalized_od = self._latest_normalized_od
         payload = decode(message.payload, type=structs.ODFiltered)
         self._latest_normalized_od = payload.od_filtered
-        self.latest_normalized_od_at = to_datetime(payload.timestamp)
+        self.latest_normalized_od_at = payload.timestamp
 
     def _send_details_to_mqtt(self) -> None:
         self.publish(

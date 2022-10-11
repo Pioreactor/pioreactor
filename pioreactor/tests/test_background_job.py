@@ -395,7 +395,12 @@ def test_dodging() -> None:
     ) as bucket:
         with JustPause():
             with start_od_reading(
-                "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
+                "90",
+                None,
+                unit=get_unit_name(),
+                experiment="test_dodging",
+                fake_data=True,
+                use_calibration=False,
             ):
                 time.sleep(20)
 
@@ -429,7 +434,12 @@ def test_dodging_disabled() -> None:
         assert set(jp.published_settings.keys()) == set(["test", "state", "enable_dodging_od"])
 
         od = start_od_reading(
-            "90", None, unit=get_unit_name(), experiment="test_dodging", fake_data=True
+            "90",
+            None,
+            unit=get_unit_name(),
+            experiment="test_dodging",
+            fake_data=True,
+            use_calibration=False,
         )
         time.sleep(5)
         jp.set_enable_dodging_od(False)

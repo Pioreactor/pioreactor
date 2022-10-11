@@ -33,7 +33,7 @@ from pioreactor.pubsub import publish
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
@@ -356,7 +356,7 @@ def save_results(
         raise ValueError()
 
     data_blob = struct(
-        timestamp=current_utc_timestamp(),
+        timestamp=current_utc_datetime(),
         name=name,
         angle=angle,
         maximum_od600=maximum_od600,

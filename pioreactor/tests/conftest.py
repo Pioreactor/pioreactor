@@ -18,6 +18,7 @@ fake_rpi.toggle_print(False)
 @pytest.fixture(autouse=True)
 def run_around_tests():
     from pioreactor.utils import local_intermittent_storage
+    from pioreactor.utils import local_persistant_storage
 
     with local_intermittent_storage("pio_jobs_running") as cache:
         for key in cache.keys():
@@ -32,6 +33,10 @@ def run_around_tests():
             del cache[key]
 
     with local_intermittent_storage("leds") as cache:
+        for key in cache.keys():
+            del cache[key]
+
+    with local_persistant_storage("current_od_calibration") as cache:
         for key in cache.keys():
             del cache[key]
 

@@ -53,7 +53,6 @@ from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.streaming_calculations import CultureGrowthEKF
-from pioreactor.utils.timing import to_datetime
 
 
 class GrowthRateCalculator(BackgroundJob):
@@ -403,25 +402,20 @@ class GrowthRateCalculator(BackgroundJob):
         else:
             # TODO this should use the internal timestamp reference
 
-            time_of_current_observation = to_datetime(timestamp)
             if self.time_of_previous_observation is not None:
                 dt = (
-                    (
-                        time_of_current_observation - self.time_of_previous_observation
-                    ).total_seconds()
-                    / 60
-                    / 60
+                    (timestamp - self.time_of_previous_observation).total_seconds() / 60 / 60
                 )  # delta time in hours
 
                 if dt < 0:
                     self.logger.debug(
-                        f"Late arriving data: {time_of_current_observation=}, {self.time_of_previous_observation=}"
+                        f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
                     )
                     return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
             else:
                 dt = 0.0
 
-            self.time_of_previous_observation = time_of_current_observation
+            self.time_of_previous_observation = timestamp
 
         try:
             updated_state = self.ekf.update(list(scaled_observations.values()), dt)

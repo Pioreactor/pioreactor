@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import threading
 import time
+from datetime import datetime
+from datetime import timezone
 
 import pytest
 from msgspec.json import encode
@@ -33,7 +35,7 @@ def setup_function():
                 bias_=0.0,
                 dc=60,
                 hz=100,
-                timestamp="2010-01-01",
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="media",
             )
@@ -45,7 +47,7 @@ def setup_function():
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp="2010-01-01",
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="alt_media",
             )
@@ -57,7 +59,7 @@ def setup_function():
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp="2010-01-01",
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="waste",
             )

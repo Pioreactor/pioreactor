@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import datetime
+import sqlite3
 from json import dumps
 from json import loads
 from typing import Callable
@@ -15,9 +17,13 @@ from pioreactor import types as pt
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.pubsub import QOS
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import to_iso_format
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+
+
+sqlite3.register_adapter(datetime.datetime, to_iso_format)
 
 
 class MetaData(Struct):
@@ -133,19 +139,13 @@ def produce_metadata(topic: str) -> MetaData:
 def parse_od(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODReading)
-
-    try:
-        angle = int(od_reading.angle)
-    except TypeError:
-        angle = -1
-
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": od_reading.timestamp,
         "od_reading": od_reading.od,
-        "angle": angle,
-        "channel": od_reading.channel,
+        "angle": int(od_reading.angle),
+        "channel": int(od_reading.channel),
     }
 
 
@@ -248,7 +248,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": current_utc_timestamp(),
+        "timestamp": current_utc_datetime(),
         "message": event.message,
         "data": dumps(event.data) if (event.data is not None) else "",
         "event_name": event.__class__.__struct_tag__,  # type: ignore
@@ -262,7 +262,7 @@ def parse_alt_media_fraction(topic: str, payload: pt.MQTTMessagePayload) -> dict
     return {
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
-        "timestamp": current_utc_timestamp(),
+        "timestamp": current_utc_datetime(),
         "alt_media_fraction": float(payload),
     }
 

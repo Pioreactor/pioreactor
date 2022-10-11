@@ -1030,7 +1030,7 @@ class ODReader(BackgroundJob):
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 sleep(0.05)
-                timestamp_of_readings = timing.current_utc_timestamp()
+                timestamp_of_readings = timing.current_utc_datetime()
                 od_reading_by_channel = self._read_from_adc_and_transform()
 
                 od_readings = structs.ODReadings(
@@ -1156,7 +1156,7 @@ class ODReader(BackgroundJob):
 
     @staticmethod
     def _log_relative_intensity_of_ir_led(cls, od_readings) -> None:
-        if int(od_readings.timestamp[-3:-1]) % 8 == 0:  # some pseudo randomness
+        if od_readings.timestamp.microsecond % 8 == 0:  # some pseudo randomness
             cls.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
                 "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker.transform(1.0),

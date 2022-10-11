@@ -19,7 +19,7 @@ from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -90,7 +90,7 @@ def _pump(
                     if continuously:
                         calibration = structs.PumpCalibration(
                             name="cont",
-                            timestamp=current_utc_timestamp(),
+                            timestamp=current_utc_datetime(),
                             pump=pump_type,
                             duration_=1.0,
                             hz=200.0,
@@ -140,7 +140,7 @@ def _pump(
                 volume_change=ml,
                 event=action_name,
                 source_of_event=source_of_event,
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
             )
         )
         publish(

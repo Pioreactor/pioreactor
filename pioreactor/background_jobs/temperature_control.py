@@ -43,7 +43,7 @@ from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.pwm import PWM
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
@@ -87,7 +87,7 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 60.0  # ~PLA glass transition temp
+    MAX_TEMP_TO_REDUCE_HEATING = 61.5  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
     job_name = "temperature_control"
@@ -169,7 +169,7 @@ class TemperatureController(BackgroundJob):
         if not self.using_third_party_thermocouple:
             self.temperature = Temperature(
                 temperature=self.read_external_temperature(),
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
             )
 
     def turn_off_heater(self) -> None:
@@ -362,7 +362,7 @@ class TemperatureController(BackgroundJob):
             self.automation_job.clean_up()
 
         with local_intermittent_storage("last_heating_timestamp") as cache:
-            cache["last_heating_timestamp"] = current_utc_timestamp()
+            cache["last_heating_timestamp"] = current_utc_datetime()
 
     def setup_pwm(self) -> PWM:
         hertz = 6  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -435,7 +435,7 @@ class TemperatureController(BackgroundJob):
         try:
             self.temperature = Temperature(
                 temperature=self.approximate_temperature(features),
-                timestamp=current_utc_timestamp(),
+                timestamp=current_utc_datetime(),
             )
         except Exception as e:
             self.logger.debug(e, exc_info=True)
@@ -502,6 +502,7 @@ class TemperatureController(BackgroundJob):
         #  A=-0.0010607908095388548, B=-0.18749701076543562
         #  A=-0.0010514517340740343, B=-0.18756448817069307
         #  A=-0.0012910773630121675, B=-0.19066684235126932
+        #  A=-0.0010558024149891808, B=-0.1613921733824975 (Oct 10, 2022)
 
         A_penalizer, A_prior = 100.0, -0.0011
         B_penalizer, B_prior = 20.0, -0.170
