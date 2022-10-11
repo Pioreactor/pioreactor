@@ -21,7 +21,7 @@ from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import residuals_of_simple_linear_regression
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.utils.math_helpers import trimmed_variance
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -168,7 +168,7 @@ def od_blank(
                     f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
                     encode(
                         structs.ODReading(
-                            timestamp=current_utc_timestamp(),
+                            timestamp=current_utc_datetime(),
                             channel=channel,
                             od=means[channel],
                             angle=config.get(
@@ -218,7 +218,7 @@ def od_blank(
     help="don't use feedback loop for stirring",
     is_flag=True,
 )
-def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples, ignore_rpm):
+def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples: int, ignore_rpm: bool) -> None:
     """
     Compute statistics about the blank OD time series
     """

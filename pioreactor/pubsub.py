@@ -9,7 +9,7 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-from paho.mqtt.client import Client as PahoClient
+from paho.mqtt.client import Client as PahoClient  # type: ignore
 
 from pioreactor.config import leader_address
 from pioreactor.types import MQTTMessage
