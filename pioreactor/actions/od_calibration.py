@@ -387,7 +387,7 @@ def od_calibration() -> None:
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
-    if is_pio_job_running("stirring", "od_reading"):
+    if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Stirring and OD reading should be turned off.")
 
     with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):

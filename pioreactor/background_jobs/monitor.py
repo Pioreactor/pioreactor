@@ -175,7 +175,7 @@ class Monitor(BackgroundJob):
             self.check_for_mqtt_connection_to_leader()
 
     def check_for_required_jobs_running(self):
-        if not utils.is_pio_job_running("watchdog", "mqtt_to_db_streaming"):
+        if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
             self.logger.debug(
                 "watchdog and mqtt_to_db_streaming should be running on leader. Double check."
             )

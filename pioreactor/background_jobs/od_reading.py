@@ -671,6 +671,10 @@ class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
     def transform(self, od_reading: float) -> float:
         led_output = self.led_output_ema()
         assert led_output is not None
+        if led_output <= 0:
+            raise ValueError(
+                "IR Reference is 0.0. Is it connected correctly? Is the IR LED working?"
+            )
         return od_reading / led_output
 
 
@@ -740,6 +744,10 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     def transform(self, od_reading: float) -> float:
         led_output = self.led_output_ema()
         assert led_output is not None
+        if led_output <= 0:
+            raise ValueError(
+                "IR Reference is 0.0. Is it connected correctly? Is the IR LED working?"
+            )
         return od_reading / led_output
 
 
@@ -749,7 +757,7 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
         self.logger.debug("Not using any IR LED reference.")
 
     def get_reference_reading(self, batched_readings) -> float:
-        return 0.0
+        return 1.0
 
 
 class CalibrationTransformer(LoggerMixin):
@@ -992,6 +1000,7 @@ class ODReader(BackgroundJob):
             self.record_from_adc_timer = timing.RepeatedTimer(
                 self.interval,
                 self.record_from_adc,
+                job_name=self.job_name,
                 run_immediately=True,
             ).start()
 
