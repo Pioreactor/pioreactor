@@ -945,6 +945,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     """
 
+    OD_READING_DURATION = 1.0
     sneak_in_timer: RepeatedTimer
 
     def __init__(self, *args, source="app", **kwargs):
@@ -1007,12 +1008,22 @@ class BackgroundJobWithDodging(_BackgroundJob):
         post_delay = config.getfloat(self.job_name, "post_delay_duration", fallback=1.0)
         pre_delay = config.getfloat(self.job_name, "pre_delay_duration", fallback=1.0)
 
+        if post_delay <= 0.25:
+            self.logger.warning(
+                "For optimal OD readings, keep `post_delay_duration` more than 0.25 seconds."
+            )
+
+        if pre_delay <= 0.1:
+            self.logger.warning(
+                "For optimal OD readings, keep `pre_delay_duration` more than 0.1 seconds."
+            )
+
         def sneak_in() -> None:
             if self.state != self.READY:
                 return
 
             self.action_to_do_after_od_reading()
-            sleep(ads_interval - 1 - (post_delay + pre_delay))
+            sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
             self.action_to_do_before_od_reading()
 
         # this could fail in the following way:
@@ -1034,8 +1045,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         else:
             return
 
-        # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - 1, one second for the ADS reading
-        if not (ads_interval - 1 > (post_delay + pre_delay)):
+        # get interval, and confirm that the requirements are possible: post_delay + pre_delay <= ADS interval - (od reading duration)
+        if not (ads_interval - self.OD_READING_DURATION > (post_delay + pre_delay)):
             self.logger.error(
                 f"Your {pre_delay=} or {post_delay=} is too high for the samples_per_second={1/ads_interval}. Either decrease pre_delay or post_delay, or decrease samples_per_second"
             )
@@ -1045,7 +1056,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
         time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
 
-        sleep(time_to_next_ads_reading + post_delay)
+        sleep(time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION))
         self.sneak_in_timer.start()
 
     def on_sleeping(self):

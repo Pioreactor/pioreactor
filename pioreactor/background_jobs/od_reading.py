@@ -159,7 +159,7 @@ class ADCReader(LoggerMixin):
         16: 0.256,
     }
 
-    oversampling_count: int = 26
+    oversampling_count: int = 27
     readings_completed: int = 0
     _setup_complete = False
 
@@ -483,8 +483,8 @@ class ADCReader(LoggerMixin):
                         max(
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
-                            + 0.80 / (oversampling_count - 1)
-                            + 0.001
+                            + 0.85 / (oversampling_count - 1)
+                            + 0.0015
                             * (
                                 (counter * 0.618034) % 1
                             ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
@@ -600,84 +600,6 @@ class IrLedReferenceTracker(LoggerMixin):
         return x
 
 
-class PhotodiodeIrLedReferenceTracker(IrLedReferenceTracker):
-    """
-    This class contains the logic on how we incorporate the
-    direct IR LED output into OD readings.
-
-    Tracking and "normalizing" (see below) the OD signals by the IR LED output is important
-    because the OD signal is linearly proportional to the LED output.
-
-    The following are causes of LED output changing:
-    - change in temperature of LED, caused by change in ambient temperature, or change in intensity of LED
-    - LED dimming over time
-    - drop in 3.3V rail -> changes the reference voltage for LED driver -> changes the output
-
-    Internally, we track the _initial_ led output signal, and use this as a reference value. For example, let's say
-    that the blank led output signal (i.e. led intensity is 0%, but we still detect a small value) is 0.0001,
-    and the initial led output is 0.1. The latest IR led output is 0.09 (perhaps the ambient temp increased),
-    so then we use the factor: (0.09 - 0.0001) / (0.1 - 0.0001) = 0.8998998999
-
-    This factor is then used to normalize OD readings. Let's say the OD reading is 0.45, so the new value
-    is 0.45 / 0.8998998999 = 0.500055617
-
-    Inside, we also use an EMA to smooth the LED output readings, to reduce noise in this signal.
-
-    """
-
-    def __init__(self, channel: pt.PdChannel, ignore_blank: bool = False) -> None:
-        super().__init__()
-        self.led_output_ema = ExponentialMovingAverage(
-            config.getfloat("od_config", "pd_reference_ema")
-        )
-        self.initial_led_output: Optional[float] = None
-        self.channel = channel
-        self.ignore_blank = ignore_blank
-        self._count = 0
-        self.blank_reading = 0.0
-        self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
-
-    def update(self, ir_output_reading: float) -> None:
-        if self.initial_led_output is None:
-            self.initial_led_output = ir_output_reading
-            self.logger.debug(f"{self.initial_led_output=}")
-            self._count = 1
-        elif self._count < 13:  # dumb way to take average of the first N values...
-            self.initial_led_output = (
-                self.initial_led_output * self._count + ir_output_reading
-            ) / (self._count + 1)
-            self._count += 1
-            self.logger.debug(f"{self.initial_led_output=}")
-
-        # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
-        self.led_output_ema.update(
-            (ir_output_reading - self.blank_reading)
-            / (self.initial_led_output - self.blank_reading)
-        )
-
-    def set_blank(self, ir_output_reading: float) -> None:
-        if not self.ignore_blank:
-            self.blank_reading = ir_output_reading
-            self.logger.debug(f"{self.blank_reading=}")
-            if self.blank_reading > 0.005:
-                self.logger.warning(
-                    "REF blank reading is unusually high. Is the cap secure, or is there lots of ambient IR light present from sunny window, etc.?"
-                )
-        return
-
-    def __call__(self, batched_readings: PdChannelToFloat) -> PdChannelToFloat:
-        return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
-
-    def transform(self, od_reading: float) -> float:
-        led_output = self.led_output_ema()
-        assert led_output is not None
-        if led_output <= 0:
-            raise ValueError(
-                "IR Reference is 0.0. Is it connected correctly? Is the IR LED working?"
-            )
-        return od_reading / led_output
-
-
 class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     """
     This class contains the logic on how we incorporate the
@@ -691,8 +613,8 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     - LED dimming over time
     - drop in 3.3V rail -> changes the reference voltage for LED driver -> changes the output
 
-    Unlike PhotodiodeIrLedReferenceTracker, instead of recording the _initial_ led value, we hardcode it to something. Why?
-    In PhotodiodeIrLedReferenceTracker, the transform OD reading is proportional to the initial LED value:
+    Unlike other models (see git history), instead of recording the _initial_ led value, we hardcode it to something. Why?
+    In PhotodiodeIrLedReferenceTracker (see git history), the transform OD reading is proportional to the initial LED value:
 
     OD = RAW / (REF / INITIAL)
        = INITIAL * RAW / REF
