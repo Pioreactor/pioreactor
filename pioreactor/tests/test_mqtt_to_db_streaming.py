@@ -150,7 +150,7 @@ def test_calibration_gets_saved() -> None:
         assert len(results) == 3
         assert results[2][2] == "led"
         assert datetime.fromisoformat(results[2][1])
-        assert results[2][1].endswith("Z")
+        assert datetime.strptime(results[2][1], "%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def test_kalman_filter_entries() -> None:
