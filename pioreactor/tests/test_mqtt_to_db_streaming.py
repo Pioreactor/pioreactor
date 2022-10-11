@@ -18,11 +18,11 @@ from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
 
 
-def test_updated_heater_dc():
+def test_updated_heater_dc() -> None:
     unit = get_unit_name()
     exp = "test_updated_heater_dc"
     connection = sqlite3.connect(config["storage"]["database"])
@@ -136,7 +136,7 @@ def test_calibration_gets_saved() -> None:
             f"pioreactor/{unit}/test/calibrations",
             encode(
                 LEDCalibration(
-                    timestamp=current_utc_timestamp(),
+                    timestamp=current_utc_datetime(),
                 )
             ),
         )
@@ -149,7 +149,7 @@ def test_calibration_gets_saved() -> None:
         results = cursor.fetchall()
         assert len(results) == 3
         assert results[2][2] == "led"
-        assert datetime.strptime(results[2][1], "%Y-%m-%dT%H:%M:%S.%fZ")
+        assert datetime.fromisoformat(results[2][1])
 
 
 def test_kalman_filter_entries() -> None:
