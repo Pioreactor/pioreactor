@@ -465,7 +465,6 @@ class Monitor(BackgroundJob):
                 state,
                 unit=self.unit,
                 experiment=exp,
-                source_of_event="ui",
                 pubsub_client=self.pub_client,
                 **payload,
             )
