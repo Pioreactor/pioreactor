@@ -31,6 +31,7 @@ package-lock.json
 /coverage
 npm-debug.log*
 
+/build/
 
 
 packages/react-devtools-core/dist

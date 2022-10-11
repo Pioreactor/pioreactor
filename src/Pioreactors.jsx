@@ -722,10 +722,10 @@ function SelfTestDialog(props) {
     if (props.selfTestTests == null){
       return <IndeterminateCheckBoxIcon />
     }
-    else if (props.selfTestTests[key].value === 1){
+    else if (props.selfTestTests.publishedSettings[key].value === 1){
       return <CheckIcon className={classes.readyGreen}/>
     }
-    else if (props.selfTestTests[key].value === 0){
+    else if (props.selfTestTests.publishedSettings[key].value === 0){
       return <CloseIcon className={classes.lostRed}/>
     }
     else if (state === "ready") {
@@ -772,7 +772,7 @@ function SelfTestDialog(props) {
       return <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/>
     }
     else {
-      return props.selfTestTests["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/>
+      return props.selfTestTests.publishedSettings["all_tests_passed"].value ? <CheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/> : <IndeterminateCheckBoxOutlinedIcon color={colorOfIcon()} fontSize="15" classes={{root: classes.textIcon}}/>
     }
   }
 
@@ -829,7 +829,7 @@ function SelfTestDialog(props) {
                 </ListItemIcon>
                 <ListItemText primary="Photodiodes are responsive to IR LED" secondary={
                     props.selfTestTests ?
-                      JSON.parse(props.selfTestTests["correlations_between_pds_and_leds"].value).map(led_pd => `${led_pd[0]} ⇝ ${led_pd[1]}`).join(",  ") :
+                      JSON.parse(props.selfTestTests.publishedSettings["correlations_between_pds_and_leds"].value).map(led_pd => `${led_pd[0]} ⇝ ${led_pd[1]}`).join(",  ") :
                       ""
                     }/>
               </ListItem>
@@ -1120,6 +1120,8 @@ function SettingsActionsDialog(props) {
   var temperatureControlJob = props.jobs.temperature_control
   var temperatureControlJobRunning = ["ready", "sleeping", "init"].includes(temperatureControlJob?.state)
 
+
+
   return (
     <div>
     <Button style={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
@@ -1172,7 +1174,7 @@ function SettingsActionsDialog(props) {
                   {job.metadata.display_name}
                 </Typography>
                 <Typography display="block" gutterBottom>
-                  <span style={{color:stateDisplay[job.state].color}}>{stateDisplay[job.state].display}</span>
+                  <span style={{color: stateDisplay[job.state].color}}>{stateDisplay[job.state].display}</span>
                 </Typography>
               </div>
               <Typography variant="caption" display="block" gutterBottom color="textSecondary">
@@ -1206,7 +1208,7 @@ function SettingsActionsDialog(props) {
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running temperature automation <code>{temperatureControlJob.automation_name.value}</code>.
+                Currently running temperature automation <code>{temperatureControlJob.publishedSettings.automation_name.value}</code>.
                 Learn more about <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/temperature-automations">temperature automations</a>.
                 </Typography>
                 {buttons[temperatureControlJob.metadata.key]}
@@ -1272,7 +1274,7 @@ function SettingsActionsDialog(props) {
               {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running dosing automation <code>{dosingControlJob.automation_name.value}</code>.
+                Currently running dosing automation <code>{dosingControlJob.publishedSettings.automation_name.value}</code>.
                 Learn more about <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/dosing-automations">dosing automations</a>.
                 </Typography>
                 {buttons[dosingControlJob.metadata.key]}
@@ -1339,7 +1341,7 @@ function SettingsActionsDialog(props) {
               {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running LED automation <code>{ledControlJob.automation_name.value}</code>.
+                Currently running LED automation <code>{ledControlJob.publishedSettings.automation_name.value}</code>.
                 Learn more about <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/led-automations">LED automations</a>.
                 </Typography>
                 {buttons[ledControlJob.metadata.key]}
@@ -1413,51 +1415,50 @@ function SettingsActionsDialog(props) {
           />
           <Divider className={classes.divider} />
 
-
           {Object.values(props.jobs)
             .filter(job => job.metadata.display)
-            .map(job =>
-            Object.entries(job)
-              .filter(([key, setting]) => (key !== "state") && (key !== "metadata"))
-              .filter(([_, setting]) => setting.display)
-              .map(([key, setting]) =>
-            <React.Fragment key={key}>
-              <Typography  gutterBottom>
-                {setting.label}
-              </Typography>
-              <Typography variant="body2" component="p">
-                {setting.description}
-              </Typography>
+            .map(job => [job.state, job.metadata.key, job.publishedSettings])
+            .map(([state, job_key, settings], index) => (
+              Object.entries(settings)
+                .filter(([setting_key, setting],_) => setting.display)
+                .map(([setting_key, setting],_) =>
+                        <React.Fragment key={setting_key}>
+                          <Typography  gutterBottom>
+                            {setting.label}
+                          </Typography>
+                          <Typography variant="body2" component="p">
+                            {setting.description}
+                          </Typography>
 
-              {(setting.type === "boolean") && (
-                <Switch
-                  defaultChecked={setting.value}
-                  onChange={setPioreactorJobAttrOnSwitch()}
-                  id={`${job.metadata.key.replace("_control", "_automation")}/${key}`}
-                />
-              )}
+                          {(setting.type === "boolean") && (
+                            <Switch
+                              defaultChecked={setting.value}
+                              disabled={state === "disconnected"}
+                              onChange={setPioreactorJobAttrOnSwitch()}
+                              id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                            />
+                          )}
 
-              {(setting.type !== "boolean") && (
-                <TextField
-                  size="small"
-                  autoComplete="off"
-                  id={`${job.metadata.key.replace("_control", "_automation")}/${key}`}
-                  defaultValue={setting.value}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">{setting.unit}</InputAdornment>,
-                    autoComplete: 'new-password',
-                  }}
-                  variant="outlined"
-                  onKeyPress={setPioreactorJobAttrOnEnter(setting.unit)}
-                  className={classes.textFieldCompact}
-                />
-              )}
+                          {(setting.type !== "boolean") && (
+                            <TextField
+                              size="small"
+                              autoComplete="off"
+                              disabled={state === "disconnected"}
+                              id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                              defaultValue={setting.value}
+                              InputProps={{
+                                endAdornment: <InputAdornment position="end">{setting.unit}</InputAdornment>,
+                                autoComplete: 'new-password',
+                              }}
+                              variant="outlined"
+                              onKeyPress={setPioreactorJobAttrOnEnter(setting.unit)}
+                              className={classes.textFieldCompact}
+                            />
+                          )}
 
-
-              <Divider className={classes.divider} />
-            </React.Fragment>
-
-          ))}
+                          <Divider className={classes.divider} />
+                        </React.Fragment>
+          )))}
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
@@ -1591,12 +1592,13 @@ function SettingsActionsDialogAll({config, experiment}) {
             }
           })
         .then((listOfJobs) => {
+          // TODO
           var jobs_ = {}
           for (const job of listOfJobs){
-            var metaData_ = {state: "disconnected", metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source:job.source}}
+            var metaData_ = {state: "disconnected", publishedSettings: {}, metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source:job.source}}
             for(var i = 0; i < job["published_settings"].length; ++i){
               var field = job["published_settings"][i]
-              metaData_[field.key] = {value: field.default, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
+              metaData_.publishedSettings[field.key] = {value: field.default, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
             }
             jobs_[job.job_name] = metaData_
           }
@@ -1935,35 +1937,35 @@ function SettingsActionsDialogAll({config, experiment}) {
         <TabPanel value={tabValue} index={1}>
           {Object.values(jobs)
             .filter(job => job.metadata.display)
-            .map(job =>
-            Object.entries(job)
-              .filter(([key, _]) => (key !== "state") && (key !== "metadata"))
-              .filter(([_, setting]) => setting.display)
-              .map(([key, setting]) =>
-            <React.Fragment key={key}>
-              <Typography  gutterBottom>
-                {setting.label}
-              </Typography>
-              <Typography variant="body2" component="p">
-                {setting.description}
-              </Typography>
-              <TextField
-                size="small"
-                autoComplete="off"
-                id={`${job.metadata.key.replace("_control", "_automation")}/${key}`}
-                key={key}
-                defaultValue={setting.value}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">{setting.unit}</InputAdornment>,
-                }}
-                variant="outlined"
-                onKeyPress={setPioreactorJobAttrOnEnter(setting.unit)}
-                className={classes.textFieldCompact}
-              />
-              <Divider classes={{root: classes.divider}} />
-            </React.Fragment>
+            .map(job => [job.state, job.metadata.key, job.publishedSettings])
+            .map(([state, job_key, settings], index) => (
+              Object.entries(settings)
+                .filter(([setting_key, setting],_) => setting.display)
+                .map(([setting_key, setting],_) =>
+              <React.Fragment key={setting_key}>
+                <Typography  gutterBottom>
+                  {setting.label}
+                </Typography>
+                <Typography variant="body2" component="p">
+                  {setting.description}
+                </Typography>
+                <TextField
+                  size="small"
+                  autoComplete="off"
+                  id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                  key={setting_key}
+                  defaultValue={setting.value}
+                  InputProps={{
+                    endAdornment: <InputAdornment position="end">{setting.unit}</InputAdornment>,
+                  }}
+                  variant="outlined"
+                  onKeyPress={setPioreactorJobAttrOnEnter(setting.unit)}
+                  className={classes.textFieldCompact}
+                />
+                <Divider classes={{root: classes.divider}} />
+              </React.Fragment>
 
-          ))}
+          )))}
 
         </TabPanel>
         <TabPanel value={tabValue} index={2}>
@@ -2141,7 +2143,7 @@ function PioreactorCard(props){
   const [client, setClient] = useState(null)
   const [jobs, setJobs] = useState({
     monitor: {
-      state : "disconnected", metadata: {display: false}
+      state : "disconnected", metadata: {display: false}, publishedSettings: {}
     },
   })
 
@@ -2164,10 +2166,10 @@ function PioreactorCard(props){
         .then((listOfJobs) => {
           var jobs_ = {}
           for (const job of listOfJobs){
-            var metaData_ = {state: "disconnected", metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source: job.source, is_testing: job.is_testing}}
+            var metaData_ = {state: "disconnected", publishedSettings: {}, metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source: job.source, is_testing: job.is_testing}}
             for(var i = 0; i < job["published_settings"].length; ++i){
               var field = job["published_settings"][i]
-              metaData_[field.key] = {value: field.default, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
+              metaData_.publishedSettings[field.key] = {value: field.default, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
             }
             jobs_[job.job_name] = metaData_
           }
@@ -2189,8 +2191,7 @@ function PioreactorCard(props){
         const experimentName = jobs[job].metadata.is_testing ? "_testing_" + experiment : experiment
 
         client.subscribe(["pioreactor", unit, experimentName, job, "$state"].join("/"));
-        for (const setting of Object.keys(jobs[job])){
-          if ((setting !== "state") && (setting !== "metadata")){
+        for (const setting of Object.keys(jobs[job].publishedSettings)){
             var topic = [
               "pioreactor",
               unit,
@@ -2199,7 +2200,6 @@ function PioreactorCard(props){
               setting
             ].join("/")
             client.subscribe(topic);
-          }
         }
       }
     }
@@ -2213,9 +2213,13 @@ function PioreactorCard(props){
       } else if (job.endsWith("_automation")) {
         // needed because settings are attached to _automations, not _control
         job = job.replace("_automation", "_control")
-        setJobs((prev) => ({...prev, [job]: {...prev[job], [setting]: {...prev[job][setting], value: payload }}}))
+        setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
+            {...prev[job].publishedSettings,
+              [setting]:
+                {...prev[job].publishedSettings[setting], value: payload }}}}))
       } else {
-        setJobs((prev) => ({...prev, [job]: {...prev[job], [setting]: {...prev[job][setting], value: payload }}}))
+
+        setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings: {...prev[job].publishedSettings, [setting]: {...prev[job].publishedSettings[setting], value: payload }}}}))
       }
     }
 
@@ -2319,7 +2323,7 @@ function PioreactorCard(props){
               <div>
                 <CalibrateDialog
                   client={client}
-                  odBlankReading={jobs['od_blank'] ? jobs['od_blank'].means.value : null}
+                  odBlankReading={jobs['od_blank'] ? jobs['od_blank'].publishedSettings.means.value : null}
                   odBlankJobState={jobs['od_blank'] ? jobs['od_blank'].state : null}
                   stirringCalibrationState={jobs['stirring_calibration'] ? jobs['stirring_calibration'].state : null}
                   experiment={experiment}
@@ -2369,7 +2373,7 @@ function PioreactorCard(props){
                 value={job.state}
                 isUnitActive={isUnitActive}
                 default="disconnected"
-                subtext={job.metadata.subtext ? job[job.metadata.subtext].value : null}
+                subtext={job.metadata.subtext ? job.publishedSettings[job.metadata.subtext].value : null}
                 isStateSetting
               />
             </div>
@@ -2392,29 +2396,29 @@ function PioreactorCard(props){
             </Box>
           </Typography>
         </div>
-        <div
-         className={classes.rowOfUnitSettingDisplay}
-        >
-          {Object.values(jobs).map(job =>
-            Object.entries(job)
-              .filter(([key, setting]) => (key !== "state") && (key !== "metadata"))
-              .filter(([_, setting]) => setting.display)
-              .map(([key, setting]) =>
-            <div className={classes.textbox} key={job.metadata.key + key}>
-              <Typography variant="body2" style={{fontSize: "0.84rem"}} className={clsx({[classes.disabledText]: !isUnitActive})}>
-                {setting.label}
-              </Typography>
-              <UnitSettingDisplay
-                value={setting.value}
-                isUnitActive={isUnitActive}
-                measurementUnit={setting.unit}
-                precision={2}
-                default="—"
-                isLEDIntensity={setting.label === "LED intensity"}
-                config={props.config}
-              />
-            </div>
-         ))}
+        <div className={classes.rowOfUnitSettingDisplay}>
+          {Object.values(jobs)
+            //.filter(job => (job.state !== "disconnected") || (job.metadata.key === "leds"))
+            .map(job => [job.state, job.metadata.key, job.publishedSettings])
+            .map(([state, job_key, settings], index) => (
+              Object.entries(settings)
+                .filter(([setting_key, setting], _) => setting.display)
+                .map(([setting_key, setting], _) =>
+                  <div className={classes.textbox} key={job_key + setting_key}>
+                    <Typography variant="body2" style={{fontSize: "0.84rem"}} className={clsx({[classes.disabledText]: !isUnitActive})}>
+                      {setting.label}
+                    </Typography>
+                    <UnitSettingDisplay
+                      value={setting.value}
+                      isUnitActive={isUnitActive}
+                      measurementUnit={setting.unit}
+                      precision={2}
+                      default="—"
+                      isLEDIntensity={setting.label === "LED intensity"}
+                      config={props.config}
+                    />
+                  </div>
+            )))}
         </div>
       </div>
 
