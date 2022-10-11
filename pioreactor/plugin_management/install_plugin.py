@@ -12,7 +12,7 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 def install_plugin(name_of_plugin, source=None):
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
-
+    logger.debug(f"Installing plugin {name_of_plugin}.")
     result = subprocess.run(
         [
             "bash",
