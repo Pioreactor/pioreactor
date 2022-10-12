@@ -23,6 +23,9 @@ class MockI2C:
     def unlock(self, *args, **kwargs) -> None:
         pass
 
+    def readfrom_into(self, add, buffer, start=0, end=1_000_000):
+        pass
+
     def __enter__(self) -> MockI2C:
         return self
 

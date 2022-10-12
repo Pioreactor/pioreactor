@@ -726,6 +726,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _remove_from_cache(self):
         with local_intermittent_storage("pio_jobs_running") as cache:
             if self.job_name in cache:
+                self.logger.debug(f"del cache[{self.job_name}]")
                 del cache[self.job_name]
 
     def _disconnect_from_loggers(self):
