@@ -377,7 +377,6 @@ class BatchTestRunner:
                 test(logger, unit, experiment_name)
                 res = True
             except Exception as e:
-                logger.info(e)
                 logger.debug(e, exc_info=True)
 
             logger.debug(f"{test_name}: {'✅' if res else '❌'}")
@@ -404,6 +403,7 @@ def click_self_test(k: str) -> int:
     testing_experiment = get_latest_testing_experiment_name()
     experiment = get_latest_experiment_name()
     logger = create_logger("self_test", unit=unit, experiment=experiment)
+    logger.info("Starting self-test...")
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
         if any(is_pio_job_running(["od_reading", "temperature_automation", "stirring"])):

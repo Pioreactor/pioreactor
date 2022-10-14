@@ -149,7 +149,6 @@ def test_calibration_gets_saved() -> None:
         results = cursor.fetchall()
         assert len(results) == 3
         assert results[2][2] == "led"
-        assert datetime.fromisoformat(results[2][1])
         assert datetime.strptime(results[2][1], "%Y-%m-%dT%H:%M:%S.%fZ")
 
 

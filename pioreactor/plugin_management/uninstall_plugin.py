@@ -13,6 +13,7 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 def uninstall_plugin(name_of_plugin):
 
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
+    logger.debug(f"Uninstalling plugin {name_of_plugin}.")
 
     result = subprocess.run(
         [
@@ -22,8 +23,9 @@ def uninstall_plugin(name_of_plugin):
         ],
         capture_output=True,
     )
-
-    if result.returncode == 0:
+    if "as it is not installed" in result.stdout:
+        logger.warning(result.stdout)
+    elif result.returncode == 0:
         logger.notice(f"Successfully uninstalled plugin {name_of_plugin}.")
     else:
         logger.error(f"Failed to uninstall plugin {name_of_plugin}. See logs.")

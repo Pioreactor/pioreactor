@@ -7,6 +7,7 @@ import pytest
 
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import BackgroundJobWithDodging
+from pioreactor.background_jobs.od_reading import ODReader
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.config import config
 from pioreactor.pubsub import collect_all_logs_of_level
@@ -374,9 +375,18 @@ def test_cleans_up_mqtt() -> None:
 def test_dodging() -> None:
 
     config["just_pause"] = {}
-    config["just_pause"]["post_delay_duration"] = "0.2"
-    config["just_pause"]["pre_delay_duration"] = "0.1"
+    config["just_pause"]["post_delay_duration"] = "0.75"
+    config["just_pause"]["pre_delay_duration"] = "0.25"
     config["just_pause"]["enable_dodging_od"] = "1"
+
+    def post_cb(od_job, batched_readings, *args):
+        od_job.logger.notice(f"Done OD Reading at {time.time()}")
+
+    def pre_cb(od_job, *args):
+        od_job.logger.notice(f"Start OD Reading at {time.time()}")
+
+    ODReader.add_pre_read_callback(pre_cb)
+    ODReader.add_post_read_callback(post_cb)
 
     class JustPause(BackgroundJobWithDodging):
         job_name = "just_pause"
@@ -385,30 +395,35 @@ def test_dodging() -> None:
             super().__init__(unit=get_unit_name(), experiment="test_dodging")
 
         def action_to_do_before_od_reading(self):
-            self.logger.notice("Pausing")
+            self.logger.notice(f"   Pausing at {time.time()} 🛑")
 
         def action_to_do_after_od_reading(self):
-            self.logger.notice("Unpausing")
+            self.logger.notice(f"   Unpausing at {time.time()} 🟢")
+
+    st = start_od_reading(
+        "90",
+        None,
+        unit=get_unit_name(),
+        experiment="test_dodging",
+        fake_data=True,
+        use_calibration=False,
+    )
+    time.sleep(5)
 
     with collect_all_logs_of_level(
         "NOTICE", unit=get_unit_name(), experiment="test_dodging"
     ) as bucket:
         with JustPause():
-            with start_od_reading(
-                "90",
-                None,
-                unit=get_unit_name(),
-                experiment="test_dodging",
-                fake_data=True,
-                use_calibration=False,
-            ):
-                time.sleep(20)
+            time.sleep(26)
+            assert len(bucket) > 4, bucket
 
-                assert len(bucket) > 4, bucket
+    st.clean_up()
+    ODReader._post_read.clear()
 
 
-def test_dodging_disabled() -> None:
+def test_disabled_dodging() -> None:
 
+    exp = "test_disabled_dodging"
     config["just_pause"] = {}
     config["just_pause"]["post_delay_duration"] = "0.2"
     config["just_pause"]["pre_delay_duration"] = "0.1"
@@ -419,7 +434,7 @@ def test_dodging_disabled() -> None:
         published_settings = {"test": {"datatype": "float", "settable": True}}
 
         def __init__(self):
-            super().__init__(unit=get_unit_name(), experiment="test_dodging")
+            super().__init__(unit=get_unit_name(), experiment=exp)
 
         def action_to_do_before_od_reading(self):
             self.logger.notice("Pausing")
@@ -427,9 +442,7 @@ def test_dodging_disabled() -> None:
         def action_to_do_after_od_reading(self):
             self.logger.notice("Unpausing")
 
-    with collect_all_logs_of_level(
-        "NOTICE", unit=get_unit_name(), experiment="test_dodging"
-    ) as bucket:
+    with collect_all_logs_of_level("NOTICE", unit=get_unit_name(), experiment=exp) as bucket:
         jp = JustPause()
         assert set(jp.published_settings.keys()) == set(["test", "state", "enable_dodging_od"])
 
@@ -437,7 +450,7 @@ def test_dodging_disabled() -> None:
             "90",
             None,
             unit=get_unit_name(),
-            experiment="test_dodging",
+            experiment=exp,
             fake_data=True,
             use_calibration=False,
         )
