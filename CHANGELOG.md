@@ -1,3 +1,6 @@
+### 22.10.1
+ - `BackgroundJobWithDodging` now looks for the config.ini section `[<job_name>.config]`.
+
 ### 22.10.0
  - New API for adding SQL tables via plugins, and for registering MQTT -> DB parsers.
  - New topic for experiment name in MQTT: `pioreactor/latest_experiment/experiment`.
