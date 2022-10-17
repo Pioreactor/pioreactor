@@ -1,0 +1,71 @@
+name: Build
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: 🔨 Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: 🏗 Set up Python 3.9
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.9
+      - name: 🏗 Install build dependencies
+        run: |
+          python -m pip install wheel --user
+      - name: 🔨 Build a binary wheel and a source tarball
+        run: |
+          python -m build --wheel
+      - name: ⬆ Upload build result
+        uses: actions/upload-artifact@v1
+        with:
+          name: dist
+          path: dist
+      - name: ➕ Upload wheel to GH release page
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/*.whl
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+
+
+  publish-on-pypi:
+    name: 📦 Publish tagged releases to PyPI
+    if: github.event_name == 'release' && github.repository == 'Pioreactor/pioreactor'
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇ Download build result
+        uses: actions/download-artifact@v1
+        with:
+          name: dist
+          path: dist
+      - name: 📦 Publish to index
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PIOREACTOR_PYPI_API_TOKEN }}
+
+  notify-custopizer-build:
+    name: 📧 Notify Pioreactor/CustoPizer
+    if: github.event_name == 'release' && github.repository == 'Pioreactor/pioreactor'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 👀 Determine version
+        run: |
+          echo "PIOREACTOR_VERSION=$GITHUB_REF" >> $GITHUB_ENV
+      - name: 🚀 Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.REPODISPATCH_TOKEN }}
+          repository: Pioreactor/pioreactor-UpToDate
+          event-type: pioreactor_release
+          client-payload: '{"version": "${{ env.PIOREACTOR_VERSION }}"}'
