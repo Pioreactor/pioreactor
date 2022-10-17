@@ -1,10 +1,7 @@
 name: Build
 on:
-  push:
-  pull_request:
   release:
     types: [published]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -31,6 +28,7 @@ jobs:
           path: dist
       - name: ➕ Upload wheel to GH release page
         uses: svenstaro/upload-release-action@v2
+        if: github.event_name == 'release' && github.repository == 'Pioreactor/pioreactor'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/*.whl
@@ -41,7 +39,6 @@ jobs:
 
   publish-on-pypi:
     name: 📦 Publish tagged releases to PyPI
-    if: github.event_name == 'release' && github.repository == 'Pioreactor/pioreactor'
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -57,7 +54,6 @@ jobs:
 
   notify-custopizer-build:
     name: 📧 Notify Pioreactor/CustoPizer
-    if: github.event_name == 'release' && github.repository == 'Pioreactor/pioreactor'
     runs-on: ubuntu-latest
     needs: publish-on-pypi
     steps:
