@@ -166,7 +166,7 @@ def blink() -> None:
 @pio.command(name="kill", short_help="kill job(s)")
 @click.argument("job", nargs=-1)
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
-def kill(job: str, all_jobs: bool) -> None:
+def kill(job: list[str], all_jobs: bool) -> None:
     """
     stop a job by sending a SIGTERM to it.
     """
