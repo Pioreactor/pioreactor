@@ -61,7 +61,7 @@ jobs:
     steps:
       - name: 👀 Determine version
         run: |
-          echo "PIOREACTOR_VERSION=$GITHUB_REF" >> $GITHUB_ENV
+          echo "PIOREACTOR_VERSION=$GITHUB_REF_NAME" >> $GITHUB_ENV
       - name: 🚀 Repository Dispatch
         uses: peter-evans/repository-dispatch@v1
         with:
