@@ -17,6 +17,7 @@ CORE_REQUIREMENTS = [
     "msgspec>=0.8.0",
     # tech debt - this needed to be in the core req
     # leader requirement
+    # this direct dependency also prevents us from uploading to PyPI...
     "sqlite3worker @ https://github.com/pioreactor/sqlite3worker/archive/master.zip#egg=sqlite3worker-0.0.1",
 ]
 
@@ -41,6 +42,7 @@ setup(
     version=__version__,  # type: ignore # noqa: F821
     license="MIT",
     long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     author="Pioreactor",
     author_email="cam@pioreactor.com",
     install_requires=CORE_REQUIREMENTS,
