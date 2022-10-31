@@ -251,7 +251,7 @@ def view_cache(cache: str) -> None:
 
     with cacher(cache) as c:
         for key in sorted(c.keys()):
-            click.echo(f"{key.decode()} = {c[key].decode()}")
+            click.echo(f"{click.style(key.decode(), bold=True)} = {c[key].decode()}")
 
 
 @pio.command(
