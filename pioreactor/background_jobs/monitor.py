@@ -300,7 +300,7 @@ class Monitor(BackgroundJob):
             try:
                 pre_function()
             except Exception:
-                self.logger.debug(f"Error in {pre_function=}.", exc_info=True)
+                self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
 
         while self.GPIO.input(BUTTON_PIN) == self.GPIO.HIGH:
             sleep(0.02)
@@ -309,7 +309,9 @@ class Monitor(BackgroundJob):
             try:
                 post_function()
             except Exception:
-                self.logger.debug(f"Error in {post_function=}.", exc_info=True)
+                self.logger.debug(
+                    f"Error in post_function={post_function.__name__}.", exc_info=True
+                )
 
         self.button_down = False
 

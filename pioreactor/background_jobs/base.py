@@ -917,7 +917,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     The methods `action_to_do_before_od_reading` and `action_to_do_after_od_reading` need to be overwritten, and
     config needs to be added:
 
-        [<job_name>]
+        [<job_name>.config]
         post_delay_duration=
         pre_delay_duration=
         enable_dodging_od=True
@@ -955,9 +955,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
         self.add_to_published_settings(
             "enable_dodging_od", {"datatype": "boolean", "settable": True}
         )
-        self.set_enable_dodging_od(
-            config.getboolean(self.job_name, "enable_dodging_od", fallback=True)
-        )
+        self.set_enable_dodging_od(bool(self.get_from_config("enable_dodging_od", fallback=True)))
+
+    def get_from_config(self, key, **get_kwargs):
+        return config.get(f"{self.job_name}.config", key, **get_kwargs)
 
     def action_to_do_before_od_reading(self) -> None:
         raise NotImplementedError()
@@ -1006,8 +1007,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         except AttributeError:
             pass
 
-        post_delay = config.getfloat(self.job_name, "post_delay_duration", fallback=1.0)
-        pre_delay = config.getfloat(self.job_name, "pre_delay_duration", fallback=1.0)
+        post_delay = float(self.get_from_config("post_delay_duration", fallback=1.0))
+        pre_delay = float(self.get_from_config("pre_delay_duration", fallback=1.0))
 
         if post_delay <= 0.25:
             self.logger.warning(

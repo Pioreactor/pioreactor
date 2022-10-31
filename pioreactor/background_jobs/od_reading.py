@@ -946,7 +946,7 @@ class ODReader(BackgroundJob):
             try:
                 pre_function(self)
             except Exception:
-                self.logger.debug(f"Error in {pre_function=}.", exc_info=True)
+                self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
 
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
@@ -983,7 +983,9 @@ class ODReader(BackgroundJob):
             try:
                 post_function(self, od_readings)
             except Exception:
-                self.logger.debug(f"Error in {post_function=}.", exc_info=True)
+                self.logger.debug(
+                    f"Error in post_function={post_function.__name__}.", exc_info=True
+                )
 
         return od_readings
 
