@@ -137,7 +137,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
     pause()
     assert state[-1] == "disconnected"
 
-    with local_intermittent_storage("pio_job_testjob") as cache:
+    with local_intermittent_storage("job_metadata_testjob") as cache:
         assert cache["is_running"] == b"0"
 
 
