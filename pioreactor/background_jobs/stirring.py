@@ -19,7 +19,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
-from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
@@ -342,8 +342,7 @@ class Stirrer(BackgroundJob):
             )
             self.blink_error_code(error_codes.STIRRING_FAILED_ERROR_CODE)
 
-            with local_intermittent_storage("pio_jobs_running") as jobs:
-                is_od_running = jobs.get("od_reading") is not None
+            is_od_running = is_pio_job_running("od_reading")
 
             if not is_od_running:
                 self.kick_stirring()

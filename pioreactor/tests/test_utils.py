@@ -6,8 +6,11 @@ import time
 
 import pytest
 
+from pioreactor.background_jobs.stirring import start_stirring
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.whoami import get_unit_name
 
 
 @pytest.mark.xfail(reason="This will fail if not using ndbm")
@@ -161,3 +164,32 @@ def test_repeated_timer_pause_works_as_intended():
 
     time.sleep(5)
     assert c.counter > 2
+
+
+def test_is_pio_job_running_single():
+    experiment = "test_is_pio_job_running_single"
+    unit = get_unit_name()
+
+    assert not is_pio_job_running("stirring")
+    assert not is_pio_job_running("od_reading")
+
+    with start_stirring(target_rpm=0, experiment=experiment, unit=unit):
+        assert is_pio_job_running("stirring")
+        assert not is_pio_job_running("od_reading")
+
+    assert not is_pio_job_running("stirring")
+    assert not is_pio_job_running("od_reading")
+
+
+def test_is_pio_job_running_multiple():
+    experiment = "test_is_pio_job_running_multiple"
+    unit = get_unit_name()
+
+    assert not any(is_pio_job_running(["stirring", "od_reading"]))
+
+    with start_stirring(target_rpm=0, experiment=experiment, unit=unit):
+        assert any(is_pio_job_running(["stirring", "od_reading"]))
+        assert is_pio_job_running(["stirring", "od_reading"]) == [True, False]
+        assert is_pio_job_running(["od_reading", "stirring"]) == [False, True]
+
+    assert not any(is_pio_job_running(["stirring", "od_reading"]))

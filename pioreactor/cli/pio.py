@@ -26,7 +26,7 @@ from pioreactor.config import check_firstboot_successful
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
-from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
 
@@ -122,8 +122,7 @@ def log(message: str, level: str, name: str, local_only: bool):
 @pio.command(name="blink", short_help="blink LED")
 def blink() -> None:
 
-    with local_intermittent_storage("pio_jobs_running") as cache:
-        monitor_running = cache.get("monitor", b"0") == b"1"
+    monitor_running = is_pio_job_running("monitor")
 
     if not monitor_running:
 

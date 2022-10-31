@@ -29,7 +29,7 @@ class QOS(IntEnum):
 
 
 def create_client(
-    hostname: str = leader_address,
+    hostname: Optional[str] = None,
     last_will: Optional[dict] = None,
     client_id: str = "",
     keepalive=60,
@@ -62,6 +62,9 @@ def create_client(
 
     if last_will is not None:
         client.will_set(**last_will)
+
+    if hostname is None:
+        hostname = leader_address
 
     for retries in range(1, max_connection_attempts + 1):
         try:

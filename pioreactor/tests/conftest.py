@@ -20,10 +20,6 @@ def run_around_tests():
     from pioreactor.utils import local_intermittent_storage
     from pioreactor.utils import local_persistant_storage
 
-    with local_intermittent_storage("pio_jobs_running") as cache:
-        for key in cache.keys():
-            del cache[key]
-
     with local_intermittent_storage("led_locks") as cache:
         for key in cache.keys():
             del cache[key]

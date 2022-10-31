@@ -14,6 +14,7 @@ from msgspec.json import encode as dumps
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
+from pioreactor.config import leader_address
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
@@ -21,10 +22,12 @@ from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_uuid
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
+
 
 T = t.TypeVar("T")
 
@@ -235,10 +238,16 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         self.experiment = experiment
         self.unit = unit
+        self._source = source
         self._clean = False
+        self._leader_address = leader_address
 
         self.logger = create_logger(
-            self.job_name, unit=self.unit, experiment=self.experiment, source=source
+            self.job_name,
+            unit=self.unit,
+            experiment=self.experiment,
+            source=self._source,
+            mqtt_hostname=self._leader_address,
         )
 
         # _check_for_duplicate_activity checks _before_ the pubsub client,
@@ -510,7 +519,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(
-            client_id=f"{self.unit}-pub-{self.experiment}-{self.job_name}-{get_uuid()}-{id(self)}"
+            hostname=self._leader_address,
+            client_id=f"{self.unit}-pub-{self.experiment}-{self.job_name}-{get_uuid()}-{id(self)}",
         )
 
         return client
@@ -541,6 +551,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         }
 
         client = create_client(
+            hostname=self._leader_address,
             client_id=f"{self.unit}-sub-{self.experiment}-{self.job_name}-{get_uuid()}-{id(self)}",
             last_will=last_will,
             keepalive=60,
@@ -661,13 +672,19 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def ready(self) -> None:
         self.state = self.READY
-        with local_intermittent_storage("pio_jobs_running") as cache:
+        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
             # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
-            # __init__ might fail, and not clean up pio_jobs_running correctly.
+            # __init__ might fail, and not clean up pio_job_* correctly.
             # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
             # sol for authors: move the long-running parts to the on_init_to_ready function.
-            # TODO: a potential fix is to include a timestamp of when the value changed??
-            cache[self.job_name] = b"1"
+            cache["started_at"] = current_utc_timestamp()
+            cache["is_running"] = "1"
+            cache["source"] = self._source
+            cache["experiment"] = self.experiment
+            cache["unit"] = self.unit
+            cache["leader_address"] = self._leader_address
+            cache["ended_at"] = ""  # populated later
+
         try:
             self.on_ready()
         except Exception as e:
@@ -688,7 +705,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
     def lost(self) -> None:
-        # TODO: what should happen when a running job recieves a lost signal? When does it ever
+        # TODO: what should happen when a running job receives a lost signal? When does it ever
         # receive a lost signal?
         # 1. Monitor can send a lost signal if `check_against_processes_running` triggers.
         # I think it makes sense to ignore it?
@@ -720,14 +737,12 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self._log_state(self.state)
 
         # we "set" the internal event, which will cause any event.waits to finishing blocking.
-        self.logger.debug(f"{self.job_name} is unblocking.")
         self._blocking_event.set()
 
     def _remove_from_cache(self):
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            if self.job_name in cache:
-                self.logger.debug(f"del cache[{self.job_name}]")
-                del cache[self.job_name]
+        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
+            cache["is_running"] = "0"
+            cache["ended_at"] = current_utc_timestamp()
 
     def _disconnect_from_loggers(self):
         # clean up logger handlers
@@ -746,7 +761,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client.disconnect()
 
     def _clean_up_resources(self):
-        # remove from temp. `pio_jobs_running` cache
         self._remove_from_cache()
         # Explicitly cleanup MQTT resources...
         self._disconnect_from_mqtt_clients()
@@ -874,8 +888,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             )
 
     def _check_for_duplicate_activity(self) -> None:
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            if not is_testing_env() and (cache.get(self.job_name) == b"1"):
+        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
+            if not is_testing_env() and (cache["is_running"] == b"1"):
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
                 raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 

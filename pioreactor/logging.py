@@ -5,6 +5,7 @@ import logging
 import time
 from logging import handlers
 from logging import Logger
+from typing import Optional
 
 import colorlog
 from json_log_formatter import JSONFormatter  # type: ignore
@@ -123,6 +124,7 @@ def create_logger(
     experiment: str = None,
     source: str = "app",
     to_mqtt: bool = True,
+    mqtt_hostname: Optional[str] = None,
 ) -> Logger:
     """
 
@@ -190,6 +192,7 @@ def create_logger(
         import uuid
 
         pub_client = create_client(
+            hostname=mqtt_hostname,
             client_id=f"{unit}-logging-{experiment}-{uuid.uuid1()}",
             max_connection_attempts=2,
         )
