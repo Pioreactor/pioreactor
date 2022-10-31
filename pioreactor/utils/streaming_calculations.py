@@ -298,13 +298,14 @@ class CultureGrowthEKF:
         ]
 
         """
-        import numpy as np
+        from numpy import exp
+        from numpy import zeros
 
         od = state_prediction[0]
-        J = np.zeros((self.n_sensors, 3))
+        J = zeros((self.n_sensors, 3))
         for i in range(self.n_sensors):
             angle = self.angles[i]
-            J[i, 0] = 1.0 if (angle != "180") else -np.exp(-(od - 1))
+            J[i, 0] = 1.0 if (angle != "180") else -exp(-(od - 1))
         return J
 
     def update_covariance_from_old_covariance(self, state, covariance, dt: float):
