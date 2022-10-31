@@ -1,3 +1,9 @@
+### 22.10.3
+ - no-op release
+
+### 22.10.2
+ - no-op release
+
 ### 22.10.1
  - `BackgroundJobWithDodging` now looks for the config.ini section `[<job_name>.config]`.
 
