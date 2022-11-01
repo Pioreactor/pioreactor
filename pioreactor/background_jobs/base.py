@@ -21,6 +21,7 @@ from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
+from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
@@ -888,10 +889,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             )
 
     def _check_for_duplicate_activity(self) -> None:
-        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
-            if not is_testing_env() and (cache.get("is_running", b"0") == b"1"):
-                self.logger.error(f"{self.job_name} is already running. Exiting.")
-                raise RuntimeError(f"{self.job_name} is already running. Exiting.")
+        if not is_testing_env() and is_pio_job_running(self.job_name):
+            self.logger.error(f"{self.job_name} is already running. Exiting.")
+            raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 
     def __setattr__(self, name: str, value: t.Any) -> None:
         super(_BackgroundJob, self).__setattr__(name, value)
