@@ -1,3 +1,9 @@
+### 23.10.0
+ - Fix bug where users are not able to start a job.
+ - Revisit pump and od calibrations. Some changes to the CLI.
+ - Some improvements to stirring calibration.
+ - Fix stirring calibration not responding in the UI
+
 ### 22.10.4
  - removed the dbm storage `pio_jobs_running`. Instead, each job will write metadata about its currently running state to the (tmp) file `job_metadata_<job_name>`. This fixes issue #350.
  - Fixed UI issue where specific configs weren't being saved.

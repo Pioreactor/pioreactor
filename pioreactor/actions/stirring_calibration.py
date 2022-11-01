@@ -20,6 +20,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import simple_linear_regression
 from pioreactor.utils.timing import current_utc_timestamp
+from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -31,7 +32,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
     action_name = "stirring_calibration"
     logger = create_logger(action_name)
 
-    with publish_ready_to_disconnected_state(unit, experiment, action_name):
+    with publish_ready_to_disconnected_state(unit, get_latest_experiment_name(), action_name):
 
         logger.info("Starting stirring calibration.")
 
