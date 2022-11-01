@@ -85,9 +85,9 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
-1. Media       {f'[last ran {media_timestamp}]' if has_media else '[missing calibration]'}
-2. Alt-media   {f'[last ran {alt_media_timestamp}]' if has_alt_media else '[missing calibration]'}
-3. Waste       {f'[last ran {waste_timestamp}]' if has_waste else '[missing calibration]'}
+1. Media       {f'[last ran {media_timestamp:%Y-%m-%d}]' if has_media else '[missing calibration]'}
+2. Alt-media   {f'[last ran {alt_media_timestamp:%Y-%m-%d}]' if has_alt_media else '[missing calibration]'}
+3. Waste       {f'[last ran {waste_timestamp:%Y-%m-%d}]' if has_waste else '[missing calibration]'}
 """,
             fg="green",
         ),
@@ -482,7 +482,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:35s} {cal.pump:20s}",
+                    f"{cal.name:15s} {cal.timestamp:%Y-%m-%d}       {cal.pump:20s}",
                 )
             except Exception as e:
                 raise e
