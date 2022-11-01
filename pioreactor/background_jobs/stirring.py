@@ -254,6 +254,7 @@ class Stirrer(BackgroundJob):
         with local_persistant_storage("stirring_calibration") as cache:
 
             if "linear_v1" in cache:
+                self.logger.debug("Found stirring calibration `linear_v1`.")
                 parameters = json.loads(cache["linear_v1"])
                 coef = parameters["rpm_coef"]
                 intercept = parameters["intercept"]
@@ -411,7 +412,7 @@ class Stirrer(BackgroundJob):
         self.logger.debug(f"stirring is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
-        sleep(sleep_time)
+        sleep(2)  # on init, the stirring is too fast from the initial "kick"
         self.poll_and_update_dc()
 
         assert self._measured_rpm is not None

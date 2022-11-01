@@ -46,8 +46,8 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
         # go up and down to observe any hystersis.
         dcs = (
             list(range(max_dc, min_dc, -3))
-            + list(range(min_dc, max_dc, 4))
-            + list(range(max_dc, min_dc, -5))
+            + list(range(min_dc, max_dc, 3))
+            + list(range(max_dc, min_dc - 3, -3))
         )
         n_samples = len(dcs)
 
@@ -140,8 +140,10 @@ def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
 
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
-        config_initial_duty_cycle = round(config.getfloat("stirring", "initial_duty_cycle"))
-        min_dc, max_dc = config_initial_duty_cycle - 10, config_initial_duty_cycle + 10
+        config_initial_duty_cycle = config.getfloat("stirring", "initial_duty_cycle")
+        min_dc, max_dc = round(config_initial_duty_cycle * 0.66), round(
+            config_initial_duty_cycle * 1.33
+        )
     elif (max_dc is not None) and (min_dc is not None):
         assert min_dc < max_dc, "min_dc >= max_dc"
     else:
