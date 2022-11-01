@@ -476,7 +476,8 @@ def change_current(name: str) -> None:
 
         with local_persistant_storage("current_pump_calibration") as current_calibrations:
             old_calibration = decode(
-                current_calibrations[pump_type_from_new_calibration], type=structs.PumpCalibration
+                current_calibrations[pump_type_from_new_calibration],
+                type=structs.subclass_union(structs.PumpCalibration),
             )
             current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
         click.echo(f"Replaced {old_calibration.name} with {new_calibration.name} ✅")

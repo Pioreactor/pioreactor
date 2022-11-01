@@ -474,7 +474,7 @@ def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
         return None
 
 
-def display_current() -> None:
+def display(name: str | None) -> None:
     from pprint import pprint
 
     with local_persistant_storage("current_od_calibration") as c:
@@ -523,8 +523,16 @@ def change_current(name) -> None:
 
 
 def list_() -> None:
+
+    # get current calibrations
+    current = []
+    with local_persistant_storage("current_pump_calibration") as c:
+        for pump in c.keys():
+            cal = decode(c[pump], type=structs.subclass_union(structs.PumpCalibration))
+            current.append(cal.name)
+
     click.secho(
-        f"{'Name':15s} {'Date':35s} {'Angle':20s}",
+        f"{'Name':15s} {'Date':18s} {'Angle':12s} {'Currently in use?':20s}",
         bold=True,
     )
     with local_persistant_storage("od_calibrations") as c:
@@ -548,14 +556,15 @@ def click_od_calibration(ctx):
         od_calibration()
 
 
-@click_od_calibration.command(name="display_current")
-def click_display_current():
-    display_current()
+@click_od_calibration.command(name="display")
+@click.option("-n", "--name", type=click.STRING)
+def click_display(name: str):
+    display(name)
 
 
 @click_od_calibration.command(name="change_current")
 @click.argument("name", type=click.STRING)
-def click_change_current(name):
+def click_change_current(name: str):
     change_current(name)
 
 
