@@ -477,35 +477,41 @@ def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
 def display(name: str | None) -> None:
     from pprint import pprint
 
-    with local_persistant_storage("current_od_calibration") as c:
-        for angle in c.keys():
-            data_blob = decode(c[angle])
-            voltages = data_blob["voltages"]
-            ods = data_blob["inferred_od600s"]
-            name, angle = data_blob["name"], data_blob["angle"]
-            click.echo()
-            click.echo(click.style(f"Calibration `{name}`", underline=True, bold=True))
-            plot_data(
-                ods,
-                voltages,
-                title=f"`{name}`, calibration of {angle}°",
-                highlight_recent_point=False,
-                interpolation_curve=curve_to_callable(
-                    data_blob["curve_type"], data_blob["curve_data_"]
-                ),
-            )
-            click.echo()
-            click.echo(click.style(f"Calibration curve for `{name}`", underline=True, bold=True))
-            click.echo(curve_to_functional_form(data_blob["curve_type"], data_blob["curve_data_"]))
-            click.echo()
-            click.echo(click.style(f"Data for `{name}`", underline=True, bold=True))
-            pprint(data_blob)
-            click.echo()
-            click.echo()
-            click.echo()
+    def display_from_calibration_blob(data_blob) -> None:
+        voltages = data_blob["voltages"]
+        ods = data_blob["inferred_od600s"]
+        name, angle = data_blob["name"], data_blob["angle"]
+        click.echo()
+        click.echo(click.style(f"Calibration `{name}`", underline=True, bold=True))
+        plot_data(
+            ods,
+            voltages,
+            title=f"`{name}`, calibration of {angle}°",
+            highlight_recent_point=False,
+            interpolation_curve=curve_to_callable(
+                data_blob["curve_type"], data_blob["curve_data_"]
+            ),
+        )
+        click.echo()
+        click.echo(click.style(f"Calibration curve for `{name}`", underline=True, bold=True))
+        click.echo(curve_to_functional_form(data_blob["curve_type"], data_blob["curve_data_"]))
+        click.echo()
+        click.echo(click.style(f"Data for `{name}`", underline=True, bold=True))
+        pprint(data_blob)
+
+    if name is not None:
+        with local_persistant_storage("od_calibrations") as c:
+            display_from_calibration_blob(decode(c[name]))
+    else:
+        with local_persistant_storage("current_od_calibration") as c:
+            for angle in c.keys():
+                display_from_calibration_blob(decode(c[angle]))
+                click.echo()
+                click.echo()
+                click.echo()
 
 
-def change_current(name) -> None:
+def change_current(name: str) -> None:
     try:
         with local_persistant_storage("od_calibrations") as c:
             calibration = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
@@ -540,7 +546,7 @@ def list_() -> None:
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                         {cal.angle:20s}",
+                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception:
                 pass

@@ -434,7 +434,7 @@ def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
         return None
 
 
-def display(name) -> None:
+def display(name: str | None) -> None:
     from pprint import pprint
 
     def display_from_calibration_blob(pump_calibration):
@@ -452,9 +452,6 @@ def display(name) -> None:
         )
         click.echo(click.style(f"Data for {name}", underline=True, bold=True))
         pprint(pump_calibration)
-        click.echo()
-        click.echo()
-        click.echo()
 
     if name is not None:
         with local_persistant_storage("pump_calibrations") as c:
@@ -463,6 +460,9 @@ def display(name) -> None:
         with local_persistant_storage("current_pump_calibration") as c:
             for pump in c.keys():
                 display_from_calibration_blob(decode(c[pump]))
+                click.echo()
+                click.echo()
+                click.echo()
 
 
 def change_current(name: str) -> None:
@@ -480,7 +480,7 @@ def change_current(name: str) -> None:
                 type=structs.subclass_union(structs.PumpCalibration),
             )
             current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
-        click.echo(f"Replaced {old_calibration.name} with {new_calibration.name} ✅")
+        click.echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")
     except Exception as e:
         click.echo(f"Failed to swap. {e}")
         click.Abort()
@@ -530,7 +530,7 @@ def click_pump_calibration(ctx, min_duration, max_duration):
 
 @click_pump_calibration.command(name="display")
 @click.option("-n", "--name", type=click.STRING)
-def click_display(name):
+def click_display(name: str | None):
     """
     By default, display a graph and metadata about the current pump calibrations. If name is
     specified, provide graph and metadata about named pump calibration.
