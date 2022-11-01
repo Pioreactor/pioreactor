@@ -428,36 +428,42 @@ def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
         return None
 
 
-def display_current() -> None:
+def display(name) -> None:
     from pprint import pprint
 
-    with local_persistant_storage("current_pump_calibration") as c:
-        for pump in c.keys():
-            pump_calibration = decode(c[pump])
-            volumes = pump_calibration["volumes"]
-            durations = pump_calibration["durations"]
-            name, pump = pump_calibration["name"], pump_calibration["pump"]
-            plot_data(
-                durations,
-                volumes,
-                title=f"Calibration for {pump} pump",
-                highlight_recent_point=False,
-                interpolation_curve=curve_to_callable(
-                    "poly", [pump_calibration["duration_"], pump_calibration["bias_"]]
-                ),
-            )
-            click.echo(click.style(f"Data for {name}", underline=True, bold=True))
-            pprint(pump_calibration)
-            click.echo()
-            click.echo()
-            click.echo()
+    def display_from_calibration_blob(pump_calibration):
+        volumes = pump_calibration["volumes"]
+        durations = pump_calibration["durations"]
+        name, pump = pump_calibration["name"], pump_calibration["pump"]
+        plot_data(
+            durations,
+            volumes,
+            title=f"Calibration for {pump} pump",
+            highlight_recent_point=False,
+            interpolation_curve=curve_to_callable(
+                "poly", [pump_calibration["duration_"], pump_calibration["bias_"]]
+            ),
+        )
+        click.echo(click.style(f"Data for {name}", underline=True, bold=True))
+        pprint(pump_calibration)
+        click.echo()
+        click.echo()
+        click.echo()
+
+    if name is not None:
+        with local_persistant_storage("pump_calibrations") as c:
+            display_from_calibration_blob(decode(c[name]))
+    else:
+        with local_persistant_storage("current_pump_calibration") as c:
+            for pump in c.keys():
+                display_from_calibration_blob(decode(c[pump]))
 
 
 def change_current(name: str) -> None:
     try:
         with local_persistant_storage("pump_calibrations") as all_calibrations:
             new_calibration = decode(
-                all_calibrations[name], type=structs.PumpCalibration
+                all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
             )  # decode name from list of all names
 
         pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
@@ -475,7 +481,7 @@ def change_current(name: str) -> None:
 
 def list_():
     click.secho(
-        f"{'Name':15s} {'Timestamp':35s} {'Pump type':20s}",
+        f"{'Name':15s} {'Date':35s} {'Pump type':20s}",
         bold=True,
     )
     with local_persistant_storage("pump_calibrations") as c:
@@ -483,7 +489,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                     {cal.pump:20s}",
+                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                         {cal.pump:20s}",
                 )
             except Exception as e:
                 raise e
@@ -508,9 +514,10 @@ def click_pump_calibration(ctx, min_duration, max_duration):
         pump_calibration(min_duration, max_duration)
 
 
-@click_pump_calibration.command(name="display_current")
-def click_display_current():
-    display_current()
+@click_pump_calibration.command(name="display")
+@click.option("-n", "--name", type="str")
+def click_display(name):
+    display(name)
 
 
 @click_pump_calibration.command(name="change_current")

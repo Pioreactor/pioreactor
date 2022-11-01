@@ -59,7 +59,7 @@ def get_metadata_from_user():
         while True:
             name = click.prompt("Provide a name for this calibration", type=str).strip()
             if name == "":
-                name = click.echo("Name cannot be emoty")
+                name = click.echo("Name cannot be empty")
                 continue
             elif name in cache:
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
@@ -524,7 +524,7 @@ def change_current(name) -> None:
 
 def list_() -> None:
     click.secho(
-        f"{'Name':15s} {'Timestamp':35s} {'Angle':20s}",
+        f"{'Name':15s} {'Date':35s} {'Angle':20s}",
         bold=True,
     )
     with local_persistant_storage("od_calibrations") as c:
@@ -532,7 +532,7 @@ def list_() -> None:
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:35s} {cal.angle:20s}",
+                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                         {cal.angle:20s}",
                 )
             except Exception:
                 pass

@@ -106,7 +106,8 @@ def _pump(
                             f"Calibration not defined. Run {pump_type} pump calibration first."
                         )
 
-        assert calibration is not None
+        # make sure voltage is the same as calibrated.
+
         try:
             GPIO_PIN = PWM_TO_PIN[config.get("PWM_reverse", pump_type)]
         except NoOptionError:
