@@ -203,7 +203,7 @@ def plot_data(
 
     plt.theme("pro")
     plt.title(title)
-    plt.plot_size(105, 18)
+    plt.plot_size(105, 20)
     plt.xlim(x_min, x_max)
     plt.show()
 
@@ -232,7 +232,9 @@ def run_tests(
     )
 
     results: list[float] = []
-    durations_to_test = [min_duration] * 4 + [max_duration] * 4
+    durations_to_test = (
+        [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
+    )
 
     for i, duration in enumerate(durations_to_test):
         while True:
@@ -301,8 +303,10 @@ def save_results(
     unit: str,
 ) -> structs.PumpCalibration:
 
+    struct: Type[structs.AnyPumpCalibration]
+
     if pump_type == "media":
-        struct: Type[structs.AnyPumpCalibration] = structs.MediaPumpCalibration
+        struct = structs.MediaPumpCalibration
     elif pump_type == "waste":
         struct = structs.WastePumpCalibration
     elif pump_type == "alt_media":
@@ -379,16 +383,6 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             highlight_recent_point=False,
         )
 
-        # check parameters for problems
-        if correlation(durations, volumes) < 0:
-            logger.warning(
-                "Correlation is negative - you probably want to rerun this calibration..."
-            )
-        if slope / std_slope < 5.0:
-            logger.warning(
-                "Too much uncertainty in slope - you probably want to rerun this calibration..."
-            )
-
         save_results(
             name=name,
             pump_type=pump_type,
@@ -405,8 +399,19 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
         logger.debug(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
 
         logger.debug(
-            f"Calibration is best for volumes between {(slope * min_duration + bias):0.1f}mL to {(slope * max_duration + bias):0.1f}mL, but will be okay for slightly outside this range too."
+            f"Calibration is optimal for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be fine for outside this range too."
         )
+
+        # check parameters for problems
+        if correlation(durations, volumes) < 0:
+            logger.warning(
+                "Correlation is negative - you probably want to rerun this calibration..."
+            )
+        if std_slope > 0.04:
+            logger.warning(
+                "Too much uncertainty in slope - you probably want to rerun this calibration..."
+            )
+
         logger.info("Finished pump calibration.")
 
 
