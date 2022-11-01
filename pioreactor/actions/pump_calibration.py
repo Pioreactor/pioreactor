@@ -488,7 +488,7 @@ def list_():
             current.append(cal.name)
 
     click.secho(
-        f"{'Name':15s} {'Date':35s} {'Pump type':20s} {'Currently in use?':20s}",
+        f"{'Name':15s} {'Date':20s} {'Pump type':20s} {'Currently in use?':20s}",
         bold=True,
     )
     with local_persistant_storage("pump_calibrations") as c:
@@ -496,7 +496,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                         {cal.pump:20s} {'✅' if cal.name in current else ''}",
+                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}         {cal.pump:8s} {'✅' if cal.name in current else ''}",
                 )
             except Exception as e:
                 raise e
@@ -522,7 +522,7 @@ def click_pump_calibration(ctx, min_duration, max_duration):
 
 
 @click_pump_calibration.command(name="display")
-@click.option("-n", "--name", type=str)
+@click.option("-n", "--name", type=click.STRING)
 def click_display(name):
     """
     By default, display a graph and metadata about the current pump calibrations. If name is
@@ -533,14 +533,18 @@ def click_display(name):
 
 @click_pump_calibration.command(name="change_current")
 @click.argument("name", type=click.STRING)
-def click_change_current(name):
+def click_change_current(name: str):
+    """
+    Change the calibration to use to <name> calibration,
+    see `pio run pump_calibration list` for all.
+    """
     change_current(name)
 
 
 @click_pump_calibration.command(name="list")
 def click_list():
     """
-    Print a list of all pump calibrations
+    Print a list of all pump calibrations done, indexed by name
     """
     list_()
 
