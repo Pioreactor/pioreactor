@@ -480,8 +480,15 @@ def change_current(name: str) -> None:
 
 
 def list_():
+    # get current calibrations
+    current = []
+    with local_persistant_storage("current_pump_calibration") as c:
+        for pump in c.keys():
+            cal = decode(c[pump], type=structs.subclass_union(structs.PumpCalibration))
+            current.append(cal.name)
+
     click.secho(
-        f"{'Name':15s} {'Date':35s} {'Pump type':20s}",
+        f"{'Name':15s} {'Date':35s} {'Pump type':20s} {'Currently in use?':20s}",
         bold=True,
     )
     with local_persistant_storage("pump_calibrations") as c:
@@ -489,7 +496,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                         {cal.pump:20s}",
+                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                         {cal.pump:20s} {'✅' if cal.name in current else ''}",
                 )
             except Exception as e:
                 raise e
@@ -532,6 +539,9 @@ def click_change_current(name):
 
 @click_pump_calibration.command(name="list")
 def click_list():
+    """
+    Print a list of all pump calibrations
+    """
     list_()
 
 
