@@ -889,7 +889,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _check_for_duplicate_activity(self) -> None:
         with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
-            if not is_testing_env() and (cache["is_running"] == b"1"):
+            if not is_testing_env() and (cache.get("is_running", b"0") == b"1"):
                 self.logger.error(f"{self.job_name} is already running. Exiting.")
                 raise RuntimeError(f"{self.job_name} is already running. Exiting.")
 
