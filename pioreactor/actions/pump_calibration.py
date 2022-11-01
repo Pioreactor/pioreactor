@@ -62,32 +62,28 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
         has_alt_media = "alt_media" in cache
 
         if has_media:
-            media_timestamp = decode(
-                cache["media"], type=structs.MediaPumpCalibration
-            ).timestamp.strftime("%d %b, %Y")
+            media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).timestamp
         else:
             media_timestamp = ""
 
         if has_waste:
-            waste_timestamp = decode(
-                cache["waste"], type=structs.WastePumpCalibration
-            ).timestamp.strftime("%d %b, %Y")
+            waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).timestamp
         else:
             waste_timestamp = ""
 
         if has_alt_media:
             alt_media_timestamp = decode(
                 cache["alt_media"], type=structs.AltMediaPumpCalibration
-            ).timestamp.strftime("%d %b, %Y")
+            ).timestamp
         else:
             alt_media_timestamp = ""
 
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
-1. Media       {f'[last ran {media_timestamp:%Y-%m-%d}]' if has_media else '[missing calibration]'}
-2. Alt-media   {f'[last ran {alt_media_timestamp:%Y-%m-%d}]' if has_alt_media else '[missing calibration]'}
-3. Waste       {f'[last ran {waste_timestamp:%Y-%m-%d}]' if has_waste else '[missing calibration]'}
+1. Media       {f'[last ran {media_timestamp:%d %b, %Y}]' if has_media else '[missing calibration]'}
+2. Alt-media   {f'[last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[missing calibration]'}
+3. Waste       {f'[last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[missing calibration]'}
 """,
             fg="green",
         ),
@@ -482,7 +478,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%Y-%m-%d}       {cal.pump:20s}",
+                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}                     {cal.pump:20s}",
                 )
             except Exception as e:
                 raise e
