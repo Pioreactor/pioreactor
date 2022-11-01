@@ -65,6 +65,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
             media_timestamp = decode(
                 cache["media"], type=structs.MediaPumpCalibration
             ).timestamp.strftime("%d %b, %Y")
+        else:
             media_timestamp = ""
 
         if has_waste:
@@ -206,7 +207,7 @@ def plot_data(
 
     plt.theme("pro")
     plt.title(title)
-    plt.plot_size(105, 22)
+    plt.plot_size(105, 18)
     plt.xlim(x_min, x_max)
     plt.show()
 
@@ -405,7 +406,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             unit=unit,
         )
 
-        logger.debug(f"slope={slope:0.2f} ± {std_slope:0.2f}, bias={bias:0.2f} ± {std_bias:0.2f}")
+        logger.debug(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
 
         logger.debug(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.1f}mL to {(slope * max_duration + bias):0.1f}mL, but will be okay for slightly outside this range too."
@@ -479,7 +480,7 @@ def list_():
     with local_persistant_storage("pump_calibrations") as c:
         for name in c.keys():
             try:
-                cal = decode(c[name], type=structs.PumpCalibration)
+                cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
                     f"{cal.name:15s} {cal.timestamp:35s} {cal.pump:20s}",
                 )
