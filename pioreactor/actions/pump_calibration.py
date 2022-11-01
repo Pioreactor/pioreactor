@@ -515,8 +515,12 @@ def click_pump_calibration(ctx, min_duration, max_duration):
 
 
 @click_pump_calibration.command(name="display")
-@click.option("-n", "--name", type="str")
+@click.option("-n", "--name", type=str)
 def click_display(name):
+    """
+    By default, display a graph and metadata about the current pump calibrations. If name is
+    specified, provide graph and metadata about named pump calibration.
+    """
     display(name)
 
 
