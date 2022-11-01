@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+"""
+    - `pio run x_calibration` starts the calibration and saves it keyed by a unique name (see 2. for storage)
+    - `pio run x_calibration list` lists all saved calibrations, keyed by their unique name.
+    - `pio run x_calibration display ?name?` displays information about the current calibration to be used, or the calibration ?name? if provided
+    - `pio run x_calibration change_current <name>` changes the current calibration to <name> calibration.
+"""
 from __future__ import annotations
 
 import time
@@ -488,7 +494,7 @@ def list_():
             current.append(cal.name)
 
     click.secho(
-        f"{'Name':15s} {'Date':20s} {'Pump type':20s} {'Currently in use?':20s}",
+        f"{'Name':15s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
         bold=True,
     )
     with local_persistant_storage("pump_calibrations") as c:
@@ -496,7 +502,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}         {cal.pump:8s} {'✅' if cal.name in current else ''}",
+                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception as e:
                 raise e
