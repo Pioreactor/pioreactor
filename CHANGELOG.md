@@ -1,4 +1,4 @@
-### 22.11.0
+### 22.11.1
  - Fix bug where users are not able to start a job.
  - Revisit pump and od calibrations. Some changes to the CLI.
  - Some improvements to stirring calibration.
