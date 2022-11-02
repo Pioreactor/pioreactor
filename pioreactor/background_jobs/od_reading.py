@@ -897,7 +897,7 @@ class ODReader(BackgroundJob):
 
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
-                sleep(0.05)
+                sleep(0.1)
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
                 self.stop_ir_led()
 
@@ -934,6 +934,13 @@ class ODReader(BackgroundJob):
     def add_post_read_callback(cls, function: Callable):
         cls._post_read.append(function)
 
+    @property
+    def led_state_during_recording(self) -> dict[pt.LedChannel, float]:
+        return {
+            channel: (self.ir_led_intensity if channel == self.ir_channel else 0.0)
+            for channel in led_utils.ALL_LED_CHANNELS
+        }
+
     def record_from_adc(self) -> structs.ODReadings:
         """
         Take a recording of the current OD of the culture.
@@ -951,8 +958,7 @@ class ODReader(BackgroundJob):
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
         with led_utils.change_leds_intensities_temporarily(
-            {channel: 0.0 for channel in led_utils.ALL_LED_CHANNELS}
-            | {self.ir_channel: self.ir_led_intensity},
+            desired_state=self.led_state_during_recording,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -960,7 +966,7 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-                sleep(0.05)
+                sleep(0.1)
                 timestamp_of_readings = timing.current_utc_datetime()
                 od_reading_by_channel = self._read_from_adc_and_transform()
 

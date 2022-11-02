@@ -23,7 +23,7 @@ def uninstall_plugin(name_of_plugin):
         ],
         capture_output=True,
     )
-    if "as it is not installed" in result.stdout:
+    if "as it is not installed" in result.stdout.decode("utf-8"):
         logger.warning(result.stdout)
     elif result.returncode == 0:
         logger.notice(f"Successfully uninstalled plugin {name_of_plugin}.")

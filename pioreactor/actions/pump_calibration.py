@@ -437,7 +437,7 @@ def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
 def display(name: str | None) -> None:
     from pprint import pprint
 
-    def display_from_calibration_blob(pump_calibration):
+    def display_from_calibration_blob(pump_calibration: dict) -> None:
         volumes = pump_calibration["volumes"]
         durations = pump_calibration["durations"]
         name, pump = pump_calibration["name"], pump_calibration["pump"]

@@ -960,7 +960,9 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
     """
 
-    OD_READING_DURATION = 1.0
+    OD_READING_DURATION = (
+        1.0  # WARNING: this may change slightly in the future, don't depend on this too much.
+    )
     sneak_in_timer: RepeatedTimer
 
     def __init__(self, *args, source="app", **kwargs):
