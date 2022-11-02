@@ -8,7 +8,7 @@ import click
 
 @click.command(name="list-plugins", short_help="list the installed plugins")
 @click.option("--json", is_flag=True, help="output as json")
-def click_list_plugins(json) -> None:
+def click_list_plugins(json: bool) -> None:
     from pioreactor.plugin_management import get_plugins
 
     if not json:
@@ -25,9 +25,7 @@ def click_list_plugins(json) -> None:
                         "description": metadata.description
                         if metadata.description != "UNKNOWN"
                         else None,
-                        "homepage": metadata.homepage
-                        if metadata.homepage != "UNKNOWN"
-                        else None,
+                        "homepage": metadata.homepage if metadata.homepage != "UNKNOWN" else None,
                         "source": metadata.source,
                     }
                     for plugin, metadata in get_plugins().items()

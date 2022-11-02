@@ -10,7 +10,7 @@ from pioreactor.logging import create_logger
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def install_plugin(name_of_plugin, source=None):
+def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Installing plugin {name_of_plugin}.")
     result = subprocess.run(
@@ -24,7 +24,7 @@ def install_plugin(name_of_plugin, source=None):
     )
 
     if result.returncode == 0:
-        logger.notice(f"Successfully installed plugin {name_of_plugin}.")
+        logger.notice(f"Successfully installed plugin {name_of_plugin}.")  # type: ignore
     else:
         logger.error(f"Failed to install plugin {name_of_plugin}. See logs.")
         logger.debug(result.stdout)
@@ -38,5 +38,5 @@ def install_plugin(name_of_plugin, source=None):
     type=str,
     help="Install from a url, ex: https://github.com/user/repository/archive/branch.zip, or wheel file",
 )
-def click_install_plugin(name_of_plugin, source):
+def click_install_plugin(name_of_plugin: str, source: str | None):
     install_plugin(name_of_plugin, source)
