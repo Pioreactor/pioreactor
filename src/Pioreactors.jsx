@@ -241,6 +241,17 @@ function UnitSettingDisplay(props) {
     }
   }
 
+  function formatForDisplay(value){
+    if (typeof value === "string"){
+      return value
+    } else if (typeof value == "boolean"){
+      return value ? "On" : "Off"
+    }
+    else {
+      return +value.toFixed(props.precision)
+    }
+  }
+
   if (props.isStateSetting) {
     if (!props.isUnitActive) {
       return <div className={clsx({[classes.disabledText]: !props.isUnitActive})}> {stateDisplay[value].display} </div>;
@@ -302,9 +313,7 @@ function UnitSettingDisplay(props) {
       return (
         <React.Fragment>
           <div style={{ fontSize: "13px"}}>
-            {(typeof value === "string"
-              ? value
-              : +value.toFixed(props.precision)) + " " +
+            {formatForDisplay(value) + " " +
               (props.measurementUnit ? props.measurementUnit : "")}
           </div>
           <UnitSettingDisplaySubtext subtext={props.subtext}/>
