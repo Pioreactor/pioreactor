@@ -176,6 +176,17 @@ const useStyles = makeStyles((theme) => ({
   headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}
 }));
 
+function PythonBoolToJS(pythonBoolAsString){
+  if (pythonBoolAsString === "True"){
+    return true
+  } else if (pythonBoolAsString === "False"){
+    return false
+  }
+  else {
+    return null
+  }
+}
+
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -244,7 +255,7 @@ function UnitSettingDisplay(props) {
   function formatForDisplay(value){
     if (typeof value === "string"){
       return value
-    } else if (typeof value == "boolean"){
+    } else if (typeof value === "boolean"){
       return value ? "On" : "Off"
     }
     else {
@@ -1441,7 +1452,7 @@ function SettingsActionsDialog(props) {
 
                           {(setting.type === "boolean") && (
                             <Switch
-                              checked={setting.value}
+                              defaultChecked={PythonBoolToJS(setting.value)}
                               disabled={state === "disconnected"}
                               onChange={setPioreactorJobAttrOnSwitch()}
                               id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
