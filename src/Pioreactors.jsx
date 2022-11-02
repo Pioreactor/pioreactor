@@ -1441,7 +1441,7 @@ function SettingsActionsDialog(props) {
 
                           {(setting.type === "boolean") && (
                             <Switch
-                              defaultChecked={setting.value}
+                              checked={setting.value}
                               disabled={state === "disconnected"}
                               onChange={setPioreactorJobAttrOnSwitch()}
                               id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
