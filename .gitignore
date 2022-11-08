@@ -6,6 +6,8 @@ plugins_dev
 *.sqlite
 config*.ini
 *.log
+*.mosquitto
+*.csv
 
 
 # Byte-compiled / optimized / DLL files
@@ -125,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# vscode
+.vscode

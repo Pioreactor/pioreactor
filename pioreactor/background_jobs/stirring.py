@@ -341,7 +341,7 @@ class Stirrer(BackgroundJob):
             self.logger.warning(
                 "Stirring RPM is 0 - attempting to restart it automatically. Target RPM may be too low."
             )
-            self.blink_error_code(error_codes.STIRRING_FAILED_ERROR_CODE)
+            self.blink_error_code(error_codes.STIRRING_FAILED)
 
             is_od_running = is_pio_job_running("od_reading")
 

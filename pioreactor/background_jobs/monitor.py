@@ -219,9 +219,7 @@ class Monitor(BackgroundJob):
             )  # remember, this doesn't get published to leader...
 
             self.set_state(self.LOST)
-            self.flicker_led_with_error_code(
-                error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER_ERROR_CODE
-            )
+            self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
 
     def check_for_last_backup(self) -> None:
 
@@ -379,7 +377,7 @@ class Monitor(BackgroundJob):
         else:
             # TODO: add documentation to clear disk space.
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
-            self.flicker_led_with_error_code(error_codes.DISK_IS_ALMOST_FULL_ERROR_CODE)
+            self.flicker_led_with_error_code(error_codes.DISK_IS_ALMOST_FULL)
 
         if cpu_usage_percent <= 75:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")

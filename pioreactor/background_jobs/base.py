@@ -1017,7 +1017,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
         # OD found - revert to paused state
         # we put this in a try for the following reason:
-        # if odreading is running, and we start Dodging job, the _setup_actions callback is fired
+        # if od reading is running, and we start Dodging job, the _setup_actions callback is fired
         # _after_ this classes __init__ is done, but before the subclasses __init__. If
         # action_to_do_before_od_reading references things in the subclasses __init__, it will
         # fail.
