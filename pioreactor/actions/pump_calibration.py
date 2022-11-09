@@ -69,20 +69,14 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
 
         if has_media:
             media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).timestamp
-        else:
-            media_timestamp = ""
 
         if has_waste:
             waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).timestamp
-        else:
-            waste_timestamp = ""
 
         if has_alt_media:
             alt_media_timestamp = decode(
                 cache["alt_media"], type=structs.AltMediaPumpCalibration
             ).timestamp
-        else:
-            alt_media_timestamp = ""
 
     r = click.prompt(
         click.style(
