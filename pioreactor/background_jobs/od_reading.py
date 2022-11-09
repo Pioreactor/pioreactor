@@ -86,6 +86,7 @@ from time import time
 from typing import Callable
 from typing import cast
 from typing import Optional
+from typing import Union
 
 import click
 from msgspec.json import decode
@@ -113,7 +114,7 @@ from pioreactor.version import hardware_version_info
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
-AnalogValue = int | float
+AnalogValue = Union[int, float]
 Voltage = float
 PdChannelToVoltage = dict[pt.PdChannel, Voltage]
 
@@ -472,7 +473,7 @@ class ADCReader(LoggerMixin):
 
         # we pre-allocate these arrays to make the for loop faster => more accurate
         aggregated_signals: dict[pt.PdChannel, list[AnalogValue]] = {
-            channel: [0] * oversampling_count for channel in self.channels
+            channel: [0.0] * oversampling_count for channel in self.channels
         }
         timestamps: dict[pt.PdChannel, list[float]] = {
             channel: [0.0] * oversampling_count for channel in self.channels
@@ -894,16 +895,20 @@ class ODReader(BackgroundJob):
                 # start IR led before ADC starts, as it needs it.
                 self.start_ir_led()
                 sleep(0.1)
-                self.adc_reader.setup_adc()  # determine best gain, max-signal, offset, etc.
+
+                self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
+
                 self.stop_ir_led()
+                sleep(0.1)
 
                 blank_reading = self.adc_reader.take_reading()
-                self.adc_reader.set_offsets(blank_reading)
+                self.adc_reader.set_offsets(blank_reading)  # determine offset
+
                 # clear the history in adc_reader, so that we don't blank readings in later inference.
                 self.adc_reader.clear_batched_readings()
 
         if self.interval is not None:
-            if self.interval < 1.0:
+            if self.interval <= 1.0:
                 self.logger.warning(
                     f"Recommended to have the interval between readings be larger than 1.0 second. Currently {self.interval} s."
                 )
