@@ -78,6 +78,7 @@ class PWM:
         self.logger = create_logger("PWM", experiment=experiment, unit=unit)
         self.pin = pin
         self.hz = hz
+        self.duty_cycle = 0.0
 
         if self.is_locked():
             self.logger.error(
@@ -128,10 +129,13 @@ class PWM:
         if not (0 <= initial_duty_cycle <= 100):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        with local_intermittent_storage("pwm_dc") as cache:
-            cache[str(self.pin)] = str(initial_duty_cycle)
+        self.duty_cycle = initial_duty_cycle
 
-        self.pwm.start(round(initial_duty_cycle, 5))
+        with local_intermittent_storage("pwm_dc") as cache:
+            cache[str(self.pin)] = str(self.duty_cycle)
+
+        self.logger.debug(f"Started GPIO-{self.pin} PWM with initial DC = {self.duty_cycle}%.")
+        self.pwm.start(round(self.duty_cycle, 5))
 
     def stop(self) -> None:
         with local_intermittent_storage("pwm_dc") as cache:
@@ -143,13 +147,14 @@ class PWM:
         if not (0 <= duty_cycle <= 100):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
+        self.duty_cycle = duty_cycle
         with local_intermittent_storage("pwm_dc") as cache:
-            cache[str(self.pin)] = str(duty_cycle)
+            cache[str(self.pin)] = str(self.duty_cycle)
 
         if self.using_hardware:
-            self.pwm.change_duty_cycle(round(duty_cycle, 5))
+            self.pwm.change_duty_cycle(round(self.duty_cycle, 5))
         else:
-            self.pwm.ChangeDutyCycle(duty_cycle)  # type: ignore
+            self.pwm.ChangeDutyCycle(self.duty_cycle)  # type: ignore
 
     def cleanup(self) -> None:
         self.stop()
