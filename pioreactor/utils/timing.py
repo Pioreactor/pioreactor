@@ -115,7 +115,7 @@ class RepeatedTimer:
             # thread exited early
             return
 
-        while not self.event.wait(self._time):
+        while not self.event.wait(self.time_to_next_run):
             if self.is_paused:
                 continue
             self._execute_function()
@@ -128,8 +128,12 @@ class RepeatedTimer:
             self.logger.error(e)
 
     @property
-    def _time(self) -> float:
+    def time_to_next_run(self) -> float:
         return self.interval - ((perf_counter() - self.start_time) % self.interval)
+
+    @property
+    def time_from_previous_run(self) -> float:
+        return self.interval - self.time_to_next_run
 
     def pause(self) -> None:
         """

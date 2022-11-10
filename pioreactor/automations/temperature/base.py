@@ -54,7 +54,13 @@ class TemperatureAutomationJob(BackgroundSubJob):
         ):
             TemperatureController.available_automations[cls.automation_name] = cls
 
-    def __init__(self, unit: str, experiment: str, parent: TemperatureController, **kwargs) -> None:
+    def __init__(
+        self,
+        unit: str,
+        experiment: str,
+        temperature_control_parent: TemperatureController,
+        **kwargs,
+    ) -> None:
         super(TemperatureAutomationJob, self).__init__(unit=unit, experiment=experiment)
 
         self.latest_normalized_od_at: datetime = current_utc_datetime()
@@ -70,7 +76,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
             },
         )
 
-        self.temperature_control_parent = parent
+        self.temperature_control_parent = temperature_control_parent
 
         self.start_passive_listeners()
 

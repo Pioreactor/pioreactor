@@ -67,10 +67,10 @@ class LEDAutomationJob(BackgroundSubJob):
 
     def __init__(
         self,
+        unit: str,
+        experiment: str,
         duration: float,
         skip_first_run: bool = False,
-        unit: str = None,
-        experiment: str = None,
         **kwargs,
     ) -> None:
         super(LEDAutomationJob, self).__init__(unit=unit, experiment=experiment)

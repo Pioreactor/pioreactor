@@ -36,7 +36,6 @@ def test_change_target_rpm_mid_cycle() -> None:
 
         new_rpm = 750
         publish(f"pioreactor/{unit}/{exp}/stirring/target_rpm/set", new_rpm)
-
         pause()
 
         assert st.target_rpm == new_rpm

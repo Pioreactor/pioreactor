@@ -48,19 +48,21 @@ class Thermostat(TemperatureAutomationJob):
         return UpdatedHeaterDC(
             f"delta_dc={output}",
             data={
-                "current_dc": None if self.parent is None else self.parent.heater_duty_cycle,
+                "current_dc": None
+                if self.temperature_control_parent is None
+                else self.temperature_control_parent.heater_duty_cycle,
                 "delta_dc": output,
             },
         )
 
-    def set_target_temperature(self, value: float) -> None:
-        value = float(value)
-        if value > self.MAX_TARGET_TEMP:
+    def set_target_temperature(self, target_temperature: float) -> None:
+        target_temperature = float(target_temperature)
+        if target_temperature > self.MAX_TARGET_TEMP:
             self.logger.warning(
                 f"Values over {self.MAX_TARGET_TEMP}℃ are not supported. Setting to {self.MAX_TARGET_TEMP}℃."
             )
 
-        target_temperature = clamp(0, value, self.MAX_TARGET_TEMP)
+        target_temperature = clamp(0, target_temperature, self.MAX_TARGET_TEMP)
         self.target_temperature = target_temperature
         self.pid.set_setpoint(self.target_temperature)
 
@@ -71,6 +73,14 @@ class Thermostat(TemperatureAutomationJob):
             output = self.pid.update(
                 self.latest_temperature, dt=1
             )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
-            self.update_heater_with_delta(
-                output / 2
-            )  # the change occurs, on average, half way into the cycle.
+
+            if self.temperature_control_parent.publish_temperature_timer.is_paused:
+                self.update_heater_with_delta(output)
+            else:
+                # if another cycle is occurring very soon, don't both updating the DC much, as we don't want to "double dip" and change the dc twice quickly.
+                time_to_next_run = (
+                    self.temperature_control_parent.publish_temperature_timer.time_to_next_run
+                )
+                duration_of_cycle = 90.0  # approx...
+                f = time_to_next_run / duration_of_cycle
+                self.update_heater_with_delta((1 - f) * output)

@@ -158,7 +158,10 @@ class TemperatureController(BackgroundJob):
         self.logger.info(f"Starting {self.automation}.")
         try:
             self.automation_job = automation_class(
-                unit=self.unit, experiment=self.experiment, parent=self, **kwargs
+                unit=self.unit,
+                experiment=self.experiment,
+                temperature_control_parent=self,
+                **kwargs,
             )
         except Exception as e:
             self.logger.error(e)
@@ -277,7 +280,7 @@ class TemperatureController(BackgroundJob):
             self.automation_job = self.available_automations[algo_metadata.automation_name](
                 unit=self.unit,
                 experiment=self.experiment,
-                parent=self,
+                temperature_control_parent=self,
                 **algo_metadata.args,
             )
             self.automation = algo_metadata

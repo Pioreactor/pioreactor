@@ -24,10 +24,6 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 PCB_LED_PIN: GpioPin = 23
 PCB_BUTTON_PIN: GpioPin = 24
 
-# RaspAP trigger. See docs: TODO
-RASPAP_TRIGGER_ON_PIN: GpioPin = 20
-RASPAP_TRIGGER_OFF_PIN: GpioPin = 26
-
 # hall sensor
 HALL_SENSOR_PIN: GpioPin = 25
 
