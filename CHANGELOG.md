@@ -1,4 +1,8 @@
-
+### 22.11.2
+ - Removing `parent` from BackgroundSubJob
+ - Make thermostat heuristic slightly better
+ - fix bug in OD Calibration
+ - If the ADC has an offset (due to hardware, or ambient light), it will now be removed from all inputs before being processed in OD Readings.
 
 ### 22.11.1
  - Fix bug where users are not able to start a job.
