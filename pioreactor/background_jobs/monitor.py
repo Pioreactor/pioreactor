@@ -360,7 +360,7 @@ class Monitor(BackgroundJob):
             self.logger.debug(f"Power status: {status_to_human_readable(status)}")
 
     def publish_self_statistics(self) -> None:
-        import psutil
+        import psutil  # type: ignore
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
         cpu_usage_percent = round(

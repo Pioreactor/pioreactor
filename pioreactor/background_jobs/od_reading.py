@@ -49,27 +49,27 @@ Internally, the ODReader runs a function every `interval` seconds. The function
 
 Dataflow of raw signal to final output:
 
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ODReader                                                                                                  │
-│                                                                                                          │
-│                                                                                                          │
-│   ┌──────────────────────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐   │
-│   │ADCReader                                 │  │IrLedReferenceTracker   │  │CalibrationTransformer  │   │
-│   │                                          │  │                        │  │                        │   │
-│   │           ADC offset removed             │  │                        │  │                        │   │
-│   │ ┌──────────────┐   ▼   ┌───────────────┐ │  │  ┌─────────────────┐   │  │  ┌─────────────────┐   │   │
-│   │ │              ├───────►               │ │  │  │                 │   │  │  │                 │   │   │
-│   │ │              │       │               │ │  │  │                 │   │  │  │                 │   │   │
-│   │ │ samples from ├───────►      sin      ├─┼──┼──►  IR output      ├───┼──┼──►  Transform via  ├───┼───┼───►
-│   │ │     ADC      │       │   regression  │ │  │  │  compensation   │   │  │  │  calibration    │   │   │
-│   │ │              ├───────►               │ │  │  │                 │   │  │  │  curve          │   │   │
-│   │ └──────────────┘       └───────────────┘ │  │  └─────────────────┘   │  │  │                 │   │   │
-│   │                                          │  │                        │  │  └─────────────────┘   │   │
-│   │                                          │  │                        │  │                        │   │
-│   └──────────────────────────────────────────┘  └────────────────────────┘  └────────────────────────┘   │
-│                                                                                                          │
-│                                                                                                          │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ODReader                                                                                                                  │
+│                                                                                                                          │
+│                                                                                                                          │
+│   ┌──────────────────────────────────────────────────────────┐  ┌────────────────────────┐  ┌────────────────────────┐   │
+│   │ADCReader                                                 │  │IrLedReferenceTracker   │  │CalibrationTransformer  │   │
+│   │                                                          │  │                        │  │                        │   │
+│   │                                                          │  │                        │  │                        │   │
+│   │ ┌──────────────┐   ┌──────────────┐    ┌───────────────┐ │  │  ┌─────────────────┐   │  │  ┌─────────────────┐   │   │
+│   │ │              ├───►              ├────►               │ │  │  │                 │   │  │  │                 │   │   │
+│   │ │              │   │              │    │               │ │  │  │                 │   │  │  │                 │   │   │
+│   │ │ samples from ├───►   ADC offset ├────►      sin      ├─┼──┼──►  IR output      ├───┼──┼──►  Transform via  ├───┼───┼───►
+│   │ │     ADC      │   │    removed   │    │   regression  │ │  │  │  compensation   │   │  │  │  calibration    │   │   │
+│   │ │              ├───►              ├────►               │ │  │  │                 │   │  │  │  curve          │   │   │
+│   │ └──────────────┘   └──────────────┘    └───────────────┘ │  │  └─────────────────┘   │  │  │                 │   │   │
+│   │                                                          │  │                        │  │  └─────────────────┘   │   │
+│   │                                                          │  │                        │  │                        │   │
+│   └──────────────────────────────────────────────────────────┘  └────────────────────────┘  └────────────────────────┘   │
+│                                                                                                                          │
+│                                                                                                                          │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
 In the ODReader class, we publish the `first_od_obs_time` to MQTT so other jobs can read it and
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
@@ -163,7 +163,6 @@ class ADCReader(LoggerMixin):
     }
 
     oversampling_count: int = 27
-    readings_completed: int = 0
     _setup_complete = False
 
     def __init__(
@@ -323,7 +322,7 @@ class ADCReader(LoggerMixin):
         # ADCReader's gain.
         self.ads.gain = gain  # this assignment will check to see if the gain is allowed.
 
-    def sin_regression_with_known_freq(
+    def _sin_regression_with_known_freq(
         self,
         x: list[float],
         y: list[Voltage],
@@ -452,6 +451,12 @@ class ADCReader(LoggerMixin):
     def clear_batched_readings(self) -> None:
         self.batched_readings = {}
 
+    @staticmethod
+    def _remove_offset_from_signal(
+        signals: list[AnalogValue], offset: AnalogValue
+    ) -> list[AnalogValue]:
+        return [x - offset for x in signals]
+
     def take_reading(self) -> PdChannelToVoltage:
         """
         Sample from the ADS - likely this has been optimized for use for optical density in the Pioreactor system.
@@ -489,9 +494,7 @@ class ADCReader(LoggerMixin):
                     with catchtime() as time_sampling_took_to_run:
                         for channel, ai in self.analog_in.items():
                             timestamps[channel][counter] = time_since_start()
-                            aggregated_signals[channel][counter] = ai.value - self.adc_offsets.get(
-                                channel, 0.0
-                            )
+                            aggregated_signals[channel][counter] = ai.value
 
                     sleep(
                         max(
@@ -517,12 +520,15 @@ class ADCReader(LoggerMixin):
                 self.logger.debug(f"{aggregated_signals=}")
 
             for channel in self.channels:
+                shifted_signals = self._remove_offset_from_signal(
+                    aggregated_signals[channel], self.adc_offsets.get(channel, 0.0)
+                )
                 (
                     best_estimate_of_signal_,
                     *_other_param_estimates,
-                ), _ = self.sin_regression_with_known_freq(
+                ), _ = self._sin_regression_with_known_freq(
                     timestamps[channel],
-                    aggregated_signals[channel],
+                    shifted_signals,
                     self.most_appropriate_AC_hz,
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
@@ -551,10 +557,8 @@ class ADCReader(LoggerMixin):
 
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
-            if self.dynamic_gain and self.readings_completed % 5 == 4:
+            if self.dynamic_gain:
                 self.check_on_gain(self.max_signal_moving_average())
-
-            self.readings_completed += 1
 
             return batched_estimates_
 
@@ -574,7 +578,7 @@ class ADCReader(LoggerMixin):
             min_AIC = float("inf")
 
             for freq in FREQS_TO_TRY:
-                _, AIC = self.sin_regression_with_known_freq(
+                _, AIC = self._sin_regression_with_known_freq(
                     timestamps, aggregated_signals, freq=freq
                 )
                 if AIC < min_AIC:
@@ -704,7 +708,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         with local_persistant_storage("current_od_calibration") as c:
             for channel, angle in channel_angle_map.items():
                 if angle in c:
-                    calibration_data = decode(c[angle], type=structs.AnyODCalibration)
+                    calibration_data = decode(c[angle], type=structs.AnyODCalibration)  # type: ignore
                     name = calibration_data.name
 
                     # confirm that current IR intensity is the same as when calibration was performed
@@ -881,9 +885,9 @@ class ODReader(BackgroundJob):
         self.add_post_read_callback(self._log_relative_intensity_of_ir_led)
         self.add_post_read_callback(self._unblock_internal_event)
 
-        # setup the ADC and IrLedReference by turning off all LEDs.
+        # setup the ADC by turning off all LEDs.
         with led_utils.change_leds_intensities_temporarily(
-            {channel: 0.0 for channel in led_utils.ALL_LED_CHANNELS},
+            self.ir_led_on_and_rest_off_state,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -891,15 +895,13 @@ class ODReader(BackgroundJob):
             verbose=False,
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
-
-                # start IR led before ADC starts, as it needs it.
-                self.start_ir_led()
+                # IR led is on
                 sleep(0.1)
 
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
 
                 self.stop_ir_led()
-                sleep(0.1)
+                sleep(0.15)
 
                 blank_reading = self.adc_reader.take_reading()
                 self.adc_reader.set_offsets(blank_reading)  # determine offset
@@ -929,7 +931,7 @@ class ODReader(BackgroundJob):
         cls._post_read.append(function)
 
     @property
-    def led_state_during_recording(self) -> dict[pt.LedChannel, float]:
+    def ir_led_on_and_rest_off_state(self) -> dict[pt.LedChannel, float]:
         return {
             channel: (self.ir_led_intensity if channel == self.ir_channel else 0.0)
             for channel in led_utils.ALL_LED_CHANNELS
@@ -952,7 +954,7 @@ class ODReader(BackgroundJob):
         # we put a soft lock on the LED channels - it's up to the
         # other jobs to make sure they check the locks.
         with led_utils.change_leds_intensities_temporarily(
-            desired_state=self.led_state_during_recording,
+            desired_state=self.ir_led_on_and_rest_off_state,
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,

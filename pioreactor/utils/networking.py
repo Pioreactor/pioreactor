@@ -41,7 +41,7 @@ def is_reachable(hostname: str) -> bool:
 
 
 def get_ip() -> Optional[str]:
-    from psutil import net_if_addrs
+    from psutil import net_if_addrs  # type: ignore
 
     try:
         return net_if_addrs()["wlan0"][0].address
@@ -58,7 +58,7 @@ def discover_workers_on_network() -> list[str]:
 
         def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
             info = zc.get_service_info(type_, name)
-            self.hostnames.append(info.server.removesuffix(".local."))
+            self.hostnames.append(info.server.removesuffix(".local."))  # type: ignore
 
         def update_service(self, *args, **kwargs):
             pass

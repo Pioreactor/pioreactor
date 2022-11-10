@@ -53,9 +53,9 @@ def create_client(
     client = Client(client_id=client_id, clean_session=clean_session)
 
     if on_connect:
-        client.on_connect = on_connect
+        client.on_connect = on_connect  # type: ignore
     else:
-        client.on_connect = default_on_connect
+        client.on_connect = default_on_connect  # type: ignore
 
     if on_message:
         client.on_message = on_message
@@ -166,8 +166,8 @@ def subscribe(
             }
 
             client = Client(userdata=userdata)
-            client.on_connect = on_connect
-            client.on_message = on_message
+            client.on_connect = on_connect  # type: ignore
+            client.on_message = on_message  # type: ignore
             client.connect(hostname)
 
             if timeout is None:
@@ -261,7 +261,7 @@ def subscribe_and_callback(
 
         client = Client(userdata=userdata)
 
-        client.on_connect = on_connect
+        client.on_connect = on_connect  # type: ignore
         client.on_message = wrap_callback(callback)
 
         client.connect(hostname, **mqtt_kwargs)

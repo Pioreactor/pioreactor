@@ -84,12 +84,12 @@ def round_to_half_interger(x: float) -> float:
 def voltage_in_aux() -> float:
     # this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
-        from busio import I2C
-        from adafruit_ads1x15.analog_in import AnalogIn
+        from busio import I2C  # type: ignore
+        from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
     else:
         from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C  # type: ignore
 
-    from adafruit_ads1x15.ads1115 import ADS1115, P3
+    from adafruit_ads1x15.ads1115 import ADS1115, P3  # type: ignore
 
     slope = 0.1325
 

@@ -85,7 +85,7 @@ def _pump(
         if calibration is None:
             with utils.local_persistant_storage("current_pump_calibration") as cache:
                 try:
-                    calibration = decode(cache[pump_type], type=structs.AnyPumpCalibration)
+                    calibration = decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
                 except KeyError:
                     if continuously:
                         calibration = structs.PumpCalibration(

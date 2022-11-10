@@ -33,7 +33,7 @@ def test_sin_regression_exactly() -> None:
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, freq)
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
     assert isinstance(A, float)
     assert isinstance(phi, float)
     assert np.abs(C - 10) < 0.1
@@ -47,7 +47,7 @@ def test_sin_regression_exactly() -> None:
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, freq)
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y, freq)
     assert isinstance(A, float)
     assert isinstance(phi, float)
     assert np.abs(C - 10) < 0.1
@@ -61,7 +61,7 @@ def test_sin_regression_all_zeros_should_return_zeros() -> None:
     with np.errstate(all="raise"):
         adc_reader = ADCReader(channels=[])
 
-        (C, A, phi), AIC = adc_reader.sin_regression_with_known_freq(
+        (C, A, phi), AIC = adc_reader._sin_regression_with_known_freq(
             [i / 25 for i in range(25)], [0] * 25, 60
         )
         assert C == 0
@@ -72,32 +72,32 @@ def test_sin_regression_all_zeros_should_return_zeros() -> None:
 def test_sin_regression_real_data_and_that_60hz_is_the_minimum() -> None:
 
     y = [
-        8694,
-        8622,
-        8587,
-        8537,
-        8533,
-        8529,
-        8556,
-        8582,
-        8698,
-        8734,
-        8841,
-        8980,
-        9005,
-        9050,
-        9077,
-        9091,
-        9107,
-        9118,
-        9102,
-        9037,
-        9006,
-        8893,
-        8855,
-        8755,
-        8597,
-        8565,
+        8694.0,
+        8622.0,
+        8587.0,
+        8537.0,
+        8533.0,
+        8529.0,
+        8556.0,
+        8582.0,
+        8698.0,
+        8734.0,
+        8841.0,
+        8980.0,
+        9005.0,
+        9050.0,
+        9077.0,
+        9091.0,
+        9107.0,
+        9118.0,
+        9102.0,
+        9037.0,
+        9006.0,
+        8893.0,
+        8855.0,
+        8755.0,
+        8597.0,
+        8565.0,
     ]
     x = [
         6.849016062915325e-05,
@@ -129,7 +129,7 @@ def test_sin_regression_real_data_and_that_60hz_is_the_minimum() -> None:
     ]
 
     adc_reader = ADCReader(channels=[])
-    (C, A, phi), AIC_60 = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    (C, A, phi), AIC_60 = adc_reader._sin_regression_with_known_freq(x, y, 60)
     assert abs(C - np.mean(y)) < 10
 
     for i in range(2, 75):
@@ -137,39 +137,39 @@ def test_sin_regression_real_data_and_that_60hz_is_the_minimum() -> None:
         if i == 32:
             continue
 
-        (C, A, phi), AIC_i = adc_reader.sin_regression_with_known_freq(x, y, i)
+        (C, A, phi), AIC_i = adc_reader._sin_regression_with_known_freq(x, y, i)
         assert AIC_i >= AIC_60
 
 
 def test_sin_regression_real_data_and_that_60hz_is_the_minimum2() -> None:
 
     y = [
-        6393,
-        6470,
-        6523,
-        6373,
-        6375,
-        6234,
-        6147,
-        6283,
-        6264,
-        6206,
-        6276,
-        6070,
-        6047,
-        6018,
-        6162,
-        6323,
-        6044,
-        5887,
-        6100,
-        6032,
-        5988,
-        6021,
-        6043,
-        6189,
-        6299,
-        6279,
+        6393.0,
+        6470.0,
+        6523.0,
+        6373.0,
+        6375.0,
+        6234.0,
+        6147.0,
+        6283.0,
+        6264.0,
+        6206.0,
+        6276.0,
+        6070.0,
+        6047.0,
+        6018.0,
+        6162.0,
+        6323.0,
+        6044.0,
+        5887.0,
+        6100.0,
+        6032.0,
+        5988.0,
+        6021.0,
+        6043.0,
+        6189.0,
+        6299.0,
+        6279.0,
     ]
     x = [
         0.011080539086833596,
@@ -201,14 +201,14 @@ def test_sin_regression_real_data_and_that_60hz_is_the_minimum2() -> None:
     ]
 
     adc_reader = ADCReader(channels=[])
-    (C, A, phi), AIC_60 = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    (C, A, phi), AIC_60 = adc_reader._sin_regression_with_known_freq(x, y, 60)
     assert abs(C - np.mean(y)) < 10
 
     for i in range(2, 75):
         if i == 30 or i == 31 or i == 62:
             continue
 
-        (C_, _, _), AIC_i = adc_reader.sin_regression_with_known_freq(x, y, i)
+        (C_, _, _), AIC_i = adc_reader._sin_regression_with_known_freq(x, y, i)
 
         assert AIC_i >= AIC_60, i
 
@@ -217,7 +217,7 @@ def test_sin_regression_constant_should_return_constant() -> None:
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
         [i / 25 for i in range(25)], [1.0] * 25, 60
     )
     assert C == 1.0
@@ -228,9 +228,9 @@ def test_sin_regression_with_linear_change_should_return_close_to_mean() -> None
 
     adc_reader = ADCReader(channels=[])
 
-    y = [i for i in range(25)]
+    y = [float(i) for i in range(25)]
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq([i / 25 for i in range(25)], y, 60)
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq([i / 25 for i in range(25)], y, 60)
     assert np.abs(C - np.mean(y)) < 0.001
 
 
@@ -243,7 +243,7 @@ def test_sin_regression_with_slightly_lower_frequency() -> None:
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y, 60)
     assert np.abs(C - 10) < 0.1
 
 
@@ -256,10 +256,10 @@ def test_sin_regression_with_slightly_higher_frequency_but_correct_freq_has_bett
 
     adc_reader = ADCReader(channels=[])
 
-    (C_60, A, phi), aic_60 = adc_reader.sin_regression_with_known_freq(x, y, 60)
+    (C_60, A, phi), aic_60 = adc_reader._sin_regression_with_known_freq(x, y, 60)
     assert np.abs(C_60 - 10) < 0.1
 
-    (C_61, A, phi), aic_61 = adc_reader.sin_regression_with_known_freq(x, y, actual_freq)
+    (C_61, A, phi), aic_61 = adc_reader._sin_regression_with_known_freq(x, y, actual_freq)
     assert aic_61 < aic_60  # lower is better
 
 
@@ -267,7 +267,7 @@ def test_sin_regression_with_strong_penalizer() -> None:
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
         [i / 25 for i in range(25)], [100] * 25, 60, prior_C=125, penalizer_C=1_000_000
     )
     assert abs(C - 125) < 0.01
@@ -337,7 +337,7 @@ def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values()
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
         x, y, freq, prior_C=12, penalizer_C=10.0
     )
     ratio = C / C_True
@@ -348,7 +348,7 @@ def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values()
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), _ = adc_reader.sin_regression_with_known_freq(
+    (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
         x, y, freq, prior_C=factor * 12, penalizer_C=10.0
     )
     assert np.abs(C / (factor * C_True) - ratio) < 0.01
@@ -358,11 +358,11 @@ def test_sin_regression_all_negative() -> None:
 
     freq = 60
     x = [i / 25 for i in range(25)]
-    y = [-2 for _x in x]
+    y = [-2.0 for _x in x]
 
     adc_reader = ADCReader(channels=[])
 
-    (C, A, phi), AIC = adc_reader.sin_regression_with_known_freq(x, y, freq)
+    (C, A, phi), AIC = adc_reader._sin_regression_with_known_freq(x, y, freq)
     assert C == -2
     assert AIC == float("inf")
 
@@ -479,62 +479,62 @@ def test_outliers_are_removed_in_sin_regression() -> None:
     adc_reader = ADCReader(channels=[])
 
     y_with_outlier = [
-        11321,
-        249,
-        180,
-        123,
-        160,
-        125,
-        59,
-        96,
-        105,
-        177,
-        213,
-        184,
-        237,
-        264,
-        304,
-        325,
-        295,
-        307,
-        295,
-        396,
-        336,
-        252,
-        207,
-        118,
-        100,
+        11321.0,
+        249.0,
+        180.0,
+        123.0,
+        160.0,
+        125.0,
+        59.0,
+        96.0,
+        105.0,
+        177.0,
+        213.0,
+        184.0,
+        237.0,
+        264.0,
+        304.0,
+        325.0,
+        295.0,
+        307.0,
+        295.0,
+        396.0,
+        336.0,
+        252.0,
+        207.0,
+        118.0,
+        100.0,
     ]
-    (C1, A, phi), _ = adc_reader.sin_regression_with_known_freq(list(x), y_with_outlier, freq)
+    (C1, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y_with_outlier, freq)
 
     y_without_outlier = [
-        211,
-        249,
-        180,
-        123,
-        160,
-        125,
-        59,
-        96,
-        105,
-        177,
-        213,
-        184,
-        237,
-        264,
-        304,
-        325,
-        295,
-        307,
-        295,
-        396,
-        336,
-        252,
-        207,
-        118,
-        100,
+        211.0,
+        249.0,
+        180.0,
+        123.0,
+        160.0,
+        125.0,
+        59.0,
+        96.0,
+        105.0,
+        177.0,
+        213.0,
+        184.0,
+        237.0,
+        264.0,
+        304.0,
+        325.0,
+        295.0,
+        307.0,
+        295.0,
+        396.0,
+        336.0,
+        252.0,
+        207.0,
+        118.0,
+        100.0,
     ]
-    (C2, A, phi), _ = adc_reader.sin_regression_with_known_freq(list(x), y_without_outlier, freq)
+    (C2, A, phi), _ = adc_reader._sin_regression_with_known_freq(x, y_without_outlier, freq)
 
     assert np.abs(C1 - C2) < 5
 
