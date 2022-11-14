@@ -365,14 +365,7 @@ function StartNewExperimentContainer(props) {
                   href="/overview"
                   className={classes.button}
                 >
-                Go to Overview
-                </Button>
-                <Button
-                  variant="text"
-                  href="/pioreactors"
-                  className={classes.button}
-                >
-                Go to Pioreactors
+                Skip
                 </Button>
               </div>
               )}

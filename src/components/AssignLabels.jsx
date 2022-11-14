@@ -101,6 +101,7 @@ function AssignLabels(props){
             }
         })
     ))
+    document.location.href = "/overview"
   }
   const onLabelChange = (unit) => (e) => setLabels({...labels, [unit]: e.target.value})
 

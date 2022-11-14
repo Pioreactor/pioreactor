@@ -88,50 +88,50 @@ function MainSite() {
   return (
     <div style={{display: 'flex'}}>
       <ErrorBoundary config={config}>
-        <SideNavAndHeader />
-        <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
           <Router>
-            <div className="pageContainer">
-              <Switch>
-                <Route path="/export-data">
-                  <ExportData config={config} title="Pioreactor ~ Export data"/>
-                </Route>
-                <Route path="/start-new-experiment">
-                  <StartNewExperiment config={config} title="Pioreactor ~ Start new experiment" />
-                </Route>
-                <Route path="/overview">
-                  <ExperimentOverview config={config} title="Pioreactor ~ Overview"/>
-                </Route>
-                <Route path="/plugins">
-                  <Plugins config={config} title="Pioreactor ~ Plugins"/>
-                </Route>
-                <Route path="/analysis">
-                  <Analysis config={config} title="Pioreactor ~ Analysis"/>
-                </Route>
-                <Route path="/config">
-                  <EditConfig config={config} title="Pioreactor ~ Configuration"/>
-                </Route>
-                <Route path="/pioreactors" exact>
-                  <Pioreactors config={config} title="Pioreactor ~ Pioreactors"/>
-                </Route>
-                <Route path="/updates">
-                  <Updates config={config} title="Pioreactor ~ Updates"/>
-                </Route>
-                <Route path="/feedback">
-                  <Feedback config={config} title="Pioreactor ~ Feedback"/>
-                </Route>
-                <Route path="/calibrations">
-                  <Calibrations config={config} title="Pioreactor ~ Calibrations"/>
-                </Route>
-                <Route path="/">
-                  <ExperimentOverview config={config} title="Pioreactor ~ Pioreactor"/>
-                </Route>
-              </Switch>
-              <ErrorSnackbar config={config} />
-              <TactileButtonNotification config={config}/>
-            </div>
-          </Router>
-        </main>
+            <SideNavAndHeader />
+            <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
+              <div className="pageContainer">
+                <Switch>
+                  <Route path="/export-data">
+                    <ExportData config={config} title="Pioreactor ~ Export data"/>
+                  </Route>
+                  <Route path="/start-new-experiment">
+                    <StartNewExperiment config={config} title="Pioreactor ~ Start new experiment" />
+                  </Route>
+                  <Route path="/overview">
+                    <ExperimentOverview config={config} title="Pioreactor ~ Overview"/>
+                  </Route>
+                  <Route path="/plugins">
+                    <Plugins config={config} title="Pioreactor ~ Plugins"/>
+                  </Route>
+                  <Route path="/analysis">
+                    <Analysis config={config} title="Pioreactor ~ Analysis"/>
+                  </Route>
+                  <Route path="/config">
+                    <EditConfig config={config} title="Pioreactor ~ Configuration"/>
+                  </Route>
+                  <Route path="/pioreactors" exact>
+                    <Pioreactors config={config} title="Pioreactor ~ Pioreactors"/>
+                  </Route>
+                  <Route path="/updates">
+                    <Updates config={config} title="Pioreactor ~ Updates"/>
+                  </Route>
+                  <Route path="/feedback">
+                    <Feedback config={config} title="Pioreactor ~ Feedback"/>
+                  </Route>
+                  <Route path="/calibrations">
+                    <Calibrations config={config} title="Pioreactor ~ Calibrations"/>
+                  </Route>
+                  <Route path="/">
+                    <ExperimentOverview config={config} title="Pioreactor ~ Pioreactor"/>
+                  </Route>
+                </Switch>
+                <ErrorSnackbar config={config} />
+                <TactileButtonNotification config={config}/>
+              </div>
+          </main>
+        </Router>
       </ErrorBoundary>
     </div>
 )}

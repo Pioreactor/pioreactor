@@ -5,6 +5,7 @@ import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import ListItem from '@mui/material/ListItem';
 import Badge from '@mui/material/Badge';
 import Divider from '@mui/material/Divider';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -15,7 +16,7 @@ import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
 import TuneIcon from '@mui/icons-material/Tune';
 import UpdateIcon from '@mui/icons-material/Update';
 import Toolbar from '@mui/material/Toolbar';
-import {AppBar, Typography, Link, Button} from '@mui/material';
+import {AppBar, Typography, Button} from '@mui/material';
 import PioreactorIcon from './PioreactorIcon';
 import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
@@ -23,6 +24,9 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Tooltip from '@mui/material/Tooltip';
+import { Link, useLocation } from 'react-router-dom';
+import clsx from 'clsx';
+
 
 const drawerWidth = 212;
 
@@ -56,6 +60,16 @@ const useStyles = makeStyles((theme) => ({
   divider: {
     marginTop: "15px",
     marginBottom: "15px",
+  },
+  outlined: {
+    "&:hover": {
+      backgroundColor: "rgba(83, 49, 202, 0.04)"
+    },
+  },
+  outlinedActive: {
+    "&:hover": {
+      backgroundColor: "rgba(100, 100, 100, 0.04)"
+    }
   }
 }));
 
@@ -63,6 +77,7 @@ const useStyles = makeStyles((theme) => ({
 
 export default function SideNavAndHeader() {
   const classes = useStyles();
+  const location = useLocation()
 
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [version, setVersion] = React.useState(null)
@@ -100,7 +115,7 @@ export default function SideNavAndHeader() {
   };
 
   function isSelected(path) {
-    return (window.location.pathname === path)
+    return (location.pathname === path)
   }
 
   const helpNode = <React.Fragment>
@@ -108,72 +123,90 @@ export default function SideNavAndHeader() {
                     </React.Fragment>
 
   const list = () => (
-    <div className={classes.drawerContainer}>
+    <div>
       <List>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !(isSelected("/") || isSelected("/overview"))})} component={Link} to="/"  key="overview" selected={isSelected("/") || isSelected("/overview")}>
+            <ListItemIcon className={classes.listItemIcon}><DashboardOutlinedIcon color={(isSelected("/") || isSelected("/overview")) ? "primary" : "inherit"}/> </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/") || isSelected("/overview") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Overview" />
+          </ListItemButton>
+        </ListItem>
 
-        <ListItemButton href="/overview" component="a"  key="overview" selected={isSelected("/") || isSelected("/overview")}>
-          <ListItemIcon className={classes.listItemIcon}><DashboardOutlinedIcon color={(isSelected("/") || isSelected("/overview")) ? "primary" : "inherit"}/> </ListItemIcon>
-          <ListItemText primaryTypographyProps={{color: isSelected("/") || isSelected("/overview") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Overview" />
-        </ListItemButton>
-
-        <ListItemButton href="/pioreactors"  component="a" key="pioreactors" selected={isSelected("/pioreactors")}>
-          <ListItemIcon className={classes.listItemIcon}> <PioreactorIcon color={isSelected("/pioreactors") ? "primary" : "inherit"} viewBox="-3 0 24 24"/> </ListItemIcon>
-          <ListItemText primaryTypographyProps={{color: isSelected("/pioreactors") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Pioreactors" />
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/pioreactors") })} component={Link} to="/pioreactors" key="pioreactors" selected={isSelected("/pioreactors")}>
+            <ListItemIcon className={classes.listItemIcon}> <PioreactorIcon color={isSelected("/pioreactors") ? "primary" : "inherit"} viewBox="-3 0 24 24"/> </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/pioreactors") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Pioreactors" />
+          </ListItemButton>
+        </ListItem>
 
 
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/config") })} component={Link} to="/config" key="config" selected={isSelected("/config")}>
+            <ListItemIcon className={classes.listItemIcon}> <SettingsOutlinedIcon color={isSelected("/config") ? "primary" : "inherit"}/> </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/config") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Configuration" />
+          </ListItemButton>
+        </ListItem>
 
-        <ListItemButton  href="/config"  component="a" key="config" selected={isSelected("/config")}>
-          <ListItemIcon className={classes.listItemIcon}> <SettingsOutlinedIcon color={isSelected("/config") ? "primary" : "inherit"}/> </ListItemIcon>
-          <ListItemText primaryTypographyProps={{color: isSelected("/config") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Configuration" />
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/export-data") })} component={Link} to="/export-data"  key="export-data" selected={isSelected("/export-data")}>
+            <ListItemIcon className={classes.listItemIcon}><SaveAltIcon color={isSelected("/export-data") ? "primary" : "inherit"}/> </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/export-data") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Export data" />
+          </ListItemButton>
+        </ListItem>
 
-        <ListItemButton href="/export-data" component="a"  key="export_data" selected={isSelected("/export-data")}>
-          <ListItemIcon className={classes.listItemIcon}><SaveAltIcon color={isSelected("/export-data") ? "primary" : "inherit"}/> </ListItemIcon>
-          <ListItemText primaryTypographyProps={{color: isSelected("/export-data") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Export data" />
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]:!isSelected("/analysis") })} selected={isSelected("/analysis")} disabled>
+            <ListItemIcon className={classes.listItemIcon}> <InsertChartOutlinedIcon color={isSelected("/analysis") ? "primary" : "inherit"}/> </ListItemIcon>
+            <Tooltip title="Coming soon" placement="bottom-end">
+              <ListItemText primaryTypographyProps={{color: isSelected("/analysis") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Analysis" />
+            </Tooltip>
+          </ListItemButton>
+        </ListItem>
 
-        <ListItemButton  href="/analysis" key="analysis" selected={isSelected("/analysis")} disabled>
-          <ListItemIcon className={classes.listItemIcon}> <InsertChartOutlinedIcon color={isSelected("/analysis") ? "primary" : "inherit"}/> </ListItemIcon>
-          <Tooltip title="Coming soon" placement="bottom-end">
-            <ListItemText primaryTypographyProps={{color: isSelected("/analysis") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Analysis" />
-          </Tooltip>
-        </ListItemButton>
-
-        <ListItemButton  href="/calibrations"  key="calibrations" selected={isSelected("/calibrations")} disabled={true} >
-          <ListItemIcon className={classes.listItemIcon}> <TuneIcon color={isSelected("/calibrations") ? "primary" : "inherit"}/> </ListItemIcon>
-          <Tooltip title="Coming soon" placement="bottom-end">
-            <ListItemText primaryTypographyProps={{color: isSelected("/calibrations") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Calibrations" />
-          </Tooltip>
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/calibrations") })} selected={isSelected("/calibrations")} disabled={true} >
+            <ListItemIcon className={classes.listItemIcon}> <TuneIcon color={isSelected("/calibrations") ? "primary" : "inherit"}/> </ListItemIcon>
+            <Tooltip title="Not available in UI" placement="bottom-end">
+              <ListItemText primaryTypographyProps={{color: isSelected("/calibrations") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Calibrations" />
+            </Tooltip>
+          </ListItemButton>
+        </ListItem>
 
         <Divider className={classes.divider} />
 
-        <ListItemButton href="/plugins" component="a"  key="plugins" selected={isSelected("/plugins")}>
-          <ListItemIcon className={classes.listItemIcon}><LibraryAddOutlinedIcon color={isSelected("/plugins") ? "primary" : "inherit"}/> </ListItemIcon>
-          <ListItemText primaryTypographyProps={{color: isSelected("/plugins") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Plugins" />
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/plugins") })} component={Link} to="/plugins"  key="plugins" selected={isSelected("/plugins")}>
+            <ListItemIcon className={classes.listItemIcon}><LibraryAddOutlinedIcon color={isSelected("/plugins") ? "primary" : "inherit"}/> </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/plugins") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Plugins" />
+          </ListItemButton>
+        </ListItem>
 
-        <ListItemButton href="/updates" component="a"  key="updates" selected={isSelected("/updates")}>
-          <ListItemIcon className={classes.listItemIcon}>
-            <Badge variant="dot" color="secondary" invisible={!((version) && (latestVersion) && (version !== latestVersion))}>
-              <UpdateIcon color={isSelected("/updates") ? "primary" : "inherit"}/>
-            </Badge>
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{color: isSelected("/updates") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Updates"/>
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/updates") })} component={Link} to="/updates"  key="updates" selected={isSelected("/updates")}>
+            <ListItemIcon className={classes.listItemIcon}>
+              <Badge variant="dot" color="secondary" invisible={!((version) && (latestVersion) && (version !== latestVersion))}>
+                <UpdateIcon color={isSelected("/updates") ? "primary" : "inherit"}/>
+              </Badge>
+            </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/updates") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Updates"/>
+          </ListItemButton>
+        </ListItem>
 
-        <ListItemButton target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com" component="a"  key="help">
-          <ListItemIcon className={classes.listItemIcon}><HelpOutlineIcon/> </ListItemIcon>
-          <ListItemText primary={helpNode} primaryTypographyProps={{color: "rgba(0, 0, 0, 0.87)"}}/>
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: true })} target="_blank" rel="noopener noreferrer" component={Link} to={{pathname: "https://docs.pioreactor.com"}}  key="help">
+            <ListItemIcon className={classes.listItemIcon}><HelpOutlineIcon/> </ListItemIcon>
+            <ListItemText primary={helpNode} primaryTypographyProps={{color: "rgba(0, 0, 0, 0.87)"}}/>
+          </ListItemButton>
+        </ListItem>
 
-        <ListItemButton href="/feedback" component="a"  key="feedback" selected={isSelected("/feedback")}>
-          <ListItemIcon className={classes.listItemIcon}>
-            <FeedbackOutlinedIcon color={isSelected("/feedback") ? "primary" : "inherit"}/>
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{color: isSelected("/feedback") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Share feedback"/>
-        </ListItemButton>
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]:!isSelected("/feedback") })} component={Link} to="/feedback"  key="feedback" selected={isSelected("/feedback")}>
+            <ListItemIcon className={classes.listItemIcon}>
+              <FeedbackOutlinedIcon color={isSelected("/feedback") ? "primary" : "inherit"}/>
+            </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/feedback") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Share feedback"/>
+          </ListItemButton>
+        </ListItem>
 
       </List>
     </div>
@@ -198,11 +231,13 @@ export default function SideNavAndHeader() {
 
 
             <Typography variant="h6" className={classes.title}>
-              <Link color="inherit" underline="none" href="/" className={classes.title}> <img alt="pioreactor logo" src="/white_colour.png" style={{width: "120px", height: "29px"}}/> </Link>
+              <Link color="inherit" underline="none" to="/" className={classes.title}>
+                <img alt="pioreactor logo" src="/white_colour.png" style={{width: "120px", height: "29px"}}/> <
+              /Link>
             </Typography>
-            <Link color="inherit" underline="none" href="https://docs.pioreactor.com" target="_blank" rel="noopener noreferrer">
-              <Button color="inherit" style={{textTransform: "none"}}>Help <HelpOutlineIcon style={{ fontSize: 18, verticalAlign: "middle", marginLeft: 5 }}/></Button>
-            </Link>
+            <Button component={Link} target="_blank" rel="noopener noreferrer" to={{pathname: "https://docs.pioreactor.com"}} color="inherit" style={{textTransform: "none"}}>
+              Help <HelpOutlineIcon style={{ fontSize: 18, verticalAlign: "middle", marginLeft: 5 }}/>
+            </Button>
           </Toolbar>
         </AppBar>
       </div>
