@@ -1,3 +1,8 @@
+### Upcoming
+ - Fix bug in UI that wasn't letting users update software
+ - during `pio update --app`, we now check for additional files in the github release that are to be executed. This provides a path of upgrading non-Python things.
+
+
 ### 22.11.2
  - Removing `parent` from BackgroundSubJob
  - Make thermostat heuristic slightly better

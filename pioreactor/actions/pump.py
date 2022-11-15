@@ -93,7 +93,7 @@ def _pump(
                             timestamp=current_utc_datetime(),
                             pump=pump_type,
                             duration_=1.0,
-                            hz=200.0,
+                            hz=200.0,  # is this an okay default?
                             dc=100.0,
                             bias_=0,
                             voltage=-1,

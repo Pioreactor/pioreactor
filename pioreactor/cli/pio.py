@@ -300,33 +300,63 @@ def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) ->
         click.echo("Nothing to do. Specify either --app or --ui.")
 
     if app:
+        commands_and_priority = []
+
         if source is not None:
             version_installed = source
-            command = f"sudo pip3 install --root-user-action=ignore -U --force-reinstall {source}"
+            commands_and_priority.append(
+                (f"sudo pip3 install --root-user-action=ignore -U --force-reinstall {source}", 1)
+            )
 
         elif branch is not None:
             version_installed = branch
-            command = f"sudo pip3 install --root-user-action=ignore -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip"
+            commands_and_priority.append(
+                (
+                    f"sudo pip3 install --root-user-action=ignore -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip",
+                    1,
+                )
+            )
         else:
             latest_release_metadata = loads(
                 get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest").body
             )
             version_installed = latest_release_metadata["name"]
-            url_to_get_whl = f"https://github.com/Pioreactor/pioreactor/releases/download/{version_installed}/pioreactor-{version_installed}-py3-none-any.whl"
+            for asset in latest_release_metadata["assets"]:
+                if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
+                    url_to_get_whl = asset["browser_download_url"]
+                    commands_and_priority.append(
+                        (
+                            f'sudo pip3 install --root-user-action=ignore "pioreactor @ {url_to_get_whl}"',
+                            1,
+                        )
+                    )
+                elif asset["name"] == "update.sh":
+                    url_to_get_sh = asset["browser_download_url"]
+                    commands_and_priority.append((f"sudo bash <(curl -s {url_to_get_sh})", 2))
+                elif asset["name"] == "update.sql":
+                    url_to_get_sql = asset["browser_download_url"]
+                    commands_and_priority.append(
+                        (
+                            f'sudo sqlite3 {config["storage"]["database"]} < <(curl -s {url_to_get_sql})',
+                            3,
+                        )
+                    )
 
-            command = f'sudo pip3 install --root-user-action=ignore "pioreactor @ {url_to_get_whl}"'
+        for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
+            logger.debug(command)
+            p = subprocess.run(
+                command,
+                shell=True,
+                universal_newlines=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+            if p.returncode != 0:
+                logger.error(p.stderr)
+                # end early
+                return
 
-        p = subprocess.run(
-            command,
-            shell=True,
-            universal_newlines=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-        if p.returncode == 0:
-            logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
-        else:
-            logger.error(p.stderr)
+        logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
 
     if ui and whoami.am_I_leader():
         gitp = "git pull origin master"
