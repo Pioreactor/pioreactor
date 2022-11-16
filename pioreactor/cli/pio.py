@@ -2,9 +2,8 @@
 """
 cmd line interface for running individual pioreactor units (including leader)
 
-> pio run od_reading
 > pio run stirring --ignore-rpm
-> pio log
+> pio logs
 """
 from __future__ import annotations
 
@@ -167,7 +166,15 @@ def blink() -> None:
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
 def kill(job: list[str], all_jobs: bool) -> None:
     """
-    stop a job by sending a SIGTERM to it.
+    stop a job(s).
+    """
+    """
+    This isn't a very clean way to end jobs (generally: actions). Ex: If a python script is running with Pioreactor jobs
+    running in it, it won't get closed.
+
+    Another approach is to iterate through /tmp/jon_metadata_*.db and fire an MQTT event to kill them. This would fail though if
+    not connected to leader...
+
     """
 
     from sh import pkill  # type: ignore
@@ -180,8 +187,25 @@ def kill(job: list[str], all_jobs: bool) -> None:
             pass
 
     if all_jobs:
+        # kill all running pioreactor processes
         safe_pkill("-f", "pio run ")
-        sleep(1)
+
+        # kill all pumping
+        pubsub.publish(
+            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_media/$state/set",
+            "disconnected",
+        )
+        pubsub.publish(
+            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/remove_waste/$state/set",
+            "disconnected",
+        )
+        pubsub.publish(
+            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_alt_media/$state/set",
+            "disconnected",
+        )
+
+        # kill all LEDs
+        sleep(0.5)
         led_intensity({"A": 0, "B": 0, "C": 0, "D": 0}, verbose=False)
     else:
         for j in job:
@@ -393,8 +417,8 @@ if whoami.am_I_active_worker():
     run.add_command(jobs.led_control.click_led_control)
     run.add_command(jobs.temperature_control.click_temperature_control)
 
-    run.add_command(actions.pump.click_add_alt_media)
     run.add_command(actions.led_intensity.click_led_intensity)
+    run.add_command(actions.pump.click_add_alt_media)
     run.add_command(actions.pump.click_add_media)
     run.add_command(actions.pump.click_remove_waste)
     run.add_command(actions.od_blank.click_od_blank)

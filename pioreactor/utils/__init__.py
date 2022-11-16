@@ -66,9 +66,9 @@ def append_signal_handlers(signal_value: signal.Signals, new_callbacks: list[Cal
 
 class publish_ready_to_disconnected_state:
     """
-    Wrap a block of code to have "state" in MQTT. See od_normalization, self_test.
+    Wrap a block of code to have "state" in MQTT. See od_normalization, self_test, pump
 
-    You can use MQTT "/$state/set" tools to disconnect it.
+    You can use MQTT ".../$state/set" tools to disconnect it.
 
     Example
     ----------
