@@ -33,12 +33,15 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: 0,
   },
   pluginList:{
-    width: "95%",
+    width: "92%",
     margin: "auto",
     marginBottom: "15px"
   },
+  primaryActionButton:{
+    marginLeft: "5px"
+  },
   secondaryActionButton:{
-    marginLeft: "10px"
+    marginLeft: "15px"
   }
 }));
 
@@ -116,7 +119,7 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
             <ListItemText
               primary={plugin.name}
               secondary={plugin.description}
-              style={{maxWidth: "500px"}}
+              style={{maxWidth: "525px"}}
             />
             <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
 
@@ -124,9 +127,10 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
                 onClick={installPlugin(plugin.name)}
                 variant="contained"
                 size="small"
-                aria-label="delete"
+                aria-label="install"
+                color="primary"
                 endIcon={<GetAppIcon />}
-                className={classes.secondaryActionButton}
+                className={classes.primaryActionButton}
               >
                 Install
               </Button>
@@ -135,8 +139,8 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
                 target="_blank" rel="noopener"
                 variant="text"
                 size="small"
-                color="inherit"
-                aria-label="install"
+                color="primary"
+                aria-label="view more"
                 disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
                 endIcon={<OpenInNewIcon />}
                 className={classes.secondaryActionButton}
@@ -200,17 +204,18 @@ function ListInstalledPlugins({installedPlugins}){
             <ListItemText
               primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
               secondary={plugin.description}
+              style={{maxWidth: "525px"}}
             />
             <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
               <Button
                 onClick={uninstallPlugin(plugin.name)}
                 variant="text"
                 size="small"
-                color="inherit"
+                color="primary"
                 aria-label="delete"
                 endIcon={<DeleteIcon />}
                 disabled={plugin.source === "plugins_folder"}
-                className={classes.secondaryActionButton}
+                className={classes.primaryActionButton}
               >
                 {plugin.source === "plugins_folder" ? "Delete from plugins folder" : "Uninstall" }
               </Button>
@@ -219,7 +224,7 @@ function ListInstalledPlugins({installedPlugins}){
                 target="_blank" rel="noopener"
                 variant="text"
                 size="small"
-                color="inherit"
+                color="primary"
                 aria-label="delete"
                 disabled={!plugin.homepage}
                 endIcon={<OpenInNewIcon />}

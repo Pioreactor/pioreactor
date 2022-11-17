@@ -166,7 +166,7 @@ export default function SideNavAndHeader() {
         <ListItem disablePadding>
           <ListItemButton className={clsx({[classes.outlined]: !isSelected("/calibrations") })} selected={isSelected("/calibrations")} disabled={true} >
             <ListItemIcon className={classes.listItemIcon}> <TuneIcon color={isSelected("/calibrations") ? "primary" : "inherit"}/> </ListItemIcon>
-            <Tooltip title="Not available in UI" placement="bottom-end">
+            <Tooltip title="Not available in UI yet" placement="bottom-end">
               <ListItemText primaryTypographyProps={{color: isSelected("/calibrations") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Calibrations" />
             </Tooltip>
           </ListItemButton>

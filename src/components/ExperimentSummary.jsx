@@ -15,6 +15,7 @@ import GetAppIcon from '@mui/icons-material/GetApp';
 import ClearIcon from '@mui/icons-material/Clear';
 import AddIcon from '@mui/icons-material/Add';
 import { useConfirm } from 'material-ui-confirm';
+import { Link } from 'react-router-dom';
 
 
 
@@ -129,9 +130,9 @@ const ButtonNewExperiment = () => {
   const handleClick = () => {
     confirm({
       description: 'Starting a new experiment will stop data collection for the current experiment. Do you wish to proceed?',
-      title: "Starting a new experiment",
+      title: "Start a new experiment?",
       confirmationText: "Confirm",
-      confirmationButtonProps: {color: "primary", href: "/start-new-experiment"},
+      confirmationButtonProps: {color: "primary", to: "/start-new-experiment", component: Link},
       cancellationButtonProps: {color: "secondary"},
     })
   };
@@ -189,7 +190,7 @@ function ExperimentSummary(props){
           <div className={classes.headerButtons}>
             <ButtonNewExperiment/>
             <ButtonEndExperiment/>
-            <Button href="/export-data" style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
+            <Button to="/export-data" component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
               <GetAppIcon fontSize="15" classes={{root: classes.textIcon}}/> Export experiment data
             </Button>
           </div>
