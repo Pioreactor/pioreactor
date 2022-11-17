@@ -1,6 +1,7 @@
-### Upcoming
+### 22.11.3
  - Fix bug in UI that wasn't letting users update software
  - during `pio update --app`, we now check for additional files in the github release that are to be executed. This provides a path of upgrading non-Python things.
+ - Improvements to PioreactorUI
 
 
 ### 22.11.2

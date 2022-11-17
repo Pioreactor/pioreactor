@@ -175,6 +175,9 @@ def kill(job: list[str], all_jobs: bool) -> None:
     Another approach is to iterate through /tmp/jon_metadata_*.db and fire an MQTT event to kill them. This would fail though if
     not connected to leader...
 
+    Another option is for _all jobs and actions_ to listen to a special topic: pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/kill
+    A single publish is sent, and everyone kills themselves. This fails if not connected to a leader.
+
     """
 
     from sh import pkill  # type: ignore
