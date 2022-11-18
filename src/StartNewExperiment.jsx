@@ -241,17 +241,6 @@ function ExperimentSummaryForm(props) {
               />
           </Grid>
           <Grid item xs={12} md={6}>
-            <TextField
-              id="datetime"
-              label="Start time"
-              type="datetime-local"
-              defaultValue={timestamp.local().format("YYYY-MM-DDTHH:mm:ss")}
-              className={classes.textField}
-              onChange={onTimestampChange}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
           </Grid>
           <Grid item xs={12} md={12}>
             <TextField

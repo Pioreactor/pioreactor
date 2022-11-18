@@ -1053,50 +1053,50 @@ function SettingsActionsDialog(props) {
     switch (jobState){
       case "lost":
         return (<div key={"patient_buttons_" + job}>
-          <PatientButton
-            color="secondary"
-            variant="contained"
-                onClick={startPioreactorJob(job)}
-            buttonText="Start"
-          />
+                  <PatientButton
+                    color="secondary"
+                    variant="contained"
+                    onClick={startPioreactorJob(job)}
+                    buttonText="Start"
+                  />
         </div>)
       case "disconnected":
        return (<div key={"patient_buttons_" + job}>
-               <PatientButton
-                color="primary"
-                variant="contained"
-                onClick={startPioreactorJob(job)}
-                buttonText="Start"
-               />
+                 <PatientButton
+                  color="primary"
+                  variant="contained"
+                  onClick={startPioreactorJob(job)}
+                  buttonText="Start"
+                 />
               </div>)
       case "init":
         return (<div key={"patient_buttons_" + job}>
-          <PatientButton
-            color="primary"
-            variant="contained"
-            onClick={()=>(false)}
-            buttonText=<CircularProgress color="inherit" size={22}/>
-            disabled={true}
-          />
-          <PatientButton
-            color="secondary"
-            onClick={stopPioreactorJob(job)}
-            buttonText="Stop"
-          />
+                  <PatientButton
+                    color="primary"
+                    variant="contained"
+                    onClick={()=>(false)}
+                    buttonText=<CircularProgress color="inherit" size={22}/>
+                    disabled={true}
+                  />
+                  <PatientButton
+                    color="secondary"
+                    onClick={stopPioreactorJob(job)}
+                    buttonText="Stop"
+                  />
         </div>)
       case "ready":
         return (<div key={"patient_buttons_" + job}>
-          <PatientButton
-            color="secondary"
-            variant="contained"
-            onClick={setPioreactorJobState(job, "sleeping")}
-            buttonText="Pause"
-          />
-          <PatientButton
-            color="secondary"
-            onClick={stopPioreactorJob(job)}
-            buttonText="Stop"
-          />
+                  <PatientButton
+                    color="secondary"
+                    variant="contained"
+                    onClick={setPioreactorJobState(job, "sleeping")}
+                    buttonText="Pause"
+                  />
+                  <PatientButton
+                    color="secondary"
+                    onClick={stopPioreactorJob(job)}
+                    buttonText="Stop"
+                  />
         </div>)
       case "sleeping":
         return (
@@ -1225,7 +1225,7 @@ function SettingsActionsDialog(props) {
             <Typography variant="caption" display="block" gutterBottom color="textSecondary">
             </Typography>
             <div key={temperatureControlJob.metadata.key}>
-              {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping")
+              {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
                 Currently running temperature automation <code>{temperatureControlJob.publishedSettings.automation_name.value}</code>.
@@ -1291,7 +1291,7 @@ function SettingsActionsDialog(props) {
             <Typography variant="caption" display="block" gutterBottom color="textSecondary">
             </Typography>
             <div key={dosingControlJob.metadata.key}>
-              {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping")
+              {(dosingControlJob.state === "ready") || (dosingControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
                 Currently running dosing automation <code>{dosingControlJob.publishedSettings.automation_name.value}</code>.
@@ -1358,7 +1358,7 @@ function SettingsActionsDialog(props) {
             <Typography variant="caption" display="block" gutterBottom color="textSecondary">
             </Typography>
             <div key={ledControlJob.metadata.key}>
-              {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping")
+              {(ledControlJob.state === "ready") || (ledControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
                 Currently running LED automation <code>{ledControlJob.publishedSettings.automation_name.value}</code>.

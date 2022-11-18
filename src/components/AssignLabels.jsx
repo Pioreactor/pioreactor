@@ -119,25 +119,27 @@ function AssignLabels(props){
 
           {activeUnits.map((unit) => (
               <React.Fragment key={unit}>
-              <Grid item xs={2}/>
-              <Grid item xs={8}>
-                <div style={{display: "flex", justifyContent:"space-between"}}>
-                  <div>
+              <Grid item lg={2} md={1}  xs={0}/>
+              <Grid item lg={8} md={10}  xs={12}>
+                <div style={{display: "flex", flexWrap: "wrap", justifyContent:"space-between"}}>
+                  <div style={{width: "140px"}}>
                     <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.0em"}}/>
                     <span style={{lineHeight: "40px"}}>{unit}</span>
                   </div>
                   <div>
                     <TextField size="small" placeholder="(Optional)" onChange={onLabelChange(unit)} style={{width: "140px", marginRight: "10px"}}/>
+                  </div>
+                  <div>
                     <FlashLEDButton client={client} disable={false} config={props.config} unit={unit}/>
                   </div>
                 </div>
               </Grid>
-              <Grid item xs={2}/>
+              <Grid item lg={2} md={1} xs={0}/>
               </React.Fragment>
             )
             )}
-          <Grid item xs={12} md={4}/>
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} lg={4}/>
+          <Grid item xs={12} lg={8}>
             <div style={{display: "flex", justifyContent: "flex-end"}}>
               <Button variant="contained" color="primary" onClick={onSubmit}> Assign </Button>
             </div>
