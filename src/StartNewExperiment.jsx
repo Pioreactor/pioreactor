@@ -10,6 +10,7 @@ import {Typography} from '@mui/material';
 import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
+import { Link } from 'react-router-dom';
 
 //import CleaningScript from "./components/CleaningScript"
 import AssignLabels from "./components/AssignLabels"
@@ -228,7 +229,7 @@ function ExperimentSummaryForm(props) {
     <div className={classes.root}>
       <FormGroup>
         <Grid container spacing={1}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={8}>
             <TextField
               error={formError}
               id="expName"
@@ -313,7 +314,7 @@ function StartNewExperimentContainer(props) {
 
   const handleNext = () => {
     if (activeStep === steps.length - 1){
-      window.location.href = "/overview";
+      window.location.href = "/overview"; // change to location
     } else {
 
       let newSkipped = skipped;
@@ -351,7 +352,8 @@ function StartNewExperimentContainer(props) {
               <div>
                 <Button
                   variant="text"
-                  href="/overview"
+                  to="/overview"
+                  component={Link}
                   className={classes.button}
                 >
                 Skip

@@ -9,6 +9,8 @@ import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import PioreactorIcon from "./PioreactorIcon"
+import { Link } from 'react-router-dom';
+
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -101,7 +103,6 @@ function AssignLabels(props){
             }
         })
     ))
-    document.location.href = "/overview"
   }
   const onLabelChange = (unit) => (e) => setLabels({...labels, [unit]: e.target.value})
 
@@ -141,7 +142,7 @@ function AssignLabels(props){
           <Grid item xs={12} lg={4}/>
           <Grid item xs={12} lg={8}>
             <div style={{display: "flex", justifyContent: "flex-end"}}>
-              <Button variant="contained" color="primary" onClick={onSubmit}> Assign </Button>
+              <Button to="/overview" component={Link} variant="contained" color="primary" onClick={onSubmit}> Assign </Button>
             </div>
           </Grid>
       </Grid>
