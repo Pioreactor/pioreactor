@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
@@ -13,49 +11,47 @@ from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.whoami import get_unit_name
 
 
-@pytest.mark.xfail(reason="This will fail if not using ndbm")
 def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache():
     """
     You can modify caches, and the last assignment is valid.
     """
     with local_intermittent_storage("test") as cache:
-        for k in cache.keys():
+        for k in cache.iterkeys():
             del cache[k]
 
     with local_intermittent_storage("test") as cache1:
-        cache1["A"] = b"0"
+        cache1["A"] = "0"
         with local_intermittent_storage("test") as cache2:
-            assert cache2["A"] == b"0"
-            cache2["B"] = b"1"
+            assert cache2["A"] == "0"
+            cache2["B"] = "1"
 
         assert "B" not in cache1  # note this.
-        cache1["B"] = b"2"  # create, and overwritten.
+        cache1["B"] = "2"  # create, and overwritten.
 
     with local_intermittent_storage("test") as cache:
-        assert cache["A"] == b"0"
-        assert cache["B"] == b"2"
+        assert cache["A"] == "0"
+        assert cache["B"] == "2"
 
 
-@pytest.mark.xfail(reason="This will fail if not using ndbm")
 def test_caches_will_always_save_the_lastest_value_provided():
     with local_intermittent_storage("test") as cache:
-        for k in cache.keys():
+        for k in cache.iterkeys():
             del cache[k]
 
     with local_intermittent_storage("test") as cache1:
         with local_intermittent_storage("test") as cache2:
-            cache1["A"] = b"1"
-            cache2["A"] = b"0"
-            cache2["B"] = b"2"
+            cache1["A"] = "1"
+            cache2["A"] = "0"
+            cache2["B"] = "2"
 
     with local_intermittent_storage("test") as cache:
-        assert cache["A"] == b"0"
-        assert cache["B"] == b"2"
+        assert cache["A"] == "0"
+        assert cache["B"] == "2"
 
 
 def test_caches_will_delete_when_asked():
     with local_intermittent_storage("test") as cache:
-        for k in cache.keys():
+        for k in cache.iterkeys():
             del cache[k]
 
     with local_intermittent_storage("test") as cache:

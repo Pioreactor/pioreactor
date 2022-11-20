@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import dbm
 import os
 import signal
 from contextlib import contextmanager
@@ -9,6 +8,8 @@ from threading import Event
 from typing import Callable
 from typing import Generator
 from typing import overload
+
+from diskcache import Cache
 
 from pioreactor import types as pt
 from pioreactor import whoami
@@ -153,7 +154,7 @@ class publish_ready_to_disconnected_state:
 @contextmanager
 def local_intermittent_storage(
     cache_name: str,
-) -> Generator[pt.DbmMapping, None, None]:
+) -> Generator[Cache, None, None]:
     """
 
     The cache is deleted upon a Raspberry Pi restart!
@@ -178,7 +179,7 @@ def local_intermittent_storage(
     # TMPDIR is in OSX and Pioreactor img (we provide it), TMP is windows
     tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
     try:
-        cache = dbm.open(f"{tmp_dir}{cache_name}", "c")
+        cache = Cache(f"{tmp_dir}{cache_name}")
         yield cache  # type: ignore
     finally:
         cache.close()
@@ -187,7 +188,7 @@ def local_intermittent_storage(
 @contextmanager
 def local_persistant_storage(
     cache_name: str,
-) -> Generator[pt.DbmMapping, None, None]:
+) -> Generator[Cache, None, None]:
     """
     Values stored in this storage will stay around between RPi restarts, and until overwritten
     or deleted.
@@ -203,9 +204,9 @@ def local_persistant_storage(
 
     try:
         if is_testing_env():
-            cache = dbm.open(f".pioreactor/storage/{cache_name}", "c")
+            cache = Cache(f".pioreactor/storage/{cache_name}")
         else:
-            cache = dbm.open(f"/home/pioreactor/.pioreactor/storage/{cache_name}", "c")
+            cache = Cache(f"/home/pioreactor/.pioreactor/storage/{cache_name}")
         yield cache  # type: ignore
     finally:
         cache.close()
@@ -240,7 +241,7 @@ def is_pio_job_running(target_jobs):
     results = []
     for job in target_jobs:
         with local_intermittent_storage(f"job_metadata_{job}") as cache:
-            if cache.get("is_running", b"0") == b"0":
+            if cache.get("is_running", default="0") == "0":
                 results.append(False)
             else:
                 results.append(True)

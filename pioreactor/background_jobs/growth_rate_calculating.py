@@ -36,6 +36,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime
 from json import dumps
+from json import loads
 from typing import Generator
 
 from click import command
@@ -285,25 +286,25 @@ class GrowthRateCalculator(BackgroundJob):
             result = cache.get(self.experiment)
 
         if result is not None:
-            od_blanks = decode(result)
-            return od_blanks
+            od_blanks = result
+            return loads(od_blanks)
         else:
             return defaultdict(lambda: 0.0)
 
     def get_growth_rate_from_cache(self) -> float:
         with local_persistant_storage("growth_rate") as cache:
-            return float(cache.get(self.experiment, 0.0))
+            return cache.get(self.experiment, 0.0)
 
     def get_od_from_cache(self) -> float:
         with local_persistant_storage("od_filtered") as cache:
-            return float(cache.get(self.experiment, 1.0))
+            return cache.get(self.experiment, 1.0)
 
     def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if the broker has variance/mean stats
         with local_persistant_storage("od_normalization_mean") as cache:
             result = cache.get(self.experiment, None)
             if result is not None:
-                return decode(result)
+                return loads(result)
 
         self.logger.debug("od_normalization/mean not found in cache.")
         means, _ = self._compute_and_cache_od_statistics()
@@ -315,7 +316,7 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("od_normalization_variance") as cache:
             result = cache.get(self.experiment, None)
             if result:
-                return decode(result)
+                return loads(result)
 
         self.logger.debug("od_normalization/mean not found in cache.")
         _, variances = self._compute_and_cache_od_statistics()
@@ -379,10 +380,10 @@ class GrowthRateCalculator(BackgroundJob):
 
         # save to cache
         with local_persistant_storage("growth_rate") as cache:
-            cache[self.experiment] = str(self.growth_rate.growth_rate)
+            cache[self.experiment] = self.growth_rate.growth_rate
 
         with local_persistant_storage("od_filtered") as cache:
-            cache[self.experiment] = str(self.od_filtered.od_filtered)
+            cache[self.experiment] = self.od_filtered.od_filtered
 
         return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
 
@@ -392,7 +393,7 @@ class GrowthRateCalculator(BackgroundJob):
 
         timestamp = od_readings.timestamp
         scaled_observations = self.scale_raw_observations(
-            self.batched_raw_od_readings_to_dict(od_readings.ods)
+            self._batched_raw_od_readings_to_dict(od_readings.ods)
         )
 
         if whoami.is_testing_env():
@@ -400,8 +401,6 @@ class GrowthRateCalculator(BackgroundJob):
             # production.
             dt = self.expected_dt
         else:
-            # TODO this should use the internal timestamp reference
-
             if self.time_of_previous_observation is not None:
                 dt = (
                     (timestamp - self.time_of_previous_observation).total_seconds() / 60 / 60
@@ -412,6 +411,7 @@ class GrowthRateCalculator(BackgroundJob):
                         f"Late arriving data: {timestamp=}, {self.time_of_previous_observation=}"
                     )
                     return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
+
             else:
                 dt = 0.0
 
@@ -473,18 +473,14 @@ class GrowthRateCalculator(BackgroundJob):
         )
 
     @staticmethod
-    def batched_raw_od_readings_to_dict(
+    def _batched_raw_od_readings_to_dict(
         raw_od_readings: dict[pt.PdChannel, structs.ODReading]
     ) -> dict[pt.PdChannel, float]:
         """
-        Inputs looks like
-        {
-            0: {"od": 0.13, "angle": "135"},
-            1: {"od": 0.03, "angle": "90"}
-        }
+        Extract the od floats from ODReading but keep the same keys
         """
         return {
-            channel: float(raw_od_readings[channel].od)
+            channel: raw_od_readings[channel].od
             for channel in sorted(raw_od_readings, reverse=True)
         }
 
@@ -521,10 +517,9 @@ def click_growth_rate_calculating(ignore_cache):
 
     os.nice(1)
 
-    unit = whoami.get_unit_name()
-    experiment = whoami.get_latest_experiment_name()
-
     calculator = GrowthRateCalculator(  # noqa: F841
-        ignore_cache=ignore_cache, unit=unit, experiment=experiment
+        ignore_cache=ignore_cache,
+        unit=whoami.get_unit_name(),
+        experiment=whoami.get_latest_experiment_name(),
     )
     calculator.block_until_disconnected()

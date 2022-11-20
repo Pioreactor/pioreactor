@@ -257,19 +257,10 @@ def view_cache(cache: str) -> None:
 
     # is it a temp cache?
     tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
-    if (
-        os.path.isfile(f"{tmp_dir}{cache}.db")
-        or os.path.isfile(f"{tmp_dir}{cache}.pag")
-        or os.path.isfile(f"{tmp_dir}{cache}")
-    ):
+    if os.path.isdir(f"{tmp_dir}{cache}"):
         cacher = local_intermittent_storage
 
-    elif (
-        os.path.isfile(f".pioreactor/storage/{cache}.db")
-        or os.path.isfile(f".pioreactor/storage/{cache}.pag")
-        or os.path.isfile(f".pioreactor/storage/{cache}")
-        or os.path.isfile(f"{tmp_dir}{cache}")
-    ):
+    elif os.path.isdir(f".pioreactor/storage/{cache}"):
         cacher = local_persistant_storage
 
     else:

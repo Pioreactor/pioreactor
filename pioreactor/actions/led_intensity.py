@@ -25,7 +25,7 @@ from pioreactor.whoami import is_testing_env
 ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
 
 
-LED_LOCKED = b"locked"
+LED_LOCKED = "locked"
 
 
 def _list(x) -> list:
@@ -50,7 +50,7 @@ def change_leds_intensities_temporarily(
     """
     try:
         with local_intermittent_storage("leds") as cache:
-            old_state = {c: float(cache.get(c, 0.0)) for c in desired_state.keys()}
+            old_state = {c: cache.get(c, 0.0) for c in desired_state.keys()}
 
         led_intensity(desired_state, **kwargs)
 
@@ -88,15 +88,16 @@ def _update_current_state(
     with local_intermittent_storage("leds") as led_cache:
         # rehydrate old cache
         old_state = structs.LEDsIntensity(
-            **{channel.decode(): float(led_cache.get(channel, 0.0)) for channel in led_cache.keys()}
+            **{str(channel): led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS}
         )
 
         # update cache
-        for channel, intensity in new_state.items():
-            led_cache[channel] = str(intensity)
+        with led_cache.transact():
+            for channel, intensity in new_state.items():
+                led_cache[channel] = intensity
 
         new_state = structs.LEDsIntensity(
-            **{channel.decode(): float(led_cache.get(channel, 0.0)) for channel in led_cache.keys()}
+            **{str(channel): led_cache.get(str(channel), 0.0) for channel in ALL_LED_CHANNELS}
         )
 
         return new_state, old_state

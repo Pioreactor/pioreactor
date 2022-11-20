@@ -50,23 +50,23 @@ class TestGrowthRateCalculating:
         config["od_config.photodiode_channel"]["2"] = None  # type: ignore
 
         with local_persistant_storage("od_blank") as cache:
-            for experiment in list(cache.keys()):
+            for experiment in cache.iterkeys():
                 del cache[experiment]
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            for experiment in list(cache.keys()):
+            for experiment in cache.iterkeys():
                 del cache[experiment]
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            for experiment in list(cache.keys()):
+            for experiment in cache.iterkeys():
                 del cache[experiment]
 
         with local_persistant_storage("growth_rate") as cache:
-            for experiment in list(cache.keys()):
+            for experiment in cache.iterkeys():
                 del cache[experiment]
 
         with local_persistant_storage("od_filtered") as cache:
-            for experiment in list(cache.keys()):
+            for experiment in cache.iterkeys():
                 del cache[experiment]
 
     def test_subscribing(self) -> None:
@@ -84,7 +84,7 @@ class TestGrowthRateCalculating:
             cache[experiment] = json.dumps({1: 1, 2: 1})
 
         with local_persistant_storage("growth_rate") as cache:
-            cache[experiment] = str(1.0)
+            cache[experiment] = 1.0
 
         publish(
             f"pioreactor/{unit}/{experiment}/od_reading/ods",

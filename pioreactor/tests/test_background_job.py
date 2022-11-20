@@ -138,7 +138,7 @@ def test_what_happens_when_an_error_occurs_in_init_but_we_catch_and_disconnect()
     assert state[-1] == "disconnected"
 
     with local_intermittent_storage("job_metadata_testjob") as cache:
-        assert cache["is_running"] == b"0"
+        assert cache["is_running"] == "0"
 
 
 def test_state_transition_callbacks() -> None:
@@ -473,12 +473,12 @@ def test_job_write_metadata_correctly():
 
     with BackgroundJob(unit=unit, experiment=experiment) as bj:
         with local_intermittent_storage(f"job_metadata_{bj.job_name}") as cache:
-            assert cache["unit"] == unit.encode("utf-8")
-            assert cache["experiment"] == experiment.encode("utf-8")
-            assert cache["source"] == b"app"
-            assert cache["is_running"] == b"1"
-            assert cache["ended_at"] == b""
+            assert cache["unit"] == unit
+            assert cache["experiment"] == experiment
+            assert cache["source"] == "app"
+            assert cache["is_running"] == "1"
+            assert cache["ended_at"] == ""
 
     with local_intermittent_storage(f"job_metadata_{bj.job_name}") as cache:
-        assert cache["is_running"] == b"0"
-        assert cache["ended_at"] != b""
+        assert cache["is_running"] == "0"
+        assert cache["ended_at"] != ""

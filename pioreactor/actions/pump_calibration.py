@@ -452,7 +452,7 @@ def display(name: str | None) -> None:
             display_from_calibration_blob(decode(c[name]))
     else:
         with local_persistant_storage("current_pump_calibration") as c:
-            for pump in c.keys():
+            for pump in c.iterkeys():
                 display_from_calibration_blob(decode(c[pump]))
                 click.echo()
                 click.echo()
@@ -484,7 +484,7 @@ def list_():
     # get current calibrations
     current = []
     with local_persistant_storage("current_pump_calibration") as c:
-        for pump in c.keys():
+        for pump in c.iterkeys():
             cal = decode(c[pump], type=structs.subclass_union(structs.PumpCalibration))
             current.append(cal.name)
 
@@ -493,7 +493,7 @@ def list_():
         bold=True,
     )
     with local_persistant_storage("pump_calibrations") as c:
-        for name in c.keys():
+        for name in c.iterkeys():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
