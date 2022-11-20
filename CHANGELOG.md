@@ -1,3 +1,9 @@
+### 22.11.4
+ - Fixes for UI
+ - Smoother transitions in UI
+ - new ENV variable `LOCAL_ACCESS_POINT` that represents in local access point is online
+
+
 ### 22.11.3
  - Fix bug in UI that wasn't letting users update software
  - during `pio update --app`, we now check for additional files in the github release that are to be executed. This provides a path of upgrading non-Python things.

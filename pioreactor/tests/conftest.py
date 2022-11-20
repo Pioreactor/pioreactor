@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os
 import sys
 
 import fake_rpi  # type: ignore
@@ -13,6 +14,12 @@ sys.modules["RPi.GPIO"] = fake_rpi.RPi.GPIO  # Fake GPIO
 sys.modules["smbus"] = fake_rpi.smbus  # Fake smbus (I2C)
 
 fake_rpi.toggle_print(False)
+
+
+# allow Blinka to think we are an Rpi:
+# https://github.com/adafruit/Adafruit_Python_PlatformDetect/blob/75f69806222fbaf8535130ed2eacd07b06b1a298/adafruit_platformdetect/board.py
+os.environ["BLINKA_FORCECHIP"] = "BCM2XXX"  # RaspberryPi
+os.environ["BLINKA_FORCEBOARD"] = "RASPBERRY_PI_3A_PLUS"  # Raspberry Pi 3 Model A Plus Rev 1.0
 
 
 @pytest.fixture(autouse=True)
