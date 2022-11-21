@@ -873,6 +873,7 @@ class ODReader(BackgroundJob):
         ]
 
         if not hardware.is_HAT_present():
+            self.logger.error("Pioreactor HAT must be present.")
             self.clean_up()
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
