@@ -21,12 +21,13 @@ def test_that_out_scope_caches_cant_access_keys_created_by_inner_scope_cache():
 
     with local_intermittent_storage("test") as cache1:
         cache1["A"] = "0"
+
         with local_intermittent_storage("test") as cache2:
             assert cache2["A"] == "0"
             cache2["B"] = "1"
 
-        assert "B" not in cache1  # note this.
-        cache1["B"] = "2"  # create, and overwritten.
+        assert "B" in cache1
+        cache1["B"] = "2"
 
     with local_intermittent_storage("test") as cache:
         assert cache["A"] == "0"

@@ -724,6 +724,8 @@ class TestGrowthRateCalculating:
 
         with collect_all_logs_of_level("ERROR", unit, experiment) as bucket:
             with GrowthRateCalculator(unit=unit, experiment=experiment):
+                pause()
+                pause()
                 assert len(bucket) > 0
 
     def test_ability_to_yield_into_growth_rate_calc(self) -> None:
