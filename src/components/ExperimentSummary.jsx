@@ -176,7 +176,7 @@ const ButtonEndExperiment = () =>{
 function ExperimentSummary(props){
   const classes = useStyles();
   const experiment = props.experimentMetadata.experiment || ""
-  const startedAt = props.experimentMetadata.created_at || moment()
+  const startedAt = props.experimentMetadata.created_at || ""
   const desc = props.experimentMetadata.description || ""
   const deltaHours = props.experimentMetadata.delta_hours || 0
 
@@ -203,7 +203,9 @@ function ExperimentSummary(props){
             <CalendarTodayIcon style={{ fontSize: 12, verticalAlign: "-1px" }}/> Experiment started:
           </Box>
           <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
+            {(startedAt !== "") &&
             <span title={moment(startedAt).format("YYYY-MM-DD HH:mm:ss")}>{moment(startedAt).format("dddd, MMMM D, YYYY")}</span>
+            }
           </Box>
 
           <Box fontWeight="fontWeightBold" style={{margin: "10px 2px 10px 2px", display:"inline-block"}}>

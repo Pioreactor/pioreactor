@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Switch, Route } from "react-router-dom";
+import { BrowserRouter as Router, Switch, Route, useLocation } from "react-router-dom";
 import { ThemeProvider, createTheme} from '@mui/material/styles';
 import CssBaseline from "@mui/material/CssBaseline";
 import { StyledEngineProvider } from '@mui/material/styles';
@@ -48,6 +48,16 @@ const theme = createTheme({
 });
 
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 
 function App() {
   return (
@@ -55,6 +65,7 @@ function App() {
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={theme}>
           <Router>
+            <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline />
               <MainSite />
