@@ -69,8 +69,7 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
     finally:
         with local_intermittent_storage("led_locks") as cache:
             for c in channels:
-                if c in cache:
-                    del cache[c]
+                cache.pop(c)
 
 
 def is_led_channel_locked(channel: LedChannel) -> bool:
