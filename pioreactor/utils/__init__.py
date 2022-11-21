@@ -233,15 +233,15 @@ def is_pio_job_running(target_jobs):
 
     > result = is_pio_job_running("od_reading")
 
-    > result = is_pio_job_running("od_reading", "stirring")
+    > result = is_pio_job_running(["od_reading", "stirring"])
     """
     if isinstance(target_jobs, str):
         target_jobs = [target_jobs]
 
     results = []
-    for job in target_jobs:
-        with local_intermittent_storage(f"job_metadata_{job}") as cache:
-            if cache.get("is_running", default="0") == "0":
+    with local_intermittent_storage("pio_jobs_running") as cache:
+        for job in target_jobs:
+            if job not in cache:
                 results.append(False)
             else:
                 results.append(True)

@@ -16,8 +16,7 @@ def set_gpio_availability(pin: GpioPin, available: bool) -> None:
         if not available:
             cache[pin] = GPIO_IN_USE
         else:
-            if pin in cache:
-                del cache[pin]
+            cache.pop(pin)
 
 
 def is_gpio_available(pin: GpioPin) -> bool:
