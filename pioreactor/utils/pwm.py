@@ -20,7 +20,7 @@ else:
     except ImportError:
         pass
 
-PWM_LOCKED = b"locked"
+PWM_LOCKED = "locked"
 
 
 class PWM:
@@ -112,7 +112,7 @@ class PWM:
             self.pwm = GPIO.PWM(self.pin, self.hz)
 
         with local_intermittent_storage("pwm_hz") as cache:
-            cache[str(self.pin)] = str(self.hz)
+            cache[self.pin] = self.hz
 
         self.logger.debug(
             f"Initialized GPIO-{self.pin} using {'hardware' if self.using_hardware else 'software'}-timing, initial frequency = {self.hz} hz."
@@ -132,24 +132,24 @@ class PWM:
         self.duty_cycle = initial_duty_cycle
 
         with local_intermittent_storage("pwm_dc") as cache:
-            cache[str(self.pin)] = str(self.duty_cycle)
+            cache[self.pin] = self.duty_cycle
 
         self.logger.debug(f"Started GPIO-{self.pin} PWM with initial DC = {self.duty_cycle}%.")
         self.pwm.start(round(self.duty_cycle, 5))
 
     def stop(self) -> None:
         with local_intermittent_storage("pwm_dc") as cache:
-            cache[str(self.pin)] = str(0)
+            cache[self.pin] = 0.0
 
         self.pwm.stop()
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
-        if not (0 <= duty_cycle <= 100):
+        if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
         self.duty_cycle = duty_cycle
         with local_intermittent_storage("pwm_dc") as cache:
-            cache[str(self.pin)] = str(self.duty_cycle)
+            cache[self.pin] = self.duty_cycle
 
         if self.using_hardware:
             self.pwm.change_duty_cycle(round(self.duty_cycle, 5))
@@ -161,12 +161,10 @@ class PWM:
         self.unlock()
 
         with local_intermittent_storage("pwm_dc") as cache:
-            if str(self.pin) in cache:
-                del cache[str(self.pin)]
+            cache.pop(self.pin)
 
         with local_intermittent_storage("pwm_hz") as cache:
-            if str(self.pin) in cache:
-                del cache[str(self.pin)]
+            cache.pop(self.pin)
 
         gpio_helpers.set_gpio_availability(self.pin, True)
 
@@ -185,16 +183,16 @@ class PWM:
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            return pwm_locks.get(str(self.pin)) == PWM_LOCKED
+            return pwm_locks.get(self.pin) == PWM_LOCKED
 
     def lock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            pwm_locks[str(self.pin)] = PWM_LOCKED
+            pwm_locks[self.pin] = PWM_LOCKED
 
     def unlock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            if str(self.pin) in pwm_locks:
-                del pwm_locks[str(self.pin)]
+            if self.pin in pwm_locks:
+                del pwm_locks[self.pin]
 
     @contextmanager
     def lock_temporarily(self) -> Iterator[None]:

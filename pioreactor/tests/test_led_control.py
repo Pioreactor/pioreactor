@@ -87,7 +87,7 @@ def test_changing_automation_over_mqtt() -> None:
 def test_we_respect_any_locks_on_leds_we_want_to_modify() -> None:
     experiment = "test_we_respect_any_locks_on_leds_we_want_to_modify"
     with local_intermittent_storage("led_locks") as cache:
-        for c in cache.keys():
+        for c in cache.iterkeys():
             del cache[c]
 
     with LEDAutomationJob(duration=1, unit=unit, experiment=experiment) as ld:
@@ -119,8 +119,8 @@ def test_light_dark_cycle_starts_on() -> None:
 
         assert lc.automation_job.light_active
         with local_intermittent_storage("leds") as c:
-            assert float(c["D"]) == 50
-            assert float(c["C"]) == 50
+            assert c["D"] == 50
+            assert c["C"] == 50
 
 
 def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
@@ -140,8 +140,8 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
 
         assert not lc.automation_job.light_active
         with local_intermittent_storage("leds") as c:
-            assert float(c["D"]) == 0.0
-            assert float(c["C"]) == 0.0
+            assert c["D"] == 0.0
+            assert c["C"] == 0.0
 
 
 def test_dark_duration_hour_to_zero() -> None:
@@ -166,8 +166,8 @@ def test_dark_duration_hour_to_zero() -> None:
         assert lc.automation_job.light_active
 
         with local_intermittent_storage("leds") as c:
-            assert float(c["D"]) == 50.0
-            assert float(c["C"]) == 50.0
+            assert c["D"] == 50.0
+            assert c["C"] == 50.0
 
 
 def test_light_duration_hour_to_zero() -> None:
@@ -213,8 +213,8 @@ def test_add_dark_duration_hours() -> None:
         assert not lc.automation_job.light_active
 
         with local_intermittent_storage("leds") as c:
-            assert float(c["D"]) == 0.0
-            assert float(c["C"]) == 0.0
+            assert c["D"] == 0.0
+            assert c["C"] == 0.0
 
 
 def test_remove_dark_duration_hours() -> None:
@@ -239,5 +239,5 @@ def test_remove_dark_duration_hours() -> None:
         assert lc.automation_job.light_active
 
         with local_intermittent_storage("leds") as c:
-            assert float(c["D"]) == 50.0
-            assert float(c["C"]) == 50.0
+            assert c["D"] == 50.0
+            assert c["C"] == 50.0

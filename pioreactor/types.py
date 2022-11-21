@@ -71,20 +71,6 @@ class PublishableSetting(t.TypedDict, total=False):
     persist: bool
 
 
-class DbmMapping(t.MutableMapping):
-    def __getitem__(self, key: str | bytes) -> bytes:
-        """
-        Internally, dbm will convert all values to bytes
-        """
-        ...
-
-    def __setitem__(self, key: str | bytes, value: t.Any) -> None:
-        ...
-
-    def get(self, key: str | bytes, default: t.Any = None) -> bytes:
-        ...
-
-
 JobState = t.Literal["init", "ready", "sleeping", "disconnected", "lost"]
 
 

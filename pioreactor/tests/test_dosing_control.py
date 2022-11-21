@@ -488,13 +488,13 @@ def test_old_readings_will_not_execute_io() -> None:
 def test_throughput_calculator() -> None:
     experiment = "test_throughput_calculator"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     algo = DosingController(
         "pid_morbidostat",
@@ -561,10 +561,10 @@ def test_throughput_calculator() -> None:
 def test_throughput_calculator_restart() -> None:
     experiment = "test_throughput_calculator_restart"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = str(1.0)
+        c[experiment] = 1.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = str(1.5)
+        c[experiment] = 1.5
 
     with DosingController(
         "turbidostat",
@@ -582,10 +582,10 @@ def test_throughput_calculator_restart() -> None:
 def test_throughput_calculator_manual_set() -> None:
     experiment = "test_throughput_calculator_manual_set"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = str(1.0)
+        c[experiment] = 1.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = str(1.5)
+        c[experiment] = 1.5
 
     with DosingController(
         "turbidostat",
@@ -614,10 +614,10 @@ def test_throughput_calculator_manual_set() -> None:
 def test_execute_io_action() -> None:
     experiment = "test_execute_io_action"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with DosingController("silent", unit=unit, experiment=experiment) as ca:
         ca.automation_job.execute_io_action(media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35)
@@ -644,13 +644,13 @@ def test_execute_io_action() -> None:
 def test_execute_io_action2() -> None:
     experiment = "test_execute_io_action2"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with DosingController("silent", unit=unit, experiment=experiment) as ca:
         ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
@@ -664,13 +664,13 @@ def test_execute_io_action_outputs1() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs1"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     ca = DosingAutomationJob(unit=unit, experiment=experiment)
     result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
@@ -697,13 +697,13 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     # regression test
     experiment = "test_execute_io_action_outputs_will_shortcut_if_disconnected"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     ca = DosingAutomationJob(unit=unit, experiment=experiment)
     ca.clean_up()
@@ -908,13 +908,13 @@ def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
 def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
     experiment = "test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     with local_persistant_storage("alt_media_fraction") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     algo = DosingController(
         "turbidostat",
@@ -971,7 +971,7 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
 def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
     experiment = "test_changing_algo_over_mqtt_with_wrong_type_is_okay"
     with local_persistant_storage("media_throughput") as c:
-        c[experiment] = "0.0"
+        c[experiment] = 0.0
 
     algo = DosingController(
         "turbidostat",

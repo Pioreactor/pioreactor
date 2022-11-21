@@ -504,7 +504,7 @@ class DosingAutomationJob(BackgroundSubJob):
         )
         # add to cache
         with local_persistant_storage("alt_media_fraction") as cache:
-            cache[self.experiment] = str(self.alt_media_fraction)
+            cache[self.experiment] = self.alt_media_fraction
 
     def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:
         (
@@ -516,10 +516,10 @@ class DosingAutomationJob(BackgroundSubJob):
 
         # add to cache
         with local_persistant_storage("alt_media_throughput") as cache:
-            cache[self.experiment] = str(self.alt_media_throughput)
+            cache[self.experiment] = self.alt_media_throughput
 
         with local_persistant_storage("media_throughput") as cache:
-            cache[self.experiment] = str(self.media_throughput)
+            cache[self.experiment] = self.media_throughput
 
     def _init_alt_media_fraction_calculator(self) -> Type[AltMediaCalculator]:
         self.add_to_published_settings(
@@ -531,7 +531,7 @@ class DosingAutomationJob(BackgroundSubJob):
         )
 
         with local_persistant_storage("alt_media_fraction") as cache:
-            self.alt_media_fraction = float(cache.get(self.experiment, 0.0))
+            self.alt_media_fraction = cache.get(self.experiment, 0.0)
             return AltMediaCalculator
 
     def _init_volume_throughput_calculator(self) -> Type[ThroughputCalculator]:
@@ -555,10 +555,10 @@ class DosingAutomationJob(BackgroundSubJob):
         )
 
         with local_persistant_storage("alt_media_throughput") as cache:
-            self.alt_media_throughput = float(cache.get(self.experiment, 0.0))
+            self.alt_media_throughput = cache.get(self.experiment, 0.0)
 
         with local_persistant_storage("media_throughput") as cache:
-            self.media_throughput = float(cache.get(self.experiment, 0.0))
+            self.media_throughput = cache.get(self.experiment, 0.0)
 
         return ThroughputCalculator
 

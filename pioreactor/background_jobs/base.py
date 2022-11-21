@@ -686,6 +686,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             cache["leader_address"] = self._leader_address
             cache["ended_at"] = ""  # populated later
 
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            cache[self.job_name] = "1"
+
         try:
             self.on_ready()
         except Exception as e:
@@ -744,6 +747,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
         with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
             cache["is_running"] = "0"
             cache["ended_at"] = current_utc_timestamp()
+
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            cache.pop(self.job_name)
 
     def _disconnect_from_loggers(self):
         # clean up logger handlers

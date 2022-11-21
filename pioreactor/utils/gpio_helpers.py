@@ -12,18 +12,16 @@ GPIO_IN_USE = "in_use"
 
 
 def set_gpio_availability(pin: GpioPin, available: bool) -> None:
-    pin_key = str(pin)
     with local_intermittent_storage("gpio_in_use") as cache:
         if not available:
-            cache[pin_key] = GPIO_IN_USE
+            cache[pin] = GPIO_IN_USE
         else:
-            if pin_key in cache:
-                del cache[pin_key]
+            cache.pop(pin)
 
 
 def is_gpio_available(pin: GpioPin) -> bool:
     with local_intermittent_storage("gpio_in_use") as cache:
-        return cache.get(str(pin)) == GPIO_IN_USE
+        return cache.get(pin) == GPIO_IN_USE
 
 
 @contextmanager

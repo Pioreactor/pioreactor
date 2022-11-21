@@ -226,7 +226,7 @@ class Monitor(BackgroundJob):
         with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = datetime.strptime(
-                    cache["latest_backup_timestamp"].decode("utf-8"),
+                    cache["latest_backup_timestamp"],
                     "%Y-%m-%dT%H:%M:%S.%fZ",
                 )
 

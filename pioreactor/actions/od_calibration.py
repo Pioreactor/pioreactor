@@ -504,7 +504,7 @@ def display(name: str | None) -> None:
             display_from_calibration_blob(decode(c[name]))
     else:
         with local_persistant_storage("current_od_calibration") as c:
-            for angle in c.keys():
+            for angle in c.iterkeys():
                 display_from_calibration_blob(decode(c[angle]))
                 click.echo()
                 click.echo()
@@ -533,7 +533,7 @@ def list_() -> None:
     # get current calibrations
     current = []
     with local_persistant_storage("current_pump_calibration") as c:
-        for pump in c.keys():
+        for pump in c.iterkeys():
             cal = decode(c[pump], type=structs.subclass_union(structs.ODCalibration))
             current.append(cal.name)
 
@@ -542,7 +542,7 @@ def list_() -> None:
         bold=True,
     )
     with local_persistant_storage("od_calibrations") as c:
-        for name in c.keys():
+        for name in c.iterkeys():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
                 click.secho(
