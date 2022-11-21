@@ -48,6 +48,8 @@ def setup_function() -> None:
                 timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="media",
+                durations=[0, 1],
+                volumes=[0, 1.5],
             )
         )
         cache["alt_media"] = encode(
@@ -60,6 +62,8 @@ def setup_function() -> None:
                 timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="alt_media",
+                durations=[0, 1],
+                volumes=[0, 1.5],
             )
         )
         cache["waste"] = encode(
@@ -72,6 +76,8 @@ def setup_function() -> None:
                 timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="waste",
+                durations=[0, 1],
+                volumes=[0, 1.5],
             )
         )
 

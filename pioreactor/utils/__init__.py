@@ -163,17 +163,12 @@ def local_intermittent_storage(
     ---------
     > with local_intermittent_storage('pwm') as cache:
     >     assert '1' in cache
-    >     cache['1'] = str(0.5)
+    >     cache['1'] = 0.5
 
 
     Notes
     -------
-    Opening the same cache in a context manager is tricky, and should be avoided. The general rule is:
-
-    1. Outer-scoped caches can't access keys created by inner scope caches.
-    2. The latest value given to a key, regardless of which scoped cache, is the one that is finally written.
-
-    See tests in test_utils.py for examples.
+    Opening the same cache in a context manager is tricky, and should be avoided.
 
     """
     # TMPDIR is in OSX and Pioreactor img (we provide it), TMP is windows
@@ -197,7 +192,7 @@ def local_persistant_storage(
     ---------
     > with local_persistant_storage('od_blank') as cache:
     >     assert '1' in cache
-    >     cache['1'] = str(0.5)
+    >     cache['1'] = 0.5
 
     """
     from pioreactor.whoami import is_testing_env

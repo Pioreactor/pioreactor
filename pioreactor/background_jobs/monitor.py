@@ -543,9 +543,5 @@ def click_monitor() -> None:
     """
     Monitor and report metadata on the unit.
     """
-    import os
-
-    os.nice(1)
-
     job = Monitor(unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT)
     job.block_until_disconnected()

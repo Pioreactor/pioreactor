@@ -1,3 +1,7 @@
+### 22.11.5
+ - Replace dbm with disk-cache in core. Benefits: makes storing types easier, comparable performance to dbm, promises of process-safety and thread-safety, align all datastores to sqlite3.
+ - Some caching in the UI now for common API calls.
+
 ### 22.11.4
  - Fixes for UI
  - Smoother transitions in UI
