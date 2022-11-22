@@ -449,10 +449,10 @@ function AddNewPioreactor(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-      <p>If not set up yet, follow the instructions to <a href="https://docs.pioreactor.com/user-guide/software-set-up#adding-workers-to-your-cluster">set up your Pioreactor's Raspberry Pi</a>.</p>
+      <p>Follow the instructions at <a href="https://docs.pioreactor.com/user-guide/software-set-up#adding-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
 
-      <p>Below, provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
-      Your Pioreactor will automatically connect it to this cluster. When finished, the Pioreactor will show up on this page after a refresh.</p>
+      <p>After set up is complete, provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
+      Your existing Pioreactor will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
       <div>
         <TextField
           size="small"

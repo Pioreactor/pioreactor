@@ -17,6 +17,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import Snackbar from "@mui/material/Snackbar";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+
+import { Link } from 'react-router-dom';
 
 import PioreactorIcon from "./PioreactorIcon"
 import AutomationForm from "./AutomationForm"
@@ -213,14 +216,20 @@ function ChangeAutomationsDialog(props) {
             {Object.keys(automations).length > 0 && <AutomationForm fields={automations[automationName].fields} description={automations[automationName].description} updateParent={updateFromChild} name={automationName}/>}
 
             {!props.no_skip_first_run ?
-            <FormControlLabel
-              control={<Checkbox checked={Boolean(algoSettings.skip_first_run)}
-                                  color="primary"
-                                  onChange={handleSkipFirstRunChange}
-                                  size="small"/>
-                      }
-              label="Skip first run"
-            />
+              <div>
+                <FormControlLabel
+                  control={<Checkbox checked={Boolean(algoSettings.skip_first_run)}
+                                      color="primary"
+                                      onChange={handleSkipFirstRunChange}
+                                      size="small"/>
+                          }
+                  label="Skip first run"
+                  style={{marginRight: "3px"}}
+                />
+                <IconButton component={Link} target="_blank" rel="noopener noreferrer" to={{pathname: "https://docs.pioreactor.com/user-guide/intro-to-automations#skip-first-run"}} >
+                  <HelpOutlineIcon style={{ fontSize: 17, verticalAlign: "middle", marginLeft: "0px" }}/>
+                </IconButton>
+              </div>
             : <React.Fragment/> }
 
           </FormControl>

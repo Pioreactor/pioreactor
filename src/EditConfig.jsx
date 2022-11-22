@@ -149,7 +149,7 @@ class EditableCodeDiv extends React.Component {
 
   onSelectionHistoricalChange = (e) => {
     const timestamp = e.target.value
-    const ix = this.state.historicalConfigs.findIndex((c) => c.timestamp == timestamp)
+    const ix = this.state.historicalConfigs.findIndex((c) => c.timestamp === timestamp)
     const configBlob = this.state.historicalConfigs[ix]
     this.setState({code: configBlob.data, timestamp_ix: ix})
   }
