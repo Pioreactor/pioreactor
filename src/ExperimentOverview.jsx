@@ -7,6 +7,7 @@ import ExperimentSummary from "./components/ExperimentSummary";
 import Chart from "./components/Chart";
 import MediaCard from "./components/MediaCard";
 import PioreactorIcon from './components/PioreactorIcon';
+import { Link } from 'react-router-dom';
 
 
 function Overview(props) {
@@ -163,7 +164,7 @@ function Overview(props) {
           {( props.config['ui.overview.cards'] && (props.config['ui.overview.cards']['dosings'] === "1")) &&
             <Grid item xs={12} >
               <MediaCard experiment={experimentMetadata.experiment} config={props.config} relabelMap={relabelMap}/>
-              <Button href="/pioreactors" color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}> <PioreactorIcon style={{ fontSize: 17 }} color="primary"/> See all Pioreactor details </Button>
+              <Button to="/pioreactors" component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}> <PioreactorIcon style={{ fontSize: 17 }} color="primary"/> See all Pioreactor details </Button>
             </Grid>
           }
 
