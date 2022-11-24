@@ -35,7 +35,14 @@ jobs:
           tag: ${{ github.ref }}
           overwrite: true
           file_glob: true
-
+      - name: ➕ Edit release body
+        uses: tubone24/update_release@v1.3.1
+        if: github.event_name == 'release' && github.repository == 'Pioreactor/pioreactor'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          body: <a href="https://github.com/Pioreactor/CustoPiZer/releases/tag/${{env.GITHUB_REF_NAME}}">Images available here</a>
+          is_append_body: true
 
   publish-on-pypi:
     # skip this, always, as we can't upload pioreactor to PyPI, see https://github.com/pypi/warehouse/issues/9404 (specifically our sqlite3worker package.)
