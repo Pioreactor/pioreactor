@@ -36,13 +36,13 @@ class TopicToParserToTable(Struct):
     """
 
     parser:
-     - must return a dictionary with the column names (order isn't important)
+     - must return a dictionary | list[dictionary] with the column names as keys (order isn't important)
      - `produce_metadata` is a helper function, see definition.
      - parsers can return None as well, to skip adding the row to the database.
     """
 
     topic: str | list[str]
-    parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]]
+    parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict | list[dict]]]
     table: str
 
 
@@ -81,7 +81,9 @@ class MqttToDBStreamer(BackgroundJob):
         self.sqliteworker.close()  # close the db safely
 
     def create_on_message_callback(
-        self, parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict]], table: str
+        self,
+        parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict | list[dict]]],
+        table: str,
     ) -> Callable:
         def callback(message: pt.MQTTMessage) -> None:
             # TODO: filter testing experiments here?
@@ -91,7 +93,7 @@ class MqttToDBStreamer(BackgroundJob):
                 return
 
             try:
-                new_row = parser(message.topic, message.payload)
+                new_rows = parser(message.topic, message.payload)
             except Exception as e:
                 self.logger.error(e)
                 self.logger.debug(
@@ -100,20 +102,24 @@ class MqttToDBStreamer(BackgroundJob):
                 )
                 return
 
-            if new_row is None:
+            if new_rows is None:
                 # parsers can return None to exit out.
                 return
 
-            cols_placeholder = ", ".join(new_row.keys())
-            values_placeholder = ", ".join(":" + c for c in new_row.keys())
-            SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
+            if not isinstance(new_rows, list):
+                new_rows = [new_rows]
 
-            try:
-                self.sqliteworker.execute(SQL, new_row)  # type: ignore
-            except Exception as e:
-                self.logger.error(e)
-                self.logger.debug(f"SQL that caused error: `{SQL}`")
-                return
+            for new_row in new_rows:
+                cols_placeholder = ", ".join(new_row.keys())
+                values_placeholder = ", ".join(":" + c for c in new_row.keys())
+                SQL = f"""INSERT INTO {table} ({cols_placeholder}) VALUES ({values_placeholder})"""
+
+                try:
+                    self.sqliteworker.execute(SQL, new_row)  # type: ignore
+                except Exception as e:
+                    self.logger.error(e)
+                    self.logger.debug(f"SQL that caused error: `{SQL}`")
+                    return
 
         return callback
 
@@ -161,7 +167,7 @@ def parse_od_filtered(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> Optional[dict]:
+def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     od_reading = msgspec_loads(payload, type=structs.ODReading)
 

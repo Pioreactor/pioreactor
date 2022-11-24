@@ -1,3 +1,10 @@
+### 22.11.6 (unreleased)
+ - PWM DC% changes are logged to MQTT under `pioreactor/<unit>/<exp>/pwms/dc` as a JSON value (similar to LED intensities).
+ - The pioreactor UI cards display the PWM DC %.
+ - user defined callbacks in ODReader have changed to be bound methods on the class (hence, you
+ can use `self` in the callback.)
+ - New SQL table `pwm_dcs`, but it isn't populated yet.
+
 ### 22.11.5
  - Replace dbm with disk-cache in core. Benefits: makes storing types easier, comparable performance to dbm, promises of process-safety and thread-safety, align all datastores to sqlite3.
  - Some caching in the UI now for common API calls.
