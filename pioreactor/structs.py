@@ -126,7 +126,7 @@ class DosingEvent(Struct):
 
     volume_change: float
     event: str
-    source_of_event: str | None
+    source_of_event: Optional[str]
     timestamp: datetime
 
 
