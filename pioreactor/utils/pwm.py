@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from json import dumps
 from typing import Any
 from typing import Iterator
 
 from pioreactor.exc import PWMError
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
 from pioreactor.utils import gpio_helpers
 from pioreactor.utils import local_intermittent_storage
@@ -75,7 +77,10 @@ class PWM:
         experiment: str = None,
         unit: str = None,
     ) -> None:
-        self.logger = create_logger("PWM", experiment=experiment, unit=unit)
+        self.client = create_client()
+        self.unit = unit
+        self.experiment = experiment
+        self.logger = create_logger("PWM", experiment=self.experiment, unit=self.unit)
         self.pin = pin
         self.hz = hz
         self.duty_cycle = 0.0
@@ -129,27 +134,46 @@ class PWM:
         if not (0 <= initial_duty_cycle <= 100):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self.duty_cycle = initial_duty_cycle
+        self.duty_cycle = float(initial_duty_cycle)
 
+        current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = self.duty_cycle
+            for pin in cache.iterkeys():
+                current_values[pin] = cache[pin]
 
-        self.logger.debug(f"Started GPIO-{self.pin} PWM with initial DC = {self.duty_cycle}%.")
         self.pwm.start(round(self.duty_cycle, 5))
+        self.client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
+        )
 
     def stop(self) -> None:
+        current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = 0.0
+            for pin in cache.iterkeys():
+                current_values[pin] = cache[pin]
 
+        self.client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
+        )
         self.pwm.stop()
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self.duty_cycle = duty_cycle
+        self.duty_cycle = float(duty_cycle)
+
+        current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = self.duty_cycle
+            for pin in cache.iterkeys():
+                current_values[pin] = cache[pin]
+
+        self.client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
+        )
 
         if self.using_hardware:
             self.pwm.change_duty_cycle(round(self.duty_cycle, 5))

@@ -179,7 +179,6 @@ def _pump(
             logger.debug(e, exc_info=True)
             logger.error(e)
         finally:
-            pwm.stop()
             pwm.cleanup()
 
             if continuously:

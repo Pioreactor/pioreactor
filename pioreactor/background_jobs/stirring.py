@@ -276,7 +276,6 @@ class Stirrer(BackgroundJob):
         with suppress(AttributeError):
             self.rpm_check_repeated_thread.cancel()
         with suppress(AttributeError):
-            self.set_duty_cycle(0)
             self.pwm.cleanup()
         with suppress(AttributeError):
             if self.rpm_calculator:
@@ -367,7 +366,7 @@ class Stirrer(BackgroundJob):
 
     def on_ready_to_sleeping(self) -> None:
         self.rpm_check_repeated_thread.pause()
-        self.set_duty_cycle(0)
+        self.set_duty_cycle(0.0)
 
     def on_sleeping_to_ready(self) -> None:
         self.duty_cycle = self._previous_duty_cycle

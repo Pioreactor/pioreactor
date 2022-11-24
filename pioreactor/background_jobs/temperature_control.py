@@ -178,12 +178,11 @@ class TemperatureController(BackgroundJob):
 
     def turn_off_heater(self) -> None:
         self._update_heater(0)
-        self.pwm.stop()
         self.pwm.cleanup()
         # we re-instantiate it as some other process may have messed with the channel.
         self.pwm = self.setup_pwm()
         self._update_heater(0)
-        self.pwm.stop()
+        self.pwm.cleanup()
 
     def update_heater(self, new_duty_cycle: float) -> bool:
         """
@@ -359,7 +358,6 @@ class TemperatureController(BackgroundJob):
 
         with suppress(AttributeError):
             self._update_heater(0)
-            self.pwm.stop()
             self.pwm.cleanup()
 
         with suppress(AttributeError):
