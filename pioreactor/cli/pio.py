@@ -172,12 +172,14 @@ def kill(job: list[str], all_jobs: bool) -> None:
     This isn't a very clean way to end jobs (generally: actions). Ex: If a python script is running with Pioreactor jobs
     running in it, it won't get closed.
 
-    Another approach is to iterate through /tmp/jon_metadata_*.db and fire an MQTT event to kill them. This would fail though if
+    Another approach is to iterate through /tmp/job_metadata_*.db and fire an MQTT event to kill them. This would fail though if
     not connected to leader...
 
     Another option is for _all jobs and actions_ to listen to a special topic: pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/kill
     A single publish is sent, and everyone kills themselves. This fails if not connected to a leader.
 
+    Another option is to send a kill signal to the process_id, which is in both pio_jobs_running and job metadata. This doesn't rely on MQTT, so
+    no leader connection is required.
     """
 
     from sh import pkill  # type: ignore
@@ -194,22 +196,23 @@ def kill(job: list[str], all_jobs: bool) -> None:
         safe_pkill("-f", "pio run ")
 
         # kill all pumping
-        pubsub.publish(
-            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_media/$state/set",
-            "disconnected",
-        )
-        pubsub.publish(
-            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/remove_waste/$state/set",
-            "disconnected",
-        )
-        pubsub.publish(
-            f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_alt_media/$state/set",
-            "disconnected",
-        )
+        with pubsub.create_client() as client:
+            client.publish(
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_media/$state/set",
+                "disconnected",
+            )
+            client.publish(
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/remove_waste/$state/set",
+                "disconnected",
+            )
+            client.publish(
+                f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_alt_media/$state/set",
+                "disconnected",
+            )
 
         # kill all LEDs
         sleep(0.5)
-        led_intensity({"A": 0, "B": 0, "C": 0, "D": 0}, verbose=False)
+        led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False)
     else:
         for j in job:
             safe_pkill("-f", f"pio run {j}")
@@ -239,7 +242,6 @@ def version(verbose: bool) -> None:
         from pioreactor.version import software_version_info
         from pioreactor.version import tuple_to_text
 
-        # TODO include HAT version and latest git shas
         click.echo(f"Pioreactor software:    {tuple_to_text(software_version_info)}")
         click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
         click.echo(f"Operating system:       {platform.platform()}")

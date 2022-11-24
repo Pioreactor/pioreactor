@@ -16,6 +16,13 @@ from pioreactor.types import MQTTMessage
 
 
 class Client(PahoClient):
+    def __enter__(self):
+        return self
+
+    def __exit__(self):
+        self.loop_stop()
+        self.disconnect()
+
     def loop_stop(self):
         super().loop_stop()
         self._reset_sockets(sockpair_only=True)

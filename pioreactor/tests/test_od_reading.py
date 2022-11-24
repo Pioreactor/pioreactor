@@ -399,6 +399,7 @@ def test_ability_to_be_iterated() -> None:
 
     assert len(results) > 0
     assert results[0].timestamp < results[1].timestamp < results[2].timestamp
+    assert results[-1] == od_stream.latest_od_readings
     od_stream.clean_up()
 
 
@@ -421,8 +422,8 @@ def test_add_pre_read_callback() -> None:
 
 
 def test_add_post_read_callback() -> None:
-    def cb(od_job, batched_readings, *args):
-        od_job.logger.critical("is lunch ready?")
+    def cb(self, batched_readings, *args):
+        self.logger.critical(f"{batched_readings=}")
 
     ODReader.add_post_read_callback(cb)
 

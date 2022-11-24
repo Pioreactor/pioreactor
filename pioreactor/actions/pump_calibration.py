@@ -311,6 +311,8 @@ def save_results(
         struct = structs.WastePumpCalibration
     elif pump_type == "alt_media":
         struct = structs.AltMediaPumpCalibration
+    else:
+        raise ValueError()
 
     pump_calibration_result = struct(
         name=name,

@@ -49,10 +49,10 @@ class Monitor(BackgroundJob):
         from pioreactor.background_jobs.monitor import  Monitor
         from pioreactor.actions.led_intensity import led_intensity
 
-        def on(*args):
+        def on(): # functions don't take any arguments, nothing is passed in
             led_intensity({'B': 20}, verbose=False, source_of_event="button", unit="demo", experiment="demo")
 
-        def off(*args):
+        def off(): # functions don't take any arguments, nothing is passed in
             led_intensity({'B': 0}, verbose=False, source_of_event="button", unit="demo", experiment="demo")
 
         Monitor.add_pre_button_callback(on)

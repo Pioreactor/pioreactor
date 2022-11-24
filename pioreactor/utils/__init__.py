@@ -120,6 +120,9 @@ class publish_ready_to_disconnected_state:
             retain=True,
         )
 
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            cache[self.name] = os.getpid()
+
         return self
 
     def __exit__(self, *args) -> None:
@@ -131,6 +134,10 @@ class publish_ready_to_disconnected_state:
         )
         self.client.loop_stop()
         self.client.disconnect()
+
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            cache.pop(self.name)
+
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
@@ -173,8 +180,8 @@ def local_intermittent_storage(
     """
     # TMPDIR is in OSX and Pioreactor img (we provide it), TMP is windows
     tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
+    cache = Cache(f"{tmp_dir}{cache_name}")
     try:
-        cache = Cache(f"{tmp_dir}{cache_name}")
         yield cache  # type: ignore
     finally:
         cache.close()
@@ -197,11 +204,12 @@ def local_persistant_storage(
     """
     from pioreactor.whoami import is_testing_env
 
+    if is_testing_env():
+        cache = Cache(f".pioreactor/storage/{cache_name}")
+    else:
+        cache = Cache(f"/home/pioreactor/.pioreactor/storage/{cache_name}")
+
     try:
-        if is_testing_env():
-            cache = Cache(f".pioreactor/storage/{cache_name}")
-        else:
-            cache = Cache(f"/home/pioreactor/.pioreactor/storage/{cache_name}")
         yield cache  # type: ignore
     finally:
         cache.close()

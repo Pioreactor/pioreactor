@@ -18,7 +18,7 @@ class Chemostat(DosingAutomationJob):
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, volume=None, **kwargs):
+    def __init__(self, volume: float, **kwargs):
         super(Chemostat, self).__init__(**kwargs)
 
         with local_persistant_storage("current_pump_calibration") as cache:
@@ -27,7 +27,7 @@ class Chemostat(DosingAutomationJob):
             elif "waste" not in cache:
                 raise CalibrationError("Waste pump calibration must be performed first.")
 
-        self.volume = float(volume)
+        self.volume = volume
 
     def execute(self) -> events.DilutionEvent:
         volume_actually_cycled = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)

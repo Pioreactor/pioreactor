@@ -5,6 +5,7 @@ import atexit
 import signal
 import threading
 import typing as t
+from os import getpid
 from time import sleep
 from time import time
 
@@ -684,10 +685,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
             cache["experiment"] = self.experiment
             cache["unit"] = self.unit
             cache["leader_address"] = self._leader_address
+            cache["pid"] = getpid()
             cache["ended_at"] = ""  # populated later
 
         with local_intermittent_storage("pio_jobs_running") as cache:
-            cache[self.job_name] = "1"
+            cache[self.job_name] = getpid()
 
         try:
             self.on_ready()

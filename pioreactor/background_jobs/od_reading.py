@@ -81,6 +81,7 @@ from __future__ import annotations
 import math
 import os
 import threading
+import types
 from time import sleep
 from time import time
 from typing import Callable
@@ -801,8 +802,8 @@ class ODReader(BackgroundJob):
     ------------
     adc_reader: ADCReader
     ir_led_reference_tracker: ir_led_reference_tracker
-    latest_reading:
-        represents the most recent dict from the adc_reader
+    latest_od_readings:
+        represents the most recent readings (post transformations)
 
 
     Examples
@@ -811,7 +812,7 @@ class ODReader(BackgroundJob):
     Initializing this class will start reading in the background, if ``interval`` is not ``None``.
 
     > od_reader = ODReader({'1': '45'}, 5)
-    > # readings will start to be published to MQTT, and the latest reading will be available as od_reader.latest_reading
+    > # readings will start to be published to MQTT, and the latest reading will be available as od_reader.latest_od_readings
 
     It can also be iterated over:
 
@@ -832,7 +833,7 @@ class ODReader(BackgroundJob):
         "interval": {"datatype": "float", "settable": False, "unit": "s"},
         "relative_intensity_of_ir_led": {"datatype": "float", "settable": False},
     }
-    latest_reading: structs.ODReadings
+    latest_od_readings: structs.ODReadings
 
     _pre_read: list[Callable] = []
     _post_read: list[Callable] = []
@@ -881,10 +882,8 @@ class ODReader(BackgroundJob):
             f"Starting od_reading with PD channels {channel_angle_map}, with IR LED intensity {self.ir_led_intensity}% from channel {self.ir_channel}."
         )
 
-        self.add_post_read_callback(self._publish_single)
-        self.add_post_read_callback(self._publish_batch)
-        self.add_post_read_callback(self._log_relative_intensity_of_ir_led)
-        self.add_post_read_callback(self._unblock_internal_event)
+        self.pre_read_callbacks: list[Callable] = self._prepare_pre_callbacks()
+        self.post_read_callbacks: list[Callable] = self._prepare_post_callbacks()
 
         # setup the ADC by turning off all LEDs.
         with led_utils.change_leds_intensities_temporarily(
@@ -923,6 +922,24 @@ class ODReader(BackgroundJob):
                 run_immediately=True,
             ).start()
 
+    def _prepare_post_callbacks(self) -> list[Callable]:
+        callbacks: list[Callable] = []
+
+        # user created callbacks, this binds the callback to the instance so def cb(self, ... ) makes sense.
+        for func in self._post_read:
+            setattr(self, func.__name__, types.MethodType(func, self))
+            callbacks.append(getattr(self, func.__name__))
+        return callbacks
+
+    def _prepare_pre_callbacks(self) -> list[Callable]:
+        callbacks: list[Callable] = []
+
+        # user created callbacks, this binds the callback to the instance so def cb(self, ... ) makes sense.
+        for func in self._pre_read:
+            setattr(self, func.__name__, types.MethodType(func, self))
+            callbacks.append(getattr(self, func.__name__))
+        return callbacks
+
     @classmethod
     def add_pre_read_callback(cls, function: Callable):
         cls._pre_read.append(function)
@@ -946,9 +963,9 @@ class ODReader(BackgroundJob):
         if self.first_od_obs_time is None:
             self.first_od_obs_time = time()
 
-        for pre_function in self._pre_read:
+        for pre_function in self.pre_read_callbacks:
             try:
-                pre_function(self)
+                pre_function()
             except Exception:
                 self.logger.debug(f"Error in pre_function={pre_function.__name__}.", exc_info=True)
 
@@ -980,11 +997,16 @@ class ODReader(BackgroundJob):
                     },
                 )
 
-        self.latest_reading = od_readings
+        self.latest_od_readings = od_readings
 
-        for post_function in self._post_read:
+        self._publish_single(self.latest_od_readings)
+        self._publish_batch(self.latest_od_readings)
+        self._log_relative_intensity_of_ir_led(self.latest_od_readings)
+        self._unblock_internal_event()
+
+        for post_function in self.post_read_callbacks:
             try:
-                post_function(self, od_readings)
+                post_function(od_readings)
             except Exception:
                 self.logger.debug(
                     f"Error in post_function={post_function.__name__}.", exc_info=True
@@ -1066,46 +1088,41 @@ class ODReader(BackgroundJob):
 
         return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
 
-    @staticmethod
-    def _publish_batch(cls, od_readings: structs.ODReadings) -> None:
+    def _publish_batch(self, od_readings: structs.ODReadings) -> None:
 
-        if cls.state != cls.READY:
+        if self.state != self.READY:
             return
 
-        cls.publish(
-            f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/ods",
+        self.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/ods",
             encode(od_readings),
             qos=QOS.EXACTLY_ONCE,
         )
 
-    @staticmethod
-    def _publish_single(cls, od_readings: structs.ODReadings) -> None:
-        if cls.state != cls.READY:
+    def _publish_single(self, od_readings: structs.ODReadings) -> None:
+        if self.state != self.READY:
             return
 
-        for channel, _ in cls.channel_angle_map.items():
-            cls.publish(
-                f"pioreactor/{cls.unit}/{cls.experiment}/{cls.job_name}/od/{channel}",
+        for channel, _ in self.channel_angle_map.items():
+            self.publish(
+                f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/od/{channel}",
                 encode(od_readings.ods[channel]),
                 qos=QOS.EXACTLY_ONCE,
             )
 
-    @staticmethod
-    def _log_relative_intensity_of_ir_led(cls, od_readings) -> None:
+    def _log_relative_intensity_of_ir_led(self, od_readings) -> None:
         if od_readings.timestamp.microsecond % 8 == 0:  # some pseudo randomness
-            cls.relative_intensity_of_ir_led = {
+            self.relative_intensity_of_ir_led = {
                 # represents the relative intensity of the LED.
-                "relative_intensity_of_ir_led": 1 / cls.ir_led_reference_tracker.transform(1.0),
+                "relative_intensity_of_ir_led": 1 / self.ir_led_reference_tracker.transform(1.0),
                 "timestamp": od_readings.timestamp,
             }
 
-    @staticmethod
-    def _unblock_internal_event(cls, _) -> None:
-        # post
-        if cls.state != cls.READY:
+    def _unblock_internal_event(self) -> None:
+        if self.state != self.READY:
             return
 
-        cls._set_for_iterating.set()
+        self._set_for_iterating.set()
 
     def __iter__(self):
         return self
@@ -1113,8 +1130,8 @@ class ODReader(BackgroundJob):
     def __next__(self):
         while self._set_for_iterating.wait():
             self._set_for_iterating.clear()
-            assert self.latest_reading is not None
-            return self.latest_reading
+            assert self.latest_od_readings is not None
+            return self.latest_od_readings
 
 
 def find_ir_led_reference(od_angle_channel1, od_angle_channel2) -> Optional[pt.PdChannel]:

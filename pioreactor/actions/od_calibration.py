@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from time import sleep
 from typing import Callable
+from typing import cast
 from typing import Optional
 from typing import Type
 
@@ -26,6 +27,7 @@ from msgspec.json import decode
 from msgspec.json import encode
 
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.config import config
@@ -169,8 +171,8 @@ def start_recording_and_diluting(
     click.echo("Starting OD recordings.")
 
     with start_od_reading(
-        config.get("od_config.photodiode_channel", "1"),
-        config.get("od_config.photodiode_channel", "2"),
+        cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "1")),
+        cast(pt.PdAngleOrREF, config.get("od_config.photodiode_channel", "2")),
         interval=None,
         unit=get_unit_name(),
         fake_data=is_testing_env(),
@@ -297,7 +299,7 @@ def calculate_curve_of_best_fit(
 
 def show_results_and_confirm_with_user(
     curve_data: list[float], curve_type: str, voltages: list[float], inferred_od600s: list[float]
-):
+) -> tuple[bool, int]:
     click.clear()
 
     curve_callable = curve_to_callable(curve_type, curve_data)
@@ -323,12 +325,14 @@ d: choose a new degree for polynomial fit
         type=click.Choice(["Y", "n", "d"]),
     )
     if r == "Y":
-        return True, None
+        return True, -1
     elif r == "n":
         raise click.Abort()
     elif r == "d":
         d = click.prompt("Enter new degree", type=click.IntRange(1, 5, clamp=True))
         return False, d
+    else:
+        raise click.Abort()
 
 
 def save_results(
@@ -340,7 +344,7 @@ def save_results(
     name: str,
     maximum_od600: float,
     minimum_od600: float,
-    signal_channel: str,
+    signal_channel: pt.PdChannel,
     unit: str,
 ) -> structs.ODCalibration:
 
