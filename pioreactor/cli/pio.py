@@ -26,6 +26,8 @@ from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
+from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
 
@@ -213,6 +215,17 @@ def kill(job: list[str], all_jobs: bool) -> None:
         # kill all LEDs
         sleep(0.5)
         led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False)
+
+        # assert everything is off
+        with local_intermittent_storage("pwm_dc") as cache:
+            for pin in cache.iterkeys():
+                assert cache[pin] == 0.0, f"pin {pin} is not off!"
+
+        # assert everything is off
+        with local_intermittent_storage("leds") as cache:
+            for led in cache.iterkeys():
+                assert cache[led] == 0.0, f"LED {led} is not off!"
+
     else:
         for j in job:
             safe_pkill("-f", f"pio run {j}")
@@ -254,8 +267,6 @@ def version(verbose: bool) -> None:
 @click.argument("cache")
 def view_cache(cache: str) -> None:
     import os.path
-
-    from pioreactor.utils import local_intermittent_storage, local_persistant_storage
 
     # is it a temp cache?
     tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
