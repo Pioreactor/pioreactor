@@ -312,6 +312,44 @@ function UnitSettingDisplay(props) {
         </React.Fragment>
       )
     }
+  } else if (props.isPWMDc) {
+    if (!props.isUnitActive || value === "—" || value === "") {
+      return <div style={{ color: disconnectedGrey, fontSize: "13px"}}> {props.default} </div>;
+    } else {
+      const pwmDcs = JSON.parse(value)
+      const PIN_TO_PWM = {"17": "1", "13": "2", "16": "3", "12": "4"}
+
+      const PWMMap = props.config['PWM']
+      const renamed1 = (PWMMap[1]) ? (PWMMap[1].replace("_", " ")) : null
+      const renamed2 = (PWMMap[2]) ? (PWMMap[2].replace("_", " ")) : null
+      const renamed3 = (PWMMap[3]) ? (PWMMap[3].replace("_", " ")) : null
+      const renamed4 = (PWMMap[4]) ? (PWMMap[4].replace("_", " ")) : null
+
+
+      return(
+        <React.Fragment>
+          <div style={{fontSize: "13px"}}>
+            <div>
+              <span className={classes.ledBlock}>
+                <UnderlineSpan title={renamed1 ? renamed1 : null}>{PIN_TO_PWM["17"]}</UnderlineSpan>: {prettyPrint(pwmDcs["17"] || 0)}%
+              </span>
+              <span className={classes.ledBlock}>
+               <UnderlineSpan title={renamed2 ? renamed2 : null}>{PIN_TO_PWM["13"]}</UnderlineSpan>: {prettyPrint(pwmDcs["3"] || 0)}%
+              </span>
+            </div>
+            <div>
+              <span className={classes.ledBlock}>
+                <UnderlineSpan title={renamed3 ? renamed3 : null}>{PIN_TO_PWM["16"]}</UnderlineSpan>: {prettyPrint(pwmDcs["16"] || 0)}%
+              </span>
+              <span className={classes.ledBlock}>
+                <UnderlineSpan title={renamed4 ? renamed4 : null}>{PIN_TO_PWM["12"]}</UnderlineSpan>: {prettyPrint(pwmDcs["12"] || 0)}%
+              </span>
+            </div>
+          </div>
+          <UnitSettingDisplaySubtext subtext={props.subtext}/>
+        </React.Fragment>
+      )
+    }
   } else {
     if (!props.isUnitActive || value === "—" || value === "") {
       return (
@@ -2435,6 +2473,7 @@ function PioreactorCard(props){
                       precision={2}
                       default="—"
                       isLEDIntensity={setting.label === "LED intensity"}
+                      isPWMDc={setting.label === "PWM duty cycle"}
                       config={props.config}
                     />
                   </div>
