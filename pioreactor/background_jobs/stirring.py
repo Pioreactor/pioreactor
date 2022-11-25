@@ -216,7 +216,7 @@ class Stirrer(BackgroundJob):
             self.rpm_calculator.setup()
 
         pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "stirring")]
-        self.pwm = PWM(pin, hertz, unit=unit, experiment=experiment)
+        self.pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         self.pwm.lock()
 
         self.target_rpm = target_rpm

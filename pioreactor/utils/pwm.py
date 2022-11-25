@@ -73,9 +73,9 @@ class PWM:
         self,
         pin: GpioPin,
         hz: float,
+        unit: str,
+        experiment: str,
         always_use_software: bool = False,
-        experiment: str = None,
-        unit: str = None,
     ) -> None:
         self.client = create_client()
         self.unit = unit
