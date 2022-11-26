@@ -132,8 +132,6 @@ def create_logger(
     -----------
     name: string
         the name of the logger
-    pub_client: pubsub.Client
-        use an existing Client, else one is created
     source:
         "app" for the core Pioreactor codebase, else the name of the plugin.
     to_mqtt: bool
