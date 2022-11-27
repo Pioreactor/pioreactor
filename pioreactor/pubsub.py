@@ -44,6 +44,7 @@ def create_client(
     clean_session=None,
     on_connect: Optional[Callable] = None,
     on_message: Optional[Callable] = None,
+    userdata: dict = None,
 ):
     """
     Create a MQTT client and connect to a host.
@@ -57,7 +58,8 @@ def create_client(
             logger = create_logger("pubsub.create_client", to_mqtt=False)
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
-    client = Client(client_id=client_id, clean_session=clean_session)
+    client = Client(client_id=client_id, clean_session=clean_session, userdata=userdata)
+    client.username_pw_set("pioreactor", "raspberry")
 
     if on_connect:
         client.on_connect = on_connect  # type: ignore
@@ -95,7 +97,13 @@ def publish(
 
     for retry_count in range(retries):
         try:
-            mqtt_publish.single(topic, payload=message, hostname=hostname, **mqtt_kwargs)
+            mqtt_publish.single(
+                topic,
+                payload=message,
+                hostname=hostname,
+                auth={"username": "pioreactor"},
+                **mqtt_kwargs,
+            )
             return
         except (ConnectionRefusedError, socket.gaierror, OSError, socket.timeout):
             # possible that leader is down/restarting, keep trying, but log to local machine.
@@ -136,7 +144,6 @@ def subscribe(
     name:
         Optional: provide a name, and logging will include it.
     """
-    import socket
 
     retry_count = 1
     for retry_count in range(retries):
@@ -173,6 +180,7 @@ def subscribe(
             }
 
             client = Client(userdata=userdata)
+            client.username_pw_set("pioreactor", "raspberry")
             client.on_connect = on_connect  # type: ignore
             client.on_message = on_message  # type: ignore
             client.connect(hostname)
@@ -257,7 +265,7 @@ def subscribe_and_callback(
     topics = [topics] if isinstance(topics, str) else topics
 
     if client is None:
-
+        # create a new client
         def on_connect(client: Client, userdata: dict, *args):
             client.subscribe(userdata["topics"])
 
@@ -266,21 +274,19 @@ def subscribe_and_callback(
             "name": name,
         }
 
-        client = Client(userdata=userdata)
+        client = create_client(
+            last_will=last_will,
+            on_connect=on_connect,
+            on_message=wrap_callback(callback),
+            userdata=userdata,
+            **mqtt_kwargs,
+        )
 
-        client.on_connect = on_connect  # type: ignore
-        client.on_message = wrap_callback(callback)
-
-        client.connect(hostname, **mqtt_kwargs)
-        client.loop_start()
     else:
         # user provided a client
         for topic in topics:
             client.message_callback_add(topic, wrap_callback(callback))
             client.subscribe(topic)
-
-    if last_will is not None:
-        client.will_set(**last_will)
 
     return client
 

@@ -459,7 +459,7 @@ if whoami.am_I_leader():
     def mqtt(topic: str) -> None:
         import os
 
-        os.system(f"""mosquitto_sub -v -t '{topic}' -F "%I %t %p" """)
+        os.system(f"""mosquitto_sub -v -t '{topic}' -F "%I %t %p" -u pioreactor -P raspberry""")
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("hostname")
