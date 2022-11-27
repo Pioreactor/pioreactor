@@ -16,6 +16,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
+from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import to_iso_format
@@ -338,6 +339,22 @@ def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
+def parse_pwm(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+    metadata = produce_metadata(topic)
+    pin_to_dc = loads(payload)
+
+    return {
+        "experiment": metadata.experiment,
+        "pioreactor_unit": metadata.pioreactor_unit,
+        "timestamp": current_utc_datetime(),
+        "channel_1": pin_to_dc.get(PWM_TO_PIN["1"], 0.0),
+        "channel_2": pin_to_dc.get(PWM_TO_PIN["2"], 0.0),
+        "channel_3": pin_to_dc.get(PWM_TO_PIN["3"], 0.0),
+        "channel_4": pin_to_dc.get(PWM_TO_PIN["4"], 0.0),
+        "channel_5": pin_to_dc.get(PWM_TO_PIN["5"], 0.0),
+    }
+
+
 source_to_sinks: list[TopicToParserToTable] = []
 
 
@@ -422,6 +439,11 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "pioreactor/+/+/calibrations",
                 parse_calibrations,
                 "calibrations",
+            ),
+            TopicToParserToTable(
+                "pioreactor/+/+/pwms/dc",
+                parse_pwm,
+                "pwm_dcs",
             ),
         ]
     )

@@ -232,6 +232,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         "leds",
         "led_change_events",
         "unit_label",
+        "pwm",
     }
 
     def __init__(self, source: str, experiment: str, unit: str) -> None:

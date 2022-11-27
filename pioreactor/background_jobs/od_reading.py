@@ -192,9 +192,6 @@ class ADCReader(LoggerMixin):
         else:
             self.most_appropriate_AC_hz = None
 
-        if not hardware.is_HAT_present():
-            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
-
     def setup_adc(self) -> ADCReader:
         """
         This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
@@ -202,6 +199,10 @@ class ADCReader(LoggerMixin):
         It doesn't occur in the classes __init__ because it often requires an LED to be on (and this class doesn't control LEDs.).
         See ODReader for an example.
         """
+
+        if not hardware.is_HAT_present():
+            self.logger.error("Pioreactor HAT must be present.")
+            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         if self.fake_data:
             from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C
