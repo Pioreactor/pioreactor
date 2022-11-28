@@ -101,7 +101,7 @@ def publish(
                 topic,
                 payload=message,
                 hostname=hostname,
-                auth={"username": "pioreactor"},
+                auth={"username": "pioreactor", "password": "raspberry"},
                 **mqtt_kwargs,
             )
             return
