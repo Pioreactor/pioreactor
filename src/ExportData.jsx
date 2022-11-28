@@ -100,10 +100,10 @@ const CheckboxesGroup = (props) => {
 
           <FormControlLabel
             control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data} onChange={props.handleChange} name="pioreactor_unit_activity_data" />}
-            label="Pioreactor Unit Activity Data"
+            label="Pioreactor unit activity data (recommended)"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The time series of OD metrics, temperature, stirring rates, LED updates, and dosings.
+            This dataset contains most of your experiment data, including the time series of OD metrics, temperature, stirring rates, LED updates, and dosings.
           </Typography>
 
           <FormControlLabel
