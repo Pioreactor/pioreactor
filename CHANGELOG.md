@@ -1,4 +1,4 @@
-### 22.11.6 (unreleased)
+### 22.11.6
  - PWM DC% changes are logged to MQTT under `pioreactor/<unit>/<exp>/pwms/dc` as a JSON value (similar to LED intensities).
  - The pioreactor cards in the UI display the PWM DC %.
  - user defined callbacks in ODReader have changed to be bound methods on the class (hence, you
