@@ -111,7 +111,7 @@ const CheckboxesGroup = (props) => {
             label="Implied growth rate"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The time series of the calculated (implied) growth rate. Same data as presented in the "Implied growth rate" chart in the Experiment Overview.
+           This dataset includes a time series of the calculated (implied) growth rate. This data matches what's presented in the "Implied growth rate" chart in the Experiment Overview.
           </Typography>
 
           <FormControlLabel
@@ -119,7 +119,7 @@ const CheckboxesGroup = (props) => {
             label="Optical density"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The time series of readings provided by the sensors (transformed via a calibration curve, if available), the inputs for growth calculations and normalized optical densities. Same data as presented in the "Optical density" chart in the Experiment Overview.
+            This dataset includes a time series of readings provided by the sensors (transformed via a calibration curve, if available), the inputs for growth calculations and normalized optical densities. This data matches what's presented in the "Optical density" chart in the Experiment Overview.
           </Typography>
 
           <FormControlLabel
@@ -127,7 +127,7 @@ const CheckboxesGroup = (props) => {
             label="Normalized optical density"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The time series of normalized optical densities. Same data as presented in the "Normalized optical density" chart in the Experiment Overview.
+            This dataset includes a time series of normalized optical densities. This data matches what's presented in the "Normalized optical density" chart in the Experiment Overview.
           </Typography>
 
           <FormControlLabel
@@ -135,7 +135,7 @@ const CheckboxesGroup = (props) => {
             label="Temperature readings"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The time series of temperature readings from the Pioreactors. Same data as presented in the "Temperature of vials" chart in the Experiment Overview.
+            This dataset includes a time series of temperature readings from the Pioreactors. This data matches what's presented in the "Temperature of vials" chart in the Experiment Overview.
           </Typography>
 
           <FormControlLabel
@@ -143,7 +143,7 @@ const CheckboxesGroup = (props) => {
             label="Experiment metadata"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The description and other metadata from the experiment.
+            This download includes your experiment description and metadata.
           </Typography>
 
           <FormControlLabel
@@ -151,7 +151,7 @@ const CheckboxesGroup = (props) => {
             label="Alternative media fraction"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            A time series of how much alternative media is in each Pioreactor. Same data as presented in the "Fraction of volume that is alternative media" chart in the Experiment Overview.
+            This dataset includes a time series of how much alternative media is in each Pioreactor. This data matches what's presented in the "Fraction of volume that is alternative media" chart in the Experiment Overview.
           </Typography>
 
           <FormControlLabel
@@ -159,7 +159,7 @@ const CheckboxesGroup = (props) => {
             label="Dosing event log"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            A detailed log table of all dosing events, including the volume exchanged, and the source of who or what triggered the event.
+            In this download, you'll find a detailed log table of all dosing events, including the volume exchanged, and the source of who or what triggered the event.
           </Typography>
 
           <FormControlLabel
@@ -167,7 +167,7 @@ const CheckboxesGroup = (props) => {
             label="LED event log"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            A detailed log table of all LED events, including the channel, intensity, and the source of who or what triggered the event.
+            In this download, you'll find a log table of all LED events, including the channel, intensity, and the source of who or what triggered the event.
           </Typography>
 
           <FormControlLabel
@@ -175,7 +175,7 @@ const CheckboxesGroup = (props) => {
             label="Dosing automation changelog"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            Whenever a dosing automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the dosing automation states
+            Anytime an automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the dosing automation states
             from this dataset.
           </Typography>
 
@@ -202,7 +202,7 @@ const CheckboxesGroup = (props) => {
             label="Dosing automation events"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            Log of automation events created by dosing automations.
+            This download includes a log of automation events created by dosing automations.
           </Typography>
 
           <FormControlLabel
@@ -210,7 +210,7 @@ const CheckboxesGroup = (props) => {
             label="LED automation events"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            Log of automation events created by LED automations.
+            This download includes a log of automation events created by LED automations.
           </Typography>
 
           <FormControlLabel
@@ -218,7 +218,7 @@ const CheckboxesGroup = (props) => {
             label="Temperature automation events"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            Log of automation events created by temperature automations.
+            This download includes a log of automation events created by temperature automations.
           </Typography>
 
           <FormControlLabel
@@ -226,7 +226,7 @@ const CheckboxesGroup = (props) => {
             label="Kalman filter outputs"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            An internal Kalman filter produces the normalized optical densities, growth rates, an acceleration term, and variances (and covariances) between the estimates.
+            This download includes a time series of the internal Kalman filter. The Kalman filter produces the normalized optical densities, growth rates, an acceleration term, and variances (and covariances) between the estimates.
           </Typography>
 
           <FormControlLabel
@@ -234,7 +234,7 @@ const CheckboxesGroup = (props) => {
             label="Stirring rates"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The measured RPM of the onboard stirring.
+            This dowload includes the measured RPM of the onboard stirring.
           </Typography>
 
           <FormControlLabel
@@ -242,7 +242,7 @@ const CheckboxesGroup = (props) => {
             label="Pioreactor unit labels"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            Labels assigned to a Pioreactor during an experiment.
+            In this download, you'll find the labels assigned to a Pioreactor during an experiment.
           </Typography>
 
           <FormControlLabel
@@ -250,7 +250,7 @@ const CheckboxesGroup = (props) => {
             label="Pioreactor logs"
           />
           <Typography variant="caption" className={classes.caption} gutterBottom>
-            The append-only collection of logs from all Pioreactors. A subset of the these logs are displayed in the Log Table in the Experiment Overview.
+            This dataset includes the append-only collection of logs from all Pioreactors. A subset of the these logs are displayed in the Log Table in the Experiment Overview.
             These are the logs that should be provided to get assistance when troubleshooting, but choose "&lt;All experiments&gt;" above.
           </Typography>
 
