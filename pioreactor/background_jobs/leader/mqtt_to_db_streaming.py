@@ -347,11 +347,11 @@ def parse_pwm(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "experiment": metadata.experiment,
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": current_utc_datetime(),
-        "channel_1": pin_to_dc.get(PWM_TO_PIN["1"], 0.0),
-        "channel_2": pin_to_dc.get(PWM_TO_PIN["2"], 0.0),
-        "channel_3": pin_to_dc.get(PWM_TO_PIN["3"], 0.0),
-        "channel_4": pin_to_dc.get(PWM_TO_PIN["4"], 0.0),
-        "channel_5": pin_to_dc.get(PWM_TO_PIN["5"], 0.0),
+        "channel_1": pin_to_dc.get(str(PWM_TO_PIN["1"]), 0.0),
+        "channel_2": pin_to_dc.get(str(PWM_TO_PIN["2"]), 0.0),
+        "channel_3": pin_to_dc.get(str(PWM_TO_PIN["3"]), 0.0),
+        "channel_4": pin_to_dc.get(str(PWM_TO_PIN["4"]), 0.0),
+        "channel_5": pin_to_dc.get(str(PWM_TO_PIN["5"]), 0.0),
     }
 
 
