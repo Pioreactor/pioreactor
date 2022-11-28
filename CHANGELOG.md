@@ -3,7 +3,7 @@
  - The pioreactor cards in the UI display the PWM DC %.
  - user defined callbacks in ODReader have changed to be bound methods on the class (hence, you
  can use `self` in the callback.)
- - New SQL table `pwm_dcs`, but it isn't populated yet.
+ - New SQL table `pwm_dcs`.
  - Performance improvements to the UI
  - Adding authentication on mosquitto, the MQTT broker running on leader.
 
