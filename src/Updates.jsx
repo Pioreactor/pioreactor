@@ -15,7 +15,7 @@ import Divider from '@mui/material/Divider';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useConfirm } from 'material-ui-confirm';
-
+import LoadingButton from '@mui/lab/LoadingButton';
 
 const useStyles = makeStyles((theme) => ({
   title: {
@@ -38,17 +38,12 @@ const useStyles = makeStyles((theme) => ({
 function UpdateToLatestConfirmDialog(props) {
   const classes = useStyles();
   const confirm = useConfirm();
+  const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
 
   const updateVersion = () => {
     setOpenSnackbar(true)
     fetch("/api/update_app", {method: "POST"})
-    .then(res => {
-      if (res.ok) {
-        window.location.reload();
-        return false
-      }
-    })
   }
 
   const handleClick = () => {
@@ -59,23 +54,27 @@ function UpdateToLatestConfirmDialog(props) {
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
 
-      }).then(() =>
-        updateVersion()
+      }).then(() => {
+        updateVersion();
+        setUpdating(true)
+      }
     )
   };
 
   return (
     <React.Fragment>
-      <Button
+      <LoadingButton
         onClick={handleClick}
         style={{textTransform: 'none', float: "right", marginRight: "0px", marginLeft: "10px"}}
         color="primary"
         variant="contained"
         endIcon={<UpdateIcon/>}
         disabled={!props.isAvailable}
+        loading={updating}
+        loadingPosition="end"
         >
           Update to latest release
-      </Button>
+      </LoadingButton>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
