@@ -100,7 +100,7 @@ class Chart extends React.Component {
       );
     }
 
-    this.client.connect({ onSuccess: this.onConnect, reconnect: true});
+    this.client.connect({userName: 'pioreactor', password: 'raspberry',  onSuccess: this.onConnect, reconnect: true});
     this.client.onMessageArrived = this.onMessageArrived;
   }
 

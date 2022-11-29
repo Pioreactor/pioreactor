@@ -2,7 +2,7 @@ import React from "react";
 import moment from "moment";
 
 import Grid from '@mui/material/Grid';
-
+import clsx from 'clsx';
 import { makeStyles } from '@mui/styles';
 import FormLabel from '@mui/material/FormLabel';
 import FormControl from '@mui/material/FormControl';
@@ -31,10 +31,26 @@ const useStyles = makeStyles((theme) => ({
   pos: {
     marginBottom: 0,
   },
-  caption: {
+  datasetItem: {
+    padding: "10px"
+  },
+  recommended: {
+    backgroundColor: "rgba(83, 49, 202, 0.08)",
+  },
+  datasetDescription: {
     marginLeft: "30px",
-    maxWidth: "650px"
-  }
+    fontSize: 14
+  },
+  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
+  headerMenu: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "5px",
+    [theme.breakpoints.down('lg')]:{
+      flexFlow: "nowrap",
+      flexDirection: "column",
+    }
+  },
 }));
 
 
@@ -65,7 +81,7 @@ function ExperimentSelection(props) {
   return (
     <div style={{maxWidth: "450px", margin: "10px"}}>
       <FormControl fullWidth component="fieldset" className={classes.formControl}>
-        <InputLabel id="expSelect" variant="standard"> Experiment </InputLabel>
+        <FormLabel component="legend">Choose experiment</FormLabel>
         <Select
           native
           labelId="expSelect"
@@ -95,164 +111,199 @@ const CheckboxesGroup = (props) => {
   return (
     <div className={classes.root} style={{margin: "10px"}}>
       <FormControl component="fieldset" className={classes.formControl}>
-        <FormLabel component="legend">Datasets</FormLabel>
+        <FormLabel component="legend">Choose datasets</FormLabel>
         <FormGroup>
+          <div className={clsx(classes.recommended, classes.datasetItem)}>
+              <FormControlLabel
+              control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data} onChange={props.handleChange} name="pioreactor_unit_activity_data" />}
+              label="Pioreactor unit activity data (recommended)"
+            />
+            <Typography className={classes.datasetDescription} gutterBottom>
+              This dataset contains most of your experiment data, including the time series of OD metrics, temperature, stirring rates, LED updates, and dosings.
+            </Typography>
+          </div>
 
-          <FormControlLabel
-            control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data} onChange={props.handleChange} name="pioreactor_unit_activity_data" />}
-            label="Pioreactor unit activity data (recommended)"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This dataset contains most of your experiment data, including the time series of OD metrics, temperature, stirring rates, LED updates, and dosings.
-          </Typography>
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
+              control={<Checkbox checked={props.isChecked.growth_rates} onChange={props.handleChange} name="growth_rates" />}
+              label="Implied growth rate"
+            />
+            <Typography className={classes.datasetDescription} gutterBottom>
+             This dataset includes a time series of the calculated (implied) growth rate. This data matches what's presented in the "Implied growth rate" chart in the Experiment Overview.
+            </Typography>
+          </div>
 
-          <FormControlLabel
-            control={<Checkbox checked={props.isChecked.growth_rates} onChange={props.handleChange} name="growth_rates" />}
-            label="Implied growth rate"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-           This dataset includes a time series of the calculated (implied) growth rate. This data matches what's presented in the "Implied growth rate" chart in the Experiment Overview.
-          </Typography>
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
+              control={<Checkbox checked={props.isChecked.od_readings} onChange={props.handleChange} name="od_readings" />}
+              label="Optical density"
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset includes a time series of readings provided by the sensors (transformed via a calibration curve, if available), the inputs for growth calculations and normalized optical densities. This data matches what's presented in the "Optical density" chart in the Experiment Overview.
+            </Typography>
+          </div>
 
-          <FormControlLabel
-            control={<Checkbox checked={props.isChecked.od_readings} onChange={props.handleChange} name="od_readings" />}
-            label="Optical density"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This dataset includes a time series of readings provided by the sensors (transformed via a calibration curve, if available), the inputs for growth calculations and normalized optical densities. This data matches what's presented in the "Optical density" chart in the Experiment Overview.
-          </Typography>
-
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.od_readings_filtered} onChange={props.handleChange} name="od_readings_filtered" />}
             label="Normalized optical density"
           />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This dataset includes a time series of normalized optical densities. This data matches what's presented in the "Normalized optical density" chart in the Experiment Overview.
-          </Typography>
-
-          <FormControlLabel
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset includes a time series of normalized optical densities. This data matches what's presented in the "Normalized optical density" chart in the Experiment Overview.
+            </Typography>
+          </div>
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.temperature_readings} onChange={props.handleChange} name="temperature_readings" />}
             label="Temperature readings"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This dataset includes a time series of temperature readings from the Pioreactors. This data matches what's presented in the "Temperature of vials" chart in the Experiment Overview.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset includes a time series of temperature readings from the Pioreactors. This data matches what's presented in the "Temperature of vials" chart in the Experiment Overview.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.experiments} onChange={props.handleChange} name="experiments" />}
             label="Experiment metadata"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This download includes your experiment description and metadata.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This download includes your experiment description and metadata.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.alt_media_fractions} onChange={props.handleChange} name="alt_media_fractions" />}
             label="Alternative media fraction"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This dataset includes a time series of how much alternative media is in each Pioreactor. This data matches what's presented in the "Fraction of volume that is alternative media" chart in the Experiment Overview.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset includes a time series of how much alternative media is in each Pioreactor. This data matches what's presented in the "Fraction of volume that is alternative media" chart in the Experiment Overview.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.dosing_events} onChange={props.handleChange} name="dosing_events" />}
             label="Dosing event log"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            In this download, you'll find a detailed log table of all dosing events, including the volume exchanged, and the source of who or what triggered the event.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              In this download, you'll find a detailed log table of all dosing events, including the volume exchanged, and the source of who or what triggered the event.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.led_events} onChange={props.handleChange} name="led_events" />}
             label="LED event log"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            In this download, you'll find a log table of all LED events, including the channel, intensity, and the source of who or what triggered the event.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              In this download, you'll find a log table of all LED events, including the channel, intensity, and the source of who or what triggered the event.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.dosing_automation_settings} onChange={props.handleChange} name="dosing_automation_settings" />}
             label="Dosing automation changelog"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            Anytime an automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the dosing automation states
-            from this dataset.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              Anytime an automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the dosing automation states
+              from this dataset.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.led_automation_settings} onChange={props.handleChange} name="led_automation_settings" />}
             label="LED automation changelog"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            Whenever a LED automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the LED automation states
-            from this dataset.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              Whenever a LED automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the LED automation states
+              from this dataset.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.temperature_automation_settings} onChange={props.handleChange} name="temperature_automation_settings" />}
             label="Temperature automation changelog"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            Whenever a temperature automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the temperature automation states
-            from this dataset.
-          </Typography>
-
-          <FormControlLabel
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              Whenever a temperature automation is updated (new automation, new setting, etc.), a new row is recorded. You can reconstruct all the temperature automation states
+              from this dataset.
+            </Typography>
+          </div>
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.dosing_automation_events} onChange={props.handleChange} name="dosing_automation_events" />}
             label="Dosing automation events"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This download includes a log of automation events created by dosing automations.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This download includes a log of automation events created by dosing automations.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.led_automation_events} onChange={props.handleChange} name="led_automation_events" />}
             label="LED automation events"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This download includes a log of automation events created by LED automations.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This download includes a log of automation events created by LED automations.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.temperature_automation_events} onChange={props.handleChange} name="temperature_automation_events" />}
             label="Temperature automation events"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This download includes a log of automation events created by temperature automations.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This download includes a log of automation events created by temperature automations.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.kalman_filter_outputs} onChange={props.handleChange} name="kalman_filter_outputs" />}
             label="Kalman filter outputs"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This download includes a time series of the internal Kalman filter. The Kalman filter produces the normalized optical densities, growth rates, an acceleration term, and variances (and covariances) between the estimates.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This download includes a time series of the internal Kalman filter. The Kalman filter produces the normalized optical densities, growth rates, an acceleration term, and variances (and covariances) between the estimates.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.stirring_rates} onChange={props.handleChange} name="stirring_rates" />}
             label="Stirring rates"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This dowload includes the measured RPM of the onboard stirring.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dowload includes the measured RPM of the onboard stirring.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.pioreactor_unit_labels} onChange={props.handleChange} name="pioreactor_unit_labels" />}
             label="Pioreactor unit labels"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            In this download, you'll find the labels assigned to a Pioreactor during an experiment.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              In this download, you'll find the labels assigned to a Pioreactor during an experiment.
+            </Typography>
+          </div>
 
-          <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
             control={<Checkbox checked={props.isChecked.logs} onChange={props.handleChange} name="logs" />}
             label="Pioreactor logs"
-          />
-          <Typography variant="caption" className={classes.caption} gutterBottom>
-            This dataset includes the append-only collection of logs from all Pioreactors. A subset of the these logs are displayed in the Log Table in the Experiment Overview.
-            These are the logs that should be provided to get assistance when troubleshooting, but choose "&lt;All experiments&gt;" above.
-          </Typography>
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset includes the append-only collection of logs from all Pioreactors. A subset of the these logs are displayed in the Log Table in the Experiment Overview.
+              These are the logs that should be provided to get assistance when troubleshooting, but choose "&lt;All experiments&gt;" above.
+            </Typography>
+          </div>
 
         </FormGroup>
       </FormControl>
@@ -265,6 +316,7 @@ function ExportDataContainer() {
   const [isRunning, setIsRunning] = React.useState(false)
   const [isError, setIsError] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
+  const [count, setCount] = React.useState(0)
   const [state, setState] = React.useState({
     experimentSelection: "",
     datasetCheckbox: {
@@ -326,6 +378,13 @@ function ExportDataContainer() {
   }
 
   const handleCheckboxChange = (event) => {
+    if (event.target.checked){
+      setCount(prevCount => prevCount + 1)
+    }
+    else {
+      setCount(prevCount => prevCount - 1)
+    }
+
     setState(prevState => ({
       ...prevState,
       datasetCheckbox: {...state.datasetCheckbox, [event.target.name]: event.target.checked }
@@ -343,18 +402,34 @@ function ExportDataContainer() {
   return (
     <React.Fragment>
       <div>
-        <div>
+        <div className={classes.headerMenu}>
           <Typography variant="h5" component="h2">
             <Box fontWeight="fontWeightBold">
               Export Experiment Data
             </Box>
           </Typography>
+          <div className={classes.headerButtons}>
+            <LoadingButton
+                type="submit"
+                variant="contained"
+                color="primary"
+                loading={isRunning}
+                loadingPosition="end"
+                onClick={onSubmit}
+                endIcon={<FileDownloadIcon />}
+                disabled={count === 0}
+              >
+                Export { count > 0 ?  count : ""}
+            </LoadingButton>
+          </div>
         </div>
 
       </div>
       <Card className={classes.root}>
 
         <CardContent className={classes.cardContent}>
+          <p style={{marginLeft: 10}}>{errorFeedbackOrDefault}</p>
+
           <form>
             <Grid container spacing={0}>
               <Grid item xs={12} md={12}>
@@ -371,22 +446,6 @@ function ExportDataContainer() {
               </Grid>
 
               <Grid item xs={0}/>
-              <Grid item xs={12}>
-                <LoadingButton
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  loading={isRunning}
-                  loadingPosition="end"
-                  onClick={onSubmit}
-                  style={{width: "120px", marginLeft: 24}}
-                  endIcon={<FileDownloadIcon />}
-                >
-                  Export
-                </LoadingButton>
-                <p style={{marginLeft: 24}}>{errorFeedbackOrDefault}</p>
-
-              </Grid>
               <Grid item xs={12}>
                 <p style={{textAlign: "center", marginTop: "30px"}}><span role="img" aria-labelledby="Note">💡</span> Learn more about <a href="https://docs.pioreactor.com/user-guide/export-data" target="_blank" rel="noopener noreferrer">data exporting</a>.</p>
               </Grid>

@@ -35,7 +35,7 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 
-function ConfirmDialog() {
+function UpdateToLatestConfirmDialog(props) {
   const classes = useStyles();
   const confirm = useConfirm();
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
@@ -66,8 +66,15 @@ function ConfirmDialog() {
 
   return (
     <React.Fragment>
-      <Button onClick={handleClick} style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
-        <UpdateIcon fontSize="15" classes={{root: classes.textIcon}}/> Update to latest release
+      <Button
+        onClick={handleClick}
+        style={{textTransform: 'none', float: "right", marginRight: "0px", marginLeft: "10px"}}
+        color="primary"
+        variant="contained"
+        endIcon={<UpdateIcon/>}
+        disabled={!props.isAvailable}
+        >
+          Update to latest release
       </Button>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
@@ -85,8 +92,6 @@ function PageHeader(props) {
   const classes = useStyles();
   const [version, setVersion] = React.useState("")
   const [latestVersion, setLatestVersion] = React.useState("")
-
-
 
   React.useEffect(() => {
     async function getCurrentAppVersion() {
@@ -122,7 +127,7 @@ function PageHeader(props) {
           </Box>
         </Typography>
         <div >
-          <ConfirmDialog/>
+          <UpdateToLatestConfirmDialog isAvailable={(version !== "") && (latestVersion !== "") && (version !== latestVersion) } />
           <Link color="inherit" underline="none" href="https://github.com/Pioreactor/pioreactor/releases" target="_blank" rel="noopener noreferrer">
             <Button style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
               <OpenInNewIcon fontSize="15" classes={{root: classes.textIcon}}/> View latest release

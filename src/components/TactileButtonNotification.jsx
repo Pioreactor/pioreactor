@@ -71,7 +71,7 @@ function TactileButtonNotification(props) {
         "webui_TactileButtonNotification" + Math.random()
       );
     }
-    client.connect({onSuccess: onSuccess, timeout: 180, reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: onSuccess, timeout: 180, reconnect: true});
     client.onMessageArrived = onMessageArrived;
 
   },[props.config, relabelMap])

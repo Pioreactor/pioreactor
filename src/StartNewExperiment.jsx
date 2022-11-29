@@ -11,6 +11,7 @@ import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
 import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { Link } from 'react-router-dom';
+import SaveIcon from '@mui/icons-material/Save';
 
 //import CleaningScript from "./components/CleaningScript"
 import AssignLabels from "./components/AssignLabels"
@@ -281,6 +282,7 @@ function ExperimentSummaryForm(props) {
                 variant="contained"
                 color="primary"
                 onClick={onSubmit}
+                endIcon={<SaveIcon />}
               >
                 Save
               </Button>

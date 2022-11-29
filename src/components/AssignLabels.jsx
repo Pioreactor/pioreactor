@@ -10,7 +10,7 @@ import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router-dom';
-
+import EditIcon from '@mui/icons-material/Edit';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -105,7 +105,7 @@ function AssignLabels(props){
     ))
   }
   const onLabelChange = (unit) => (e) => setLabels({...labels, [unit]: e.target.value})
-
+  const count = Object.values(labels).reduce((accumulator, value) => accumulator + (value !== ""), 0)
 
   return (
     <div className={classes.root}>
@@ -142,7 +142,16 @@ function AssignLabels(props){
           <Grid item xs={12} lg={4}/>
           <Grid item xs={12} lg={8}>
             <div style={{display: "flex", justifyContent: "flex-end"}}>
-              <Button to="/overview" component={Link} variant="contained" color="primary" onClick={onSubmit}> Assign </Button>
+              <Button
+                to="/overview"
+                component={Link}
+                variant="contained"
+                color="primary"
+                onClick={onSubmit}
+                endIcon={<EditIcon />}
+              >
+                 Assign {count > 0 ? count : ""}
+               </Button>
             </div>
           </Grid>
       </Grid>

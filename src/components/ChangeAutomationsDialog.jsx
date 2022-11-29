@@ -101,7 +101,7 @@ function ChangeAutomationsDialog(props) {
       );
     }
 
-    client.connect({timeout: 180});
+    client.connect({userName: 'pioreactor', password: 'raspberry', });
     setClient(client)
   },[props.config])
 

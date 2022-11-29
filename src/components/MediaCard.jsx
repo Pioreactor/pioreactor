@@ -82,7 +82,7 @@ class MediaCard extends React.Component {
       );
     }
 
-    this.client.connect({timeout: 180, 'onSuccess': this.onConnect});
+    this.client.connect({userName: 'pioreactor', password: 'raspberry', timeout: 180, 'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;
     this.setState({activeUnits: Object.entries(this.props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0])})
     this.getRecentRates()

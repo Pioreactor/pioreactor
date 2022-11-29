@@ -317,7 +317,7 @@ function UnitSettingDisplay(props) {
       return <div style={{ color: disconnectedGrey, fontSize: "13px"}}> {props.default} </div>;
     } else {
       const pwmDcs = JSON.parse(value)
-      const PIN_TO_PWM = {"17": "1", "13": "2", "16": "3", "12": "4"}
+      const PWM_TO_PIN = {1: "17",  2: "13", 3: "16",  4: "12"}
 
       const PWMMap = props.config['PWM']
       const renamed1 = (PWMMap[1]) ? (PWMMap[1].replace("_", " ")) : null
@@ -331,18 +331,18 @@ function UnitSettingDisplay(props) {
           <div style={{fontSize: "13px"}}>
             <div>
               <span className={classes.ledBlock}>
-                <UnderlineSpan title={renamed1 ? renamed1 : null}>{PIN_TO_PWM["17"]}</UnderlineSpan>: {prettyPrint(pwmDcs["17"] || 0)}%
+                <UnderlineSpan title={renamed1 ? renamed1 : null}>1</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[1]] || 0)}%
               </span>
               <span className={classes.ledBlock}>
-               <UnderlineSpan title={renamed2 ? renamed2 : null}>{PIN_TO_PWM["13"]}</UnderlineSpan>: {prettyPrint(pwmDcs["3"] || 0)}%
+               <UnderlineSpan title={renamed2 ? renamed2 : null}>2</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[2]] || 0)}%
               </span>
             </div>
             <div>
               <span className={classes.ledBlock}>
-                <UnderlineSpan title={renamed3 ? renamed3 : null}>{PIN_TO_PWM["16"]}</UnderlineSpan>: {prettyPrint(pwmDcs["16"] || 0)}%
+                <UnderlineSpan title={renamed3 ? renamed3 : null}>3</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[3]] || 0)}%
               </span>
               <span className={classes.ledBlock}>
-                <UnderlineSpan title={renamed4 ? renamed4 : null}>{PIN_TO_PWM["12"]}</UnderlineSpan>: {prettyPrint(pwmDcs["12"] || 0)}%
+                <UnderlineSpan title={renamed4 ? renamed4 : null}>4</UnderlineSpan>: {prettyPrint(pwmDcs[PWM_TO_PIN[4]] || 0)}%
               </span>
             </div>
           </div>
@@ -402,7 +402,6 @@ function ButtonStopProcess() {
 function AddNewPioreactor(props){
   const classes = useStyles();
   const [open, setOpen] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [name, setName] = React.useState("");
 
   const [isError, setIsError] = React.useState(false)
@@ -421,10 +420,6 @@ function AddNewPioreactor(props){
   const handleClose = () => {
     setOpen(false);
   };
-
-  const handleSnackbarClose = () => {
-    setSnackbarOpen(false)
-  }
 
   const handleNameChange = evt => {
     setName(evt.target.value)
@@ -462,8 +457,6 @@ function AddNewPioreactor(props){
         }
     })
   }
-
-  const runningFeedback = isRunning ? <CircularProgress color="inherit" size={24}/> : "Add Pioreactor"
 
   return (
     <React.Fragment>
@@ -516,26 +509,20 @@ function AddNewPioreactor(props){
         {isSuccess ? <p><CheckIcon className={clsx(classes.textIcon, classes.readyGreen)}/>{successMsg}</p>      : <React.Fragment/>}
       </div>
 
-      <Button
+      <LoadingButton
         variant="contained"
         color="primary"
-        style={{marginTop: "15px"}}
+        style={{marginTop: "10px"}}
         onClick={onSubmit}
         type="submit"
+        loading={isRunning}
+        endIcon={<AddIcon />}
       >
-        {runningFeedback}
-      </Button>
+        Add Pioreactor
+      </LoadingButton>
 
       </DialogContent>
     </Dialog>
-    <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-      open={snackbarOpen}
-      onClose={handleSnackbarClose}
-      message={`Adding new Pioreactor ${name}`}
-      autoHideDuration={7000}
-      key="snackbar-add-new"
-    />
     </React.Fragment>
   );}
 
@@ -1030,7 +1017,7 @@ function SettingsActionsDialog(props) {
     }
     catch (e) {
       console.log(e)
-      props.client.connect({onSuccess: () => setPioreactorJobAttr(job_attr, value)});
+      props.client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: () => setPioreactorJobAttr(job_attr, value)});
     }
   }
 
@@ -1685,7 +1672,7 @@ function SettingsActionsDialogAll({config, experiment}) {
         "webui_SettingsActionsDialogAll" + Math.random()
       );
     }
-    client.connect({timeout: 180, reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', reconnect: true});
     setClient(client)
   },[config])
 
@@ -1750,7 +1737,7 @@ function SettingsActionsDialogAll({config, experiment}) {
     }
     catch (e) {
       console.log(e)
-      client.connect({onSuccess: () => setPioreactorJobAttr(job_attr, value)});
+      client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: () => setPioreactorJobAttr(job_attr, value)});
     }
   }
 
@@ -2306,7 +2293,7 @@ function PioreactorCard(props){
       );
     }
     client.onMessageArrived = onMessageArrived
-    client.connect({onSuccess: onConnect, reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: onConnect, reconnect: true});
     setClient(client)
   },[config, experiment, fetchComplete, isUnitActive])
 
@@ -2473,7 +2460,7 @@ function PioreactorCard(props){
                       precision={2}
                       default="—"
                       isLEDIntensity={setting.label === "LED intensity"}
-                      isPWMDc={setting.label === "PWM duty cycle"}
+                      isPWMDc={setting.label === "PWM intensity"}
                       config={props.config}
                     />
                   </div>
