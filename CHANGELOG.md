@@ -1,6 +1,6 @@
-### Unreleased
+### 22.11.7
  - Improvements to UI
- - Fix bug in firstboot.sh
+ - Fix bug in leader's firstboot.sh
  - Fix bug when temperature is changed too quickly in `thermostat`
 
 ### 22.11.6
