@@ -17,9 +17,9 @@ repos:
     - id: black
       args: ["--line-length", "100"]
 
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v2.3.0
-  hooks:
+-   repo: https://github.com/PyCQA/flake8
+    rev: 6.0.0
+    hooks:
     - id: flake8
       args: # arguments to configure flake8
         # making isort line length compatible with black
@@ -29,6 +29,7 @@ repos:
         # check out their meaning here
         # https://flake8.pycqa.org/en/latest/user/error-codes.html
         - "--ignore=E203,E266,E501,W503,E402,E401"
+
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: 'v0.971'  # Use the sha / tag you want to point at
     hooks:
