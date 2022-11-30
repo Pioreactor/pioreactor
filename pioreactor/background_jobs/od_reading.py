@@ -647,7 +647,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
        = INITIAL * RAW / REF
     """
 
-    _INITIAL = 0.01
+    _INITIAL = 0.1
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()

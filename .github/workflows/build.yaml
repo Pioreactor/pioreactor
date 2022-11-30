@@ -41,7 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          body: <a href="https://github.com/Pioreactor/CustoPiZer/releases/tag/${{env.GITHUB_REF_NAME}}">Images available here</a>
+          body: <a href="https://github.com/Pioreactor/CustoPiZer/releases/tag/${{GITHUB_REF_NAME}}">Images available here</a>
           is_append_body: true
 
   publish-on-pypi:

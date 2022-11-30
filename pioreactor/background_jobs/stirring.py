@@ -336,6 +336,11 @@ class Stirrer(BackgroundJob):
 
         recent_rpm = self.rpm_calculator(poll_for_seconds)
 
+        self._measured_rpm = recent_rpm
+        self.measured_rpm = structs.MeasuredRPM(
+            timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
+        )
+
         if recent_rpm == 0 and self.state == self.READY and not is_testing_env():
             self.logger.warning(
                 "Stirring RPM is 0 - attempting to restart it automatically. Target RPM may be too low."
@@ -349,10 +354,6 @@ class Stirrer(BackgroundJob):
             else:
                 self.kick_stirring_but_avoid_od_reading()
 
-        self._measured_rpm = recent_rpm
-        self.measured_rpm = structs.MeasuredRPM(
-            timestamp=current_utc_datetime(), measured_rpm=self._measured_rpm
-        )
         return self.measured_rpm
 
     def poll_and_update_dc(self, poll_for_seconds: float = 4) -> None:

@@ -1,3 +1,8 @@
+### 22.12.0
+ - Fixed config.ini not being update in the UI.
+ - Fixed bug in adding worker to cluster
+ - `pio add-pioreactor` now returns an error if the addition failed.
+
 ### 22.11.7
  - Improvements to UI
  - Fix bug in leader's firstboot.sh
