@@ -506,7 +506,7 @@ if whoami.am_I_leader():
             capture_output=True,
             text=True,
         )
-        if res == 0:
+        if res.returncode == 0:
             logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
         else:
             logger.error(res.stderr)
