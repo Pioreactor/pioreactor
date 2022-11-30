@@ -2,6 +2,7 @@
  - Fixed config.ini not being update in the UI.
  - Fixed bug in adding worker to cluster
  - `pio add-pioreactor` now returns an error if the addition failed.
+ - remove testing data from database
 
 ### 22.11.7
  - Improvements to UI

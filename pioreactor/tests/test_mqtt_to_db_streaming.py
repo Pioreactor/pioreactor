@@ -19,7 +19,46 @@ from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.pubsub import publish
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
+
+
+def test_testing_data_is_filtered() -> None:
+
+    unit = "unit"
+    exp = get_latest_testing_experiment_name()  # contains _testing_ prefix
+
+    class TestJob(BackgroundJob):
+        job_name = "test_job"
+        published_settings = {
+            "some_key": {
+                "datatype": "json",
+                "settable": False,
+            },
+        }
+
+        def __init__(self, unit, experiment) -> None:
+            super(TestJob, self).__init__(unit=unit, experiment=experiment)
+            self.some_key = {"int": 4, "ts": 1}
+
+    def parse_setting(topic, payload) -> dict:
+        raise ValueError()  # never hit, since we exit early
+
+    parsers = [
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/test_job/some_key",
+            parse_setting,
+            "table_setting",
+        )
+    ]
+
+    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
+        with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
+            t = TestJob(unit=unit, experiment=exp)
+            t.clean_up()
+            sleep(1)
+
+        assert len(bucket) == 0
 
 
 def test_updated_heater_dc() -> None:
@@ -250,10 +289,10 @@ def test_empty_payload_is_filtered_early() -> None:
 
         def __init__(self, unit, experiment) -> None:
             super(TestJob, self).__init__(unit=unit, experiment=experiment)
-            self.some_key = {"int": 4, "ts": 1}
+            self.some_key = None
 
     def parse_setting(topic, payload) -> dict:
-        return json.loads(payload)
+        raise ValueError()  # never hit, since we exit early
 
     # turn on our mqtt to db
     parsers = [

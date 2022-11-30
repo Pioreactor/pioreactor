@@ -87,7 +87,9 @@ class MqttToDBStreamer(BackgroundJob):
         table: str,
     ) -> Callable:
         def callback(message: pt.MQTTMessage) -> None:
-            # TODO: filter testing experiments here?
+            if "/_testing_" in message.topic:
+                # filter out testing data from DB
+                return
 
             if not message.payload:
                 # filter out empty payloads
