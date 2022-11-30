@@ -107,6 +107,7 @@ class RepeatedTimer:
         and then every N seconds after that, we run func.
 
         """
+
         if not self.event.wait(self.run_after):
             self.start_time = perf_counter()
             if self.run_immediately and not self.is_paused:
@@ -129,7 +130,11 @@ class RepeatedTimer:
 
     @property
     def time_to_next_run(self) -> float:
-        return self.interval - ((perf_counter() - self.start_time) % self.interval)
+        if hasattr(self, "start_time"):
+            return self.interval - ((perf_counter() - self.start_time) % self.interval)
+        else:
+            # technically this is wrong, but it fixes an edge case.
+            return 0
 
     @property
     def time_from_previous_run(self) -> float:

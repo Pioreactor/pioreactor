@@ -12,7 +12,7 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 def uninstall_plugin(name_of_plugin: str) -> None:
 
-    logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
+    logger = create_logger("uninstall_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Uninstalling plugin {name_of_plugin}.")
 
     result = subprocess.run(

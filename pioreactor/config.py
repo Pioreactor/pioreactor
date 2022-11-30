@@ -142,7 +142,7 @@ def get_leader_address() -> str:
 
 
 def check_firstboot_successful() -> bool:
-    if is_testing_env:
+    if is_testing_env():
         return True
     return os.path.isfile("/usr/local/bin/firstboot.sh.done")
 

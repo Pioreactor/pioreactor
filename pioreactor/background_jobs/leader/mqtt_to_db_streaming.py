@@ -132,9 +132,6 @@ class MqttToDBStreamer(BackgroundJob):
                 qos=QOS.EXACTLY_ONCE,
                 allow_retained=False,
             )
-            self.logger.debug(
-                f"Creating {topic_and_callback['topic']} → {topic_and_callback['table']}."
-            )
 
 
 def produce_metadata(topic: str) -> MetaData:
