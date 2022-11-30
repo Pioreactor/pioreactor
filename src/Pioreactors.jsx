@@ -43,6 +43,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 import IndeterminateCheckBoxOutlinedIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
+import {getConfig, getRelabelMap} from "./utilities"
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
@@ -2086,21 +2087,11 @@ function SettingsActionsDialogAll({config, experiment}) {
 
 
 function ActiveUnits(props){
-    const [relabelMap, setRelabelMap] = React.useState({})
-    React.useEffect(() => {
+  const [relabelMap, setRelabelMap] = React.useState({})
 
-      function getRelabelMap() {
-          fetch("/api/get_current_unit_labels")
-          .then((response) => {
-            return response.json();
-          })
-          .then((data) => {
-            setRelabelMap(data)
-          });
-        }
-
-      getRelabelMap()
-    }, [])
+  React.useEffect(() => {
+    getRelabelMap(setRelabelMap)
+  }, [])
 
   const cards = props.units.map(unit =>
       <PioreactorCard isUnitActive={true} key={unit} unit={unit} config={props.config} experiment={props.experiment} label={relabelMap[unit]}/>
@@ -2491,43 +2482,42 @@ function InactiveUnits(props){
     </React.Fragment>
 )}
 
-function Pioreactors({title, config}) {
-    const [experimentMetadata, setExperimentMetadata] = React.useState({})
+function Pioreactors({title}) {
+  const [experimentMetadata, setExperimentMetadata] = React.useState({})
+  const [config, setConfig] = React.useState({})
 
-    React.useEffect(() => {
-      document.title = title;
+  React.useEffect(() => {
+    document.title = title;
 
-      function getLatestExperiment() {
-          fetch("/api/get_latest_experiment")
-          .then((response) => {
-            return response.json();
-          })
-          .then((data) => {
-            setExperimentMetadata(data)
-          });
+    function getLatestExperiment() {
+        fetch("/api/get_latest_experiment")
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setExperimentMetadata(data)
+        });
+      }
+
+    getConfig(setConfig)
+    getLatestExperiment()
+  }, [title])
+
+  const entries = (a) => Object.entries(a)
+  const activeUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]) : []
+  const inactiveUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "0").map((v) => v[0]) : []
+
+  return (
+    <Grid container spacing={2} >
+      <Grid item md={12} xs={12}>
+        <PioreactorHeader config={config} experiment={experimentMetadata.experiment}/>
+        <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
+        { (inactiveUnits.length > 0) &&
+        <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
         }
-
-
-      getLatestExperiment()
-    }, [title])
-
-    const entries = (a) => Object.entries(a)
-    const activeUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]) : []
-    const inactiveUnits = config['cluster.inventory'] ? entries(config['cluster.inventory']).filter((v) => v[1] === "0").map((v) => v[0]) : []
-
-    return (
-        <Grid container spacing={2} >
-
-
-          <Grid item md={12} xs={12}>
-            <PioreactorHeader config={config} experiment={experimentMetadata.experiment}/>
-            <ActiveUnits experiment={experimentMetadata.experiment} config={config} units={activeUnits} />
-            { (inactiveUnits.length > 0) &&
-            <InactiveUnits experiment={experimentMetadata.experiment} config={config} units={inactiveUnits}/>
-            }
-          </Grid>
-        </Grid>
-    )
+      </Grid>
+    </Grid>
+  )
 }
 
 export default Pioreactors;

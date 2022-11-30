@@ -2,6 +2,7 @@ import React from "react";
 import { Client } from "paho-mqtt";
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
+import {getConfig, getRelabelMap} from "../utilities"
 
 import Snackbar from '@mui/material/Snackbar';
 
@@ -10,24 +11,15 @@ function TactileButtonNotification(props) {
   const [renamedUnit, setRenamedUnit] = React.useState("")
   const [open, setOpen] = React.useState(false)
   const [relabelMap, setRelabelMap] = React.useState({})
+  const [config, setConfig] = React.useState({})
 
   React.useEffect(() => {
-
-    function getRelabelMap() {
-        fetch("/api/get_current_unit_labels")
-        .then((response) => {
-          return response.json();
-        })
-        .then((data) => {
-          setRelabelMap(data)
-        });
-      }
-
-    getRelabelMap()
+    getRelabelMap(setRelabelMap)
+    getConfig(setConfig)
   }, [])
 
   React.useEffect(() => {
-    if (!props.config['cluster.topology']){
+    if (!config['cluster.topology']){
       return
     }
 
@@ -60,21 +52,21 @@ function TactileButtonNotification(props) {
     }
 
     var client
-    if (props.config.remote && props.config.remote.ws_url) {
+    if (config.remote && config.remote.ws_url) {
       client = new Client(
-        `ws://${props.config.remote.ws_url}/`,
+        `ws://${config.remote.ws_url}/`,
         "webui_TactileButtonNotification" + Math.random()
       )}
     else {
       client = new Client(
-        `${props.config['cluster.topology']['leader_address']}`, 9001,
+        `${config['cluster.topology']['leader_address']}`, 9001,
         "webui_TactileButtonNotification" + Math.random()
       );
     }
     client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: onSuccess, timeout: 180, reconnect: true});
     client.onMessageArrived = onMessageArrived;
 
-  },[props.config, relabelMap])
+  },[config, relabelMap])
 
   return (
     <Snackbar

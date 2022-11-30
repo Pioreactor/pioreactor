@@ -20,15 +20,13 @@ import Feedback from "./Feedback";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
-
+import {getConfig} from "./utilities"
 
 import "@fontsource/roboto/300.css"
 import "@fontsource/roboto/400.css"
 import "@fontsource/roboto/500.css"
 import "@fontsource/roboto/700.css"
 import './styles.css';
-import {parseINIString} from "./utilities"
-
 
 const theme = createTheme({
   palette: {
@@ -78,69 +76,49 @@ function App() {
 }
 
 function MainSite() {
-  const [config, setConfig] = React.useState({})
-
-  React.useEffect(() => {
-
-    function getConfig() {
-      fetch("/api/get_config/config.ini")
-        .then((response) => {
-            if (response.ok) {
-              return response.text();
-            } else {
-              throw new Error('Something went wrong');
-            }
-          })
-        .then((config) => {
-          setConfig(parseINIString(config)); // TODO: parse on server side and send a json object
-        })
-        .catch((error) => {})
-    }
-    getConfig();
-  }, [])
   return (
     <div style={{display: 'flex'}}>
-      <ErrorBoundary config={config}>
+      <ErrorBoundary>
         <SideNavAndHeader />
         <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
           <div className="pageContainer">
             <Switch>
               <Route path="/export-data">
-                <ExportData config={config} title="Pioreactor ~ Export data"/>
+                <ExportData title="Pioreactor ~ Export data"/>
               </Route>
               <Route path="/start-new-experiment">
-                <StartNewExperiment config={config} title="Pioreactor ~ Start new experiment" />
+                <StartNewExperiment title="Pioreactor ~ Start new experiment" />
               </Route>
               <Route path="/overview">
-                <ExperimentOverview config={config} title="Pioreactor ~ Overview"/>
+                <ExperimentOverview title="Pioreactor ~ Overview"/>
               </Route>
               <Route path="/plugins">
-                <Plugins config={config} title="Pioreactor ~ Plugins"/>
+                <Plugins title="Pioreactor ~ Plugins"/>
               </Route>
               <Route path="/analysis">
-                <Analysis config={config} title="Pioreactor ~ Analysis"/>
+                <Analysis title="Pioreactor ~ Analysis"/>
               </Route>
               <Route path="/config">
-                <EditConfig config={config} title="Pioreactor ~ Configuration"/>
+                <EditConfig title="Pioreactor ~ Configuration"/>
               </Route>
               <Route path="/pioreactors" exact>
-                <Pioreactors config={config} title="Pioreactor ~ Pioreactors"/>
+                <Pioreactors title="Pioreactor ~ Pioreactors"/>
               </Route>
               <Route path="/updates">
-                <Updates config={config} title="Pioreactor ~ Updates"/>
+                <Updates title="Pioreactor ~ Updates"/>
               </Route>
               <Route path="/feedback">
-                <Feedback config={config} title="Pioreactor ~ Feedback"/>
+                <Feedback title="Pioreactor ~ Feedback"/>
               </Route>
               <Route path="/calibrations">
-                <Calibrations config={config} title="Pioreactor ~ Calibrations"/>
+                <Calibrations title="Pioreactor ~ Calibrations"/>
               </Route>
               <Route path="/">
-                <ExperimentOverview config={config} title="Pioreactor ~ Pioreactor"/>
+                <ExperimentOverview title="Pioreactor ~ Pioreactor"/>
               </Route>
             </Switch>
-            <ErrorSnackbar config={config} />
-            <TactileButtonNotification config={config}/>
+            <ErrorSnackbar />
+            <TactileButtonNotification />
           </div>
         </main>
       </ErrorBoundary>

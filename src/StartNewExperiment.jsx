@@ -17,6 +17,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import AssignLabels from "./components/AssignLabels"
 //import StartSensors from "./components/StartSensors"
 //import StartCalculations from "./components/StartCalculations"
+import {getConfig} from "./utilities"
 
 
 const useStyles = makeStyles((theme) => ({
@@ -303,6 +304,9 @@ function StartNewExperimentContainer(props) {
   const [activeStep, setActiveStep] = React.useState(0);
   const [skipped, setSkipped] = React.useState(new Set());
 
+
+
+
   const getStepContent = (index) => {
     return steps[index].content
   }
@@ -373,16 +377,22 @@ function StartNewExperimentContainer(props) {
 
 
 function StartNewExperiment(props) {
-    React.useEffect(() => {
-      document.title = props.title;
-    }, [props.title])
-    return (
-        <Grid container spacing={2} >
-          <Grid item xs={12} md={12}>
-            <StartNewExperimentContainer config={props.config}/>
-          </Grid>
+  const [config, setConfig] = React.useState({})
+
+  React.useEffect(() => {
+    getConfig(setConfig)
+  }, [])
+
+  React.useEffect(() => {
+    document.title = props.title;
+  }, [props.title])
+  return (
+      <Grid container spacing={2} >
+        <Grid item xs={12} md={12}>
+          <StartNewExperimentContainer config={config}/>
         </Grid>
-    )
+      </Grid>
+  )
 }
 
 export default StartNewExperiment;

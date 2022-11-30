@@ -1,5 +1,5 @@
 
-export function parseINIString(data){
+function parseINIString(data){
     var regex = {
         section: /^\s*\[\s*([^\]]*)\s*\]\s*$/,
         param: /^\s*([^=]+?)\s*=\s*(.*?)\s*$/,
@@ -27,4 +27,30 @@ export function parseINIString(data){
         };
     });
     return value;
+}
+
+
+export function getConfig(setCallback) {
+  fetch("/api/get_config/config.ini")
+    .then((response) => {
+        if (response.ok) {
+          return response.text();
+        } else {
+          throw new Error('Something went wrong');
+        }
+      })
+    .then((config) => {
+      setCallback(parseINIString(config)); // TODO: parse on server side and send a json object
+    })
+    .catch((error) => {})
+}
+
+export function getRelabelMap(setCallback) {
+  fetch("/api/get_current_unit_labels")
+  .then((response) => {
+    return response.json();
+  })
+  .then((data) => {
+    setCallback(data)
+  });
 }

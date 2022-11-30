@@ -109,7 +109,7 @@ function PageHeader(props) {
           return response.json();
         })
         .then((data) => {
-          setLatestVersion(data['name'])
+          setLatestVersion(data['tag_name'])
         });
       }
 
