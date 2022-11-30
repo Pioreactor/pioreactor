@@ -501,12 +501,16 @@ if whoami.am_I_leader():
                     )
                     raise click.Abort()
 
-        res = subprocess.call(
-            [f"bash /usr/local/bin/add_new_pioreactor_worker_from_leader.sh {hostname}"],
-            shell=True,
+        res = subprocess.run(
+            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname],
+            capture_output=True,
+            text=True,
         )
         if res == 0:
             logger.notice(f"New pioreactor {hostname} successfully added to cluster.")  # type: ignore
+        else:
+            logger.error(res.stderr)
+            raise click.Abort()
 
     @pio.command(
         name="discover-workers",
