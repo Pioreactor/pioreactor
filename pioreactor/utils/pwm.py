@@ -135,6 +135,7 @@ class PWM:
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
         self.duty_cycle = float(initial_duty_cycle)
+        self.pwm.start(round(self.duty_cycle, 5))
 
         current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
@@ -142,12 +143,13 @@ class PWM:
             for pin in cache.iterkeys():
                 current_values[pin] = cache[pin]
 
-        self.pwm.start(round(self.duty_cycle, 5))
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
 
     def stop(self) -> None:
+        self.pwm.stop()
+
         current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = 0.0
@@ -157,13 +159,17 @@ class PWM:
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
-        self.pwm.stop()
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
         self.duty_cycle = float(duty_cycle)
+
+        if self.using_hardware:
+            self.pwm.change_duty_cycle(round(self.duty_cycle, 5))
+        else:
+            self.pwm.ChangeDutyCycle(self.duty_cycle)  # type: ignore
 
         current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
@@ -174,11 +180,6 @@ class PWM:
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
-
-        if self.using_hardware:
-            self.pwm.change_duty_cycle(round(self.duty_cycle, 5))
-        else:
-            self.pwm.ChangeDutyCycle(self.duty_cycle)  # type: ignore
 
     def cleanup(self) -> None:
         self.stop()
@@ -204,6 +205,8 @@ class PWM:
             GPIO.cleanup(self.pin)
 
         self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
+        self.client.loop_stop()
+        self.client.disconnect()
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
