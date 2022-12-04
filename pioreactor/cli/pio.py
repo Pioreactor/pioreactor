@@ -253,10 +253,12 @@ def version(verbose: bool) -> None:
         import platform
         from pioreactor.version import hardware_version_info
         from pioreactor.version import software_version_info
+        from pioreactor.version import serial_number
         from pioreactor.version import tuple_to_text
 
         click.echo(f"Pioreactor software:    {tuple_to_text(software_version_info)}")
         click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
+        click.echo(f"HAT serial number:      {serial_number}")
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {whoami.get_rpi_machine()}")
     else:
