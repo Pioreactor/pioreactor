@@ -13,7 +13,7 @@ def _get_hardware_version() -> tuple[int, int]:
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
         # no eeprom? Probably the first dev boards, or testing env, or EEPROM not written.
-        return (0, 1)
+        return (0, 0)
 
 
 def _get_serial_number() -> str:
