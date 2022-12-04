@@ -5,9 +5,12 @@ from contextlib import contextmanager
 from json import dumps
 from typing import Any
 from typing import Iterator
+from typing import Optional
 
 from pioreactor.exc import PWMError
 from pioreactor.logging import create_logger
+from pioreactor.logging import Logger
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
 from pioreactor.utils import gpio_helpers
@@ -76,11 +79,22 @@ class PWM:
         unit: str,
         experiment: str,
         always_use_software: bool = False,
+        pubsub_client: Optional[Client] = None,
+        logger: Optional[Logger] = None,
     ) -> None:
-        self.client = create_client()
         self.unit = unit
         self.experiment = experiment
-        self.logger = create_logger("PWM", experiment=self.experiment, unit=self.unit)
+
+        if pubsub_client is None:
+            self.pubsub_client = create_client()
+        else:
+            self.pubsub_client = pubsub_client
+
+        if logger is None:
+            self.logger = create_logger("PWM", experiment=self.experiment, unit=self.unit)
+        else:
+            self.logger = logger
+
         self.pin = pin
         self.hz = hz
         self.duty_cycle = 0.0
@@ -143,7 +157,7 @@ class PWM:
             for pin in cache.iterkeys():
                 current_values[pin] = cache[pin]
 
-        self.client.publish(
+        self.pubsub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
 
@@ -156,7 +170,7 @@ class PWM:
             for pin in cache.iterkeys():
                 current_values[pin] = cache[pin]
 
-        self.client.publish(
+        self.pubsub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
 
@@ -177,7 +191,7 @@ class PWM:
             for pin in cache.iterkeys():
                 current_values[pin] = cache[pin]
 
-        self.client.publish(
+        self.pubsub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
 
@@ -205,8 +219,6 @@ class PWM:
             GPIO.cleanup(self.pin)
 
         self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
-        self.client.loop_stop()
-        self.client.disconnect()
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:

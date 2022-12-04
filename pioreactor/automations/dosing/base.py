@@ -71,7 +71,7 @@ class AltMediaCalculator:
     vial_volume = config.getfloat("bioreactor", "volume_ml")
 
     @classmethod
-    def update(cls, dosing_event: structs.DosingEvent, current_alt_media_fraction) -> float:
+    def update(cls, dosing_event: structs.DosingEvent, current_alt_media_fraction: float) -> float:
         volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
             return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0)

@@ -1,3 +1,8 @@
+### 22.12.1
+ - Support latest HAT version 1.0
+ - Serial number is available under `pioreactor.version.serial_number`
+ - Serial number is also printed with `pio version -v`
+
 ### 22.12.0
  - Fixed config.ini not being update in the UI.
  - Fixed bug in adding worker to cluster

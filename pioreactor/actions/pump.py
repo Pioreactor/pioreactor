@@ -15,7 +15,7 @@ from pioreactor import utils
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import publish
+from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
@@ -35,7 +35,7 @@ def _pump(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
-    config=config,  # techdebt
+    config=config,  # techdebt, don't use
 ) -> float:
     """
 
@@ -53,7 +53,6 @@ def _pump(
         Run pump continuously.
     source_of_event: str
         A human readable description of the source
-
 
     Returns
     -----------
@@ -144,14 +143,23 @@ def _pump(
                 timestamp=current_utc_datetime(),
             )
         )
-        publish(
+
+        client = create_client()
+        client.publish(
             f"pioreactor/{unit}/{experiment}/dosing_events",
             json_output,
             qos=QOS.EXACTLY_ONCE,
         )
 
         try:
-            pwm = PWM(GPIO_PIN, calibration.hz, experiment=experiment, unit=unit)
+            pwm = PWM(
+                GPIO_PIN,
+                calibration.hz,
+                experiment=experiment,
+                unit=unit,
+                pubsub_client=client,
+                logger=logger,
+            )
             pwm.lock()
         except exc.PWMError:
             return 0.0
@@ -165,7 +173,7 @@ def _pump(
 
             if continuously:
                 while not state.exit_event.wait(duration):
-                    publish(
+                    client.publish(
                         f"pioreactor/{unit}/{experiment}/dosing_events",
                         json_output,
                         qos=QOS.EXACTLY_ONCE,
@@ -190,6 +198,9 @@ def _pump(
                 ml = utils.pump_duration_to_ml(
                     shortened_duration, calibration.duration_, calibration.bias_
                 )
+
+            client.loop_stop()
+            client.disconnect()
 
         return ml
 
