@@ -432,7 +432,6 @@ class TemperatureController(BackgroundJob):
                 self._update_heater(previous_heater_dc)
 
         features["time_series_of_temp"] = time_series_of_temp
-        self.logger.debug(features)
 
         try:
             self.temperature = Temperature(
@@ -563,8 +562,6 @@ class TemperatureController(BackgroundJob):
             ]
         )
         Y2 = np.array([(y * exp(p * x)).sum(), (y * exp(q * x)).sum()])
-
-        self.logger.debug(f"{A=}, {B=}, {p=}, {q=}")
         try:
             b, c = np.linalg.solve(M2, Y2)
         except np.linalg.LinAlgError:

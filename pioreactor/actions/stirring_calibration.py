@@ -61,8 +61,8 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
 
             rpm_calc.setup()
             st.duty_cycle = (
-                min_dc  # we start with a somewhat low value, s.t. the stir bar is caught.
-            )
+                max_dc + min_dc
+            ) / 2  # we start with a somewhat low value, s.t. the stir bar is caught.
             st.start_stirring()
             sleep(8)
 
