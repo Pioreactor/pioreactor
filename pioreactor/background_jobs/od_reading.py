@@ -215,14 +215,18 @@ class ADCReader(LoggerMixin):
             "2": 0,
         }
 
+        """
         if hardware_version_info[0] == 0 and hardware_version_info[1] == 1:
             channel_to_adc_map = {
                 "1": 0,
                 "2": 1,
             }
-        if hardware_version_info[0] == 0 and hardware_version_info[1] <= 3:
-            from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
+        """
 
+        if hardware_version_info[0] == 0 or (
+            hardware_version_info[0] == 1 and hardware_version_info[1] == 0
+        ):
+            from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
         else:
             from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
 
@@ -535,7 +539,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(500.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(600.0 / self.oversampling_count / self.interval)
                     if (self.interval is not None)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -647,7 +651,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
        = INITIAL * RAW / REF
     """
 
-    _INITIAL = 0.1
+    _INITIAL = 0.01
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()
