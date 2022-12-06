@@ -273,7 +273,7 @@ class ADCReader(LoggerMixin):
 
             with local_intermittent_storage("led_locks") as cache:
                 for c in led_utils.ALL_LED_CHANNELS:
-                    del cache[c]
+                    cache.pop(c)
 
             # turn off all LEDs that might be causing problems
             # however, ODReader may turn on the IR LED again.
@@ -307,7 +307,7 @@ class ADCReader(LoggerMixin):
             )
             return
 
-    def check_on_gain(self, value: Optional[Voltage], tol=0.925) -> None:
+    def check_on_gain(self, value: Optional[Voltage], tol=0.85) -> None:
         if value is None:
             return
 
