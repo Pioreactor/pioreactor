@@ -535,7 +535,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(600.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(525.0 / self.oversampling_count / self.interval)
                     if (self.interval is not None)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -633,8 +633,8 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     Unlike other models (see git history), instead of recording the _initial_ led value, we hardcode it to something. Why?
     In PhotodiodeIrLedReferenceTracker (see git history), the transform OD reading is proportional to the initial LED value:
 
-    OD = RAW / (REF / INITIAL)
-       = INITIAL * RAW / REF
+    OD = RAW / (REF / initial)
+       = initial * RAW / REF
 
     This has problems because as the LED ages, the INITIAL will decrease, and then any calibrations will be start to be off.
 
@@ -642,26 +642,24 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     So in this class, we hardcode the INITIAL to be a STATIC value for all experiments:
 
-    OD = RAW / (REF / STATIC)
+    OD = RAW / (REF / INITIAL)
        = STATIC * RAW / REF
        = INITIAL * RAW / REF
     """
 
-    _INITIAL = 0.01
+    INITIAL = 0.01
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()
         self.led_output_ema = ExponentialMovingAverage(
             config.getfloat("od_config", "pd_reference_ema")
         )
-        self.initial_led_output = self._INITIAL
         self.channel = channel
-        self._count = 0
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
     def update(self, ir_output_reading: Voltage) -> None:
         # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
-        self.led_output_ema.update((ir_output_reading) / self.initial_led_output)
+        self.led_output_ema.update(ir_output_reading / self.INITIAL)
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
         return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
@@ -669,7 +667,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     def transform(self, od_reading: Voltage) -> Voltage:
         led_output = self.led_output_ema()
         assert led_output is not None
-        if led_output <= 0:
+        if led_output <= 0.0:
             raise ValueError(
                 "IR Reference is 0.0. Is it connected correctly? Is the IR LED working?"
             )

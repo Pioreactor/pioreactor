@@ -203,7 +203,6 @@ def subscribe(
             logger = create_logger(name or "pubsub.subscribe", to_mqtt=False)
             logger.debug(
                 f"Attempt {retry_count}: Unable to connect to host: {hostname}",
-                exc_info=True,
             )
 
             sleep(3 * retry_count)  # linear backoff
