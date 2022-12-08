@@ -5,6 +5,8 @@ import os
 import sys
 from functools import cache
 
+from pioreactor.version import serial_number
+
 UNIVERSAL_IDENTIFIER = "$broadcast"
 UNIVERSAL_EXPERIMENT = "$experiment"
 NO_EXPERIMENT = "$no_experiment_present"
@@ -31,7 +33,7 @@ def _get_latest_experiment_name() -> str:
 
     mqtt_msg = subscribe(
         "pioreactor/latest_experiment/experiment",
-        timeout=30,
+        timeout=20,
         retries=2,
         name="get_latest_experiment_name",
     )
@@ -90,12 +92,10 @@ def am_I_active_worker() -> bool:
 
 
 @cache
-def get_uuid() -> str:
-    from uuid import getnode
+def get_hashed_serial_number() -> str:
     from hashlib import md5
 
-    id_ = str(getnode())  # MAC address of a network interface
-    return md5(id_.encode()).hexdigest()
+    return md5(serial_number.encode()).hexdigest()
 
 
 def get_rpi_machine() -> str:

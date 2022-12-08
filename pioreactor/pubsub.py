@@ -340,14 +340,14 @@ def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None) -> None:
 
     """
     from pioreactor.mureq import post
-    from pioreactor.whoami import get_uuid, is_testing_env
+    from pioreactor.whoami import get_hashed_serial_number, is_testing_env
     from pioreactor.utils.timing import current_utc_timestamp
 
     if is_testing_env():
         return
 
     if json is not None:
-        json["rpi_uuid"] = get_uuid()
+        json["hashed_serial_number"] = get_hashed_serial_number()
         json["timestamp"] = current_utc_timestamp()
 
     headers = {"Content-type": "application/json", "Accept": "text/plain"}
