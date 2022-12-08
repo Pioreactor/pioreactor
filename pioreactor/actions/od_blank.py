@@ -114,8 +114,7 @@ def od_statistics(
 def od_blank(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
-    n_samples: int = 40,
-    ignore_rpm=False,  # TODO: delete me
+    n_samples: int = 20,
     unit=None,
     experiment=None,
 ) -> dict[pt.PdChannel, float]:
@@ -141,7 +140,6 @@ def od_blank(
             target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
             experiment=testing_experiment,
-            ignore_rpm=ignore_rpm,
         ) as st:
 
             # warm up OD reader
@@ -218,8 +216,8 @@ def od_blank(
     help="don't use feedback loop for stirring",
     is_flag=True,
 )
-def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples: int, ignore_rpm: bool) -> None:
+def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples: int) -> None:
     """
     Compute statistics about the blank OD time series
     """
-    od_blank(od_angle_channel1, od_angle_channel2, n_samples=n_samples, ignore_rpm=ignore_rpm)
+    od_blank(od_angle_channel1, od_angle_channel2, n_samples=n_samples)

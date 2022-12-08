@@ -39,6 +39,11 @@ class Monitor(BackgroundJob):
          pioreactor/{unit}/+/monitor/flicker_led_with_error_code   error_code as message
      6. Listens to MQTT for job to start, on the topic
          pioreactor/{unit}/$experiment/run/{job_name}   json-encoded args as message
+     7. Checks for connection to leader
+
+
+     TODO: start a watchdog job on all pioreactors (currently only on leader), and let it monitor the network activity.
+     OR merge the watchdog with monitor
 
 
     Notes

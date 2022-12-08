@@ -40,7 +40,33 @@ def is_reachable(hostname: str) -> bool:
     return False
 
 
+def default_gateway():
+    # https://github.com/jonfairbanks/OctoPrint-NetworkHealth/blob/master/octoprint_NetworkHealth/__init__.py
+    import socket
+    import struct
+
+    with open("/proc/net/route") as fh:
+        for line in fh:
+            fields = line.strip().split()
+            if fields[1] != "00000000" or not int(fields[3], 16) & 2:
+                continue
+            return socket.inet_ntoa(struct.pack("<L", int(fields[2], 16)))
+
+
+def is_connected_to_network() -> bool:
+    # https://github.com/jonfairbanks/OctoPrint-NetworkHealth/blob/master/octoprint_NetworkHealth/__init__.py
+    hostname = default_gateway()
+    if hostname is None:
+        hostname = "8.8.8.8"
+    response = os.system("ping -c 4 " + hostname)
+    if response == 0:
+        return True
+    else:
+        return False
+
+
 def get_ip() -> Optional[str]:
+    # TODO: this assumes wifi connection...
     from psutil import net_if_addrs  # type: ignore
 
     try:
