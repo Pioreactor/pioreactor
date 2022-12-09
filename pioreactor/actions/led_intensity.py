@@ -152,7 +152,7 @@ def led_intensity(
         from pioreactor.utils.mock import MockDAC43608 as DAC43608  # type: ignore
 
     if pubsub_client is None:
-        pubsub_client = create_client()
+        pubsub_client = create_client(client_id=f"led_intensity-{unit}-{experiment}")
 
     # any locked channels?
     for channel in list(desired_state.keys()):

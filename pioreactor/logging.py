@@ -191,7 +191,7 @@ def create_logger(
 
         pub_client = create_client(
             hostname=mqtt_hostname,
-            client_id=f"{unit}-logging-{experiment}-{uuid.uuid1()}",  # this needs to be random, so clients don't collide.
+            client_id=f"{name}-logging-{unit}-{experiment}-{uuid.uuid1()}",  # this needs to be random, so clients don't collide. #TODO: why would clients collide?
             max_connection_attempts=2,
         )
 

@@ -144,7 +144,7 @@ def _pump(
             )
         )
 
-        with create_client() as client:
+        with create_client(client_id=f"{action_name}-{unit}-{experiment}") as client:
             client.publish(
                 f"pioreactor/{unit}/{experiment}/dosing_events",
                 json_output,
@@ -183,7 +183,7 @@ def _pump(
                     logger.debug(e, exc_info=True)
                     logger.error(e)
                 finally:
-                    pwm.stop()
+                    pwm.cleanup()
 
                     if continuously:
                         logger.info(f"Stopping {pump_type} pump.")

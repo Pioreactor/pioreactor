@@ -99,7 +99,7 @@ class publish_ready_to_disconnected_state:
         self.experiment = experiment
         self.name = name
         self.exit_event = Event()
-        self.client = create_client()
+        self.client = create_client(client_id=f"{self.name}-{self.unit}-{self.experiment}")
         self.start_passive_listeners()
 
     def _exit(self, *args) -> None:

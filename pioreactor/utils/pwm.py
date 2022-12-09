@@ -87,13 +87,13 @@ class PWM:
 
         if pubsub_client is None:
             self._external_client = False
-            self.pubsub_client = create_client()
+            self.pubsub_client = create_client(client_id=f"pwm-{unit}-{experiment}-{pin}")
         else:
             self._external_client = True
             self.pubsub_client = pubsub_client
 
         if logger is None:
-            self.logger = create_logger("PWM", experiment=self.experiment, unit=self.unit)
+            self.logger = create_logger(f"PWM-{pin}", experiment=self.experiment, unit=self.unit)
         else:
             self.logger = logger
 

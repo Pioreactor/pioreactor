@@ -523,7 +523,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # see note above as to why we split pub and sub.
         client = create_client(
             hostname=self._leader_address,
-            client_id=f"{self.unit}-pub-{self.experiment}-{self.job_name}-{get_hashed_serial_number()}-{id(self)}",
+            client_id=f"{self.job_name}-pub-{self.unit}-{self.experiment}-{get_hashed_serial_number()}-{id(self)}",
         )
 
         return client
@@ -555,7 +555,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         client = create_client(
             hostname=self._leader_address,
-            client_id=f"{self.unit}-sub-{self.experiment}-{self.job_name}-{get_hashed_serial_number()}-{id(self)}",
+            client_id=f"{self.job_name}-sub-{self.unit}-{self.experiment}-{get_hashed_serial_number()}-{id(self)}",
             last_will=last_will,
             keepalive=60,
             clean_session=False,  # this, in theory, will reconnect to old subs when we reconnect.
@@ -756,10 +756,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def _disconnect_from_loggers(self):
         # clean up logger handlers
-        while len(self.logger.handlers) > 0:
-            handler = self.logger.handlers[0]
-            handler.close()
+
+        handlers = self.logger.handlers[:]
+        for handler in handlers:
             self.logger.removeHandler(handler)
+            handler.close()
 
     def _disconnect_from_mqtt_clients(self):
         # disconnect from MQTT
