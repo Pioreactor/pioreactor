@@ -11,6 +11,7 @@ import colorlog
 from json_log_formatter import JSONFormatter  # type: ignore
 
 from pioreactor.config import config
+from pioreactor.pubsub import add_hash_suffix
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import publish_to_pioreactor_cloud
@@ -187,11 +188,11 @@ def create_logger(
     logger.addHandler(console_handler)
 
     if to_mqtt:
-        import uuid
-
         pub_client = create_client(
             hostname=mqtt_hostname,
-            client_id=f"{name}-logging-{unit}-{experiment}-{uuid.uuid1()}",  # this needs to be random, so clients don't collide. #TODO: why would clients collide?
+            client_id=add_hash_suffix(
+                f"{name}-logging-{unit}-{experiment}"
+            ),  # this needs to be random, so clients don't collide. #TODO: why would clients collide?
             max_connection_attempts=2,
         )
 

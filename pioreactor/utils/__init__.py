@@ -104,6 +104,7 @@ class publish_ready_to_disconnected_state:
 
     def _exit(self, *args) -> None:
         self.exit_event.set()
+        print("here2")
 
     def __enter__(self) -> publish_ready_to_disconnected_state:
         try:
@@ -142,6 +143,7 @@ class publish_ready_to_disconnected_state:
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
         if message.payload.decode() == "disconnected":
+            print("here1")
             self._exit()
 
     def start_passive_listeners(self) -> None:

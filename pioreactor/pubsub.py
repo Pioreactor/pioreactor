@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import random
 import socket
+import string
 import threading
 from enum import IntEnum
 from time import sleep
@@ -13,6 +15,11 @@ from paho.mqtt.client import Client as PahoClient  # type: ignore
 
 from pioreactor.config import leader_address
 from pioreactor.types import MQTTMessage
+
+
+def add_hash_suffix(s):
+    alphabet = string.ascii_lowercase + string.digits
+    return s + "-" + "".join(random.choices(alphabet, k=8))
 
 
 class Client(PahoClient):
@@ -58,7 +65,9 @@ def create_client(
             logger = create_logger("pubsub.create_client", to_mqtt=False)
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
-    client = Client(client_id=client_id, clean_session=clean_session, userdata=userdata)
+    client = Client(
+        client_id=add_hash_suffix(client_id), clean_session=clean_session, userdata=userdata
+    )
     client.username_pw_set("pioreactor", "raspberry")
 
     if on_connect:
@@ -284,6 +293,7 @@ def subscribe_and_callback(
     else:
         # user provided a client
         for topic in topics:
+            print(topic)
             client.message_callback_add(topic, wrap_callback(callback))
             client.subscribe(topic)
 
