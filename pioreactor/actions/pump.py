@@ -59,6 +59,10 @@ def _pump(
     Amount of volume passed (approximate in some cases)
 
     """
+    assert (
+        (ml is not None) or (duration is not None) or continuously
+    ), "either ml or duration must be set"
+    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
@@ -73,11 +77,6 @@ def _pump(
         raise ValueError(f"{pump_type} not valid.")
 
     logger = create_logger(action_name, experiment=experiment, unit=unit)
-
-    assert (
-        (ml is not None) or (duration is not None) or continuously
-    ), "either ml or duration must be set"
-    assert not ((ml is not None) and (duration is not None)), "Only select ml or duration"
 
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
 
@@ -115,7 +114,7 @@ def _pump(
 
         if ml is not None:
             ml = float(ml)
-            assert ml >= 0, "ml should be greater than 0"
+            assert ml >= 0, "ml should be greater than or equal to 0"
             duration = utils.pump_ml_to_duration(ml, calibration.duration_, calibration.bias_)
             logger.info(f"{round(ml, 2)}mL")
         elif duration is not None:
@@ -130,7 +129,8 @@ def _pump(
         assert isinstance(ml, float)
         assert isinstance(duration, float)
 
-        assert duration >= 0, "duration should be greater than 0"
+        assert duration >= 0, "duration should be greater than or equal to 0"
+
         if duration == 0:
             return 0.0
 

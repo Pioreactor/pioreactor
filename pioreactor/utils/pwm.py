@@ -86,8 +86,10 @@ class PWM:
         self.experiment = experiment
 
         if pubsub_client is None:
+            self._external_client = False
             self.pubsub_client = create_client()
         else:
+            self._external_client = True
             self.pubsub_client = pubsub_client
 
         if logger is None:
@@ -217,6 +219,10 @@ class PWM:
             GPIO.cleanup(self.pin)
 
         self.logger.debug(f"Cleaned up GPIO-{self.pin}.")
+
+        if not self._external_client:
+            self.pubsub_client.loop_stop()
+            self.pubsub_client.disconnect()
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
