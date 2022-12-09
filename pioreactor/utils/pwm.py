@@ -100,12 +100,10 @@ class PWM:
         self.duty_cycle = 0.0
 
         if self.is_locked():
-            self.logger.error(
-                f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
-            )
-            raise PWMError(
-                f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
-            )
+            msg = f"GPIO-{self.pin} is currently locked but a task is overwriting it. Either too many jobs are trying to access this pin, or a job didn't clean up properly."
+
+            self.logger.error(msg)
+            raise PWMError(msg)
 
         gpio_helpers.set_gpio_availability(self.pin, False)
 
