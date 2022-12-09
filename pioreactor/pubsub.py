@@ -293,7 +293,6 @@ def subscribe_and_callback(
     else:
         # user provided a client
         for topic in topics:
-            print(topic)
             client.message_callback_add(topic, wrap_callback(callback))
             client.subscribe(topic)
 

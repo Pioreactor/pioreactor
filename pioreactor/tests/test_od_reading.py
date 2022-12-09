@@ -596,7 +596,9 @@ def test_calibration_simple_linear_calibration():
 
         voltage = 0.5
         assert od.calibration_transformer.models["2"](voltage) == (voltage - 0) / 2
-
+        pause()
+        pause()
+        pause()
         with collect_all_logs_of_level("debug", unit=get_unit_name(), experiment="+") as bucket:
             voltage = 10.0
             pause()

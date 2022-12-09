@@ -26,7 +26,6 @@ from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
-from pioreactor.whoami import get_hashed_serial_number
 from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
@@ -523,7 +522,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # see note above as to why we split pub and sub.
         client = create_client(
             hostname=self._leader_address,
-            client_id=f"{self.job_name}-pub-{self.unit}-{self.experiment}-{get_hashed_serial_number()}-{id(self)}",
+            client_id=f"{self.job_name}-pub-{self.unit}-{self.experiment}",
         )
 
         return client
@@ -555,7 +554,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         client = create_client(
             hostname=self._leader_address,
-            client_id=f"{self.job_name}-sub-{self.unit}-{self.experiment}-{get_hashed_serial_number()}-{id(self)}",
+            client_id=f"{self.job_name}-sub-{self.unit}-{self.experiment}",
             last_will=last_will,
             keepalive=60,
             clean_session=False,  # this, in theory, will reconnect to old subs when we reconnect.
