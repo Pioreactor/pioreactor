@@ -211,11 +211,6 @@ def od_blank(
     show_default=True,
     help="Number of samples",
 )
-@click.option(
-    "--ignore-rpm",
-    help="don't use feedback loop for stirring",
-    is_flag=True,
-)
 def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples: int) -> None:
     """
     Compute statistics about the blank OD time series

@@ -191,7 +191,7 @@ def create_logger(
             hostname=mqtt_hostname,
             client_id=f"{name}-logging-{unit}-{experiment}",
             max_connection_attempts=2,
-            keepalive=0,
+            keepalive=5 * 60,
         )
 
         experiment = experiment if am_I_active_worker() else UNIVERSAL_EXPERIMENT
