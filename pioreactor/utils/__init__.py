@@ -99,8 +99,18 @@ class publish_ready_to_disconnected_state:
         self.experiment = experiment
         self.name = name
         self.exit_event = Event()
+
+        last_will = {
+            "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
+            "payload": "lost",
+            "qos": QOS.EXACTLY_ONCE,
+            "retain": True,
+        }
+
         self.client = create_client(
-            client_id=f"{self.name}-{self.unit}-{self.experiment}", keepalive=3 * 60
+            client_id=f"{self.name}-{self.unit}-{self.experiment}",
+            keepalive=3 * 60,
+            last_will=last_will,
         )
         self.start_passive_listeners()
 

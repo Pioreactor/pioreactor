@@ -3,7 +3,8 @@
  - Reduce MQTT's load on the leader by tuning the keepalive interval to something larger (for less sensitive connections).
  - `pio reboot` will now work on leader, but will happen last.
  - More strict msgspec Structs
- - fix od_blank wrror
+ - fix od_blank error
+ - Added a last will to actions that will fire if the action disconnects ungracefully.
 
 ### 22.12.1
  - Support latest HAT version 1.0

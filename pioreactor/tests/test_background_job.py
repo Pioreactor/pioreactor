@@ -244,7 +244,7 @@ def test_editing_readonly_attr_via_mqtt() -> None:
 
     exp = "test_editing_readonly_attr_via_mqtt"
 
-    with collect_all_logs_of_level("DEBUG", get_unit_name(), exp) as logs:
+    with collect_all_logs_of_level("WARNING", get_unit_name(), exp) as logs:
         with TestJob(unit=get_unit_name(), experiment=exp):
             publish(
                 f"pioreactor/{get_unit_name()}/{exp}/job/readonly_attr/set",

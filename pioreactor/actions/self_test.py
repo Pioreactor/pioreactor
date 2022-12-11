@@ -253,8 +253,8 @@ def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment
 
     # provide a margin, since we have margins when determining change gain in od_reading
     assert (
-        readings[reference_channel] < 0.256 * 0.9
-    ), f"Recorded {readings[reference_channel]} in REF, should be less than 0.256."
+        0.05 < readings[reference_channel] < 0.256 * 0.9
+    ), f"Recorded {readings[reference_channel]} in REF, should be between 0.05 than 0.256."
 
 
 def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
@@ -339,8 +339,8 @@ HEATING_TESTS = [
     test_positive_correlation_between_temperature_and_heating,
 ]
 STIRRING_TESTS = [
-    test_positive_correlation_between_rpm_and_stirring,
     test_aux_power_is_not_too_high,
+    test_positive_correlation_between_rpm_and_stirring,
 ]
 OD_TESTS = [
     test_pioreactor_HAT_present,

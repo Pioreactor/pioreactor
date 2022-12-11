@@ -523,7 +523,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client = create_client(
             hostname=self._leader_address,
             client_id=f"{self.job_name}-pub-{self.unit}-{self.experiment}",
-            keepalive=3 * 60,
+            keepalive=15 * 60,
         )
 
         return client
