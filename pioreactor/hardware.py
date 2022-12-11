@@ -72,7 +72,7 @@ def is_heating_pcb_present() -> bool:
     return present
 
 
-def round_to_half_interger(x: float) -> float:
+def round_to_half_integer(x: float) -> float:
     y = round(x * 2) / 2
     return y
 
@@ -92,4 +92,4 @@ def voltage_in_aux() -> float:
     with I2C(SCL, SDA) as i2c:
         ads = ADS1115(i2c, address=ADC, gain=1)
         chan = AnalogIn(ads, P3)
-        return round_to_half_interger(chan.voltage / slope)
+        return round_to_half_integer(chan.voltage / slope)

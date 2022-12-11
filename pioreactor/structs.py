@@ -6,11 +6,13 @@ These define structs for internal data structures including MQTT messages, and a
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 from typing import Optional
 from typing import Type
 from typing import TypeVar
 from typing import Union
 
+from msgspec import Meta
 from msgspec import Struct
 
 from pioreactor import types as pt
@@ -75,8 +77,8 @@ class AutomationSettings(Struct):
 
     pioreactor_unit: str
     experiment: str
-    started_at: datetime
-    ended_at: datetime
+    started_at: Annotated[datetime, Meta(tz=True)]
+    ended_at: Annotated[datetime, Meta(tz=True)]
     automation_name: str
     settings: bytes
 
@@ -107,16 +109,16 @@ class LEDChangeEvent(Struct):
     """
 
     channel: pt.LedChannel
-    intensity: float
+    intensity: Annotated[float, Meta(ge=0, le=100)]
     source_of_event: str
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
 
 
 class LEDsIntensity(Struct):
-    A: float = 0.0
-    B: float = 0.0
-    C: float = 0.0
-    D: float = 0.0
+    A: Annotated[float, Meta(ge=0, le=100)] = 0.0
+    B: Annotated[float, Meta(ge=0, le=100)] = 0.0
+    C: Annotated[float, Meta(ge=0, le=100)] = 0.0
+    D: Annotated[float, Meta(ge=0, le=100)] = 0.0
 
 
 class DosingEvent(Struct):
@@ -124,54 +126,54 @@ class DosingEvent(Struct):
     Output of a pump action
     """
 
-    volume_change: float
+    volume_change: Annotated[float, Meta(ge=0)]
     event: str
     source_of_event: Optional[str]
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
 
 
 class MeasuredRPM(Struct):
-    measured_rpm: float
-    timestamp: datetime
+    measured_rpm: Annotated[float, Meta(ge=0)]
+    timestamp: Annotated[datetime, Meta(tz=True)]
 
 
 class GrowthRate(Struct):
     growth_rate: float
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
 
 
 class ODFiltered(Struct):
-    od_filtered: float
-    timestamp: datetime
+    od_filtered: Annotated[float, Meta(ge=0)]
+    timestamp: Annotated[datetime, Meta(tz=True)]
 
 
 class ODReading(Struct):
-    timestamp: datetime
-    angle: str
-    od: float
+    timestamp: Annotated[datetime, Meta(tz=True)]
+    angle: pt.PdAngle
+    od: Annotated[float, Meta(ge=0)]
     channel: pt.PdChannel
 
 
 class ODReadings(Struct):
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
     ods: dict[pt.PdChannel, ODReading]
 
 
 class Temperature(Struct):
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
     temperature: float
 
 
 class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
 
 
 class PumpCalibration(Calibration):
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
     name: str
     pump: str
-    hz: float
-    dc: float
+    hz: Annotated[float, Meta(ge=0)]
+    dc: Annotated[float, Meta(ge=0)]
     duration_: float
     bias_: float
     voltage: float
@@ -197,7 +199,7 @@ AnyPumpCalibration = Union[
 
 
 class ODCalibration(Calibration):
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
     name: str
     angle: pt.PdAngle
     maximum_od600: float
@@ -236,10 +238,10 @@ class Log(Struct):
     level: str
     task: str
     source: str
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]
 
 
 class KalmanFilterOutput(Struct):
-    state: list[float]
+    state: Annotated[list[float], Meta(max_length=3)]
     covariance_matrix: list[list[float]]
-    timestamp: datetime
+    timestamp: Annotated[datetime, Meta(tz=True)]

@@ -523,6 +523,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         client = create_client(
             hostname=self._leader_address,
             client_id=f"{self.job_name}-pub-{self.unit}-{self.experiment}",
+            keepalive=3 * 60,
         )
 
         return client
@@ -831,7 +832,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.logger.debug(f"Unable to set `{attr}` in {self.job_name}.")
             return
         elif not self.published_settings[attr]["settable"]:
-            self.logger.debug(f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only.")
+            self.logger.warning(
+                f"Unable to set `{attr}` in {self.job_name}. `{attr}` is read-only."
+            )
             return
 
         previous_value = getattr(self, attr)

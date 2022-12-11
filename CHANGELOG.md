@@ -1,3 +1,9 @@
+### 22.12.2
+ - Remove some errant debugging statements
+ - Reduce MQTT's load on the leader by tuning the keepalive interval to something larger (for less sensitive connections) or turning it off completely for logging and the web UI.
+ - `pio reboot` will now work on leader, but will happen last.
+ - More strict msgspec Structs
+
 ### 22.12.1
  - Support latest HAT version 1.0
  - Serial number is available under `pioreactor.version.serial_number`

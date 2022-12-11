@@ -451,7 +451,7 @@ def run(ctx, job: str, units: tuple[str, ...], y: bool) -> None:
 
 @pios.command(
     name="reboot",
-    short_help="reboot workers",
+    short_help="reboot Pioreactors",
 )
 @click.option(
     "--units",
@@ -467,8 +467,7 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
     """
     from sh import ssh
 
-    # pipe all output to null
-    command = " ".join(["sudo", "reboot"])
+    command = "sudo reboot"
 
     if not y:
         confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
@@ -484,6 +483,13 @@ def reboot(units: tuple[str, ...], y: bool) -> None:
     units = remove_leader(universal_identifier_to_all_workers(units))
     with ThreadPoolExecutor(max_workers=len(units)) as executor:
         executor.map(_thread_function, units)
+
+    # we delay rebooting leader (if asked), since it would prevent
+    # executing the reboot cmd on other workers
+    if get_leader_hostname() in universal_identifier_to_all_workers(units):
+        import os
+
+        os.system(command)
 
 
 @pios.command(
