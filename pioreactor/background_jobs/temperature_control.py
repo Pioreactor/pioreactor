@@ -432,6 +432,7 @@ class TemperatureController(BackgroundJob):
                 self._update_heater(previous_heater_dc)
 
         features["time_series_of_temp"] = time_series_of_temp
+        self.logger.debug(f"{features=}")
 
         try:
             self.temperature = Temperature(
