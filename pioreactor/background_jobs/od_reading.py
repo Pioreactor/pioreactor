@@ -607,14 +607,14 @@ class IrLedReferenceTracker(LoggerMixin):
     def update(self, ir_output_reading: Voltage) -> None:
         pass
 
-    def get_reference_reading(self, batched_readings: PdChannelToVoltage) -> Voltage:
-        return batched_readings[self.channel]
+    def pop_reference_reading(self, batched_readings: PdChannelToVoltage) -> Voltage:
+        return batched_readings.pop(self.channel)
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
         return batched_readings
 
-    def transform(self, x) -> Voltage:
-        return x
+    def transform(self, od_reading: Voltage) -> Voltage:
+        return od_reading
 
 
 class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
@@ -679,7 +679,7 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
         super().__init__()
         self.logger.debug("Not using any IR LED reference.")
 
-    def get_reference_reading(self, batched_readings) -> Voltage:
+    def pop_reference_reading(self, batched_readings: PdChannelToVoltage) -> Voltage:
         return 1.0
 
 
@@ -1082,7 +1082,7 @@ class ODReader(BackgroundJob):
         The IR LED needs to be turned on for this function to report accurate OD signals.
         """
         batched_readings = self.adc_reader.take_reading()
-        ir_output_reading = self.ir_led_reference_tracker.get_reference_reading(batched_readings)
+        ir_output_reading = self.ir_led_reference_tracker.pop_reference_reading(batched_readings)
         self.ir_led_reference_tracker.update(ir_output_reading)
 
         return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
