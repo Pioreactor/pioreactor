@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from json import loads
+from threading import Thread
 from time import sleep
 from typing import Callable
 from typing import Optional
@@ -474,26 +475,25 @@ class Monitor(BackgroundJob):
                 **payload,
             )
 
-        elif job_name in ["add_media", "add_alt_media", "remove_waste"]:
+        elif job_name in ("add_media", "add_alt_media", "remove_waste"):
             from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
 
             # we use a thread here since we want to exit this callback without blocking it.
             # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
-            from threading import Thread
 
             if job_name == "add_media":
-                pump = add_media  # type: ignore
+                pump_action = add_media  # type: ignore
             elif job_name == "add_alt_media":
-                pump = add_alt_media  # type: ignore
+                pump_action = add_alt_media  # type: ignore
             elif job_name == "remove_waste":
-                pump = remove_waste  # type: ignore
+                pump_action = remove_waste  # type: ignore
             else:
                 raise ValueError()
 
             payload["config"] = config.get_config()  # techdebt
             payload["unit"] = self.unit
             payload["experiment"] = whoami._get_latest_experiment_name()
-            Thread(target=pump, kwargs=payload, daemon=True).start()
+            Thread(target=pump_action, kwargs=payload, daemon=True).start()
 
         else:
             prefix = ["nohup"]
@@ -515,12 +515,10 @@ class Monitor(BackgroundJob):
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:
-            # don't queue error message, it causes delayed flickers even after the problem may have
-            # been solved
             return
 
-        payload = int(message.payload)
-        self.flicker_led_with_error_code(payload)
+        error_code = int(message.payload)
+        Thread(target=self.flicker_led_with_error_code, args=(error_code,), daemon=True).start()
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
