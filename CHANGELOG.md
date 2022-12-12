@@ -5,6 +5,7 @@
  - More strict msgspec Structs
  - fix od_blank error
  - Added a last will to actions that will fire if the action disconnects ungracefully.
+ - Better handling of LED flashing from error codes.
 
 ### 22.12.1
  - Support latest HAT version 1.0

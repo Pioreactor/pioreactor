@@ -514,6 +514,11 @@ class Monitor(BackgroundJob):
             subprocess.run(command, shell=True)
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
+        if self.led_in_use:
+            # don't queue error message, it causes delayed flickers even after the problem may have
+            # been solved
+            return
+
         payload = int(message.payload)
         self.flicker_led_with_error_code(payload)
 
