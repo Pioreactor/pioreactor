@@ -73,16 +73,16 @@ class MediaCard extends React.Component {
     if (this.props.config.remote && this.props.config.remote.ws_url) {
       this.client = new Client(
         `ws://${this.props.config.remote.ws_url}/`,
-        "webui_MediaCard" + Math.random()
+        "webui_MediaCard" + Math.floor(Math.random()*10000)
       )}
     else {
       this.client = new Client(
         `${this.props.config['cluster.topology']['leader_address']}`, 9001,
-        "webui_MediaCard" + Math.random()
+        "webui_MediaCard" + Math.floor(Math.random()*10000)
       );
     }
 
-    this.client.connect({userName: 'pioreactor', password: 'raspberry', timeout: 180, 'onSuccess': this.onConnect});
+    this.client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, timeout: 180, 'onSuccess': this.onConnect});
     this.client.onMessageArrived = this.onMessageArrived;
     this.setState({activeUnits: Object.entries(this.props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0])})
     this.getRecentRates()

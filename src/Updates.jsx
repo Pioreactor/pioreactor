@@ -36,7 +36,6 @@ const useStyles = makeStyles((theme) => ({
 
 
 function UpdateToLatestConfirmDialog(props) {
-  const classes = useStyles();
   const confirm = useConfirm();
   const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)

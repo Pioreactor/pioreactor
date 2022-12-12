@@ -131,10 +131,10 @@ function FreeSoloCreateOption(props) {
 
 function ExperimentSummaryForm(props) {
   const classes = useStyles();
+  const timestamp = moment.utc()
   const [formError, setFormError] = React.useState(false);
   const [helperText, setHelperText] = React.useState("");
   const [expName, setExpName] = React.useState("");
-  const [timestamp, setTimestamp] = React.useState(moment.utc());
   const [description, setDescription] = React.useState("");
   const [organismUsed, setOrganismUsed] = React.useState("");
   const [mediaUsed, setMediaUsed] = React.useState("");
@@ -224,9 +224,7 @@ function ExperimentSummaryForm(props) {
   const onDescChange = (e) => {
     setDescription(e.target.value)
   }
-  const onTimestampChange = (e) => {
-    setTimestamp(e.target.value)
-  }
+
   return (
     <div className={classes.root}>
       <FormGroup>
@@ -310,10 +308,6 @@ function StartNewExperimentContainer(props) {
   const getStepContent = (index) => {
     return steps[index].content
   }
-  const isStepOptional = (index) => {
-    return steps[index].optional
-  };
-
   const isStepSkipped = (step) => {
     return skipped.has(step);
   };

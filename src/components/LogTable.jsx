@@ -81,15 +81,15 @@ class LogTable extends React.Component {
     if (this.props.config.remote && this.props.config.remote.ws_url) {
       this.client = new Client(
         `ws://${this.props.config.remote.ws_url}/`,
-        "webui_LogTable" + Math.random()
+        "webui_LogTable" + Math.floor(Math.random()*10000)
       )}
     else {
       this.client = new Client(
         `${this.props.config['cluster.topology']['leader_address']}`, 9001,
-        "webui_LogTable" + Math.random()
+        "webui_LogTable" + Math.floor(Math.random()*10000)
       );
     }
-    this.client.connect({userName: 'pioreactor', password: 'raspberry', timeout: 180, 'onSuccess': this.onConnect, reconnect: true});
+    this.client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, timeout: 180, 'onSuccess': this.onConnect, reconnect: true});
     this.client.onMessageArrived = this.onMessageArrived;
   }
 
@@ -111,7 +111,7 @@ class LogTable extends React.Component {
     const unit = message.topic.split("/")[1]
     const payload = JSON.parse(message.payloadString)
 
-    if (levelMappingToOrdinal[payload.level] < levelMappingToOrdinal[this.props.config.logging.ui_log_level]){
+    if (levelMappingToOrdinal[payload.level.toUpperCase()] < levelMappingToOrdinal[this.props.config.logging.ui_log_level.toUpperCase()]){
       return
     }
 

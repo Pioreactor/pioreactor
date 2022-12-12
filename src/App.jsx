@@ -20,7 +20,6 @@ import Feedback from "./Feedback";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
-import {getConfig} from "./utilities"
 
 import "@fontsource/roboto/300.css"
 import "@fontsource/roboto/400.css"

@@ -82,6 +82,7 @@ class EditableCodeDiv extends React.Component {
         return response.json();
       })
       .then(listOfHistoricalConfigs => {
+        listOfHistoricalConfigs.shift() // remove the first file, which is equal to current
         this.setState({
           historicalConfigs: listOfHistoricalConfigs,
           timestamp_ix: 0

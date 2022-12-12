@@ -91,16 +91,16 @@ class Chart extends React.Component {
     if (this.props.config.remote && this.props.config.remote.ws_url) {
       this.client = new Client(
         `ws://${this.props.config.remote.ws_url}/`,
-        "webui_Chart" + Math.random()
+        "webui_Chart" + Math.floor(Math.random()*10000)
       )}
     else {
       this.client = new Client(
         `${this.props.config['cluster.topology']['leader_address']}`, 9001,
-        "webui_Chart" + Math.random()
+        "webui_Chart" + Math.floor(Math.random()*10000)
       );
     }
 
-    this.client.connect({userName: 'pioreactor', password: 'raspberry',  onSuccess: this.onConnect, reconnect: true});
+    this.client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15,  onSuccess: this.onConnect, reconnect: true});
     this.client.onMessageArrived = this.onMessageArrived;
   }
 

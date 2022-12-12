@@ -21,35 +21,9 @@ function ErrorSnackbar(props) {
     getRelabelMap(setRelabelMap)
   }, [])
 
-
-  const handleClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setOpen(false);
-  };
-
   React.useEffect(() => {
     if (!config['cluster.topology']){
       return
-    }
-
-    const onMessageArrived = (message) => {
-      const payload = JSON.parse(message.payloadString)
-
-      if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!message.topic.endsWith("/ui"))){
-        const unit = message.topic.split("/")[1]
-        try {
-          setRenamedUnit(relabelMap[unit])
-        }
-        catch {}
-        setMsg(payload.message)
-        setTask(payload.task)
-        setLevel(payload.level === "NOTICE" ? "SUCCESS" : payload.level)
-        setUnit(unit)
-        setOpen(true)
-      }
-
     }
 
     const onSuccess = () => {
@@ -69,18 +43,44 @@ function ErrorSnackbar(props) {
     if (config.remote && config.remote.ws_url) {
       client = new Client(
         `ws://${config.remote.ws_url}/`,
-        "webui_ErrorSnackbarNotification" + Math.random()
+        "webui_ErrorSnackbarNotification" + Math.floor(Math.random()*10000)
       )}
     else {
       client = new Client(
         `${config['cluster.topology']['leader_address']}`, 9001,
-        "webui_ErrorSnackbarNotification" + Math.random()
+        "webui_ErrorSnackbarNotification" + Math.floor(Math.random()*10000)
       );
     }
-    client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: onSuccess, timeout: 180, reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: onSuccess, timeout: 180, reconnect: true});
     client.onMessageArrived = onMessageArrived;
 
-  },[config, relabelMap])
+  },[config])
+
+  const onMessageArrived = (message) => {
+      const payload = JSON.parse(message.payloadString)
+
+      if ((payload.level === "ERROR" || payload.level === "WARNING" || payload.level === "NOTICE") && (!message.topic.endsWith("/ui"))){
+        const unit = message.topic.split("/")[1]
+        try {
+          setRenamedUnit(relabelMap[unit])
+        }
+        catch {}
+        setMsg(payload.message)
+        setTask(payload.task)
+        setLevel(payload.level === "NOTICE" ? "SUCCESS" : payload.level)
+        setUnit(unit)
+        setOpen(true)
+      }
+    }
+
+
+  const handleClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setOpen(false);
+  };
+
 
   return (
     <Snackbar

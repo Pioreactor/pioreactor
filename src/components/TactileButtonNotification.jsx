@@ -55,15 +55,15 @@ function TactileButtonNotification(props) {
     if (config.remote && config.remote.ws_url) {
       client = new Client(
         `ws://${config.remote.ws_url}/`,
-        "webui_TactileButtonNotification" + Math.random()
+        "webui_TactileButtonNotification" + Math.floor(Math.random()*10000)
       )}
     else {
       client = new Client(
         `${config['cluster.topology']['leader_address']}`, 9001,
-        "webui_TactileButtonNotification" + Math.random()
+        "webui_TactileButtonNotification" + Math.floor(Math.random()*10000)
       );
     }
-    client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: onSuccess, timeout: 180, reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: onSuccess, timeout: 180, reconnect: true});
     client.onMessageArrived = onMessageArrived;
 
   },[config, relabelMap])

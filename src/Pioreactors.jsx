@@ -680,14 +680,14 @@ function CalibrateDialog(props) {
              Record optical densities of blank (optional)
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
-              For more accurate growth rate and biomass inferences, you can subtract out the
-              media's optical density per sensor. Read more about <a href="">using blanks</a>.
+              For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
+              media's un-inoculated optical density. Read more about <a href="">using blanks</a>.
             </Typography>
 
             {blankODButton}
 
             <Typography variant="body2" component="p" style={{marginTop: "20px"}}>
-              Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(4)}` ).join(", ") : "—"}</code>
+              Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
             </Typography>
             <Divider className={classes.divider} />
 
@@ -702,7 +702,7 @@ function CalibrateDialog(props) {
             </Typography>
 
             <Typography variant="body2" component="p" gutterBottom>
-            Add a vial, with a stirbar and ~15ml water, to the Pioreactor, then hit Start below. This calibration will take less than three minutes.
+            Add a vial, with a stirbar and ~15ml water, to the Pioreactor, then hit Start below. This calibration will take less than five minutes.
             </Typography>
 
             {stirringCalibrationButton}
@@ -760,7 +760,7 @@ function SelfTestDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch("/api/run/" + job + "/" + props.unit, {method: "POST"})
+      fetch(`/api/run/${job}/${props.unit}`, {method: "POST"})
     }
   }
 
@@ -1018,7 +1018,7 @@ function SettingsActionsDialog(props) {
     }
     catch (e) {
       console.log(e)
-      props.client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: () => setPioreactorJobAttr(job_attr, value)});
+      props.client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: () => setPioreactorJobAttr(job_attr, value)});
     }
   }
 
@@ -1080,7 +1080,7 @@ function SettingsActionsDialog(props) {
       case "lost":
         return (<div key={"patient_buttons_" + job}>
                   <PatientButton
-                    color="secondary"
+                    color="primary"
                     variant="contained"
                     onClick={startPioreactorJob(job)}
                     buttonText="Start"
@@ -1665,15 +1665,15 @@ function SettingsActionsDialogAll({config, experiment}) {
     if (config.remote && config.remote.ws_url) {
       client = new Client(
         `ws://${config.remote.ws_url}/`,
-        "webui_SettingsActionsDialogAll" + Math.random()
+        "webui_SettingsActionsDialogAll" + Math.floor(Math.random()*10000)
       )}
     else {
       client = new Client(
         `${config['cluster.topology']['leader_address']}`, 9001,
-        "webui_SettingsActionsDialogAll" + Math.random()
+        "webui_SettingsActionsDialogAll" + Math.floor(Math.random()*10000)
       );
     }
-    client.connect({userName: 'pioreactor', password: 'raspberry', reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, reconnect: true});
     setClient(client)
   },[config])
 
@@ -1738,7 +1738,7 @@ function SettingsActionsDialogAll({config, experiment}) {
     }
     catch (e) {
       console.log(e)
-      client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: () => setPioreactorJobAttr(job_attr, value)});
+      client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: () => setPioreactorJobAttr(job_attr, value)});
     }
   }
 
@@ -2173,7 +2173,7 @@ function PioreactorCard(props){
   const isUnitActive = props.isUnitActive
   const experiment = props.experiment
   const config = props.config
-  const [fetchComplete, setFetchComplete] = useState(false)
+  const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
 
   const [client, setClient] = useState(null)
@@ -2210,7 +2210,7 @@ function PioreactorCard(props){
             jobs_[job.job_name] = metaData_
           }
           setJobs((prev) => ({...prev, ...jobs_}))
-          setFetchComplete(true)
+          setJobFetchComplete(true)
         })
         .catch((error) => {})
     }
@@ -2267,6 +2267,10 @@ function PioreactorCard(props){
       return
     }
 
+    if (!jobFetchComplete){
+      return
+    }
+
     if (!experiment){
       return
     }
@@ -2275,18 +2279,18 @@ function PioreactorCard(props){
     if (props.config.remote && props.config.remote.ws_url) {
       client = new Client(
         `ws://${props.config.remote.ws_url}/`,
-        "webui" + Math.random()
+        "webui_PioreactorCard" + Math.floor(Math.random()*10000)
       )}
     else {
       client = new Client(
         `${props.config['cluster.topology']['leader_address']}`, 9001,
-        "webui" + Math.random()
+        "webui_PioreactorCard" + Math.floor(Math.random()*10000)
       );
     }
     client.onMessageArrived = onMessageArrived
-    client.connect({userName: 'pioreactor', password: 'raspberry', onSuccess: onConnect, reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: onConnect, reconnect: true});
     setClient(client)
-  },[config, experiment, fetchComplete, isUnitActive])
+  },[config, experiment, jobFetchComplete, isUnitActive])
 
   const getInicatorLabel = (state, isActive) => {
     if ((state === "disconnected") && isActive) {
