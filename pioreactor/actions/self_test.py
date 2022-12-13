@@ -33,7 +33,7 @@ from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import Logger
-from pioreactor.pubsub import publish
+from pioreactor.pubsub import create_client
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
@@ -48,11 +48,11 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-def test_pioreactor_HAT_present(logger: Logger, unit: str, experiment: str) -> None:
+def test_pioreactor_HAT_present(client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_HAT_present()
 
 
-def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) -> None:
+def test_REF_is_in_correct_position(client, logger: Logger, unit: str, experiment: str) -> None:
     # this _also_ uses stirring to increase the variance in the non-REF, so...
     from statistics import variance
 
@@ -98,7 +98,7 @@ def test_REF_is_in_correct_position(logger: Logger, unit: str, experiment: str) 
 
 
 def test_all_positive_correlations_between_pds_and_leds(
-    logger: Logger, unit: str, experiment: str
+    client, logger: Logger, unit: str, experiment: str
 ) -> None:
     """
     This tests that there is a positive correlation between the IR LED channel, and the photodiodes
@@ -182,7 +182,7 @@ def test_all_positive_correlations_between_pds_and_leds(
                 )
             )
 
-    publish(
+    client.publish(
         f"pioreactor/{unit}/{experiment}/self_test/correlations_between_pds_and_leds",
         dumps(detected_relationships),
         retain=True,
@@ -204,7 +204,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
-def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) -> None:
+def test_ambient_light_interference(client, logger: Logger, unit: str, experiment: str) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
 
     adc_reader = ADCReader(
@@ -229,7 +229,9 @@ def test_ambient_light_interference(logger: Logger, unit: str, experiment: str) 
     assert all([readings[pd_channel] < 0.0005 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
-def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment: str) -> None:
+def test_REF_is_lower_than_0_dot_256_volts(
+    client, logger: Logger, unit: str, experiment: str
+) -> None:
 
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     ir_channel = config["leds_reverse"][IR_keyword]
@@ -257,12 +259,12 @@ def test_REF_is_lower_than_0_dot_256_volts(logger: Logger, unit: str, experiment
     ), f"Recorded {readings[reference_channel]} in REF, should be between 0.05 than 0.256."
 
 
-def test_detect_heating_pcb(logger: Logger, unit: str, experiment: str) -> None:
+def test_detect_heating_pcb(client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_heating_pcb_present()
 
 
 def test_positive_correlation_between_temperature_and_heating(
-    logger: Logger, unit: str, experiment: str
+    client, logger: Logger, unit: str, experiment: str
 ) -> None:
     assert is_heating_pcb_present()
 
@@ -282,12 +284,12 @@ def test_positive_correlation_between_temperature_and_heating(
         assert measured_correlation > 0.9, (dcs, measured_pcb_temps)
 
 
-def test_aux_power_is_not_too_high(logger: Logger, unit: str, experiment: str):
+def test_aux_power_is_not_too_high(client, logger: Logger, unit: str, experiment: str):
     assert voltage_in_aux() <= 18.0
 
 
 def test_positive_correlation_between_rpm_and_stirring(
-    logger: Logger, unit: str, experiment: str
+    client, logger: Logger, unit: str, experiment: str
 ) -> None:
     assert is_heating_pcb_present()
     assert voltage_in_aux() <= 18.0
@@ -367,14 +369,14 @@ class BatchTestRunner:
         self._thread.join()
         return SummableList([self.count_tested, self.count_passed])
 
-    def _run(self, logger: Logger, unit: str, experiment_name: str) -> None:
+    def _run(self, client, logger: Logger, unit: str, experiment_name: str) -> None:
 
         for test in self.tests_to_run:
             res = False
             test_name = test.__name__
 
             try:
-                test(logger, unit, experiment_name)
+                test(client, logger, unit, experiment_name)
                 res = True
             except Exception as e:
                 logger.debug(e, exc_info=True)
@@ -384,7 +386,7 @@ class BatchTestRunner:
             self.count_tested += 1
             self.count_passed += int(res)
 
-            publish(
+            client.publish(
                 f"pioreactor/{unit}/{experiment_name}/self_test/{test_name}",
                 int(res),
                 retain=True,
@@ -402,18 +404,23 @@ def click_self_test(k: str) -> int:
     unit = get_unit_name()
     testing_experiment = get_latest_testing_experiment_name()
     experiment = get_latest_experiment_name()
+    client = create_client(client_id=f"self_test-{unit}-{testing_experiment}")
     logger = create_logger("self_test", unit=unit, experiment=experiment)
     logger.info("Starting self-test...")
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
-        if any(is_pio_job_running(["od_reading", "temperature_automation", "stirring"])):
+        if any(
+            is_pio_job_running(
+                ["od_reading", "temperature_control", "stirring", "dosing_control", "led_control"]
+            )
+        ):
             logger.error(
-                "Make sure Optical Density, Temperature Automation, and Stirring are off before running a self test. Exiting."
+                "Make sure Optical Density, any automations, and Stirring are off before running a self test. Exiting."
             )
             return 1
 
         # flicker to assist the user to confirm they are testing the right pioreactor.
-        publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)
+        client.publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)
 
         # automagically finds the test_ functions.
         functions_to_test = {
@@ -424,14 +431,14 @@ def click_self_test(k: str) -> int:
 
         # and clear the mqtt cache first
         for f in functions_to_test:
-            publish(
+            client.publish(
                 f"pioreactor/{unit}/{testing_experiment}/self_test/{f.__name__}",
                 None,
                 retain=True,
             )
 
         # run in parallel
-        test_args = (logger, unit, testing_experiment)
+        test_args = (client, logger, unit, testing_experiment)
         ODTests = BatchTestRunner(
             [f for f in OD_TESTS if f in functions_to_test], *test_args
         ).start()
@@ -447,7 +454,7 @@ def click_self_test(k: str) -> int:
         )
         count_failures = count_tested - count_passed
 
-        publish(
+        client.publish(
             f"pioreactor/{unit}/{testing_experiment}/self_test/all_tests_passed",
             int(count_failures == 0),
             retain=True,

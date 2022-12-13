@@ -27,7 +27,7 @@ def _get_serial_number() -> str:
         return "00000000-0000-0000-0000-000000000000"
 
 
-def tuple_to_text(t: tuple):
+def tuple_to_text(t: tuple) -> str:
     return ".".join(map(str, t))
 
 

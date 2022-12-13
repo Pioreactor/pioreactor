@@ -93,7 +93,7 @@ class Monitor(BackgroundJob):
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
-        self.setup_GPIO()
+        self._setup_GPIO()
         self.led_on()
 
         # set up a self check function to periodically check vitals and log them
@@ -120,7 +120,7 @@ class Monitor(BackgroundJob):
     def add_post_button_callback(cls, function: Callable):
         cls._post_button.append(function)
 
-    def setup_GPIO(self) -> None:
+    def _setup_GPIO(self) -> None:
         set_gpio_availability(BUTTON_PIN, False)
         set_gpio_availability(LED_PIN, False)
 
@@ -371,15 +371,6 @@ class Monitor(BackgroundJob):
         import psutil  # type: ignore
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
-        cpu_usage_percent = round(
-            (psutil.cpu_percent() + psutil.cpu_percent() + psutil.cpu_percent()) / 3
-        )  # this is a noisy process, and we average it over a small window.
-        memory_usage_percent = 100 - round(
-            100 * psutil.virtual_memory().available / psutil.virtual_memory().total
-        )
-
-        cpu_temperature_celcius = round(utils.get_cpu_temperature())
-
         if disk_usage_percent <= 80:
             self.logger.debug(f"Disk space at {disk_usage_percent}%.")
         else:
@@ -387,18 +378,25 @@ class Monitor(BackgroundJob):
             self.logger.warning(f"Disk space at {disk_usage_percent}%.")
             self.flicker_led_with_error_code(error_codes.DISK_IS_ALMOST_FULL)
 
+        cpu_usage_percent = round(
+            (psutil.cpu_percent() + psutil.cpu_percent() + psutil.cpu_percent()) / 3
+        )  # this is a noisy process, and we average it over a small window.
         if cpu_usage_percent <= 75:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")
         else:
             # TODO: add documentation
             self.logger.warning(f"CPU usage at {cpu_usage_percent}%.")
 
+        memory_usage_percent = 100 - round(
+            100 * psutil.virtual_memory().available / psutil.virtual_memory().total
+        )
         if memory_usage_percent <= 60:
             self.logger.debug(f"Memory usage at {memory_usage_percent}%.")
         else:
             # TODO: add documentation
             self.logger.warning(f"Memory usage at {memory_usage_percent}%.")
 
+        cpu_temperature_celcius = round(utils.get_cpu_temperature())
         if cpu_temperature_celcius <= 70:
             self.logger.debug(f"CPU temperature at {cpu_temperature_celcius} ℃.")
         else:
@@ -412,6 +410,7 @@ class Monitor(BackgroundJob):
             "cpu_temperature_celcius": cpu_temperature_celcius,
             "timestamp": current_utc_timestamp(),
         }
+        return
 
     def flicker_led_response_okay(self, *args) -> None:
         if self.led_in_use:
