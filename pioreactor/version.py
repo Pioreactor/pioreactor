@@ -27,7 +27,15 @@ def _get_serial_number() -> str:
         return "00000000-0000-0000-0000-000000000000"
 
 
-def tuple_to_text(t: tuple) -> str:
+def get_firmware_version() -> tuple[int, int]:
+    if hardware_version_info >= (1, 1):
+        # TODO:
+        return (0, 1)
+    else:
+        return (0, 0)
+
+
+def tuple_to_text(t: tuple[int, ...]) -> str:
     return ".".join(map(str, t))
 
 

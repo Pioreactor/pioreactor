@@ -126,14 +126,14 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     click.echo()
     click.echo("We need to prime the pump by filling the tubes completely with water.")
     click.echo("1. Fill a container with water.")
-    click.echo("2. Place free ends of the tube into the water.")
+    click.echo("2. Submerge both ends of the pump's tubes into the water.")
     click.echo(
         "Make sure the pump's power is connected to "
         + click.style(f"PWM channel {config.get('PWM_reverse', pump_type)}.", bold=True)
     )
-    click.echo("We'll run the pumps continuously until the tubes are filled.")
+    click.echo("We'll run the pumps continuously until the tubes are completely filled with water.")
     click.echo(
-        click.style("3. Press CTRL+C when the tubes are fully filled with water.", bold=True)
+        click.style("3. Press CTRL+C when the tubes are completely filled with water.", bold=True)
     )
 
     while not click.confirm(click.style("Ready?", fg="green")):

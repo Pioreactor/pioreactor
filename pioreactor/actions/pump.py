@@ -183,8 +183,7 @@ def _pump(
                     logger.debug(e, exc_info=True)
                     logger.error(e)
                 finally:
-                    pwm.cleanup()
-
+                    pwm.stop()
                     if continuously:
                         logger.info(f"Stopping {pump_type} pump.")
 

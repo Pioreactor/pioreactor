@@ -33,6 +33,7 @@ from pioreactor.hardware import is_heating_pcb_present
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import Logger
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
@@ -48,11 +49,13 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 
-def test_pioreactor_HAT_present(client, logger: Logger, unit: str, experiment: str) -> None:
+def test_pioreactor_HAT_present(client: Client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_HAT_present()
 
 
-def test_REF_is_in_correct_position(client, logger: Logger, unit: str, experiment: str) -> None:
+def test_REF_is_in_correct_position(
+    client: Client, logger: Logger, unit: str, experiment: str
+) -> None:
     # this _also_ uses stirring to increase the variance in the non-REF, so...
     from statistics import variance
 
@@ -204,7 +207,9 @@ def test_all_positive_correlations_between_pds_and_leds(
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
-def test_ambient_light_interference(client, logger: Logger, unit: str, experiment: str) -> None:
+def test_ambient_light_interference(
+    client: Client, logger: Logger, unit: str, experiment: str
+) -> None:
     # test ambient light IR interference. With all LEDs off, and the Pioreactor not in a sunny room, we should see near 0 light.
 
     adc_reader = ADCReader(
@@ -259,7 +264,7 @@ def test_REF_is_lower_than_0_dot_256_volts(
     ), f"Recorded {readings[reference_channel]} in REF, should be between 0.05 than 0.256."
 
 
-def test_detect_heating_pcb(client, logger: Logger, unit: str, experiment: str) -> None:
+def test_detect_heating_pcb(client: Client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_heating_pcb_present()
 
 
@@ -284,7 +289,7 @@ def test_positive_correlation_between_temperature_and_heating(
         assert measured_correlation > 0.9, (dcs, measured_pcb_temps)
 
 
-def test_aux_power_is_not_too_high(client, logger: Logger, unit: str, experiment: str):
+def test_aux_power_is_not_too_high(client: Client, logger: Logger, unit: str, experiment: str):
     assert voltage_in_aux() <= 18.0
 
 
