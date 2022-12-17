@@ -22,19 +22,19 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 
 # led and button GPIO pins
 PCB_LED_PIN: GpioPin = 23
-PCB_BUTTON_PIN: GpioPin = 24
+PCB_BUTTON_PIN: GpioPin = 24 if hardware_version_info <= (1, 0) else 10  # TODO PICO
 
 # hall sensor
-HALL_SENSOR_PIN: GpioPin = 25
+HALL_SENSOR_PIN: GpioPin = 25 if hardware_version_info <= (1, 0) else 10  # TODO PICO
 
 # I2C GPIO pins
 SDA: GpioPin = 2
 SCL: GpioPin = 3
 
 # I2C channels used
-ADC = 0x48  # hex(72)
-DAC = 0x49  # hex(73)
-TEMP = 0x4F  # hex(79)
+ADC = 0x48 if hardware_version_info <= (1, 0) else 0x30
+DAC = 0x49 if hardware_version_info <= (1, 0) else 0x30
+TEMP = 0x4F
 
 
 def is_HAT_present() -> bool:
@@ -47,7 +47,7 @@ def is_HAT_present() -> bool:
 
     with I2C(SCL, SDA) as i2c:
         try:
-            I2CDevice(i2c, DAC, probe=True)  # DAC, so we don't interfere with the ADC.
+            I2CDevice(i2c, DAC, probe=True)
             present = True
         except ValueError:
             present = False
@@ -78,6 +78,7 @@ def round_to_half_integer(x: float) -> float:
 
 
 def voltage_in_aux() -> float:
+    # TODO PICO
     # this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
         from busio import I2C  # type: ignore

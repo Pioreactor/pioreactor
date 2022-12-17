@@ -83,6 +83,9 @@ PwmChannel = t.Literal["1", "2", "3", "4", "5"]
 PdAngle = t.Literal["45", "90", "135", "180"]
 PdAngleOrREF = t.Union[PdAngle, t.Literal["REF"]]
 
+# hardware level stuff
+AnalogValue = t.Union[int, float]
+Voltage = float
 
 # All GPIO pins below are BCM numbered
 GpioPin = t.Literal[

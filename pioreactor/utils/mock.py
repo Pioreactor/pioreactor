@@ -6,6 +6,7 @@ import random
 from typing import Any
 
 from pioreactor.config import config
+from pioreactor.utils.adcs import ADC
 from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import is_testing_env
 
@@ -33,37 +34,19 @@ class MockI2C:
         return
 
 
-class MockAnalogIn:
+class Mock_ADC(ADC):
     INIT_STATE = 0.01
     state = INIT_STATE
     _counter = 0.0
     OFFSET = 0.03
 
-    def __init__(self, ads, channel, **kwargs) -> None:
+    def __init__(self) -> None:
 
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
-        self.channel = channel
-        self.am_i_REF = str(channel + 1) == config.get(
-            "od_config.photodiode_channel_reverse", "REF"
-        )
 
-    def growth_rate(self, duration_as_seconds: float) -> float:
-        if self.am_i_REF:
-            return 0
-
-        import numpy as np
-
-        return (
-            self.max_gr
-            / (1 + np.exp(-self.scale_factor * (duration_as_seconds - self.lag)))
-            * (1 - 1 / (1 + np.exp(-self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag))))
-        )
-
-    @property
-    def voltage(self) -> float:
-
+    def read_from_channel(self, channel: int):
         from pioreactor.utils import local_intermittent_storage
         import random
         import numpy as np
@@ -74,11 +57,13 @@ class MockAnalogIn:
         if not is_ir_on:
             return self.OFFSET
 
-        if self.am_i_REF:
+        am_i_REF = str(channel + 1) == config.get("od_config.photodiode_channel_reverse", "REF")
+
+        if am_i_REF:
             return (0.1 + random.normalvariate(0, sigma=0.001)) / 2**10 * 40 + self.OFFSET
         else:
             self.gr = self.growth_rate(
-                self._counter / config.getfloat("od_config", "samples_per_second")
+                self._counter / config.getfloat("od_config", "samples_per_second"), am_i_REF
             )
             self.state *= np.exp(
                 self.gr
@@ -88,11 +73,30 @@ class MockAnalogIn:
                 / 25  # divide by 25 from oversampling_count
             )
             self._counter += 1.0 / 25.0  # divide by 25 from oversampling_count
-            return self.state + random.normalvariate(0, sigma=self.state * 0.01) + self.OFFSET
+            return self.from_voltage_to_raw(
+                self.state + random.normalvariate(0, sigma=self.state * 0.01) + self.OFFSET
+            )
 
-    @property
-    def value(self) -> int:
-        return round(self.voltage * 32767 / 4.096)
+    def growth_rate(self, duration_as_seconds: float, am_i_REF: bool) -> float:
+        if am_i_REF:
+            return 0
+
+        import numpy as np
+
+        return (
+            self.max_gr
+            / (1 + np.exp(-self.scale_factor * (duration_as_seconds - self.lag)))
+            * (1 - 1 / (1 + np.exp(-self.scale_factor * 2 * (duration_as_seconds - 3 * self.lag))))
+        )
+
+    def check_on_gain(self, *args, **kwargs) -> None:
+        pass
+
+    def from_voltage_to_raw(self, voltage) -> int:
+        return round(voltage * 32767 / 4.096)
+
+    def from_raw_to_voltage(self, raw) -> float:
+        return 4.096 * raw / 32767
 
 
 class MockDAC43608:
