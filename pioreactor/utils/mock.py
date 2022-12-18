@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
+import pioreactor.types as pt
 from pioreactor.config import config
 from pioreactor.utils.adcs import _ADC
 from pioreactor.utils.dacs import _DAC
@@ -47,7 +48,7 @@ class Mock_ADC(_ADC):
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
 
-    def read_from_channel(self, channel: int):
+    def read_from_channel(self, channel: pt.AdcChannel):
         from pioreactor.utils import local_intermittent_storage
         import random
         import numpy as np
@@ -111,7 +112,7 @@ class Mock_DAC(_DAC):
     G = 14
     H = 15
 
-    def set_intensity_to(self, channel: str, intensity: float) -> None:
+    def set_intensity_to(self, channel: int, intensity: float) -> None:
         assert 0.0 <= intensity <= 100.0, "intensity should be between 0 and 100"
         assert channel in list(range(8, 16)), "register should be in 8 to 15"
         return

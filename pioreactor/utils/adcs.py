@@ -11,7 +11,7 @@ from pioreactor.version import hardware_version_info
 
 
 class _ADC:
-    def read_from_channel(self, channel: int) -> pt.AnalogValue:
+    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         pass
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
@@ -86,12 +86,12 @@ class ADS1115_ADC(_ADC):
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
         return raw / 32767 * self.ADS1X15_PGA_RANGE[self.gain]
 
-    def read_from_channel(self, channel: int) -> pt.AnalogValue:
+    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         return self.analog_in[channel].value
 
 
 class Pico_ADC(_ADC):
-    def read_from_channel(self, channel: int) -> pt.AnalogValue:
+    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         pass
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:

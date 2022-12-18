@@ -87,6 +87,8 @@ PdAngleOrREF = t.Union[PdAngle, t.Literal["REF"]]
 AnalogValue = t.Union[int, float]
 Voltage = float
 
+AdcChannel = t.Literal[0, 1, 2, 3]
+
 # All GPIO pins below are BCM numbered
 GpioPin = t.Literal[
     2,

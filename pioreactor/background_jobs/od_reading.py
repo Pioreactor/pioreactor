@@ -110,7 +110,6 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.timing import catchtime
-from pioreactor.version import hardware_version_info
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
@@ -160,7 +159,6 @@ class ADCReader(LoggerMixin):
         self.channels: list[pt.PdChannel] = channels
         self.batched_readings: PdChannelToVoltage = {}
         self.adc_offsets: dict[pt.PdChannel, pt.AnalogValue] = {}
-        self.pd_channel_to_adc_channel: dict[pt.PdChannel, int] = {}
 
         self.interval = interval
         if "local_ac_hz" in config["od_config"]:
@@ -182,11 +180,6 @@ class ADCReader(LoggerMixin):
             self.logger.error("Pioreactor HAT must be present.")
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
-        self.pd_channel_to_adc_channel = {
-            "1": 0 if hardware_version_info <= (0, 1) else 1,
-            "2": 1 if hardware_version_info <= (0, 1) else 0,
-        }
-
         if self.fake_data:
             from pioreactor.utils.mock import Mock_ADC as ADC
         else:
@@ -197,7 +190,7 @@ class ADCReader(LoggerMixin):
 
         max_signal = 0.0
         for pd_channel in self.channels:
-            adc_channel = self.pd_channel_to_adc_channel[pd_channel]
+            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
             max_signal = max(
                 self.adc.from_raw_to_voltage(self.adc.read_from_channel(adc_channel)), max_signal
             )
@@ -429,7 +422,7 @@ class ADCReader(LoggerMixin):
                 for counter in range(oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
                         for pd_channel in self.channels:
-                            adc_channel = self.pd_channel_to_adc_channel[pd_channel]
+                            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
                             timestamps[pd_channel][counter] = time_since_start()
                             aggregated_signals[pd_channel][counter] = self.adc.read_from_channel(
                                 adc_channel

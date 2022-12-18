@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from pioreactor.types import AdcChannel
 from pioreactor.types import GpioPin
+from pioreactor.types import PdChannel
 from pioreactor.types import PwmChannel
 from pioreactor.version import hardware_version_info
 from pioreactor.whoami import is_testing_env
@@ -35,6 +37,14 @@ SCL: GpioPin = 3
 ADC = 0x48 if hardware_version_info <= (1, 0) else 0x30
 DAC = 0x49 if hardware_version_info <= (1, 0) else 0x30
 TEMP = 0x4F
+
+# ADC map of function to hardware ADC channel
+ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel] = {
+    "1": 0 if hardware_version_info <= (0, 1) else 1,  # pd1
+    "2": 1 if hardware_version_info <= (0, 1) else 0,  # pd2
+    "version": 2,
+    "aux": 3,
+}
 
 
 def is_HAT_present() -> bool:
@@ -87,4 +97,6 @@ def voltage_in_aux() -> float:
     slope = 0.1325
 
     adc = ADC_class()
-    return round_to_half_integer(adc.from_raw_to_voltage(adc.read_from_channel(3)) / slope)
+    return round_to_half_integer(
+        adc.from_raw_to_voltage(adc.read_from_channel(ADC_CHANNEL_FUNCS["aux"])) / slope
+    )
