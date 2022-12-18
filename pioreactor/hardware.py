@@ -78,19 +78,13 @@ def round_to_half_integer(x: float) -> float:
 
 
 def voltage_in_aux() -> float:
-    # TODO PICO
     # this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
-        from busio import I2C  # type: ignore
-        from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
+        from pioreactor.utils.adcs import ADC as ADC_class
     else:
-        from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C  # type: ignore
-
-    from adafruit_ads1x15.ads1115 import ADS1115, P3  # type: ignore
+        from pioreactor.utils.mock import Mock_ADC as ADC_class  # type: ignore
 
     slope = 0.1325
 
-    with I2C(SCL, SDA) as i2c:
-        ads = ADS1115(i2c, address=ADC, gain=1)
-        chan = AnalogIn(ads, P3)
-        return round_to_half_integer(chan.voltage / slope)
+    adc = ADC_class()
+    return round_to_half_integer(adc.from_raw_to_voltage(adc.read_from_channel(3)) / slope)

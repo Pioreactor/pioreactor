@@ -7,9 +7,10 @@ from typing import Optional
 
 from pioreactor import hardware
 from pioreactor import types as pt
+from pioreactor.version import hardware_version_info
 
 
-class ADC:
+class _ADC:
     def read_from_channel(self, channel: int) -> pt.AnalogValue:
         pass
 
@@ -23,7 +24,7 @@ class ADC:
         pass
 
 
-class ADS1115_ADC(ADC):
+class ADS1115_ADC(_ADC):
 
     DATA_RATE = 128
     ADS1X15_GAIN_THRESHOLDS = {
@@ -51,8 +52,7 @@ class ADS1115_ADC(ADC):
 
         from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
         from busio import I2C  # type: ignore
-
-        from adafruit_ads1x15.ads1115 import ADS1115 as ADS
+        from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
 
         self.analog_in: dict[int, AnalogIn] = {}
 
@@ -90,7 +90,7 @@ class ADS1115_ADC(ADC):
         return self.analog_in[channel].value
 
 
-class Pico_ADC(ADC):
+class Pico_ADC(_ADC):
     def read_from_channel(self, channel: int) -> pt.AnalogValue:
         pass
 
@@ -101,4 +101,8 @@ class Pico_ADC(ADC):
         pass
 
     def check_on_gain(self, value: Optional[pt.Voltage], tol=0.85) -> None:
+        # pico has no gain.
         pass
+
+
+ADC = ADS1115_ADC if hardware_version_info <= (1, 0) else Pico_ADC

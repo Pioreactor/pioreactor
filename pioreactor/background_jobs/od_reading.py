@@ -104,7 +104,6 @@ from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
-from pioreactor.utils import adcs
 from pioreactor.utils import argextrema
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
@@ -189,15 +188,12 @@ class ADCReader(LoggerMixin):
         }
 
         if self.fake_data:
-            from pioreactor.utils.mock import Mock_ADC
-
-            self.adc: adcs.ADC = Mock_ADC()
+            from pioreactor.utils.mock import Mock_ADC as ADC
         else:
-            if hardware.hardware_version_info <= (1, 0):
-                self.adc = adcs.ADS1115_ADC(initial_gain=self.gain)
-            else:
-                self.adc = adcs.Pico_ADC()  # TODO PICO
-        self.logger.debug(f"Using {self.adc=}")
+            from pioreactor.utils.adc import ADC  # type: ignore
+
+        self.adc = ADC(initial_gain=self.gain)
+        self.logger.debug(f"Using ADC class {self.adc.__class__.__name__}.")
 
         max_signal = 0.0
         for pd_channel in self.channels:

@@ -9,7 +9,6 @@ from typing import Optional
 import click
 from msgspec.json import encode
 
-from pioreactor import hardware
 from pioreactor import structs
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
@@ -147,9 +146,9 @@ def led_intensity(
     updated_successfully = True
 
     if not is_testing_env():
-        from DAC43608 import DAC43608
+        from pioreactor.utils.dacs import DAC
     else:
-        from pioreactor.utils.mock import MockDAC43608 as DAC43608  # type: ignore
+        from pioreactor.utils.mock import Mock_DAC as DAC  # type: ignore
 
     if pubsub_client is None:
         pubsub_client = create_client(client_id=f"led_intensity-{unit}-{experiment}")
@@ -170,7 +169,7 @@ def led_intensity(
                 channel in ALL_LED_CHANNELS
             ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
 
-            dac = DAC43608(address=hardware.DAC)
+            dac = DAC()
 
             if intensity == 0.0:
                 # setting to 0 doesn't fully remove the current, there is some residual current. We turn off
@@ -178,7 +177,7 @@ def led_intensity(
                 dac.power_down(getattr(dac, channel))
             else:
                 dac.power_up(getattr(dac, channel))
-                dac.set_intensity_to(getattr(dac, channel), intensity / 100.0)
+                dac.set_intensity_to(getattr(dac, channel), intensity)
 
         except ValueError as e:
             logger.debug(e, exc_info=True)

@@ -6,7 +6,8 @@ import random
 from typing import Any
 
 from pioreactor.config import config
-from pioreactor.utils.adcs import ADC
+from pioreactor.utils.adcs import _ADC
+from pioreactor.utils.dacs import _DAC
 from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import is_testing_env
 
@@ -34,13 +35,13 @@ class MockI2C:
         return
 
 
-class Mock_ADC(ADC):
+class Mock_ADC(_ADC):
     INIT_STATE = 0.01
     state = INIT_STATE
     _counter = 0.0
     OFFSET = 0.03
 
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs) -> None:
 
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
@@ -99,11 +100,8 @@ class Mock_ADC(ADC):
         return 4.096 * raw / 32767
 
 
-class MockDAC43608:
+class Mock_DAC(_DAC):
 
-    _DEVICE_CONFIG = 1
-    _STATUS = 2
-    _BRDCAST = 3
     A = 8
     B = 9
     C = 10
@@ -113,19 +111,15 @@ class MockDAC43608:
     G = 14
     H = 15
 
-    def __init__(self, *args, **kwargs) -> None:
-        pass
-
     def set_intensity_to(self, channel: str, intensity: float) -> None:
-        assert 0 <= intensity <= 1, "intensity should be between 0 and 1"
+        assert 0.0 <= intensity <= 100.0, "intensity should be between 0 and 100"
         assert channel in list(range(8, 16)), "register should be in 8 to 15"
-        # TODO: this should update MQTT too
         return
 
-    def power_up(*args) -> None:
+    def power_up(self, *args) -> None:
         pass
 
-    def power_down(*args) -> None:
+    def power_down(self, *args) -> None:
         pass
 
 
