@@ -183,7 +183,7 @@ class ADCReader(LoggerMixin):
         if self.fake_data:
             from pioreactor.utils.mock import Mock_ADC as ADC
         else:
-            from pioreactor.utils.adc import ADC  # type: ignore
+            from pioreactor.utils.adcs import ADC  # type: ignore
 
         self.adc = ADC(initial_gain=self.gain)
         self.logger.debug(f"Using ADC class {self.adc.__class__.__name__}.")

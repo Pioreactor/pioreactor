@@ -1,6 +1,7 @@
 ### Upcoming
  - firmware stuff
  - `pio update` has a new api: `pio update app <options>`, `pio update ui <options>`.
+ - added version of UI & firmware to `pio version -v`
 
 ### 22.12.2
  - Remove some errant debugging statements
