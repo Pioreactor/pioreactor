@@ -425,7 +425,7 @@ def update_ui(branch: Optional[str], source: Optional[str]) -> None:
             get("https://api.github.com/repos/pioreactor/pioreactorui/releases/latest").body
         )
         version_installed = latest_release_metadata["tag_name"]
-        url = latest_release_metadata["tarball_url"]
+        url = f"https://github.com/Pioreactor/pioreactorui/archive/refs/tags/{version_installed}.tar.gz"
         source = "/tmp/pioreactorui.tar.gz"
         commands.append(["wget", url, "-O", source])
 
