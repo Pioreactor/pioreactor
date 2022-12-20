@@ -412,6 +412,7 @@ def update_ui(branch: Optional[str], source: Optional[str]) -> None:
 
     if source is not None:
         version_installed = branch
+        assert branch is not None, "branch must be provided with the -b option"
 
     elif branch is not None:
         version_installed = quote(branch)
@@ -435,7 +436,6 @@ def update_ui(branch: Optional[str], source: Optional[str]) -> None:
     for command in commands:
         p = subprocess.run(
             command,
-            shell=True,
             universal_newlines=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
