@@ -490,7 +490,9 @@ class ADCReader(LoggerMixin):
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
             if self.dynamic_gain:
-                self.adc.check_on_gain(self.max_signal_moving_average())
+                m = self.max_signal_moving_average()
+                assert m is not None
+                self.adc.check_on_gain(m)
 
             return batched_estimates_
 

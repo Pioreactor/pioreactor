@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import cast
-from typing import Optional
 
 from pioreactor import hardware
 from pioreactor import types as pt
@@ -20,7 +19,7 @@ class _ADC:
     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
         pass
 
-    def check_on_gain(self, value: Optional[pt.Voltage], tol=0.85) -> None:
+    def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
         pass
 
 
@@ -65,10 +64,7 @@ class ADS1115_ADC(_ADC):
         for channel in [0, 1, 2, 3]:
             self.analog_in[channel] = AnalogIn(self.ads, channel)
 
-    def check_on_gain(self, value: Optional[pt.Voltage], tol=0.85) -> None:
-        if value is None:
-            return
-
+    def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
         for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
             if (tol * lb <= value < tol * ub) and (self.gain != gain):
                 self.gain = gain
@@ -100,7 +96,7 @@ class Pico_ADC(_ADC):
     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
         pass
 
-    def check_on_gain(self, value: Optional[pt.Voltage], tol=0.85) -> None:
+    def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
         # pico has no gain.
         pass
 

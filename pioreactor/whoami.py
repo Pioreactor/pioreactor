@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import sys
 from functools import cache
+from hashlib import md5
 
 from pioreactor.version import serial_number
 
@@ -93,8 +94,6 @@ def am_I_active_worker() -> bool:
 
 @cache
 def get_hashed_serial_number() -> str:
-    from hashlib import md5
-
     return md5(serial_number.encode()).hexdigest()
 
 

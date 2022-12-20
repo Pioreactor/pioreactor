@@ -154,9 +154,9 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
     logger = create_logger("update", unit=get_unit_name(), experiment=get_latest_experiment_name())
 
     if branch is not None:
-        command = f"pio update --app -b {branch}"
+        command = f"pio update app -b {branch}"
     else:
-        command = "pio update --app"
+        command = "pio update app"
 
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")
