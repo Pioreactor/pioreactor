@@ -1,3 +1,7 @@
+### Upcoming
+ - firmware stuff
+ - `pio update` has a new api: `pio update app <options>`, `pio update ui <options>`.
+
 ### 22.12.2
  - Remove some errant debugging statements
  - Reduce MQTT's load on the leader by tuning the keepalive interval to something larger (for less sensitive connections).

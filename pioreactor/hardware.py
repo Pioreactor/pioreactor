@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from pioreactor.types import AdcChannel
 from pioreactor.types import GpioPin
+from pioreactor.types import PdChannel
 from pioreactor.types import PwmChannel
 from pioreactor.version import hardware_version_info
 from pioreactor.whoami import is_testing_env
@@ -22,19 +24,27 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 
 # led and button GPIO pins
 PCB_LED_PIN: GpioPin = 23
-PCB_BUTTON_PIN: GpioPin = 24
+PCB_BUTTON_PIN: GpioPin = 24 if hardware_version_info <= (1, 0) else 10  # TODO PICO
 
 # hall sensor
-HALL_SENSOR_PIN: GpioPin = 25
+HALL_SENSOR_PIN: GpioPin = 25 if hardware_version_info <= (1, 0) else 10  # TODO PICO
 
 # I2C GPIO pins
 SDA: GpioPin = 2
 SCL: GpioPin = 3
 
 # I2C channels used
-ADC = 0x48  # hex(72)
-DAC = 0x49  # hex(73)
-TEMP = 0x4F  # hex(79)
+ADC = 0x48 if hardware_version_info <= (1, 0) else 0x30
+DAC = 0x49 if hardware_version_info <= (1, 0) else 0x30
+TEMP = 0x4F
+
+# ADC map of function to hardware ADC channel
+ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel] = {
+    "1": 0 if hardware_version_info <= (0, 1) else 1,  # pd1
+    "2": 1 if hardware_version_info <= (0, 1) else 0,  # pd2
+    "version": 2,
+    "aux": 3,
+}
 
 
 def is_HAT_present() -> bool:
@@ -47,7 +57,7 @@ def is_HAT_present() -> bool:
 
     with I2C(SCL, SDA) as i2c:
         try:
-            I2CDevice(i2c, DAC, probe=True)  # DAC, so we don't interfere with the ADC.
+            I2CDevice(i2c, DAC, probe=True)
             present = True
         except ValueError:
             present = False
@@ -80,16 +90,13 @@ def round_to_half_integer(x: float) -> float:
 def voltage_in_aux() -> float:
     # this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
-        from busio import I2C  # type: ignore
-        from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
+        from pioreactor.utils.adcs import ADC as ADC_class
     else:
-        from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C  # type: ignore
-
-    from adafruit_ads1x15.ads1115 import ADS1115, P3  # type: ignore
+        from pioreactor.utils.mock import Mock_ADC as ADC_class  # type: ignore
 
     slope = 0.1325
 
-    with I2C(SCL, SDA) as i2c:
-        ads = ADS1115(i2c, address=ADC, gain=1)
-        chan = AnalogIn(ads, P3)
-        return round_to_half_integer(chan.voltage / slope)
+    adc = ADC_class()
+    return round_to_half_integer(
+        adc.from_raw_to_voltage(adc.read_from_channel(ADC_CHANNEL_FUNCS["aux"])) / slope
+    )

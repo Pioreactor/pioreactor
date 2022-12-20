@@ -87,7 +87,6 @@ from time import time
 from typing import Callable
 from typing import cast
 from typing import Optional
-from typing import Union
 
 import click
 from msgspec.json import decode
@@ -111,13 +110,10 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
 from pioreactor.utils.timing import catchtime
-from pioreactor.version import hardware_version_info
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
 VALID_PD_ANGLES: list[pt.PdAngle] = ["45", "90", "135", "180"]
-AnalogValue = Union[int, float]
-Voltage = float
-PdChannelToVoltage = dict[pt.PdChannel, Voltage]
+PdChannelToVoltage = dict[pt.PdChannel, pt.Voltage]
 
 REF_keyword = "REF"
 IR_keyword = "IR"
@@ -144,25 +140,6 @@ class ADCReader(LoggerMixin):
     """
 
     _logger_name = "adc_reader"
-    DATA_RATE: int = 128
-    ADS1X15_GAIN_THRESHOLDS = {
-        2 / 3: (4.096, 6.144),
-        1: (2.048, 4.096),
-        2: (1.024, 2.048),
-        4: (0.512, 1.024),
-        8: (0.256, 0.512),
-        16: (-1, 0.256),
-    }
-
-    ADS1X15_PGA_RANGE = {
-        2 / 3: 6.144,
-        1: 4.096,
-        2: 2.048,
-        4: 1.024,
-        8: 0.512,
-        16: 0.256,
-    }
-
     oversampling_count: int = 27
     _setup_complete = False
 
@@ -179,10 +156,9 @@ class ADCReader(LoggerMixin):
         self.dynamic_gain = dynamic_gain
         self.gain = initial_gain
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
-        self.channels = channels
+        self.channels: list[pt.PdChannel] = channels
         self.batched_readings: PdChannelToVoltage = {}
-        self.analog_in: dict = {}
-        self.adc_offsets: dict[pt.PdChannel, AnalogValue] = {}
+        self.adc_offsets: dict[pt.PdChannel, pt.AnalogValue] = {}
 
         self.interval = interval
         if "local_ac_hz" in config["od_config"]:
@@ -205,45 +181,25 @@ class ADCReader(LoggerMixin):
             raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         if self.fake_data:
-            from pioreactor.utils.mock import MockAnalogIn as AnalogIn, MockI2C as I2C
+            from pioreactor.utils.mock import Mock_ADC as ADC
         else:
-            from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
-            from busio import I2C  # type: ignore
+            from pioreactor.utils.adc import ADC  # type: ignore
 
-        channel_to_adc_map: dict[pt.PdChannel, int] = {
-            "1": 1,
-            "2": 0,
-        }
-
-        if hardware_version_info <= (0, 1):
-            channel_to_adc_map = {
-                "1": 0,
-                "2": 1,
-            }
-
-        if hardware_version_info < (1, 1):
-            from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
-        else:
-            from adafruit_ads1x15.ads1015 import ADS1015 as ADS  # type: ignore
-
-        self.ads = ADS(
-            I2C(hardware.SCL, hardware.SDA),
-            data_rate=self.DATA_RATE,
-            gain=self.gain,
-            address=hardware.ADC,
-        )
-        for channel in self.channels:
-            self.analog_in[channel] = AnalogIn(self.ads, channel_to_adc_map[channel])
+        self.adc = ADC(initial_gain=self.gain)
+        self.logger.debug(f"Using ADC class {self.adc.__class__.__name__}.")
 
         max_signal = 0.0
-        for channel, ai in self.analog_in.items():
-            max_signal = max(self.from_raw_to_voltage(ai.value), max_signal)
+        for pd_channel in self.channels:
+            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
+            max_signal = max(
+                self.adc.from_raw_to_voltage(self.adc.read_from_channel(adc_channel)), max_signal
+            )
             self.check_on_max(max_signal)
 
         # we will instantiate and sweep through to set the gain
         # check if using correct gain
         if self.dynamic_gain:
-            self.check_on_gain(max_signal)
+            self.adc.check_on_gain(max_signal)
 
         self._setup_complete = True
         self.logger.debug(
@@ -256,13 +212,13 @@ class ADCReader(LoggerMixin):
         With the IR LED off, determine the offsets. These offsets are used later to shift the raw signals such that "dark" is 0.
         """
         for channel, blank_reading in batched_readings.items():
-            self.adc_offsets[channel] = self.from_voltage_to_raw(blank_reading)
+            self.adc_offsets[channel] = self.adc.from_voltage_to_raw(blank_reading)
 
         self.logger.debug(
-            f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
+            f"ADC offsets: {self.adc_offsets}, and in voltage: { {c: self.adc.from_raw_to_voltage(i) for c, i in  self.adc_offsets.items()}}"
         )
 
-    def check_on_max(self, value: Voltage) -> None:
+    def check_on_max(self, value: pt.Voltage) -> None:
 
         if value > 3.2:
             self.logger.error(
@@ -307,31 +263,14 @@ class ADCReader(LoggerMixin):
             )
             return
 
-    def check_on_gain(self, value: Optional[Voltage], tol=0.85) -> None:
-        if value is None:
-            return
-
-        for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
-            if (tol * lb <= value < tol * ub) and (self.gain != gain):
-                self.gain = gain
-                self.set_ads_gain(gain)
-                self.logger.debug(f"ADC gain updated to {self.gain}.")
-                break
-
-    def set_ads_gain(self, gain) -> None:
-        # this isn't _always_ equal to self.gain, ex: if another process is using the ADC to measure fluor.,
-        # then they might use a different gain value. However, on take_reading, we always set it back to the
-        # ADCReader's gain.
-        self.ads.gain = gain  # this assignment will check to see if the gain is allowed.
-
     def _sin_regression_with_known_freq(
         self,
         x: list[float],
-        y: list[Voltage],
+        y: list[pt.Voltage],
         freq: float,
-        prior_C: Optional[Voltage] = None,
-        penalizer_C: Optional[Voltage] = 0,
-    ) -> tuple[tuple[Voltage, Optional[float], Optional[float]], float]:
+        prior_C: Optional[pt.Voltage] = None,
+        penalizer_C: Optional[pt.Voltage] = 0,
+    ) -> tuple[tuple[pt.Voltage, Optional[float], Optional[float]], float]:
         r"""
         Assumes a known frequency.
         Formula is
@@ -442,21 +381,13 @@ class ADCReader(LoggerMixin):
 
         return (float(C), float(A), float(phi)), AIC
 
-    def from_voltage_to_raw(self, voltage: Voltage) -> AnalogValue:
-        # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
-        return cast(AnalogValue, voltage * 32767 / self.ADS1X15_PGA_RANGE[self.gain])
-
-    def from_raw_to_voltage(self, raw: AnalogValue) -> Voltage:
-        # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
-        return raw / 32767 * self.ADS1X15_PGA_RANGE[self.gain]
-
     def clear_batched_readings(self) -> None:
         self.batched_readings = {}
 
     @staticmethod
     def _remove_offset_from_signal(
-        signals: list[AnalogValue], offset: AnalogValue
-    ) -> list[AnalogValue]:
+        signals: list[pt.AnalogValue], offset: pt.AnalogValue
+    ) -> list[pt.AnalogValue]:
         return [x - offset for x in signals]
 
     def take_reading(self) -> PdChannelToVoltage:
@@ -479,24 +410,23 @@ class ADCReader(LoggerMixin):
         oversampling_count = self.oversampling_count
 
         # we pre-allocate these arrays to make the for loop faster => more accurate
-        aggregated_signals: dict[pt.PdChannel, list[AnalogValue]] = {
+        aggregated_signals: dict[pt.PdChannel, list[pt.AnalogValue]] = {
             channel: [0.0] * oversampling_count for channel in self.channels
         }
         timestamps: dict[pt.PdChannel, list[float]] = {
             channel: [0.0] * oversampling_count for channel in self.channels
         }
 
-        # in case some other process is also using the ADC chip and changes the gain, we want
-        # to always confirm our settings before take a reading.
-        self.set_ads_gain(self.gain)
-
         try:
             with catchtime() as time_since_start:
                 for counter in range(oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
-                        for channel, ai in self.analog_in.items():
-                            timestamps[channel][counter] = time_since_start()
-                            aggregated_signals[channel][counter] = ai.value
+                        for pd_channel in self.channels:
+                            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
+                            timestamps[pd_channel][counter] = time_since_start()
+                            aggregated_signals[pd_channel][counter] = self.adc.read_from_channel(
+                                adc_channel
+                            )
 
                     sleep(
                         max(
@@ -532,7 +462,7 @@ class ADCReader(LoggerMixin):
                     timestamps[channel],
                     shifted_signals,
                     self.most_appropriate_AC_hz,
-                    prior_C=(self.from_voltage_to_raw(self.batched_readings[channel]))
+                    prior_C=(self.adc.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
                     penalizer_C=(525.0 / self.oversampling_count / self.interval)
@@ -542,7 +472,7 @@ class ADCReader(LoggerMixin):
                 )
 
                 # convert to voltage
-                best_estimate_of_signal_v = self.from_raw_to_voltage(best_estimate_of_signal_)
+                best_estimate_of_signal_v = self.adc.from_raw_to_voltage(best_estimate_of_signal_)
 
                 # force value to be non-negative. Negative values can still occur due to the IR LED reference
                 batched_estimates_[channel] = max(best_estimate_of_signal_v, 0)
@@ -560,7 +490,9 @@ class ADCReader(LoggerMixin):
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
             if self.dynamic_gain:
-                self.check_on_gain(self.max_signal_moving_average())
+                m = self.max_signal_moving_average()
+                assert m is not None
+                self.adc.check_on_gain(m)
 
             return batched_estimates_
 
@@ -572,7 +504,7 @@ class ADCReader(LoggerMixin):
     def determine_most_appropriate_AC_hz(
         self,
         timestamps: dict[pt.PdChannel, list[float]],
-        aggregated_signals: dict[pt.PdChannel, list[AnalogValue]],
+        aggregated_signals: dict[pt.PdChannel, list[pt.AnalogValue]],
     ) -> float:
         def _compute_best_freq(timestamps, aggregated_signals):
             FREQS_TO_TRY = [60.0, 50.0]
@@ -604,16 +536,16 @@ class IrLedReferenceTracker(LoggerMixin):
     def __init__(self) -> None:
         super().__init__()
 
-    def update(self, ir_output_reading: Voltage) -> None:
+    def update(self, ir_output_reading: pt.Voltage) -> None:
         pass
 
-    def pop_reference_reading(self, batched_readings: PdChannelToVoltage) -> Voltage:
+    def pop_reference_reading(self, batched_readings: PdChannelToVoltage) -> pt.Voltage:
         return batched_readings.pop(self.channel)
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
         return batched_readings
 
-    def transform(self, od_reading: Voltage) -> Voltage:
+    def transform(self, od_reading: pt.Voltage) -> pt.Voltage:
         return od_reading
 
 
@@ -657,14 +589,14 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         self.channel = channel
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
-    def update(self, ir_output_reading: Voltage) -> None:
+    def update(self, ir_output_reading: pt.Voltage) -> None:
         # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
         self.led_output_ema.update(ir_output_reading / self.INITIAL)
 
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
         return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
 
-    def transform(self, od_reading: Voltage) -> Voltage:
+    def transform(self, od_reading: pt.Voltage) -> pt.Voltage:
         led_output = self.led_output_ema()
         assert led_output is not None
         if led_output <= 0.0:
@@ -679,7 +611,7 @@ class NullIrLedReferenceTracker(IrLedReferenceTracker):
         super().__init__()
         self.logger.debug("Not using any IR LED reference.")
 
-    def pop_reference_reading(self, batched_readings: PdChannelToVoltage) -> Voltage:
+    def pop_reference_reading(self, batched_readings: PdChannelToVoltage) -> pt.Voltage:
         return 1.0
 
 

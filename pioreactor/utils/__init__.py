@@ -9,7 +9,7 @@ from typing import Callable
 from typing import Generator
 from typing import overload
 
-from diskcache import Cache
+from diskcache import Cache  # type: ignore
 
 from pioreactor import types as pt
 from pioreactor import whoami

@@ -7,8 +7,11 @@ cmd line interface for running individual pioreactor units (including leader)
 """
 from __future__ import annotations
 
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from json import dumps
+from json import loads
+from shlex import quote
 from time import sleep
 from typing import Optional
 
@@ -25,6 +28,7 @@ from pioreactor.config import check_firstboot_successful
 from pioreactor.config import config
 from pioreactor.config import get_leader_hostname
 from pioreactor.logging import create_logger
+from pioreactor.mureq import get
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
@@ -259,10 +263,17 @@ def version(verbose: bool) -> None:
 
         click.echo(f"Pioreactor software:    {tuple_to_text(software_version_info)}")
         click.echo(f"Pioreactor HAT:         {tuple_to_text(hardware_version_info)}")
-        click.echo(f"Pioreactor HAT:         {tuple_to_text(get_firmware_version())}")
+        click.echo(f"Pioreactor firmware:    {tuple_to_text(get_firmware_version())}")
         click.echo(f"HAT serial number:      {serial_number}")
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {whoami.get_rpi_machine()}")
+        if whoami.am_I_leader():
+            try:
+                click.echo(
+                    f"Pioreactor UI:          {get('http://127.0.0.1/api/get_ui_version').text}"
+                )
+            except Exception:
+                pass
     else:
         click.echo(pioreactor.__version__)
 
@@ -317,99 +328,138 @@ def update_settings(ctx, job: str) -> None:
         pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
 
 
-@pio.command(name="update", short_help="update the Pioreactor software (app and/or UI)")
-@click.option("--ui", is_flag=True, help="update the PioreactorUI to latest")
-@click.option("--app", is_flag=True, help="update the Pioreactor to latest")
+@pio.group()
+def update() -> None:
+    pass
+
+
+@update.command(name="app")
 @click.option("-b", "--branch", help="update to a branch on github")
 @click.option("--source", help="use a URL or whl file")
-def update(ui: bool, app: bool, branch: Optional[str], source: Optional[str]) -> None:
-    import subprocess
-    from json import loads
-    from pioreactor.mureq import get
+def update_app(branch: Optional[str], source: Optional[str]) -> None:
 
     logger = create_logger(
-        "update", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+        "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
 
-    if (not app) and (not ui):
-        click.echo("Nothing to do. Specify either --app or --ui.")
+    commands_and_priority = []
 
-    if app:
-        commands_and_priority = []
+    if source is not None:
+        version_installed = source
+        commands_and_priority.append(
+            (f"sudo pip3 install --root-user-action=ignore -U --force-reinstall {source}", 1)
+        )
 
-        if source is not None:
-            version_installed = source
-            commands_and_priority.append(
-                (f"sudo pip3 install --root-user-action=ignore -U --force-reinstall {source}", 1)
+    elif branch is not None:
+        version_installed = quote(branch)
+        commands_and_priority.append(
+            (
+                f"sudo pip3 install --root-user-action=ignore -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip",
+                1,
             )
-
-        elif branch is not None:
-            version_installed = branch
-            commands_and_priority.append(
-                (
-                    f"sudo pip3 install --root-user-action=ignore -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip",
-                    1,
+        )
+    else:
+        latest_release_metadata = loads(
+            get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest").body
+        )
+        version_installed = latest_release_metadata["name"]
+        for asset in latest_release_metadata["assets"]:
+            if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
+                url_to_get_whl = asset["browser_download_url"]
+                commands_and_priority.append(
+                    (
+                        f'sudo pip3 install --root-user-action=ignore "pioreactor @ {url_to_get_whl}"',
+                        1,
+                    )
                 )
-            )
-        else:
-            latest_release_metadata = loads(
-                get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest").body
-            )
-            version_installed = latest_release_metadata["name"]
-            for asset in latest_release_metadata["assets"]:
-                if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
-                    url_to_get_whl = asset["browser_download_url"]
-                    commands_and_priority.append(
-                        (
-                            f'sudo pip3 install --root-user-action=ignore "pioreactor @ {url_to_get_whl}"',
-                            1,
-                        )
+            elif asset["name"] == "update.sh":
+                url_to_get_sh = asset["browser_download_url"]
+                commands_and_priority.append((f"sudo bash <(curl -s {url_to_get_sh})", 2))
+            elif asset["name"] == "update.sql":
+                url_to_get_sql = asset["browser_download_url"]
+                commands_and_priority.append(
+                    (
+                        f'sudo sqlite3 {config["storage"]["database"]} < <(curl -s {url_to_get_sql})',
+                        3,
                     )
-                elif asset["name"] == "update.sh":
-                    url_to_get_sh = asset["browser_download_url"]
-                    commands_and_priority.append((f"sudo bash <(curl -s {url_to_get_sh})", 2))
-                elif asset["name"] == "update.sql":
-                    url_to_get_sql = asset["browser_download_url"]
-                    commands_and_priority.append(
-                        (
-                            f'sudo sqlite3 {config["storage"]["database"]} < <(curl -s {url_to_get_sql})',
-                            3,
-                        )
-                    )
+                )
 
-        for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
-            logger.debug(command)
-            p = subprocess.run(
-                command,
-                shell=True,
-                universal_newlines=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-            )
-            if p.returncode != 0:
-                logger.error(p.stderr)
-                # end early
-                return
-
-        logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
-
-    if ui and whoami.am_I_leader():
-        gitp = "git pull origin master"
-        restart_lighttp = "sudo systemctl restart lighttpd.service"
-        restart_huey = "sudo systemctl restart huey.service"
-        command = " && ".join([gitp, restart_lighttp, restart_huey])
+    for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
+        logger.debug(command)
         p = subprocess.run(
             command,
             shell=True,
             universal_newlines=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
-            cwd="/var/www/pioreactorui/",
         )
-        if p.returncode == 0:
-            logger.notice("Updated PioreactorUI to latest version.")  # type: ignore
-        else:
+        if p.returncode != 0:
             logger.error(p.stderr)
+            # end early
+            return
+
+    logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
+
+
+@update.command(name="ui")
+@click.option("-b", "--branch", help="update to a branch on github")
+@click.option("--source", help="use a tar.gz file")
+def update_ui(branch: Optional[str], source: Optional[str]) -> None:
+    """
+    Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{branch}/
+    This is what is provided from Github releases.
+    """
+    if not whoami.am_I_leader():
+        return
+
+    logger = create_logger(
+        "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+    )
+    commands = []
+
+    if source is not None:
+        version_installed = branch
+        assert branch is not None, "branch must be provided with the -b option"
+
+    elif branch is not None:
+        version_installed = quote(branch)
+        url = f"https://github.com/Pioreactor/pioreactorui/archive/{branch}.tar.gz"
+        source = "/tmp/pioreactorui.tar.gz"
+        commands.append(["wget", url, "-O", source])
+
+    else:
+        latest_release_metadata = loads(
+            get("https://api.github.com/repos/pioreactor/pioreactorui/releases/latest").body
+        )
+        version_installed = latest_release_metadata["tag_name"]
+        url = f"https://github.com/Pioreactor/pioreactorui/archive/refs/tags/{version_installed}.tar.gz"
+        source = "/tmp/pioreactorui.tar.gz"
+        commands.append(["wget", url, "-O", source])
+
+    assert source is not None
+    assert version_installed is not None
+    commands.append(["bash", "/usr/local/bin/update_ui.sh", source, version_installed])
+
+    for command in commands:
+        logger.debug(" ".join(command))
+        p = subprocess.run(
+            command,
+            universal_newlines=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        if p.returncode != 0:
+            logger.error(p.stderr)
+            raise click.Abort()
+
+    logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
+
+
+@update.command(name="firmware")
+@click.option("-b", "--branch", help="update to a branch on github")
+def update_firmware(branch: Optional[str]) -> None:
+    # TODO
+    return
 
 
 pio.add_command(plugin_management.click_install_plugin)
@@ -475,7 +525,6 @@ if whoami.am_I_leader():
         """
         # TODO: move this to its own file
         import socket
-        import subprocess
 
         logger = create_logger(
             "add_pioreactor",

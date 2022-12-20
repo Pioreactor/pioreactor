@@ -1,0 +1,104 @@
+# -*- coding: utf-8 -*-
+# adc abstraction
+from __future__ import annotations
+
+from typing import cast
+
+from pioreactor import hardware
+from pioreactor import types as pt
+from pioreactor.version import hardware_version_info
+
+
+class _ADC:
+    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
+        pass
+
+    def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
+        pass
+
+    def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
+        pass
+
+    def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
+        pass
+
+
+class ADS1115_ADC(_ADC):
+
+    DATA_RATE = 128
+    ADS1X15_GAIN_THRESHOLDS = {
+        2 / 3: (4.096, 6.144),
+        1: (2.048, 4.096),
+        2: (1.024, 2.048),
+        4: (0.512, 1.024),
+        8: (0.256, 0.512),
+        16: (-1, 0.256),
+    }
+
+    ADS1X15_PGA_RANGE = {
+        2 / 3: 6.144,
+        1: 4.096,
+        2: 2.048,
+        4: 1.024,
+        8: 0.512,
+        16: 0.256,
+    }
+
+    def __init__(self, initial_gain=1):
+        super().__init__()
+
+        self.gain = initial_gain
+
+        from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
+        from busio import I2C  # type: ignore
+        from adafruit_ads1x15.ads1115 import ADS1115 as ADS  # type: ignore
+
+        self.analog_in: dict[int, AnalogIn] = {}
+
+        self.ads = ADS(
+            I2C(hardware.SCL, hardware.SDA),
+            data_rate=self.DATA_RATE,
+            gain=self.gain,
+            address=hardware.ADC,
+        )
+        for channel in [0, 1, 2, 3]:
+            self.analog_in[channel] = AnalogIn(self.ads, channel)
+
+    def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
+        for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
+            if (tol * lb <= value < tol * ub) and (self.gain != gain):
+                self.gain = gain
+                self.set_ads_gain(gain)
+                break
+
+    def set_ads_gain(self, gain: float) -> None:
+        self.ads.gain = gain  # this assignment will check to see if the gain is allowed.
+
+    def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
+        # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
+        return cast(pt.AnalogValue, voltage * 32767 / self.ADS1X15_PGA_RANGE[self.gain])
+
+    def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
+        # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61
+        return raw / 32767 * self.ADS1X15_PGA_RANGE[self.gain]
+
+    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
+        return self.analog_in[channel].value
+
+
+class Pico_ADC(_ADC):
+    def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
+        pass
+
+    def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
+        pass
+
+    def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
+        pass
+
+    def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
+        # pico has no gain.
+        pass
+
+
+ADC = ADS1115_ADC if hardware_version_info <= (1, 0) else Pico_ADC
