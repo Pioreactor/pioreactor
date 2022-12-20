@@ -434,6 +434,7 @@ def update_ui(branch: Optional[str], source: Optional[str]) -> None:
     commands.append(["bash", "/usr/local/bin/update_ui.sh", source, version_installed])
 
     for command in commands:
+        logger.debug(" ".join(command))
         p = subprocess.run(
             command,
             universal_newlines=True,
