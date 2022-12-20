@@ -10,6 +10,9 @@ from pioreactor.version import hardware_version_info
 
 
 class _ADC:
+
+    gain: float = 1
+
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         pass
 
@@ -55,14 +58,14 @@ class ADS1115_ADC(_ADC):
 
         self.analog_in: dict[int, AnalogIn] = {}
 
-        self.ads = ADS(
+        self._ads = ADS(
             I2C(hardware.SCL, hardware.SDA),
             data_rate=self.DATA_RATE,
             gain=self.gain,
             address=hardware.ADC,
         )
         for channel in [0, 1, 2, 3]:
-            self.analog_in[channel] = AnalogIn(self.ads, channel)
+            self.analog_in[channel] = AnalogIn(self._ads, channel)
 
     def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
         for gain, (lb, ub) in self.ADS1X15_GAIN_THRESHOLDS.items():
@@ -72,7 +75,7 @@ class ADS1115_ADC(_ADC):
                 break
 
     def set_ads_gain(self, gain: float) -> None:
-        self.ads.gain = gain  # this assignment will check to see if the gain is allowed.
+        self._ads.gain = gain  # this assignment will check to see if the gain is allowed.
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
         # from https://github.com/adafruit/Adafruit_CircuitPython_ADS1x15/blob/e33ed60b8cc6bbd565fdf8080f0057965f816c6b/adafruit_ads1x15/analog_in.py#L61

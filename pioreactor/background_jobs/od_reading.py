@@ -134,8 +134,6 @@ class ADCReader(LoggerMixin):
         generate fake ADC readings internally.
     dynamic_gain: bool
         dynamically change the gain based on the max reading from channels
-    initial_gain:
-        set the initial gain - see data sheet for values.
 
     """
 
@@ -149,12 +147,10 @@ class ADCReader(LoggerMixin):
         fake_data: bool = False,
         interval: Optional[float] = 1.0,
         dynamic_gain: bool = True,
-        initial_gain: float = 1,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
         self.dynamic_gain = dynamic_gain
-        self.gain = initial_gain
         self.max_signal_moving_average = ExponentialMovingAverage(alpha=0.05)
         self.channels: list[pt.PdChannel] = channels
         self.batched_readings: PdChannelToVoltage = {}
@@ -168,12 +164,17 @@ class ADCReader(LoggerMixin):
         else:
             self.most_appropriate_AC_hz = None
 
-    def setup_adc(self) -> ADCReader:
+    def setup_adc(self, initial_gain: float = 1) -> ADCReader:
         """
         This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
 
         It doesn't occur in the classes __init__ because it often requires an LED to be on (and this class doesn't control LEDs.).
         See ODReader for an example.
+
+        Parameters
+        -------------
+        initial_gain:
+            set the initial gain - see data sheet for values.
         """
 
         if not hardware.is_HAT_present():
@@ -185,7 +186,7 @@ class ADCReader(LoggerMixin):
         else:
             from pioreactor.utils.adcs import ADC  # type: ignore
 
-        self.adc = ADC(initial_gain=self.gain)
+        self.adc = ADC(initial_gain=initial_gain)
         self.logger.debug(f"Using ADC class {self.adc.__class__.__name__}.")
 
         max_signal = 0.0
@@ -203,7 +204,7 @@ class ADCReader(LoggerMixin):
 
         self._setup_complete = True
         self.logger.debug(
-            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}, with gain {self.gain}."
+            f"ADC ready to read from PD channels {', '.join(map(str, self.channels))}, with gain {self.adc.gain}."
         )
         return self
 

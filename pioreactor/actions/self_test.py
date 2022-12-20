@@ -120,9 +120,10 @@ def test_all_positive_correlations_between_pds_and_leds(
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
-        initial_gain=16,  # I think a small gain is okay, since we only varying the lower-end of LED intensity
         fake_data=is_testing_env(),
-    ).setup_adc()
+    ).setup_adc(
+        initial_gain=16
+    )  # I think a small gain is okay, since we only varying the lower-end of LED intensity
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
@@ -215,11 +216,10 @@ def test_ambient_light_interference(
     adc_reader = ADCReader(
         channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
-        initial_gain=16,
         fake_data=is_testing_env(),
     )
 
-    adc_reader.setup_adc()
+    adc_reader.setup_adc(initial_gain=16)
 
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
@@ -231,7 +231,7 @@ def test_ambient_light_interference(
 
     readings = adc_reader.take_reading()
 
-    assert all([readings[pd_channel] < 0.0005 for pd_channel in ALL_PD_CHANNELS]), readings
+    assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
 def test_REF_is_lower_than_0_dot_256_volts(
@@ -245,9 +245,8 @@ def test_REF_is_lower_than_0_dot_256_volts(
     adc_reader = ADCReader(
         channels=[reference_channel],
         dynamic_gain=False,
-        initial_gain=1,
         fake_data=is_testing_env(),
-    ).setup_adc()
+    ).setup_adc(initial_gain=1)
 
     with change_leds_intensities_temporarily(
         {cast(LedChannel, ir_channel): ir_intensity},
