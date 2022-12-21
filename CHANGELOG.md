@@ -1,7 +1,9 @@
 ### Upcoming
- - firmware stuff
+ - early support for HATs with Pico hardware
+ - new modules `pioreactor.util.adcs` and `pioreactor.utils.dacs` to abstract DACs and ADCs.
  - `pio update` has a new api: `pio update app <options>`, `pio update ui <options>`.
  - added version of UI & firmware to `pio version -v`
+ - PioreactorUI has a different way to update, rather than using git. We now version the PioreactorUI, so it's easier to know if which version is being used.
 
 ### 22.12.2
  - Remove some errant debugging statements

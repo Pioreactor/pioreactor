@@ -437,8 +437,7 @@ def click_self_test(k: str) -> int:
                 retain=True,
             )
 
-        # can be run in parallel. I removed the feature because they kept bumping in
-        # each other.
+        # some tests can be run in parallel.
         test_args = (client, logger, unit, testing_experiment)
         RunnerA = BatchTestRunner(
             [f for f in functions_to_test if f in A_TESTS], *test_args
