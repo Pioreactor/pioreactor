@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-__version__ = "22.12.2-dev"
+__version__ = "22.12.2.dev"
 
 
 def _get_hardware_version() -> tuple[int, int]:
@@ -39,6 +39,13 @@ def tuple_to_text(t: tuple[int, ...]) -> str:
     return ".".join(map(str, t))
 
 
+def safe_int(s):
+    try:
+        return int(s)
+    except ValueError:
+        return s
+
+
 hardware_version_info = _get_hardware_version()
-software_version_info = tuple(int(c) for c in __version__.split("."))
+software_version_info = tuple(safe_int(c) for c in __version__.split("."))
 serial_number = _get_serial_number()
