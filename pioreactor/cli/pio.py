@@ -206,14 +206,17 @@ def kill(job: list[str], all_jobs: bool) -> None:
             client.publish(
                 f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_media/$state/set",
                 "disconnected",
+                qos=pubsub.QOS.AT_LEAST_ONCE,
             )
             client.publish(
                 f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/remove_waste/$state/set",
                 "disconnected",
+                qos=pubsub.QOS.AT_LEAST_ONCE,
             )
             client.publish(
                 f"pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/add_alt_media/$state/set",
                 "disconnected",
+                qos=pubsub.QOS.AT_LEAST_ONCE,
             )
 
         # kill all LEDs
@@ -283,8 +286,9 @@ def version(verbose: bool) -> None:
 def view_cache(cache: str) -> None:
     import os.path
 
-    # is it a temp cache?
     tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
+
+    # is it a temp cache or persistant cache?
     if os.path.isdir(f"{tmp_dir}{cache}"):
         cacher = local_intermittent_storage
 
@@ -324,8 +328,9 @@ def update_settings(ctx, job: str) -> None:
     assert len(extra_args) > 0
 
     for (setting, value) in extra_args.items():
-        pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
-        pubsub.publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
+        pubsub.publish(
+            f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE
+        )
 
 
 @pio.group()
@@ -399,60 +404,6 @@ def update_app(branch: Optional[str], source: Optional[str]) -> None:
             return
 
     logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
-
-
-@update.command(name="ui")
-@click.option("-b", "--branch", help="update to a branch on github")
-@click.option("--source", help="use a tar.gz file")
-def update_ui(branch: Optional[str], source: Optional[str]) -> None:
-    """
-    Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{branch}/
-    This is what is provided from Github releases.
-    """
-    if not whoami.am_I_leader():
-        return
-
-    logger = create_logger(
-        "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
-    )
-    commands = []
-
-    if source is not None:
-        version_installed = branch
-        assert branch is not None, "branch must be provided with the -b option"
-
-    elif branch is not None:
-        version_installed = quote(branch)
-        url = f"https://github.com/Pioreactor/pioreactorui/archive/{branch}.tar.gz"
-        source = "/tmp/pioreactorui.tar.gz"
-        commands.append(["wget", url, "-O", source])
-
-    else:
-        latest_release_metadata = loads(
-            get("https://api.github.com/repos/pioreactor/pioreactorui/releases/latest").body
-        )
-        version_installed = latest_release_metadata["tag_name"]
-        url = f"https://github.com/Pioreactor/pioreactorui/archive/refs/tags/{version_installed}.tar.gz"
-        source = "/tmp/pioreactorui.tar.gz"
-        commands.append(["wget", url, "-O", source])
-
-    assert source is not None
-    assert version_installed is not None
-    commands.append(["bash", "/usr/local/bin/update_ui.sh", source, version_installed])
-
-    for command in commands:
-        logger.debug(" ".join(command))
-        p = subprocess.run(
-            command,
-            universal_newlines=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-        )
-        if p.returncode != 0:
-            logger.error(p.stderr)
-            raise click.Abort()
-
-    logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
 
 
 @update.command(name="firmware")
@@ -643,3 +594,56 @@ if whoami.am_I_leader():
 
         if not all(results):
             raise click.Abort()
+
+    @update.command(name="ui")
+    @click.option("-b", "--branch", help="update to a branch on github")
+    @click.option("--source", help="use a tar.gz file")
+    def update_ui(branch: Optional[str], source: Optional[str]) -> None:
+        """
+        Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{branch}/
+        This is what is provided from Github releases.
+        """
+        if not whoami.am_I_leader():
+            return
+
+        logger = create_logger(
+            "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+        )
+        commands = []
+
+        if source is not None:
+            version_installed = branch
+            assert branch is not None, "branch must be provided with the -b option"
+
+        elif branch is not None:
+            version_installed = quote(branch)
+            url = f"https://github.com/Pioreactor/pioreactorui/archive/{branch}.tar.gz"
+            source = "/tmp/pioreactorui.tar.gz"
+            commands.append(["wget", url, "-O", source])
+
+        else:
+            latest_release_metadata = loads(
+                get("https://api.github.com/repos/pioreactor/pioreactorui/releases/latest").body
+            )
+            version_installed = latest_release_metadata["tag_name"]
+            url = f"https://github.com/Pioreactor/pioreactorui/archive/refs/tags/{version_installed}.tar.gz"
+            source = "/tmp/pioreactorui.tar.gz"
+            commands.append(["wget", url, "-O", source])
+
+        assert source is not None
+        assert version_installed is not None
+        commands.append(["bash", "/usr/local/bin/update_ui.sh", source, version_installed])
+
+        for command in commands:
+            logger.debug(" ".join(command))
+            p = subprocess.run(
+                command,
+                universal_newlines=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+            if p.returncode != 0:
+                logger.error(p.stderr)
+                raise click.Abort()
+
+        logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore

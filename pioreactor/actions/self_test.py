@@ -121,9 +121,7 @@ def test_all_positive_correlations_between_pds_and_leds(
         channels=ALL_PD_CHANNELS,
         dynamic_gain=False,
         fake_data=is_testing_env(),
-    ).setup_adc(
-        initial_gain=16
-    )  # I think a small gain is okay, since we only varying the lower-end of LED intensity
+    ).setup_adc()
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
     led_intensity(
@@ -219,7 +217,7 @@ def test_ambient_light_interference(
         fake_data=is_testing_env(),
     )
 
-    adc_reader.setup_adc(initial_gain=16)
+    adc_reader.setup_adc()
 
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
@@ -239,17 +237,17 @@ def test_REF_is_lower_than_0_dot_256_volts(
 ) -> None:
 
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
-    ir_channel = config["leds_reverse"][IR_keyword]
+    ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     ir_intensity = config.getfloat("od_config", "ir_led_intensity")
 
     adc_reader = ADCReader(
         channels=[reference_channel],
         dynamic_gain=False,
         fake_data=is_testing_env(),
-    ).setup_adc(initial_gain=1)
+    ).setup_adc()
 
     with change_leds_intensities_temporarily(
-        {cast(LedChannel, ir_channel): ir_intensity},
+        {ir_channel: ir_intensity},
         unit=unit,
         source_of_event="self_test",
         experiment=experiment,
@@ -340,23 +338,6 @@ def test_positive_correlation_between_rpm_and_stirring(
         assert measured_correlation > 0.9, (dcs, measured_rpms)
 
 
-HEATING_TESTS = [
-    test_detect_heating_pcb,
-    test_positive_correlation_between_temperature_and_heating,
-]
-STIRRING_TESTS = [
-    test_aux_power_is_not_too_high,
-    test_positive_correlation_between_rpm_and_stirring,
-]
-OD_TESTS = [
-    test_pioreactor_HAT_present,
-    test_all_positive_correlations_between_pds_and_leds,
-    test_ambient_light_interference,
-    test_REF_is_lower_than_0_dot_256_volts,
-    test_REF_is_in_correct_position,
-]
-
-
 class BatchTestRunner:
     def __init__(self, tests_to_run: list[Callable], *test_func_args) -> None:
 
@@ -395,6 +376,21 @@ class BatchTestRunner:
                 int(res),
                 retain=True,
             )
+
+
+A_TESTS = [
+    test_pioreactor_HAT_present,
+    test_detect_heating_pcb,
+    test_positive_correlation_between_temperature_and_heating,
+    test_aux_power_is_not_too_high,
+]
+B_TESTS = [
+    test_all_positive_correlations_between_pds_and_leds,
+    test_ambient_light_interference,
+    test_REF_is_lower_than_0_dot_256_volts,
+    test_REF_is_in_correct_position,
+    test_positive_correlation_between_rpm_and_stirring,
+]
 
 
 @click.command(name="self_test")
@@ -441,21 +437,17 @@ def click_self_test(k: str) -> int:
                 retain=True,
             )
 
-        # run in parallel
+        # can be run in parallel. I removed the feature because they kept bumping in
+        # each other.
         test_args = (client, logger, unit, testing_experiment)
-        ODTests = BatchTestRunner(
-            [f for f in OD_TESTS if f in functions_to_test], *test_args
+        RunnerA = BatchTestRunner(
+            [f for f in functions_to_test if f in A_TESTS], *test_args
         ).start()
-        HeatingTests = BatchTestRunner(
-            [f for f in HEATING_TESTS if f in functions_to_test], *test_args
-        ).start()
-        StirringTests = BatchTestRunner(
-            [f for f in STIRRING_TESTS if f in functions_to_test], *test_args
+        RunnerB = BatchTestRunner(
+            [f for f in functions_to_test if f in B_TESTS], *test_args
         ).start()
 
-        count_tested, count_passed = (
-            ODTests.collect() + HeatingTests.collect() + StirringTests.collect()
-        )
+        count_tested, count_passed = RunnerA.collect() + RunnerB.collect()
         count_failures = count_tested - count_passed
 
         client.publish(
