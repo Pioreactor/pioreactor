@@ -145,7 +145,8 @@ def pios() -> None:
     help="specify a Pioreactor name, default is all active units",
 )
 @click.option("-b", "--branch", help="update to the github branch")
-def update(units: tuple[str, ...], branch: Optional[str]) -> None:
+@click.option("-y", is_flag=True, help="Skip asking for confirmation.")
+def update(units: tuple[str, ...], branch: Optional[str], y: bool) -> None:
     """
     Pulls and installs the latest code
     """
@@ -157,6 +158,11 @@ def update(units: tuple[str, ...], branch: Optional[str]) -> None:
         command = f"pio update app -b {branch}"
     else:
         command = "pio update app"
+
+    if not y:
+        confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+        if confirm != "Y":
+            return
 
     def _thread_function(unit: str):
         logger.debug(f"Executing `{command}` on {unit}...")

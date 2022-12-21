@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-
+# Append ".dev" if a dev version
 __version__ = "22.12.2.dev"
 
 
