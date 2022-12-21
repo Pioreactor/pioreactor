@@ -64,6 +64,7 @@ def get_hostname() -> str:
         return socket.gethostname()
 
 
+@cache
 def get_unit_name() -> str:
 
     hostname = get_hostname()
@@ -74,6 +75,7 @@ def get_unit_name() -> str:
         return hostname
 
 
+@cache
 def am_I_leader() -> bool:
     if is_testing_env():
         return True
@@ -83,6 +85,7 @@ def am_I_leader() -> bool:
     return get_unit_name() == leader_hostname
 
 
+@cache
 def am_I_active_worker() -> bool:
     if is_testing_env():
         return True
