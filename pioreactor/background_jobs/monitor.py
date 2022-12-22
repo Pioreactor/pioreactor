@@ -79,7 +79,7 @@ class Monitor(BackgroundJob):
     def __init__(self, unit: str, experiment: str) -> None:
         super().__init__(unit=unit, experiment=experiment)
 
-        def pretty_version(info: tuple[int, ...]) -> str:
+        def pretty_version(info: tuple) -> str:
             return ".".join((str(x) for x in info))
 
         self.logger.debug(

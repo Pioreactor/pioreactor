@@ -273,7 +273,7 @@ def version(verbose: bool) -> None:
         if whoami.am_I_leader():
             try:
                 click.echo(
-                    f"Pioreactor UI:          {get('http://127.0.0.1/api/get_ui_version').text}"
+                    f"Pioreactor UI:          {get('http://127.0.0.1/api/get_ui_version').body.decode()}"
                 )
             except Exception:
                 pass
