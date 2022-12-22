@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import cast
 
+import busio
+
 from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor.version import hardware_version_info
@@ -90,14 +92,22 @@ class ADS1115_ADC(_ADC):
 
 
 class Pico_ADC(_ADC):
+    def __init__(self) -> None:
+        # set up i2c connection to hardware.ADC
+        self.i2c = busio.I2C(hardware.SCL, hardware.SDA)
+
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
-        pass
+        result = bytearray(2)
+        self.i2c.writeto_then_readfrom(
+            0x30, bytes([channel + 4]), result
+        )  # + 4 is the i2c pointer offset
+        return int.from_bytes(result, byteorder="little", signed=False)
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
-        pass
+        return int((voltage / 3.3) * 4095 * 16)
 
     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
-        pass
+        return (raw / 4095 / 16) * 3.3
 
     def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
         # pico has no gain.

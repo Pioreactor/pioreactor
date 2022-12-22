@@ -47,7 +47,7 @@
 ### 22.11.4
  - Fixes for UI
  - Smoother transitions in UI
- - new ENV variable `LOCAL_ACCESS_POINT` that represents in local access point is online
+ - new ENV variable `LOCAL_ACCESS_POINT` that represents if local access point is online
 
 
 ### 22.11.3
