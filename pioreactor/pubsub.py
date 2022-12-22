@@ -19,7 +19,7 @@ from pioreactor.types import MQTTMessage
 
 def add_hash_suffix(s):
     alphabet = string.ascii_lowercase + string.digits
-    return s + "-" + "".join(random.choices(alphabet, k=8))
+    return s + "-" + "".join(random.choices(alphabet, k=4))
 
 
 class Client(PahoClient):
@@ -66,7 +66,9 @@ def create_client(
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
 
     client = Client(
-        client_id=add_hash_suffix(client_id), clean_session=clean_session, userdata=userdata
+        client_id=add_hash_suffix(client_id) if client_id else "",
+        clean_session=clean_session,
+        userdata=userdata,
     )
     client.username_pw_set("pioreactor", "raspberry")
 

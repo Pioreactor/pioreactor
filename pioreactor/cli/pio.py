@@ -603,9 +603,6 @@ if whoami.am_I_leader():
         Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{branch}/
         This is what is provided from Github releases.
         """
-        if not whoami.am_I_leader():
-            return
-
         logger = create_logger(
             "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
         )

@@ -36,7 +36,6 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.structs import Temperature
 from pioreactor.structs import TemperatureAutomation
@@ -371,7 +370,6 @@ class TemperatureController(BackgroundJob):
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
-        pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "heating")]  # TODO: remove this.
         pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         pwm.start(0)
         return pwm

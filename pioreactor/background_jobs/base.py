@@ -211,7 +211,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
     DISCONNECTED: pt.JobState = "disconnected"
     SLEEPING: pt.JobState = "sleeping"
     LOST: pt.JobState = "lost"
-    LIFECYCLE_STATES: set[pt.JobState] = {INIT, READY, DISCONNECTED, SLEEPING, LOST}
 
     # initial state is disconnected
     state: pt.JobState = DISCONNECTED
@@ -366,7 +365,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self,
         topic: str,
         payload: pt.PublishableSettingDataType | dict | bytes | None,
-        qos: int = 0,
+        qos: int = QOS.AT_MOST_ONCE,
         **kwargs,
     ) -> None:
         """
@@ -385,7 +384,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         callback: t.Callable[[pt.MQTTMessage], None],
         subscriptions: list[str] | str,
         allow_retained: bool = True,
-        qos: int = 0,
+        qos: int = QOS.AT_MOST_ONCE,
     ) -> None:
         """
         Parameters
@@ -427,7 +426,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return
 
     def set_state(self, new_state: pt.JobState) -> None:
-        if new_state not in self.LIFECYCLE_STATES:
+        if new_state not in [self.INIT, self.READY, self.DISCONNECTED, self.SLEEPING, self.LOST]:
             self.logger.error(f"saw {new_state}: not a valid state")
             return
 
@@ -1033,6 +1032,8 @@ class BackgroundJobWithDodging(_BackgroundJob):
         # _after_ this classes __init__ is done, but before the subclasses __init__. If
         # action_to_do_before_od_reading references things in the subclasses __init__, it will
         # fail.
+        self.logger.debug("OD reading data is found in MQTT. Dodging!")
+
         try:
             self.action_to_do_before_od_reading()
         except Exception:

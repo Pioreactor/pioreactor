@@ -63,7 +63,7 @@ def test_REF_is_in_correct_position(
     signal2 = []
 
     with stirring.start_stirring(
-        target_rpm=500, unit=unit, experiment=experiment
+        target_rpm=450, unit=unit, experiment=experiment
     ), start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
@@ -440,10 +440,10 @@ def click_self_test(k: str) -> int:
         # some tests can be run in parallel.
         test_args = (client, logger, unit, testing_experiment)
         RunnerA = BatchTestRunner(
-            [f for f in functions_to_test if f in A_TESTS], *test_args
+            [f for f in A_TESTS if f in functions_to_test], *test_args
         ).start()
         RunnerB = BatchTestRunner(
-            [f for f in functions_to_test if f in B_TESTS], *test_args
+            [f for f in B_TESTS if f in functions_to_test], *test_args
         ).start()
 
         count_tested, count_passed = RunnerA.collect() + RunnerB.collect()

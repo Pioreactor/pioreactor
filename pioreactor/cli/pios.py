@@ -23,6 +23,25 @@ from pioreactor.whoami import is_testing_env
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
+@click.group()
+def pios() -> None:
+    """
+    Command each of the worker Pioreactors with the `pios` command.
+
+    See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface#leader-only-commands-to-control-workers
+
+    Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
+    """
+    if not am_I_leader() and not is_testing_env():
+        click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
+        raise click.Abort()
+
+    if len(get_active_workers_in_inventory()) == 0:
+        logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger.warning("No active workers. See `cluster.inventory` section in config.ini.")
+        raise click.Abort()
+
+
 if am_I_leader():
 
     def universal_identifier_to_all_active_workers(units: tuple[str, ...]) -> tuple[str, ...]:
@@ -112,26 +131,6 @@ if am_I_leader():
                 )
                 raise e
         return
-
-    @click.group()
-    def pios() -> None:
-        """
-        Command each of the worker Pioreactors with the `pios` command.
-
-        See full documentation here: https://docs.pioreactor.com/user_guide/Advanced/Command%20line%20interface#leader-only-commands-to-control-workers
-
-        Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
-        """
-        if not am_I_leader() and not is_testing_env():
-            click.echo("workers cannot run `pios` commands. Try `pio` instead.", err=True)
-            raise click.Abort()
-
-        if len(get_active_workers_in_inventory()) == 0:
-            logger = create_logger(
-                "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-            )
-            logger.warning("No active workers. See `cluster.inventory` section in config.ini.")
-            raise click.Abort()
 
     @pios.command("update", short_help="update PioreactorApp on workers")
     @click.option(
@@ -341,7 +340,7 @@ if am_I_leader():
 
         Kill all worker jobs (i.e. this excludes leader jobs like watchdog). Ignores `job` argument.
 
-        > pios kill --all
+        > pios kill --all-jobs -y
 
 
         """
