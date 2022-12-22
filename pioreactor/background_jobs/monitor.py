@@ -89,6 +89,10 @@ class Monitor(BackgroundJob):
             f"Pioreactor HAT version: {pretty_version(version.hardware_version_info)}"
         )
 
+        self.logger.debug(
+            f"Pioreactor firmware version: {pretty_version(version.get_firmware_version())}"
+        )
+
         self.logger.debug(f"Pioreactor HAT serial number: {version.serial_number}")
 
         self.button_down = False
