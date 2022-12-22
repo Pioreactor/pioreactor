@@ -29,8 +29,13 @@ def _get_serial_number() -> str:
 
 def get_firmware_version() -> tuple[int, int]:
     if hardware_version_info >= (1, 1):
-        # TODO:
-        return (0, 1)
+        import busio
+
+        i2c = busio.I2C(2, 3)
+        result = bytearray(2)
+        i2c.writeto_then_readfrom(0x30, bytes([0x08]), result)
+        return result[0], result[1]
+
     else:
         return (0, 0)
 
