@@ -467,7 +467,7 @@ class ADCReader(LoggerMixin):
                     if (channel in self.batched_readings)
                     else None,
                     penalizer_C=(525.0 / self.oversampling_count / self.interval)
-                    if (self.interval is not None)
+                    if (self.interval is not None and self.interval > 0)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
                 )
@@ -726,7 +726,7 @@ class ODReader(BackgroundJob):
     channel_angle_map: dict
         dict of (channel: angle) pairs, ex: {1: "135", 2: "90"}
     interval: float
-        seconds between readings. If None, then don't periodically read.
+        seconds between readings. If None or 0, then don't periodically read.
     adc_reader: ADCReader
     ir_led_reference_tracker: IrLedReferenceTracker
 

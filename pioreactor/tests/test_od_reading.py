@@ -540,6 +540,14 @@ def test_outliers_are_removed_in_sin_regression() -> None:
     assert np.abs(C1 - C2) < 5
 
 
+def test_interval_is_empty():
+    with start_od_reading("90", "REF", interval=None, fake_data=True) as od:
+        assert not hasattr(od, "record_from_adc_timer")
+
+    with start_od_reading("90", "REF", interval=0, fake_data=True) as od:
+        assert not hasattr(od, "record_from_adc_timer")
+
+
 def test_calibration_not_requested():
     with start_od_reading("90", "REF", interval=None, fake_data=True, use_calibration=False) as od:
         assert isinstance(od.calibration_transformer, NullCalibrationTransformer)
