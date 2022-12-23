@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os
+
 # Append ".dev" if a dev version
 __version__ = "22.12.2.dev"
 
 
 def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
+    if os.environ.get("HARDWARE") is not None:
+        # ex: HARDWARE=1.1
+        return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
+
     try:
         # check version in /proc/device-tree/hat/
         with open("/proc/device-tree/hat/product_ver", "r") as f:
@@ -28,6 +34,10 @@ def _get_serial_number() -> str:
 
 
 def get_firmware_version() -> tuple[int, int]:
+    if os.environ.get("FIRMWARE") is not None:
+        # ex: HARDWARE=1.1
+        return int(os.environ["FIRMWARE"].split(".")[0]), int(os.environ["FIRMWARE"].split(".")[1])
+
     if hardware_version_info >= (1, 1):
 
         import busio
