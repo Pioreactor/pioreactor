@@ -752,7 +752,7 @@ class ODReader(BackgroundJob):
     > for od_reading in od_reader:
     >    # do things...
 
-    If ``interval`` is ``None``, then users need to call ``record_from_adc``.
+    If ``interval`` is ``None`` or 0, then users need to call ``record_from_adc`` manually.
 
     >> od_reading = od_reader.record_from_adc()
 
@@ -841,7 +841,7 @@ class ODReader(BackgroundJob):
                 # clear the history in adc_reader, so that we don't blank readings in later inference.
                 self.adc_reader.clear_batched_readings()
 
-        if self.interval is not None:
+        if (self.interval is not None) and self.interval > 0:
             if self.interval <= 1.0:
                 self.logger.warning(
                     f"Recommended to have the interval between readings be larger than 1.0 second. Currently {self.interval} s."

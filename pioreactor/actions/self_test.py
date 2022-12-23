@@ -219,12 +219,12 @@ def test_ambient_light_interference(
     )
 
     adc_reader.setup_adc()
-
+    current_experiment_name = get_latest_experiment_name()
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
         source_of_event="self_test",
-        experiment=experiment,
+        experiment=current_experiment_name,
         verbose=False,
     )
 
@@ -247,19 +247,19 @@ def test_REF_is_lower_than_0_dot_256_volts(
         fake_data=is_testing_env(),
     ).setup_adc()
 
+    current_experiment_name = get_latest_experiment_name()
     with change_leds_intensities_temporarily(
         {ir_channel: ir_intensity},
         unit=unit,
         source_of_event="self_test",
-        experiment=experiment,
+        experiment=current_experiment_name,
         verbose=False,
     ):
         readings = adc_reader.take_reading()
 
-    # provide a margin, since we have margins when determining change gain in od_reading
     assert (
-        0.05 < readings[reference_channel] < 0.256 * 0.9
-    ), f"Recorded {readings[reference_channel]} in REF, should be between 0.05 than 0.256."
+        0.01 < readings[reference_channel] < 0.250
+    ), f"Recorded {readings[reference_channel]} in REF, should ideally be between 0.01 than 0.250."
 
 
 def test_detect_heating_pcb(client: Client, logger: Logger, unit: str, experiment: str) -> None:
@@ -297,14 +297,16 @@ def test_positive_correlation_between_rpm_and_stirring(
     assert is_heating_pcb_present()
     assert voltage_in_aux() <= 18.0
 
+    current_experiment_name = get_latest_experiment_name()
+
     with local_persistant_storage("stirring_calibration") as cache:
 
         if "linear_v1" in cache:
             parameters = loads(cache["linear_v1"])
-            coef = parameters["rpm_coef"]
+            rpm_coef = parameters["rpm_coef"]
             intercept = parameters["intercept"]
 
-            initial_dc = coef * 700 + intercept
+            initial_dc = rpm_coef * 700 + intercept
 
         else:
             initial_dc = config.getfloat("stirring", "initial_duty_cycle")
@@ -312,11 +314,11 @@ def test_positive_correlation_between_rpm_and_stirring(
     dcs = []
     measured_rpms = []
     n_samples = 8
-    start = initial_dc
-    end = initial_dc * 0.66
+    start = initial_dc * 1.2
+    end = initial_dc * 0.8
 
     with stirring.Stirrer(
-        target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
+        target_rpm=0, unit=unit, experiment=current_experiment_name, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
 
         rpm_calc.setup()
