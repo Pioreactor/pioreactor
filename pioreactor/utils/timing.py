@@ -21,12 +21,12 @@ def catchtime() -> Generator[Callable, None, None]:
 
 
 def to_iso_format(dt: datetime) -> str:
-    return dt.isoformat().replace("+00:00", "Z")
+    return dt.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def current_utc_datetime() -> datetime:
-    # this is timezone aware.
-    return datetime.now(timezone.utc)
+    # this is timezone aware, and stripped of microseconds
+    return datetime.now(timezone.utc).replace(microsecond=0)
 
 
 def current_utc_timestamp() -> str:

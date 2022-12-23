@@ -251,11 +251,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
             mqtt_hostname=self._leader_address,
         )
 
-        # _check_for_duplicate_activity checks _before_ the pubsub client,
-        # as they will set (and revoke) a new last will.
-        # Ex: job X is running, but we try to rerun it, causing the latter job to abort, and
-        # potentially firing the last_will
-        # TODO: I don't think this is true anymore, since we append an id() to the client id now.
         self._check_for_duplicate_activity()
 
         # why do we need two clients? Paho lib can't publish a message in a callback,
