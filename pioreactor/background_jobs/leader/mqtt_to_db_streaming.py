@@ -59,6 +59,7 @@ class MqttToDBStreamer(BackgroundJob):
         from sqlite3worker import Sqlite3Worker
 
         super().__init__(experiment=experiment, unit=unit)
+        self.logger.debug(f'Streaming MQTT data to {config["storage"]["database"]}.')
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["database"], max_queue_size=250, raise_on_error=False
         )
@@ -182,7 +183,6 @@ def parse_od_blank(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
 
 def parse_ir_led_intensity(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-
     metadata = produce_metadata(topic)
 
     payload_dict = loads(payload)
@@ -236,7 +236,6 @@ def parse_growth_rate(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
 def parse_temperature(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
-
     temp = msgspec_loads(payload, type=structs.Temperature)
 
     return {

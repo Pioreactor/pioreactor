@@ -8,6 +8,7 @@ Outputs from each test go into MQTT, and return to the command line.
 """
 from __future__ import annotations
 
+import sys
 from json import dumps
 from json import loads
 from threading import Thread
@@ -378,35 +379,32 @@ class BatchTestRunner:
             )
 
 
-A_TESTS = [
-    test_pioreactor_HAT_present,
-    test_detect_heating_pcb,
-    test_positive_correlation_between_temperature_and_heating,
-    test_aux_power_is_not_too_high,
-]
-B_TESTS = [
-    test_all_positive_correlations_between_pds_and_leds,
-    test_ambient_light_interference,
-    test_REF_is_lower_than_0_dot_256_volts,
-    test_REF_is_in_correct_position,
-    test_positive_correlation_between_rpm_and_stirring,
-]
-
-
 @click.command(name="self_test")
 @click.option("-k", help="see pytest's -k argument", type=str, default="")
 def click_self_test(k: str) -> int:
     """
     Test the input/output in the Pioreactor
     """
-    import sys
-
     unit = get_unit_name()
     testing_experiment = get_latest_testing_experiment_name()
     experiment = get_latest_experiment_name()
     client = create_client(client_id=f"self_test-{unit}-{testing_experiment}")
     logger = create_logger("self_test", unit=unit, experiment=experiment)
     logger.info("Starting self-test...")
+
+    A_TESTS = [
+        test_pioreactor_HAT_present,
+        test_detect_heating_pcb,
+        test_positive_correlation_between_temperature_and_heating,
+        test_aux_power_is_not_too_high,
+    ]
+    B_TESTS = [
+        test_all_positive_correlations_between_pds_and_leds,
+        test_ambient_light_interference,
+        test_REF_is_lower_than_0_dot_256_volts,
+        test_REF_is_in_correct_position,
+        test_positive_correlation_between_rpm_and_stirring,
+    ]
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
         if any(
