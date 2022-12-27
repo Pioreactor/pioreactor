@@ -168,7 +168,7 @@ const CheckboxesGroup = (props) => {
             label="Experiment metadata"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              This download includes your experiment description and metadata.
+              This dataset includes your experiment description and metadata.
             </Typography>
           </div>
 
@@ -188,7 +188,7 @@ const CheckboxesGroup = (props) => {
             label="Dosing event log"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              In this download, you'll find a detailed log table of all dosing events, including the volume exchanged, and the source of who or what triggered the event.
+              In this dataset, you'll find a detailed log table of all dosing events, including the volume exchanged, and the source of who or what triggered the event.
             </Typography>
           </div>
 
@@ -198,7 +198,7 @@ const CheckboxesGroup = (props) => {
             label="LED event log"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              In this download, you'll find a log table of all LED events, including the channel, intensity, and the source of who or what triggered the event.
+              In this dataset, you'll find a log table of all LED events, including the channel, intensity, and the source of who or what triggered the event.
             </Typography>
           </div>
 
@@ -240,7 +240,7 @@ const CheckboxesGroup = (props) => {
             label="Dosing automation events"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              This download includes a log of automation events created by dosing automations.
+              This dataset includes a log of automation events created by dosing automations.
             </Typography>
           </div>
 
@@ -250,7 +250,7 @@ const CheckboxesGroup = (props) => {
             label="LED automation events"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              This download includes a log of automation events created by LED automations.
+              This dataset includes a log of automation events created by LED automations.
             </Typography>
           </div>
 
@@ -260,7 +260,7 @@ const CheckboxesGroup = (props) => {
             label="Temperature automation events"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              This download includes a log of automation events created by temperature automations.
+              This dataset includes a log of automation events created by temperature automations.
             </Typography>
           </div>
 
@@ -270,7 +270,7 @@ const CheckboxesGroup = (props) => {
             label="Kalman filter outputs"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              This download includes a time series of the internal Kalman filter. The Kalman filter produces the normalized optical densities, growth rates, an acceleration term, and variances (and covariances) between the estimates.
+              This dataset includes a time series of the internal Kalman filter. The Kalman filter produces the normalized optical densities, growth rates, an acceleration term, and variances (and covariances) between the estimates.
             </Typography>
           </div>
 
@@ -290,7 +290,18 @@ const CheckboxesGroup = (props) => {
             label="Pioreactor unit labels"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
-              In this download, you'll find the labels assigned to a Pioreactor during an experiment.
+              In this dataset, you'll find the labels assigned to a Pioreactor during an experiment.
+            </Typography>
+          </div>
+
+
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
+            control={<Checkbox checked={props.isChecked.pwm_dcs} onChange={props.handleChange} name="pwm_dcs" />}
+            label="PWM duty cycles"
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset contains a time series of the PWMs duty cycle percentages. Useful for debugging PWM use.
             </Typography>
           </div>
 
@@ -339,6 +350,7 @@ function ExportDataContainer() {
       led_automation_events: false,
       dosing_automation_events: false,
       temperature_automation_events: false,
+      pwm_dcs: false,
     }
   });
 
