@@ -9,7 +9,7 @@ __version__ = "22.12.2.dev"
 
 def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
     if os.environ.get("HARDWARE") is not None:
-        # ex: HARDWARE=1.1
+        # ex: > HARDWARE=1.1 pio ...
         return int(os.environ["HARDWARE"].split(".")[0]), int(os.environ["HARDWARE"].split(".")[1])
 
     try:
@@ -35,7 +35,7 @@ def _get_serial_number() -> str:
 
 def get_firmware_version() -> tuple[int, int]:
     if os.environ.get("FIRMWARE") is not None:
-        # ex: HARDWARE=1.1
+        # ex: > FIRMWARE=1.1 pio ...
         return int(os.environ["FIRMWARE"].split(".")[0]), int(os.environ["FIRMWARE"].split(".")[1])
 
     if hardware_version_info >= (1, 1):
