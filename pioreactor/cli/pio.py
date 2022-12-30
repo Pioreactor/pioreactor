@@ -354,6 +354,8 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
 
     if version is None:
         version = "latest"
+    else:
+        version = f"tags/{version}"
 
     if source is not None:
         version_installed = source
