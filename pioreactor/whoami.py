@@ -5,7 +5,9 @@ import os
 import sys
 from functools import cache
 from hashlib import md5
+from json import loads
 
+from pioreactor.mureq import get
 from pioreactor.version import serial_number
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
@@ -30,16 +32,12 @@ def _get_latest_experiment_name() -> str:
     elif is_testing_env():
         return "_testing_experiment"
 
-    from pioreactor.pubsub import subscribe
+    from pioreactor.config import leader_address
 
-    mqtt_msg = subscribe(
-        "pioreactor/latest_experiment/experiment",
-        timeout=20,
-        retries=2,
-        name="get_latest_experiment_name",
-    )
-    if mqtt_msg:
-        return mqtt_msg.payload.decode()
+    result = get(f"http://{leader_address}/api/get_latest_experiment")
+
+    if result.ok:
+        return loads(result.body)["experiment"]
     else:
         from pioreactor.logging import create_logger
 

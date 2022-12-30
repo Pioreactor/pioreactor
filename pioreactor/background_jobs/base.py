@@ -16,6 +16,7 @@ from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.config import config
 from pioreactor.config import leader_address
+from pioreactor.config import leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
@@ -241,14 +242,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.unit = unit
         self._source = source
         self._clean = False
-        self._leader_address = leader_address
 
         self.logger = create_logger(
             self.job_name,
             unit=self.unit,
             experiment=self.experiment,
             source=self._source,
-            mqtt_hostname=self._leader_address,
+            mqtt_hostname=leader_address,
         )
 
         self._check_for_duplicate_activity()
@@ -515,7 +515,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _create_pub_client(self) -> Client:
         # see note above as to why we split pub and sub.
         client = create_client(
-            hostname=self._leader_address,
+            hostname=leader_address,
             client_id=f"{self.job_name}-pub-{self.unit}-{self.experiment}",
             keepalive=15 * 60,
         )
@@ -548,7 +548,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         }
 
         client = create_client(
-            hostname=self._leader_address,
+            hostname=leader_address,
             client_id=f"{self.job_name}-sub-{self.unit}-{self.experiment}",
             last_will=last_will,
             keepalive=60,
@@ -679,7 +679,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             cache["source"] = self._source
             cache["experiment"] = self.experiment
             cache["unit"] = self.unit
-            cache["leader_address"] = self._leader_address
+            cache["leader_hostname"] = leader_hostname
             cache["pid"] = getpid()
             cache["ended_at"] = ""  # populated later
 
