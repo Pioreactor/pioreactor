@@ -983,7 +983,10 @@ class ODReader(BackgroundJob):
     def on_disconnected(self) -> None:
 
         # turn off the LED after we have take our last ADC reading..
-        self.stop_ir_led()
+        try:
+            self.stop_ir_led()
+        except Exception:
+            pass
 
         # tech debt: clear _pre and _post
         self._pre_read.clear()

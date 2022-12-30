@@ -343,7 +343,9 @@ def update() -> None:
 @click.option("--source", help="use a URL or whl file")
 @click.option("-v", "--version", default="latest", help="install to a version")
 def update_app(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
-
+    """
+    Update the Pioreactor core software
+    """
     logger = create_logger(
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
@@ -605,6 +607,8 @@ if whoami.am_I_leader():
     @click.option("--source", help="use a tar.gz file")
     def update_ui(branch: Optional[str], source: Optional[str]) -> None:
         """
+        Update the PioreactorUI
+
         Source, if provided, should be a .tar.gz with a top-level dir like pioreactorui-{branch}/
         This is what is provided from Github releases.
         """

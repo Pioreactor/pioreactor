@@ -690,6 +690,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.on_ready()
         except Exception as e:
             self.logger.error(e)
+            self.logger.debug("Error in on_ready:")
             self.logger.debug(e, exc_info=True)
 
         self._log_state(self.state)
@@ -701,6 +702,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self.on_sleeping()
         except Exception as e:
             self.logger.error(e)
+            self.logger.debug("Error in on_sleeping:")
             self.logger.debug(e, exc_info=True)
 
         self._log_state(self.state)
@@ -730,6 +732,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # since on_disconnected errors are common (see point below), we don't bother
             # making the visible to the user.
             # They are common when the user quickly starts a job then stops a job.
+            self.logger.debug("Error in on_disconnected:")
             self.logger.debug(e, exc_info=True)
 
         # remove attrs from MQTT

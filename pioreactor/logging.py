@@ -66,6 +66,7 @@ class CustomisedJSONFormatter(JSONFormatter):
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_timestamp()
+        extra["source"] = "app"
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)
@@ -137,6 +138,8 @@ def create_logger(
     to_mqtt: bool
         connect and log to MQTT
     """
+    if source != "app":
+        name = f"{name}-{source}"
 
     logger = logging.getLogger(name)
 
@@ -160,7 +163,7 @@ def create_logger(
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(
         logging.Formatter(
-            "%(asctime)s [%(name)s] [%(source)s] %(levelname)-2s %(message)s",
+            "%(asctime)s [%(name)s] %(levelname)-2s %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
         )
     )
@@ -169,7 +172,7 @@ def create_logger(
     console_handler.setLevel(logging.DEBUG)
     console_handler.setFormatter(
         colorlog.ColoredFormatter(
-            "%(log_color)s%(asctime)s %(levelname)-6s [%(source)s] [%(name)s] %(message)s",
+            "%(log_color)s%(asctime)s %(levelname)-6s [%(name)s] %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S%z",
             log_colors={
                 "DEBUG": "cyan",
@@ -211,15 +214,5 @@ def create_logger(
                 time.sleep(0.05)
             else:
                 break
-
-    # add metadata
-    old_factory = logging.getLogRecordFactory()
-
-    def record_factory(*args, **kwargs):
-        record = old_factory(*args, **kwargs)
-        record.source = source
-        return record
-
-    logging.setLogRecordFactory(record_factory)
 
     return logger
