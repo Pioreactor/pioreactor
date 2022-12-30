@@ -66,7 +66,7 @@ class CustomisedJSONFormatter(JSONFormatter):
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_timestamp()
-        extra["source"] = "app"
+        extra["source"] = record.source  # type: ignore
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)
@@ -138,8 +138,6 @@ def create_logger(
     to_mqtt: bool
         connect and log to MQTT
     """
-    if source != "app":
-        name = f"{name}-{source}"
 
     logger = logging.getLogger(name)
 
@@ -215,4 +213,6 @@ def create_logger(
             else:
                 break
 
-    return logger
+    logger_adapter = logging.LoggerAdapter(logger, {"source": source})
+
+    return logger_adapter  # type: ignore

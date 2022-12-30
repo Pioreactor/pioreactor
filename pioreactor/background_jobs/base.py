@@ -754,9 +754,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def _disconnect_from_loggers(self):
         # clean up logger handlers
 
-        handlers = self.logger.handlers[:]
+        handlers = self.logger.logger.handlers[:]
         for handler in handlers:
-            self.logger.removeHandler(handler)
+            self.logger.logger.removeHandler(handler)
             handler.close()
 
     def _disconnect_from_mqtt_clients(self):

@@ -65,20 +65,10 @@ class WatchDog(BackgroundJob):
             else:
                 self.logger.info(f"Update: {unit} is connected. All is well.")
 
-    def watch_for_new_experiment(self, msg: MQTTMessage) -> None:
-        new_experiment_name = msg.payload.decode()
-        self.logger.debug(f"New latest experiment detected in MQTT: {new_experiment_name}")
-        self.logger.info(f"New experiment created: {new_experiment_name}")
-
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
             self.watch_for_lost_state,
             "pioreactor/+/+/monitor/$state",
-            allow_retained=False,
-        )
-        self.subscribe_and_callback(
-            self.watch_for_new_experiment,
-            "pioreactor/latest_experiment/experiment",
             allow_retained=False,
         )
 
