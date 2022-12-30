@@ -34,15 +34,17 @@ def _get_latest_experiment_name() -> str:
 
     from pioreactor.config import leader_address
 
-    result = get(f"http://{leader_address}/api/get_latest_experiment")
-
-    if result.ok:
-        return loads(result.body)["experiment"]
-    else:
+    try:
+        result = get(f"http://{leader_address}/api/get_latest_experiment")
+        result.raise_for_status()
+        return loads(result.body)["experiment"]  # TODO: use msgspec structs here
+    except Exception:
         from pioreactor.logging import create_logger
 
         logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
-        logger.warning("No experiment found. Try creating a new experiment first.")
+        logger.warning(
+            f"No experiment found. Try creating a new experiment first. Check http://{leader_address}/api/get_latest_experiment, too."
+        )
         return NO_EXPERIMENT
 
 
