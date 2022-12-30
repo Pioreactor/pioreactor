@@ -6,9 +6,11 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from threading import Timer
 from typing import Any
 
 import pytest
+from click.testing import CliRunner
 from msgspec.json import encode
 
 from pioreactor import exc
@@ -32,9 +34,9 @@ from pioreactor.whoami import get_unit_name
 unit = get_unit_name()
 
 
-def pause() -> None:
+def pause(n=1) -> None:
     # to avoid race conditions when updating state
-    time.sleep(0.5)
+    time.sleep(n * 0.5)
 
 
 def setup_function() -> None:
@@ -664,7 +666,7 @@ def test_execute_io_action2() -> None:
         pause()
         assert ca.automation_job.media_throughput == 1.25
         assert ca.automation_job.alt_media_throughput == 0.01
-        assert abs(ca.automation_job.alt_media_fraction - 0.0007142) < 0.000001
+        assert abs(ca.automation_job.alt_media_fraction - 0.0007142) < 1e-5
 
 
 def test_execute_io_action_outputs1() -> None:
@@ -679,12 +681,56 @@ def test_execute_io_action_outputs1() -> None:
     with local_persistant_storage("alt_media_fraction") as c:
         c[experiment] = 0.0
 
-    ca = DosingAutomationJob(unit=unit, experiment=experiment)
-    result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
-    assert result[0] == 1.25
-    assert result[1] == 0.01
-    assert result[2] == 1.26
-    ca.clean_up()
+    with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
+        result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
+        assert result[0] == 1.25
+        assert result[1] == 0.01
+        assert result[2] == 1.26
+
+
+def test_mqtt_properties_in_dosing_automations():
+    experiment = "test_mqtt_properties"
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = 0.0
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = 0.0
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = 0.0
+
+    with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput"
+        ).payload
+        assert float(r) == 0
+
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput"
+        ).payload
+        assert float(r) == 0
+
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction"
+        ).payload
+        assert float(r) == 0
+
+        ca.execute_io_action(media_ml=0.35, alt_media_ml=0.25, waste_ml=0.6)
+
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_throughput"
+        ).payload
+        assert float(r) == 0.25
+
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/media_throughput"
+        ).payload
+        assert float(r) == 0.35
+
+        r = pubsub.subscribe(
+            f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction"
+        ).payload
+        assert abs(float(r) - 0.017857142) < 1e-6
 
 
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
@@ -1106,19 +1152,33 @@ def test_AltMediaCalculator() -> None:
     from pioreactor.structs import DosingEvent
 
     ac = AltMediaCalculator()
+    vial_volume = ac.vial_volume
 
-    data = DosingEvent(volume_change=1.0, event="add_media", timestamp="0", source_of_event="test")
-    assert 0.0 == ac.update(data, 0.0)
-
-    data = DosingEvent(
-        volume_change=1.0, event="add_alt_media", timestamp="1", source_of_event="test"
+    media_added = 1.0
+    add_media_event = DosingEvent(
+        volume_change=media_added, event="add_media", timestamp="0", source_of_event="test"
     )
-    assert 1 / 14.0 == 0.07142857142857142 == ac.update(data, 0.0)
+    assert ac.update(add_media_event, 0.0) == 0.0
+    assert abs(ac.update(add_media_event, 0.20) - 0.20 * (1 - (media_added / vial_volume))) < 1e-10
+    assert abs(ac.update(add_media_event, 1.0) - 1.0 * (1 - (media_added / vial_volume))) < 1e-10
 
-    data = DosingEvent(
-        volume_change=1.0, event="add_alt_media", timestamp="2", source_of_event="test"
+    alt_media_added = 1.0
+    add_alt_media_event = DosingEvent(
+        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
     )
-    assert 0.13775510204081634 == ac.update(data, 1 / 14.0) < 2 / 14.0
+    assert ac.update(add_alt_media_event, 0.0) == alt_media_added / vial_volume
+
+    alt_media_added = 2.0
+    add_alt_media_event = DosingEvent(
+        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    assert ac.update(add_alt_media_event, 0.0) == alt_media_added / vial_volume
+
+    alt_media_added = 0.0001
+    add_alt_media_event = DosingEvent(
+        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    assert ac.update(add_alt_media_event, 0.6) > 0.6
 
 
 def test_latest_event_goes_to_mqtt():
@@ -1163,3 +1223,28 @@ def test_strings_are_okay_for_chemostat():
         "chemostat", "20", False, unit, experiment, volume="1.5"
     ) as controller:
         assert controller.automation_job.volume == 1.5
+        pause(n=25)
+        assert controller.automation_job.media_throughput == 1.5
+
+
+def test_chemostat_from_cli():
+    from pioreactor.cli.pio import pio
+
+    t = Timer(
+        15,
+        pubsub.publish,
+        args=(
+            "pioreactor/testing_unit/_testing_experiment/dosing_control/$state/set",
+            "disconnected",
+        ),
+    )
+    t.start()
+
+    with pubsub.collect_all_logs_of_level("ERROR", "testing_unit", "_testing_experiment") as errors:
+        runner = CliRunner()
+        result = runner.invoke(
+            pio, ["run", "dosing_control", "--automation-name", "chemostat", "--volume", "1.5"]
+        )
+
+    assert result.exit_code == 0
+    assert len(errors) == 0

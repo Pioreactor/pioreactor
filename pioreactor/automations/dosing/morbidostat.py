@@ -20,7 +20,7 @@ class Morbidostat(DosingAutomationJob):
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, target_normalized_od: float, volume: float, **kwargs):
+    def __init__(self, target_normalized_od: float | str, volume: float | str, **kwargs):
         super(Morbidostat, self).__init__(**kwargs)
 
         with local_persistant_storage("current_pump_calibration") as cache:

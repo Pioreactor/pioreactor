@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import cast
 
-import busio
+import busio  # type: ignore
 
 from pioreactor import hardware
 from pioreactor import types as pt

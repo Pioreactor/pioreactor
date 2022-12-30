@@ -66,12 +66,17 @@ class ThroughputCalculator:
 class AltMediaCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
+
+    1. State-less. Something else needs to record current_alt_media_fraction
+    2. Assumes constant volume throughout.
+
     """
 
     vial_volume = config.getfloat("bioreactor", "volume_ml")
 
     @classmethod
     def update(cls, dosing_event: structs.DosingEvent, current_alt_media_fraction: float) -> float:
+        assert 0.0 <= current_alt_media_fraction <= 1.0
         volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
             return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0)
@@ -89,6 +94,8 @@ class AltMediaCalculator:
         media_delta: float,
         alt_media_delta: float,
     ) -> float:
+        assert media_delta >= 0
+        assert alt_media_delta >= 0
 
         total_delta = media_delta + alt_media_delta
 
@@ -149,9 +156,9 @@ class DosingAutomationJob(BackgroundSubJob):
     )
 
     # dosing metrics that are available, and published to MQTT
-    alt_media_fraction: float = 0  # fraction of the vial that is alt-media (vs regular media).
-    media_throughput: float = 0  # amount of media that has been expelled
-    alt_media_throughput: float = 0  # amount of alt-media that has been expelled
+    alt_media_fraction: float  # fraction of the vial that is alt-media (vs regular media).
+    media_throughput: float  # amount of media that has been expelled
+    alt_media_throughput: float  # amount of alt-media that has been expelled
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -523,34 +530,33 @@ class DosingAutomationJob(BackgroundSubJob):
 
     def _init_alt_media_fraction_calculator(self) -> Type[AltMediaCalculator]:
         self.add_to_published_settings(
-            "latest_event",
+            "alt_media_fraction",
             {
                 "datatype": "float",
-                "settable": True,
+                "settable": False,
             },
         )
 
         with local_persistant_storage("alt_media_fraction") as cache:
             self.alt_media_fraction = cache.get(self.experiment, 0.0)
-            return AltMediaCalculator
+
+        return AltMediaCalculator
 
     def _init_volume_throughput_calculator(self) -> Type[ThroughputCalculator]:
         self.add_to_published_settings(
             "alt_media_throughput",
             {
                 "datatype": "float",
-                "settable": True,
+                "settable": False,
                 "unit": "mL",
-                "persist": True,
             },
         )
         self.add_to_published_settings(
             "media_throughput",
             {
                 "datatype": "float",
-                "settable": True,
+                "settable": False,
                 "unit": "mL",
-                "persist": True,
             },
         )
 

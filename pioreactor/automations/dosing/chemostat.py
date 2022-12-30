@@ -18,7 +18,7 @@ class Chemostat(DosingAutomationJob):
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, volume: float, **kwargs):
+    def __init__(self, volume: float | str, **kwargs) -> None:
         super(Chemostat, self).__init__(**kwargs)
 
         with local_persistant_storage("current_pump_calibration") as cache:

@@ -40,7 +40,7 @@ def get_firmware_version() -> tuple[int, int]:
 
     if hardware_version_info >= (1, 1):
 
-        import busio
+        import busio  # type: ignore
         from pioreactor.hardware import SCL, SDA, ADC
 
         i2c = busio.I2C(SCL, SDA)

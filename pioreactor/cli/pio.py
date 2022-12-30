@@ -341,13 +341,17 @@ def update() -> None:
 @update.command(name="app")
 @click.option("-b", "--branch", help="update to a branch on github")
 @click.option("--source", help="use a URL or whl file")
-def update_app(branch: Optional[str], source: Optional[str]) -> None:
+@click.option("-v", "--version", default="latest", help="install to a version")
+def update_app(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
 
     logger = create_logger(
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
 
     commands_and_priority = []
+
+    if version is None:
+        version = "latest"
 
     if source is not None:
         version_installed = source
@@ -363,12 +367,13 @@ def update_app(branch: Optional[str], source: Optional[str]) -> None:
                 1,
             )
         )
+
     else:
-        latest_release_metadata = loads(
-            get("https://api.github.com/repos/pioreactor/pioreactor/releases/latest").body
+        release_metadata = loads(
+            get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}").body
         )
-        version_installed = latest_release_metadata["name"]
-        for asset in latest_release_metadata["assets"]:
+        version_installed = release_metadata["name"]
+        for asset in release_metadata["assets"]:
             if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
                 url_to_get_whl = asset["browser_download_url"]
                 commands_and_priority.append(

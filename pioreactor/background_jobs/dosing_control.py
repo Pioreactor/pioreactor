@@ -151,9 +151,10 @@ def start_dosing_control(
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
 
+    kwargs["duration"] = duration
+    kwargs["skip_first_run"] = skip_first_run
+
     try:
-        kwargs["duration"] = duration
-        kwargs["skip_first_run"] = skip_first_run
         return DosingController(
             automation_name, unit=unit, experiment=experiment, **kwargs
         )  # noqa: F841
@@ -187,7 +188,9 @@ def start_dosing_control(
     help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
 )
 @click.pass_context
-def click_dosing_control(ctx, automation_name, duration, skip_first_run):
+def click_dosing_control(
+    ctx: click.Context, automation_name: str, duration: float, skip_first_run: bool
+) -> None:
     """
     Start a dosing automation
     """

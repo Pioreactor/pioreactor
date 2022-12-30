@@ -2,7 +2,7 @@
 # dacs.py
 from __future__ import annotations
 
-import busio
+import busio  # type: ignore
 
 from pioreactor import hardware
 from pioreactor.version import hardware_version_info
