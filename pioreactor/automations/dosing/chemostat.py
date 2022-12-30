@@ -27,7 +27,7 @@ class Chemostat(DosingAutomationJob):
             elif "waste" not in cache:
                 raise CalibrationError("Waste pump calibration must be performed first.")
 
-        self.volume = volume
+        self.volume = float(volume)
 
     def execute(self) -> events.DilutionEvent:
         volume_actually_cycled = self.execute_io_action(media_ml=self.volume, waste_ml=self.volume)

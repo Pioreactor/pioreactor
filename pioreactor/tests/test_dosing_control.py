@@ -23,6 +23,7 @@ from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_control import DosingController
+from pioreactor.background_jobs.dosing_control import start_dosing_control
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
@@ -1153,3 +1154,12 @@ def test_latest_event_goes_to_mqtt():
         assert latest_event_from_mqtt["message"] == "demo"
         assert latest_event_from_mqtt["data"]["d"] == 1.0
         assert latest_event_from_mqtt["data"]["s"] == "test"
+
+
+def test_strings_are_okay_for_chemostat():
+    unit = get_unit_name()
+    experiment = "test_strings_are_okay_for_chemostat"
+    with start_dosing_control(
+        "chemostat", "20", False, unit, experiment, volume="1.5"
+    ) as controller:
+        assert controller.automation_job.volume == 1.5
