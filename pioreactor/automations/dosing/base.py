@@ -547,7 +547,7 @@ class DosingAutomationJob(BackgroundSubJob):
             "alt_media_throughput",
             {
                 "datatype": "float",
-                "settable": False,
+                "settable": True,  # settable because in the future, the UI may "reset" these values to 0.
                 "unit": "mL",
             },
         )
@@ -555,7 +555,7 @@ class DosingAutomationJob(BackgroundSubJob):
             "media_throughput",
             {
                 "datatype": "float",
-                "settable": False,
+                "settable": True,
                 "unit": "mL",
             },
         )
