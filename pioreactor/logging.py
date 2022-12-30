@@ -52,6 +52,7 @@ def add_logging_level(levelName, levelNum):
     logging.addLevelName(levelNum, levelName)
     setattr(logging, levelName, levelNum)
     setattr(logging.Logger, methodName, logForLevel)
+    setattr(logging.LoggerAdapter, methodName, logForLevel)
     setattr(logging, methodName, logToRoot)
 
 
@@ -66,7 +67,11 @@ class CustomisedJSONFormatter(JSONFormatter):
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_timestamp()
-        extra["source"] = record.source  # type: ignore
+        try:
+            # techdebt...
+            extra["source"] = record.source  # type: ignore
+        except Exception:
+            pass
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)
@@ -213,6 +218,6 @@ def create_logger(
             else:
                 break
 
-    logger_adapter = logging.LoggerAdapter(logger, {"source": source})
+    logger_a = logging.LoggerAdapter(logger, {"source": source})
 
-    return logger_adapter  # type: ignore
+    return logger_a  # type: ignore
