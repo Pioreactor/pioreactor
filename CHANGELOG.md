@@ -8,8 +8,8 @@
  - correctly publish `alt_media_fraction` to MQTT in dosing jobs
  - power-saving improvements
  - image size optimizations
- - simplify logging, and avoid an eventual recursion error...
- - experiment data is no longer published to MQTT. The source of truth is the sqlite db, via the web API.
+ - simplify logging, and avoid an eventual recursion error.
+ - experiment data is no longer published to MQTT. The source of truth is the db, via the web API.
 
 
 ### 22.12.3
