@@ -5,9 +5,11 @@ import os
 import sys
 from functools import cache
 from hashlib import md5
-from json import loads
+
+from msgspec.json import decode
 
 from pioreactor.mureq import get
+from pioreactor.structs import ExperimentMetadata
 from pioreactor.version import serial_number
 
 UNIVERSAL_IDENTIFIER = "$broadcast"
@@ -37,7 +39,7 @@ def _get_latest_experiment_name() -> str:
     try:
         result = get(f"http://{leader_address}/api/get_latest_experiment")
         result.raise_for_status()
-        return loads(result.body)["experiment"]  # TODO: use msgspec structs here
+        return decode(result.body, ExperimentMetadata).experiment
     except Exception:
         from pioreactor.logging import create_logger
 

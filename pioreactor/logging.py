@@ -57,21 +57,22 @@ def add_logging_level(levelName, levelNum):
 
 
 logging.raiseExceptions = False
-add_logging_level("NOTICE", logging.INFO + 5)
+NOTICE = logging.INFO + 5
+add_logging_level("NOTICE", NOTICE)
+
+
+class CustomLoggerAdapter(logging.LoggerAdapter):
+    def notice(self, msg, *args, **kwargs):
+        self.log(NOTICE, msg, *args, **kwargs)
 
 
 class CustomisedJSONFormatter(JSONFormatter):
     def json_record(self, message: str, extra: dict, record: logging.LogRecord) -> dict:
         extra["message"] = message
-        # Include builtins
         extra["level"] = record.levelname
         extra["task"] = record.name
         extra["timestamp"] = current_utc_timestamp()
-        try:
-            # techdebt...
-            extra["source"] = record.source  # type: ignore
-        except Exception:
-            pass
+        extra["source"] = record.source  # type: ignore
 
         if record.exc_info:
             extra["message"] += "\n" + self.formatException(record.exc_info)
@@ -147,7 +148,7 @@ def create_logger(
     logger = logging.getLogger(name)
 
     if len(logger.handlers) > 0:
-        return logger
+        return CustomLoggerAdapter(logger, {"source": source})  # type: ignore
 
     logger.setLevel(logging.DEBUG)
 
@@ -214,10 +215,8 @@ def create_logger(
         # confirm that we have connected to the pubsub client
         for _ in range(40):
             if not pub_client.is_connected():
-                time.sleep(0.05)
+                time.sleep(0.025)
             else:
                 break
 
-    logger_a = logging.LoggerAdapter(logger, {"source": source})
-
-    return logger_a  # type: ignore
+    return CustomLoggerAdapter(logger, {"source": source})  # type: ignore

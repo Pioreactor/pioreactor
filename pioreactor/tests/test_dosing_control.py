@@ -1219,12 +1219,22 @@ def test_latest_event_goes_to_mqtt():
 def test_strings_are_okay_for_chemostat():
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
+
+    with local_persistant_storage("media_throughput") as c:
+        c[experiment] = 0.0
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c[experiment] = 0.0
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c[experiment] = 0.0
+
     with start_dosing_control(
-        "chemostat", "20", False, unit, experiment, volume="1.5"
+        "chemostat", "20", False, unit, experiment, volume="0.7"
     ) as controller:
-        assert controller.automation_job.volume == 1.5
-        pause(n=25)
-        assert controller.automation_job.media_throughput == 1.5
+        assert controller.automation_job.volume == 0.7
+        pause(n=35)
+        assert controller.automation_job.media_throughput == 0.7
 
 
 def test_chemostat_from_cli():

@@ -19,7 +19,7 @@ def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
         # no eeprom? Probably the first dev boards, or testing env, or EEPROM not written.
-        return (0, 0, "dev")
+        return (0, 0)
 
 
 def _get_serial_number() -> str:
@@ -33,10 +33,10 @@ def _get_serial_number() -> str:
         return "00000000-0000-0000-0000-000000000000"
 
 
-def get_firmware_version() -> tuple[int, int]:
+def get_firmware_version() -> tuple[int, ...]:
     if os.environ.get("FIRMWARE") is not None:
         # ex: > FIRMWARE=1.1 pio ...
-        return int(os.environ["FIRMWARE"].split(".")[0]), int(os.environ["FIRMWARE"].split(".")[1])
+        return tuple(int(_) for _ in os.environ["FIRMWARE"].split("."))
 
     if hardware_version_info >= (1, 1):
 
