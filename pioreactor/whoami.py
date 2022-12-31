@@ -39,7 +39,7 @@ def _get_latest_experiment_name() -> str:
     try:
         result = get(f"http://{leader_address}/api/get_latest_experiment")
         result.raise_for_status()
-        return decode(result.body, ExperimentMetadata).experiment
+        return decode(result.body, type=ExperimentMetadata).experiment
     except Exception as e:
         from pioreactor.logging import create_logger
 
