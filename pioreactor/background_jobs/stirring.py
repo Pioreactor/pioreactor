@@ -283,15 +283,15 @@ class Stirrer(BackgroundJob):
 
     def start_stirring(self) -> None:
         self.pwm.start(100)  # get momentum to start
-        sleep(0.35)
+        sleep(0.30)
         self.set_duty_cycle(self.duty_cycle)
-        sleep(0.75)
+        sleep(0.70)
         self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
         self.set_duty_cycle(100)
-        sleep(0.25)
+        sleep(0.20)
         self.set_duty_cycle(1.01 * self._previous_duty_cycle)
 
     def kick_stirring_but_avoid_od_reading(self) -> None:

@@ -341,7 +341,7 @@ def update() -> None:
 @update.command(name="app")
 @click.option("-b", "--branch", help="update to a branch on github")
 @click.option("--source", help="use a URL or whl file")
-@click.option("-v", "--version", default="latest", help="install to a version")
+@click.option("-v", "--version", default="latest", help="install a specific version")
 def update_app(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
     """
     Update the Pioreactor core software
@@ -466,14 +466,16 @@ if whoami.am_I_leader():
     def db() -> None:
         import os
 
-        os.system(f"sqlite3 {config['storage']['database']}")
+        os.system(f"sqlite3 {config['storage']['database']} -column -header")
 
     @pio.command(short_help="tail MQTT")
     @click.option("--topic", "-t", default="pioreactor/#")
     def mqtt(topic: str) -> None:
         import os
 
-        os.system(f"""mosquitto_sub -v -t '{topic}' -F "%I %t %p" -u pioreactor -P raspberry""")
+        os.system(
+            f"""mosquitto_sub -v -t '{topic}' -F "%19.19I  |  %t   %p" -u pioreactor -P raspberry"""
+        )
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("hostname")
@@ -496,9 +498,7 @@ if whoami.am_I_leader():
         hostname = hostname.removesuffix(".local")
         hostname_dot_local = hostname + ".local"
 
-        # check to make sure hostname isn't already on the network
-
-        # check to make sure X.local is on network
+        # check to make sure hostname.local is on network
         checks, max_checks = 0, 20
         sleep_time = 3
         while not networking.is_hostname_on_network(hostname_dot_local):
@@ -607,7 +607,8 @@ if whoami.am_I_leader():
     @update.command(name="ui")
     @click.option("-b", "--branch", help="update to a branch on github")
     @click.option("--source", help="use a tar.gz file")
-    def update_ui(branch: Optional[str], source: Optional[str]) -> None:
+    @click.option("-v", "--version", default="latest", help="install a specific version")
+    def update_ui(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
         """
         Update the PioreactorUI
 
@@ -618,6 +619,11 @@ if whoami.am_I_leader():
             "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
         )
         commands = []
+
+        if version is None:
+            version = "latest"
+        else:
+            version = f"tags/{version}"
 
         if source is not None:
             version_installed = branch
@@ -631,7 +637,7 @@ if whoami.am_I_leader():
 
         else:
             latest_release_metadata = loads(
-                get("https://api.github.com/repos/pioreactor/pioreactorui/releases/latest").body
+                get(f"https://api.github.com/repos/pioreactor/pioreactorui/releases/{version}").body
             )
             version_installed = latest_release_metadata["tag_name"]
             url = f"https://github.com/Pioreactor/pioreactorui/archive/refs/tags/{version_installed}.tar.gz"

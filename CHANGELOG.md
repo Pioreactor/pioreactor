@@ -5,6 +5,7 @@
  - added version of UI & firmware to `pio version -v`
  - PioreactorUI has a different way to update, rather than using git. We now version the PioreactorUI, so it's easier to know if which version is being used.
  - `pio update app` now has a `--version` option to specify a version of the Pioreactor software.
+ - `pio update ui` now has a `--version` option to specify a version of the Pioreactor UI.
  - correctly publish `alt_media_fraction` to MQTT in dosing jobs
  - power-saving improvements
  - image size optimizations
