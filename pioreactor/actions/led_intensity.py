@@ -164,20 +164,15 @@ def led_intensity(
 
     for channel, intensity in desired_state.items():
         try:
-            assert 0.0 <= intensity <= 100.0, "intensity should be between 0 and 100, inclusive"
             assert (
                 channel in ALL_LED_CHANNELS
             ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
+            assert (
+                0.0 <= intensity <= 100.0
+            ), f"Channel {channel} intensity should be between 0 and 100, inclusive"
 
             dac = DAC()
-
-            if intensity == 0.0:
-                # setting to 0 doesn't fully remove the current, there is some residual current. We turn off
-                # the channel to guarantee no output.
-                dac.power_down(getattr(dac, channel))
-            else:
-                dac.power_up(getattr(dac, channel))
-                dac.set_intensity_to(getattr(dac, channel), intensity)
+            dac.set_intensity_to(getattr(dac, channel), intensity)
 
         except ValueError as e:
             logger.debug(e, exc_info=True)

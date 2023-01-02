@@ -117,12 +117,6 @@ class Mock_DAC(_DAC):
         assert channel in list(range(8, 16)), "register should be in 8 to 15"
         return
 
-    def power_up(self, *args) -> None:
-        pass
-
-    def power_down(self, *args) -> None:
-        pass
-
 
 class MockTMP1075:
     def __init__(*args, address=0x4F) -> None:

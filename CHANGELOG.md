@@ -10,6 +10,7 @@
  - power-saving improvements
  - image size optimizations
  - simplify logging, and avoid an eventual recursion error.
+ - `source` in logging events is now correct.
  - experiment data is no longer published to MQTT. The source of truth is the db, via the web API.
 
 
