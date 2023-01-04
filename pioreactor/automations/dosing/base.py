@@ -125,45 +125,10 @@ class AltMediaCalculator:
         alt_media_delta: float,
         current_vial_volume: float,
     ) -> float:
-        """
-        The math boils down to:
-
-        f = current_alt_media_fraction
-        V = vial_volume
-        a = alt_media_delta
-
-        then
-
-        f' = (f + a/V) / (1 + a/V)
-
-        ---------------
-
-        f = current_alt_media_fraction
-        V = vial_volume
-        b = media_delta
-
-        then
-
-        f' = f / (1 + b/V)
-
-        ------
-        In general,
-
-        f = current_alt_media_fraction
-        V = vial_volume
-        a = alt_media_delta
-        b = media_delta
-
-        then
-
-        f' = (f + a/V) / (1 + (b+a)/V)
-
-        """
         assert media_delta >= 0
         assert alt_media_delta >= 0
         total_addition = media_delta + alt_media_delta
 
-        # return (current_alt_media_fraction + alt_media_delta / cls.vial_volume) / (1 + (media_delta + alt_media_delta) / cls.vial_volume)
         return (current_alt_media_fraction * current_vial_volume + alt_media_delta) / (
             current_vial_volume + total_addition
         )
@@ -214,7 +179,7 @@ class DosingAutomationJob(BackgroundSubJob):
     alt_media_fraction: float  # fraction of the vial that is alt-media (vs regular media).
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
-    vial_volume: float  # amount of alt-media that has been expelled
+    vial_volume: float  # amount in the vial
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -605,6 +570,7 @@ class DosingAutomationJob(BackgroundSubJob):
     def _init_alt_media_fraction_calculator(
         self, initial_alt_media_fraction
     ) -> Type[AltMediaCalculator]:
+        assert 0 <= initial_alt_media_fraction <= 1
         self.add_to_published_settings(
             "alt_media_fraction",
             {
