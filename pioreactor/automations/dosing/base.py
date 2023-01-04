@@ -289,12 +289,13 @@ class DosingAutomationJob(BackgroundSubJob):
         self, alt_media_ml: float = 0, media_ml: float = 0, waste_ml: float = 0
     ) -> SummableList:
         """
-        This function recursively reduces the amount to add so that
-        we don't end up adding 5ml, and then removing 5ml (this could cause
-        overflow). We also want sufficient time to mix, and this procedure will
-        slow dosing down.
+        This function recursively reduces the amount to add so that we don't end up adding 5ml,
+        and then removing 5ml (this could cause overflow).
+        Instead we add 0.5ml, remove 0.5ml, add 0.5ml, remove 0.5ml, etc.
+
+        We also want sufficient time to mix, and this procedure will slow dosing down.
         """
-        volumes_moved = SummableList([0.0, 0.0, 0.0])
+        volumes_moved = SummableList([0.0, 0.0, 0.0])  # media, alt_media, waste
 
         max_ = 0.625  # arbitrary (2.5/4), but should be some value that the pump is well calibrated for
         if alt_media_ml > max_:

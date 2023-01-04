@@ -9,7 +9,6 @@ import pioreactor.types as pt
 from pioreactor.config import config
 from pioreactor.utils.adcs import _ADC
 from pioreactor.utils.dacs import _DAC
-from pioreactor.whoami import am_I_active_worker
 from pioreactor.whoami import is_testing_env
 
 
@@ -128,7 +127,7 @@ class MockTMP1075:
         return 3 * math.sin(0.1 * time.time() / 60) + 25 + 0.2 * random.random()
 
 
-if am_I_active_worker() or is_testing_env():
+if is_testing_env():
 
     from rpi_hardware_pwm import HardwarePWM
 
