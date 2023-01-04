@@ -668,7 +668,7 @@ def test_execute_io_action2() -> None:
         pause()
         assert ca.automation_job.media_throughput == 1.25
         assert ca.automation_job.alt_media_throughput == 0.01
-        assert abs(ca.automation_job.alt_media_fraction - 0.0007142) < 1e-5
+        assert abs(ca.automation_job.alt_media_fraction - 0.0006758464662550158) < 1e-9
 
 
 def test_execute_io_action_outputs1() -> None:
@@ -732,7 +732,7 @@ def test_mqtt_properties_in_dosing_automations():
         r = pubsub.subscribe(
             f"pioreactor/{unit}/{experiment}/dosing_automation/alt_media_fraction"
         ).payload
-        assert abs(float(r) - 0.017857142) < 1e-6
+        assert abs(float(r) - 0.017123287671232876) < 1e-6
 
 
 def test_execute_io_action_outputs_will_be_null_if_calibration_is_not_defined() -> None:
@@ -1276,15 +1276,21 @@ def test_pass_in_initial_alt_media_fraction():
     with local_persistant_storage("media_throughput") as c:
         c.pop(experiment)
 
+    with local_persistant_storage("vial_volume") as c:
+        c.pop(experiment)
+
     with start_dosing_control(
         "chemostat", 20, False, unit, experiment, volume=0.25, initial_alt_media_fraction=0.5
     ) as controller:
         assert controller.automation_job.alt_media_fraction == 0.5
         pause(n=35)
-        alt_media_fraction_post_dosing = 0.5 * (1 - 0.25 / 14)
+        alt_media_fraction_post_dosing = 0.5 / (1 + 0.25 / controller.automation_job.vial_volume)
         assert controller.automation_job.media_throughput == 0.25
         assert controller.automation_job.alt_media_throughput == 0.0
-        assert controller.automation_job.alt_media_fraction == alt_media_fraction_post_dosing
+        assert (
+            abs(controller.automation_job.alt_media_fraction - alt_media_fraction_post_dosing)
+            < 1e-10
+        )
 
     # test that the latest alt_media_fraction is saved and reused if dosing controller is recreated in the same experiment.
     with start_dosing_control(
@@ -1295,10 +1301,17 @@ def test_pass_in_initial_alt_media_fraction():
         experiment,
         volume=0.35,
     ) as controller:
-        assert controller.automation_job.alt_media_fraction == alt_media_fraction_post_dosing
+        assert (
+            abs(controller.automation_job.alt_media_fraction - alt_media_fraction_post_dosing)
+            < 1e-10
+        )
         pause(n=35)
-        assert controller.automation_job.alt_media_fraction == alt_media_fraction_post_dosing * (
-            1 - 0.35 / 14
+        assert (
+            abs(
+                controller.automation_job.alt_media_fraction
+                - alt_media_fraction_post_dosing / (1 + 0.35 / 14)
+            )
+            < 1e-10
         )
 
 

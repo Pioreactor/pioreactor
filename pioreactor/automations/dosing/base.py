@@ -386,7 +386,7 @@ class DosingAutomationJob(BackgroundSubJob):
                     source_of_event=source_of_event,
                 )
                 volumes_moved[2] += waste_moved
-
+                time.sleep(0.1)
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(
                     unit=self.unit,
