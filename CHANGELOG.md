@@ -6,13 +6,23 @@
  - PioreactorUI has a different way to update, rather than using git. We now version the PioreactorUI, so it's easier to know if which version is being used.
  - `pio update app` now has a `--version` option to specify a version of the Pioreactor software.
  - `pio update ui` now has a `--version` option to specify a version of the Pioreactor UI.
- - correctly publish `alt_media_fraction` to MQTT in dosing jobs
  - power-saving improvements
  - image size optimizations
  - simplify logging, and avoid an eventual recursion error.
  - `source` in logging events is now correct.
  - experiment data is no longer published to MQTT. The source of truth is the db, via the web API.
-
+ - correctly publish `alt_media_fraction` to MQTT in dosing jobs
+ - dosing automations now keep track of vial volume, as attribute `vial_volume`. This is also published to MQTT.
+ - corrections to how `alt_media_fraction` is calculated. It no longer assumes constant vial size, which was
+   producing slightly incorrect results.
+ - `execute_io_action` has been changed to add the same ratio of media and alt_media before removing liquid. This satisfies:
+   1. If users asks to dose X, X will be dosed.
+   2. Ratio between media and alt_media is constant between remove_waste actions.
+   3. Not more than Y volume is added before liquid is removed.
+   The catch is that if there is a lot of volume of one being added, and only a little of another, it's possible
+   that accuracy of the latter one will be affected.
+ - users can now provide the initial ratio of media to alt_media (not yet from the UI or config.ini).
+ - users can specify, in their config.ini under section `bioreactor`, values `max_volume_ml` and `initial_volume_ml`. The former is used to provide the stable limit of volume (i.e. the position of the outflow tube determines this). The latter is how much volume is in the bioreactor initially. This is useful for users who wish to add medias manually.
 
 ### 22.12.3
  - fix for chemostat

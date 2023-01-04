@@ -19,6 +19,7 @@ from pioreactor import structs
 from pioreactor.automations import DosingAutomationJob
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import AltMediaCalculator
+from pioreactor.automations.dosing.base import VialVolumeCalculator
 from pioreactor.automations.dosing.continuous_cycle import ContinuousCycle
 from pioreactor.automations.dosing.morbidostat import Morbidostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
@@ -26,6 +27,7 @@ from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.dosing_control import start_dosing_control
+from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_unit_name
@@ -1149,36 +1151,40 @@ def test_changing_duty_cycle_over_mqtt() -> None:
 
 
 def test_AltMediaCalculator() -> None:
-    from pioreactor.structs import DosingEvent
 
     ac = AltMediaCalculator()
-    vial_volume = ac.vial_volume
+    vial_volume = 14
 
     media_added = 1.0
     add_media_event = DosingEvent(
         volume_change=media_added, event="add_media", timestamp="0", source_of_event="test"
     )
-    assert ac.update(add_media_event, 0.0) == 0.0
-    assert abs(ac.update(add_media_event, 0.20) - 0.20 * (1 - (media_added / vial_volume))) < 1e-10
-    assert abs(ac.update(add_media_event, 1.0) - 1.0 * (1 - (media_added / vial_volume))) < 1e-10
+    assert ac.update(add_media_event, 0.0, vial_volume) == 0.0
+    assert abs(ac.update(add_media_event, 0.20, vial_volume) - 0.18666666666666668) < 1e-10
+    assert abs(ac.update(add_media_event, 1.0, vial_volume) - 0.9333333333333333) < 1e-10
 
     alt_media_added = 1.0
     add_alt_media_event = DosingEvent(
         volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
     )
-    assert ac.update(add_alt_media_event, 0.0) == alt_media_added / vial_volume
+    assert ac.update(add_alt_media_event, 0.0, vial_volume) == 1 / (vial_volume + 1)
 
     alt_media_added = 2.0
     add_alt_media_event = DosingEvent(
         volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
     )
-    assert ac.update(add_alt_media_event, 0.0) == alt_media_added / vial_volume
+    assert ac.update(add_alt_media_event, 0.0, vial_volume) == 2 / (vial_volume + 2)
 
-    alt_media_added = 0.0001
+    alt_media_added = vial_volume
     add_alt_media_event = DosingEvent(
         volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
     )
-    assert ac.update(add_alt_media_event, 0.6) > 0.6
+    assert ac.update(add_alt_media_event, 0, vial_volume) == 0.5
+
+    add_alt_media_event = DosingEvent(
+        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    assert ac.update(add_alt_media_event, 0.5, vial_volume) == 0.75
 
 
 def test_latest_event_goes_to_mqtt():
@@ -1258,3 +1264,238 @@ def test_chemostat_from_cli():
 
     assert result.exit_code == 0
     assert len(errors) == 0
+
+
+def test_pass_in_initial_alt_media_fraction():
+    experiment = "test_pass_in_initial_alt_media_fraction"
+    unit = get_unit_name()
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c.pop(experiment)
+
+    with local_persistant_storage("media_throughput") as c:
+        c.pop(experiment)
+
+    with start_dosing_control(
+        "chemostat", 20, False, unit, experiment, volume=0.25, initial_alt_media_fraction=0.5
+    ) as controller:
+        assert controller.automation_job.alt_media_fraction == 0.5
+        pause(n=35)
+        alt_media_fraction_post_dosing = 0.5 * (1 - 0.25 / 14)
+        assert controller.automation_job.media_throughput == 0.25
+        assert controller.automation_job.alt_media_throughput == 0.0
+        assert controller.automation_job.alt_media_fraction == alt_media_fraction_post_dosing
+
+    # test that the latest alt_media_fraction is saved and reused if dosing controller is recreated in the same experiment.
+    with start_dosing_control(
+        "chemostat",
+        20,
+        False,
+        unit,
+        experiment,
+        volume=0.35,
+    ) as controller:
+        assert controller.automation_job.alt_media_fraction == alt_media_fraction_post_dosing
+        pause(n=35)
+        assert controller.automation_job.alt_media_fraction == alt_media_fraction_post_dosing * (
+            1 - 0.35 / 14
+        )
+
+
+def test_chemostat_from_0_volume():
+    experiment = "test_chemostat_from_0_volume"
+    unit = get_unit_name()
+
+    with local_persistant_storage("vial_volume") as c:
+        c.pop(experiment)
+
+    with local_persistant_storage("media_throughput") as c:
+        c.pop(experiment)
+
+    with start_dosing_control(
+        "chemostat",
+        0.25,
+        False,
+        unit,
+        experiment,
+        volume=0.5,
+        initial_vial_volume=0,
+    ) as controller:
+        pause(n=25)
+        assert controller.automation_job.media_throughput == 0.5
+        assert controller.automation_job.vial_volume == 0.5
+        pause(n=25)
+        assert controller.automation_job.media_throughput == 1.0
+        assert controller.automation_job.vial_volume == 1.0
+
+
+def test_execute_io_respects_dilutions_ratios():
+    # https://forum.pioreactor.com/t/inconsistent-dosing-behavior-with-multiple-media/37/3
+
+    unit = get_unit_name()
+    experiment = "test_execute_io_respects_dilutions_ratios"
+
+    with local_persistant_storage("alt_media_fraction") as c:
+        c.pop(experiment)
+
+    with local_persistant_storage("media_throughput") as c:
+        c.pop(experiment)
+
+    with local_persistant_storage("alt_media_throughput") as c:
+        c.pop(experiment)
+
+    class ChemostatAltMedia(DosingAutomationJob):
+        automation_name = "chemostat_alt_media"
+        published_settings = {
+            "volume": {"datatype": "float", "settable": True, "unit": "mL"},
+            "duration": {"datatype": "float", "settable": True, "unit": "min"},
+        }
+
+        def __init__(self, volume: float, fraction_alt_media: float, **kwargs):
+            super(ChemostatAltMedia, self).__init__(**kwargs)
+
+            self.volume = float(volume)
+            self.fraction_alt_media = fraction_alt_media
+
+        def execute(self) -> events.DilutionEvent:
+            alt_media_ml = self.fraction_alt_media * self.volume
+            media_ml = (1 - self.fraction_alt_media) * self.volume
+
+            cycled = self.execute_io_action(
+                alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=self.volume
+            )
+            return events.DilutionEvent(
+                f"exchanged {cycled[0]}mL media, and {cycled[1]}ml alt media",
+            )
+
+    with start_dosing_control(
+        "chemostat_alt_media",
+        2,
+        False,
+        unit,
+        experiment,
+        volume=2.0,
+        initial_alt_media_fraction=0.5,
+        fraction_alt_media=0.5,
+    ) as controller:
+        assert controller.automation_job.alt_media_fraction == 0.5
+        pause(n=100)
+        assert controller.automation_job.alt_media_fraction == 0.5
+
+    # change fraction_alt_media to increase alt_media being added
+    with start_dosing_control(
+        "chemostat_alt_media", 2, False, unit, experiment, volume=2.0, fraction_alt_media=1.0
+    ) as controller:
+        assert controller.automation_job.alt_media_fraction == 0.5
+        pause(n=100)
+        assert controller.automation_job.alt_media_fraction > 0.5
+
+
+def test_vial_volume_is_published():
+    unit = get_unit_name()
+    experiment = "test_vial_volume_is_published"
+
+    with local_persistant_storage("vial_volume") as c:
+        c.pop(experiment)
+
+    with start_dosing_control("chemostat", 2, False, unit, experiment, volume=2.0) as controller:
+        assert controller.automation_job.vial_volume == 14
+        result = pubsub.subscribe(f"pioreactor/{unit}/{experiment}/dosing_automation/vial_volume")
+        if result:
+            assert float(result.payload) == 14
+        pause(20)
+
+
+def test_vial_volume_calcualtor():
+    # let's start from 0, and start adding.
+    vc = VialVolumeCalculator
+    current_volume = 0.0
+
+    # adding 6ml of media
+    event = DosingEvent(volume_change=6, event="add_media", timestamp="0", source_of_event="test")
+    current_volume = vc.update(event, current_volume)
+    assert current_volume == 6
+
+    # try removing media, but this doesn't do anything since the level is too low.
+    event = DosingEvent(
+        volume_change=2, event="remove_waste", timestamp="0", source_of_event="test"
+    )
+    current_volume = vc.update(event, current_volume)
+    assert current_volume == 6
+
+    # add 6ml alt_media
+    event = DosingEvent(
+        volume_change=6, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    current_volume = vc.update(event, current_volume)
+    assert current_volume == 12
+
+    # add 3ml alt_media
+    event = DosingEvent(
+        volume_change=3, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    current_volume = vc.update(event, current_volume)
+    assert current_volume == 15
+
+    # try to remove 3ml
+    event = DosingEvent(
+        volume_change=3, event="remove_waste", timestamp="0", source_of_event="test"
+    )
+    current_volume = vc.update(event, current_volume)
+    assert current_volume != 12
+    assert current_volume == 14
+
+    # add 2 more
+    event = DosingEvent(
+        volume_change=2, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    current_volume = vc.update(event, current_volume)
+    assert current_volume == 16
+
+    # remove 1ml
+    event = DosingEvent(
+        volume_change=1, event="remove_waste", timestamp="0", source_of_event="test"
+    )
+    current_volume = vc.update(event, current_volume)
+    assert current_volume == 15
+
+
+def test_alt_media_calcualtor_from_0_volume():
+    # let's start from 0, and start adding.
+    ac = AltMediaCalculator
+    vc = VialVolumeCalculator
+
+    current_volume = 0.0
+    current_alt_media_fraction = (
+        0.0  # this value doesn't matter, could be anything since volume = 0.
+    )
+
+    # adding 6ml of media
+    event = DosingEvent(volume_change=6, event="add_media", timestamp="0", source_of_event="test")
+    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    current_volume = vc.update(event, current_volume)
+    assert current_alt_media_fraction == 0.0
+
+    # try removing media, but this doesn't do anything since it doesn't change the fraction
+    event = DosingEvent(
+        volume_change=2, event="remove_waste", timestamp="0", source_of_event="test"
+    )
+    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    current_volume = vc.update(event, current_volume)
+    assert current_alt_media_fraction == 0.0
+
+    # add 6ml alt_media
+    event = DosingEvent(
+        volume_change=6, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    current_volume = vc.update(event, current_volume)
+    assert current_alt_media_fraction == 0.5
+
+    # add 3ml alt_media
+    event = DosingEvent(
+        volume_change=3, event="add_alt_media", timestamp="0", source_of_event="test"
+    )
+    current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
+    current_volume = vc.update(event, current_volume)
+    assert current_alt_media_fraction == 0.6

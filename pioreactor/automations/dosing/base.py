@@ -63,25 +63,55 @@ class ThroughputCalculator:
         return (current_media_volume, current_alt_media_volume)
 
 
+class VialVolumeCalculator:
+
+    max_volume = config.getfloat("bioreactor", "max_volume_ml")
+
+    @classmethod
+    def update(cls, new_dosing_event: structs.DosingEvent, current_vial_volume: float) -> float:
+        assert 0.0 <= current_vial_volume
+        volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
+        if event == "add_media":
+            return current_vial_volume + volume
+        elif event == "add_alt_media":
+            return current_vial_volume + volume
+        elif event == "remove_waste":
+            # since we do some additional "removing" after adding, we don't want to
+            # count that as being removed (total volume is limited by position of outflow tube).
+            # hence we keep an lowerbound here.
+            if current_vial_volume <= cls.max_volume:
+                return current_vial_volume
+            else:
+                return max(current_vial_volume - volume, cls.max_volume)
+        else:
+            raise ValueError("Unknown event type")
+
+
 class AltMediaCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
 
     1. State-less. Something else needs to record current_alt_media_fraction
-    2. Assumes constant volume throughout.
 
     """
 
-    vial_volume = config.getfloat("bioreactor", "volume_ml")
-
     @classmethod
-    def update(cls, dosing_event: structs.DosingEvent, current_alt_media_fraction: float) -> float:
+    def update(
+        cls,
+        new_dosing_event: structs.DosingEvent,
+        current_alt_media_fraction: float,
+        current_vial_volume: float,
+    ) -> float:
         assert 0.0 <= current_alt_media_fraction <= 1.0
-        volume, event = float(dosing_event.volume_change), dosing_event.event
+        volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
         if event == "add_media":
-            return cls._update_alt_media_fraction(current_alt_media_fraction, volume, 0)
+            return cls._update_alt_media_fraction(
+                current_alt_media_fraction, volume, 0, current_vial_volume
+            )
         elif event == "add_alt_media":
-            return cls._update_alt_media_fraction(current_alt_media_fraction, 0, volume)
+            return cls._update_alt_media_fraction(
+                current_alt_media_fraction, 0, volume, current_vial_volume
+            )
         elif event == "remove_waste":
             return current_alt_media_fraction
         else:
@@ -93,25 +123,50 @@ class AltMediaCalculator:
         current_alt_media_fraction: float,
         media_delta: float,
         alt_media_delta: float,
+        current_vial_volume: float,
     ) -> float:
+        """
+        The math boils down to:
+
+        f = current_alt_media_fraction
+        V = vial_volume
+        a = alt_media_delta
+
+        then
+
+        f' = (f + a/V) / (1 + a/V)
+
+        ---------------
+
+        f = current_alt_media_fraction
+        V = vial_volume
+        b = media_delta
+
+        then
+
+        f' = f / (1 + b/V)
+
+        ------
+        In general,
+
+        f = current_alt_media_fraction
+        V = vial_volume
+        a = alt_media_delta
+        b = media_delta
+
+        then
+
+        f' = (f + a/V) / (1 + (b+a)/V)
+
+        """
         assert media_delta >= 0
         assert alt_media_delta >= 0
+        total_addition = media_delta + alt_media_delta
 
-        total_delta = media_delta + alt_media_delta
-
-        # current mL
-        alt_media_ml = cls.vial_volume * current_alt_media_fraction
-        media_ml = cls.vial_volume * (1 - current_alt_media_fraction)
-
-        # remove
-        alt_media_ml = alt_media_ml * (1 - total_delta / cls.vial_volume)
-        media_ml = media_ml * (1 - total_delta / cls.vial_volume)
-
-        # add (alt) media
-        alt_media_ml = alt_media_ml + alt_media_delta
-        media_ml = media_ml + media_delta
-
-        return alt_media_ml / cls.vial_volume
+        # return (current_alt_media_fraction + alt_media_delta / cls.vial_volume) / (1 + (media_delta + alt_media_delta) / cls.vial_volume)
+        return (current_alt_media_fraction * current_vial_volume + alt_media_delta) / (
+            current_vial_volume + total_addition
+        )
 
 
 class DosingAutomationJob(BackgroundSubJob):
@@ -159,6 +214,7 @@ class DosingAutomationJob(BackgroundSubJob):
     alt_media_fraction: float  # fraction of the vial that is alt-media (vs regular media).
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
+    vial_volume: float  # amount of alt-media that has been expelled
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -177,6 +233,10 @@ class DosingAutomationJob(BackgroundSubJob):
         experiment: str,
         duration: Optional[float] = None,
         skip_first_run: bool = False,
+        initial_alt_media_fraction: float = config.getfloat(
+            "bioreactor", "initial_alt_media_fraction"
+        ),
+        initial_vial_volume: float = config.getfloat("bioreactor", "initial_volume_ml"),
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit=unit, experiment=experiment)
@@ -186,8 +246,11 @@ class DosingAutomationJob(BackgroundSubJob):
         self.latest_growth_rate_at = current_utc_datetime()
         self.latest_od_at = current_utc_datetime()
 
-        self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator()
+        self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator(
+            float(initial_alt_media_fraction)
+        )
         self._volume_throughput_calculator = self._init_volume_throughput_calculator()
+        self._vial_volume_calculator = self._init_vial_volume_calculator(float(initial_vial_volume))
 
         self.add_to_published_settings(
             "latest_event",
@@ -293,32 +356,30 @@ class DosingAutomationJob(BackgroundSubJob):
         and then removing 5ml (this could cause overflow).
         Instead we add 0.5ml, remove 0.5ml, add 0.5ml, remove 0.5ml, etc.
 
-        We also want sufficient time to mix, and this procedure will slow dosing down.
-        """
-        volumes_moved = SummableList([0.0, 0.0, 0.0])  # media, alt_media, waste
+        Note: If alt_media_ml and media_ml are non-zero, we keep their ratio equal for each
+        call. This keeps the ratio of alt_media to media equal in the vial.
 
+        We also want sufficient time to mix, and this procedure will slow dosing down.
+
+
+        """
         max_ = 0.625  # arbitrary (2.5/4), but should be some value that the pump is well calibrated for
-        if alt_media_ml > max_:
+        volumes_moved = SummableList([0.0, 0.0, 0.0])  # media, alt_media, waste
+        source_of_event = f"{self.job_name}:{self.automation_name}"
+
+        if (alt_media_ml + media_ml) > max_:
             volumes_moved += self.execute_io_action(
                 alt_media_ml=alt_media_ml / 2,
-                media_ml=media_ml,
-                waste_ml=media_ml + alt_media_ml / 2,
-            )
-            volumes_moved += self.execute_io_action(
-                alt_media_ml=alt_media_ml / 2, media_ml=0, waste_ml=alt_media_ml / 2
-            )
-        elif media_ml > max_:
-            volumes_moved += self.execute_io_action(
-                alt_media_ml=0, media_ml=media_ml / 2, waste_ml=media_ml / 2
-            )
-            volumes_moved += self.execute_io_action(
-                alt_media_ml=alt_media_ml,
                 media_ml=media_ml / 2,
-                waste_ml=alt_media_ml + media_ml / 2,
+                waste_ml=alt_media_ml / 2 + media_ml / 2,
             )
-        else:
-            source_of_event = f"{self.job_name}:{self.automation_name}"
+            volumes_moved += self.execute_io_action(
+                alt_media_ml=alt_media_ml / 2,
+                media_ml=media_ml / 2,
+                waste_ml=alt_media_ml / 2 + media_ml / 2,
+            )
 
+        else:
             if (
                 media_ml > 0
                 and (self.state in [self.READY, self.SLEEPING])
@@ -505,14 +566,26 @@ class DosingAutomationJob(BackgroundSubJob):
         dosing_event = decode(message.payload, type=structs.DosingEvent)
         self._update_alt_media_fraction(dosing_event)
         self._update_throughput(dosing_event)
+        self._update_vial_volume(dosing_event)
 
     def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
         self.alt_media_fraction = self._alt_media_fraction_calculator.update(
-            dosing_event, self.alt_media_fraction
+            dosing_event, self.alt_media_fraction, self.vial_volume
         )
+
         # add to cache
         with local_persistant_storage("alt_media_fraction") as cache:
             cache[self.experiment] = self.alt_media_fraction
+
+    def _update_vial_volume(self, dosing_event: structs.DosingEvent) -> None:
+        self.vial_volume = self._vial_volume_calculator.update(dosing_event, self.vial_volume)
+
+        # add to cache
+        with local_persistant_storage("vial_volume") as cache:
+            cache[self.experiment] = self.vial_volume
+
+        if self.vial_volume >= 17:
+            self.logger.warning("Vial is getting very full. Is this expected?")
 
     def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:
         (
@@ -529,7 +602,9 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("media_throughput") as cache:
             cache[self.experiment] = self.media_throughput
 
-    def _init_alt_media_fraction_calculator(self) -> Type[AltMediaCalculator]:
+    def _init_alt_media_fraction_calculator(
+        self, initial_alt_media_fraction
+    ) -> Type[AltMediaCalculator]:
         self.add_to_published_settings(
             "alt_media_fraction",
             {
@@ -539,9 +614,23 @@ class DosingAutomationJob(BackgroundSubJob):
         )
 
         with local_persistant_storage("alt_media_fraction") as cache:
-            self.alt_media_fraction = cache.get(self.experiment, 0.0)
+            self.alt_media_fraction = cache.get(self.experiment, initial_alt_media_fraction)
 
         return AltMediaCalculator
+
+    def _init_vial_volume_calculator(self, initial_vial_volume) -> Type[VialVolumeCalculator]:
+        self.add_to_published_settings(
+            "vial_volume",
+            {
+                "datatype": "float",
+                "settable": False,
+            },
+        )
+
+        with local_persistant_storage("vial_volume") as cache:
+            self.vial_volume = cache.get(self.experiment, initial_vial_volume)
+
+        return VialVolumeCalculator
 
     def _init_volume_throughput_calculator(self) -> Type[ThroughputCalculator]:
         self.add_to_published_settings(

@@ -16,7 +16,7 @@ class PIDMorbidostat(DosingAutomationJob):
     As defined in Zhong 2020
     """
 
-    VIAL_VOLUME = float(config["bioreactor"]["volume_ml"])
+    VIAL_VOLUME = float(config["bioreactor"]["max_volume_ml"])
     automation_name = "pid_morbidostat"
     published_settings = {
         "volume": {"datatype": "float", "settable": True, "unit": "mL"},
