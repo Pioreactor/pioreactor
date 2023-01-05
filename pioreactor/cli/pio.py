@@ -341,7 +341,7 @@ def update() -> None:
 @update.command(name="app")
 @click.option("-b", "--branch", help="update to a branch on github")
 @click.option("--source", help="use a URL or whl file")
-@click.option("-v", "--version", default="latest", help="install a specific version")
+@click.option("-v", "--version", help="install a specific version, default is latest")
 def update_app(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
     """
     Update the Pioreactor core software
@@ -376,11 +376,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         release_metadata = loads(
             get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}").body
         )
-        print(
-            release_metadata,
-            f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}",
-        )
-        version_installed = release_metadata["name"]
+        version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:
             if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
                 url_to_get_whl = asset["browser_download_url"]
@@ -611,7 +607,7 @@ if whoami.am_I_leader():
     @update.command(name="ui")
     @click.option("-b", "--branch", help="update to a branch on github")
     @click.option("--source", help="use a tar.gz file")
-    @click.option("-v", "--version", default="latest", help="install a specific version")
+    @click.option("-v", "--version", help="install a specific version")
     def update_ui(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
         """
         Update the PioreactorUI
