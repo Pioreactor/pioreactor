@@ -376,7 +376,10 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         release_metadata = loads(
             get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}").body
         )
-        print(release_metadata)
+        print(
+            release_metadata,
+            f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}",
+        )
         version_installed = release_metadata["name"]
         for asset in release_metadata["assets"]:
             if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
