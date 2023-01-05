@@ -102,6 +102,8 @@ export default function SideNavAndHeader() {
         })
         .then((data) => {
           setLatestVersion(data['name'])
+        }).catch(e => {
+          // no internet?
         });
       }
 

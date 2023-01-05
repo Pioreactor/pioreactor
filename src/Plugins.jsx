@@ -81,7 +81,9 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
         })
         .then((json) => {
           setAvailablePlugins(json)
-        });
+        }).catch(e => {
+          // no internet?
+        })
       }
       getData()
   }, [])

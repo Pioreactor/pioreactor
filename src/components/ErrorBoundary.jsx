@@ -3,7 +3,7 @@ import React from 'react';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMsg: "" };
   }
 
   static getDerivedStateFromError(error) {
@@ -12,6 +12,7 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     console.log(error);
+    this.setState({errorMsg: error.message})
   }
 
   render() {
@@ -22,8 +23,13 @@ class ErrorBoundary extends React.Component {
           <div>
             <h1>Something went wrong with the PioreactorUI!</h1>
             <h3>Don't worry. It's our fault. Here's what you can do:</h3>
-            <p> Looks like there's a bug in the UI. See the console (⌘+⌥+i) for error information. We would appreciate it
-            if you create an issue in <a href="https://github.com/Pioreactor/pioreactorui/issues">Github</a> for us, with the information in the console (⌘+⌥+i).</p>
+            <p> Looks like there's a bug in the UI. See the below for error information. We would appreciate it
+            if you create an issue in <a href="https://github.com/Pioreactor/pioreactorui/issues">Github</a> for us, with the information below.</p>
+          </div>
+          <div>
+            <code>
+            {this.state.errorMsg}
+            </code>
           </div>
         </div>
       </React.Fragment>
