@@ -1,3 +1,6 @@
+### 23.1.1
+ - fix `pio update` bugs
+
 ### 23.1.0
  - early support for HATs with Pico hardware
  - new modules `pioreactor.util.adcs` and `pioreactor.utils.dacs` to abstract DACs and ADCs.
