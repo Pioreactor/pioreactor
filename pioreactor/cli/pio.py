@@ -350,7 +350,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
 
-    commands_and_priority = []
+    commands_and_priority: list[tuple[str, float]] = []
 
     if version is None:
         version = "latest"
@@ -388,14 +388,19 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                 )
             elif asset["name"] == "update.sh":
                 url_to_get_sh = asset["browser_download_url"]
-                commands_and_priority.append((f"sudo bash <(curl -s {url_to_get_sh})", 2))
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O /tmp/update.sh {url_to_get_sh}", 2.0),
+                        ("sudo bash /tmp/update.sh", 2.1),
+                    ]
+                )
             elif asset["name"] == "update.sql":
                 url_to_get_sql = asset["browser_download_url"]
-                commands_and_priority.append(
-                    (
-                        f'sudo sqlite3 {config["storage"]["database"]} < <(curl -s {url_to_get_sql})',
-                        3,
-                    )
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O /tmp/update.sql {url_to_get_sql}", 3.0),
+                        (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 3.1),
+                    ]
                 )
 
     for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):

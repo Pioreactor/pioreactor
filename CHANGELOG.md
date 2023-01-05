@@ -1,3 +1,6 @@
+### 23.1.2
+ - fix `pio update` bugs
+
 ### 23.1.1
  - fix `pio update` bugs
 
