@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 
 # Append ".dev" if a dev version
-__version__ = "23.1.0"
+__version__ = "23.1.0.dev"
 
 
 def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
