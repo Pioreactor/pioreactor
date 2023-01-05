@@ -19,7 +19,7 @@ class Chemostat(DosingAutomationJob):
     }
 
     def __init__(self, volume: float | str, **kwargs) -> None:
-        super(Chemostat, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         with local_persistant_storage("current_pump_calibration") as cache:
             if "media" not in cache:

@@ -19,7 +19,7 @@ class FedBatch(DosingAutomationJob):
     }
 
     def __init__(self, volume, **kwargs):
-        super(FedBatch, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.volume = float(volume)
 
     def execute(self):

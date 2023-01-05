@@ -41,26 +41,25 @@ class ThroughputCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
     has been spent, so that triggers can be set up to replace media stock.
-
     """
 
     @staticmethod
     def update(
         dosing_event: structs.DosingEvent,
-        current_media_volume: float,
-        current_alt_media_volume: float,
+        current_media_throughput: float,
+        current_alt_media_throughput: float,
     ) -> tuple[float, float]:
         volume, event = float(dosing_event.volume_change), dosing_event.event
         if event == "add_media":
-            current_media_volume += volume
+            current_media_throughput += volume
         elif event == "add_alt_media":
-            current_alt_media_volume += volume
+            current_alt_media_throughput += volume
         elif event == "remove_waste":
             pass
         else:
             raise ValueError("Unknown event type")
 
-        return (current_media_volume, current_alt_media_volume)
+        return (current_media_throughput, current_alt_media_throughput)
 
 
 class VialVolumeCalculator:
@@ -69,19 +68,20 @@ class VialVolumeCalculator:
 
     @classmethod
     def update(cls, new_dosing_event: structs.DosingEvent, current_vial_volume: float) -> float:
-        assert 0.0 <= current_vial_volume
+        assert current_vial_volume >= 0
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
         if event == "add_media":
             return current_vial_volume + volume
         elif event == "add_alt_media":
             return current_vial_volume + volume
         elif event == "remove_waste":
-            # since we do some additional "removing" after adding, we don't want to
-            # count that as being removed (total volume is limited by position of outflow tube).
-            # hence we keep an lowerbound here.
+            # if the current volume is less than the outflow tube, no liquid is removed
             if current_vial_volume <= cls.max_volume:
                 return current_vial_volume
             else:
+                # since we do some additional "removing" after adding, we don't want to
+                # count that as being removed (total volume is limited by position of outflow tube).
+                # hence we keep an lowerbound here.
                 return max(current_vial_volume - volume, cls.max_volume)
         else:
             raise ValueError("Unknown event type")
@@ -90,8 +90,7 @@ class VialVolumeCalculator:
 class AltMediaCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
-
-    1. State-less. Something else needs to record current_alt_media_fraction
+    State-less. Something else needs to record current_alt_media_fraction
 
     """
 
@@ -199,9 +198,11 @@ class DosingAutomationJob(BackgroundSubJob):
         duration: Optional[float] = None,
         skip_first_run: bool = False,
         initial_alt_media_fraction: float = config.getfloat(
-            "bioreactor", "initial_alt_media_fraction"
+            "bioreactor", "initial_alt_media_fraction", fallback=0.0
         ),
-        initial_vial_volume: float = config.getfloat("bioreactor", "initial_volume_ml"),
+        initial_vial_volume: float = config.getfloat(
+            "bioreactor", "initial_volume_ml", fallback=14
+        ),
         **kwargs,
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit=unit, experiment=experiment)
@@ -328,7 +329,7 @@ class DosingAutomationJob(BackgroundSubJob):
 
 
         """
-        max_ = 0.625  # arbitrary (2.5/4), but should be some value that the pump is well calibrated for
+        max_ = 0.75  # arbitrary, but should be some value that the pump is well calibrated for
         volumes_moved = SummableList([0.0, 0.0, 0.0])  # media, alt_media, waste
         source_of_event = f"{self.job_name}:{self.automation_name}"
 
@@ -517,6 +518,7 @@ class DosingAutomationJob(BackgroundSubJob):
                                 "state",
                                 "alt_media_fraction",
                                 "media_throughput",
+                                "vial_volume",
                                 "alt_media_throughput",
                                 "latest_event",
                             ]
@@ -585,11 +587,15 @@ class DosingAutomationJob(BackgroundSubJob):
         return AltMediaCalculator
 
     def _init_vial_volume_calculator(self, initial_vial_volume) -> Type[VialVolumeCalculator]:
+
+        assert initial_vial_volume >= 0
+
         self.add_to_published_settings(
             "vial_volume",
             {
                 "datatype": "float",
-                "settable": False,
+                "settable": True,
+                "unit": "mL",
             },
         )
 
