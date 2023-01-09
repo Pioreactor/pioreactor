@@ -35,6 +35,7 @@ def _pump(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
+    dry_run: bool = False,
     config=config,  # techdebt, don't use
 ) -> float:
     """
@@ -85,7 +86,7 @@ def _pump(
                 try:
                     calibration = decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
                 except KeyError:
-                    if continuously:
+                    if continuously or dry_run:
                         calibration = structs.PumpCalibration(
                             name="cont",
                             timestamp=current_utc_datetime(),
@@ -162,7 +163,8 @@ def _pump(
 
                 try:
                     with catchtime() as delta_time:
-                        pwm.start(calibration.dc)
+                        if not dry_run:
+                            pwm.start(calibration.dc)
                         pump_start_time = time.monotonic()
 
                     state.exit_event.wait(max(0, duration - delta_time()))
@@ -204,6 +206,7 @@ def add_media(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.MediaPumpCalibration] = None,
     continuously: bool = False,
+    dry_run: bool = False,
     config=config,  # techdebt
 ) -> float:
     """
@@ -237,6 +240,7 @@ def add_media(
         source_of_event,
         calibration,
         continuously,
+        dry_run,
         config=config,
     )
 
@@ -249,6 +253,7 @@ def remove_waste(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.WastePumpCalibration] = None,
     continuously: bool = False,
+    dry_run: bool = False,
     config=config,  # techdebt
 ) -> float:
     """
@@ -281,6 +286,7 @@ def remove_waste(
         source_of_event,
         calibration,
         continuously,
+        dry_run,
         config=config,
     )
 
@@ -293,6 +299,7 @@ def add_alt_media(
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.AltMediaPumpCalibration] = None,
     continuously: bool = False,
+    dry_run: bool = False,
     config=config,  # techdebt
 ) -> float:
     """
@@ -326,6 +333,7 @@ def add_alt_media(
         source_of_event,
         calibration,
         continuously,
+        dry_run,
         config=config,
     )
 
@@ -334,6 +342,7 @@ def add_alt_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--dry-run", is_flag=True, help="don't run the PWMs")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -344,6 +353,7 @@ def click_add_alt_media(
     ml: Optional[float],
     duration: Optional[float],
     continuously: bool,
+    dry_run: bool,
     source_of_event: Optional[str],
 ):
     """
@@ -366,6 +376,7 @@ def click_add_alt_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--dry-run", is_flag=True, help="don't run the PWMs")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -376,6 +387,7 @@ def click_remove_waste(
     ml: Optional[float],
     duration: Optional[float],
     continuously: bool,
+    dry_run: bool,
     source_of_event: Optional[str],
 ):
     """
@@ -398,6 +410,7 @@ def click_remove_waste(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--dry-run", is_flag=True, help="don't run the PWMs")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -408,6 +421,7 @@ def click_add_media(
     ml: Optional[float],
     duration: Optional[float],
     continuously: bool,
+    dry_run: bool,
     source_of_event: Optional[str],
 ):
     """
