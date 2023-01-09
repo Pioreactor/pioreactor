@@ -55,7 +55,18 @@ class Thermostat(TemperatureAutomationJob):
             },
         )
 
-    def set_target_temperature(self, target_temperature: float) -> None:
+    def set_target_temperature(self, target_temperature: float, update_dc_now=True) -> None:
+        """
+
+        Parameters
+        ------------
+
+        target_temperature: float
+            the new target temperature
+        update_dc_now: bool
+            if possible, update the DC% to approach the new target temperatur
+
+        """
         target_temperature = float(target_temperature)
         if target_temperature > self.MAX_TARGET_TEMP:
             self.logger.warning(
@@ -68,7 +79,7 @@ class Thermostat(TemperatureAutomationJob):
 
         # when set_target_temperature is executed, and we wish to update the DC to some new value,
         # it's possible that it isn't updated immediately if set during the `evaluate` routine.
-        if not self.is_heater_pwm_locked():
+        if update_dc_now and not self.is_heater_pwm_locked():
             assert self.latest_temperature is not None
             output = self.pid.update(
                 self.latest_temperature, dt=1

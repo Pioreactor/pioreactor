@@ -12,9 +12,9 @@ CORE_REQUIREMENTS = [
     "paho-mqtt>=1.6.0",
     "psutil>=5.9.0",
     "sh>=1.14.0",
-    "JSON-log-formatter>=0.4.0",
+    "JSON-log-formatter>=0.5.1",
     "colorlog>=6.6.0",
-    "msgspec>=0.11.0",
+    "msgspec>=0.12.0",
     "diskcache>=5.4.0",
     # tech debt - this needed to be in the core req
     # leader requirement

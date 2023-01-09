@@ -207,6 +207,7 @@ class DosingAutomationJob(BackgroundSubJob):
     ) -> None:
         super(DosingAutomationJob, self).__init__(unit=unit, experiment=experiment)
         self.skip_first_run = skip_first_run
+
         self._latest_settings_started_at = current_utc_datetime()
         self.latest_normalized_od_at = current_utc_datetime()
         self.latest_growth_rate_at = current_utc_datetime()
@@ -387,7 +388,7 @@ class DosingAutomationJob(BackgroundSubJob):
                     source_of_event=source_of_event,
                 )
                 volumes_moved[2] += waste_moved
-                time.sleep(0.1)
+                time.sleep(0.05)
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(
                     unit=self.unit,

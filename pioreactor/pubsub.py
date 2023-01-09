@@ -17,6 +17,30 @@ from pioreactor.config import leader_address
 from pioreactor.types import MQTTMessage
 
 
+class PIOREACTOR:
+    """
+    Use to construct MQTT paths like Pathlib in Python core.
+
+    > PIOREACTOR() / unit / experiment / "+" / "$state" / "set"
+    >> "pioreactor/test_unit/test_experiment/+/$state/set"
+
+    BETA: may be deleted in the future.
+
+    """
+
+    def __init__(self, body="pioreactor"):
+        self.body = body
+
+    def __truediv__(self, other):
+        return PIOREACTOR(self.body + "/" + other)
+
+    def __str__(self):
+        return self.body
+
+    def __repr__(self):
+        return str(self)
+
+
 def add_hash_suffix(s):
     alphabet = string.ascii_lowercase + string.digits
     return s + "-" + "".join(random.choices(alphabet, k=4))
@@ -323,7 +347,7 @@ class collect_all_logs_of_level:
         self.bucket: list[dict] = []
         self.client = subscribe_and_callback(
             self._collect_logs_into_bucket,
-            f"pioreactor/{self.unit}/{self.experiment}/logs/app",
+            str(PIOREACTOR() / self.unit / self.experiment / "logs" / "app"),
         )
 
     def _collect_logs_into_bucket(self, message):
