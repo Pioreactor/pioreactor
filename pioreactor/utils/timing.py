@@ -67,7 +67,7 @@ class RepeatedTimer:
     >> thread.cancel()
     >>
 
-    To run a job right away (i.e. don't wait interval seconds), use run_immediately`
+    To run a job right away (i.e. don't wait `interval` seconds), use run_immediately`
 
     """
 

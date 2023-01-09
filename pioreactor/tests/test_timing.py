@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
@@ -32,6 +34,69 @@ def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused
     c.thread.join()
 
     assert c.counter == 0
+
+
+def test_repeated_timer_has_low_variance():
+    import time
+    import numpy as np
+
+    interval = 0.01
+    data = []
+
+    def run():
+        data.append(time.perf_counter())
+
+    t = RepeatedTimer(interval, run).start()
+    time.sleep(5)
+    t.cancel()
+
+    delta = np.diff(np.array(data))
+    mean = np.mean(delta)
+    std = np.std(delta)
+
+    assert (mean - interval) < 1e-3
+    assert std < 0.005
+
+    # try a new interval, show it has similar std.
+    interval = 4 * interval
+    data = []
+
+    def run():
+        data.append(time.perf_counter())
+
+    t = RepeatedTimer(interval, run).start()
+    time.sleep(4 * 5)  # scale to collect similar amounts of data points
+    t.cancel()
+
+    delta = np.diff(np.array(data))
+    mean = np.mean(delta)
+    std = np.std(delta)
+
+    assert (mean - interval) < 1e-3
+    assert std < 0.005
+
+
+def test_repeated_timer_has_low_variance_even_for_noisy_process():
+    import time
+    import numpy as np
+
+    interval = 0.2
+    data = []
+
+    def run():
+        data.append(time.perf_counter())
+        time.sleep(0.05 * np.random.random())
+
+    t = RepeatedTimer(interval, run).start()
+    time.sleep(5)
+    t.cancel()
+
+    delta = np.diff(np.array(data))
+    mean = np.mean(delta)
+    std = np.std(delta)
+
+    assert (mean - interval) < 1e-3
+    assert std < 0.005
 
 
 def test_repeated_timer_run_immediately_works_as_intended():
@@ -113,3 +178,40 @@ def test_repeated_timer_pause_works_as_intended():
 
     time.sleep(5)
     assert c.counter > 2
+
+
+@pytest.mark.skip
+def test_repeated_timer_accepts_an_iterable_for_interval():
+    """
+    Maybe someday I'll support this.
+    """
+
+    class Counter:
+
+        counter = 0
+
+        def __init__(self):
+
+            self.thread = RepeatedTimer(iter([1, 4, 1]), self.run).start()
+
+        def run(self):
+            import time
+
+            print(time.time())
+            self.counter += 1
+
+    c = Counter()
+    time.sleep(0.1)
+    assert c.counter == 0
+
+    time.sleep(1.0)
+    assert c.counter == 1
+
+    time.sleep(1.0)
+    assert c.counter == 2
+
+    time.sleep(1.0)
+    assert c.counter == 3
+
+    time.sleep(3.0)
+    assert c.counter == 3
