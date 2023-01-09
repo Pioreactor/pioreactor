@@ -173,7 +173,7 @@ def create_logger(
     )
     # define a Handler which writes to the sys.stderr
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.DEBUG)
+    console_handler.setLevel(config.get("logging", "console_log_level", fallback="DEBUG"))
     console_handler.setFormatter(
         colorlog.ColoredFormatter(
             "%(log_color)s%(asctime)s %(levelname)-6s [%(name)s] %(message)s",
