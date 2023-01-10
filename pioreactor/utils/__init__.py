@@ -192,11 +192,8 @@ def local_intermittent_storage(
     """
     # TMPDIR is in OSX and Pioreactor img (we provide it), TMP is windows
     tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
-    cache = Cache(f"{tmp_dir}{cache_name}")
-    try:
+    with Cache(f"{tmp_dir}{cache_name}") as cache:
         yield cache  # type: ignore
-    finally:
-        cache.close()
 
 
 @contextmanager

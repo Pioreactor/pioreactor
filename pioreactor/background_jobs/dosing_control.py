@@ -185,7 +185,7 @@ def start_dosing_control(
 @click.option(
     "--skip-first-run",
     type=click.IntRange(min=0, max=1),
-    help="Normally dosing will run immediately. Set this flag to wait <duration>min before executing.",
+    help="Normally dosing will run immediately. Set this to wait <duration>min before executing.",
 )
 @click.pass_context
 def click_dosing_control(

@@ -225,12 +225,12 @@ def kill(job: list[str], all_jobs: bool) -> None:
 
         # assert everything is off
         with local_intermittent_storage("pwm_dc") as cache:
-            for pin in cache.iterkeys():
+            for pin in cache:
                 assert cache[pin] == 0.0, f"pin {pin} is not off!"
 
         # assert everything is off
         with local_intermittent_storage("leds") as cache:
-            for led in cache.iterkeys():
+            for led in cache:
                 assert cache[led] == 0.0, f"LED {led} is not off!"
 
     else:

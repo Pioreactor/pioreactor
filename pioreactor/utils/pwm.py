@@ -93,7 +93,9 @@ class PWM:
             self.pubsub_client = pubsub_client
 
         if logger is None:
-            self.logger = create_logger(f"PWM-{pin}", experiment=self.experiment, unit=self.unit)
+            self.logger = create_logger(
+                f"PWM@GPIO-{pin}", experiment=self.experiment, unit=self.unit
+            )
         else:
             self.logger = logger
 
@@ -154,7 +156,7 @@ class PWM:
         current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = self.duty_cycle
-            for pin in cache.iterkeys():
+            for pin in cache:
                 current_values[pin] = cache[pin]
 
         self.pubsub_client.publish(
@@ -167,7 +169,7 @@ class PWM:
         current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = 0.0
-            for pin in cache.iterkeys():
+            for pin in cache:
                 current_values[pin] = cache[pin]
 
         self.pubsub_client.publish(
@@ -188,7 +190,7 @@ class PWM:
         current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = self.duty_cycle
-            for pin in cache.iterkeys():
+            for pin in cache:
                 current_values[pin] = cache[pin]
 
         self.pubsub_client.publish(

@@ -476,6 +476,7 @@ class DosingAutomationJob(BackgroundSubJob):
             "media_throughput",
             "alt_media_throughput",
             "latest_event",
+            "vial_volume",
         ]:
             self._latest_settings_ended_at = current_utc_datetime()
             self._send_details_to_mqtt()

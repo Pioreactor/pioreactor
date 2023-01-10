@@ -173,6 +173,9 @@ class Monitor(BackgroundJob):
         # report on CPU usage, memory, disk space
         self.publish_self_statistics()
 
+        # report on CPU usage, memory, disk space
+        self.is_there_an_experiment_populated()
+
         if whoami.am_I_leader():
             # report on last database backup, if leader
             self.check_for_last_backup()
@@ -185,6 +188,14 @@ class Monitor(BackgroundJob):
         if not whoami.am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
+
+    def is_there_an_experiment_populated(self):
+        if whoami.get_latest_experiment_name() == whoami.NO_EXPERIMENT:
+            self.logger.warning("Experiment not found in database.")
+        else:
+            self.logger.debug(
+                f"Experiment {whoami.get_latest_experiment_name()} found in database."
+            )
 
     def check_for_required_jobs_running(self):
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
