@@ -565,6 +565,7 @@ function PatientButton(props) {
     function f() {
       setButtonText(<CircularProgress color="inherit" size={21}/>)
       props.onClick()
+      setTimeout(() => setButtonText(props.buttonText), 15000)
     }
     return f
   }
@@ -606,7 +607,7 @@ function CalibrateDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch("/api/run/" + job + "/" + props.unit, {method: "POST"})
+      fetch(`/api/run/${job}/${props.unit}`, {method: "POST"})
     }
   }
 
@@ -985,7 +986,7 @@ function SettingsActionsDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch("/api/run/" + job + "/" + props.unit, {method: "POST"})
+      fetch(`/api/run/${job}/${props.unit}`, {method: "POST"})
     }
   }
 
@@ -1717,7 +1718,7 @@ function SettingsActionsDialogAll({config, experiment}) {
     return function() {
       setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active Pioreactors`)
       setSnackbarOpen(true)
-      fetch("/api/run/" + job.metadata.key + "/" + unit, {method: "POST"})
+      fetch(`/api/run/${job.metadata.key}/${unit}`, {method: "POST"})
     }
   }
 

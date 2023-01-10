@@ -194,7 +194,7 @@ const CheckboxesGroup = (props) => {
 
           <div className={clsx(classes.datasetItem)}>
             <FormControlLabel
-            control={<Checkbox checked={props.isChecked.led_events} onChange={props.handleChange} name="led_events" />}
+            control={<Checkbox checked={props.isChecked.led_change_events} onChange={props.handleChange} name="led_change_events" />}
             label="LED event log"
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
@@ -334,7 +334,7 @@ function ExportDataContainer() {
       pioreactor_unit_activity_data: false,
       growth_rates: false,
       dosing_events: false,
-      led_events: false,
+      led_change_events: false,
       experiments: false,
       od_readings: false,
       od_readings_filtered: false,

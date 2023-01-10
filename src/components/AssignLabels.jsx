@@ -113,7 +113,9 @@ function AssignLabels(props){
       <Grid container spacing={1}>
 
         <Grid item xs={12}>
-          <p> Assign labels to Pioreactors in your cluster. These labels are temporary, and will show up in charts, tables, and elsewhere in the interface. Labels can be changed later.</p>
+          <p> Assign labels to Pioreactors in your cluster. These labels are temporary for this experiment, and will show up in charts, tables, and elsewhere in this interface.  </p>
+
+          <p>Labels can be changed later, too.</p>
           <Divider style={{marginBottom: "20px"}}/>
         </Grid>
 
