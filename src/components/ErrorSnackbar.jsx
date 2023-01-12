@@ -26,6 +26,14 @@ function ErrorSnackbar(props) {
       return
     }
 
+    const onFailure = () => {
+      setMsg(`Failed to connect to MQTT. Is configuration for leader_address correct? Currently set to ${config['cluster.topology']['leader_address']}.`)
+      setTask("PioreactorUI")
+      setLevel("ERROR")
+      setUnit(config['cluster.topology']['leader_hostname'])
+      setOpen(true)
+    }
+
     const onSuccess = () => {
       client.subscribe(
       [
@@ -51,7 +59,7 @@ function ErrorSnackbar(props) {
         "webui_ErrorSnackbarNotification" + Math.floor(Math.random()*10000)
       );
     }
-    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, onSuccess: onSuccess, timeout: 180, reconnect: true});
+    client.connect({userName: 'pioreactor', password: 'raspberry', keepAliveInterval: 60 * 15, timeout: 10, onSuccess: onSuccess, onFailure: onFailure});
     client.onMessageArrived = onMessageArrived;
 
   },[config])
