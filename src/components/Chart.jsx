@@ -192,10 +192,15 @@ class Chart extends React.Component {
       return
     }
 
-    const payload = JSON.parse(message.payloadString)
-    const timestamp = moment.utc(payload.timestamp).local()
-    const value = parseFloat(payload[this.props.payloadKey])
 
+    if (this.props.payloadKey){
+      var payload = JSON.parse(message.payloadString)
+      var timestamp = moment.utc(payload.timestamp).local()
+      var value = parseFloat(payload[this.props.payloadKey])
+    } else {
+      value = parseFloat(message.payloadString)
+      timestamp = moment.utc().local()
+    }
 
     var key = this.props.isODReading //TODO: change this variable name, something like: IsPartitionedBySensor
       ? message.topic.split("/")[1] + "-" + message.topic.split("/")[5]

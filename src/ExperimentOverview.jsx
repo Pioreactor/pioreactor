@@ -73,11 +73,11 @@ function Overview(props) {
             <Chart
               config={config}
               yAxisDomain={[0.00, 0.05]}
-              dataSource="alt_media_fraction"
+              dataSource="alt_media_fractions"
               interpolation="stepAfter"
-              payloadKey="alt_media_fraction"
+              payloadKey={null}
               title="Fraction of volume that is alternative media"
-              topic="alt_media_calculating/alt_media_fraction"
+              topic="dosing_automation/alt_media_fraction"
               yAxisLabel="Fraction"
               experiment={experimentMetadata.experiment}
               deltaHours={1} // hack to make all points display

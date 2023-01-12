@@ -1225,7 +1225,7 @@ function SettingsActionsDialog(props) {
                 </Typography>
               </div>
               <Typography variant="caption" display="block" gutterBottom color="textSecondary">
-                {job.metadata.source !== "app" ? `Installed by ${job.metadata.source}` : ""}
+                {job.metadata.source !== "app" ? `Installed by ${job.metadata.source || "unknown"}` : ""}
               </Typography>
               <Typography variant="body2" component="p" gutterBottom>
                 <div dangerouslySetInnerHTML={{__html: job.metadata.description}}/>

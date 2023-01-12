@@ -228,7 +228,7 @@ function ListInstalledPlugins({installedPlugins}){
                 size="small"
                 color="primary"
                 aria-label="delete"
-                disabled={!plugin.homepage}
+                disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
                 endIcon={<OpenInNewIcon />}
                 className={classes.secondaryActionButton}
               >
