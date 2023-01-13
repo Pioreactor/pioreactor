@@ -161,6 +161,8 @@ def _pump(
 
                 try:
                     if continuously:
+                        if not dry_run:
+                            pwm.start(calibration.dc)
                         while not state.exit_event.wait(duration):
                             # TODO msqspec has a .replace we should use to replace the timestamp, instead of replicating this whole thing.
                             dosing_event = structs.DosingEvent(
