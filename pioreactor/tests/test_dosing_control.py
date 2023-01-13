@@ -117,7 +117,7 @@ def test_silent_automation() -> None:
             encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
         )
         pause()
-        assert isinstance(algo.run(), events.NoEvent)
+        assert algo.run() is None
         assert algo.latest_normalized_od == 1.0
         assert algo.latest_growth_rate == 0.01
         assert algo.latest_od == {"2": 0.05}
@@ -144,7 +144,7 @@ def test_silent_automation() -> None:
             encode(structs.ODFiltered(od_filtered=1.1, timestamp=current_utc_datetime())),
         )
         pause()
-        assert isinstance(algo.run(), events.NoEvent)
+        assert algo.run() is None
         assert algo.latest_normalized_od == 1.1
         assert algo.previous_normalized_od == 1.0
 

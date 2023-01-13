@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import time
 
+import pytest
+
 from pioreactor import pubsub
 from pioreactor.utils.pwm import PWM
 from pioreactor.whoami import get_unit_name
@@ -35,7 +37,9 @@ def test_pwm_update_mqtt():
     assert len(mqtt_items) == 3
     assert json.loads(mqtt_items[0])["12"] == 50.0
     assert json.loads(mqtt_items[1])["12"] == 20.0
-    assert json.loads(mqtt_items[2])["12"] == 0.0
+    with pytest.raises(KeyError):
+        # we don't publish 0.0
+        assert json.loads(mqtt_items[2])["12"] == 0.0
 
 
 def test_pwm_update_mqtt_multiple_at_one():

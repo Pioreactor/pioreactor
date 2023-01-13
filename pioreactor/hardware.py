@@ -24,10 +24,10 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 
 # led and button GPIO pins
 PCB_LED_PIN: GpioPin = 23
-PCB_BUTTON_PIN: GpioPin = 24 if hardware_version_info <= (1, 0) else 4  # TODO PICO
+PCB_BUTTON_PIN: GpioPin = 24 if hardware_version_info <= (1, 0) else 4
 
 # hall sensor
-HALL_SENSOR_PIN: GpioPin = 25 if hardware_version_info <= (1, 0) else 21  # TODO PICO
+HALL_SENSOR_PIN: GpioPin = 25 if hardware_version_info <= (1, 0) else 21
 
 # I2C GPIO pins
 SDA: GpioPin = 2

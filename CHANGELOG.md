@@ -2,7 +2,7 @@
  - fix `pio update` bugs
  - new config for `[logging]` section, `console_log_level` which control which level of logging to show on the command line (does not effect logs in the database, or disk)
  - systemd services should boot in a better order
- - the latest experiment from the database is always the most recent experiment, ignoring the created_at column (i.e. we use ROWID). This is to avoid cases where users change times (or use a local access point).
+ - the latest experiment from the database is always the most recently inserted experiment, ignoring the created_at column (i.e. we use ROWID). This is to avoid cases where users change times (or use a local access point).
  - Fixes for `fraction_of_volume_that_is_alternative_media` chart in the UI
 
 ### 23.1.1
