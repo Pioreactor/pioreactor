@@ -163,6 +163,8 @@ def _pump(
                     if continuously:
                         if not dry_run:
                             pwm.start(calibration.dc)
+
+                        pump_start_time = time.monotonic()
                         while not state.exit_event.wait(duration):
                             # TODO msqspec has a .replace we should use to replace the timestamp, instead of replicating this whole thing.
                             dosing_event = structs.DosingEvent(
@@ -197,7 +199,7 @@ def _pump(
                         logger.info(f"Stopping {pump_type} pump.")
 
                     if state.exit_event.is_set():
-                        # ended early for some reason
+                        # ended early
                         shortened_duration = time.monotonic() - pump_start_time
                         ml = utils.pump_duration_to_ml(
                             shortened_duration, calibration.duration_, calibration.bias_
