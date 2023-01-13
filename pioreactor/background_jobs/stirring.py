@@ -213,7 +213,6 @@ class Stirrer(BackgroundJob):
             raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
 
         if self.rpm_calculator is not None:
-            self.logger.debug(f"Using {hardware.HALL_SENSOR_PIN=}")
             self.rpm_calculator.setup()
 
         pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "stirring")]

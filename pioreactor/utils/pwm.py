@@ -146,56 +146,45 @@ class PWM:
         except AttributeError:
             return False
 
-    def start(self, initial_duty_cycle: float) -> None:
-        if not (0 <= initial_duty_cycle <= 100):
-            raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
-
-        self.duty_cycle = float(initial_duty_cycle)
-        self.pwm.start(round(self.duty_cycle, 5))
+    def _serialize(self):
 
         current_values = {}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = self.duty_cycle
             for pin in cache:
-                current_values[pin] = cache[pin]
+                dc = cache[pin]
+                if dc > 0:
+                    current_values[pin] = dc
 
         self.pubsub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
         )
+
+    def start(self, initial_duty_cycle: float) -> None:
+        if not (0 <= initial_duty_cycle <= 100):
+            raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
+
+        self.duty_cycle = round(float(initial_duty_cycle), 5)
+        self.pwm.start(self.duty_cycle)
+        self._serialize()
 
     def stop(self) -> None:
         self.pwm.stop()
-
-        current_values = {}
-        with local_intermittent_storage("pwm_dc") as cache:
-            cache[self.pin] = 0.0
-            for pin in cache:
-                current_values[pin] = cache[pin]
-
-        self.pubsub_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
-        )
+        self.duty_cycle = 0
+        self._serialize()
 
     def change_duty_cycle(self, duty_cycle: float) -> None:
         if not (0.0 <= duty_cycle <= 100.0):
             raise PWMError("duty_cycle should be between 0 and 100, inclusive.")
 
-        self.duty_cycle = float(duty_cycle)
+        self.duty_cycle = round(float(duty_cycle), 5)
 
         if self.using_hardware:
-            self.pwm.change_duty_cycle(round(self.duty_cycle, 5))
+            self.pwm.change_duty_cycle(self.duty_cycle)
         else:
             self.pwm.ChangeDutyCycle(self.duty_cycle)  # type: ignore
 
-        current_values = {}
-        with local_intermittent_storage("pwm_dc") as cache:
-            cache[self.pin] = self.duty_cycle
-            for pin in cache:
-                current_values[pin] = cache[pin]
-
-        self.pubsub_client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
-        )
+        self._serialize()
 
     def cleanup(self) -> None:
         self.stop()
