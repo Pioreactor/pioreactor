@@ -525,7 +525,7 @@ class Monitor(BackgroundJob):
 
             command = " ".join((prefix + core_command + args + suffix))
 
-            self.logger.debug(f"Running `{command}` from monitor job.")
+            self.logger.debug(f"Running `{command}` from Monitor job.")
 
             subprocess.run(command, shell=True)
 

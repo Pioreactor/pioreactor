@@ -45,7 +45,7 @@ def _get_latest_experiment_name() -> str:
 
         logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
         logger.warning(
-            f"No experiment found. Try creating a new experiment first. Check http://{leader_address}/api/get_latest_experiment, too."
+            f"No experiment found. Check http://{leader_address}/api/get_latest_experiment for an experiment."
         )
         logger.debug(e, exc_info=True)
         return NO_EXPERIMENT

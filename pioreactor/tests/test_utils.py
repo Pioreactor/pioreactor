@@ -88,3 +88,6 @@ def test_is_pio_job_running_multiple():
         assert is_pio_job_running(["od_reading", "stirring"]) == [False, True]
 
     assert not any(is_pio_job_running(["stirring", "od_reading"]))
+
+
+# TODO: test publish_ready_to_disconnected_state

@@ -80,17 +80,14 @@ class publish_ready_to_disconnected_state:
     > # on close of block, a "disconnected" is fired to MQTT, regardless of how that end is achieved (error, return statement, etc.)
 
 
-    If the program is required to know if it's kill, publish_ready_to_disconnected_state contains an event (see pump.py code)
+    If the program is required to know if it's killed, publish_ready_to_disconnected_state contains an event (see pump.py code)
 
     > with publish_ready_to_disconnected_state(unit, experiment, "self_test") as state:
     >    do_work()
-    >    state.exit_event.wait(60)
-    >    if state.exit_event.is_set():
-    >       bail!
     >
-
-    TODO: just create a client in the __init__, and use that throughout.
-
+    >    state.block_until_disconnected()
+    >    # or state.exit_event.is_set() or state.exit_event.wait(...) are other options.
+    >
 
     """
 
@@ -109,7 +106,7 @@ class publish_ready_to_disconnected_state:
 
         self.client = create_client(
             client_id=f"{self.name}-{self.unit}-{self.experiment}",
-            keepalive=3 * 60,
+            keepalive=5 * 60,
             last_will=last_will,
         )
         self.start_passive_listeners()
@@ -168,6 +165,9 @@ class publish_ready_to_disconnected_state:
             client=self.client,
         )
         return
+
+    def block_until_disconnected(self) -> None:
+        self.exit_event.wait()
 
 
 @contextmanager
