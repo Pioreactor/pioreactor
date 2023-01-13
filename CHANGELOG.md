@@ -1,3 +1,7 @@
+### 23.1.3
+ - Fix `dosing_events` table not be populated caused by an incorrect SQLite3 trigger.
+ - Running a pump _continuously_ will produce MQTT events with new timestamps (previously it was the same timestamp.)
+
 ### 23.1.2
  - fix `pio update` bugs
  - new config for `[logging]` section, `console_log_level` which control which level of logging to show on the command line (does not effect logs in the database, or disk)

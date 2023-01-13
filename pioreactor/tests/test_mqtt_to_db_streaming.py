@@ -97,6 +97,46 @@ def test_updated_heater_dc() -> None:
     assert len(results) == 1
 
 
+def test_dosing_events_land_in_db() -> None:
+    unit = get_unit_name()
+    exp = "test_dosing_events_land_in_db"
+    connection = sqlite3.connect(config["storage"]["database"])
+    cursor = connection.cursor()
+
+    cursor.executescript("DROP TABLE IF EXISTS doing_events;")
+    cursor.executescript(
+        "DROP TRIGGER IF EXISTS update_pioreactor_unit_activity_data_from_dosing_events;"
+    )
+    cursor.executescript(
+        mureq.get(
+            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_tables.sql"
+        ).content.decode("utf-8")
+    )
+    cursor.executescript(
+        mureq.get(
+            "https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/sql/create_triggers.sql"
+        ).content.decode("utf-8")
+    )
+
+    connection.commit()
+
+    parsers = [
+        m2db.TopicToParserToTable(
+            "pioreactor/+/+/dosing_events", m2db.parse_dosing_events, "dosing_events"
+        ),
+    ]
+
+    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
+
+        from pioreactor.actions.pump import add_media
+
+        add_media(unit, exp, ml=1)
+
+    cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
+    results = cursor.fetchall()
+    assert len(results) == 1
+
+
 def test_calibration_gets_saved() -> None:
     experiment = "test_calibration_gets_saved"
     config["storage"]["database"] = "test.sqlite"

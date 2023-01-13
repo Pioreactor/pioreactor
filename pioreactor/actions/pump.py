@@ -176,6 +176,15 @@ def _pump(
                                 json_output,
                                 qos=QOS.EXACTLY_ONCE,
                             )
+                            # TODO msqspec has a .replace we should use to replace the timestamp, instead of replicating this whole thing.
+                            json_output = encode(
+                                structs.DosingEvent(
+                                    volume_change=ml,
+                                    event=action_name,
+                                    source_of_event=source_of_event,
+                                    timestamp=current_utc_datetime(),
+                                )
+                            )
 
                 except SystemExit:
                     # a SigInt, SigKill occurred

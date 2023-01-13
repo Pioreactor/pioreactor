@@ -337,7 +337,7 @@ def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     }
 
 
-def parse_pwm(topic: str, payload: pt.MQTTMessagePayload) -> dict:
+def parse_pwm_dcs(topic: str, payload: pt.MQTTMessagePayload) -> dict:
     metadata = produce_metadata(topic)
     pin_to_dc = loads(payload)
 
@@ -440,7 +440,7 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
             ),
             TopicToParserToTable(
                 "pioreactor/+/+/pwms/dc",
-                parse_pwm,
+                parse_pwm_dcs,
                 "pwm_dcs",
             ),
         ]

@@ -554,7 +554,9 @@ class DosingAutomationJob(BackgroundSubJob):
             cache[self.experiment] = self.vial_volume
 
         if self.vial_volume >= 17:
-            self.logger.warning("Vial is getting very full. Is this expected?")
+            self.logger.warning(
+                f"Vial is reporting a volume of {self.vial_volume}. Is this expected?"
+            )
 
     def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:
         (
