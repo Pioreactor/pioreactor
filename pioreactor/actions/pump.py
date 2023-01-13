@@ -136,19 +136,17 @@ def _pump(
             return 0.0
 
         # publish this first, as downstream jobs need to know about it.
-        json_output = encode(
-            structs.DosingEvent(
-                volume_change=ml,
-                event=action_name,
-                source_of_event=source_of_event,
-                timestamp=current_utc_datetime(),
-            )
+        dosing_event = structs.DosingEvent(
+            volume_change=ml,
+            event=action_name,
+            source_of_event=source_of_event,
+            timestamp=current_utc_datetime(),
         )
 
         with create_client(client_id=f"{action_name}-{unit}-{experiment}") as client:
             client.publish(
                 f"pioreactor/{unit}/{experiment}/dosing_events",
-                json_output,
+                encode(dosing_event),
                 qos=QOS.EXACTLY_ONCE,
             )
             with PWM(
@@ -162,29 +160,27 @@ def _pump(
                 pwm.lock()
 
                 try:
-                    with catchtime() as delta_time:
-                        if not dry_run:
-                            pwm.start(calibration.dc)
-                        pump_start_time = time.monotonic()
-
-                    state.exit_event.wait(max(0, duration - delta_time()))
-
                     if continuously:
                         while not state.exit_event.wait(duration):
+                            # TODO msqspec has a .replace we should use to replace the timestamp, instead of replicating this whole thing.
+                            dosing_event = structs.DosingEvent(
+                                volume_change=ml,
+                                event=action_name,
+                                source_of_event=source_of_event,
+                                timestamp=current_utc_datetime(),
+                            )
                             client.publish(
                                 f"pioreactor/{unit}/{experiment}/dosing_events",
-                                json_output,
+                                encode(dosing_event),
                                 qos=QOS.EXACTLY_ONCE,
                             )
-                            # TODO msqspec has a .replace we should use to replace the timestamp, instead of replicating this whole thing.
-                            json_output = encode(
-                                structs.DosingEvent(
-                                    volume_change=ml,
-                                    event=action_name,
-                                    source_of_event=source_of_event,
-                                    timestamp=current_utc_datetime(),
-                                )
-                            )
+                    else:
+                        with catchtime() as delta_time:
+                            if not dry_run:
+                                pwm.start(calibration.dc)
+                            pump_start_time = time.monotonic()
+
+                        state.exit_event.wait(max(0, duration - delta_time()))
 
                 except SystemExit:
                     # a SigInt, SigKill occurred
