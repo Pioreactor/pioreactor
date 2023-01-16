@@ -366,15 +366,13 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
 
     if source is not None:
         version_installed = source
-        commands_and_priority.append(
-            (f"sudo pip3 install --root-user-action=ignore -U --force-reinstall {source}", 1)
-        )
+        commands_and_priority.append((f"sudo pip3 install -U --force-reinstall {source}", 1))
 
     elif branch is not None:
         version_installed = quote(branch)
         commands_and_priority.append(
             (
-                f"sudo pip3 install --root-user-action=ignore -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip",
+                f"sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip",
                 1,
             )
         )
@@ -389,7 +387,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                 url_to_get_whl = asset["browser_download_url"]
                 commands_and_priority.append(
                     (
-                        f'sudo pip3 install --root-user-action=ignore "pioreactor @ {url_to_get_whl}"',
+                        f'sudo pip3 install "pioreactor @ {url_to_get_whl}"',
                         1,
                     )
                 )
