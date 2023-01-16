@@ -36,13 +36,19 @@ from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
 
 
-@click.group()
-def pio() -> None:
+@click.group(invoke_without_command=True)
+@click.pass_context
+def pio(ctx) -> None:
     """
     Execute commands on this Pioreactor.
     See full documentation here: https://docs.pioreactor.com/user-guide/cli
     Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
     """
+
+    # if a user runs `pio`, we want the check_firstboot_successful to run, hence the invoke_without_command
+    # https://click.palletsprojects.com/en/8.1.x/commands/#group-invocation-without-command
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
 
     # this check could go somewhere else. This check won't execute if calling pioreactor from a script.
     if not check_firstboot_successful():
@@ -285,11 +291,12 @@ def version(verbose: bool) -> None:
 @click.argument("cache")
 def view_cache(cache: str) -> None:
     import os.path
+    import tempfile
 
-    tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
+    tmp_dir = tempfile.gettempdir()
 
     # is it a temp cache or persistant cache?
-    if os.path.isdir(f"{tmp_dir}{cache}"):
+    if os.path.isdir(f"{tmp_dir}/{cache}"):
         cacher = local_intermittent_storage
 
     elif os.path.isdir(f".pioreactor/storage/{cache}"):

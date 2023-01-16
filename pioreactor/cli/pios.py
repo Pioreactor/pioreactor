@@ -39,7 +39,6 @@ def pios() -> None:
     if len(get_active_workers_in_inventory()) == 0:
         logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
         logger.warning("No active workers. See `cluster.inventory` section in config.ini.")
-        raise click.Abort()
 
 
 if am_I_leader():

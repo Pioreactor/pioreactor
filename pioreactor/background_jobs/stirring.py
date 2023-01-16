@@ -87,7 +87,8 @@ class RpmCalculator:
         self.GPIO.setup(self.hall_sensor_pin, self.GPIO.IN, pull_up_down=self.GPIO.PUD_UP)
 
     def clean_up(self) -> None:
-        self.GPIO.cleanup(self.hall_sensor_pin)
+        with suppress(AttributeError):
+            self.GPIO.cleanup(self.hall_sensor_pin)
         set_gpio_availability(self.hall_sensor_pin, True)
 
     def __call__(self, seconds_to_observe: float) -> float:

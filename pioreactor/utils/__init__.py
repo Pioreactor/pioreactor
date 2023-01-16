@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import signal
+import tempfile
 from contextlib import contextmanager
 from threading import Event
 from typing import Callable
@@ -112,13 +113,8 @@ class publish_ready_to_disconnected_state:
         self.start_passive_listeners()
 
     def _exit(self, *args) -> None:
+        # recall: I can't publish in a callback!
         self.exit_event.set()
-        self.client.publish(
-            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "disconnected",
-            qos=QOS.AT_LEAST_ONCE,
-            retain=True,
-        )
 
     def __enter__(self) -> publish_ready_to_disconnected_state:
         try:
@@ -141,6 +137,12 @@ class publish_ready_to_disconnected_state:
         return self
 
     def __exit__(self, *args) -> None:
+        self.client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
+            "disconnected",
+            qos=QOS.AT_LEAST_ONCE,
+            retain=True,
+        )
         self.client.loop_stop()
         self.client.disconnect()
 
@@ -191,8 +193,8 @@ def local_intermittent_storage(
 
     """
     # TMPDIR is in OSX and Pioreactor img (we provide it), TMP is windows
-    tmp_dir = os.environ.get("TMPDIR") or os.environ.get("TMP") or "/tmp/"
-    with Cache(f"{tmp_dir}{cache_name}") as cache:
+    tmp_dir = tempfile.gettempdir()
+    with Cache(f"{tmp_dir}/{cache_name}") as cache:
         yield cache  # type: ignore
 
 

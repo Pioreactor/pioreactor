@@ -44,7 +44,7 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
 
         measured_rpms = []
 
-        # go up and down to observe any hystersis.
+        # go up and down to observe any hysteresis.
         dcs = (
             list(range(max_dc, min_dc, -3))
             + list(range(min_dc, max_dc, 3))
@@ -142,7 +142,7 @@ def click_stirring_calibration(min_dc: int, max_dc: int) -> None:
     if max_dc is None and min_dc is None:
         # seed with initial_duty_cycle
         config_initial_duty_cycle = config.getfloat("stirring", "initial_duty_cycle")
-        min_dc, max_dc = round(config_initial_duty_cycle * 0.66), round(
+        min_dc, max_dc = round(config_initial_duty_cycle * 0.75), round(
             config_initial_duty_cycle * 1.33
         )
     elif (max_dc is not None) and (min_dc is not None):

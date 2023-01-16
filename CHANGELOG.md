@@ -1,6 +1,9 @@
 ### 23.1.3
  - Fix `dosing_events` table not be populated caused by an incorrect SQLite3 trigger.
  - Running a pump _continuously_ will produce MQTT events with new timestamps (previously it was the same timestamp.)
+ - Faster loading for some pages in Pioreactor UI
+ - Fix for RaspAP not turning on when requested using `local_access_point` file
+ - Caching in Pioreactor UI is improved.
 
 ### 23.1.2
  - fix `pio update` bugs
