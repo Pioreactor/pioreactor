@@ -383,6 +383,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         )
         version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:
+            # TODO: potential supply chain attack is to add malicious assets to releases
             if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
                 url_to_get_whl = asset["browser_download_url"]
                 commands_and_priority.append(
@@ -408,6 +409,9 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                     ]
                 )
 
+    commands_and_priority.append(
+        ("sudo systemctl restart pioreactor_startup_run_always@monitor.service", 100)
+    )
     for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
         logger.debug(command)
         p = subprocess.run(

@@ -70,6 +70,7 @@ class Monitor(BackgroundJob):
     published_settings = {
         "computer_statistics": {"datatype": "json", "settable": False},
         "button_down": {"datatype": "boolean", "settable": False},
+        "versions": {"datatype": "json", "settable": False},
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
@@ -82,18 +83,20 @@ class Monitor(BackgroundJob):
         def pretty_version(info: tuple) -> str:
             return ".".join((str(x) for x in info))
 
-        self.logger.debug(
-            f"Pioreactor software version: {pretty_version(version.software_version_info)}"
-        )
-        self.logger.debug(
-            f"Pioreactor HAT version: {pretty_version(version.hardware_version_info)}"
-        )
+        self.versions = {
+            "software": pretty_version(version.software_version_info),
+            "hat": pretty_version(version.hardware_version_info),
+            "hat_serial": version.serial_number,
+        }
+
+        self.logger.debug(f"Pioreactor software version: {self.versions['software']}")
+        self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
 
         self.logger.debug(
             f"Pioreactor firmware version: {pretty_version(version.get_firmware_version())}"
         )
 
-        self.logger.debug(f"Pioreactor HAT serial number: {version.serial_number}")
+        self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED

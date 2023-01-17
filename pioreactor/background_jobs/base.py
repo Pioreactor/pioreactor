@@ -272,12 +272,13 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
-        except ValueError as e:
-            self._clean_up_resources()
-            raise e
-        finally:
             self._publish_properties_to_broker(self.published_settings)
             self._publish_settings_to_broker(self.published_settings)
+        except ValueError as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(e)
+            self._clean_up_resources()
+            raise e
 
         # this happens _after_ pub clients are set up
         self.add_to_published_settings(
