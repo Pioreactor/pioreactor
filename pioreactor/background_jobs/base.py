@@ -263,6 +263,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client = self._create_pub_client()
         self.sub_client = self._create_sub_client()
 
+        self.set_state(self.INIT)
         self._set_up_exit_protocol()
         self._blocking_event = threading.Event()
 
@@ -272,8 +273,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
-            self._publish_properties_to_broker(self.published_settings)
-            self._publish_settings_to_broker(self.published_settings)
+
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
@@ -281,6 +281,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             raise e
 
         # this happens _after_ pub clients are set up
+        # The following is implicity done, too, in add_to_published_settings
+        # self._publish_properties_to_broker(self.published_settings)
         self.add_to_published_settings(
             "state",
             {
@@ -289,11 +291,11 @@ class _BackgroundJob(metaclass=PostInitCaller):
                 "persist": True,
             },
         )
+        self._publish_settings_to_broker(self.published_settings)
 
         self.start_general_passive_listeners()
 
-        # let's move to init, next thing that run is the subclasses __init__
-        self.set_state(self.INIT)
+        # next thing that run is the subclasses __init__
 
     def __post__init__(self) -> None:
         # this function is called AFTER the subclass' __init__ finishes

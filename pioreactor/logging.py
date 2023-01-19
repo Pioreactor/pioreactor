@@ -21,6 +21,9 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
+logging.raiseExceptions = False
+
+
 def add_logging_level(levelName, levelNum):
     """
     Comprehensively adds a new logging level to the `logging` module and the
@@ -56,7 +59,6 @@ def add_logging_level(levelName, levelNum):
     setattr(logging, methodName, logToRoot)
 
 
-logging.raiseExceptions = False
 NOTICE = logging.INFO + 5
 add_logging_level("NOTICE", NOTICE)
 
@@ -215,7 +217,7 @@ def create_logger(
         # confirm that we have connected to the pubsub client
         for _ in range(40):
             if not pub_client.is_connected():
-                time.sleep(0.025)
+                time.sleep(0.02)
             else:
                 break
 

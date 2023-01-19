@@ -409,9 +409,6 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                     ]
                 )
 
-    commands_and_priority.append(
-        ("sudo systemctl restart pioreactor_startup_run_always@monitor.service", 100)
-    )
     for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
         logger.debug(command)
         p = subprocess.run(

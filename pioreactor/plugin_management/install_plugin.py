@@ -13,15 +13,15 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 def install_plugin(name_of_plugin: str, source: str | None = None) -> None:
     logger = create_logger("install_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Installing plugin {name_of_plugin}.")
-    result = subprocess.run(
-        [
-            "bash",
-            "/usr/local/bin/install_pioreactor_plugin.sh",
-            quote(name_of_plugin),
-            source or "",
-        ],
-        capture_output=True,
-    )
+    command = [
+        "bash",
+        "/usr/local/bin/install_pioreactor_plugin.sh",
+        quote(name_of_plugin),
+        source or "",
+    ]
+    logger.debug(" ".join(command))
+
+    result = subprocess.run(command, capture_output=True)
 
     if result.returncode == 0:
         logger.notice(f"Successfully installed plugin {name_of_plugin}.")  # type: ignore
