@@ -147,8 +147,12 @@ class PWM:
             return False
 
     def _serialize(self):
+        # don't send 0 values to MQTT - waste of space and time
+        if self.duty_cycle > 0:
+            current_values = {self.pin: self.duty_cycle}
+        else:
+            current_values = {}
 
-        current_values = {self.pin: self.duty_cycle}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = self.duty_cycle
             for pin in cache:
