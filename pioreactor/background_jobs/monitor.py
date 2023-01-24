@@ -93,7 +93,9 @@ class Monitor(BackgroundJob):
             "hat_serial": version.serial_number,
         }
 
-        self.logger.debug(f"Pioreactor software version: {self.versions['software']}")
+        self.logger.debug(
+            f"Pioreactor software version: {pretty_version(version.software_version_info)}"
+        )
         self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
 
         self.logger.debug(

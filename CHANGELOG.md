@@ -6,6 +6,7 @@
  - Caching in Pioreactor UI is improved.
  - systemd services should boot in an _even_ better order
  - Bug fixes
+ - New 64bit images are available on the CustoPiZer release page. Default is still 32bit until more testing can be done.
 
 ### 23.1.2
  - fix `pio update` bugs
