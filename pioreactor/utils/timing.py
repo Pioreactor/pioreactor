@@ -48,12 +48,12 @@ class RepeatedTimer:
         the number of seconds between calls
     function: callable
         the function to call
-    job_name: str
+    job_name: str, optional
         the job name that is called RepeatedTimer - will be included in logs
     run_immediately: bool
         The default behaviour is to wait `interval` seconds, and then run. Change this to True to run `func` immediately.
-    run_after: float
-        After calling `start`, wait for `run_after` seconds, then continue as normal. This happens before `run_immediately`.
+    run_after: float, optional
+        After calling `start`, wait for `run_after` seconds, then continue as normal. This happens before `run_immediately`. Default 0.
     args, kwargs:
         additional arg and kwargs to be passed into function.
 

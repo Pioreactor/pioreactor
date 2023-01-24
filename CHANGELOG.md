@@ -5,6 +5,7 @@
  - Fix for RaspAP not turning on when requested using `local_access_point` file
  - Caching in Pioreactor UI is improved.
  - systemd services should boot in an _even_ better order
+ - Bug fixes
 
 ### 23.1.2
  - fix `pio update` bugs

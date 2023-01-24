@@ -88,7 +88,7 @@ class Monitor(BackgroundJob):
         # Sol2: pio update app republishes this data, OR publishes an event that Monitor listens to.
         #
         self.versions = {
-            "software": pretty_version(version.software_version_info),
+            # "software": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
             "hat_serial": version.serial_number,
         }
@@ -206,7 +206,14 @@ class Monitor(BackgroundJob):
         if whoami.is_testing_env():
             from pioreactor.utils.mock import MockTMP1075 as TMP1075
         else:
-            from TMP1075 import TMP1075  # type: ignore
+            try:
+                from TMP1075 import TMP1075  # type: ignore
+            except ImportError:
+                # leader-only is a worker?
+                self.logger.warning(
+                    f"{self.unit} doesn't have TMP1075 software installed, but is acting as a worker."
+                )
+                return
 
         try:
             tmp_driver = TMP1075(address=TEMP)

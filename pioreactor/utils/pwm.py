@@ -148,13 +148,14 @@ class PWM:
 
     def _serialize(self):
 
-        current_values = {}
+        current_values = {self.pin: self.duty_cycle}
         with local_intermittent_storage("pwm_dc") as cache:
             cache[self.pin] = self.duty_cycle
             for pin in cache:
-                dc = cache[pin]
-                if dc > 0:
-                    current_values[pin] = dc
+                if pin != self.pin:
+                    dc = cache[pin]
+                    if dc > 0:
+                        current_values[pin] = dc
 
         self.pubsub_client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/pwms/dc", dumps(current_values), retain=True
