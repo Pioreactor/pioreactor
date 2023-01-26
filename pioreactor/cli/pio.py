@@ -279,7 +279,7 @@ def version(verbose: bool) -> None:
         if whoami.am_I_leader():
             try:
                 click.echo(
-                    f"Pioreactor UI:          {get('http://127.0.0.1/api/get_ui_version').body.decode()}"
+                    f"Pioreactor UI:          {get('http://127.0.0.1/api/ui_version').body.decode()}"
                 )
             except Exception:
                 pass
@@ -419,7 +419,8 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
             stderr=subprocess.PIPE,
         )
         if p.returncode != 0:
-            logger.error(p.stderr)
+            logger.debug(p.stderr)
+            logger.error("Update failed. See logs.")
             # end early
             return
 

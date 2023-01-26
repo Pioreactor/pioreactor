@@ -37,7 +37,7 @@ def _get_latest_experiment_name() -> str:
     from pioreactor.config import leader_address
 
     try:
-        result = get(f"http://{leader_address}/api/get_latest_experiment")
+        result = get(f"http://{leader_address}/api/experiments/latest")
         result.raise_for_status()
         return decode(result.body, type=ExperimentMetadata).experiment
     except Exception as e:
@@ -45,7 +45,7 @@ def _get_latest_experiment_name() -> str:
 
         logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
         logger.warning(
-            f"No experiment found. Check http://{leader_address}/api/get_latest_experiment for an experiment."
+            f"No experiment found. Check http://{leader_address}/api/experiments/latest for an experiment."
         )
         logger.debug(e, exc_info=True)
         return NO_EXPERIMENT

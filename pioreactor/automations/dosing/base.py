@@ -32,9 +32,16 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
-def brief_pause() -> None:
-    time.sleep(5.0)
-    return
+def brief_pause() -> float:
+    d = 0.05
+    time.sleep(d)
+    return d
+
+
+def briefer_pause() -> float:
+    d = 0.05
+    time.sleep(d)
+    return d
 
 
 class ThroughputCalculator:
@@ -274,11 +281,10 @@ class DosingAutomationJob(BackgroundSubJob):
 
         elif self.state != self.READY:
             # wait a minute, and if not unpaused, just move on.
-            time_waited = 0
-            sleep_for = 5
+            time_waited = 0.0
 
             while self.state != self.READY:
-                time.sleep(sleep_for)
+                sleep_for = brief_pause()
                 time_waited += sleep_for
 
                 if time_waited > 60:
@@ -316,7 +322,7 @@ class DosingAutomationJob(BackgroundSubJob):
         return True
 
     def execute_io_action(
-        self, alt_media_ml: float = 0, media_ml: float = 0, waste_ml: float = 0
+        self, media_ml: float = 0, alt_media_ml: float = 0, waste_ml: float = 0
     ) -> SummableList:
         """
         This function recursively reduces the amount to add so that we don't end up adding 5ml,
@@ -330,19 +336,20 @@ class DosingAutomationJob(BackgroundSubJob):
 
 
         """
+        assert waste_ml >= alt_media_ml + media_ml
         max_ = 0.75  # arbitrary, but should be some value that the pump is well calibrated for
         volumes_moved = SummableList([0.0, 0.0, 0.0])  # media, alt_media, waste
         source_of_event = f"{self.job_name}:{self.automation_name}"
 
         if (alt_media_ml + media_ml) > max_:
             volumes_moved += self.execute_io_action(
-                alt_media_ml=alt_media_ml / 2,
                 media_ml=media_ml / 2,
+                alt_media_ml=alt_media_ml / 2,
                 waste_ml=alt_media_ml / 2 + media_ml / 2,
             )
             volumes_moved += self.execute_io_action(
-                alt_media_ml=alt_media_ml / 2,
                 media_ml=media_ml / 2,
+                alt_media_ml=alt_media_ml / 2,
                 waste_ml=alt_media_ml / 2 + media_ml / 2,
             )
 
@@ -388,7 +395,7 @@ class DosingAutomationJob(BackgroundSubJob):
                     source_of_event=source_of_event,
                 )
                 volumes_moved[2] += waste_moved
-                time.sleep(0.05)
+                briefer_pause()
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(
                     unit=self.unit,

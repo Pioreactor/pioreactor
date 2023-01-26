@@ -130,7 +130,21 @@ def test_dosing_events_land_in_db() -> None:
 
         from pioreactor.actions.pump import add_media
 
-        add_media(unit, exp, ml=1)
+        add_media(
+            unit,
+            exp,
+            ml=1,
+            calibration=structs.MediaPumpCalibration(
+                name="test",
+                duration_=1.0,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp=current_utc_datetime(),
+                voltage=-1.0,
+                pump="media",
+            ),
+        )
 
     cursor.execute("SELECT * FROM dosing_events WHERE pioreactor_unit=?", (unit,))
     results = cursor.fetchall()
