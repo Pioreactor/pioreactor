@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import threading
 import time
 
 import click
 
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.config import get_workers_in_inventory
 from pioreactor.pubsub import subscribe
 from pioreactor.types import MQTTMessage
+from pioreactor.utils.networking import discover_workers_on_network
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
@@ -18,7 +21,15 @@ class WatchDog(BackgroundJob):
     def __init__(self, unit: str, experiment: str) -> None:
         super(WatchDog, self).__init__(unit=unit, experiment=experiment)
 
+        threading.Thread(target=self.announce_new_workers, daemon=True).start()
         self.start_passive_listeners()
+
+    def announce_new_workers(self):
+        for worker in discover_workers_on_network():
+            if worker not in get_workers_in_inventory():
+                self.logger.notice(
+                    f"Uninitialized worker, {worker}, is available to add to cluster."
+                )
 
     def watch_for_lost_state(self, state_message: MQTTMessage) -> None:
         # generally, I hate this code below...
