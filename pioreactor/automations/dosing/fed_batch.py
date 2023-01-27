@@ -2,7 +2,6 @@
 # pump X ml every period (minute, 30min, hour, etc.)
 from __future__ import annotations
 
-from pioreactor.actions.pump import add_media
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import DosingAutomationJob
 
@@ -23,7 +22,7 @@ class FedBatch(DosingAutomationJob):
         self.volume = float(volume)
 
     def execute(self):
-        vol = add_media(
+        vol = self.add_media_to_bioreactor(
             ml=self.volume,
             source_of_event=f"{self.job_name}:{self.automation_name}",
             unit=self.unit,

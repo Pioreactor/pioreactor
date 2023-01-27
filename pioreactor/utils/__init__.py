@@ -304,9 +304,24 @@ def argextrema(x: list) -> tuple[int, int]:
     return argmin_, argmax_
 
 
-class SummableList(list):
-    def __add__(self, other) -> SummableList:
-        return SummableList([s + o for (s, o) in zip(self, other)])
+class SummableDict(dict):
+    def __init__(self, *arg, **kwargs):
+        dict.__init__(self, *arg, **kwargs)
 
-    def __iadd__(self, other) -> SummableList:
+    def __add__(self, other):
+        s = SummableDict()
+        for key in self:
+            s[key] += self[key]
+        for key in other:
+            s[key] += other[key]
+
+        return s
+
+    def __iadd__(self, other):
         return self + other
+
+    def __getitem__(self, key):
+        if key not in self:
+            return 0
+        else:
+            return dict.__getitem__(self, key)

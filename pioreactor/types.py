@@ -11,6 +11,7 @@ class DosingProgram(t.Protocol):
     """
 
     def __call__(self, unit: str, experiment: str, ml: float, source_of_event: str) -> float:
+        # don't forget to return a float!
         ...
 
 

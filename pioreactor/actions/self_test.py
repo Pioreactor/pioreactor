@@ -41,7 +41,7 @@ from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
-from pioreactor.utils import SummableList
+from pioreactor.utils import SummableDict
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import trimmed_mean
 from pioreactor.whoami import get_latest_experiment_name
@@ -353,9 +353,9 @@ class BatchTestRunner:
         self._thread.start()
         return self
 
-    def collect(self) -> SummableList:
+    def collect(self) -> SummableDict:
         self._thread.join()
-        return SummableList([self.count_tested, self.count_passed])
+        return SummableDict({"count_tested": self.count_tested, "count_passed": self.count_passed})
 
     def _run(self, client, logger: Logger, unit: str, experiment_name: str) -> None:
 
@@ -446,7 +446,8 @@ def click_self_test(k: str) -> int:
             [f for f in B_TESTS if f in functions_to_test], *test_args
         ).start()
 
-        count_tested, count_passed = RunnerA.collect() + RunnerB.collect()
+        results = RunnerA.collect() + RunnerB.collect()
+        count_tested, count_passed = results["count_tested"], results["count_passed"]
         count_failures = count_tested - count_passed
 
         client.publish(

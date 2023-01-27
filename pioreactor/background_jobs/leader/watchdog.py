@@ -28,7 +28,7 @@ class WatchDog(BackgroundJob):
         for worker in discover_workers_on_network():
             if worker not in get_workers_in_inventory():
                 self.logger.notice(
-                    f"Uninitialized worker, {worker}, is available to add to cluster."
+                    f"Uninitialized worker, {worker}, is available to be added to your cluster."
                 )
 
     def watch_for_lost_state(self, state_message: MQTTMessage) -> None:

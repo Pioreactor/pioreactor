@@ -40,7 +40,7 @@ class ContinuousCycle(DosingAutomationJob):
         self.duty_cycle = clamp(0, new_dc, 100)
         self.pwm.change_duty_cycle(self.duty_cycle)
 
-    def run(self) -> Optional[events.AutomationEvent]:
+    def run(self, timeout: float = 0) -> Optional[events.AutomationEvent]:
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.

@@ -691,9 +691,9 @@ def test_execute_io_action_outputs1() -> None:
 
     with DosingAutomationJob(unit=unit, experiment=experiment) as ca:
         result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
-        assert result[0] == 1.25
-        assert result[1] == 0.01
-        assert result[2] == 1.26
+        assert result["media_ml"] == 1.25
+        assert result["alt_media_ml"] == 0.01
+        assert result["waste_ml"] == 1.26
 
 
 def test_mqtt_properties_in_dosing_automations():
@@ -769,9 +769,9 @@ def test_execute_io_action_outputs_will_shortcut_if_disconnected() -> None:
     ca = DosingAutomationJob(unit=unit, experiment=experiment)
     ca.clean_up()
     result = ca.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
-    assert result[0] == 0.0
-    assert result[1] == 0.0
-    assert result[2] == 0.0
+    assert result["media_ml"] == 0.0
+    assert result["alt_media_ml"] == 0.0
+    assert result["waste_ml"] == 0.0
 
 
 def test_PIDMorbidostat() -> None:
@@ -1506,3 +1506,71 @@ def test_alt_media_calcualtor_from_0_volume():
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
     current_volume = vc.update(event, current_volume)
     assert current_alt_media_fraction == 0.6
+
+
+def test_adding_pumps_and_calling_them_from_execute_io_action():
+
+    experiment = "test_adding_pumps_and_calling_them_from_execute_io_action"
+    unit = get_unit_name()
+
+    class ExternalAutomation(DosingAutomationJob):
+        automation_name = "external_automation"
+
+        def add_salty_media_to_bioreactor(self, unit, experiment, ml, source_of_event):
+            self.logger.info(f"dosing {ml / 2}mL from salty")
+            pause()
+            return ml / 2
+
+        def add_acid_media_to_bioreactor(self, unit, experiment, ml, source_of_event):
+            self.logger.info(f"dosing {ml}mL from acid")
+            pause()
+            return ml
+
+        def execute(self):
+            result = self.execute_io_action(waste_ml=1.0, salty_media_ml=0.75, acid_media_ml=0.25)
+            assert result["waste_ml"] == 1.0
+            assert result["salty_media_ml"] == 0.75 / 2
+            assert result["acid_media_ml"] == 0.25
+            return
+
+    with start_dosing_control(
+        "external_automation",
+        5,
+        False,
+        unit,
+        experiment,
+    ):
+        pause(60)
+
+
+def test_execute_io_action_errors() -> None:
+    experiment = "test_execute_io_action_errors"
+
+    with DosingController(
+        "silent",
+        unit=unit,
+        experiment=experiment,
+    ) as ca:
+        with pytest.raises(ValueError):
+            # missing _ml
+            ca.automation_job.execute_io_action(waste_ml=1.20, salty_media=1.0)
+
+        with pytest.raises(ValueError):
+            # waste < volume
+            ca.automation_job.execute_io_action(waste_ml=1.0, media_ml=2.0)
+
+        with pytest.raises(AttributeError):
+            # add_salty_media_to_bioreactor
+            ca.automation_job.execute_io_action(waste_ml=1.0, salty_media_ml=1.0)
+
+
+def test_timeout_in_run() -> None:
+    unit = get_unit_name()
+    experiment = "test_timeout_in_run"
+
+    with pubsub.collect_all_logs_of_level("DEBUG", unit, experiment) as bucket:
+        with DosingController("silent", unit=unit, experiment=experiment, duration=5) as ca:
+            ca.automation_job.set_state(ca.automation_job.SLEEPING)
+            time.sleep(70)
+
+        assert any("Timed out" in item["message"] for item in bucket)

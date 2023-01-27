@@ -1,3 +1,9 @@
+### 23.1.4
+ - watchdog job now listens for new workers that join the network and are not part of the cluster. A NOTICE message is logged.
+ - `execute_io_action` returns a dictionary now (instead of a list).
+ - Some initial _software_ support for adding more pumps to the Pioreactor.
+ - `SummableList` is replaced with `SummableDict`
+
 ### 23.1.3
  - Fix `dosing_events` table not be populated caused by an incorrect SQLite3 trigger.
  - Running a pump _continuously_ will produce MQTT events with new timestamps (previously it was the same timestamp.)

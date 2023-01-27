@@ -5,6 +5,7 @@ import time
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
+from itertools import chain
 from threading import Thread
 from typing import Any
 from typing import cast
@@ -27,13 +28,13 @@ from pioreactor.config import config
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
-from pioreactor.utils import SummableList
+from pioreactor.utils import SummableDict
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
 def brief_pause() -> float:
-    d = 0.05
+    d = 5.0
     time.sleep(d)
     return d
 
@@ -271,31 +272,35 @@ class DosingAutomationJob(BackgroundSubJob):
             self.run_thread = Thread(target=self.run, daemon=True)
             self.run_thread.start()
 
-    def run(self) -> Optional[events.AutomationEvent]:
-        event: Optional[events.AutomationEvent]
+    def run(self, timeout: float = 60.0) -> Optional[events.AutomationEvent]:
+        """
+        Parameters
+        -----------
+        timeout: float
+            if the job is not in a READY state after timeout seconds, skip calling `execute` this period.
+            Default 60s.
 
+        """
+        event: Optional[events.AutomationEvent]
+        print(timeout)
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.
             return None
 
         elif self.state != self.READY:
-            # wait a minute, and if not unpaused, just move on.
-            time_waited = 0.0
-
-            while self.state != self.READY:
-                sleep_for = brief_pause()
-                time_waited += sleep_for
-
-                if time_waited > 60:
-                    return None
-
+            sleep_for = brief_pause()
+            # wait a 60s, and if not unpaused, just move on.
+            if (timeout - sleep_for) <= 0:
+                self.logger.debug("Timed out waiting for READY.")
+                return None
             else:
-                return self.run()
-
+                return self.run(timeout=timeout - sleep_for)
         else:
+            # we are in READY
             try:
                 event = self.execute()
+
             except exc.JobRequiredError as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.warning(e)
@@ -316,77 +321,102 @@ class DosingAutomationJob(BackgroundSubJob):
         # should be defined in subclass
         return events.NoEvent()
 
-    def wait_until_not_sleeping(self) -> bool:
+    def block_until_not_sleeping(self) -> bool:
         while self.state == self.SLEEPING:
             brief_pause()
         return True
 
     def execute_io_action(
-        self, media_ml: float = 0, alt_media_ml: float = 0, waste_ml: float = 0
-    ) -> SummableList:
+        self,
+        waste_ml: float = 0,
+        media_ml: float = 0,
+        alt_media_ml: float = 0,
+        **other_pumps_ml: float,
+    ) -> SummableDict:
         """
         This function recursively reduces the amount to add so that we don't end up adding 5ml,
-        and then removing 5ml (this could cause overflow).
-        Instead we add 0.5ml, remove 0.5ml, add 0.5ml, remove 0.5ml, etc.
+        and then removing 5ml (this could cause overflow). Instead we add 0.5ml, remove 0.5ml,
+        add 0.5ml, remove 0.5ml, etc. We also want sufficient time to mix, and this procedure
+        will slow dosing down.
 
-        Note: If alt_media_ml and media_ml are non-zero, we keep their ratio equal for each
-        call. This keeps the ratio of alt_media to media equal in the vial.
 
-        We also want sufficient time to mix, and this procedure will slow dosing down.
+        Users can call additional pumps (other than media and alt_media) by providing them as kwargs. Ex:
+
+        > dc.execute_io_action(waste_ml=2, media_ml=1, salt_media_ml=0.5, media_from_sigma_ml=0.5)
+
+        It's required that an named pump function is present to. In the example above, we would need the following, too:
+
+        > dc.add_salt_media_to_bioreactor(...)
+        > dc.add_media_from_sigma_to_bioreactor(...)
+
+        Specifically, if you enter a kwarg `<name>_ml`, you need a function `add_<name>_to_bioreactor`. The pump function
+        should have signature equal to pioreactor.types.DosingProgram.
+
+
+        Note
+        ------
+        If alt_media_ml and media_ml are non-zero, we keep their ratio equal for each
+        sub-call. This keeps the ratio of alt_media to media equal in the vial.
 
 
         """
-        assert waste_ml >= alt_media_ml + media_ml
+        if not all(other_pump_ml.endswith("_ml") for other_pump_ml in other_pumps_ml.keys()):
+            raise ValueError("all kwargs should end in `_ml`")
+
+        sum_of_volumes = sum(ml for ml in other_pumps_ml.values()) + media_ml + alt_media_ml
+
+        if not (waste_ml >= sum_of_volumes):
+            raise ValueError(
+                "Not removing enough waste: waste_ml should be greater than sum of dosed ml"
+            )
+
         max_ = 0.75  # arbitrary, but should be some value that the pump is well calibrated for
-        volumes_moved = SummableList([0.0, 0.0, 0.0])  # media, alt_media, waste
+        volumes_moved = SummableDict(
+            media_ml=0, alt_media_ml=0, waste_ml=0, **{p: 0 for p in other_pumps_ml}
+        )  # media, alt_media, waste
         source_of_event = f"{self.job_name}:{self.automation_name}"
 
-        if (alt_media_ml + media_ml) > max_:
+        if sum_of_volumes > max_:
             volumes_moved += self.execute_io_action(
+                waste_ml=sum_of_volumes / 2,
                 media_ml=media_ml / 2,
                 alt_media_ml=alt_media_ml / 2,
-                waste_ml=alt_media_ml / 2 + media_ml / 2,
+                **{pump: ml / 2 for pump, ml in other_pumps_ml.items()},
             )
             volumes_moved += self.execute_io_action(
+                waste_ml=sum_of_volumes / 2,
                 media_ml=media_ml / 2,
                 alt_media_ml=alt_media_ml / 2,
-                waste_ml=alt_media_ml / 2 + media_ml / 2,
+                **{pump: ml / 2 for pump, ml in other_pumps_ml.items()},
             )
 
         else:
-            if (
-                media_ml > 0
-                and (self.state in [self.READY, self.SLEEPING])
-                and self.wait_until_not_sleeping()
+            # iterate through pumps, and dose required amount. First media, then alt_media, then any others, then waste.
+            for pump_ml, ml in chain(
+                {"media_ml": media_ml, "alt_media_ml": alt_media_ml}.items(), other_pumps_ml.items()
             ):
-                media_moved = self.add_media_to_bioreactor(
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    ml=media_ml,
-                    source_of_event=source_of_event,
-                )
-                volumes_moved[0] += media_moved
-                brief_pause()
-
-            if (
-                alt_media_ml > 0
-                and (self.state in [self.READY, self.SLEEPING])
-                and self.wait_until_not_sleeping()
-            ):  # always check that we are still in a valid state, as state can change between pump runs.
-                alt_media_moved = self.add_alt_media_to_bioreactor(
-                    unit=self.unit,
-                    experiment=self.experiment,
-                    ml=alt_media_ml,
-                    source_of_event=source_of_event,
-                )
-                volumes_moved[1] += alt_media_moved
-                brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
+                if (
+                    (ml > 0)
+                    and (self.state in (self.READY, self.SLEEPING))
+                    and self.block_until_not_sleeping()
+                ):
+                    pump_function = getattr(
+                        self, f"add_{pump_ml.removesuffix('_ml')}_to_bioreactor"
+                    )
+                    ml_moved = pump_function(
+                        unit=self.unit,
+                        experiment=self.experiment,
+                        ml=ml,
+                        source_of_event=source_of_event,
+                    )
+                    volumes_moved[pump_ml] += ml_moved
+                    brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
             if (
                 waste_ml > 0
                 and (self.state in [self.READY, self.SLEEPING])
-                and self.wait_until_not_sleeping()
+                and self.block_until_not_sleeping()
             ):
                 waste_moved = self.remove_waste_from_bioreactor(
                     unit=self.unit,
@@ -394,7 +424,7 @@ class DosingAutomationJob(BackgroundSubJob):
                     ml=waste_ml,
                     source_of_event=source_of_event,
                 )
-                volumes_moved[2] += waste_moved
+                volumes_moved["waste_ml"] += waste_moved
                 briefer_pause()
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(
