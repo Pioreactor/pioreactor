@@ -282,7 +282,6 @@ class DosingAutomationJob(BackgroundSubJob):
 
         """
         event: Optional[events.AutomationEvent]
-        print(timeout)
         if self.state == self.DISCONNECTED:
             # NOOP
             # we ended early.

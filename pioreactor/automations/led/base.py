@@ -24,6 +24,12 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 
 
+def brief_pause() -> float:
+    d = 5.0
+    time.sleep(d)
+    return d
+
+
 class LEDAutomationJob(BackgroundSubJob):
     """
     This is the super class that LED automations inherit from. The `run` function will
@@ -117,8 +123,8 @@ class LEDAutomationJob(BackgroundSubJob):
             run_after=run_after,
         ).start()
 
-    def run(self) -> Optional[events.AutomationEvent]:
-        # TODO: this should be close to or equal to the function in DosingAutomationJob
+    def run(self, timeout: float = 60.0) -> Optional[events.AutomationEvent]:
+
         event: Optional[events.AutomationEvent]
         if self.state == self.DISCONNECTED:
             # NOOP
@@ -126,22 +132,16 @@ class LEDAutomationJob(BackgroundSubJob):
             return None
 
         elif self.state != self.READY:
-            # wait a minute, and if not unpaused, just move on.
-
-            time_waited = 0
-            sleep_for = 5
-
-            while self.state != self.READY:
-                time.sleep(sleep_for)
-                time_waited += sleep_for
-
-                if time_waited > 60:
-                    return None
-
+            sleep_for = brief_pause()
+            # wait a 60s, and if not unpaused, just move on.
+            if (timeout - sleep_for) <= 0:
+                self.logger.debug("Timed out waiting for READY.")
+                return None
             else:
-                return self.run()
+                return self.run(timeout=timeout - sleep_for)
 
         else:
+            # we are READY
             try:
                 event = self.execute()
             except exc.JobRequiredError as e:
@@ -151,7 +151,7 @@ class LEDAutomationJob(BackgroundSubJob):
             except Exception as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
-                event = events.ErrorOccurred()
+                event = events.ErrorOccurred(str(e))
 
         if event:
             self.logger.info(str(event))

@@ -1,7 +1,7 @@
 ### 23.1.4
  - watchdog job now listens for new workers that join the network and are not part of the cluster. A NOTICE message is logged.
  - `execute_io_action` returns a dictionary now (instead of a list).
- - Some initial _software_ support for adding more pumps to the Pioreactor.
+ - Initial _software_ support for adding more pumps to the Pioreactor.
  - `SummableList` is replaced with `SummableDict`
 
 ### 23.1.3
