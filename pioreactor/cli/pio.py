@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from json import dumps
 from json import loads
 from shlex import quote
 from time import sleep
@@ -541,15 +540,11 @@ if whoami.am_I_leader():
         name="discover-workers",
         short_help="discover all pioreactor workers on the network",
     )
-    @click.option("--json", is_flag=True, help="output as json")
-    def discover_workers(json) -> None:
+    def discover_workers() -> None:
         from pioreactor.utils.networking import discover_workers_on_network
 
-        if json:
-            click.echo(dumps({"workers": discover_workers_on_network()}))
-        else:
-            for hostname in discover_workers_on_network():
-                click.echo(hostname)
+        for hostname in discover_workers_on_network():
+            click.echo(hostname)
 
     @pio.command(name="cluster-status", short_help="report information on the pioreactor cluster")
     def cluster_status() -> None:

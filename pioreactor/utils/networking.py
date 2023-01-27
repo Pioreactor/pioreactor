@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-import time
+from typing import Generator
 from typing import Optional
 
 
@@ -75,24 +75,37 @@ def get_ip() -> Optional[str]:
         return None
 
 
-def discover_workers_on_network() -> list[str]:
+def discover_workers_on_network() -> Generator[str, None, None]:
+    """
+    Example
+    --------
+
+    > for worker in discover_workers_on_network():
+    >     print(worker)
+    """
     from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
+    from queue import Queue
 
     class Listener(ServiceListener):
         def __init__(self):
-            self.hostnames: list[str] = []
+            self.hostnames: Queue[str] = Queue()
 
         def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:
             info = zc.get_service_info(type_, name)
-            self.hostnames.append(info.server.removesuffix(".local."))  # type: ignore
+            self.hostnames.put(info.server.removesuffix(".local."))  # type: ignore
 
         def update_service(self, *args, **kwargs):
             pass
 
+        def __next__(self) -> str:
+            return self.hostnames.get()
+
+        def __iter__(self):
+            return self
+
     listener = Listener()
     ServiceBrowser(Zeroconf(), "_pioreactor_worker._tcp.local.", listener)
-    time.sleep(1)
-    return listener.hostnames
+    yield from listener
 
 
 def add_local(hostname: str) -> str:
