@@ -334,8 +334,8 @@ class DosingAutomationJob(BackgroundSubJob):
     ) -> SummableDict:
         """
         This function recursively reduces the amount to add so that we don't end up adding 5ml,
-        and then removing 5ml (this could cause overflow). Instead we add 0.5ml, remove 0.5ml,
-        add 0.5ml, remove 0.5ml, etc. We also want sufficient time to mix, and this procedure
+        and then removing 5ml (this could cause vial overflow). Instead we add 0.5ml, remove 0.5ml,
+        add 0.5ml, remove 0.5ml, and so on. We also want sufficient time to mix, and this procedure
         will slow dosing down.
 
 
@@ -343,7 +343,7 @@ class DosingAutomationJob(BackgroundSubJob):
 
         > dc.execute_io_action(waste_ml=2, media_ml=1, salt_media_ml=0.5, media_from_sigma_ml=0.5)
 
-        It's required that an named pump function is present to. In the example above, we would need the following, too:
+        It's required that a named pump function is present to. In the example above, we would need the following defined:
 
         > dc.add_salt_media_to_bioreactor(...)
         > dc.add_media_from_sigma_to_bioreactor(...)
@@ -355,8 +355,12 @@ class DosingAutomationJob(BackgroundSubJob):
         Note
         ------
         If alt_media_ml and media_ml are non-zero, we keep their ratio equal for each
-        sub-call. This keeps the ratio of alt_media to media equal in the vial.
+        sub-call. This keeps the ratio of alt_media to media the same in the vial.
 
+        Returns
+        ---------
+
+        A dict of volumes that were moved, in mL. This may be different than the request mLs, if a error in a pump occurred.
 
         """
         if not all(other_pump_ml.endswith("_ml") for other_pump_ml in other_pumps_ml.keys()):
@@ -380,35 +384,33 @@ class DosingAutomationJob(BackgroundSubJob):
                 waste_ml=sum_of_volumes / 2,
                 media_ml=media_ml / 2,
                 alt_media_ml=alt_media_ml / 2,
-                **{pump: ml / 2 for pump, ml in other_pumps_ml.items()},
+                **{pump: volume_ml / 2 for pump, volume_ml in other_pumps_ml.items()},
             )
             volumes_moved += self.execute_io_action(
                 waste_ml=sum_of_volumes / 2,
                 media_ml=media_ml / 2,
                 alt_media_ml=alt_media_ml / 2,
-                **{pump: ml / 2 for pump, ml in other_pumps_ml.items()},
+                **{pump: volume_ml / 2 for pump, volume_ml in other_pumps_ml.items()},
             )
 
         else:
             # iterate through pumps, and dose required amount. First media, then alt_media, then any others, then waste.
-            for pump_ml, ml in chain(
+            for pump, volume_ml in chain(
                 {"media_ml": media_ml, "alt_media_ml": alt_media_ml}.items(), other_pumps_ml.items()
             ):
                 if (
-                    (ml > 0)
+                    (volume_ml > 0)
                     and (self.state in (self.READY, self.SLEEPING))
                     and self.block_until_not_sleeping()
                 ):
-                    pump_function = getattr(
-                        self, f"add_{pump_ml.removesuffix('_ml')}_to_bioreactor"
-                    )
-                    ml_moved = pump_function(
+                    pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
+                    volume_moved_ml = pump_function(
                         unit=self.unit,
                         experiment=self.experiment,
-                        ml=ml,
+                        ml=volume_ml,
                         source_of_event=source_of_event,
                     )
-                    volumes_moved[pump_ml] += ml_moved
+                    volumes_moved[pump] += volume_moved_ml
                     brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
@@ -417,13 +419,19 @@ class DosingAutomationJob(BackgroundSubJob):
                 and (self.state in [self.READY, self.SLEEPING])
                 and self.block_until_not_sleeping()
             ):
-                waste_moved = self.remove_waste_from_bioreactor(
+                waste_moved_ml = self.remove_waste_from_bioreactor(
                     unit=self.unit,
                     experiment=self.experiment,
                     ml=waste_ml,
                     source_of_event=source_of_event,
                 )
-                volumes_moved["waste_ml"] += waste_moved
+                volumes_moved["waste_ml"] += waste_moved_ml
+
+                if waste_moved_ml < waste_ml:
+                    self.logger.warning(
+                        "Waste was under-removed. Risk of overflow. Is the waste pumpg working?"
+                    )
+
                 briefer_pause()
                 # run remove_waste for an additional few seconds to keep volume constant (determined by the length of the waste tube)
                 self.remove_waste_from_bioreactor(
@@ -432,6 +440,7 @@ class DosingAutomationJob(BackgroundSubJob):
                     ml=waste_ml * 2,
                     source_of_event=source_of_event,
                 )
+                briefer_pause()
 
         return volumes_moved
 

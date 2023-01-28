@@ -1574,3 +1574,24 @@ def test_timeout_in_run() -> None:
             time.sleep(70)
 
         assert any("Timed out" in item["message"] for item in bucket)
+
+
+def test_warning_is_logged_if_under_remove_waste() -> None:
+    unit = get_unit_name()
+    experiment = "test_warning_is_logged_if_under_remove_waste"
+
+    class BadWasteRemoval(DosingAutomationJob):
+        automation_name = "bad_waste_removal"
+
+        def remove_waste_from_bioreactor(self, unit, experiment, ml, source_of_event):
+            return ml / 2
+
+        def execute(self):
+            self.execute_io_action(waste_ml=1.0, media_ml=1.0)
+            return
+
+    with pubsub.collect_all_logs_of_level("WARNING", unit, experiment) as bucket:
+        with DosingController("bad_waste_removal", unit=unit, experiment=experiment, duration=5):
+            time.sleep(30)
+
+        assert len(bucket) >= 1

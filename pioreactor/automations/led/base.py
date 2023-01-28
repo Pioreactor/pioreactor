@@ -124,7 +124,14 @@ class LEDAutomationJob(BackgroundSubJob):
         ).start()
 
     def run(self, timeout: float = 60.0) -> Optional[events.AutomationEvent]:
+        """
+        Parameters
+        -----------
+        timeout: float
+            if the job is not in a READY state after timeout seconds, skip calling `execute` this period.
+            Default 60s.
 
+        """
         event: Optional[events.AutomationEvent]
         if self.state == self.DISCONNECTED:
             # NOOP
