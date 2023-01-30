@@ -3,6 +3,7 @@
  - `execute_io_action` returns a dictionary now (instead of a list).
  - Initial _software_ support for adding more pumps to the Pioreactor.
  - `SummableList` is replaced with `SummableDict`
+ - Pioreactor UI has a more RESTful API, so some internal urls have changed. See full changes in the pioreactorui repository.
 
 ### 23.1.3
  - Fix `dosing_events` table not be populated caused by an incorrect SQLite3 trigger.

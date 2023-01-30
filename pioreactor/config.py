@@ -148,6 +148,7 @@ def check_firstboot_successful() -> bool:
 
 
 def get_active_workers_in_inventory() -> tuple[str, ...]:
+    # note that this rehydrates conifg.ini from disk before checking.
     # because we are not using config.getboolean here, values like "0" are seen as true,
     # hence we use the built in config.BOOLEAN_STATES to determine truthiness
     config = get_config()
@@ -159,6 +160,7 @@ def get_active_workers_in_inventory() -> tuple[str, ...]:
 
 
 def get_workers_in_inventory() -> tuple[str, ...]:
+    # note that this rehydrates config.ini from disk before checking.
     config = get_config()
     return tuple(str(unit) for (unit, available) in config["cluster.inventory"].items())
 

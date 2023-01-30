@@ -7,6 +7,7 @@ import time
 import click
 
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.config import get_leader_address
 from pioreactor.config import get_workers_in_inventory
 from pioreactor.pubsub import subscribe
 from pioreactor.types import MQTTMessage
@@ -26,10 +27,19 @@ class WatchDog(BackgroundJob):
 
     def announce_new_workers(self):
         for worker in discover_workers_on_network():
-            if worker not in get_workers_in_inventory():
-                self.logger.notice(
-                    f"Uninitialized worker, {worker}, is available to be added to your cluster."
+            # not in current cluster, and not leader
+            if (worker not in get_workers_in_inventory()) and (worker != get_leader_address()):
+                # is there an MQTT state for this worker?
+                result = subscribe(
+                    f"pioreactor/{worker}/{UNIVERSAL_EXPERIMENT}/monitor/$state",
+                    timeout=5,
+                    name=self.job_name,
+                    retries=1,
                 )
+                if result is None:
+                    self.logger.notice(
+                        f"Uninitialized worker, {worker}, is available to be added to your cluster."
+                    )
 
     def watch_for_lost_state(self, state_message: MQTTMessage) -> None:
         # generally, I hate this code below...
