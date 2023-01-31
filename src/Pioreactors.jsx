@@ -1023,28 +1023,9 @@ function SettingsActionsDialog(props) {
     }
   }
 
-  function setPioreactorJobAttrOnEnter(measurementUnit) {
-    return function(e) {
-      if ((e.key === "Enter") && (e.target.value)) {
-        setPioreactorJobAttr(e.target.id, e.target.value);
-        setSnackbarMessage(`Updating to ${e.target.value}${ !measurementUnit ? '.' : ' ' + measurementUnit + '.' }`)
-        setSnackbarOpen(true)
-      }
-    }
-  }
 
-  function setPioreactorJobAttrOnSwitch() {
-    return function(e) {
-      setPioreactorJobAttr(e.target.id,  e.target.checked ? 1 : 0);
-      const v = e.target.checked ? "on" : "off"
-      setSnackbarMessage(`Updating to ${v}.`)
-      setSnackbarOpen(true)
-    }
-  }
-
-  function updateRenameUnit(e) {
-    if ((e.key === "Enter") && (e.target.value)) {
-      const relabeledTo = e.target.value
+  function updateRenameUnit(_, value) {
+      const relabeledTo = value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
       fetch('/api/current_unit_labels',{
@@ -1060,7 +1041,6 @@ function SettingsActionsDialog(props) {
           }
         })
     }
-  }
 
 
   const handleClickOpen = () => {
@@ -1447,18 +1427,15 @@ function SettingsActionsDialog(props) {
             Assign label to Pioreactor
           </Typography>
           <Typography variant="body2" component="p">
-            Temporarily assign a label to this Pioreactor for the duration of the experiment. The new label will display in graph legends, and throughout the interface.
+            Assign a temporary label to this Pioreactor for this experiment. The new label will display in graph legends, and throughout the interface.
           </Typography>
-          <TextField
-            size="small"
-            autoComplete="off"
-            defaultValue={props.label}
-            variant="outlined"
-            className={classes.textFieldCompact}
-            onKeyPress={updateRenameUnit}
-            InputProps={{
-                autoComplete: 'new-password',
-            }}
+          <SettingTextField
+            value={props.label}
+            onUpdate={updateRenameUnit}
+            setSnackbarMessage={setSnackbarMessage}
+            setSnackbarOpen={setSnackbarOpen}
+            id={'relabeller' + props.unit}
+            disabled={false}
           />
           <Divider className={classes.divider} />
 
@@ -1478,29 +1455,27 @@ function SettingsActionsDialog(props) {
                           </Typography>
 
                           {(setting.type === "boolean") && (
-                            <Switch
-                              defaultChecked={PythonBoolToJS(setting.value)}
-                              disabled={state === "disconnected"}
-                              onChange={setPioreactorJobAttrOnSwitch()}
+                            <SettingSwitchField
+                              onUpdate={setPioreactorJobAttr}
+                              setSnackbarMessage={setSnackbarMessage}
+                              setSnackbarOpen={setSnackbarOpen}
+                              value={setting.value}
+                              units={setting.unit}
                               id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                              disabled={state === "disconnected"}
                             />
                           )}
 
                           {(setting.type !== "boolean") && (
-                            <TextField
-                              size="small"
-                              autoComplete="off"
-                              disabled={state === "disconnected"}
-                              id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
-                              defaultValue={setting.value}
-                              InputProps={{
-                                endAdornment: <InputAdornment position="end">{setting.unit}</InputAdornment>,
-                                autoComplete: 'new-password',
-                              }}
-                              variant="outlined"
-                              onKeyPress={setPioreactorJobAttrOnEnter(setting.unit)}
-                              className={classes.textFieldCompact}
-                            />
+                              <SettingTextField
+                                onUpdate={setPioreactorJobAttr}
+                                setSnackbarMessage={setSnackbarMessage}
+                                setSnackbarOpen={setSnackbarOpen}
+                                value={setting.value}
+                                units={setting.unit}
+                                id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                                disabled={state === "disconnected"}
+                              />
                           )}
 
                           <Divider className={classes.divider} />
@@ -1748,16 +1723,6 @@ function SettingsActionsDialogAll({config, experiment}) {
     }
   }
 
-  function setPioreactorJobAttrOnEnter(measurementUnit) {
-    return function(e) {
-      if ((e.key === "Enter") && (e.target.value)) {
-        setPioreactorJobAttr(e.target.id, e.target.value);
-        setSnackbarMessage(`Updating to ${e.target.value} ${!measurementUnit ? measurementUnit  : ''}.`)
-        setSnackbarOpen(true)
-      }
-    }
-  }
-
   const handleClickOpen = () => {
     setOpen(true);
   };
@@ -2001,19 +1966,30 @@ function SettingsActionsDialogAll({config, experiment}) {
                 <Typography variant="body2" component="p">
                   {setting.description}
                 </Typography>
-                <TextField
-                  size="small"
-                  autoComplete="off"
-                  id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
-                  key={setting_key}
-                  defaultValue={setting.value}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">{setting.unit}</InputAdornment>,
-                  }}
-                  variant="outlined"
-                  onKeyPress={setPioreactorJobAttrOnEnter(setting.unit)}
-                  className={classes.textFieldCompact}
-                />
+
+                  {(setting.type === "boolean") && (
+                    <SettingSwitchField
+                      onUpdate={setPioreactorJobAttr}
+                      setSnackbarMessage={setSnackbarMessage}
+                      setSnackbarOpen={setSnackbarOpen}
+                      value={setting.value}
+                      units={setting.unit}
+                      id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                      disabled={false}
+                    />
+                  )}
+
+                  {(setting.type !== "boolean") && (
+                  <SettingTextField
+                    onUpdate={setPioreactorJobAttr}
+                    setSnackbarMessage={setSnackbarMessage}
+                    setSnackbarOpen={setSnackbarOpen}
+                    value={setting.value}
+                    units={setting.unit}
+                    id={`${job_key.replace("_control", "_automation")}/${setting_key}`}
+                    disabled={false}
+                  />
+                  )}
                 <Divider classes={{root: classes.divider}} />
               </React.Fragment>
 
@@ -2090,6 +2066,98 @@ function SettingsActionsDialogAll({config, experiment}) {
     </React.Fragment>
   );
 }
+
+
+function SettingTextField(props){
+    const classes = useStyles();
+
+    const [value, setValue] = React.useState(props.value || "")
+    const [activeSubmit, setActiveSumbit] = React.useState(false)
+
+    useEffect(() => {
+      if (props.value !== value) {
+        setValue(props.value);
+      }
+    }, [props.value]);
+
+
+    const onChange = (e) => {
+      setActiveSumbit(true)
+      setValue(e.target.value)
+    }
+
+    const onKeyPress = (e) => {
+        if ((e.key === "Enter") && (e.target.value)) {
+          onSubmit()
+      }
+    }
+
+    const onSubmit = () => {
+        props.onUpdate(props.id, value);
+        props.setSnackbarMessage(`Updating to ${value}${(!props.units) ? "" : (" "+props.units)}.`)
+        props.setSnackbarOpen(true)
+        setActiveSumbit(false)
+    }
+
+    return (
+     <div style={{display: "flex"}}>
+        <TextField
+          size="small"
+          autoComplete="off"
+          disabled={props.disabled}
+          id={props.id}
+          value={value}
+          InputProps={{
+            endAdornment: <InputAdornment position="end">{props.units}</InputAdornment>,
+            autoComplete: 'new-password',
+          }}
+          variant="outlined"
+          onChange={onChange}
+          onKeyPress={onKeyPress}
+          className={classes.textFieldCompact}
+        />
+        <Button
+          size="small"
+          color="primary"
+          disabled={!activeSubmit}
+          onClick={onSubmit}
+          style={{marginTop: "15px", marginLeft: "2px", display: (props.disabled ? "None" : "") }}
+        >
+          Save
+        </Button>
+     </div>
+    )
+}
+
+
+
+function SettingSwitchField(props){
+    const [value, setValue] = React.useState(PythonBoolToJS(props.value) || false)
+
+    useEffect(() => {
+      if (props.value !== value) {
+        setValue(PythonBoolToJS(props.value));
+      }
+    }, [props.value]);
+
+    const onChange = (e) => {
+      setValue(e.target.checked)
+      props.onUpdate(props.id,  e.target.checked ? 1 : 0);
+      const v = e.target.checked ? "on" : "off"
+      props.setSnackbarMessage(`Updating to ${v}.`)
+      props.setSnackbarOpen(true)
+    }
+
+    return (
+      <Switch
+        checked={value}
+        disabled={props.disabled}
+        onChange={onChange}
+        id={props.id}
+      />
+    )
+}
+
 
 
 function ActiveUnits(props){
