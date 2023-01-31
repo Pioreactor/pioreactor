@@ -104,7 +104,7 @@ def discover_workers_on_network() -> Generator[str, None, None]:
             return self
 
     listener = Listener()
-    ServiceBrowser(Zeroconf(), "_pioreactor_worker._tcp.local.", listener)
+    ServiceBrowser(Zeroconf(), "_pio-worker._tcp.local.", listener)
     yield from listener
 
 
