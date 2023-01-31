@@ -24,7 +24,7 @@ CORE_REQUIREMENTS = [
 
 
 LEADER_REQUIREMENTS = [
-    "zeroconf>=0.38.6",
+    "zeroconf>=0.47.1",
 ]
 
 
