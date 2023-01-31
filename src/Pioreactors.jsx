@@ -1047,8 +1047,8 @@ function SettingsActionsDialog(props) {
       const relabeledTo = e.target.value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
-      fetch('/api/update_current_unit_labels',{
-          method: "POST",
+      fetch('/api/current_unit_labels',{
+          method: "PUT",
           body: JSON.stringify({label: relabeledTo, unit: props.unit}),
           headers: {
             'Accept': 'application/json',
@@ -1575,6 +1575,11 @@ function SettingsActionsDialog(props) {
           <Divider className={classes.divider} />
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
+          <Typography  gutterBottom>
+            Version information
+          </Typography>
+
+          <Divider className={classes.divider} />
 
           <Typography  gutterBottom>
             Reboot
@@ -2180,7 +2185,7 @@ function PioreactorCard(props){
   const [client, setClient] = useState(null)
   const [jobs, setJobs] = useState({
     monitor: {
-      state : "disconnected", metadata: {display: false}, publishedSettings: {}
+      state : "disconnected", metadata: {display: false}, publishedSettings: {},
     },
   })
 
@@ -2495,7 +2500,7 @@ function Pioreactors({title}) {
     document.title = title;
 
     function getLatestExperiment() {
-        fetch("/api/get_latest_experiment")
+        fetch("/api/experiments/latest")
         .then((response) => {
           return response.json();
         })

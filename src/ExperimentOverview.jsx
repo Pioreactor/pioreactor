@@ -19,8 +19,9 @@ function Overview(props) {
 
   React.useEffect(() => {
     document.title = props.title;
+
     function getLatestExperiment() {
-        fetch("/api/get_latest_experiment")
+        fetch("/api/experiments/latest")
         .then((response) => {
           return response.json();
         })
@@ -46,21 +47,40 @@ function Overview(props) {
 
         <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
 
-
           {( config['ui.overview.charts'] && (config['ui.overview.charts']['implied_growth_rate'] === "1")) &&
           <Grid item xs={12}>
             <Chart
               config={config}
               dataSource="growth_rates"
-              title={config['ui.overview.settings']['daily_growth_rate'] === "1" ?  "Implied daily growth rate" : "Implied growth rate"}
+              title="Implied growth rate"
               topic="growth_rate_calculating/growth_rate"
               payloadKey="growth_rate"
-              yAxisLabel={config['ui.overview.settings']['daily_growth_rate'] === "1" ? "Growth rate, d⁻¹" : "Growth rate, h⁻¹"}
-              yTransformation={config['ui.overview.settings']['daily_growth_rate'] === "1" ? (y) => 24 * y : (y) => y}
+              yAxisLabel="Growth rate, h⁻¹"
               experiment={experimentMetadata.experiment}
               deltaHours={experimentMetadata.delta_hours}
               interpolation="stepAfter"
-              yAxisDomain={config['ui.overview.settings']['daily_growth_rate'] === "1" ? [-0.1, 1.0] : [-0.02, 0.1]}
+              yAxisDomain={[-0.02, 0.1]}
+              lookback={100000}
+              fixedDecimals={2}
+              relabelMap={relabelMap}
+            />
+          </Grid>
+          }
+
+          {( config['ui.overview.charts'] && (config['ui.overview.charts']['implied_daily_growth_rate'] === "1")) &&
+          <Grid item xs={12}>
+            <Chart
+              config={config}
+              dataSource="growth_rates" //SQL table
+              title="Implied daily growth rate"
+              topic="growth_rate_calculating/growth_rate"
+              payloadKey="growth_rate"
+              yAxisLabel="Growth rate, d⁻¹"
+              yTransformation={(y) => 24 * y }
+              experiment={experimentMetadata.experiment}
+              deltaHours={experimentMetadata.delta_hours}
+              interpolation="stepAfter"
+              yAxisDomain={[-0.1, 1.0]}
               lookback={100000}
               fixedDecimals={2}
               relabelMap={relabelMap}

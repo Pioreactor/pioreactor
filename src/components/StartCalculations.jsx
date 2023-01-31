@@ -59,7 +59,7 @@ function StartCalculations(props){
 
   React.useEffect(() => {
     async function getData() {
-         await fetch("/api/get_latest_experiment")
+         await fetch("/api/experiments/latest")
         .then((response) => {
           return response.json();
         })

@@ -16,6 +16,8 @@ import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useConfirm } from 'material-ui-confirm';
 import LoadingButton from '@mui/lab/LoadingButton';
+import UnderlineSpan from "./components/UnderlineSpan";
+
 
 const useStyles = makeStyles((theme) => ({
   title: {
@@ -47,7 +49,7 @@ function UpdateToLatestConfirmDialog(props) {
 
   const handleClick = () => {
     confirm({
-      description: 'Updating will not stop or change currently running activities or experiments.',
+      description: 'Updating will not stop or change currently running activities or experiments. To minimize possible interruptions, we suggest updating between experiments though.',
       title: "Update to latest release?",
       confirmationText: "Update now",
       confirmationButtonProps: {color: "primary"},
@@ -89,16 +91,27 @@ function UpdateToLatestConfirmDialog(props) {
 function PageHeader(props) {
   const classes = useStyles();
   const [version, setVersion] = React.useState("")
+  const [uiVersion, setUIVersion] = React.useState("")
   const [latestVersion, setLatestVersion] = React.useState("")
 
   React.useEffect(() => {
     async function getCurrentAppVersion() {
-         await fetch("/api/get_app_version")
+         await fetch("/api/app_version")
         .then((response) => {
           return response.text();
         })
         .then((data) => {
           setVersion(data)
+        });
+      }
+
+    async function getCurrentUIVersion() {
+         await fetch("/api/ui_version")
+        .then((response) => {
+          return response.text();
+        })
+        .then((data) => {
+          setUIVersion(data)
         });
       }
 
@@ -112,6 +125,7 @@ function PageHeader(props) {
         });
       }
 
+      getCurrentUIVersion()
       getCurrentAppVersion()
       getLatestAppVersion()
   }, [])
@@ -126,7 +140,7 @@ function PageHeader(props) {
         </Typography>
         <div >
           <UpdateToLatestConfirmDialog isAvailable={(version !== "") && (latestVersion !== "") && (version !== latestVersion) } />
-          <Link color="inherit" underline="none" href="https://github.com/Pioreactor/pioreactor/releases" target="_blank" rel="noopener noreferrer">
+          <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
             <Button style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
               <OpenInNewIcon fontSize="15" classes={{root: classes.textIcon}}/> View latest release
             </Button>
@@ -140,7 +154,7 @@ function PageHeader(props) {
           <SystemUpdateAltIcon style={{ fontSize: 14, verticalAlign: "-1px" }}/> Version installed:
         </Box>
         <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
-          {version}
+          <UnderlineSpan title={`App: ${version}\nUI:  ${uiVersion}`}> {version} </UnderlineSpan>
         </Box>
 
         <Box fontWeight="fontWeightBold" style={{margin: "10px 2px 10px 2px", display:"inline-block"}}>

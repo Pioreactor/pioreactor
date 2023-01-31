@@ -55,7 +55,7 @@ class EditableCodeDiv extends React.Component {
   }
 
   getConfig(filename) {
-    fetch("/api/get_config/" + filename)
+    fetch(`/api/configs/${filename}`)
       .then(response => {
         return response.text();
       })
@@ -65,7 +65,7 @@ class EditableCodeDiv extends React.Component {
   }
 
   getListOfConfigFiles() {
-    fetch("/api/get_configs")
+    fetch("/api/configs")
       .then(response => {
         return response.json();
       })
@@ -77,7 +77,7 @@ class EditableCodeDiv extends React.Component {
   }
 
   getHistoricalConfigFiles(filename) {
-    fetch("/api/get_historical_configs/" + filename)
+    fetch("/api/historical_configs/" + filename)
       .then(response => {
         return response.json();
       })
@@ -92,8 +92,8 @@ class EditableCodeDiv extends React.Component {
 
   saveCurrentCode() {
     this.setState({saving: true, isError: false})
-    fetch('/api/save_new_config',{
-        method: "POST",
+    fetch(`/api/configs/${this.state.filename}`,{
+        method: "PUT",
         body: JSON.stringify({code :this.state.code, filename: this.state.filename}),
         headers: {
           'Accept': 'application/json',
@@ -113,9 +113,8 @@ class EditableCodeDiv extends React.Component {
   }
 
   deleteConfig(){
-    fetch('/api/delete_config',{
-        method: "POST",
-        body: JSON.stringify({filename: this.state.filename}),
+    fetch(`/api/configs/${this.state.filename}`,{
+        method: "DELETE",
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -192,6 +191,7 @@ class EditableCodeDiv extends React.Component {
               </Select>
             </div>
           </FormControl>
+          {this.state.historicalConfigs.length > 0 ? (
           <FormControl style={{marginRight: "20px"}}>
             <div>
               <InputLabel id="configSelect" variant="standard">Versions</InputLabel>
@@ -214,6 +214,7 @@ class EditableCodeDiv extends React.Component {
               </Select>
             </div>
           </FormControl>
+        ) : <div></div>}
 
         </div>
 

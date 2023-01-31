@@ -260,7 +260,7 @@ function PluginContainer(){
 
   React.useEffect(() => {
     async function getData() {
-         await fetch("/api/get_installed_plugins")
+         await fetch("/api/installed_plugins")
         .then((response) => {
           return response.json();
         })

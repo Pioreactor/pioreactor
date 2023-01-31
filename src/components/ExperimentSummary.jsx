@@ -70,8 +70,8 @@ class EditableDescription extends React.Component {
       this.setState({recentChange: false})
       setTimeout(this.saveToDatabaseOrSkip, 150)
     } else {
-      fetch('/api/update_experiment_desc', {
-          method: "POST",
+      fetch('/api/experiment_desc', {
+          method: "PUT",
           body: JSON.stringify({experiment : this.props.experiment, description: this.state.desc}),
           headers: {
             'Accept': 'application/json',

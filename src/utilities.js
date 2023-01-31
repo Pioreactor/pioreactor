@@ -31,7 +31,7 @@ function parseINIString(data){
 
 
 export function getConfig(setCallback) {
-  fetch("/api/get_config/config.ini")
+  fetch("/api/configs/config.ini")
     .then((response) => {
         if (response.ok) {
           return response.text();
@@ -46,7 +46,7 @@ export function getConfig(setCallback) {
 }
 
 export function getRelabelMap(setCallback) {
-  fetch("/api/get_current_unit_labels")
+  fetch("/api/current_unit_labels")
   .then((response) => {
     return response.json();
   })

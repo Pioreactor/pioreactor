@@ -143,7 +143,7 @@ function ExperimentSummaryForm(props) {
 
   React.useEffect(() => {
     function populateDropDowns() {
-      fetch("/api/get_historical_media_used")
+      fetch("/api/historical_media")
         .then((response) => {
             if (response.ok) {
               return response.json();
@@ -151,7 +151,7 @@ function ExperimentSummaryForm(props) {
           })
         .then(json => setHistoricalMediaUsed(json))
 
-      fetch("/api/get_historical_organisms_used")
+      fetch("/api/historical_organisms")
         .then((response) => {
             if (response.ok) {
               return response.json();
@@ -164,7 +164,7 @@ function ExperimentSummaryForm(props) {
 
 
   function populateFields(){
-    fetch("/api/get_latest_experiment")
+    fetch("/api/experiments/latest")
       .then((response) => {
         return response.json();
       })
@@ -196,7 +196,7 @@ function ExperimentSummaryForm(props) {
 
     // TODO: confirm we are connected to MQTT and it received the new experiment name...
 
-    fetch('/api/create_experiment',{
+    fetch('/api/experiments',{
         method: "POST",
         body: JSON.stringify({experiment : expName.trim(), created_at: timestamp.toISOString(), description: description, mediaUsed: mediaUsed, organismUsed: organismUsed }),
         headers: {
