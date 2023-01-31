@@ -22,8 +22,10 @@ class WatchDog(BackgroundJob):
     def __init__(self, unit: str, experiment: str) -> None:
         super(WatchDog, self).__init__(unit=unit, experiment=experiment)
 
-        threading.Thread(target=self.announce_new_workers, daemon=True).start()
         self.start_passive_listeners()
+
+    def on_init_to_ready(self):
+        threading.Thread(target=self.announce_new_workers, daemon=True).start()
 
     def announce_new_workers(self):
         for worker in discover_workers_on_network():

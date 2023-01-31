@@ -94,6 +94,9 @@ def discover_workers_on_network() -> Generator[str, None, None]:
             info = zc.get_service_info(type_, name)
             self.hostnames.put(info.server.removesuffix(".local."))  # type: ignore
 
+        def remove_service(self, *args, **kwargs):
+            pass
+
         def update_service(self, *args, **kwargs):
             pass
 
