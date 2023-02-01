@@ -20,19 +20,18 @@ const useStyles = makeStyles({
 
 export default function ActionLEDForm(props) {
   const EMPTYSTATE = "";
+  const re = /^[0-9.\b]+$/;
   const classes = useStyles();
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [intensity, setIntensity] = useState(EMPTYSTATE);
   const [errorForm, setErrorForm] = useState(false);
 
   function onSubmit(e) {
-    const re = /^[0-9.\b]+$/;
-    e.preventDefault();
     if (intensity !== EMPTYSTATE && re.test(intensity)) {
       setErrorForm(false)
       setOpenSnackbar(true);
 
-      const params = { [props.channel]: parseFloat(intensity), source_of_event: "UI"}
+      const params = {[props.channel]: parseFloat(intensity), source_of_event: "UI"}
 
       fetch(`/api/run/led_intensity/${props.unit}`, {
         method: "POST",
@@ -49,8 +48,7 @@ export default function ActionLEDForm(props) {
   }
 
 
-  function handleChange(e) {
-    const re = /^[0-9.\b]+$/;
+  function onChange(e) {
     setIntensity(e.target.value);
     if (e.target.value === '' || re.test(e.target.value)) {
       setErrorForm(false)
@@ -64,6 +62,13 @@ export default function ActionLEDForm(props) {
   };
 
 
+  const onKeyPress = (e) => {
+      if ((e.key === "Enter") && (e.target.value)) {
+        e.preventDefault()
+        onSubmit()
+    }
+  }
+
   return (
     <form id={props.action} className={classes.actionForm}>
       <div style={{display: "flex"}}>
@@ -76,7 +81,8 @@ export default function ActionLEDForm(props) {
           id={props.channel + "_intensity_edit"}
           label="new intensity"
           variant="outlined"
-          onChange={handleChange}
+          onChange={onChange}
+          onKeyPress={onKeyPress}
           InputProps={{
             endAdornment: <InputAdornment position="end">%</InputAdornment>,
           }}

@@ -1513,39 +1513,39 @@ function SettingsActionsDialog(props) {
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
-            {(LEDMap['A']) ? "Channel A" : ""}
-          </Typography>
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['A']) ? (LEDMap['A'].replace("_", " ").replace("led", "LED")) : "Channel A" }
+          </Typography>
+          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+            {(LEDMap['A']) ? "Channel A" : ""}
           </Typography>
           <ActionLEDForm channel="A" unit={props.unit} />
           <Divider className={classes.divider} />
 
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
-            {(LEDMap['B']) ? "Channel B" : ""}
-          </Typography>
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['B']) ? (LEDMap['B'].replace("_", " ").replace("led", "LED")) : "Channel B" }
+          </Typography>
+          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+            {(LEDMap['B']) ? "Channel B" : ""}
           </Typography>
           <ActionLEDForm channel="B" unit={props.unit} />
           <Divider className={classes.divider} />
 
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
-            {(LEDMap['C']) ? "Channel C" : ""}
-          </Typography>
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['C']) ? (LEDMap['C'].replace("_", " ").replace("led", "LED")) : "Channel C" }
+          </Typography>
+          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+            {(LEDMap['C']) ? "Channel C" : ""}
           </Typography>
 
           <ActionLEDForm channel="C" unit={props.unit} />
           <Divider className={classes.divider} />
 
-          <Typography className={clsx(classes.suptitle)} color="textSecondary">
-            {(LEDMap['D']) ? "Channel D" : ""}
-          </Typography>
           <Typography style={{textTransform: "capitalize"}}>
             {(LEDMap['D']) ? (LEDMap['D'].replace("_", " ").replace("led", "LED")) : "Channel D" }
+          </Typography>
+          <Typography className={clsx(classes.suptitle)} color="textSecondary">
+            {(LEDMap['D']) ? "Channel D" : ""}
           </Typography>
           <ActionLEDForm channel="D" unit={props.unit} />
           <Divider className={classes.divider} />
