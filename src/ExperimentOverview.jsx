@@ -16,6 +16,7 @@ function Overview(props) {
   const [experimentMetadata, setExperimentMetadata] = React.useState({})
   const [relabelMap, setRelabelMap] = React.useState({})
   const [config, setConfig] = React.useState({})
+  const [charts, setCharts] = React.useState({})
 
   React.useEffect(() => {
     document.title = props.title;
@@ -30,12 +31,25 @@ function Overview(props) {
         });
       }
 
+    function getCharts() {
+        fetch("/api/contrib/charts")
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          console.log(data)
+          setCharts(data.reduce((map, obj) => (map[obj.key] = obj, map), {}))
+        });
+      }
+
+
     getLatestExperiment()
+    getCharts()
     getRelabelMap(setRelabelMap)
     getConfig(setConfig)
   }, [props.title])
 
-
+  console.log(charts)
   return (
     <React.Fragment>
       <Grid container spacing={2} justifyContent="space-between">
@@ -47,129 +61,32 @@ function Overview(props) {
 
         <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
 
-          {( config['ui.overview.charts'] && (config['ui.overview.charts']['implied_growth_rate'] === "1")) &&
-          <Grid item xs={12}>
-            <Chart
-              config={config}
-              dataSource="growth_rates"
-              title="Implied growth rate"
-              topic="growth_rate_calculating/growth_rate"
-              payloadKey="growth_rate"
-              yAxisLabel="Growth rate, h⁻¹"
-              experiment={experimentMetadata.experiment}
-              deltaHours={experimentMetadata.delta_hours}
-              interpolation="stepAfter"
-              yAxisDomain={[-0.02, 0.1]}
-              lookback={100000}
-              fixedDecimals={2}
-              relabelMap={relabelMap}
-            />
-          </Grid>
-          }
+          {Object.entries(charts)
+            .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
+            .map(([chart_key, chart]) =>
+              <React.Fragment key={`grid-chart-${chart_key}`}>
+              <Grid item xs={12} >
+                <Chart
+                  config={config}
+                  dataSource={chart.data_source}
+                  title={chart.title}
+                  topic={chart.mqtt_topic}
+                  payloadKey={chart.payload_key}
+                  yAxisLabel={chart.y_axis_label}
+                  experiment={experimentMetadata.experiment}
+                  deltaHours={chart.delta_hours || experimentMetadata.delta_hours}
+                  interpolation={chart.interpolation || "stepAfter"}
+                  yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
+                  lookback={eval(chart.lookback)}
+                  fixedDecimals={chart.fixed_decimals}
+                  relabelMap={relabelMap}
+                  yTransformation={eval(chart.y_transformation || "(y) => y")}
+                  key={`chart-${chart_key}`}
+                />
+              </Grid>
+              </React.Fragment>
 
-          {( config['ui.overview.charts'] && (config['ui.overview.charts']['implied_daily_growth_rate'] === "1")) &&
-          <Grid item xs={12}>
-            <Chart
-              config={config}
-              dataSource="growth_rates" //SQL table
-              title="Implied daily growth rate"
-              topic="growth_rate_calculating/growth_rate"
-              payloadKey="growth_rate"
-              yAxisLabel="Growth rate, d⁻¹"
-              yTransformation={(y) => 24 * y }
-              experiment={experimentMetadata.experiment}
-              deltaHours={experimentMetadata.delta_hours}
-              interpolation="stepAfter"
-              yAxisDomain={[-0.1, 1.0]}
-              lookback={100000}
-              fixedDecimals={2}
-              relabelMap={relabelMap}
-            />
-          </Grid>
-          }
-
-          {( config['ui.overview.charts'] && (config['ui.overview.charts']['fraction_of_volume_that_is_alternative_media'] === "1")) &&
-          <Grid item xs={12}>
-            <Chart
-              config={config}
-              yAxisDomain={[0.00, 0.05]}
-              dataSource="alt_media_fractions"
-              interpolation="stepAfter"
-              payloadKey={null}
-              title="Fraction of volume that is alternative media"
-              topic="dosing_automation/alt_media_fraction"
-              yAxisLabel="Fraction"
-              experiment={experimentMetadata.experiment}
-              deltaHours={1} // hack to make all points display
-              fixedDecimals={3}
-              lookback={100000}
-              relabelMap={relabelMap}
-
-            />
-          </Grid>
-          }
-
-          {( config['ui.overview.charts'] && (config['ui.overview.charts']['normalized_optical_density'] === "1")) &&
-          <Grid item xs={12}>
-            <Chart
-              config={config}
-              dataSource="od_readings_filtered"
-              title="Normalized optical density"
-              payloadKey="od_filtered"
-              topic="growth_rate_calculating/od_filtered"
-              yAxisLabel="Current OD / initial OD"
-              experiment={experimentMetadata.experiment}
-              deltaHours={experimentMetadata.delta_hours}
-              interpolation="stepAfter"
-              lookback={parseFloat(config['ui.overview.settings']['filtered_od_lookback_hours'])}
-              fixedDecimals={2}
-              yAxisDomain={[0.98, 1.02]}
-              relabelMap={relabelMap}
-
-            />
-          </Grid>
-          }
-
-          {( config['ui.overview.charts'] && (config['ui.overview.charts']['raw_optical_density'] === "1")) &&
-          <Grid item xs={12}>
-            <Chart
-              config={config}
-              isODReading={true}
-              dataSource="od_readings"
-              title="Optical density"
-              interpolation="stepAfter"
-              topic="od_reading/od/+"
-              yAxisLabel="Reading"
-              payloadKey="od"
-              experiment={experimentMetadata.experiment}
-              deltaHours={experimentMetadata.delta_hours}
-              lookback={parseFloat(config['ui.overview.settings']['raw_od_lookback_hours'])}
-              fixedDecimals={3}
-              relabelMap={relabelMap}
-
-            />
-          </Grid>
-         }
-          {( config['ui.overview.charts'] && (config['ui.overview.charts']['temperature'] === "1")) &&
-          <Grid item xs={12}>
-            <Chart
-              config={config}
-              dataSource="temperature_readings"
-              title="Temperature of vials"
-              topic="temperature_control/temperature"
-              yAxisLabel="temperature, ℃"
-              payloadKey="temperature"
-              experiment={experimentMetadata.experiment}
-              interpolation="stepAfter"
-              lookback={10000}
-              deltaHours={1} // hack to display all data points
-              yAxisDomain={[22.5, 37.5]}
-              fixedDecimals={1}
-              relabelMap={relabelMap}
-
-            />
-          </Grid>
-         }
+        )}
         </Grid>
 
         <Grid item xs={12} md={5} container spacing={1} justifyContent="flex-end" style={{height: "100%"}}>

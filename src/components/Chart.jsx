@@ -65,6 +65,7 @@ class Chart extends React.Component {
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
     this.yTransformation = this.props.yTransformation || ((y) => y)
     this.VictoryVoronoiContainer = createContainer("voronoi");
+    console.log(props)
 
 
   }
@@ -314,10 +315,11 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
 
     return (
       <VictoryGroup
-          data={(this.state.hiddenSeries.has(reformattedName)) ? [] : this.state.seriesMap[name].data}
-          x="x"
-          y={(datum) => this.yTransformation(datum.y)}
-        >
+        key={this.props.title}
+        data={(this.state.hiddenSeries.has(reformattedName)) ? [] : this.state.seriesMap[name].data}
+        x="x"
+        y={(datum) => this.yTransformation(datum.y)}
+      >
         {marker}
       </VictoryGroup>
     );

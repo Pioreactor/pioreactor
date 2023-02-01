@@ -1154,7 +1154,11 @@ function SettingsActionsDialog(props) {
     <Button style={{textTransform: 'none', float: "right" }} disabled={props.disabled} onClick={handleClickOpen} color="primary">
       <SettingsIcon color={props.disabled ? "disabled" : "primary"} fontSize="15" classes={{root: classes.textIcon}}/> Manage
     </Button>
-    <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose}>
+    <Dialog maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true} open={open} onClose={handleClose} PaperProps={{
+      sx: {
+        height: "calc(100% - 64px)"
+      }
+    }}>
       <DialogTitle>
         <Typography className={classes.suptitle}>
           <PioreactorIcon style={{verticalAlign: "middle", fontSize: "1.2em"}}/>
@@ -1803,7 +1807,11 @@ function SettingsActionsDialogAll({config, experiment}) {
     <Button style={{textTransform: 'none', float: "right" }} onClick={handleClickOpen} color="primary">
       <SettingsIcon fontSize="15" classes={{root: classes.textIcon}}/> Manage all Pioreactors
     </Button>
-    <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title">
+    <Dialog  maxWidth={isLargeScreen ? "sm" : "md"} fullWidth={true}  open={open} onClose={handleClose} aria-labelledby="form-dialog-title"  PaperProps={{
+      sx: {
+        height: "calc(100% - 64px)"
+      }
+    }}>
       <DialogTitle style={{backgroundImage: "linear-gradient(to bottom left, rgba(83, 49, 202, 0.4), rgba(0,0,0,0))"}}>
         <Typography className={classes.suptitle}>
           <b>All active Pioreactors</b>
