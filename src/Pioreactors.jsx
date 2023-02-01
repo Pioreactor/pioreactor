@@ -2085,7 +2085,7 @@ function SettingTextField(props){
 
     useEffect(() => {
       if (props.value !== value) {
-        setValue(props.value);
+        setValue(props.value || "");
       }
     }, [props.value]);
 
@@ -2149,7 +2149,7 @@ function SettingSwitchField(props){
 
     useEffect(() => {
       if (props.value !== value) {
-        setValue(PythonBoolToJS(props.value));
+        setValue(PythonBoolToJS(props.value) || false);
       }
     }, [props.value]);
 

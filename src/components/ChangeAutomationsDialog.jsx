@@ -196,7 +196,7 @@ function ChangeAutomationsDialog(props) {
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <Typography variant="body2" component="p" gutterBottom>
+        <Typography variant="body2" component="span" gutterBottom>
           <span style={{textTransform: "capitalize"}}>{automationTypeForDisplay}</span> automations control the {automationTypeForDisplay} in the Pioreactor's vial. Learn more about <a target="_blank" rel="noopener noreferrer" href={"https://docs.pioreactor.com/user-guide/" + automationTypeForDisplay + "-automations"}>{automationTypeForDisplay} automations</a>.
         </Typography>
 
