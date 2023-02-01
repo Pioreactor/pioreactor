@@ -1447,9 +1447,10 @@ function SettingsActionsDialog(props) {
                 .filter(([setting_key, setting],_) => setting.display)
                 .map(([setting_key, setting],_) =>
                         <React.Fragment key={setting_key}>
-                          <Typography  gutterBottom>
+                          <Typography gutterBottom>
                             {setting.label}
                           </Typography>
+
                           <Typography variant="body2" component="p">
                             {setting.description}
                           </Typography>
@@ -2094,7 +2095,11 @@ function SettingTextField(props){
 
     const onSubmit = () => {
         props.onUpdate(props.id, value);
-        props.setSnackbarMessage(`Updating to ${value}${(!props.units) ? "" : (" "+props.units)}.`)
+        if (value != "") {
+          props.setSnackbarMessage(`Updating to ${value}${(!props.units) ? "" : (" "+props.units)}.`)
+        } else {
+          props.setSnackbarMessage("Updating.")
+        }
         props.setSnackbarOpen(true)
         setActiveSumbit(false)
     }
@@ -2121,9 +2126,9 @@ function SettingTextField(props){
           color="primary"
           disabled={!activeSubmit}
           onClick={onSubmit}
-          style={{marginTop: "15px", marginLeft: "2px", display: (props.disabled ? "None" : "") }}
+          style={{marginTop: "15px", marginLeft: "7px", display: (props.disabled ? "None" : "") }}
         >
-          Save
+          Update
         </Button>
      </div>
     )

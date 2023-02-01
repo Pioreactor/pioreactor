@@ -8,8 +8,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 const useStyles = makeStyles({
   actionTextField: {
-    padding: "0px 10px 0px 0px",
-    width: "160px",
+    padding: "0px 0px 0px 0px",
+    width: "150px",
   },
   actionForm: {
     padding: "10px 0px 0px 0px",
@@ -66,32 +66,31 @@ export default function ActionLEDForm(props) {
 
   return (
     <form id={props.action} className={classes.actionForm}>
-      <TextField
-        error={errorForm}
-        name="intensity"
-        autoComplete="off"
-        value={intensity}
-        size="small"
-        id={props.channel + "_intensity_edit"}
-        label="new intensity"
-        variant="outlined"
-        onChange={handleChange}
-        InputProps={{
-          endAdornment: <InputAdornment position="end">%</InputAdornment>,
-        }}
-        className={classes.actionTextField}
-      />
-      <br />
-      <br />
-      <Button
-        type="submit"
-        variant="contained"
-        size="small"
-        color="primary"
-        onClick={onSubmit}
-      >
-      Submit
-      </Button>
+      <div style={{display: "flex"}}>
+        <TextField
+          size="small"
+          error={errorForm}
+          name="intensity"
+          autoComplete="off"
+          value={intensity}
+          id={props.channel + "_intensity_edit"}
+          label="new intensity"
+          variant="outlined"
+          onChange={handleChange}
+          InputProps={{
+            endAdornment: <InputAdornment position="end">%</InputAdornment>,
+          }}
+          className={classes.actionTextField}
+        />
+        <Button
+          size="small"
+          color="primary"
+          onClick={onSubmit}
+          style={{marginLeft: "7px"}}
+        >
+          Update
+        </Button>
+      </div>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
