@@ -37,8 +37,8 @@ def _get_latest_experiment_name() -> str:
 
     from pioreactor.config import leader_address
 
-    attempts, retries = 0, 3
-    while attempts < retries:
+    retries = 3
+    for attempt in range(retries):
         try:
             result = get(f"http://{leader_address}/api/experiments/latest")
             result.raise_for_status()
@@ -51,7 +51,7 @@ def _get_latest_experiment_name() -> str:
                 f"No experiment found. Check http://{leader_address}/api/experiments/latest for an experiment."
             )
             logger.debug(e, exc_info=True)
-            time.sleep(2 * attempts)
+            time.sleep(2 * attempt)
     return NO_EXPERIMENT
 
 
