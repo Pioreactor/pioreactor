@@ -352,14 +352,18 @@ class DosingAutomationJob(BackgroundSubJob):
         should have signature equal to pioreactor.types.DosingProgram.
 
 
+
         Note
         ------
         If alt_media_ml and media_ml are non-zero, we keep their ratio equal for each
         sub-call. This keeps the ratio of alt_media to media the same in the vial.
 
+        A problem is if the there is skew in the different mLs, then it's possible that one or more pumps
+        most dose a very small amount, where our pumps have poor accuracy.
+
+
         Returns
         ---------
-
         A dict of volumes that were moved, in mL. This may be different than the request mLs, if a error in a pump occurred.
 
         """

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from functools import cache
 from hashlib import md5
 
@@ -36,19 +37,22 @@ def _get_latest_experiment_name() -> str:
 
     from pioreactor.config import leader_address
 
-    try:
-        result = get(f"http://{leader_address}/api/experiments/latest")
-        result.raise_for_status()
-        return decode(result.body, type=ExperimentMetadata).experiment
-    except Exception as e:
-        from pioreactor.logging import create_logger
+    attempts, retries = 0, 3
+    while attempts < retries:
+        try:
+            result = get(f"http://{leader_address}/api/experiments/latest")
+            result.raise_for_status()
+            return decode(result.body, type=ExperimentMetadata).experiment
+        except Exception as e:
+            from pioreactor.logging import create_logger
 
-        logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
-        logger.warning(
-            f"No experiment found. Check http://{leader_address}/api/experiments/latest for an experiment."
-        )
-        logger.debug(e, exc_info=True)
-        return NO_EXPERIMENT
+            logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
+            logger.warning(
+                f"No experiment found. Check http://{leader_address}/api/experiments/latest for an experiment."
+            )
+            logger.debug(e, exc_info=True)
+            time.sleep(2 * attempts)
+    return NO_EXPERIMENT
 
 
 @cache

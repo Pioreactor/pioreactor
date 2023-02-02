@@ -246,8 +246,10 @@ def is_pio_job_running(target_jobs):
     ex:
 
     > result = is_pio_job_running("od_reading")
+    > # True
 
     > result = is_pio_job_running(["od_reading", "stirring"])
+    > # [True, False]
     """
     if isinstance(target_jobs, str):
         target_jobs = [target_jobs]

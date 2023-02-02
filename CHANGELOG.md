@@ -1,9 +1,15 @@
 ### 23.1.4
- - watchdog job now listens for new workers that join the network and are not part of the cluster. A NOTICE message is logged.
- - `execute_io_action` returns a dictionary now (instead of a list).
- - Initial _software_ support for adding more pumps to the Pioreactor.
+
+#### New features
+ - Watchdog job now listens for new workers that join the network and are not part of the cluster. A NOTICE message is logged and sent to the UI.
+ - Initial _software_ support for adding more pumps to the Pioreactor. See docs [here](https://docs.pioreactor.com/developer-guide/writing-pump-software).
+ - Time series charts are now able to be added the the UI via `contrib` folders. Put a yaml file under `~/.pioreactor/plugins/ui/contrib/charts`. See examples [here](https://github.com/Pioreactor/pioreactorui/tree/master/contrib/charts).
+
+#### API changes
+
+ - Pioreactor UI has a more RESTful API, so some internal urls have changed. See full new API [here](https://docs.pioreactor.com/developer-guide/web-ui-api). UI version >= 23.2.0 required.
  - `SummableList` is replaced with `SummableDict`
- - Pioreactor UI has a more RESTful API, so some internal urls have changed. See full changes in the pioreactorui repository.
+ - `execute_io_action` returns a dictionary now (instead of a list).
 
 ### 23.1.3
  - Fix `dosing_events` table not be populated caused by an incorrect SQLite3 trigger.

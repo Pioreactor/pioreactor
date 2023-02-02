@@ -633,8 +633,8 @@ if whoami.am_I_leader():
             version = f"tags/{version}"
 
         if source is not None:
-            version_installed = branch
             assert branch is not None, "branch must be provided with the -b option"
+            version_installed = branch
 
         elif branch is not None:
             version_installed = quote(branch)
