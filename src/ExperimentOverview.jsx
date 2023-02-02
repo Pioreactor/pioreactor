@@ -37,8 +37,7 @@ function Overview(props) {
           return response.json();
         })
         .then((data) => {
-          console.log(data)
-          setCharts(data.reduce((map, obj) => (map[obj.key] = obj, map), {}))
+          setCharts(data.reduce((map, obj) => (map[obj.chart_key] = obj, map), {}))
         });
       }
 
@@ -49,7 +48,6 @@ function Overview(props) {
     getConfig(setConfig)
   }, [props.title])
 
-  console.log(charts)
   return (
     <React.Fragment>
       <Grid container spacing={2} justifyContent="space-between">
@@ -60,7 +58,6 @@ function Overview(props) {
 
 
         <Grid item xs={12} md={7} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
-
           {Object.entries(charts)
             .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
             .map(([chart_key, chart]) =>
@@ -77,10 +74,11 @@ function Overview(props) {
                   deltaHours={chart.delta_hours || experimentMetadata.delta_hours}
                   interpolation={chart.interpolation || "stepAfter"}
                   yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                  lookback={eval(chart.lookback)}
+                  lookback={eval(chart.lookback) || 10000}
                   fixedDecimals={chart.fixed_decimals}
                   relabelMap={relabelMap}
                   yTransformation={eval(chart.y_transformation || "(y) => y")}
+                  dataSourceColumn={chart.data_source_column}
                   key={`chart-${chart_key}`}
                 />
               </Grid>

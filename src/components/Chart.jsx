@@ -65,9 +65,6 @@ class Chart extends React.Component {
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
     this.yTransformation = this.props.yTransformation || ((y) => y)
     this.VictoryVoronoiContainer = createContainer("voronoi");
-    console.log(props)
-
-
   }
 
   onConnect() {
@@ -110,10 +107,11 @@ class Chart extends React.Component {
       return
     }
     const tweak = 0.60 // increase to filter more
-    await fetch("/api/time_series/" + this.props.dataSource + "/" + this.props.experiment + "?" + new URLSearchParams({
+    const queryParams = new URLSearchParams({
         filter_mod_N: Math.max(Math.floor(tweak * Math.min(this.props.deltaHours, this.props.lookback)), 1),
         lookback: this.props.lookback
-      }))
+    })
+    await fetch(`/api/time_series/${this.props.dataSource}/${this.props.experiment}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`)
       .then((response) => {
         return response.json();
       })
