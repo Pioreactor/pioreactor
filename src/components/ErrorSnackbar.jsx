@@ -17,8 +17,8 @@ function ErrorSnackbar(props) {
   const [config, setConfig] = React.useState({})
 
   React.useEffect(() => {
-    getConfig(setConfig)
     getRelabelMap(setRelabelMap)
+    getConfig(setConfig)
   }, [])
 
   React.useEffect(() => {

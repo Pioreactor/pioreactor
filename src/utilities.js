@@ -40,17 +40,17 @@ export function getConfig(setCallback) {
         }
       })
     .then((config) => {
-      setCallback(parseINIString(config)); // TODO: parse on server side and send a json object
+      setCallback(parseINIString(config));
     })
     .catch((error) => {})
 }
 
 export function getRelabelMap(setCallback) {
   fetch("/api/current_unit_labels")
-  .then((response) => {
-    return response.json();
-  })
-  .then((data) => {
-    setCallback(data)
+      .then((response) => {
+        return response.json();
+      })
+      .then((data) => {
+        setCallback(data)
   });
 }
