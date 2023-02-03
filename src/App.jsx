@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Switch, Route, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider, createTheme} from '@mui/material/styles';
 import CssBaseline from "@mui/material/CssBaseline";
 import { StyledEngineProvider } from '@mui/material/styles';
@@ -81,41 +81,19 @@ function MainSite() {
         <SideNavAndHeader />
         <main style={{flexGrow: 1, paddingTop: theme.spacing(9), paddingLeft: theme.spacing(4), paddingRight: theme.spacing(4)}}>
           <div className="pageContainer">
-            <Switch>
-              <Route path="/export-data">
-                <ExportData title="Pioreactor ~ Export data"/>
-              </Route>
-              <Route path="/start-new-experiment">
-                <StartNewExperiment title="Pioreactor ~ Start new experiment" />
-              </Route>
-              <Route path="/overview">
-                <ExperimentOverview title="Pioreactor ~ Overview"/>
-              </Route>
-              <Route path="/plugins">
-                <Plugins title="Pioreactor ~ Plugins"/>
-              </Route>
-              <Route path="/analysis">
-                <Analysis title="Pioreactor ~ Analysis"/>
-              </Route>
-              <Route path="/config">
-                <EditConfig title="Pioreactor ~ Configuration"/>
-              </Route>
-              <Route path="/pioreactors" exact>
-                <Pioreactors title="Pioreactor ~ Pioreactors"/>
-              </Route>
-              <Route path="/updates">
-                <Updates title="Pioreactor ~ Updates"/>
-              </Route>
-              <Route path="/feedback">
-                <Feedback title="Pioreactor ~ Feedback"/>
-              </Route>
-              <Route path="/calibrations">
-                <Calibrations title="Pioreactor ~ Calibrations"/>
-              </Route>
-              <Route path="/">
-                <ExperimentOverview title="Pioreactor ~ Pioreactor"/>
-              </Route>
-            </Switch>
+            <Routes>
+              <Route path="/export-data" element={<ExportData title="Pioreactor ~ Export data"/>}/>
+              <Route path="/start-new-experiment" element={<StartNewExperiment title="Pioreactor ~ Start new experiment" />}/>
+              <Route path="/overview" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
+              <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
+              <Route path="/analysis" element={<Analysis title="Pioreactor ~ Analysis"/>}/>
+              <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
+              <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
+              <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
+              <Route path="/feedback" element={<Feedback title="Pioreactor ~ Feedback"/>}/>
+              <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
+              <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Pioreactor"/>}/>
+            </Routes>
             <ErrorSnackbar />
             <TactileButtonNotification />
           </div>
