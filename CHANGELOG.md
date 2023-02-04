@@ -10,6 +10,9 @@
  - Pioreactor UI has a more RESTful API, so some internal urls have changed. See full new API [here](https://docs.pioreactor.com/developer-guide/web-ui-api). UI version >= 23.2.0 required.
  - `SummableList` is replaced with `SummableDict`
  - `execute_io_action` returns a dictionary now (instead of a list).
+ - Config: Removed `daily_growth_rate` from `[ui.overview.settings]`
+ - Config: Added `implied_daily_growth_rate` under `[ui.overview.charts]`
+
 
 ### 23.1.3
  - Fix `dosing_events` table not be populated caused by an incorrect SQLite3 trigger.

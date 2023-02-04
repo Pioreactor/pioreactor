@@ -583,7 +583,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # Error codes are below, but don't always align
         # https://github.com/eclipse/paho.mqtt.python/blob/42f0b13001cb39aee97c2b60a3b4807314dfcb4d/src/paho/mqtt/client.py#L147
         elif rc == mqtt.MQTT_ERR_KEEPALIVE:
-            self.logger.error(
+            self.logger.warning(
                 "Lost contact with MQTT server. Is the leader Pioreactor still online?"
             )
         else:

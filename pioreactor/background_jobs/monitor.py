@@ -96,13 +96,15 @@ class Monitor(BackgroundJob):
         self.logger.debug(
             f"Pioreactor software version: {pretty_version(version.software_version_info)}"
         )
-        self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
 
-        self.logger.debug(
-            f"Pioreactor firmware version: {pretty_version(version.get_firmware_version())}"
-        )
+        if whoami.am_I_active_worker():
+            self.logger.debug(f"Pioreactor HAT version: {self.versions['hat']}")
 
-        self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
+            self.logger.debug(
+                f"Pioreactor firmware version: {pretty_version(version.get_firmware_version())}"
+            )
+
+            self.logger.debug(f"Pioreactor HAT serial number: {self.versions['hat_serial']}")
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
