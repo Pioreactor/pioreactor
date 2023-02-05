@@ -353,7 +353,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
 
-    commands_and_priority: list[tuple[str, float]] = []
+    commands_and_priority: list[tuple[str, int]] = []
 
     if version is None:
         version = "latest"
@@ -379,52 +379,47 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         )
         version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:
-            # add the following files to the release:
+            # add the following files to the release. They should ideally be idempotent!
+            # https://arslan.io/2019/07/03/how-to-write-idempotent-bash-scripts/
             #
             # pre_update.sh runs (if exists)
-            # pip install pioreactor...whl runs
+            # `pip install pioreactor...whl` runs
             # update.sh runs (if exists)
             # update.sql to update sqlite schema runs (if exists)
             # post_update.sh runs (if exists)
 
             # TODO: potential supply chain attack is to add malicious assets to releases
             # TODO: good use of the Python switch statement below
+            url = asset["browser_download_url"]
             if asset["name"] == "pre_update.sh":
-                url_to_get_sh = asset["browser_download_url"]
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/pre_update.sh {url_to_get_sh}", 0.0),
-                        ("sudo bash /tmp/pre_update.sh", 0.1),
+                        (f"wget -O /tmp/pre_update.sh {url}", 0),
+                        ("sudo bash /tmp/pre_update.sh", 1),
                     ]
                 )
             elif asset["name"].startswith("pioreactor") and asset["name"].endswith(".whl"):
-                url_to_get_whl = asset["browser_download_url"]
-                commands_and_priority.extend(
-                    [(f'sudo pip3 install "pioreactor @ {url_to_get_whl}"', 1.0)]
-                )
+                commands_and_priority.extend([(f'sudo pip3 install "pioreactor @ {url}"', 2)])
             elif asset["name"] == "update.sh":
-                url_to_get_sh = asset["browser_download_url"]
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/update.sh {url_to_get_sh}", 2.0),
-                        ("sudo bash /tmp/update.sh", 2.1),
+                        (f"wget -O /tmp/update.sh {url}", 3),
+                        ("sudo bash /tmp/update.sh", 4),
                     ]
                 )
             elif asset["name"] == "update.sql":
-                url_to_get_sql = asset["browser_download_url"]
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/update.sql {url_to_get_sql}", 3.0),
-                        (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 3.1),
+                        (f"wget -O /tmp/update.sql {url}", 5),
+                        (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 6),
                     ]
                 )
             elif asset["name"] == "post_update.sh":
-                # post_update.sh can be used to restart machines
-                url_to_get_sh = asset["browser_download_url"]
+                # ex: post_update.sh can be used to restart machines
                 commands_and_priority.extend(
                     [
-                        (f"wget -O /tmp/post_update.sh {url_to_get_sh}", 99.0),
-                        ("sudo bash /tmp/post_update.sh", 99.1),
+                        (f"wget -O /tmp/post_update.sh {url}", 99),
+                        ("sudo bash /tmp/post_update.sh", 100),
                     ]
                 )
 
