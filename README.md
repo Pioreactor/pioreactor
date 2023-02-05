@@ -12,7 +12,7 @@ We hope to empower the next generation of builders, similar to the Raspberry Pi'
 
 ### Where can I get one?
 
-Coming soon! Sign up [here](https://pioreactor.com/) for updates.
+Purchase [on our website](https://pioreactor.com/).
 
 ### Documentation
 

@@ -241,7 +241,6 @@ def kill(job: list[str], all_jobs: bool) -> None:
     else:
         for j in job:
             safe_pkill("-f", f"pio run {j}")
-            safe_pkill("-f", f"pio run-always {j}")
 
 
 @pio.group(short_help="run a job")
@@ -251,11 +250,6 @@ def run() -> None:
             f"Running `pio` on a non-active Pioreactor. Do you need to change `{whoami.get_unit_name()}` in `cluster.inventory` section in `config.ini`?"
         )
         raise click.Abort()
-
-
-@pio.group(name="run-always", short_help="run a long-lived job")
-def run_always() -> None:
-    pass
 
 
 @pio.command(name="version", short_help="print the Pioreactor software version")
@@ -341,6 +335,9 @@ def update_settings(ctx, job: str) -> None:
 
 @pio.group()
 def update() -> None:
+    """
+    Update software for the app and UI
+    """
     pass
 
 
@@ -438,7 +435,7 @@ pio.add_command(plugin_management.click_uninstall_plugin)
 pio.add_command(plugin_management.click_list_plugins)
 
 # this runs on both leader and workers
-run_always.add_command(jobs.monitor.click_monitor)
+run.add_command(jobs.monitor.click_monitor)
 
 
 if whoami.am_I_active_worker():
@@ -467,9 +464,8 @@ if whoami.am_I_active_worker():
 
 
 if whoami.am_I_leader():
-    run_always.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
-    run_always.add_command(jobs.watchdog.click_watchdog)
-
+    run.add_command(jobs.mqtt_to_db_streaming.click_mqtt_to_db_streaming)
+    run.add_command(jobs.watchdog.click_watchdog)
     run.add_command(actions.export_experiment_data.click_export_experiment_data)
     run.add_command(actions.backup_database.click_backup_database)
 
