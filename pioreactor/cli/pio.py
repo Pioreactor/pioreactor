@@ -436,7 +436,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
             logger.debug(p.stderr)
             logger.error("Update failed. See logs.")
             # end early
-            return
+            raise click.Abort()
 
     logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
 
