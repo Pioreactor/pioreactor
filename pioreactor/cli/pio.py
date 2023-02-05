@@ -379,14 +379,28 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         )
         version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:
+            # add the following files to the release:
+            #
+            # pre_update.sh runs (if exists)
+            # pip install pioreactor...whl runs
+            # update.sh runs (if exists)
+            # update.sql to update sqlite schema runs (if exists)
+            # post_update.sh runs (if exists)
+
             # TODO: potential supply chain attack is to add malicious assets to releases
-            if asset["name"].endswith(".whl") and asset["name"].startswith("pioreactor"):
+            # TODO: good use of the Python switch statement below
+            if asset["name"] == "pre_update.sh":
+                url_to_get_sh = asset["browser_download_url"]
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O /tmp/pre_update.sh {url_to_get_sh}", 0.0),
+                        ("sudo bash /tmp/pre_update.sh", 0.1),
+                    ]
+                )
+            elif asset["name"].startswith("pioreactor") and asset["name"].endswith(".whl"):
                 url_to_get_whl = asset["browser_download_url"]
-                commands_and_priority.append(
-                    (
-                        f'sudo pip3 install "pioreactor @ {url_to_get_whl}"',
-                        1,
-                    )
+                commands_and_priority.extend(
+                    [(f'sudo pip3 install "pioreactor @ {url_to_get_whl}"', 1.0)]
                 )
             elif asset["name"] == "update.sh":
                 url_to_get_sh = asset["browser_download_url"]
@@ -402,6 +416,15 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                     [
                         (f"wget -O /tmp/update.sql {url_to_get_sql}", 3.0),
                         (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 3.1),
+                    ]
+                )
+            elif asset["name"] == "post_update.sh":
+                # post_update.sh can be used to restart machines
+                url_to_get_sh = asset["browser_download_url"]
+                commands_and_priority.extend(
+                    [
+                        (f"wget -O /tmp/post_update.sh {url_to_get_sh}", 99.0),
+                        ("sudo bash /tmp/post_update.sh", 99.1),
                     ]
                 )
 

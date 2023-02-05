@@ -1,4 +1,4 @@
-### 23.1.4
+### 23.2.6
 
 #### New features
  - Watchdog job now listens for new workers that join the network and are not part of the cluster. A NOTICE message is logged and sent to the UI.
@@ -12,6 +12,7 @@
  - `execute_io_action` returns a dictionary now (instead of a list).
  - Config: Removed `daily_growth_rate` from `[ui.overview.settings]`
  - Config: Added `implied_daily_growth_rate` under `[ui.overview.charts]`
+ - Dropped `pio run-always`. Jobs just use `pio run` now.
 
 
 ### 23.1.3
