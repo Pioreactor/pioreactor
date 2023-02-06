@@ -14,8 +14,8 @@ from pioreactor.config import config
 from pioreactor.logging import create_logger
 
 
-def table_exists(cursor, table_name_to_check: str) -> bool:
-    query = "SELECT 1 FROM sqlite_master WHERE type='table' and name = ?"
+def source_exists(cursor, table_name_to_check: str) -> bool:
+    query = "SELECT 1 FROM sqlite_master WHERE (type='table' or type='view') and name = ?"
     return cursor.execute(query, (table_name_to_check,)).fetchone() is not None
 
 
@@ -70,7 +70,7 @@ def export_experiment_data(
 
             # so apparently, you can't parameterize the table name in python's sqlite3, so I
             # have to use string formatting (SQL-injection vector), but first check that the table exists (else fail)
-            if not table_exists(cursor, table):
+            if not source_exists(cursor, table):
                 raise ValueError(f"Table {table} does not exist.")
 
             timestamp_to_localtimestamp_clause = generate_timestamp_to_localtimestamp_clause(
@@ -80,7 +80,10 @@ def export_experiment_data(
                 get_column_names(cursor, table)
             ).pop()  # just take first...
 
-            if table == "pioreactor_unit_activity_data":
+            if (
+                table == "pioreactor_unit_activity_data"
+                or table == "pioreactor_unit_activity_data_rollup"
+            ):
                 _partition_by_unit = True
             else:
                 _partition_by_unit = partition_by_unit

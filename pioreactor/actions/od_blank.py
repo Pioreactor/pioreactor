@@ -12,24 +12,18 @@ from msgspec.json import encode
 from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor import types as pt
+from pioreactor import whoami
 from pioreactor.config import config
 from pioreactor.logging import create_logger
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import math_helpers
 from pioreactor.utils import publish_ready_to_disconnected_state
-from pioreactor.utils.math_helpers import correlation
-from pioreactor.utils.math_helpers import residuals_of_simple_linear_regression
-from pioreactor.utils.math_helpers import trimmed_mean
-from pioreactor.utils.math_helpers import trimmed_variance
 from pioreactor.utils.timing import current_utc_datetime
-from pioreactor.whoami import get_latest_experiment_name
-from pioreactor.whoami import get_latest_testing_experiment_name
-from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import is_testing_env
 
 
 def od_statistics(
-    od_stream,
+    od_stream,  # ODReader
     action_name,
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
@@ -45,10 +39,12 @@ def od_statistics(
     from pioreactor.background_jobs.stirring import start_stirring
 
     logger = logger or create_logger(action_name)
-    unit = unit or get_unit_name()
-    experiment = experiment or get_latest_experiment_name()
-    testing_experiment = get_latest_testing_experiment_name()
-    logger.info("Starting to compute statistics from OD readings. This will take a few minutes.")
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_latest_experiment_name()
+    testing_experiment = whoami.get_latest_testing_experiment_name()
+    logger.info(
+        f"Starting to compute statistics from OD readings. This will take ~{round(n_samples * od_stream.interval / 60)} min."
+    )
 
     # turn on stirring if not already on
     if not is_pio_job_running("stirring"):
@@ -89,13 +85,15 @@ def od_statistics(
         for channel, od_reading_series in readings.items():
             # measure the mean and publish. The mean will be used to normalize the readings in downstream jobs
             assert len(od_reading_series) == n_samples
-            means[channel] = trimmed_mean(od_reading_series)
-            variances[channel] = trimmed_variance(
-                residuals_of_simple_linear_regression(
+            means[channel] = math_helpers.trimmed_mean(od_reading_series)
+            variances[channel] = math_helpers.trimmed_variance(
+                math_helpers.residuals_of_simple_linear_regression(
                     list(range(n_samples)), od_reading_series, trimmed=True
                 )
             )  # see issue #206
-            autocorrelations[channel] = correlation(od_reading_series[:-1], od_reading_series[1:])
+            autocorrelations[channel] = math_helpers.correlation(
+                od_reading_series[:-1], od_reading_series[1:]
+            )
 
             # warn users that a blank is 0 - maybe this should be an error instead? TODO: link this to a docs page.
             if means[channel] == 0.0:
@@ -118,14 +116,15 @@ def od_blank(
     unit=None,
     experiment=None,
 ) -> dict[pt.PdChannel, float]:
-    from pioreactor.background_jobs.od_reading import start_od_reading
-    from pioreactor.background_jobs.stirring import start_stirring
 
     action_name = "od_blank"
     logger = create_logger(action_name)
-    unit = unit or get_unit_name()
-    experiment = experiment or get_latest_experiment_name()
-    testing_experiment = get_latest_testing_experiment_name()
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_latest_experiment_name()
+    testing_experiment = whoami.get_latest_testing_experiment_name()
+
+    from pioreactor.background_jobs.od_reading import start_od_reading
+    from pioreactor.background_jobs.stirring import start_stirring
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
 
@@ -135,7 +134,7 @@ def od_blank(
             unit=unit,
             interval=1.5,
             experiment=testing_experiment,
-            fake_data=is_testing_env(),
+            fake_data=whoami.is_testing_env(),
         ) as od_stream, start_stirring(
             target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
