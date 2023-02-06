@@ -123,6 +123,16 @@ const CheckboxesGroup = (props) => {
           </div>
 
           <div className={clsx(classes.datasetItem)}>
+              <FormControlLabel
+              control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data} onChange={props.handleChange} name="pioreactor_unit_activity_data" />}
+              label="Pioreactor unit activity data roll-up"
+            />
+            <Typography className={classes.datasetDescription} gutterBottom>
+              This dataset is a rolled-up version of Pioreactor unit activity data (above) aggregated to the minute level. This is useful for reducing the size of the exported dataset.
+            </Typography>
+          </div>
+
+          <div className={clsx(classes.datasetItem)}>
             <FormControlLabel
               control={<Checkbox checked={props.isChecked.growth_rates} onChange={props.handleChange} name="growth_rates" />}
               label="Implied growth rate"

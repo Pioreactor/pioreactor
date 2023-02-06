@@ -49,7 +49,7 @@ function UpdateToLatestConfirmDialog(props) {
 
   const handleClick = () => {
     confirm({
-      description: 'Updating will not stop or change currently running activities or experiments. To minimize possible interruptions, we suggest updating between experiments though.',
+      description: 'To minimize possible interruptions, we suggest updating between experiments as it may require a restart.',
       title: "Update to latest release?",
       confirmationText: "Update now",
       confirmationButtonProps: {color: "primary"},
