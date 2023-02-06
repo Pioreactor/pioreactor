@@ -87,7 +87,7 @@ def discover_workers_on_network() -> Generator[str, None, None]:
     from queue import Queue
 
     class Listener(ServiceListener):
-        def __init__(self):
+        def __init__(self) -> None:
             self.hostnames: Queue[str] = Queue()
 
         def add_service(self, zc: Zeroconf, type_: str, name: str) -> None:

@@ -19,7 +19,7 @@ def test_watchdog_alerts_on_found_worker():
     info = zeroconf.ServiceInfo(
         "_pio-worker._tcp.local.",
         "pioreactor-worker-on-worker1._pio-worker._tcp.local.",
-        addresses=["192.168.1.0"],
+        addresses=[b"192.168.1.0"],
         server="worker1.local.",
         port=1234,
     )
@@ -43,7 +43,7 @@ def test_watchdog_doesnt_alert_if_already_in_cluster():
     info = zeroconf.ServiceInfo(
         "_pio-worker._tcp.local.",
         "pioreactor-worker-on-pioreactor2._pio-worker._tcp.local.",
-        addresses=["192.168.1.0"],
+        addresses=[b"192.168.1.0"],
         server="pioreactor2.local.",
         port=1234,
     )

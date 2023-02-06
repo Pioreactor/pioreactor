@@ -61,7 +61,7 @@ def get_metadata_from_user():
         while True:
             name = click.prompt("Provide a name for this calibration", type=str).strip()
             if name == "":
-                name = click.echo("Name cannot be empty")
+                click.echo("Name cannot be empty")
                 continue
             elif name in cache:
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
@@ -465,7 +465,7 @@ def curve_to_functional_form(curve_type: str, curve_data) -> str:
         raise ValueError()
 
 
-def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
+def curve_to_callable(curve_type: str, curve_data) -> Callable:
     if curve_type == "poly":
         import numpy as np
 
@@ -475,7 +475,7 @@ def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
         return curve_callable
 
     else:
-        return None
+        raise NotImplementedError
 
 
 def display(name: str | None) -> None:

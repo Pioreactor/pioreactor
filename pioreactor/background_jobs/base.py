@@ -234,7 +234,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         "pwm",
     }
 
-    def __init__(self, source: str, experiment: str, unit: str) -> None:
+    def __init__(self, experiment: str, unit: str, source: str = "app") -> None:
         if self.job_name in self.DISALLOWED_JOB_NAMES:
             raise ValueError("job name not allowed")
 
@@ -923,7 +923,7 @@ class BackgroundJob(_BackgroundJob):
     """
 
     def __init__(self, experiment: str, unit: str) -> None:
-        super().__init__(source="app", experiment=experiment, unit=unit)
+        super().__init__(experiment=experiment, unit=unit, source="app")
 
 
 class BackgroundJobContrib(_BackgroundJob):
@@ -932,7 +932,7 @@ class BackgroundJobContrib(_BackgroundJob):
     """
 
     def __init__(self, experiment: str, unit: str, plugin_name: str) -> None:
-        super().__init__(source=plugin_name, experiment=experiment, unit=unit)
+        super().__init__(experiment=experiment, unit=unit, source="app")
 
 
 class BackgroundJobWithDodging(_BackgroundJob):
@@ -977,7 +977,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     )
     sneak_in_timer: RepeatedTimer
 
-    def __init__(self, *args, source="app", **kwargs):
+    def __init__(self, *args, source="app", **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)
 
         self.add_to_published_settings(
@@ -1099,19 +1099,19 @@ class BackgroundJobWithDodging(_BackgroundJob):
         sleep(time_to_next_ads_reading + (post_delay + self.OD_READING_DURATION))
         self.sneak_in_timer.start()
 
-    def on_sleeping(self):
+    def on_sleeping(self) -> None:
         try:
             self.sneak_in_timer.pause()
         except AttributeError:
             pass
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         try:
             self.sneak_in_timer.cancel()
         except AttributeError:
             pass
 
-    def on_sleeping_to_ready(self):
+    def on_sleeping_to_ready(self) -> None:
         try:
             self.sneak_in_timer.unpause()
         except AttributeError:

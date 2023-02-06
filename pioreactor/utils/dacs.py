@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import busio  # type: ignore
-
+from typing import cast
 from pioreactor import hardware
 from pioreactor.version import hardware_version_info
 
@@ -33,6 +33,9 @@ class DAC43608_DAC(_DAC):
         self.dac = DAC43608(address=hardware.DAC)
 
     def set_intensity_to(self, channel: int, intensity: float) -> None:
+        from DAC43608 import Channel
+
+        channel = cast(Channel, channel)
         if intensity == 0.0:
             self.dac.power_down(channel)
         else:

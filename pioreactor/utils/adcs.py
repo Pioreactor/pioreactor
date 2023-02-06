@@ -49,7 +49,7 @@ class ADS1115_ADC(_ADC):
         16: 0.256,
     }
 
-    def __init__(self, initial_gain=1):
+    def __init__(self, initial_gain=1) -> None:
         super().__init__()
 
         self.gain = initial_gain

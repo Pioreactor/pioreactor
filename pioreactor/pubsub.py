@@ -75,7 +75,7 @@ def create_client(
     clean_session=None,
     on_connect: Optional[Callable] = None,
     on_message: Optional[Callable] = None,
-    userdata: dict = None,
+    userdata: Optional[dict] = None,
 ):
     """
     Create a MQTT client and connect to a host.

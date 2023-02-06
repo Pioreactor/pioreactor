@@ -129,8 +129,8 @@ class MQTTHandler(logging.Handler):
 
 def create_logger(
     name: str,
-    unit: str = None,
-    experiment: str = None,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
     source: str = "app",
     to_mqtt: bool = True,
     mqtt_hostname: Optional[str] = None,
