@@ -2,8 +2,9 @@
 
 #### New features
  - Watchdog job now listens for new workers that join the network and are not part of the cluster. A NOTICE message is logged and sent to the UI.
- - Initial _software_ support for adding more pumps to the Pioreactor. See docs [here](https://docs.pioreactor.com/developer-guide/writing-pump-software).
+ - Initial _API_ support for adding more pumps to the Pioreactor. See docs [here](https://docs.pioreactor.com/developer-guide/writing-pump-software).
  - Time series charts are now able to be added the the UI via `contrib` folders. Put a yaml file under `~/.pioreactor/plugins/ui/contrib/charts`. See examples [here](https://github.com/Pioreactor/pioreactorui/tree/master/contrib/charts).
+ - New roll-up table available to be exported from the UI: Pioreactor unit activity data roll-up. This is a rolled-up of Pioreactor unit activity data rolled up to every minute, so it should be about one order of magnitude less data versus the original table.
 
 #### API changes
 
