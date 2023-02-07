@@ -2,8 +2,10 @@
 # dacs.py
 from __future__ import annotations
 
-import busio  # type: ignore
 from typing import cast
+
+import busio  # type: ignore
+
 from pioreactor import hardware
 from pioreactor.version import hardware_version_info
 
@@ -59,8 +61,8 @@ class Pico_DAC(_DAC):
 
     def set_intensity_to(self, channel: int, intensity: float) -> None:
         # to 8 bit integer
-        eight_bit = round((intensity / 100.0) * 256.0)
-        self.i2c.writeto(hardware.DAC, bytes([0x02, eight_bit]))
+        eight_bit = round((intensity / 100) * 256)
+        self.i2c.writeto(hardware.DAC, bytes([channel, eight_bit]))
 
 
 DAC = DAC43608_DAC if hardware_version_info <= (1, 0) else Pico_DAC

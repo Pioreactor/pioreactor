@@ -123,6 +123,7 @@ class Monitor(BackgroundJob):
         ).start()
 
         self.add_pre_button_callback(self.led_on)
+        self.add_pre_button_callback(self._republish_state)
         self.add_post_button_callback(self.led_off)
 
         self.start_passive_listeners()
@@ -434,6 +435,14 @@ class Monitor(BackgroundJob):
         }
         return
 
+    def flicker_led_response_okay_and_publish_state(self, *args) -> None:
+        # force the job to publish it's state, so that users can use this to "reset" state.
+        self.flicker_led_response_okay()
+        self._republish_state()
+
+    def _republish_state(self) -> None:
+        self._publish_attr("state")
+
     def flicker_led_response_okay(self, *args) -> None:
         if self.led_in_use:
             return
@@ -545,7 +554,7 @@ class Monitor(BackgroundJob):
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
-            self.flicker_led_response_okay,
+            self.flicker_led_response_okay_and_publish_state,
             f"pioreactor/{self.unit}/+/{self.job_name}/flicker_led_response_okay",
             qos=QOS.AT_LEAST_ONCE,
         )

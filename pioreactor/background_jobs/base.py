@@ -978,7 +978,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
     sneak_in_timer: RepeatedTimer
 
     def __init__(self, *args, source="app", **kwargs) -> None:
-        super().__init__(*args, source=source, **kwargs)
+        super().__init__(*args, source=source, **kwargs)  # type: ignore
 
         self.add_to_published_settings(
             "enable_dodging_od", {"datatype": "boolean", "settable": True}
