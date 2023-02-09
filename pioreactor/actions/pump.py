@@ -6,6 +6,7 @@ from configparser import NoOptionError
 from typing import Optional
 
 import click
+from msgspec import replace
 from msgspec.json import decode
 from msgspec.json import encode
 
@@ -163,16 +164,9 @@ def _pump(
                     if continuously:
                         if not dry_run:
                             pwm.start(calibration.dc)
-
                         pump_start_time = time.monotonic()
                         while not state.exit_event.wait(duration):
-                            # TODO msqspec has a .replace we should use to replace the timestamp, instead of replicating this whole thing.
-                            dosing_event = structs.DosingEvent(
-                                volume_change=ml,
-                                event=action_name,
-                                source_of_event=source_of_event,
-                                timestamp=current_utc_datetime(),
-                            )
+                            dosing_event = replace(dosing_event, timestamp=current_utc_datetime())
                             client.publish(
                                 f"pioreactor/{unit}/{experiment}/dosing_events",
                                 encode(dosing_event),

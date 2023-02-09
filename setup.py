@@ -14,7 +14,7 @@ CORE_REQUIREMENTS = [
     "sh>=1.14.0",
     "JSON-log-formatter>=0.5.1",
     "colorlog>=6.6.0",
-    "msgspec>=0.12.0",
+    "msgspec>=0.13.0",
     "diskcache>=5.4.0",
     # tech debt - this needed to be in the core req
     # leader requirement
