@@ -106,7 +106,7 @@ def led_intensity(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     verbose: bool = True,
-    source_of_event: str = None,
+    source_of_event: Optional[str] = None,
     pubsub_client: Optional[Client] = None,
 ) -> bool:
     """
@@ -249,7 +249,7 @@ def click_led_intensity(
     b: Optional[float] = None,
     c: Optional[float] = None,
     d: Optional[float] = None,
-    source_of_event: str = None,
+    source_of_event: Optional[str] = None,
     no_log: bool = False,
 ) -> bool:
     """

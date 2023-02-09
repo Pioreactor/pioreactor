@@ -387,11 +387,11 @@ class PID:
         setpoint: float,
         K0: float = 0,
         output_limits=(None, None),
-        sample_time: float = None,
-        unit: str = None,
-        experiment: str = None,
-        job_name: str = None,
-        target_name: str = None,
+        sample_time: Optional[float] = None,
+        unit: Optional[str] = None,
+        experiment: Optional[str] = None,
+        job_name: Optional[str] = None,
+        target_name: Optional[str] = None,
         **kwargs,
     ):
         from simple_pid import PID as simple_PID

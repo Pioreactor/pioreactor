@@ -59,16 +59,16 @@ def test_repeated_timer_has_low_variance():
 
     # try a new interval, show it has similar std.
     interval = 4 * interval
-    data = []
+    data2 = []
 
-    def run():
-        data.append(time.perf_counter())
+    def run2():
+        data2.append(time.perf_counter())
 
-    t = RepeatedTimer(interval, run).start()
+    t = RepeatedTimer(interval, run2).start()
     time.sleep(4 * 5)  # scale to collect similar amounts of data points
     t.cancel()
 
-    delta = np.diff(np.array(data))
+    delta = np.diff(np.array(data2))
     mean = np.mean(delta)
     std = np.std(delta)
 
@@ -178,40 +178,3 @@ def test_repeated_timer_pause_works_as_intended():
 
     time.sleep(5)
     assert c.counter > 2
-
-
-@pytest.mark.skip
-def test_repeated_timer_accepts_an_iterable_for_interval():
-    """
-    Maybe someday I'll support this.
-    """
-
-    class Counter:
-
-        counter = 0
-
-        def __init__(self):
-
-            self.thread = RepeatedTimer(iter([1, 4, 1]), self.run).start()
-
-        def run(self):
-            import time
-
-            print(time.time())
-            self.counter += 1
-
-    c = Counter()
-    time.sleep(0.1)
-    assert c.counter == 0
-
-    time.sleep(1.0)
-    assert c.counter == 1
-
-    time.sleep(1.0)
-    assert c.counter == 2
-
-    time.sleep(1.0)
-    assert c.counter == 3
-
-    time.sleep(3.0)
-    assert c.counter == 3

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from logging import handlers
 from logging import Logger
 from typing import Optional
@@ -129,8 +128,8 @@ class MQTTHandler(logging.Handler):
 
 def create_logger(
     name: str,
-    unit: str = None,
-    experiment: str = None,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
     source: str = "app",
     to_mqtt: bool = True,
     mqtt_hostname: Optional[str] = None,
@@ -213,12 +212,5 @@ def create_logger(
 
         # add MQTT/remote log handlers
         logger.addHandler(mqtt_to_db_handler)
-
-        # confirm that we have connected to the pubsub client
-        for _ in range(40):
-            if not pub_client.is_connected():
-                time.sleep(0.02)
-            else:
-                break
 
     return CustomLoggerAdapter(logger, {"source": source})  # type: ignore

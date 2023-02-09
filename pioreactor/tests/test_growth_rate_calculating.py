@@ -438,24 +438,19 @@ class TestGrowthRateCalculating:
         interval = 0.1
         config["od_config"]["samples_per_second"] = "0.2"
 
-        od = start_od_reading(
+        with start_od_reading(
             "135",
             "90",
             interval=interval,
             unit=unit,
             experiment=experiment,
             fake_data=True,
-        )
+        ), start_stirring(target_rpm=500, unit=unit, experiment=experiment), GrowthRateCalculator(
+            unit=unit, experiment=experiment
+        ) as calc:
 
-        st = start_stirring(target_rpm=500, unit=unit, experiment=experiment)
-
-        calc = GrowthRateCalculator(unit=unit, experiment=experiment)
-
-        time.sleep(35)
-        assert calc.ekf.state_[-2] != 1.0
-        calc.clean_up()
-        st.clean_up()
-        od.clean_up()
+            time.sleep(35)
+            assert calc.ekf.state_[-2] != 1.0
 
     def test_180_angle(self) -> None:
         import json

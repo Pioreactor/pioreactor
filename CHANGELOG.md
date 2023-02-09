@@ -1,3 +1,10 @@
+### 23.2.8
+
+#### Bug fix
+
+ - Fix error in growth rate calculating job that prevented it from starting.
+
+
 ### 23.2.6
 
 #### New features

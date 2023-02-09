@@ -55,3 +55,13 @@ def test_update_leds_with_monitor() -> None:
         with local_intermittent_storage("leds") as c:
             assert float(c["A"]) == 10.0
             assert float(c["B"]) == 11.0
+
+
+def test_state_is_published_when_asked() -> None:
+    unit = get_unit_name()
+    exp = UNIVERSAL_EXPERIMENT
+
+    with Monitor(unit=unit, experiment=exp) as m:
+        time.sleep(1)
+        publish(f"pioreactor/{unit}/{exp}/{m.job_name}/flicker_led_response_okay", "empty")
+        time.sleep(10)

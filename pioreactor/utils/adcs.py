@@ -16,16 +16,16 @@ class _ADC:
     gain: float = 1
 
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
-        pass
+        raise NotImplementedError
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
-        pass
+        raise NotImplementedError
 
     def from_raw_to_voltage(self, raw: pt.AnalogValue) -> pt.Voltage:
-        pass
+        raise NotImplementedError
 
     def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
-        pass
+        raise NotImplementedError
 
 
 class ADS1115_ADC(_ADC):
@@ -49,7 +49,7 @@ class ADS1115_ADC(_ADC):
         16: 0.256,
     }
 
-    def __init__(self, initial_gain=1):
+    def __init__(self, initial_gain=1) -> None:
         super().__init__()
 
         self.gain = initial_gain

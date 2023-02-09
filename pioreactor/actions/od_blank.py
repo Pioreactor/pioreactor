@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
+from typing import Iterator
 from typing import Optional
 
 import click
@@ -23,8 +24,8 @@ from pioreactor.utils.timing import current_utc_datetime
 
 
 def od_statistics(
-    od_stream,  # ODReader
-    action_name,
+    od_stream: Iterator,
+    action_name: str,
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
     n_samples: int = 30,
@@ -36,18 +37,19 @@ def od_statistics(
 
     There's a variance w.r.t. the rotation of the vial that we can't control.
     """
-    from pioreactor.background_jobs.stirring import start_stirring
 
     logger = logger or create_logger(action_name)
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
     testing_experiment = whoami.get_latest_testing_experiment_name()
     logger.info(
-        f"Starting to compute statistics from OD readings. This will take ~{round(n_samples * od_stream.interval / 60)} min."
+        f"Starting to compute statistics from OD readings. Collecting {n_samples} data points."
     )
 
     # turn on stirring if not already on
     if not is_pio_job_running("stirring"):
+        from pioreactor.background_jobs.stirring import start_stirring
+
         st = start_stirring(
             target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
