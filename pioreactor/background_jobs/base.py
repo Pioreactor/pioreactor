@@ -43,7 +43,7 @@ def cast_bytes_to_type(value: bytes, type_: str):
         elif type_ == "integer":
             return int(value)
         elif type_ == "boolean":
-            return value.decode().lower() in ["true", "1", "t", "y"]
+            return value.decode().lower() in ["true", "1", "y", "on", "yes"]
         elif type_ == "json":
             return loads(value)
         elif type_ == "Automation":
