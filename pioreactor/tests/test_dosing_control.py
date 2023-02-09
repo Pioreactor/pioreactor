@@ -21,7 +21,6 @@ from pioreactor.automations import events
 from pioreactor.automations.dosing.base import AltMediaCalculator
 from pioreactor.automations.dosing.base import VialVolumeCalculator
 from pioreactor.automations.dosing.continuous_cycle import ContinuousCycle
-from pioreactor.automations.dosing.morbidostat import Morbidostat
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
@@ -204,92 +203,6 @@ def test_turbidostat_automation() -> None:
         )
         pause()
         assert algo.run() is None
-
-
-def test_morbidostat_automation() -> None:
-    experiment = "test_morbidostat_automation"
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        None,
-        retain=True,
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        None,
-        retain=True,
-    )
-
-    target_od = 1.0
-    algo = Morbidostat(
-        target_normalized_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
-    )
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.NoEvent)
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.99, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.DilutionEvent)
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=1.05, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.AddAltMediaEvent)
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=1.03, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.DilutionEvent)
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=1.04, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.AddAltMediaEvent)
-
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.99, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.DilutionEvent)
-    algo.clean_up()
 
 
 def test_pid_morbidostat_automation() -> None:
@@ -511,66 +424,65 @@ def test_throughput_calculator() -> None:
     with local_persistant_storage("alt_media_fraction") as c:
         c[experiment] = 0.0
 
-    algo = DosingController(
+    with DosingController(
         "pid_morbidostat",
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
         unit=unit,
         experiment=experiment,
-    )
-    assert algo.automation_job.media_throughput == 0
-    pause()
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
-    )
-    pause()
-    algo.automation_job.run()
+    ) as algo:
+        assert algo.automation_job.media_throughput == 0
+        pause()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=1.0, timestamp=current_utc_datetime())),
+        )
+        pause()
+        algo.automation_job.run()
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
-    )
-    pause()
-    algo.automation_job.run()
-    assert algo.automation_job.media_throughput > 0
-    assert algo.automation_job.alt_media_throughput > 0
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
+        )
+        pause()
+        algo.automation_job.run()
+        assert algo.automation_job.media_throughput > 0
+        assert algo.automation_job.alt_media_throughput > 0
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.07, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
-    )
-    pause()
-    algo.automation_job.run()
-    assert algo.automation_job.media_throughput > 0
-    assert algo.automation_job.alt_media_throughput > 0
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.07, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
+        )
+        pause()
+        algo.automation_job.run()
+        assert algo.automation_job.media_throughput > 0
+        assert algo.automation_job.alt_media_throughput > 0
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.065, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
-    )
-    pause()
-    algo.automation_job.run()
-    assert algo.automation_job.media_throughput > 0
-    assert algo.automation_job.alt_media_throughput > 0
-    algo.clean_up()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.065, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
+        )
+        pause()
+        algo.automation_job.run()
+        assert algo.automation_job.media_throughput > 0
+        assert algo.automation_job.alt_media_throughput > 0
 
 
 def test_throughput_calculator_restart() -> None:
@@ -635,25 +547,25 @@ def test_execute_io_action() -> None:
         c[experiment] = 0.0
 
     with DosingController("silent", unit=unit, experiment=experiment) as ca:
-        ca.automation_job.execute_io_action(media_ml=0.65, alt_media_ml=0.35, waste_ml=0.65 + 0.35)
+        ca.automation_job.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
         pause()
-        assert ca.automation_job.media_throughput == 0.65
+        assert ca.automation_job.media_throughput == 0.50
         assert ca.automation_job.alt_media_throughput == 0.35
 
         ca.automation_job.execute_io_action(media_ml=0.15, alt_media_ml=0.15, waste_ml=0.3)
         pause()
-        assert ca.automation_job.media_throughput == 0.80
+        assert ca.automation_job.media_throughput == 0.65
         assert ca.automation_job.alt_media_throughput == 0.50
 
-        ca.automation_job.execute_io_action(media_ml=1.0, alt_media_ml=0, waste_ml=1)
+        ca.automation_job.execute_io_action(media_ml=0.6, alt_media_ml=0, waste_ml=0.6)
         pause()
-        assert ca.automation_job.media_throughput == 1.80
+        assert ca.automation_job.media_throughput == 1.25
         assert ca.automation_job.alt_media_throughput == 0.50
 
-        ca.automation_job.execute_io_action(media_ml=0.0, alt_media_ml=1.0, waste_ml=1)
+        ca.automation_job.execute_io_action(media_ml=0.0, alt_media_ml=0.6, waste_ml=0.6)
         pause()
-        assert ca.automation_job.media_throughput == 1.80
-        assert ca.automation_job.alt_media_throughput == 1.50
+        assert ca.automation_job.media_throughput == 1.25
+        assert ca.automation_job.alt_media_throughput == 1.1
 
 
 def test_execute_io_action2() -> None:

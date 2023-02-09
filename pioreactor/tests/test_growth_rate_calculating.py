@@ -449,7 +449,7 @@ class TestGrowthRateCalculating:
             unit=unit, experiment=experiment
         ) as calc:
 
-            time.sleep(35)
+            time.sleep(25)
             assert calc.ekf.state_[-2] != 1.0
 
     def test_180_angle(self) -> None:
