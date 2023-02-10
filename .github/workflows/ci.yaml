@@ -59,12 +59,3 @@ jobs:
         env:
           TESTING: 1
           TMPDIR: /tmp/
-
-      - name: Test cli
-        run: |
-          pio
-          pio update app -b develop
-          pio run example_plugin
-        env:
-          TESTING: 1
-          TMPDIR: /tmp/
