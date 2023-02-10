@@ -6,9 +6,9 @@ from configparser import NoOptionError
 from typing import Optional
 
 import click
-from msgspec import replace
 from msgspec.json import decode
 from msgspec.json import encode
+from msgspec.structs import replace
 
 from pioreactor import exc
 from pioreactor import structs
