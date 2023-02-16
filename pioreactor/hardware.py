@@ -39,12 +39,21 @@ DAC = 0x49 if hardware_version_info <= (1, 0) else 0x30
 TEMP = 0x4F
 
 # ADC map of function to hardware ADC channel
-ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel] = {
-    "1": 0 if hardware_version_info <= (0, 1) else 1,  # pd1
-    "2": 1 if hardware_version_info <= (0, 1) else 0,  # pd2
-    "version": 2,
-    "aux": 3,
-}
+ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel]
+if hardware_version_info <= (1, 0):
+    ADC_CHANNEL_FUNCS = {
+        "1": 0 if hardware_version_info <= (0, 1) else 1,  # pd1
+        "2": 1 if hardware_version_info <= (0, 1) else 0,  # pd2
+        "version": 2,
+        "aux": 3,
+    }
+else:
+    ADC_CHANNEL_FUNCS = {
+        "1": 3,
+        "2": 2,
+        "version": 0,
+        "aux": 1,
+    }
 
 
 def is_HAT_present() -> bool:
@@ -88,13 +97,13 @@ def round_to_half_integer(x: float) -> float:
 
 
 def voltage_in_aux() -> float:
-    # this _can_ mess with OD readings if running at the same time.
+    # Warning: this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
         from pioreactor.utils.adcs import ADC as ADC_class
     else:
         from pioreactor.utils.mock import Mock_ADC as ADC_class  # type: ignore
 
-    slope = 0.1325
+    slope = 0.134  # from schematic
 
     adc = ADC_class()
     return round_to_half_integer(
