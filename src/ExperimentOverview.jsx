@@ -80,6 +80,7 @@ function Overview(props) {
                   yTransformation={eval(chart.y_transformation || "(y) => y")}
                   dataSourceColumn={chart.data_source_column}
                   key={`chart-${chart_key}`}
+                  isODReading={chart_key === "od_reading"}
                 />
               </Grid>
               </React.Fragment>

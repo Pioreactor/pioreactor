@@ -124,7 +124,7 @@ const CheckboxesGroup = (props) => {
 
           <div className={clsx(classes.datasetItem)}>
               <FormControlLabel
-              control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data} onChange={props.handleChange} name="pioreactor_unit_activity_data" />}
+              control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data_rollup} onChange={props.handleChange} name="pioreactor_unit_activity_data_rollup" />}
               label="Pioreactor unit activity data roll-up"
             />
             <Typography className={classes.datasetDescription} gutterBottom>
@@ -360,6 +360,7 @@ function ExportDataContainer() {
       dosing_automation_events: false,
       temperature_automation_events: false,
       pwm_dcs: false,
+      pioreactor_unit_activity_data_rollup: false,
     }
   });
 

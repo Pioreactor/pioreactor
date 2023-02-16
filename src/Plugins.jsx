@@ -18,6 +18,7 @@ import ListItemText from '@mui/material/ListItemText';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Avatar from '@mui/material/Avatar';
 import GetAppIcon from '@mui/icons-material/GetApp';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -27,7 +28,7 @@ const useStyles = makeStyles((theme) => ({
     fontSize: 14,
   },
   cardContent: {
-    padding: "10px"
+    padding: "25px",
   },
   pos: {
     marginBottom: 0,
@@ -191,65 +192,76 @@ function ListInstalledPlugins({installedPlugins}){
         }
       })
   }
-
-  return (
-    <React.Fragment>
-    <div className={classes.pluginList}>
-     <List dense={true}>
-        {installedPlugins.map(plugin =>
-          <ListItem key={plugin.name}>
-            <ListItemAvatar>
-              <Avatar variant="square" style={{backgroundColor:"#FFFFFF"}}>
-                <Hashicon value={plugin.name} size={40} />
-              </Avatar>
-            </ListItemAvatar>
-            <ListItemText
-              primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
-              secondary={plugin.description}
-              style={{maxWidth: "525px"}}
-            />
-            <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
-              <Button
-                onClick={uninstallPlugin(plugin.name)}
-                variant="text"
-                size="small"
-                color="primary"
-                aria-label="delete"
-                endIcon={<DeleteIcon />}
-                disabled={plugin.source === "plugins_folder"}
-                className={classes.primaryActionButton}
-              >
-                {plugin.source === "plugins_folder" ? "Delete from plugins folder" : "Uninstall" }
-              </Button>
-              <Button
-                href={plugin.homepage}
-                target="_blank" rel="noopener"
-                variant="text"
-                size="small"
-                color="primary"
-                aria-label="delete"
-                disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
-                endIcon={<OpenInNewIcon />}
-                className={classes.secondaryActionButton}
-              >
-                View
-              </Button>
-            </ListItemSecondaryAction>
-          </ListItem>,
-        )}
-      </List>
-    </div>
-    <Snackbar
-      anchorOrigin={{vertical: "bottom", horizontal: "center"}}
-      open={snackbarOpen}
-      onClose={handleSnackbarClose}
-      message={snackbarMsg}
-      autoHideDuration={7000}
-      resumeHideDuration={2000}
-      key="snackbar-installation"
-    />
-    </React.Fragment>
-  )
+  if (installedPlugins.length > 0) {
+    return (
+      <React.Fragment>
+      <div className={classes.pluginList}>
+       <List dense={true}>
+          {installedPlugins.map(plugin =>
+            <ListItem key={plugin.name}>
+              <ListItemAvatar>
+                <Avatar variant="square" style={{backgroundColor:"#FFFFFF"}}>
+                  <Hashicon value={plugin.name} size={40} />
+                </Avatar>
+              </ListItemAvatar>
+              <ListItemText
+                primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
+                secondary={plugin.description}
+                style={{maxWidth: "525px"}}
+              />
+              <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
+                <Button
+                  onClick={uninstallPlugin(plugin.name)}
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  aria-label="delete"
+                  endIcon={<DeleteIcon />}
+                  disabled={plugin.source === "plugins_folder"}
+                  className={classes.primaryActionButton}
+                >
+                  {plugin.source === "plugins_folder" ? "Delete from plugins folder" : "Uninstall" }
+                </Button>
+                <Button
+                  href={plugin.homepage}
+                  target="_blank" rel="noopener"
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  aria-label="delete"
+                  disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
+                  endIcon={<OpenInNewIcon />}
+                  className={classes.secondaryActionButton}
+                >
+                  View
+                </Button>
+              </ListItemSecondaryAction>
+            </ListItem>,
+          )}
+        </List>
+      </div>
+      <Snackbar
+        anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+        open={snackbarOpen}
+        onClose={handleSnackbarClose}
+        message={snackbarMsg}
+        autoHideDuration={7000}
+        resumeHideDuration={2000}
+        key="snackbar-installation"
+      />
+      </React.Fragment>
+    )
+  }
+  else {
+    return (
+      <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
+        <Typography>
+          <Box fontWeight="fontWeightRegular">
+            No installed plugins. Try installing one below, or read more about <a href="https://docs.pioreactor.com/user-guide/using-community-plugins" target="_blank" rel="noopener noreferrer">Pioreactor plugins</a>.
+          </Box>
+        </Typography>
+      </div>
+  )}
 }
 
 
@@ -257,6 +269,7 @@ function PluginContainer(){
   const classes = useStyles();
 
   const [installedPlugins, setInstalledPlugins] = React.useState([])
+  const [isFetchComplete, setIsFetchComplete] = React.useState(false)
 
   React.useEffect(() => {
     async function getData() {
@@ -265,6 +278,7 @@ function PluginContainer(){
           return response.json();
         })
         .then((json) => {
+          setIsFetchComplete(true)
           setInstalledPlugins(json)
         });
       }
@@ -279,14 +293,20 @@ function PluginContainer(){
         <CardContent className={classes.cardContent}>
           <p> Discover, install, and manage Pioreactor plugins created by the community. These plugins can provide new functionalities for your Pioreactor (additional hardware may be necessary), or new automations to control dosing, temperature and LED tasks.</p>
 
-          {installedPlugins.length > 0 && (
-         <React.Fragment>
-           <Typography variant="h6" component="h3">
-            Installed plugins
-           </Typography>
+         <Typography variant="h6" component="h3">
+          Installed plugins
+         </Typography>
+
+          {isFetchComplete && (
            <ListInstalledPlugins installedPlugins={installedPlugins}/>
-          </React.Fragment>
           )}
+
+          {!isFetchComplete && (
+            <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
+              <CircularProgress size={33}/>
+            </div>
+          )}
+
          <Typography variant="h6" component="h3">
           Available plugins from the community
          </Typography>
