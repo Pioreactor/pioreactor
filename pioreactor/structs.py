@@ -5,12 +5,8 @@ These define structs for internal data structures including MQTT messages, and a
 """
 from __future__ import annotations
 
+import typing as t
 from datetime import datetime
-from typing import Annotated
-from typing import Optional
-from typing import Type
-from typing import TypeVar
-from typing import Union
 
 from msgspec import Meta
 from msgspec import Struct
@@ -18,10 +14,10 @@ from msgspec import Struct
 from pioreactor import types as pt
 
 
-T = TypeVar("T")
+T = t.TypeVar("T")
 
 
-def subclass_union(cls: Type[T]) -> Type[T]:
+def subclass_union(cls: t.Type[T]) -> t.Type[T]:
     """Returns a Union of all subclasses of `cls` (excluding `cls` itself)"""
     classes = set()
 
@@ -32,7 +28,7 @@ def subclass_union(cls: Type[T]) -> Type[T]:
 
     for c in cls.__subclasses__():
         _add(c)
-    return Union[tuple(classes)]  # type: ignore
+    return t.Union[tuple(classes)]  # type: ignore
 
 
 class Automation(Struct):
@@ -67,7 +63,7 @@ class LEDAutomation(Automation, tag="led"):  # type: ignore
     ...
 
 
-AnyAutomation = Union[LEDAutomation, TemperatureAutomation, DosingAutomation]
+AnyAutomation = t.Union[LEDAutomation, TemperatureAutomation, DosingAutomation]
 
 
 class AutomationSettings(Struct):
@@ -77,8 +73,8 @@ class AutomationSettings(Struct):
 
     pioreactor_unit: str
     experiment: str
-    started_at: Annotated[datetime, Meta(tz=True)]
-    ended_at: Annotated[datetime, Meta(tz=True)]
+    started_at: t.Annotated[datetime, Meta(tz=True)]
+    ended_at: t.Annotated[datetime, Meta(tz=True)]
     automation_name: str
     settings: bytes
 
@@ -89,8 +85,8 @@ class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
     will get published to MQTT under /latest_event
     """
 
-    message: Optional[str] = None
-    data: Optional[dict] = None
+    message: t.Optional[str] = None
+    data: t.Optional[dict] = None
 
     def __str__(self) -> str:
         if self.message:
@@ -109,16 +105,16 @@ class LEDChangeEvent(Struct):
     """
 
     channel: pt.LedChannel
-    intensity: Annotated[float, Meta(ge=0, le=100)]
-    source_of_event: str
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    intensity: t.Annotated[float, Meta(ge=0, le=100)]
+    source_of_event: t.Optional[str]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class LEDsIntensity(Struct):
-    A: Annotated[float, Meta(ge=0, le=100)] = 0.0
-    B: Annotated[float, Meta(ge=0, le=100)] = 0.0
-    C: Annotated[float, Meta(ge=0, le=100)] = 0.0
-    D: Annotated[float, Meta(ge=0, le=100)] = 0.0
+    A: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
+    B: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
+    C: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
+    D: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
 
 
 class DosingEvent(Struct):
@@ -126,59 +122,59 @@ class DosingEvent(Struct):
     Output of a pump action
     """
 
-    volume_change: Annotated[float, Meta(ge=0)]
+    volume_change: t.Annotated[float, Meta(ge=0)]
     event: str
-    source_of_event: Optional[str]
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    source_of_event: t.Optional[str]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class MeasuredRPM(Struct):
-    measured_rpm: Annotated[float, Meta(ge=0)]
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    measured_rpm: t.Annotated[float, Meta(ge=0)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class GrowthRate(Struct):
     growth_rate: float
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class ODFiltered(Struct):
-    od_filtered: Annotated[float, Meta(ge=0)]
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    od_filtered: t.Annotated[float, Meta(ge=0)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class ODReading(Struct):
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
     angle: pt.PdAngle
-    od: Annotated[float, Meta(ge=0)]
+    od: t.Annotated[float, Meta(ge=0)]
     channel: pt.PdChannel
 
 
 class ODReadings(Struct):
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
     ods: dict[pt.PdChannel, ODReading]
 
 
 class Temperature(Struct):
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
     temperature: float
 
 
 class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class PumpCalibration(Calibration):
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
     name: str
     pump: str
-    hz: Annotated[float, Meta(ge=0)]
-    dc: Annotated[float, Meta(ge=0)]
+    hz: t.Annotated[float, Meta(ge=0)]
+    dc: t.Annotated[float, Meta(ge=0)]
     duration_: float
     bias_: float
     voltage: float
-    volumes: Optional[list[float]] = None
-    durations: Optional[list[float]] = None
+    volumes: t.Optional[list[float]] = None
+    durations: t.Optional[list[float]] = None
 
 
 class MediaPumpCalibration(PumpCalibration, tag="media_pump"):  # type: ignore
@@ -193,13 +189,13 @@ class WastePumpCalibration(PumpCalibration, tag="waste_pump"):  # type: ignore
     pass
 
 
-AnyPumpCalibration = Union[
+AnyPumpCalibration = t.Union[
     PumpCalibration, MediaPumpCalibration, AltMediaPumpCalibration, WastePumpCalibration
 ]
 
 
 class ODCalibration(Calibration):
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
     name: str
     angle: pt.PdAngle
     maximum_od600: float
@@ -230,7 +226,7 @@ class OD180Calibration(ODCalibration, tag="od_180"):  # type: ignore
     pass
 
 
-AnyODCalibration = Union[OD90Calibration, OD45Calibration, OD180Calibration, OD135Calibration]
+AnyODCalibration = t.Union[OD90Calibration, OD45Calibration, OD180Calibration, OD135Calibration]
 
 
 class Log(Struct):
@@ -238,13 +234,13 @@ class Log(Struct):
     level: str
     task: str
     source: str
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class KalmanFilterOutput(Struct):
-    state: Annotated[list[float], Meta(max_length=3)]
+    state: t.Annotated[list[float], Meta(max_length=3)]
     covariance_matrix: list[list[float]]
-    timestamp: Annotated[datetime, Meta(tz=True)]
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class ExperimentMetadata(Struct):

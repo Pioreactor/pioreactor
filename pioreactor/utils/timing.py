@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import logging
+import typing as t
 from contextlib import contextmanager
 from contextlib import suppress
 from datetime import datetime
@@ -9,13 +9,10 @@ from datetime import timezone
 from threading import Event
 from threading import Thread
 from time import perf_counter
-from typing import Callable
-from typing import Generator
-from typing import Optional
 
 
 @contextmanager
-def catchtime() -> Generator[Callable, None, None]:
+def catchtime() -> t.Generator[t.Callable, None, None]:
     start = perf_counter()
     yield lambda: perf_counter() - start
 
@@ -74,18 +71,20 @@ class RepeatedTimer:
     def __init__(
         self,
         interval: float,
-        function: Callable,
-        job_name: Optional[str] = None,
+        function: t.Callable,
+        job_name: t.Optional[str] = None,
         run_immediately: bool = False,
-        run_after: Optional[float] = None,
+        run_after: t.Optional[float] = None,
         *args,
         **kwargs,
     ) -> None:
+        from pioreactor.logging import create_logger
+
         self.interval = interval
         self.function = function
         self.args = args
         self.kwargs = kwargs
-        self.logger = logging.getLogger(
+        self.logger = create_logger(
             job_name or "RepeatedTimer"
         )  # TODO: I don't think this works as expected.
         self.is_paused = False

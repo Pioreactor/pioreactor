@@ -179,32 +179,24 @@ def kill(job: list[str], all_jobs: bool) -> None:
     """
     stop a job(s).
     """
-    """
-    This isn't a very clean way to end jobs (generally: actions). Ex: If a python script is running with Pioreactor jobs
-    running in it, it won't get closed.
 
-    Another approach is to iterate through /tmp/job_metadata_*.db and fire an MQTT event to kill them. This would fail though if
-    not connected to leader...
-
-    Another option is for _all jobs and actions_ to listen to a special topic: pioreactor/{whoami.UNIVERSAL_IDENTIFIER}/{whoami.UNIVERSAL_EXPERIMENT}/kill
-    A single publish is sent, and everyone kills themselves. This fails if not connected to a leader.
-
-    Another option is to send a kill signal to the process_id, which is in both pio_jobs_running and job metadata. This doesn't rely on MQTT, so
-    no leader connection is required.
-    """
-
-    from sh import pkill  # type: ignore
+    from sh import kill  # type: ignore
     from pioreactor.actions.led_intensity import led_intensity
 
-    def safe_pkill(*args: str) -> None:
+    def safe_kill(*args: str) -> None:
         try:
-            pkill(*args)
+            kill(*args)
         except Exception:
             pass
 
     if all_jobs:
+
         # kill all running pioreactor processes
-        safe_pkill("-f", "pio run ")
+        with local_persistant_storage("pio_jobs_running") as cache:
+            for j in cache:
+                if j not in ["monitor", "watchdog", "mqtt_to_db_streaming"]:
+                    pid = cache[j]
+                    safe_kill(str(pid))
 
         # kill all pumping
         with pubsub.create_client() as client:
@@ -239,8 +231,11 @@ def kill(job: list[str], all_jobs: bool) -> None:
                 assert cache[led] == 0.0, f"LED {led} is not off!"
 
     else:
-        for j in job:
-            safe_pkill("-f", f"pio run {j}")
+        with local_persistant_storage("pio_jobs_running") as cache:
+            for j in cache:
+                if j in job:
+                    pid = cache[job]
+                    safe_kill(str(pid))
 
 
 @pio.group(short_help="run a job")
@@ -292,7 +287,7 @@ def view_cache(cache: str) -> None:
     if os.path.isdir(f"{tmp_dir}/{cache}"):
         cacher = local_intermittent_storage
 
-    elif os.path.isdir(f".pioreactor/storage/{cache}"):
+    elif os.path.isdir(f"home/pioreactor/.pioreactor/storage/{cache}"):
         cacher = local_persistant_storage
 
     else:
