@@ -40,10 +40,11 @@ TEMP = 0x4F
 
 # ADC map of function to hardware ADC channel
 ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel]
+
 if hardware_version_info <= (1, 0):
     ADC_CHANNEL_FUNCS = {
-        "1": 0 if hardware_version_info <= (0, 1) else 1,  # pd1
-        "2": 1 if hardware_version_info <= (0, 1) else 0,  # pd2
+        "1": 0 if hardware_version_info <= (0, 1) else 1,
+        "2": 1 if hardware_version_info <= (0, 1) else 0,
         "version": 2,
         "aux": 3,
     }

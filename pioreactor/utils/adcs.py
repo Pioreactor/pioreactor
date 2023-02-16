@@ -48,11 +48,10 @@ class ADS1115_ADC(_ADC):
         8: 0.512,
         16: 0.256,
     }
+    gain: float = 1.0
 
-    def __init__(self, initial_gain=1) -> None:
+    def __init__(self) -> None:
         super().__init__()
-
-        self.gain = initial_gain
 
         from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
         from busio import I2C  # type: ignore

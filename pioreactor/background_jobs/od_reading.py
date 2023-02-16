@@ -164,17 +164,13 @@ class ADCReader(LoggerMixin):
         else:
             self.most_appropriate_AC_hz = None
 
-    def setup_adc(self, initial_gain: float = 1) -> ADCReader:
+    def setup_adc(self) -> ADCReader:
         """
         This configures the ADC for reading, performs an initial read, and sets variables based on that reading.
 
         It doesn't occur in the classes __init__ because it often requires an LED to be on (and this class doesn't control LEDs.).
         See ODReader for an example.
 
-        Parameters
-        -------------
-        initial_gain:
-            set the initial gain - see data sheet for values.
         """
 
         if not hardware.is_HAT_present():
@@ -186,7 +182,7 @@ class ADCReader(LoggerMixin):
         else:
             from pioreactor.utils.adcs import ADC  # type: ignore
 
-        self.adc = ADC(initial_gain=initial_gain)
+        self.adc = ADC()
         self.logger.debug(f"Using ADC class {self.adc.__class__.__name__}.")
 
         max_signal = 0.0
