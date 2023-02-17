@@ -152,13 +152,13 @@ def led_intensity(
         from pioreactor.utils.mock import Mock_DAC as DAC  # type: ignore
 
     if pubsub_client is None:
-        publishing = create_client(client_id=f"led_intensity-{unit}-{experiment}")
-        publish = publishing.publish
+        mqtt_publishing = create_client(client_id=f"led_intensity-{unit}-{experiment}")
+        mqtt_publish = mqtt_publishing.publish
     else:
-        publishing = nullcontext()
-        publish = pubsub_client.publish
+        mqtt_publishing = nullcontext()
+        mqtt_publish = pubsub_client.publish
 
-    with publishing:
+    with mqtt_publishing:
         # any locked channels?
         for channel in list(desired_state.keys()):
             if is_led_channel_locked(channel):
@@ -190,7 +190,7 @@ def led_intensity(
 
         new_state, old_state = _update_current_state(desired_state)
 
-        publish(
+        mqtt_publish(
             f"pioreactor/{unit}/{experiment}/leds/intensity",
             encode(new_state),
             qos=QOS.AT_MOST_ONCE,
@@ -208,7 +208,7 @@ def led_intensity(
                     timestamp=timestamp_of_change,
                 )
 
-                publish(
+                mqtt_publish(
                     f"pioreactor/{unit}/{experiment}/led_change_events",
                     encode(event),
                     qos=QOS.AT_MOST_ONCE,

@@ -187,10 +187,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
     from pioreactor.actions.led_intensity import led_intensity
 
     def safe_kill(*args: int) -> None:
-        try:
-            kill(*args)
-        except Exception:
-            pass
+        kill(*args)
 
     if all_jobs:
 
@@ -199,6 +196,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
             for j in cache:
                 if j not in JOBS_TO_SKIP_KILLING:
                     pid = cache[j]
+                    print(j, int(pid))
                     safe_kill(int(pid))
 
         # kill all pumping
