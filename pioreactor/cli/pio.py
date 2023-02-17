@@ -218,7 +218,11 @@ def kill(job: list[str], all_jobs: bool) -> None:
 
         # kill all LEDs
         sleep(0.5)
-        led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False)
+        try:
+            # non-workers won't have this hardware, so just skip it
+            led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False)
+        except Exception:
+            pass
 
         # assert everything is off
         with local_intermittent_storage("pwm_dc") as cache:
