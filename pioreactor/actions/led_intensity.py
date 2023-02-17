@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from contextlib import nullcontext
 from typing import Any
 from typing import Iterator
 from typing import Optional
@@ -151,69 +152,74 @@ def led_intensity(
         from pioreactor.utils.mock import Mock_DAC as DAC  # type: ignore
 
     if pubsub_client is None:
-        pubsub_client = create_client(client_id=f"led_intensity-{unit}-{experiment}")
+        publishing = create_client(client_id=f"led_intensity-{unit}-{experiment}")
+        publish = publishing.publish
+    else:
+        publishing = nullcontext()
+        publish = pubsub_client.publish
 
-    # any locked channels?
-    for channel in list(desired_state.keys()):
-        if is_led_channel_locked(channel):
-            updated_successfully = False
-            logger.warning(
-                f"Unable to update channel {channel} due to a lock on it. Please try again."
-            )
-            del desired_state[channel]
-
-    for channel, intensity in desired_state.items():
-        try:
-            assert (
-                channel in ALL_LED_CHANNELS
-            ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
-            assert (
-                0.0 <= intensity <= 100.0
-            ), f"Channel {channel} intensity should be between 0 and 100, inclusive"
-
-            dac = DAC()
-            dac.set_intensity_to(getattr(dac, channel), intensity)
-
-        except ValueError as e:
-            logger.debug(e, exc_info=True)
-            logger.error(
-                "Unable to find I²C for LED driver. Is the Pioreactor HAT attached to the Raspberry Pi?"
-            )
-            updated_successfully = False
-            return updated_successfully
-
-    new_state, old_state = _update_current_state(desired_state)
-
-    pubsub_client.publish(
-        f"pioreactor/{unit}/{experiment}/leds/intensity",
-        encode(new_state),
-        qos=QOS.AT_MOST_ONCE,
-        retain=True,
-    )
-
-    if verbose:
-        timestamp_of_change = current_utc_datetime()
+    with publishing:
+        # any locked channels?
+        for channel in list(desired_state.keys()):
+            if is_led_channel_locked(channel):
+                updated_successfully = False
+                logger.warning(
+                    f"Unable to update channel {channel} due to a lock on it. Please try again."
+                )
+                del desired_state[channel]
 
         for channel, intensity in desired_state.items():
-            event = structs.LEDChangeEvent(
-                channel=channel,
-                intensity=intensity,
-                source_of_event=source_of_event,
-                timestamp=timestamp_of_change,
-            )
+            try:
+                assert (
+                    channel in ALL_LED_CHANNELS
+                ), f"saw incorrect channel {channel}, not in {ALL_LED_CHANNELS}"
+                assert (
+                    0.0 <= intensity <= 100.0
+                ), f"Channel {channel} intensity should be between 0 and 100, inclusive"
 
-            pubsub_client.publish(
-                f"pioreactor/{unit}/{experiment}/led_change_events",
-                encode(event),
-                qos=QOS.AT_MOST_ONCE,
-                retain=False,
-            )
+                dac = DAC()
+                dac.set_intensity_to(getattr(dac, channel), intensity)
 
-            logger.info(
-                f"Updated LED {channel} from {getattr(old_state, channel):0.3g}% to {getattr(new_state, channel):0.3g}%."
-            )
+            except ValueError as e:
+                logger.debug(e, exc_info=True)
+                logger.error(
+                    "Unable to find I²C for LED driver. Is the Pioreactor HAT attached to the Raspberry Pi?"
+                )
+                updated_successfully = False
+                return updated_successfully
 
-    return updated_successfully
+        new_state, old_state = _update_current_state(desired_state)
+
+        publish(
+            f"pioreactor/{unit}/{experiment}/leds/intensity",
+            encode(new_state),
+            qos=QOS.AT_MOST_ONCE,
+            retain=True,
+        )
+
+        if verbose:
+            timestamp_of_change = current_utc_datetime()
+
+            for channel, intensity in desired_state.items():
+                event = structs.LEDChangeEvent(
+                    channel=channel,
+                    intensity=intensity,
+                    source_of_event=source_of_event,
+                    timestamp=timestamp_of_change,
+                )
+
+                publish(
+                    f"pioreactor/{unit}/{experiment}/led_change_events",
+                    encode(event),
+                    qos=QOS.AT_MOST_ONCE,
+                    retain=False,
+                )
+
+                logger.info(
+                    f"Updated LED {channel} from {getattr(old_state, channel):0.3g}% to {getattr(new_state, channel):0.3g}%."
+                )
+
+        return updated_successfully
 
 
 @click.command(name="led_intensity")

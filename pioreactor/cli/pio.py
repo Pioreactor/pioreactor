@@ -35,6 +35,9 @@ from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
 
 
+JOBS_TO_SKIP_KILLING = ["monitor", "watchdog", "mqtt_to_db_streaming"]
+
+
 @click.group(invoke_without_command=True)
 @click.pass_context
 def pio(ctx) -> None:
@@ -194,7 +197,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
         # kill all running pioreactor processes
         with local_persistant_storage("pio_jobs_running") as cache:
             for j in cache:
-                if j not in ["monitor", "watchdog", "mqtt_to_db_streaming"]:
+                if j not in JOBS_TO_SKIP_KILLING:
                     pid = cache[j]
                     safe_kill(int(pid))
 
@@ -217,7 +220,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
             )
 
         # kill all LEDs
-        sleep(0.5)
+        sleep(0.25)
         try:
             # non-workers won't have this hardware, so just skip it
             led_intensity({"A": 0.0, "B": 0.0, "C": 0.0, "D": 0.0}, verbose=False)
