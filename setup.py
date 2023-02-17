@@ -23,9 +23,16 @@ CORE_REQUIREMENTS = [
 ]
 
 
-LEADER_REQUIREMENTS = [
-    "zeroconf==0.47.1",
+UI_REQUIREMENTS = [
+    # pyyaml is installed elsewhere
+    "flask==2.2.2",
+    "flup6==1.1.1",
+    "python-dotenv==0.21.0",
+    "huey==2.4.3",
 ]
+
+
+LEADER_REQUIREMENTS = ["zeroconf==0.47.1"] + UI_REQUIREMENTS
 
 
 WORKER_REQUIREMENTS = [

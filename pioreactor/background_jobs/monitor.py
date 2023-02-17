@@ -524,7 +524,7 @@ class Monitor(BackgroundJob):
 
             payload["config"] = config.get_config()  # techdebt
             payload["unit"] = self.unit
-            payload["experiment"] = whoami._get_latest_experiment_name()
+            payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt
             Thread(target=pump_action, kwargs=payload, daemon=True).start()
 
         else:
