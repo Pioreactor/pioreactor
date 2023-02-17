@@ -194,6 +194,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
         # kill all running pioreactor processes
         with local_persistant_storage("pio_jobs_running") as cache:
             for j in cache:
+                print(j, cache[j], j not in JOBS_TO_SKIP_KILLING)
                 if j not in JOBS_TO_SKIP_KILLING:
                     pid = cache[j]
                     print(j, int(pid))

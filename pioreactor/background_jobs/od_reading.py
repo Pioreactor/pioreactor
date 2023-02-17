@@ -138,7 +138,7 @@ class ADCReader(LoggerMixin):
     """
 
     _logger_name = "adc_reader"
-    oversampling_count: int = 27
+    oversampling_count: int = 28
     _setup_complete = False
 
     def __init__(
