@@ -417,7 +417,7 @@ def click_self_test(k: str) -> int:
             logger.error(
                 "Make sure Optical Density, any automations, and Stirring are off before running a self test. Exiting."
             )
-            return 1
+            raise click.Abort()
 
         # flicker to assist the user to confirm they are testing the right pioreactor.
         client.publish(f"pioreactor/{unit}/{experiment}/monitor/flicker_led_response_okay", 1)

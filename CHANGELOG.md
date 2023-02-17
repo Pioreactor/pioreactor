@@ -5,6 +5,7 @@
  - Fix "End experiment" killing all jobs.
  - Fix `pio view-cache` not working outside the home directory.
  - Fixes for hardware HAT version 1.1.
+ - `led_intensity` cleans itself up better.
 
 
 ### 23.2.8
