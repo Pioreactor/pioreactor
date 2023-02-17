@@ -89,7 +89,7 @@ class Thermostat(TemperatureAutomationJob):
             if self.temperature_control_parent.publish_temperature_timer.is_paused:
                 self.update_heater_with_delta(output)
             else:
-                # if another cycle is occurring very soon, don't both updating the DC much, as we don't want to "double dip" and change the dc twice quickly.
+                # if another cycle is occurring very soon, don't bother updating the DC too much, as we don't want to "double dip" and change the dc twice quickly.
                 time_to_next_run = (
                     self.temperature_control_parent.publish_temperature_timer.time_to_next_run
                 )
