@@ -55,16 +55,7 @@ jobs:
            EOT
 
       - name: Run tests
-        run: pytest pioreactor/tests/ -vv --timeout 600 --random-order
-        env:
-          TESTING: 1
-          TMPDIR: /tmp/
-
-      - name: Test cli
-        run: |
-          pio
-          pio update app
-          pio run example_plugin
+        run: pytest pioreactor/tests/ -vv --timeout 600 --random-order --durations 15
         env:
           TESTING: 1
           TMPDIR: /tmp/

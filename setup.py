@@ -8,14 +8,14 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 
 CORE_REQUIREMENTS = [
-    "click>=8.0.4",
-    "paho-mqtt>=1.6.0",
-    "psutil>=5.9.0",
-    "sh>=1.14.0",
-    "JSON-log-formatter>=0.5.1",
-    "colorlog>=6.6.0",
-    "msgspec>=0.12.0",
-    "diskcache>=5.4.0",
+    "click==8.1.3",
+    "paho-mqtt==1.6.1",
+    "psutil==5.9.4",
+    "sh==1.14.3",
+    "JSON-log-formatter==0.5.1",
+    "colorlog==6.7.0",
+    "msgspec==0.13.1",
+    "diskcache==5.4.0",
     # tech debt - this needed to be in the core req
     # leader requirement
     # this direct dependency also prevents us from uploading to PyPI...
@@ -24,18 +24,18 @@ CORE_REQUIREMENTS = [
 
 
 LEADER_REQUIREMENTS = [
-    "zeroconf>=0.47.1",
+    "zeroconf==0.47.1",
 ]
 
 
 WORKER_REQUIREMENTS = [
-    "RPi.GPIO>=0.7.1",
-    "adafruit-circuitpython-ads1x15>=2.2.12",
-    "DAC43608>=0.2.6",
-    "TMP1075>=0.2.1",
-    "rpi-hardware-pwm>=0.1.4",
-    "simple-pid>=1.0.1",
-    "plotext>=5.1.0",
+    "RPi.GPIO==0.7.1",
+    "adafruit-circuitpython-ads1x15==2.2.12",
+    "DAC43608==0.2.7",
+    "TMP1075==0.2.1",
+    "rpi-hardware-pwm==0.1.4",
+    "simple-pid==1.0.1",
+    "plotext>=5.2.8",
 ]
 
 setup(

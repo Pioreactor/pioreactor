@@ -61,7 +61,7 @@ class Pico_DAC(_DAC):
 
     def set_intensity_to(self, channel: int, intensity: float) -> None:
         # to 8 bit integer
-        eight_bit = round((intensity / 100) * 256)
+        eight_bit = round((intensity / 100) * 255)
         self.i2c.writeto(hardware.DAC, bytes([channel, eight_bit]))
 
 

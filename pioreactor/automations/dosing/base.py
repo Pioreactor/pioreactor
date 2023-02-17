@@ -433,7 +433,7 @@ class DosingAutomationJob(BackgroundSubJob):
 
                 if waste_moved_ml < waste_ml:
                     self.logger.warning(
-                        "Waste was under-removed. Risk of overflow. Is the waste pumpg working?"
+                        "Waste was under-removed. Risk of overflow. Is the waste pump working?"
                     )
 
                 briefer_pause()

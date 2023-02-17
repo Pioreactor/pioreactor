@@ -41,8 +41,16 @@ class PIOREACTOR:
         return str(self)
 
 
-def add_hash_suffix(s):
-    alphabet = string.ascii_lowercase + string.digits
+def add_hash_suffix(s: str) -> str:
+    """Adds random 4-character hash to the end of a string.
+
+    Args:
+        s: The string to which the hash should be added.
+
+    Returns:
+        The string with the hash appended to it.
+    """
+    alphabet: str = string.ascii_lowercase + string.digits
     return s + "-" + "".join(random.choices(alphabet, k=4))
 
 
@@ -340,12 +348,20 @@ def prune_retained_messages(topics_to_prune: str = "#", hostname=leader_address)
 
 
 class collect_all_logs_of_level:
+    # This code allows us to collect all logs of a certain level from a unit and experiment
+    # We can use this to check that the logs are actually being published as we expect
+    # We can also use this to check that the log levels are being set as we expect
+
     def __init__(self, log_level: str, unit: str, experiment: str) -> None:
-        self.unit = unit
+        # set the log level we are looking for
         self.log_level = log_level.upper()
+        # set the unit and experiment we are looking for
+        self.unit = unit
         self.experiment = experiment
+        # create a bucket for the logs
         self.bucket: list[dict] = []
-        self.client = subscribe_and_callback(
+        # subscribe to the logs
+        self.client: Client = subscribe_and_callback(
             self._collect_logs_into_bucket,
             str(PIOREACTOR() / self.unit / self.experiment / "logs" / "app"),
         )
@@ -353,7 +369,9 @@ class collect_all_logs_of_level:
     def _collect_logs_into_bucket(self, message):
         from json import loads
 
+        # load the message
         log = loads(message.payload)
+        # if the log level matches, add it to the bucket
         if log["level"] == self.log_level:
             self.bucket.append(log)
 
@@ -361,7 +379,9 @@ class collect_all_logs_of_level:
         return self.bucket
 
     def __exit__(self, *args):
+        # stop listening for messages
         self.client.loop_stop()
+        # disconnect from the broker
         self.client.disconnect()
 
 

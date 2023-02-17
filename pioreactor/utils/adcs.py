@@ -48,11 +48,10 @@ class ADS1115_ADC(_ADC):
         8: 0.512,
         16: 0.256,
     }
+    gain: float = 1.0
 
-    def __init__(self, initial_gain=1) -> None:
+    def __init__(self) -> None:
         super().__init__()
-
-        self.gain = initial_gain
 
         from adafruit_ads1x15.analog_in import AnalogIn  # type: ignore
         from busio import I2C  # type: ignore
@@ -88,6 +87,7 @@ class ADS1115_ADC(_ADC):
         return raw / 32767 * self.ADS1X15_PGA_RANGE[self.gain]
 
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
+        assert 0 <= channel <= 3
         return self.analog_in[channel].value
 
 
@@ -97,6 +97,7 @@ class Pico_ADC(_ADC):
         self.i2c = busio.I2C(hardware.SCL, hardware.SDA)
 
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
+        assert 0 <= channel <= 3
         result = bytearray(2)
         self.i2c.writeto_then_readfrom(
             0x30, bytes([channel + 4]), result
