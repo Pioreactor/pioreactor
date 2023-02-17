@@ -183,7 +183,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
     from sh import kill  # type: ignore
     from pioreactor.actions.led_intensity import led_intensity
 
-    def safe_kill(*args: str) -> None:
+    def safe_kill(*args: int) -> None:
         try:
             kill(*args)
         except Exception:
@@ -196,7 +196,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
             for j in cache:
                 if j not in ["monitor", "watchdog", "mqtt_to_db_streaming"]:
                     pid = cache[j]
-                    safe_kill(str(pid))
+                    safe_kill(int(pid))
 
         # kill all pumping
         with pubsub.create_client() as client:
@@ -235,7 +235,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
             for j in cache:
                 if j in job:
                     pid = cache[job]
-                    safe_kill(str(pid))
+                    safe_kill(int(pid))
 
 
 @pio.group(short_help="run a job")
