@@ -16,7 +16,6 @@ from pioreactor import utils
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
@@ -124,7 +123,7 @@ def _pump(
             ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
             logger.info(f"{round(duration, 2)}s")
         elif continuously:
-            duration = 60.0
+            duration = 10.0
             ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
             logger.info("Running pump continuously.")
 
@@ -144,68 +143,68 @@ def _pump(
             timestamp=current_utc_datetime(),
         )
 
-        with create_client(client_id=f"{action_name}-{unit}-{experiment}") as client:
-            client.publish(
-                f"pioreactor/{unit}/{experiment}/dosing_events",
-                encode(dosing_event),
-                qos=QOS.EXACTLY_ONCE,
-            )
-            with PWM(
-                GPIO_PIN,
-                calibration.hz,
-                experiment=experiment,
-                unit=unit,
-                pubsub_client=client,
-                logger=logger,
-            ) as pwm:
-                pwm.lock()
+        client = state.client
+        client.publish(
+            f"pioreactor/{unit}/{experiment}/dosing_events",
+            encode(dosing_event),
+            qos=QOS.EXACTLY_ONCE,
+        )
+        with PWM(
+            GPIO_PIN,
+            calibration.hz,
+            experiment=experiment,
+            unit=unit,
+            pubsub_client=client,
+            logger=logger,
+        ) as pwm:
+            pwm.lock()
 
-                try:
-                    if continuously:
+            try:
+                if continuously:
+
+                    if not dry_run:
+                        pwm.start(calibration.dc)
+
+                    pump_start_time = time.monotonic()
+
+                    while not state.exit_event.wait(duration):
+                        # republish information
+                        dosing_event = replace(dosing_event, timestamp=current_utc_datetime())
+                        client.publish(
+                            f"pioreactor/{unit}/{experiment}/dosing_events",
+                            encode(dosing_event),
+                            qos=QOS.AT_MOST_ONCE,  # we don't need the same level of accuracy here
+                        )
+
+                else:
+                    with catchtime() as delta_time:
 
                         if not dry_run:
                             pwm.start(calibration.dc)
 
                         pump_start_time = time.monotonic()
 
-                        while not state.exit_event.wait(duration):
-                            # republish information
-                            dosing_event = replace(dosing_event, timestamp=current_utc_datetime())
-                            client.publish(
-                                f"pioreactor/{unit}/{experiment}/dosing_events",
-                                encode(dosing_event),
-                                qos=QOS.EXACTLY_ONCE,
-                            )
-                    else:
-                        with catchtime() as delta_time:
+                    state.exit_event.wait(max(0, duration - delta_time()))
 
-                            if not dry_run:
-                                pwm.start(calibration.dc)
+            except SystemExit:
+                # a SigInt, SigKill occurred
+                pass
+            except Exception as e:
+                # some other unexpected error
+                logger.debug(e, exc_info=True)
+                logger.error(e)
+            finally:
+                pwm.stop()
+                if continuously:
+                    logger.info(f"Stopping {pump_type} pump.")
 
-                            pump_start_time = time.monotonic()
-
-                        while not state.exit_event.wait(max(0, duration - delta_time())):
-                            pass
-
-                except SystemExit:
-                    # a SigInt, SigKill occurred
-                    pass
-                except Exception as e:
-                    # some other unexpected error
-                    logger.debug(e, exc_info=True)
-                    logger.error(e)
-                finally:
-                    pwm.stop()
-                    if continuously:
-                        logger.info(f"Stopping {pump_type} pump.")
-
-                    if state.exit_event.is_set():
-                        # ended early
-                        shortened_duration = time.monotonic() - pump_start_time
-                        ml = utils.pump_duration_to_ml(
-                            shortened_duration, calibration.duration_, calibration.bias_
-                        )
-                return ml
+                if state.exit_event.is_set():
+                    # ended early
+                    shortened_duration = time.monotonic() - pump_start_time
+                    ml = utils.pump_duration_to_ml(
+                        shortened_duration, calibration.duration_, calibration.bias_
+                    )
+            return ml
 
 
 def add_media(
