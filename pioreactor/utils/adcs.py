@@ -115,4 +115,4 @@ class Pico_ADC(_ADC):
         pass
 
 
-ADC = ADS1115_ADC if hardware_version_info <= (1, 0) else Pico_ADC
+ADC = ADS1115_ADC if (0, 0) < hardware_version_info <= (1, 0) else Pico_ADC

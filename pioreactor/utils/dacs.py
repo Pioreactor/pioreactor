@@ -65,4 +65,4 @@ class Pico_DAC(_DAC):
         self.i2c.writeto(hardware.DAC, bytes([channel, eight_bit]))
 
 
-DAC = DAC43608_DAC if hardware_version_info <= (1, 0) else Pico_DAC
+DAC = DAC43608_DAC if (0, 0) < hardware_version_info <= (1, 0) else Pico_DAC
