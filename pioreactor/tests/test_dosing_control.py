@@ -208,55 +208,54 @@ def test_turbidostat_automation() -> None:
 def test_pid_morbidostat_automation() -> None:
     experiment = "test_pid_morbidostat_automation"
     target_growth_rate = 0.09
-    algo = PIDMorbidostat(
+    with PIDMorbidostat(
         target_od=1.0,
         target_growth_rate=target_growth_rate,
         duration=60,
         unit=unit,
         experiment=experiment,
-    )
+    ) as algo:
 
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.NoEvent)
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.AddAltMediaEvent)
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.07, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.AddAltMediaEvent)
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
-        encode(structs.GrowthRate(growth_rate=0.065, timestamp=current_utc_datetime())),
-    )
-    pubsub.publish(
-        f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
-        encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
-    )
-    pause()
-    assert isinstance(algo.run(), events.AddAltMediaEvent)
-    algo.clean_up()
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.5, timestamp=current_utc_datetime())),
+        )
+        pause()
+        assert isinstance(algo.run(), events.NoEvent)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
+        )
+        pause()
+        assert isinstance(algo.run(), events.AddAltMediaEvent)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.07, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
+        )
+        pause()
+        assert isinstance(algo.run(), events.AddAltMediaEvent)
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
+            encode(structs.GrowthRate(growth_rate=0.065, timestamp=current_utc_datetime())),
+        )
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/growth_rate_calculating/od_filtered",
+            encode(structs.ODFiltered(od_filtered=0.95, timestamp=current_utc_datetime())),
+        )
+        pause()
+        assert isinstance(algo.run(), events.AddAltMediaEvent)
 
 
 def test_changing_morbidostat_parameters_over_mqtt() -> None:

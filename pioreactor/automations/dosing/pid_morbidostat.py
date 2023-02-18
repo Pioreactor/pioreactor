@@ -105,7 +105,7 @@ class PIDMorbidostat(DosingAutomationJob):
     def max_od(self):
         return 1.25 * self.target_od
 
-    def set_target_growth_rate(self, value):
-        self.target_growth_rate = value
+    def set_target_growth_rate(self, value: str | float | int):
+        self.target_growth_rate = float(value)
         with suppress(AttributeError):
             self.pid.set_setpoint(self.target_growth_rate)
