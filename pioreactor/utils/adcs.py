@@ -65,7 +65,7 @@ class ADS1115_ADC(_ADC):
             gain=self.gain,
             address=hardware.ADC,
         )
-        for channel in [0, 1, 2, 3]:
+        for channel in (0, 1, 2, 3):
             self.analog_in[channel] = AnalogIn(self._ads, channel)
 
     def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:

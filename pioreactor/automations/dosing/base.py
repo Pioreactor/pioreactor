@@ -420,7 +420,7 @@ class DosingAutomationJob(BackgroundSubJob):
             # remove waste last.
             if (
                 waste_ml > 0
-                and (self.state in [self.READY, self.SLEEPING])
+                and (self.state in (self.READY, self.SLEEPING))
                 and self.block_until_not_sleeping()
             ):
                 waste_moved_ml = self.remove_waste_from_bioreactor(
@@ -519,14 +519,14 @@ class DosingAutomationJob(BackgroundSubJob):
 
     def __setattr__(self, name: str, value: Any) -> None:
         super(DosingAutomationJob, self).__setattr__(name, value)
-        if name in self.published_settings and name not in [
+        if name in self.published_settings and name not in (
             "state",
             "alt_media_fraction",
             "media_throughput",
             "alt_media_throughput",
             "latest_event",
             "vial_volume",
-        ]:
+        ):
             self._latest_settings_ended_at = current_utc_datetime()
             self._send_details_to_mqtt()
             self._latest_settings_started_at = current_utc_datetime()
@@ -565,14 +565,14 @@ class DosingAutomationJob(BackgroundSubJob):
                             attr: getattr(self, attr, None)
                             for attr in self.published_settings
                             if attr
-                            not in [
+                            not in (
                                 "state",
                                 "alt_media_fraction",
                                 "media_throughput",
                                 "vial_volume",
                                 "alt_media_throughput",
                                 "latest_event",
-                            ]
+                            )
                         }
                     ),
                 )

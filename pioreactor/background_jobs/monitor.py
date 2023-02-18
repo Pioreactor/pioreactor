@@ -276,7 +276,7 @@ class Monitor(BackgroundJob):
 
         def check_against_processes_running(msg: MQTTMessage) -> None:
             job = msg.topic.split("/")[3]
-            if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
+            if (msg.payload.decode() in (self.READY, self.INIT, self.SLEEPING)) and (
                 not utils.is_pio_job_running(job)
             ):
                 self.publish(

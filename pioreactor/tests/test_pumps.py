@@ -17,6 +17,7 @@ from pioreactor.exc import CalibrationError
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import timing
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -145,7 +146,7 @@ def test_pump_will_disconnect_via_mqtt() -> None:
 
     pause()
     pause()
-    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", "disconnected")
+    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
     pause()
     pause()
 
@@ -178,14 +179,11 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
 
     pause()
     pause()
-    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", "disconnected")
-    pause()
-    pause()
-
-    pause()
+    with timing.catchtime() as elapsed_time:
+        publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
+        assert elapsed_time() < 1.5
 
     resulting_ml = t.join()
-
     assert resulting_ml > 0
 
 

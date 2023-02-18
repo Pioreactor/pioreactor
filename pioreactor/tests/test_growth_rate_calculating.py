@@ -34,7 +34,7 @@ def create_od_raw_batched_json(channels, voltages: list[float], angles, timestam
     """
     readings = structs.ODReadings(timestamp=to_datetime(timestamp), ods=dict())
     for channel, voltage, angle in zip(channels, voltages, angles):
-        assert int(channel) in [1, 2]
+        assert int(channel) in (1, 2)
         readings.ods[channel] = structs.ODReading(
             od=voltage, angle=angle, timestamp=to_datetime(timestamp), channel=channel
         )

@@ -43,7 +43,7 @@ def cast_bytes_to_type(value: bytes, type_: str):
         elif type_ == "integer":
             return int(value)
         elif type_ == "boolean":
-            return value.decode().lower() in ["true", "1", "y", "on", "yes"]
+            return value.decode().lower() in {"true", "1", "y", "on", "yes"}
         elif type_ == "json":
             return loads(value)
         elif type_ == "Automation":
@@ -424,7 +424,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return
 
     def set_state(self, new_state: pt.JobState) -> None:
-        if new_state not in [self.INIT, self.READY, self.DISCONNECTED, self.SLEEPING, self.LOST]:
+        if new_state not in {self.INIT, self.READY, self.DISCONNECTED, self.SLEEPING, self.LOST}:
             self.logger.error(f"saw {new_state}: not a valid state")
             return
 

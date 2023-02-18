@@ -26,8 +26,8 @@ class ConfigParserMod(configparser.ConfigParser):
     # https://stackoverflow.com/a/19359720/1895939
     optionxform = str  # type: ignore
     BOOLEAN_STATES = {
-        **{k: False for k in ["0", "false", "no", "off"]},
-        **{k: True for k in ["1", "yes", "true", "on"]},
+        **{k: False for k in ("0", "false", "no", "off")},
+        **{k: True for k in ("1", "yes", "true", "on")},
     }
 
     def __init__(self, *args, **kwargs):

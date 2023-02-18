@@ -113,7 +113,7 @@ class publish_ready_to_disconnected_state:
         self.start_passive_listeners()
 
     def _exit(self, *args) -> None:
-        # recall: I can't publish in a callback!
+        # recall: we can't publish in a callback!
         self.exit_event.set()
 
     def __enter__(self) -> publish_ready_to_disconnected_state:
@@ -152,7 +152,7 @@ class publish_ready_to_disconnected_state:
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
-        if message.payload.decode() == "disconnected":
+        if message.payload == b"disconnected":
             self._exit()
 
     def start_passive_listeners(self) -> None:

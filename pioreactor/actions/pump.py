@@ -162,10 +162,14 @@ def _pump(
 
                 try:
                     if continuously:
+
                         if not dry_run:
                             pwm.start(calibration.dc)
+
                         pump_start_time = time.monotonic()
+
                         while not state.exit_event.wait(duration):
+                            # republish information
                             dosing_event = replace(dosing_event, timestamp=current_utc_datetime())
                             client.publish(
                                 f"pioreactor/{unit}/{experiment}/dosing_events",
@@ -174,11 +178,14 @@ def _pump(
                             )
                     else:
                         with catchtime() as delta_time:
+
                             if not dry_run:
                                 pwm.start(calibration.dc)
+
                             pump_start_time = time.monotonic()
 
-                        state.exit_event.wait(max(0, duration - delta_time()))
+                        while not state.exit_event.wait(max(0, duration - delta_time())):
+                            pass
 
                 except SystemExit:
                     # a SigInt, SigKill occurred
