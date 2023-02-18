@@ -494,8 +494,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     @staticmethod
     def _check_published_settings(published_settings: dict[str, pt.PublishableSetting]) -> None:
-        necessary_properies = set(["datatype", "settable"])
-        optional_properties = set(["unit", "persist"])
+        necessary_properies = {"datatype", "settable"}
+        optional_properties = {"unit", "persist"}
         all_properties = optional_properties.union(necessary_properies)
         for setting, properties in published_settings.items():
             # look for extra properties
@@ -872,7 +872,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            None,
+            b"",
             retain=True,
         )
 
@@ -880,23 +880,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if not metadata_on_attr.get("persist", False):
                 self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                    None,
+                    b"",
                     retain=True,
                 )
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$settable",
-                None,
+                b"",
                 retain=True,
             )
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$datatype",
-                None,
+                b"",
                 retain=True,
             )
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$unit",
-                None,
+                b"",
                 retain=True,
             )
 

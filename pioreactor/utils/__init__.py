@@ -20,6 +20,24 @@ from pioreactor.pubsub import subscribe_and_callback
 
 
 class callable_stack:
+    """
+    A class for managing a stack of callable objects in Python.
+
+    Example:
+    >>> def greet(name):
+    ... print(f"Hello, {name}!")
+    ...
+    >>> def goodbye(name):
+    ... print(f"Goodbye, {name}!")
+    ...
+    >>> my_stack = callable_stack()
+    >>> my_stack.append(greet)
+    >>> my_stack.append(goodbye)
+    >>> my_stack('Alice')
+    Goodbye, Alice!
+    Hello, Alice!
+    """
+
     def __init__(self) -> None:
         self.callables: list[Callable] = []
 
@@ -70,7 +88,7 @@ class publish_ready_to_disconnected_state:
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test, pump
 
-    You can use MQTT ".../$state/set" tools to disconnect it.
+    You can use send a "disconnected" to "pioreactor/<unit>/<exp>/<name>/$state/set" to stop/disconnect it.
 
     Example
     ----------
@@ -100,7 +118,7 @@ class publish_ready_to_disconnected_state:
 
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "payload": "lost",
+            "payload": b"lost",
             "qos": QOS.EXACTLY_ONCE,
             "retain": True,
         }
@@ -126,7 +144,7 @@ class publish_ready_to_disconnected_state:
 
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "ready",
+            b"ready",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
@@ -139,7 +157,7 @@ class publish_ready_to_disconnected_state:
     def __exit__(self, *args) -> None:
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "disconnected",
+            b"disconnected",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
@@ -307,6 +325,25 @@ def argextrema(x: list) -> tuple[int, int]:
 
 
 class SummableDict(dict):
+    """
+    SummableDict is a subclass of dict that allows for easy addition of two dictionaries by key.
+    If a key exists in both dictionaries, the values are added together.
+    If a key only exists in one dictionary, it is included in the result with its original value.
+
+    Example
+    ---------
+    # create two SummableDicts
+    d1 = SummableDict({'a': 1, 'b': 2})
+    d2 = SummableDict({'b': 3, 'c': 4})
+
+    # add them together
+    result = d1 + d2
+
+    # result should be {'a': 1, 'b': 5, 'c': 4}
+
+
+    """
+
     def __init__(self, *arg, **kwargs):
         dict.__init__(self, *arg, **kwargs)
 

@@ -102,6 +102,7 @@ from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
+from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import argextrema
@@ -187,7 +188,7 @@ class ADCReader(LoggerMixin):
 
         max_signal = 0.0
         for pd_channel in self.channels:
-            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
+            adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
             max_signal = max(
                 self.adc.from_raw_to_voltage(self.adc.read_from_channel(adc_channel)), max_signal
             )
@@ -419,7 +420,7 @@ class ADCReader(LoggerMixin):
                 for counter in range(oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
                         for pd_channel in self.channels:
-                            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
+                            adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
                             timestamps[pd_channel][counter] = time_since_start()
                             aggregated_signals[pd_channel][counter] = self.adc.read_from_channel(
                                 adc_channel

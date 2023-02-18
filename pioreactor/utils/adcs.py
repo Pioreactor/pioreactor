@@ -100,7 +100,7 @@ class Pico_ADC(_ADC):
         assert 0 <= channel <= 3
         result = bytearray(2)
         self.i2c.writeto_then_readfrom(
-            0x30, bytes([channel + 4]), result
+            hardware.ADC, bytes([channel + 4]), result
         )  # + 4 is the i2c pointer offset
         return int.from_bytes(result, byteorder="little", signed=False)
 
