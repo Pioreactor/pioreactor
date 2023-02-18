@@ -238,7 +238,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
                 assert cache[led] == 0.0, f"LED {led} is not off!"
 
     else:
-        with local_persistant_storage("pio_jobs_running") as cache:
+        with local_intermittent_storage("pio_jobs_running") as cache:
             for j in cache:
                 if j in job:
                     pid = cache[job]
