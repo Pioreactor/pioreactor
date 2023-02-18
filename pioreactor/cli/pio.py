@@ -241,7 +241,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
         with local_intermittent_storage("pio_jobs_running") as cache:
             for j in cache:
                 if j in job:
-                    pid = cache[job]
+                    pid = cache[j]
                     safe_kill(int(pid))
 
 

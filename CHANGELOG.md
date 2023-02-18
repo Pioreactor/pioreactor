@@ -3,6 +3,9 @@
  - Performance improvements
  - Python dependencies for Pioreactor UI are now handled by this project.
 
+#### Bug fixes
+ - fixed `pio kill <job>` to actually kill a job
+
 ### 23.2.17
 
 #### Bug fixes
