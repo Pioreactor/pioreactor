@@ -541,9 +541,7 @@ class Monitor(BackgroundJob):
 
             self.logger.debug(f"Running `{command}` from Monitor job.")
 
-            Thread(
-                target=subprocess.run, args=(command,), kwargs={"shell": True}, daemon=True
-            ).start()
+            Thread(target=subprocess.run, args=(command,), kwargs={"shell": True}).start()
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:
