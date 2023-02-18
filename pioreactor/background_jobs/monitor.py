@@ -483,6 +483,8 @@ class Monitor(BackgroundJob):
         self.led_in_use = False
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
+        # we use a thread here since we want to exit this callback without blocking it.
+        # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
         import subprocess
         from shlex import (
@@ -497,21 +499,17 @@ class Monitor(BackgroundJob):
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
             state = {ch: payload.pop(ch) for ch in ALL_LED_CHANNELS if ch in payload}
-            exp = whoami._get_latest_experiment_name()
-
-            led_intensity(
-                state,
-                unit=self.unit,
-                experiment=exp,
-                pubsub_client=self.pub_client,
-                **payload,
-            )
+            payload["pubsub_client"] = self.pub_client
+            payload["unit"] = self.unit
+            payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            Thread(
+                target=led_intensity,
+                args=(state,),
+                kwargs=payload,
+            ).start()
 
         elif job_name in ("add_media", "add_alt_media", "remove_waste"):
             from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
-
-            # we use a thread here since we want to exit this callback without blocking it.
-            # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
             if job_name == "add_media":
                 pump_action = add_media  # type: ignore
@@ -543,7 +541,9 @@ class Monitor(BackgroundJob):
 
             self.logger.debug(f"Running `{command}` from Monitor job.")
 
-            subprocess.run(command, shell=True)
+            Thread(
+                target=subprocess.run, args=(command,), kwargs={"shell": True}, daemon=True
+            ).start()
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:
