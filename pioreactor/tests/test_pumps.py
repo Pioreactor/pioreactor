@@ -10,12 +10,14 @@ import pytest
 from msgspec.json import encode
 
 from pioreactor import structs
-from pioreactor.actions.pump import add_alt_media
-from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import remove_waste
+from pioreactor.actions.pump_ import add_alt_media
+from pioreactor.actions.pump_ import add_media
+from pioreactor.actions.pump_ import Pump
+from pioreactor.actions.pump_ import remove_waste
 from pioreactor.exc import CalibrationError
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import timing
 from pioreactor.whoami import get_unit_name
@@ -196,3 +198,40 @@ def test_pump_publishes_to_state():
         assert r.payload.decode() == "disconnected"
     else:
         assert False
+
+
+def test_pump_can_be_interrupted():
+
+    experiment = "test_pump_can_be_interrupted"
+
+    p = Pump(unit=unit, experiment=experiment, pin=13)
+
+    p.continuously(block=False)
+    pause()
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache[13] == 100
+
+    p.stop()
+    pause()
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache.get(13, 0) == 0
+
+    p.by_duration(seconds=100, block=False)
+    pause()
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache[13] == 100
+
+    p.stop()
+    pause()
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache.get(13, 0) == 0
+
+    p.by_volume(ml=100, block=False)
+    pause()
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache[13] == 100
+
+    p.stop()
+    pause()
+    with local_intermittent_storage("pwm_dc") as cache:
+        assert cache.get(13, 0) == 0
