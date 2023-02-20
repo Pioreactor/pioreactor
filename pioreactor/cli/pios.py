@@ -146,6 +146,7 @@ if am_I_leader():
         Pulls and installs the latest code
         """
         from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
 
         logger = create_logger(
             "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -166,8 +167,12 @@ if am_I_leader():
             try:
                 ssh(add_local(unit), command)
                 return True
+            except ErrorReturnCode_255 as e:
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                logger.debug(e, exc_info=True)
+                return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}.")
+                logger.error(f"Unable to connect to unit {unit}. {e}")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -192,6 +197,7 @@ if am_I_leader():
         Installs a plugin to worker and leader
         """
         from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
 
         logger = create_logger(
             "install_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -204,8 +210,12 @@ if am_I_leader():
             try:
                 ssh(add_local(unit), command)
                 return True
+            except ErrorReturnCode_255 as e:
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                logger.debug(e, exc_info=True)
+                return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}.")
+                logger.error(f"Unable to connect to unit {unit}. {e}")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -231,6 +241,7 @@ if am_I_leader():
         """
 
         from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
 
         logger = create_logger(
             "uninstall_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -243,8 +254,12 @@ if am_I_leader():
             try:
                 ssh(add_local(unit), command)
                 return True
+            except ErrorReturnCode_255 as e:
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                logger.debug(e, exc_info=True)
+                return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}.")
+                logger.error(f"Unable to connect to unit {unit}. {e}")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -344,6 +359,7 @@ if am_I_leader():
 
         """
         from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
 
         if not y:
             confirm = input(
@@ -363,9 +379,13 @@ if am_I_leader():
                 ssh(add_local(unit), command)
                 return True
 
-            except Exception as e:
+            except ErrorReturnCode_255 as e:
                 logger.debug(e, exc_info=True)
-                logger.error(f"Unable to connect to unit {unit}.")
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                return False
+            except Exception as e:
+                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.debug(e, exc_info=True)
                 return False
 
         units = universal_identifier_to_all_active_workers(units)
@@ -408,6 +428,7 @@ if am_I_leader():
 
         """
         from sh import ssh
+        from sh import ErrorReturnCode_255  # type: ignore
         from shlex import quote  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
         extra_args = list(ctx.args)
@@ -431,12 +452,16 @@ if am_I_leader():
             try:
                 ssh(add_local(unit), command)
                 return True
-            except Exception as e:
+            except ErrorReturnCode_255 as e:
                 logger = create_logger(
                     "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
                 )
                 logger.debug(e, exc_info=True)
-                logger.error(f"Unable to connect to unit {unit}.")
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                return False
+            except Exception as e:
+                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.debug(e, exc_info=True)
                 return False
 
         units = universal_identifier_to_all_active_workers(units)
@@ -462,7 +487,8 @@ if am_I_leader():
         """
         Reboot Pioreactor / Raspberry Pi
         """
-        from sh import ssh
+        from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
 
         command = "sudo reboot"
 
@@ -474,8 +500,20 @@ if am_I_leader():
         def _thread_function(unit: str) -> bool:
 
             click.echo(f"Executing `{command}` on {unit}.")
-            ssh(add_local(unit), command)
-            return True
+            try:
+                ssh(add_local(unit), command)
+                return True
+            except ErrorReturnCode_255 as e:
+                logger = create_logger(
+                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+                )
+                logger.debug(e, exc_info=True)
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                return False
+            except Exception as e:
+                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.debug(e, exc_info=True)
+                return False
 
         units = remove_leader(universal_identifier_to_all_workers(units))
         with ThreadPoolExecutor(max_workers=len(units)) as executor:

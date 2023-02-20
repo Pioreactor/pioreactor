@@ -55,6 +55,7 @@ def test_states() -> None:
 
 
 def test_init_state_is_sent_to_mqtt() -> None:
+    # regression test
     exp = "test_init_state_is_sent_to_mqtt"
     unit = get_unit_name()
     states = []
