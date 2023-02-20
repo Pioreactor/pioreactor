@@ -39,8 +39,6 @@ class Pump:
         voltage=-1,
     )
 
-    calibration = DEFAULT_CALIBRATION
-
     def __init__(
         self,
         unit: str,
@@ -51,14 +49,13 @@ class Pump:
     ) -> None:
         self.pin = pin
 
-        if calibration is not None:
-            self.calibration = calibration
+        self.calibration = calibration
 
         self.interrupt = Event()
 
         self.pwm = PWM(
             self.pin,
-            self.calibration.hz,
+            (self.calibration or self.DEFAULT_CALIBRATION).hz,
             experiment=experiment,
             unit=unit,
             pubsub_client=mqtt_client,
@@ -70,17 +67,19 @@ class Pump:
         self.pwm.cleanup()
 
     def continuously(self, block=True):
+        calibration = self.calibration or self.DEFAULT_CALIBRATION
+
         if block:
-            self.pwm.start(self.calibration.dc)
+            self.pwm.start(calibration.dc)
             self.interrupt.wait()
             self.stop()
         else:
-            self.pwm.start(self.calibration.dc)
+            self.pwm.start(calibration.dc)
 
     def stop(self):
         self.pwm.stop()
 
-    def by_volume(self, ml: float, block: bool = True) -> None:
+    def by_volume(self, ml: pt.mL, block: bool = True) -> None:
         assert ml >= 0
         if self.calibration is None:
             raise exc.CalibrationError(
@@ -90,24 +89,24 @@ class Pump:
         seconds = self.to_durations(ml)
         self.by_duration(seconds, block=block)
 
-    def by_duration(self, seconds, block=True) -> None:
+    def by_duration(self, seconds: pt.Seconds, block=True) -> None:
         assert seconds >= 0
+        calibration = self.calibration or self.DEFAULT_CALIBRATION
         if block:
-            self.pwm.start(self.calibration.dc)
+            self.pwm.start(calibration.dc)
             self.interrupt.wait(seconds)
             self.stop()
         else:
-            t = Thread(target=self.by_duration, args=(seconds, True), daemon=True)
-            t.start()
+            Thread(target=self.by_duration, args=(seconds, True), daemon=True).start()
             return
 
-    def to_ml(self, seconds: float) -> float:
+    def to_ml(self, seconds: pt.Seconds) -> pt.mL:
         if self.calibration is None:
             raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
 
         return utils.pump_duration_to_ml(seconds, self.calibration)
 
-    def to_durations(self, ml: float) -> float:
+    def to_durations(self, ml: pt.mL) -> pt.Seconds:
         if self.calibration is None:
             raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
 
@@ -150,8 +149,8 @@ def _pump_action(
     pump_type: str,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    ml: Optional[float] = None,
-    duration: Optional[float] = None,
+    ml: Optional[pt.mL] = None,
+    duration: Optional[pt.Seconds] = None,
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
@@ -189,12 +188,10 @@ def _pump_action(
         with Pump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
 
             if ml is not None:
-                ml = float(ml)
                 assert ml >= 0, "ml should be greater than or equal to 0"
                 duration = pump.to_durations(ml)
-                logger.info(f"{round(ml, 2)}mL")
+                logger.info(f"{round(ml, 2)}pt.mL")
             elif duration is not None:
-                duration = float(duration)
                 ml = pump.to_ml(duration)
                 logger.info(f"{round(duration, 2)}s")
             elif continuously:
@@ -219,7 +216,7 @@ def _pump_action(
             pump_start_time = time.monotonic()
 
             if not continuously:
-                pump.by_duration(ml, block=True)
+                pump.by_duration(duration, block=True)
 
             else:
                 pump.continuously(block=False)
@@ -302,7 +299,7 @@ def add_media(
     unit: str
     experiment: str
     ml: float
-        Amount of volume to pass, in mL
+        Amount of volume to pass, in pt.mL
     duration: float
         Duration to run pump, in seconds
     calibration: structs.PumpCalibration
@@ -347,7 +344,7 @@ def remove_waste(
     unit: str
     experiment: str
     ml: float
-        Amount of volume to pass, in mL
+        Amount of volume to pass, in pt.mL
     duration: float
         Duration to run pump, in seconds
     calibration: structs.PumpCalibration
@@ -391,7 +388,7 @@ def add_alt_media(
     unit: str
     experiment: str
     ml: float
-        Amount of volume to pass, in mL
+        Amount of volume to pass, in pt.mL
     duration: float
         Duration to run pump, in seconds
     calibration: structs.PumpCalibration

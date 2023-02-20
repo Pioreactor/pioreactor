@@ -10,10 +10,10 @@ import pytest
 from msgspec.json import encode
 
 from pioreactor import structs
-from pioreactor.actions.pump_ import add_alt_media
-from pioreactor.actions.pump_ import add_media
-from pioreactor.actions.pump_ import Pump
-from pioreactor.actions.pump_ import remove_waste
+from pioreactor.actions.pump import add_alt_media
+from pioreactor.actions.pump import add_media
+from pioreactor.actions.pump import Pump
+from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe

@@ -7,6 +7,7 @@ import tempfile
 from contextlib import contextmanager
 from threading import Event
 from typing import Callable
+from typing import cast
 from typing import Generator
 from typing import overload
 
@@ -290,16 +291,16 @@ def is_pio_job_running(target_jobs):
         return results
 
 
-def pump_ml_to_duration(ml: float, calibration: structs.AnyPumpCalibration) -> float:
+def pump_ml_to_duration(ml: pt.mL, calibration: structs.AnyPumpCalibration) -> pt.Seconds:
     duration_ = calibration.duration_
     bias_ = calibration.bias_
-    return (ml - bias_) / duration_
+    return cast(pt.Seconds, (ml - bias_) / duration_)
 
 
-def pump_duration_to_ml(duration: float, calibration: structs.AnyPumpCalibration) -> float:
+def pump_duration_to_ml(duration: pt.Seconds, calibration: structs.AnyPumpCalibration) -> pt.mL:
     duration_ = calibration.duration_
     bias_ = calibration.bias_
-    return duration * duration_ + bias_
+    return cast(pt.mL, duration * duration_ + bias_)
 
 
 def get_cpu_temperature() -> float:
