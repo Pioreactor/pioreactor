@@ -116,16 +116,16 @@ def _pump(
         if ml is not None:
             ml = float(ml)
             assert ml >= 0, "ml should be greater than or equal to 0"
-            duration = utils.pump_ml_to_duration(ml, calibration.duration_, calibration.bias_)
+            duration = utils.pump_ml_to_duration(ml, calibration)
             logger.info(f"{round(ml, 2)}mL")
         elif duration is not None:
             duration = float(duration)
-            ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
+            ml = utils.pump_duration_to_ml(duration, calibration)
             logger.info(f"{round(duration, 2)}s")
         elif continuously:
             duration = 10.0
-            ml = utils.pump_duration_to_ml(duration, calibration.duration_, calibration.bias_)
-            logger.info("Running pump continuously.")
+            ml = utils.pump_duration_to_ml(duration, calibration)
+            logger.info(f"Running {pump_type} pump continuously.")
 
         assert isinstance(ml, float)
         assert isinstance(duration, float)
@@ -201,9 +201,7 @@ def _pump(
                 if state.exit_event.is_set():
                     # ended early
                     shortened_duration = time.monotonic() - pump_start_time
-                    ml = utils.pump_duration_to_ml(
-                        shortened_duration, calibration.duration_, calibration.bias_
-                    )
+                    ml = utils.pump_duration_to_ml(shortened_duration, calibration)
             return ml
 
 

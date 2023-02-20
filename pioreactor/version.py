@@ -18,7 +18,7 @@ def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
             text = f.read().rstrip("\x00")
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
-        # no eeprom? Probably the first dev boards, or testing env, or EEPROM not written.
+        # no eeprom? Probably a dev board, or testing env, or EEPROM not written.
         return (0, 0)
 
 
@@ -33,10 +33,11 @@ def _get_serial_number() -> str:
         return "00000000-0000-0000-0000-000000000000"
 
 
-def get_firmware_version() -> tuple[int, ...]:
+def get_firmware_version() -> tuple[int, int]:
     if os.environ.get("FIRMWARE") is not None:
         # ex: > FIRMWARE=1.1 pio ...
-        return tuple(int(_) for _ in os.environ["FIRMWARE"].split("."))
+
+        return tuple(int(_) for _ in os.environ["FIRMWARE"].split("."))  # type: ignore
 
     if hardware_version_info >= (1, 1):
 
@@ -46,7 +47,7 @@ def get_firmware_version() -> tuple[int, ...]:
         i2c = busio.I2C(SCL, SDA)
         result = bytearray(2)
         i2c.writeto_then_readfrom(ADC, bytes([0x08]), result)
-        return result[0], result[1]
+        return (result[1], result[0])
 
     else:
         return (0, 0)

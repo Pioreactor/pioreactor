@@ -236,7 +236,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def __init__(self, experiment: str, unit: str, source: str = "app") -> None:
         if self.job_name in self.DISALLOWED_JOB_NAMES:
-            raise ValueError("job name not allowed")
+            raise ValueError("Job name not allowed")
 
         self.experiment = experiment
         self.unit = unit

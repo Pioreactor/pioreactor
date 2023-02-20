@@ -2,6 +2,7 @@
 
  - Performance improvements
  - Python dependencies for Pioreactor UI are now handled by this project.
+ - Fix for running PID morbidostat
 
 #### Bug fixes
  - fixed `pio kill <job>` to actually kill a job

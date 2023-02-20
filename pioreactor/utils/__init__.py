@@ -12,6 +12,7 @@ from typing import overload
 
 from diskcache import Cache  # type: ignore
 
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.pubsub import create_client
@@ -114,6 +115,7 @@ class publish_ready_to_disconnected_state:
         self.unit = unit
         self.experiment = experiment
         self.name = name
+        self.state = "init"
         self.exit_event = Event()
 
         last_will = {
@@ -142,9 +144,10 @@ class publish_ready_to_disconnected_state:
         except ValueError:
             pass
 
+        self.state = "ready"
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            b"ready",
+            self.state,
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
@@ -155,6 +158,7 @@ class publish_ready_to_disconnected_state:
         return self
 
     def __exit__(self, *args) -> None:
+        self.state = "disconnected"
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
             b"disconnected",
@@ -286,19 +290,15 @@ def is_pio_job_running(target_jobs):
         return results
 
 
-def pump_ml_to_duration(ml: float, duration_: float = 0, bias_: float = 0) -> float:
-    """
-    ml: the desired volume
-    duration_ : the coefficient from calibration
-    """
+def pump_ml_to_duration(ml: float, calibration: structs.AnyPumpCalibration) -> float:
+    duration_ = calibration.duration_
+    bias_ = calibration.bias_
     return (ml - bias_) / duration_
 
 
-def pump_duration_to_ml(duration: float, duration_: float = 0, bias_: float = 0) -> float:
-    """
-    duration: the desired volume
-    duration_ : the coefficient from calibration
-    """
+def pump_duration_to_ml(duration: float, calibration: structs.AnyPumpCalibration) -> float:
+    duration_ = calibration.duration_
+    bias_ = calibration.bias_
     return duration * duration_ + bias_
 
 

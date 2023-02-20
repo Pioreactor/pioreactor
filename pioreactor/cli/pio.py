@@ -65,7 +65,7 @@ def pio(ctx) -> None:
     default=100,
     type=int,
 )
-def logs(n) -> None:
+def logs(n: int) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     TODO: this consumes a full CPU core!
@@ -391,32 +391,33 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
             # post_update.sh runs (if exists)
 
             # TODO: potential supply chain attack is to add malicious assets to releases
-            # TODO: good use of the Python switch statement below
             url = asset["browser_download_url"]
-            if asset["name"] == "pre_update.sh":
+            asset_name = asset["name"]
+
+            if asset_name == "pre_update.sh":
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/pre_update.sh {url}", 0),
                         ("sudo bash /tmp/pre_update.sh", 1),
                     ]
                 )
-            elif asset["name"].startswith("pioreactor") and asset["name"].endswith(".whl"):
+            elif asset_name.startswith("pioreactor") and asset_name.endswith(".whl"):
                 commands_and_priority.extend([(f'sudo pip3 install "pioreactor @ {url}"', 2)])
-            elif asset["name"] == "update.sh":
+            elif asset_name == "update.sh":
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/update.sh {url}", 3),
                         ("sudo bash /tmp/update.sh", 4),
                     ]
                 )
-            elif asset["name"] == "update.sql":
+            elif asset_name == "update.sql":
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/update.sql {url}", 5),
                         (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 6),
                     ]
                 )
-            elif asset["name"] == "post_update.sh":
+            elif asset_name == "post_update.sh":
                 # ex: post_update.sh can be used to restart machines
                 commands_and_priority.extend(
                     [
@@ -595,7 +596,7 @@ if whoami.am_I_leader():
 
             return ip, state, reachable
 
-        def display_data_for(hostname_status) -> bool:
+        def display_data_for(hostname_status: tuple[str, str]) -> bool:
             hostname, status = hostname_status
 
             ip, state, reachable = get_network_metadata(hostname)
