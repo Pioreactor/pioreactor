@@ -203,35 +203,76 @@ def test_pump_publishes_to_state():
 def test_pump_can_be_interrupted():
 
     experiment = "test_pump_can_be_interrupted"
+    calibration = structs.MediaPumpCalibration(
+                name="setup_function",
+                duration_=1.0,
+                bias_=0.0,
+                dc=100,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="media",
+            )
 
-    p = Pump(unit=unit, experiment=experiment, pin=13)
 
-    p.continuously(block=False)
-    pause()
-    with local_intermittent_storage("pwm_dc") as cache:
-        assert cache[13] == 100
+    with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
 
-    p.stop()
-    pause()
-    with local_intermittent_storage("pwm_dc") as cache:
-        assert cache.get(13, 0) == 0
+        p.continuously(block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache[13] == 100
 
-    p.by_duration(seconds=100, block=False)
-    pause()
-    with local_intermittent_storage("pwm_dc") as cache:
-        assert cache[13] == 100
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
 
-    p.stop()
-    pause()
-    with local_intermittent_storage("pwm_dc") as cache:
-        assert cache.get(13, 0) == 0
+        p.by_duration(seconds=100, block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache[13] == 100
 
-    p.by_volume(ml=100, block=False)
-    pause()
-    with local_intermittent_storage("pwm_dc") as cache:
-        assert cache[13] == 100
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
 
-    p.stop()
-    pause()
-    with local_intermittent_storage("pwm_dc") as cache:
-        assert cache.get(13, 0) == 0
+        p.by_volume(ml=100, block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache[13] == 100
+
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
+
+def test_pumps_can_run_in_background():
+
+    experiment = "test_pumps_can_run_in_background"
+
+
+    calibration = structs.MediaPumpCalibration(
+                name="setup_function",
+                duration_=1.0,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="media",
+            )
+    with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
+
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
+
+        p.by_volume(ml=100, block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 60
+
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0

@@ -68,6 +68,7 @@ class Pump:
 
     def continuously(self, block=True):
         calibration = self.calibration or self.DEFAULT_CALIBRATION
+        self.interrupt.clear()
 
         if block:
             self.pwm.start(calibration.dc)
@@ -78,9 +79,11 @@ class Pump:
 
     def stop(self):
         self.pwm.stop()
+        self.interrupt.set()
 
     def by_volume(self, ml: pt.mL, block: bool = True) -> None:
         assert ml >= 0
+        self.interrupt.clear()
         if self.calibration is None:
             raise exc.CalibrationError(
                 "Calibration not defined. Run pump calibration first to use volume-based dosing."
@@ -91,6 +94,7 @@ class Pump:
 
     def by_duration(self, seconds: pt.Seconds, block=True) -> None:
         assert seconds >= 0
+        self.interrupt.clear()
         calibration = self.calibration or self.DEFAULT_CALIBRATION
         if block:
             self.pwm.start(calibration.dc)
@@ -190,7 +194,7 @@ def _pump_action(
             if ml is not None:
                 assert ml >= 0, "ml should be greater than or equal to 0"
                 duration = pump.to_durations(ml)
-                logger.info(f"{round(ml, 2)}pt.mL")
+                logger.info(f"{round(ml, 2)}mL")
             elif duration is not None:
                 ml = pump.to_ml(duration)
                 logger.info(f"{round(duration, 2)}s")
@@ -216,8 +220,9 @@ def _pump_action(
             pump_start_time = time.monotonic()
 
             if not continuously:
-                pump.by_duration(duration, block=True)
-
+                pump.by_duration(duration, block=False)
+                while not state.exit_event.wait(duration):
+                    pump.interrupt.set()
             else:
                 pump.continuously(block=False)
                 while not state.exit_event.wait(duration):
@@ -236,7 +241,6 @@ def _pump_action(
                 shortened_duration = time.monotonic() - pump_start_time
                 ml = pump.to_ml(shortened_duration)
 
-        assert isinstance(ml, float)
         return ml
 
 
@@ -299,7 +303,7 @@ def add_media(
     unit: str
     experiment: str
     ml: float
-        Amount of volume to pass, in pt.mL
+        Amount of volume to pass, in mL
     duration: float
         Duration to run pump, in seconds
     calibration: structs.PumpCalibration
@@ -344,7 +348,7 @@ def remove_waste(
     unit: str
     experiment: str
     ml: float
-        Amount of volume to pass, in pt.mL
+        Amount of volume to pass, in mL
     duration: float
         Duration to run pump, in seconds
     calibration: structs.PumpCalibration
@@ -388,7 +392,7 @@ def add_alt_media(
     unit: str
     experiment: str
     ml: float
-        Amount of volume to pass, in pt.mL
+        Amount of volume to pass, in mL
     duration: float
         Duration to run pump, in seconds
     calibration: structs.PumpCalibration
