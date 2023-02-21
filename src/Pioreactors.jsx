@@ -1584,7 +1584,7 @@ function SettingsActionsDialog(props) {
               HAT version: {versionInfo.hat}
             </Typography>
             <Typography variant="body2" component="p">
-              HAT serial number: {versionInfo.hat_serial}
+              HAT serial number: <code>{versionInfo.hat_serial}</code>
             </Typography>
 
 
