@@ -50,8 +50,8 @@ if (0, 0) < hardware_version_info <= (1, 0):
     }
 else:
     ADC_CHANNEL_FUNCS = {
-        "1": 3,
-        "2": 2,
+        "1": 2,
+        "2": 3,
         "version": 0,
         "aux": 1,
     }
