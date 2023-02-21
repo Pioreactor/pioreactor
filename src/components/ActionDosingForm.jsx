@@ -65,6 +65,10 @@ export default function ActionPumpForm(props) {
 
   function stopPump(e) {
     fetch(`/api/stop/${props.action}/${props.unit}`, {method: "POST"})
+    .catch((error) => {
+      setSnackbarMsg("🛑 Failed to stop - please try again!")
+      setOpenSnackbar(true)
+    });
   }
 
   function runPumpContinuously(e) {

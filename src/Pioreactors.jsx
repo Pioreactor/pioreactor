@@ -1127,7 +1127,7 @@ function SettingsActionsDialog(props) {
    }
   const LEDMap = props.config['leds']
   const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
-
+  const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const stateDisplay = {
     "init":          {display: "Starting", color: readyGreen},
     "ready":         {display: "On", color: readyGreen},
@@ -1555,11 +1555,6 @@ function SettingsActionsDialog(props) {
           <Divider className={classes.divider} />
         </TabPanel>
         <TabPanel value={tabValue} index={4}>
-          <Typography  gutterBottom>
-            Version information
-          </Typography>
-
-          <Divider className={classes.divider} />
 
           <Typography  gutterBottom>
             Reboot
@@ -1579,6 +1574,20 @@ function SettingsActionsDialog(props) {
           >
             Reboot RPi
           </LoadingButton>
+          <Divider className={classes.divider} />
+
+          <Typography  gutterBottom>
+            Version information
+          </Typography>
+
+            <Typography variant="body2" component="p">
+              HAT version: {versionInfo.hat}
+            </Typography>
+            <Typography variant="body2" component="p">
+              HAT serial number: {versionInfo.hat_serial}
+            </Typography>
+
+
           <Divider className={classes.divider} />
 
         </TabPanel>
@@ -2266,7 +2275,12 @@ function PioreactorCard(props){
   const [client, setClient] = useState(null)
   const [jobs, setJobs] = useState({
     monitor: {
-      state : "disconnected", metadata: {display: false}, publishedSettings: {},
+      state : "disconnected",
+      metadata: {display: false},
+      publishedSettings: {
+        versions: {
+            value: null, label: null, type: null, unit: null, display: false, description: null}
+        },
     },
   })
 
@@ -2308,7 +2322,6 @@ function PioreactorCard(props){
     const onConnect = () => {
       client.subscribe(["pioreactor", unit, "$experiment", "monitor", "$state"].join("/"));
       for (const job of Object.keys(jobs)) {
-        if (job === "monitor") {continue;}
 
         // for some jobs (self_test), we use a different experiment name to not clutter datasets,
         const experimentName = jobs[job].metadata.is_testing ? "_testing_" + experiment : experiment
@@ -2318,7 +2331,7 @@ function PioreactorCard(props){
             var topic = [
               "pioreactor",
               unit,
-              experimentName,
+              (job === "monitor" ? "$experiment" : experimentName),
               (setting === "automation_name") ? job : job.replace("_control", "_automation"), // this is for, ex, automation_name
               setting
             ].join("/")
