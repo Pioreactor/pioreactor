@@ -577,7 +577,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
        = INITIAL * RAW / REF
     """
 
-    INITIAL = 0.01
+    INITIAL = 0.01 if hardware.hardware_version_info < (1, 1) else 1.0
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()
