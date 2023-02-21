@@ -563,8 +563,8 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     Unlike other models (see git history), instead of recording the _initial_ led value, we hardcode it to something. Why?
     In PhotodiodeIrLedReferenceTracker (see git history), the transform OD reading is proportional to the initial LED value:
 
-    OD = RAW / (REF / initial)
-       = initial * RAW / REF
+    OD = RAW / (EMA(REF) / initial)
+       = initial * ( RAW / EMA(REF) )
 
     This has problems because as the LED ages, the INITIAL will decrease, and then any calibrations will be start to be off.
 
@@ -572,9 +572,11 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     So in this class, we hardcode the INITIAL to be a STATIC value for all experiments:
 
-    OD = RAW / (REF / INITIAL)
-       = STATIC * RAW / REF
-       = INITIAL * RAW / REF
+    OD = RAW / (EMA(REF) / STATIC)
+       = STATIC * ( RAW / EMA(REF) )
+
+    Note: STATIC is just a scale value that makes the data / charts easier to work with. It doesn't (shouldn't) effect anything
+    downstream. Note too that as we are normalizing OD readings, the output has arbitrary units.
     """
 
     INITIAL = 0.01 if hardware.hardware_version_info < (1, 1) else 1.0
