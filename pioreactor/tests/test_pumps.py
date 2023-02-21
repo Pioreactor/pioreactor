@@ -12,6 +12,7 @@ from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
+from pioreactor.actions.pump import continuous_media_circulation
 from pioreactor.actions.pump import Pump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
@@ -275,3 +276,8 @@ def test_pumps_can_run_in_background():
         pause()
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
+
+
+def test_continous_liquid_circulation():
+    exp = "test_continous_liquid_circulation"
+    continuous_media_circulation(unit, exp)

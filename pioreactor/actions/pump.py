@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from configparser import NoOptionError
+from functools import partial
 from threading import Event
 from threading import Thread
 from typing import Optional
@@ -48,9 +49,7 @@ class Pump:
         mqtt_client=None,
     ) -> None:
         self.pin = pin
-
         self.calibration = calibration
-
         self.interrupt = Event()
 
         self.pwm = PWM(
@@ -244,15 +243,15 @@ def _pump_action(
         return ml
 
 
-def cycle_media(unit=None, experiment=None) -> None:
-    action_name = "cycle_media"
+def _continuous_liquid_circulation(pump_type: str, unit=None, experiment=None) -> None:
+    action_name = f"continuous_{pump_type}_circulation"
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
 
     waste_calibration = _get_calibration("waste")
-    media_calibration = _get_calibration("media")
+    media_calibration = _get_calibration(pump_type)
     waste_pin = _get_pin("waste")
-    media_pin = _get_pin("media")
+    media_pin = _get_pin(pump_type)
 
     logger = create_logger(action_name, experiment=experiment, unit=unit)
 
@@ -272,19 +271,27 @@ def cycle_media(unit=None, experiment=None) -> None:
             calibration=media_calibration,
             mqtt_client=client,
         ) as media_pump:
-            logger.info("Running waste and media pump continuously.")
+            logger.info("Running waste continuously.")
             waste_pump.continuously(block=False)
-            time.sleep(1)
+            time.sleep(2)
+            logger.info(f"Running {pump_type} continuously.")
             media_pump.continuously(block=False)
 
             state.block_until_disconnected()
 
             media_pump.stop()
-            time.sleep(1)
+            time.sleep(2)
             waste_pump.stop()
             logger.info("Stopped pumps.")
 
     return
+
+
+### Useful functions below:
+
+
+continuous_media_circulation = partial(_continuous_liquid_circulation, "media")
+continuous_alt_media_circulation = partial(_continuous_liquid_circulation, "alt_media")
 
 
 def add_media(
