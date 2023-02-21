@@ -4,6 +4,7 @@
  - Python dependencies for Pioreactor UI are now handled by this project.
  - Fix for running PID morbidostat
  - Better initialization of jobs from UI
+ - Version information now presented in UI
 
 #### Bug fixes
  - fixed `pio kill <job>` to actually kill a job
