@@ -211,6 +211,10 @@ def _pump_action(
                 ml = pump.to_ml(duration)
                 logger.info(f"Running {pump_type} pump continuously.")
 
+            assert duration is not None
+            assert ml is not None
+            duration = float(duration)
+            ml = float(ml)
             assert isinstance(ml, pt.mL)
             assert isinstance(duration, pt.Seconds)
 

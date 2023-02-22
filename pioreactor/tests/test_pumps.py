@@ -16,6 +16,7 @@ from pioreactor.actions.pump import media_circulation
 from pioreactor.actions.pump import Pump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
+from pioreactor.exc import PWMError
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_intermittent_storage
@@ -282,3 +283,25 @@ def test_media_circulation():
     exp = "test_media_circulation"
     media_circulation(5, unit, exp)
     assert True
+
+
+def test_media_circulation_cant_run_when_waste_pump_is_running():
+    from threading import Thread
+
+    exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
+    Thread(target=remove_waste, kwargs={"duration": 5.0}).start()
+    time.sleep(0.1)
+
+    with pytest.raises(PWMError):
+        media_circulation(5.0, unit, exp)
+
+
+def test_waste_pump_cant_run_when_media_circulation_is_running():
+    from threading import Thread
+
+    exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
+    Thread(target=media_circulation, kwargs={"duration": 5.0}).start()
+    time.sleep(0.1)
+
+    with pytest.raises(PWMError):
+        remove_waste(5.0, unit, exp)

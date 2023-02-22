@@ -5,9 +5,12 @@
  - Fix for running PID morbidostat
  - Better initialization of jobs from UI
  - Version information now presented in UI
- - Refactor internal pumping code. There's more flexibility that allows for solving part of #384. Including:
+ - More support for HAT version 1.1
+ - Refactor internal pumping code. There's more flexibility that allows for solving parts of #384. Including:
   - creating cleaning scripts
   - creating cycling scripts, that also respect the rates of specific pumps vs waste (so that you don't overflow if addition rate > removal rate)
+
+  Namely, new functions `media_circulation` and `alt_media_circulation` are introduced that will cycle both a pump and the waste pump simultaneously. The waste pump starts first and ends second.
 
 #### Bug fixes
  - fixed `pio kill <job>` to actually kill a job
