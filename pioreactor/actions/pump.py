@@ -138,7 +138,7 @@ def _get_pin(pump_type):
 
 
 def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
-    # TODO: make sure current voltage is the same as calibrated. Acutally where should that check occur? in Pump?
+    # TODO: make sure current voltage is the same as calibrated. Actually where should that check occur? in Pump?
     with utils.local_persistant_storage("current_pump_calibration") as cache:
         try:
             return decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
@@ -158,10 +158,10 @@ def _pump_action(
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt, don't use
-) -> Optional[float]:
+) -> float:
     """
     Returns the mL cycled. However,
-    If calibration is not defined or available on disk, returns None.
+    If calibration is not defined or available on disk, returns gibberish.
     """
 
     assert (
@@ -194,16 +194,24 @@ def _pump_action(
         with Pump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
 
             if ml is not None:
+                if calibration is None:
+                    exc.CalibrationError(
+                        f"Calibration not defined. Run {pump_type} pump calibration first."
+                    )
+
                 assert ml >= 0, "ml should be greater than or equal to 0"
                 duration = pump.to_durations(ml)
                 logger.info(f"{round(ml, 2)}mL")
             elif duration is not None:
-                ml = pump.to_ml(duration)
+                ml = pump.to_ml(duration)  # can be wrong if calibration is not defined
                 logger.info(f"{round(duration, 2)}s")
             elif continuously:
                 duration = 10.0
                 ml = pump.to_ml(duration)
                 logger.info(f"Running {pump_type} pump continuously.")
+
+            assert isinstance(ml, pt.mL)
+            assert isinstance(duration, pt.Seconds)
 
             # publish this first, as downstream jobs need to know about it.
             dosing_event = structs.DosingEvent(
@@ -244,11 +252,10 @@ def _pump_action(
                 pump.stop()
                 logger.info(f"Stopped {pump_type} pump.")
 
-            if state.exit_event.is_set():
-                # ended early
-                shortened_duration = time.monotonic() - pump_start_time
-                ml = pump.to_ml(shortened_duration)
-
+        if state.exit_event.is_set():
+            # ended early
+            shortened_duration = time.monotonic() - pump_start_time
+            return pump.to_ml(shortened_duration)
         return ml
 
 
