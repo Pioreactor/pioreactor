@@ -5,6 +5,9 @@
  - Fix for running PID morbidostat
  - Better initialization of jobs from UI
  - Version information now presented in UI
+ - Refactor internal pumping code. There's more flexibility that allows for solving part of #384. Including:
+  - creating cleaning scripts
+  - creating cycling scripts, that also respect the rates of specific pumps vs waste (so that you don't overflow if addition rate > removal rate)
 
 #### Bug fixes
  - fixed `pio kill <job>` to actually kill a job
