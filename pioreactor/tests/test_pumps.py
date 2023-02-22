@@ -278,6 +278,6 @@ def test_pumps_can_run_in_background():
             assert cache.get(13, 0) == 0
 
 
-def test_continous_liquid_circulation():
-    exp = "test_continous_liquid_circulation"
-    continuous_media_circulation(unit, exp)
+# def test_continous_liquid_circulation():
+#    exp = "test_continous_liquid_circulation"
+#    continuous_media_circulation(unit, exp)

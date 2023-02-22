@@ -141,7 +141,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
 
     try:
         execute_pump(
-            duration=10000,
+            continuously=True,
             source_of_event="pump_calibration",
             unit=get_unit_name(),
             experiment=get_latest_testing_experiment_name(),
@@ -398,10 +398,10 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             unit=unit,
         )
 
-        logger.debug(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
+        logger.info(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
 
-        logger.debug(
-            f"Calibration is optimal for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be fine for outside this range too."
+        logger.info(
+            f"Calibration is best for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be okay for outside this range too."
         )
 
         # check parameters for problems
@@ -414,7 +414,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
-        logger.info("Finished pump calibration.")
+        logger.info(f"Finished {pump_type} pump calibration.")
 
 
 def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:

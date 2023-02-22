@@ -138,7 +138,7 @@ def _get_pin(pump_type):
 
 
 def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
-    # TODO: make sure current voltage is the same as calibrated.
+    # TODO: make sure current voltage is the same as calibrated. Acutally where should that check occur? in Pump?
     with utils.local_persistant_storage("current_pump_calibration") as cache:
         try:
             return decode(cache[pump_type], type=structs.AnyPumpCalibration)  # type: ignore
@@ -158,7 +158,11 @@ def _pump_action(
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt, don't use
-) -> float:
+) -> Optional[float]:
+    """
+    Returns the mL cycled. However,
+    If calibration is not defined or available on disk, returns None.
+    """
 
     assert (
         (ml is not None) or (duration is not None) or continuously
@@ -180,9 +184,8 @@ def _pump_action(
     if calibration is None:
         try:
             calibration = _get_calibration(pump_type)
-        except exc.CalibrationError as e:
-            logger.error(f"Calibration not defined. Run {pump_type} pump calibration first.")
-            raise e
+        except exc.CalibrationError:
+            pass
 
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
 
@@ -220,10 +223,16 @@ def _pump_action(
 
             if not continuously:
                 pump.by_duration(duration, block=False)
-                while not state.exit_event.wait(duration):
+
+                # how does this work? What's up with the (or True)?
+                # exit_event.wait returns True iff the event is set. If we timeout (good path)
+                # then we eval (False or True), hence we break out of this while loop.
+                while not (state.exit_event.wait(duration) or True):
                     pump.interrupt.set()
             else:
                 pump.continuously(block=False)
+
+                # we only break out of this while loop via a interrupt or MQTT signal => event.set()
                 while not state.exit_event.wait(duration):
                     # republish information
                     dosing_event = replace(dosing_event, timestamp=current_utc_datetime())
@@ -432,7 +441,6 @@ def add_alt_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
-@click.option("--dry-run", is_flag=True, help="don't run the PWMs")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -465,7 +473,6 @@ def click_add_alt_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
-@click.option("--dry-run", is_flag=True, help="don't run the PWMs")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -498,7 +505,6 @@ def click_remove_waste(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
-@click.option("--dry-run", is_flag=True, help="don't run the PWMs")
 @click.option(
     "--source-of-event",
     default="CLI",
