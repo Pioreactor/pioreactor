@@ -20,6 +20,7 @@ from pioreactor import utils
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.logging import create_logger
+from pioreactor.pubsub import Client
 from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_datetime
@@ -46,7 +47,7 @@ class Pump:
         experiment: str,
         pin: pt.GpioPin,
         calibration: Optional[structs.AnyPumpCalibration] = None,
-        mqtt_client=None,
+        mqtt_client: Optional[Client] = None,
     ) -> None:
         self.pin = pin
         self.calibration = calibration
@@ -62,10 +63,10 @@ class Pump:
 
         self.pwm.lock()
 
-    def clean_up(self):
+    def clean_up(self) -> None:
         self.pwm.cleanup()
 
-    def continuously(self, block=True):
+    def continuously(self, block=True) -> None:
         calibration = self.calibration or self.DEFAULT_CALIBRATION
         self.interrupt.clear()
 
@@ -76,7 +77,7 @@ class Pump:
         else:
             self.pwm.start(calibration.dc)
 
-    def stop(self):
+    def stop(self) -> None:
         self.pwm.stop()
         self.interrupt.set()
 
@@ -133,7 +134,7 @@ def _get_pump_action(pump_type: str) -> str:
         raise ValueError(f"{pump_type} not valid.")
 
 
-def _get_pin(pump_type):
+def _get_pin(pump_type: str) -> pt.GpioPin:
     return PWM_TO_PIN[config.get("PWM_reverse", pump_type)]
 
 
@@ -259,15 +260,26 @@ def _pump_action(
         return ml
 
 
-def _continuous_liquid_circulation(pump_type: str, unit=None, experiment=None) -> None:
+def _liquid_circulation(pump_type: str, duration: pt.Seconds, unit=None, experiment=None) -> None:
+    """
+    This function runs a continuous circulation of liquid using two pumps - one for waste and the other for the specified
+    `pump_type`. The function takes in the `pump_type`, `unit` and `experiment` as arguments, where `pump_type` specifies
+    the type of pump to be used for the liquid circulation.
+
+    The `waste_pump` is run continuously first, followed by the `media_pump`, with each pump running for 2 seconds.
+
+    :param pump_type: A string that specifies the type of pump to be used for the liquid circulation.
+    :param unit: (Optional) A string that specifies the unit name. If not provided, the unit name will be obtained.
+    :param experiment: (Optional) A string that specifies the experiment name. If not provided, the latest experiment name
+                       will be obtained.
+    :return: None
+    """
     action_name = f"continuous_{pump_type}_circulation"
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
 
-    waste_calibration = _get_calibration("waste")
-    media_calibration = _get_calibration(pump_type)
-    waste_pin = _get_pin("waste")
-    media_pin = _get_pin(pump_type)
+    waste_calibration, media_calibration = _get_calibration("waste"), _get_calibration(pump_type)
+    waste_pin, media_pin = _get_pin("waste"), _get_pin(pump_type)
 
     logger = create_logger(action_name, experiment=experiment, unit=unit)
 
@@ -290,12 +302,8 @@ def _continuous_liquid_circulation(pump_type: str, unit=None, experiment=None) -
             logger.info("Running waste continuously.")
             waste_pump.continuously(block=False)
             time.sleep(2)
-            logger.info(f"Running {pump_type} continuously.")
-            media_pump.continuously(block=False)
-
-            state.block_until_disconnected()
-
-            media_pump.stop()
+            logger.info(f"Running {pump_type} for {duration}s.")
+            media_pump.by_duration(duration, block=True)
             time.sleep(2)
             waste_pump.stop()
             logger.info("Stopped pumps.")
@@ -305,9 +313,8 @@ def _continuous_liquid_circulation(pump_type: str, unit=None, experiment=None) -
 
 ### Useful functions below:
 
-
-continuous_media_circulation = partial(_continuous_liquid_circulation, "media")
-continuous_alt_media_circulation = partial(_continuous_liquid_circulation, "alt_media")
+media_circulation = partial(_liquid_circulation, "media")
+alt_media_circulation = partial(_liquid_circulation, "alt_media")
 
 
 def add_media(

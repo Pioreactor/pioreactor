@@ -12,7 +12,7 @@ from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import continuous_media_circulation
+from pioreactor.actions.pump import media_circulation
 from pioreactor.actions.pump import Pump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
@@ -278,6 +278,7 @@ def test_pumps_can_run_in_background():
             assert cache.get(13, 0) == 0
 
 
-# def test_continous_liquid_circulation():
-#    exp = "test_continous_liquid_circulation"
-#    continuous_media_circulation(unit, exp)
+def test_media_circulation():
+    exp = "test_media_circulation"
+    media_circulation(5, unit, exp)
+    assert True
