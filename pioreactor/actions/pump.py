@@ -274,12 +274,21 @@ def _liquid_circulation(pump_type: str, duration: pt.Seconds, unit=None, experim
                        will be obtained.
     :return: None
     """
-    action_name = f"continuous_{pump_type}_circulation"
+    action_name = f"{pump_type}_circulation"
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
 
     waste_calibration, media_calibration = _get_calibration("waste"), _get_calibration(pump_type)
     waste_pin, media_pin = _get_pin("waste"), _get_pin(pump_type)
+
+    # we "pulse" the media pump so that the waste rate < media rate. By default, we pulse at a ratio of 1 waste : 0.85 media.
+    # if we know the calibrations for each pump, we will use a different rate.
+    ratio = 0.85
+
+    if waste_calibration is not None and media_calibration is not None:
+        # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
+        if media_calibration.duration_ > waste_calibration.duration_:
+            ratio = min(waste_calibration.duration_ / media_calibration.duration_, ratio)
 
     logger = create_logger(action_name, experiment=experiment, unit=unit)
 
@@ -301,10 +310,16 @@ def _liquid_circulation(pump_type: str, duration: pt.Seconds, unit=None, experim
         ) as media_pump:
             logger.info("Running waste continuously.")
             waste_pump.continuously(block=False)
-            time.sleep(2)
+            time.sleep(1)
             logger.info(f"Running {pump_type} for {duration}s.")
-            media_pump.by_duration(duration, block=True)
-            time.sleep(2)
+
+            running_sum = 0.0
+            while running_sum <= duration:
+                media_pump.by_duration(min(duration, ratio), block=True)
+                time.sleep(1 - ratio)
+                running_sum += 1.0
+
+            time.sleep(1)
             waste_pump.stop()
             logger.info("Stopped pumps.")
 
