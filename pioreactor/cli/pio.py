@@ -290,11 +290,17 @@ def view_cache(cache: str) -> None:
 
     tmp_dir = tempfile.gettempdir()
 
+    persistant_dir = (
+        "/home/pioreactor/.pioreactor/storage/"
+        if not whoami.is_testing_env()
+        else ".pioreactor/storage"
+    )
+
     # is it a temp cache or persistant cache?
     if os.path.isdir(f"{tmp_dir}/{cache}"):
         cacher = local_intermittent_storage
 
-    elif os.path.isdir(f"home/pioreactor/.pioreactor/storage/{cache}"):
+    elif os.path.isdir(f"{persistant_dir}/{cache}"):
         cacher = local_persistant_storage
 
     else:

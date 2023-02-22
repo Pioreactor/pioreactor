@@ -170,7 +170,7 @@ class PumpCalibration(Calibration):
     pump: str
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
-    duration_: float
+    duration_: t.Annotated[float, Meta(ge=0)]
     bias_: float
     voltage: float
     volumes: t.Optional[list[float]] = None

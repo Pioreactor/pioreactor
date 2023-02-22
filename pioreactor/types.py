@@ -121,3 +121,6 @@ GpioPin = t.Literal[
     20,
     21,
 ]
+
+mL = float
+Seconds = float
