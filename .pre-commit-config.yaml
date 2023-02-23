@@ -23,7 +23,7 @@ repos:
     - id: flake8
       args: # arguments to configure flake8
         # making isort line length compatible with black
-        - "--max-line-length=100g"
+        - "--max-line-length=100"
 
         # these are errors that will be ignored by flake8
         # check out their meaning here
