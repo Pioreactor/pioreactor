@@ -43,7 +43,7 @@ def cast_bytes_to_type(value: bytes, type_: str):
         elif type_ == "integer":
             return int(value)
         elif type_ == "boolean":
-            return value.decode().lower() in {"true", "1", "y", "on", "yes"}
+            return value.decode().lower() in ("true", "1", "y", "on", "yes")
         elif type_ == "json":
             return loads(value)
         elif type_ == "Automation":
@@ -68,7 +68,6 @@ def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Op
 
 
 class LoggerMixin:
-
     _logger_name: t.Optional[str] = None
     _logger = None
 
@@ -733,7 +732,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # ideally, the on_disconnected shouldn't care what state it was in prior to being called.
         try:
             self.on_disconnected()
-
         except Exception as e:
             # since on_disconnected errors are common (see point below), we don't bother
             # making the visible to the user.
@@ -1019,7 +1017,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
             )
 
     def _setup_actions(self, msg: pt.MQTTMessage) -> None:
-
         if not msg.payload:
             # OD reading stopped: reset and exit
             if hasattr(self, "sneak_in_timer"):
