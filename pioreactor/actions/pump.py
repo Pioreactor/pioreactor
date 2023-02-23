@@ -134,7 +134,7 @@ def _get_pump_action(pump_type: str) -> str:
         raise ValueError(f"{pump_type} not valid.")
 
 
-def _get_pin(pump_type: str) -> pt.GpioPin:
+def _get_pin(pump_type: str, config) -> pt.GpioPin:
     return PWM_TO_PIN[config.get("PWM_reverse", pump_type)]
 
 
@@ -177,7 +177,7 @@ def _pump_action(
     logger = create_logger(action_name, experiment=experiment, unit=unit)
 
     try:
-        pin = _get_pin(pump_type)
+        pin = _get_pin(pump_type, config)
     except NoOptionError:
         logger.error(f"Add `{pump_type}` to `PWM` section to config_{unit}.ini.")
         return 0.0
@@ -264,7 +264,9 @@ def _pump_action(
         return ml
 
 
-def _liquid_circulation(pump_type: str, duration: pt.Seconds, unit=None, experiment=None) -> None:
+def _liquid_circulation(
+    pump_type: str, duration: pt.Seconds, unit=None, experiment=None, config=config, **kwargs
+) -> None:
     """
     This function runs a continuous circulation of liquid using two pumps - one for waste and the other for the specified
     `pump_type`. The function takes in the `pump_type`, `unit` and `experiment` as arguments, where `pump_type` specifies
@@ -283,7 +285,7 @@ def _liquid_circulation(pump_type: str, duration: pt.Seconds, unit=None, experim
     unit = unit or get_unit_name()
 
     waste_calibration, media_calibration = _get_calibration("waste"), _get_calibration(pump_type)
-    waste_pin, media_pin = _get_pin("waste"), _get_pin(pump_type)
+    waste_pin, media_pin = _get_pin("waste", config), _get_pin(pump_type, config)
 
     # we "pulse" the media pump so that the waste rate < media rate. By default, we pulse at a ratio of 1 waste : 0.85 media.
     # if we know the calibrations for each pump, we will use a different rate.

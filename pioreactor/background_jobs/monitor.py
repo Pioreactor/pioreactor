@@ -508,21 +508,20 @@ class Monitor(BackgroundJob):
                 kwargs=payload,
             ).start()
 
-        elif job_name in ("add_media", "add_alt_media", "remove_waste"):
-            from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
+        elif job_name in (
+            "add_media",
+            "add_alt_media",
+            "remove_waste",
+            "media_circulation",
+            "alt_media_circulation",
+        ):
+            from pioreactor.actions import pump as pump_actions
 
-            if job_name == "add_media":
-                pump_action = add_media  # type: ignore
-            elif job_name == "add_alt_media":
-                pump_action = add_alt_media  # type: ignore
-            elif job_name == "remove_waste":
-                pump_action = remove_waste  # type: ignore
-            else:
-                raise ValueError()
+            pump_action = getattr(pump_actions, job_name)
 
-            payload["config"] = config.get_config()  # techdebt
             payload["unit"] = self.unit
             payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            payload["config"] = config.get_config()  # techdebt
             Thread(target=pump_action, kwargs=payload, daemon=True).start()
 
         else:

@@ -22,20 +22,6 @@ from http.client import HTTPSConnection
 
 __version__ = "0.1.0"
 
-__all__ = [
-    "HTTPException",
-    "TooManyRedirects",
-    "Response",
-    "yield_response",
-    "request",
-    "get",
-    "post",
-    "head",
-    "put",
-    "patch",
-    "delete",
-]
-
 DEFAULT_TIMEOUT = 15.0
 DEFAULT_UA = "Python/Pioreactor"
 

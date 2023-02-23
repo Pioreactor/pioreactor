@@ -11,16 +11,3 @@ from .led.base import LEDAutomationJob
 from .led.base import LEDAutomationJobContrib
 from .temperature.base import TemperatureAutomationJob
 from .temperature.base import TemperatureAutomationJobContrib
-
-__all__ = (
-    "dosing",
-    "led",
-    "temperature",
-    "events",
-    "DosingAutomationJob",
-    "DosingAutomationJobContrib",
-    "LEDAutomationJob",
-    "LEDAutomationJobContrib",
-    "TemperatureAutomationJob",
-    "TemperatureAutomationJobContrib",
-)

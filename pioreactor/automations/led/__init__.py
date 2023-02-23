@@ -6,9 +6,6 @@ from pioreactor.automations import events
 from pioreactor.automations.led.base import LEDAutomationJob
 
 
-__all__ = ("Silent", "LightDarkCycle")
-
-
 class Silent(LEDAutomationJob):
 
     automation_name = "silent"
