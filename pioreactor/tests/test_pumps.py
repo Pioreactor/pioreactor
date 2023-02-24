@@ -12,7 +12,7 @@ from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import media_circulation
+from pioreactor.actions.pump import circulate_media
 from pioreactor.actions.pump import Pump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
@@ -203,7 +203,6 @@ def test_pump_publishes_to_state():
 
 
 def test_pump_can_be_interrupted():
-
     experiment = "test_pump_can_be_interrupted"
     calibration = structs.MediaPumpCalibration(
         name="setup_function",
@@ -217,7 +216,6 @@ def test_pump_can_be_interrupted():
     )
 
     with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
-
         p.continuously(block=False)
         pause()
         with local_intermittent_storage("pwm_dc") as cache:
@@ -250,7 +248,6 @@ def test_pump_can_be_interrupted():
 
 
 def test_pumps_can_run_in_background():
-
     experiment = "test_pumps_can_run_in_background"
 
     calibration = structs.MediaPumpCalibration(
@@ -264,7 +261,6 @@ def test_pumps_can_run_in_background():
         pump="media",
     )
     with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
-
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
 
@@ -281,7 +277,7 @@ def test_pumps_can_run_in_background():
 
 def test_media_circulation():
     exp = "test_media_circulation"
-    media_circulation(5, unit, exp)
+    circulate_media(5, unit, exp)
     assert True
 
 
@@ -293,14 +289,14 @@ def test_media_circulation_cant_run_when_waste_pump_is_running():
     time.sleep(0.1)
 
     with pytest.raises(PWMError):
-        media_circulation(5.0, unit, exp)
+        circulate_media(5.0, unit, exp)
 
 
 def test_waste_pump_cant_run_when_media_circulation_is_running():
     from threading import Thread
 
     exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
-    Thread(target=media_circulation, kwargs={"duration": 5.0}).start()
+    Thread(target=circulate_media, kwargs={"duration": 5.0}).start()
     time.sleep(0.1)
 
     with pytest.raises(PWMError):

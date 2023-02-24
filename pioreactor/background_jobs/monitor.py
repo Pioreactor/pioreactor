@@ -253,7 +253,6 @@ class Monitor(BackgroundJob):
             self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
 
     def check_for_last_backup(self) -> None:
-
         with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = datetime.strptime(
@@ -450,7 +449,6 @@ class Monitor(BackgroundJob):
         self.led_in_use = True
 
         for _ in range(4):
-
             self.led_on()
             sleep(0.14)
             self.led_off()
@@ -512,8 +510,8 @@ class Monitor(BackgroundJob):
             "add_media",
             "add_alt_media",
             "remove_waste",
-            "media_circulation",
-            "alt_media_circulation",
+            "circulate_media",
+            "circulate_alt_media",
         ):
             from pioreactor.actions import pump as pump_actions
 

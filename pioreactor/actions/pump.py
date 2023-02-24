@@ -29,7 +29,6 @@ from pioreactor.whoami import get_unit_name
 
 
 class Pump:
-
     DEFAULT_CALIBRATION = structs.PumpCalibration(
         name="default",
         timestamp="2000-01-01 00:00:00",
@@ -189,12 +188,11 @@ def _pump_action(
             pass
 
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
-
         client = state.client
 
         with Pump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
-
             if ml is not None:
+                ml = float(ml)
                 if calibration is None:
                     exc.CalibrationError(
                         f"Calibration not defined. Run {pump_type} pump calibration first."
@@ -204,6 +202,7 @@ def _pump_action(
                 duration = pump.to_durations(ml)
                 logger.info(f"{round(ml, 2)}mL")
             elif duration is not None:
+                duration = float(duration)
                 ml = pump.to_ml(duration)  # can be wrong if calibration is not defined
                 logger.info(f"{round(duration, 2)}s")
             elif continuously:
@@ -280,9 +279,10 @@ def _liquid_circulation(
                        will be obtained.
     :return: None
     """
-    action_name = f"{pump_type}_circulation"
+    action_name = f"circulate_{pump_type}"
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
+    duration = float(duration)
 
     waste_calibration, media_calibration = _get_calibration("waste"), _get_calibration(pump_type)
     waste_pin, media_pin = _get_pin("waste", config), _get_pin(pump_type, config)
@@ -320,12 +320,13 @@ def _liquid_circulation(
             logger.info(f"Running {pump_type} for {duration}s.")
 
             running_sum = 0.0
-            while running_sum <= duration:
+            while not state.exit_event.is_set() and (running_sum <= duration):
                 media_pump.by_duration(min(duration, ratio), block=True)
-                time.sleep(1 - ratio)
+                state.exit_event.wait(1 - ratio)
                 running_sum += 1.0
 
             time.sleep(1)
+
             waste_pump.stop()
             logger.info("Stopped pumps.")
 
@@ -334,8 +335,8 @@ def _liquid_circulation(
 
 ### Useful functions below:
 
-media_circulation = partial(_liquid_circulation, "media")
-alt_media_circulation = partial(_liquid_circulation, "alt_media")
+circulate_media = partial(_liquid_circulation, "media")
+circulate_alt_media = partial(_liquid_circulation, "alt_media")
 
 
 def add_media(
