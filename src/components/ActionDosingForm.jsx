@@ -4,15 +4,21 @@ import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import { makeStyles } from "@mui/styles";
 import LoadingButton from '@mui/lab/LoadingButton';
+import Radio from '@mui/material/Radio';
+import RadioGroup from '@mui/material/RadioGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
+import FormLabel from '@mui/material/FormLabel';
+import InputAdornment from '@mui/material/InputAdornment';
 
 
 const useStyles = makeStyles({
   actionTextField: {
     padding: "0px 10px 0px 0px",
-    width: "175px",
+    width: "140px",
   },
   actionForm: {
-    padding: "20px 0px 0px 0px",
+    padding: "10px 0px 0px 0px",
   }
 });
 
@@ -29,12 +35,11 @@ export default function ActionPumpForm(props) {
   const classes = useStyles();
   const [mL, setML] = useState(EMPTYSTATE);
   const [duration, setDuration] = useState(EMPTYSTATE);
-  const [isMLDisabled, setIsMLDisabled] = useState(false);
-  const [isDurationDisabled, setIsDurationDisabled] = useState(false);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [textfieldError, setTextfieldError] = useState(false);
   const [clicked, setClicked] = useState(false)
+  const [dosingMethod, setDosingMethod] = useState("volume")
 
   const [formErrorDuration, setFormErrorDuration] = useState(false)
   const [formErrorML, setFormErrorML] = useState(false)
@@ -42,9 +47,22 @@ export default function ActionPumpForm(props) {
 
   function onSubmit(e) {
     e.preventDefault();
-    if (mL !== EMPTYSTATE || duration !== EMPTYSTATE) {
+    if ((dosingMethod === "continuously") || (dosingMethod === 'volume' && mL !== EMPTYSTATE) || (dosingMethod === 'duration' && duration !== EMPTYSTATE)) {
       setClicked(true)
-      const params = mL !== "" ? { ml: mL, source_of_event: "UI"} : { duration: duration, source_of_event: "UI"};
+
+      var params = {}
+      var msg = ""
+      if (dosingMethod === 'volume'){
+        params = { ml: mL, source_of_event: "UI"};
+        msg = actionToAct[props.action] + (" until " + mL + "mL is reached.")
+      } else if (dosingMethod === 'duration') {
+        params = { duration: duration, source_of_event: "UI"}
+        msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
+      } else {
+        params = {continuously: true, source_of_event: "UI"}
+        msg = actionToAct[props.action] + " continuously"
+      }
+
       fetch(`/api/run/${props.action}/${props.unit}`, {
         method: "POST",
         body: JSON.stringify(params),
@@ -53,7 +71,7 @@ export default function ActionPumpForm(props) {
           'Content-Type': 'application/json'
         }
       });
-      setSnackbarMsg(actionToAct[props.action] + (duration !== EMPTYSTATE ? (" for " +  duration + " seconds.") : (" until " + mL + "mL is reached.")))
+      setSnackbarMsg(msg)
       setOpenSnackbar(true);
       setTimeout(() => setClicked(false), 2500)
     }
@@ -71,19 +89,6 @@ export default function ActionPumpForm(props) {
     });
   }
 
-  function runPumpContinuously(e) {
-    fetch(`/api/run/${props.action}/${props.unit}`, {
-      method: "POST",
-      body: JSON.stringify({continuously: true, source_of_event: "UI"}),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    })
-    setSnackbarMsg("Running pump continuously")
-    setOpenSnackbar(true)
-  }
-
   const handleSnackbarClose = () => {
     setOpenSnackbar(false);
   };
@@ -91,11 +96,6 @@ export default function ActionPumpForm(props) {
   function handleMLChange(e) {
     const re = /^[0-9.\b]+$/;
     setTextfieldError(false)
-
-    setIsDurationDisabled(true);
-    if (e.target.value === EMPTYSTATE) {
-      setIsDurationDisabled(false);
-    }
 
     setML(e.target.value);
 
@@ -107,14 +107,13 @@ export default function ActionPumpForm(props) {
     }
   }
 
+  function handleRadioChange(e) {
+    setDosingMethod(e.target.value);
+  }
+
   function handleDurationChange(e) {
     const re = /^[0-9.\b]+$/;
     setTextfieldError(false)
-
-    setIsMLDisabled(true);
-    if (e.target.value === EMPTYSTATE) {
-      setIsMLDisabled(false);
-    }
 
     setDuration(e.target.value);
 
@@ -126,64 +125,76 @@ export default function ActionPumpForm(props) {
     }
   }
   return (
-    <form id={props.action} className={classes.actionForm}>
-      <TextField
-        name="mL"
-        autoComplete={"off"}
-        error={formErrorML || textfieldError}
-        value={mL}
-        size="small"
-        id={props.action + "_mL"}
-        label="mL"
-        variant="outlined"
-        disabled={isMLDisabled}
-        onChange={handleMLChange}
-        className={classes.actionTextField}
-      />
-      <TextField
-        name="duration"
-        autoComplete={"off"}
-        value={duration}
-        error={formErrorDuration || textfieldError}
-        size="small"
-        id={props.action + "_duration"}
-        label="seconds"
-        variant="outlined"
-        disabled={isDurationDisabled}
-        onChange={handleDurationChange}
-        className={classes.actionTextField}
-      />
-      <br />
-      <br />
-      <div style={{display: "flex", justifyContent: "space-between"}}>
+    <div id={props.action} className={classes.actionForm}>
+      <FormControl>
+        <RadioGroup
+          aria-labelledby="how to dose"
+          name="how-to-dose-media"
+          value={dosingMethod}
+          onChange={handleRadioChange}
+        >
+          <div style={{marginBottom: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
+            <FormControlLabel value="volume" control={<Radio />} label="Volume" />
+            <TextField
+              name="mL"
+              autoComplete={"off"}
+              error={formErrorML || textfieldError}
+              value={mL}
+              size="small"
+              id={props.action + "_mL"}
+              variant="outlined"
+              onChange={handleMLChange}
+              disabled={dosingMethod !== 'volume'}
+              className={classes.actionTextField}
+              InputProps={{
+                endAdornment: <InputAdornment position="end">mL</InputAdornment>,
+              }}
+            />
+          </div>
+          <div style={{marginBottom: "10px", maxWidth: "260px", display: "flex", justifyContent: "space-between"}}>
+            <FormControlLabel value="duration" control={<Radio />} label="Duration" />
+            <TextField
+              name="duration"
+              autoComplete={"off"}
+              value={duration}
+              error={formErrorDuration || textfieldError}
+              size="small"
+              id={props.action + "_duration"}
+              variant="outlined"
+              disabled={dosingMethod !== 'duration'}
+              onChange={handleDurationChange}
+              className={classes.actionTextField}
+              InputProps={{
+                endAdornment: <InputAdornment position="end">s</InputAdornment>,
+              }}
+            />
+          </div>
+          <FormControlLabel value="continuously" control={<Radio />} label="Run continuously" />
+        </RadioGroup>
+      </FormControl>
+
+
+      <div style={{display: "flex", marginTop: '5px'}}>
         <LoadingButton
           loading={clicked && (props?.job?.state === "disconnected")}
-          disabled={formErrorML || formErrorDuration || (props?.job?.state === "ready")}
+          disabled={(formErrorML && dosingMethod === 'volume') || (formErrorDuration && dosingMethod == 'duration') || (props?.job?.state === "ready")}
           type="submit"
           variant="contained"
           size="small"
           color="primary"
           onClick={onSubmit}
+          style={{marginRight: '3px'}}
         >
-          {props.action.replace(/_/g, " ")}
+          Start
         </LoadingButton>
-        <div>
-          <Button
-            size="small"
-            color="primary"
-            disabled={(props?.job?.state === "ready")}
-            onClick={runPumpContinuously}
-          >
-            Run continuously
-          </Button>
-          <Button
-            size="small"
-            color="secondary"
-            onClick={stopPump}
-          >
-            Interrupt
-          </Button>
-        </div>
+        <Button
+          size="small"
+          color="secondary"
+          disabled={(props?.job?.state !== "ready")}
+          onClick={stopPump}
+        >
+          Stop
+        </Button>
       </div>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
@@ -193,6 +204,6 @@ export default function ActionPumpForm(props) {
         autoHideDuration={7000}
         key={"snackbar" + props.unit + props.action}
       />
-    </form>
+    </div>
   );
 }

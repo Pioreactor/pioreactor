@@ -44,9 +44,12 @@ import IndeterminateCheckBoxOutlinedIcon from '@mui/icons-material/Indeterminate
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
 import {getConfig, getRelabelMap} from "./utilities"
+import Alert from '@mui/material/Alert';
+
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
+import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
 import UnderlineSpan from "./components/UnderlineSpan";
@@ -1490,27 +1493,59 @@ function SettingsActionsDialog(props) {
 
         <TabPanel value={tabValue} index={2}>
           <Typography  gutterBottom>
-            Add media
+            Circulate Media
           </Typography>
           <Typography variant="body2" component="p">
-            Run the media pump for a set duration (seconds), or a set volume (mL).
+            Safely circulate media in and out of your Pioreactor for a set duration (seconds).
+          </Typography>
+
+          <ActionCirculatingForm action="circulate_media" unit={props.unit} job={props.jobs.circulate_media} />
+
+          <Divider classes={{root: classes.divider}} />
+
+          <Typography  gutterBottom>
+            Circulate alternative media
+          </Typography>
+          <Typography variant="body2" component="p">
+            Safely circulate alternative media in and out of your Pioreactor for a set duration (seconds).
+          </Typography>
+
+          <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} job={props.jobs.circulate_alt_media} />
+
+          <Divider classes={{root: classes.divider}} />
+
+          <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
+
+          <Typography  gutterBottom>
+            Add media
+          </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Run the media pump for a set duration (s), moving a set volume (mL), or continuously.
+          </Typography>
+          <Typography variant="body2" component="p">
+            Specify how you’d like to add media:
           </Typography>
           <ActionDosingForm action="add_media" unit={props.unit} job={props.jobs.add_media} />
           <Divider classes={{root: classes.divider}} />
           <Typography  gutterBottom>
             Remove waste
           </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Run the waste pump for a set duration (s), moving a set volume (mL), or continuously.
+          </Typography>
           <Typography variant="body2" component="p">
-            Run the waste pump for a set duration (seconds), or a set volume (mL).
+            Specify how you’d like to remove waste:
           </Typography>
           <ActionDosingForm action="remove_waste" unit={props.unit} job={props.jobs.remove_waste} />
           <Divider className={classes.divider} />
           <Typography gutterBottom>
             Add alternative media
           </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Run the alt-media pump for a set duration (s), moving a set volume (mL), or continuously.
+          </Typography>
           <Typography variant="body2" component="p">
-            Run the alternative media pump for a set duration (seconds), or a set
-            volume (mL).
+            Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={props.unit} job={props.jobs.add_alt_media} />
           <Divider className={classes.divider} />
@@ -1583,7 +1618,7 @@ function SettingsActionsDialog(props) {
             <Typography variant="body2" component="p">
               HAT version: {versionInfo.hat}
             </Typography>
-            <Typography variant="body2" component="p">
+              <Typography variant="body2" component="p">
               HAT serial number: <code>{versionInfo.hat_serial}</code>
             </Typography>
 
@@ -2016,10 +2051,37 @@ function SettingsActionsDialogAll({config, experiment}) {
         </TabPanel>
         <TabPanel value={tabValue} index={2}>
           <Typography  gutterBottom>
+            Circulate Media
+          </Typography>
+          <Typography variant="body2" component="p">
+            Safely circulate media in and out of your Pioreactor for a set duration (seconds).
+          </Typography>
+
+          <ActionCirculatingForm action="circulate_media" unit={unit} />
+
+          <Divider classes={{root: classes.divider}} />
+
+          <Typography  gutterBottom>
+            Circulate alternative media
+          </Typography>
+          <Typography variant="body2" component="p">
+            Safely circulate alternative media in and out of your Pioreactor for a set duration (seconds).
+          </Typography>
+
+          <ActionCirculatingForm action="circulate_alt_media" unit={unit} />
+
+          <Divider classes={{root: classes.divider}} />
+
+          <Alert severity="warning" style={{marginBottom: '10px', marginTop: '10px'}}>It's easy to overflow your vial. Make sure you don't add too much media.</Alert>
+
+          <Typography  gutterBottom>
             Add media
           </Typography>
           <Typography variant="body2" component="p">
-            Run the media pumps for a set duration (seconds), or a set volume (mL).
+            Run the media pumps for a set duration (seconds), moving a set volume (mL), or continuously.
+          </Typography>
+          <Typography variant="body2" component="p">
+            Specify how you’d like to add media:
           </Typography>
           <ActionDosingForm action="add_media" unit={unit} />
           <Divider className={classes.divider} />
@@ -2027,7 +2089,7 @@ function SettingsActionsDialogAll({config, experiment}) {
             Remove waste
           </Typography>
           <Typography variant="body2" component="p">
-            Run the waste pumps for a set duration (seconds), or a set volume (mL).
+            Run the waste pumps for a set duration (seconds), moving a set volume (mL), or continuously.
           </Typography>
           <ActionDosingForm action="remove_waste" unit={unit} />
           <Divider className={classes.divider} />
@@ -2035,8 +2097,8 @@ function SettingsActionsDialogAll({config, experiment}) {
             Add alternative media
           </Typography>
           <Typography variant="body2" component="p">
-            Run the alternative media pumps for a set duration (seconds), or a set
-            volume (mL).
+            Run the alternative media pumps for a set duration (seconds), moving a set
+            volume (mL), or continuously.
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={unit} />
           <Divider className={classes.divider} />

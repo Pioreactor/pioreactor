@@ -201,14 +201,6 @@ export default function SideNavAndHeader() {
           </ListItemButton>
         </ListItem>
 
-        <ListItem disablePadding>
-          <ListItemButton className={clsx({[classes.outlined]:!isSelected("/feedback") })} component={Link} to="/feedback"  key="feedback" selected={isSelected("/feedback")}>
-            <ListItemIcon className={classes.listItemIcon}>
-              <FeedbackOutlinedIcon color={isSelected("/feedback") ? "primary" : "inherit"}/>
-            </ListItemIcon>
-            <ListItemText primaryTypographyProps={{color: isSelected("/feedback") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Share feedback"/>
-          </ListItemButton>
-        </ListItem>
 
       </List>
     </div>
