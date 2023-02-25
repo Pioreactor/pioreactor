@@ -285,19 +285,25 @@ def test_media_circulation_cant_run_when_waste_pump_is_running():
     from threading import Thread
 
     exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
-    Thread(target=remove_waste, kwargs={"duration": 5.0}).start()
+    t = Thread(target=remove_waste, kwargs={"duration": 3.0, "experiment": exp, "unit": unit})
+    t.start()
     time.sleep(0.1)
 
     with pytest.raises(PWMError):
         circulate_media(5.0, unit, exp)
 
+    t.join()
+
 
 def test_waste_pump_cant_run_when_media_circulation_is_running():
     from threading import Thread
 
-    exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
-    Thread(target=circulate_media, kwargs={"duration": 5.0}).start()
+    exp = "test_waste_pump_cant_run_when_media_circulation_is_running"
+    t = Thread(target=circulate_media, kwargs={"duration": 3.0, "experiment": exp, "unit": unit})
+    t.start()
     time.sleep(0.1)
 
     with pytest.raises(PWMError):
-        remove_waste(5.0, unit, exp)
+        remove_waste(unit, exp, duration=5.0)
+
+    t.join()

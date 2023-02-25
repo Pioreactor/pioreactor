@@ -2,7 +2,6 @@
 
  - Performance improvements
  - Python dependencies for Pioreactor UI are now handled by this project.
- - Fix for running PID morbidostat
  - Better initialization of jobs from UI
  - Version information now presented in UI
  - More support for HAT version 1.1
@@ -12,8 +11,10 @@
 
   Namely, new functions `circulate_media` and `circulate_alt_media` are introduced that will cycle both a pump and the waste pump simultaneously. The waste pump starts first and ends second.
 
+
 #### Bug fixes
- - fixed `pio kill <job>` to actually kill a job
+ - Fixed `pio kill <job>` to actually kill a job
+ - Fix for running PID morbidostat
 
 ### 23.2.17
 

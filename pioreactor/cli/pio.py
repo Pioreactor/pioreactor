@@ -127,6 +127,7 @@ def log(message: str, level: str, name: str, local_only: bool):
             to_mqtt=not local_only,
         )
         getattr(logger, level)(message)
+        sleep(0.5)  # wait to make sure msg gets to mqtt
     except Exception:
         # don't let a logging error bring down a script...
         pass
@@ -134,11 +135,9 @@ def log(message: str, level: str, name: str, local_only: bool):
 
 @pio.command(name="blink", short_help="blink LED")
 def blink() -> None:
-
     monitor_running = is_pio_job_running("monitor")
 
     if not monitor_running:
-
         import RPi.GPIO as GPIO  # type: ignore
 
         GPIO.setmode(GPIO.BCM)
@@ -152,11 +151,9 @@ def blink() -> None:
             GPIO.output(LED_PIN, GPIO.LOW)
 
         with temporarily_set_gpio_unavailable(LED_PIN):
-
             GPIO.setup(LED_PIN, GPIO.OUT)
 
             for _ in range(4):
-
                 led_on()
                 sleep(0.14)
                 led_off()
@@ -193,7 +190,6 @@ def kill(job: list[str], all_jobs: bool) -> None:
             pass
 
     if all_jobs:
-
         # kill all running pioreactor processes
         with local_intermittent_storage("pio_jobs_running") as cache:
             for j in cache:
@@ -335,7 +331,7 @@ def update_settings(ctx, job: str) -> None:
 
     assert len(extra_args) > 0
 
-    for (setting, value) in extra_args.items():
+    for setting, value in extra_args.items():
         pubsub.publish(
             f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE
         )
