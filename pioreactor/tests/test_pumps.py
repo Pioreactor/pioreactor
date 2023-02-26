@@ -93,13 +93,13 @@ def test_pump_fails_if_calibration_not_present():
         del cache["waste"]
 
     with pytest.raises(CalibrationError):
-        add_media(duration=1.0, unit=unit, experiment=exp)
+        add_media(ml=1.0, unit=unit, experiment=exp)
 
     with pytest.raises(CalibrationError):
-        add_alt_media(duration=1.0, unit=unit, experiment=exp)
+        add_alt_media(ml=1.0, unit=unit, experiment=exp)
 
     with pytest.raises(CalibrationError):
-        remove_waste(duration=1.0, unit=unit, experiment=exp)
+        remove_waste(ml=1.0, unit=unit, experiment=exp)
 
 
 def test_pump_io_doesnt_allow_negative() -> None:
