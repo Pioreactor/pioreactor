@@ -107,13 +107,13 @@ class Pump:
         if self.calibration is None:
             raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
 
-        return utils.pump_duration_to_ml(seconds, self.calibration)
+        return self.calibration.pump_duration_to_ml(seconds)
 
     def to_durations(self, ml: pt.mL) -> pt.Seconds:
         if self.calibration is None:
             raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
 
-        return utils.pump_ml_to_duration(ml, self.calibration)
+        return self.calibration.pump_ml_to_duration(ml)
 
     def __enter__(self):
         return self
@@ -203,11 +203,17 @@ def _pump_action(
                 logger.info(f"{round(ml, 2)}mL")
             elif duration is not None:
                 duration = float(duration)
-                ml = pump.to_ml(duration)  # can be wrong if calibration is not defined
+                try:
+                    ml = pump.to_ml(duration)  # can be wrong if calibration is not defined
+                except exc.CalibrationError:
+                    ml = duration  # naive
                 logger.info(f"{round(duration, 2)}s")
             elif continuously:
                 duration = 10.0
-                ml = pump.to_ml(duration)
+                try:
+                    ml = pump.to_ml(duration)  # can be wrong if calibration is not defined
+                except exc.CalibrationError:
+                    ml = duration  # naive
                 logger.info(f"Running {pump_type} pump continuously.")
 
             assert duration is not None

@@ -291,18 +291,6 @@ def is_pio_job_running(target_jobs):
         return results
 
 
-def pump_ml_to_duration(ml: pt.mL, calibration: structs.AnyPumpCalibration) -> pt.Seconds:
-    duration_ = calibration.duration_
-    bias_ = calibration.bias_
-    return cast(pt.Seconds, (ml - bias_) / duration_)
-
-
-def pump_duration_to_ml(duration: pt.Seconds, calibration: structs.AnyPumpCalibration) -> pt.mL:
-    duration_ = calibration.duration_
-    bias_ = calibration.bias_
-    return cast(pt.mL, duration * duration_ + bias_)
-
-
 def get_cpu_temperature() -> float:
     if whoami.is_testing_env():
         return 22.0
