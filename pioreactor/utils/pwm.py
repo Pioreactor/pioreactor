@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from json import dumps
+from os import getpid
 from typing import Any
 from typing import Iterator
 from typing import Optional
@@ -25,8 +26,6 @@ else:
     except ImportError:
         pass
 
-PWM_LOCKED = "locked"
-
 
 class PWM:
     """
@@ -37,7 +36,6 @@ class PWM:
     -------
     There is a soft locking feature, `lock` and `is_locked`, that a program can use to
     present other programs from using the PWM channel. This may move to a hard lock in the future.
-
 
 
     Example
@@ -112,11 +110,9 @@ class PWM:
         gpio_helpers.set_gpio_availability(self.pin, False)
 
         if (not always_use_software) and (pin in self.HARDWARE_PWM_CHANNELS):
-
             self.pwm = HardwarePWM(self.HARDWARE_PWM_CHANNELS[self.pin], self.hz)
 
         else:
-
             import RPi.GPIO as GPIO  # type: ignore
 
             GPIO.setwarnings(
@@ -207,7 +203,6 @@ class PWM:
             # `stop` handles cleanup.
             pass
         else:
-
             import RPi.GPIO as GPIO
 
             GPIO.setmode(GPIO.BCM)
@@ -222,11 +217,11 @@ class PWM:
 
     def is_locked(self) -> bool:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            return pwm_locks.get(self.pin) == PWM_LOCKED
+            return pwm_locks.get(self.pin) is not None
 
     def lock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:
-            pwm_locks[self.pin] = PWM_LOCKED
+            pwm_locks[self.pin] = getpid()
 
     def unlock(self) -> None:
         with local_intermittent_storage("pwm_locks") as pwm_locks:

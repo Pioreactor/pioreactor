@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextlib import nullcontext
+from os import getpid
 from typing import Any
 from typing import Iterator
 from typing import Optional
@@ -23,9 +24,6 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
-
-
-LED_LOCKED = "locked"
 
 
 def _list(x) -> list:
@@ -64,7 +62,7 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
     try:
         with local_intermittent_storage("led_locks") as cache:
             for c in channels:
-                cache[c] = LED_LOCKED
+                cache[c] = getpid()
         yield
     finally:
         with local_intermittent_storage("led_locks") as cache:
@@ -74,7 +72,7 @@ def lock_leds_temporarily(channels: list[LedChannel]) -> Iterator[None]:
 
 def is_led_channel_locked(channel: LedChannel) -> bool:
     with local_intermittent_storage("led_locks") as cache:
-        return cache.get(channel) == LED_LOCKED
+        return cache.get(channel) is not None
 
 
 def _update_current_state(
