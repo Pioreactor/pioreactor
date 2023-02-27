@@ -381,4 +381,5 @@ def test_media_circulation_works_without_calibration_since_we_are_entering_durat
         del cache["media"]
         del cache["waste"]
 
-    circulate_media(1.0, unit, exp)
+    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    assert waste_removed >= media_added

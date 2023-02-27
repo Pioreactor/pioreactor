@@ -202,7 +202,7 @@ def _pump_action(
                     )
 
                 assert ml >= 0, "ml should be greater than or equal to 0"
-                duration = pump.to_durations(ml)
+                duration = pump.ml_to_durations(ml)
                 logger.info(f"{round(ml, 2)}mL")
             elif duration is not None:
                 duration = float(duration)
