@@ -176,12 +176,12 @@ class PumpCalibration(Calibration):
     volumes: t.Optional[list[float]] = None
     durations: t.Optional[list[float]] = None
 
-    def pump_ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
+    def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
         duration_ = self.duration_
         bias_ = self.bias_
         return t.cast(pt.Seconds, (ml - bias_) / duration_)
 
-    def pump_duration_to_ml(self, duration: pt.Seconds) -> pt.mL:
+    def duration_to_ml(self, duration: pt.Seconds) -> pt.mL:
         duration_ = self.duration_
         bias_ = self.bias_
         return t.cast(pt.mL, duration * duration_ + bias_)

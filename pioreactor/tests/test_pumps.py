@@ -277,8 +277,8 @@ def test_pumps_can_run_in_background():
 
 def test_media_circulation():
     exp = "test_media_circulation"
-    circulate_media(5, unit, exp)
-    assert True
+    media_added, waste_removed = circulate_media(5, unit, exp)
+    assert waste_removed > media_added
 
 
 def test_media_circulation_cant_run_when_waste_pump_is_running():
@@ -309,11 +309,43 @@ def test_waste_pump_cant_run_when_media_circulation_is_running():
     t.join()
 
 
-def test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate():
-    assert False
-    # TODO
+def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate():
+    exp = "test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate"
+
+    with local_persistant_storage("current_pump_calibration") as cache:
+        cache["media"] = encode(
+            structs.MediaPumpCalibration(
+                name="setup_function",
+                duration_=10.0,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="media",
+            )
+        )
+        cache["waste"] = encode(
+            structs.WastePumpCalibration(
+                name="setup_function",
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="waste",
+            )
+        )
+
+    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    assert (waste_removed - 2) >= media_added
 
 
-def test_media_circulation_works_without_calibration():
-    assert False
-    # TODO
+def test_media_circulation_works_without_calibration_since_we_are_entering_duration():
+    exp = "test_media_circulation_works_without_calibration_since_we_are_entering_duration"
+    with local_persistant_storage("current_pump_calibration") as cache:
+        del cache["media"]
+        del cache["waste"]
+
+    circulate_media(1.0, unit, exp)

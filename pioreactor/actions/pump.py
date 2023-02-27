@@ -23,23 +23,26 @@ from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
+from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
+DEFAULT_CALIBRATION = structs.PumpCalibration(
+    # TODO: provide better estimates for duration_ and bias_ based on some historical data.
+    # it can even be a function of voltage
+    name="default",
+    timestamp="2000-01-01 00:00:00",
+    pump="",
+    hz=200.0,  # is this an okay default?
+    dc=100.0,
+    duration_=1.0,
+    bias_=0,
+    voltage=-1,
+)
+
 
 class Pump:
-    DEFAULT_CALIBRATION = structs.PumpCalibration(
-        name="default",
-        timestamp="2000-01-01 00:00:00",
-        pump="",
-        hz=200.0,  # is this an okay default?
-        dc=100.0,
-        duration_=1.0,
-        bias_=0,
-        voltage=-1,
-    )
-
     def __init__(
         self,
         unit: str,
@@ -54,7 +57,7 @@ class Pump:
 
         self.pwm = PWM(
             self.pin,
-            (self.calibration or self.DEFAULT_CALIBRATION).hz,
+            (self.calibration or DEFAULT_CALIBRATION).hz,
             experiment=experiment,
             unit=unit,
             pubsub_client=mqtt_client,
@@ -66,7 +69,7 @@ class Pump:
         self.pwm.cleanup()
 
     def continuously(self, block=True) -> None:
-        calibration = self.calibration or self.DEFAULT_CALIBRATION
+        calibration = self.calibration or DEFAULT_CALIBRATION
         self.interrupt.clear()
 
         if block:
@@ -88,13 +91,13 @@ class Pump:
                 "Calibration not defined. Run pump calibration first to use volume-based dosing."
             )
 
-        seconds = self.to_durations(ml)
-        self.by_duration(seconds, block=block)
+        seconds = self.ml_to_durations(ml)
+        return self.by_duration(seconds, block=block)
 
     def by_duration(self, seconds: pt.Seconds, block=True) -> None:
         assert seconds >= 0
         self.interrupt.clear()
-        calibration = self.calibration or self.DEFAULT_CALIBRATION
+        calibration = self.calibration or DEFAULT_CALIBRATION
         if block:
             self.pwm.start(calibration.dc)
             self.interrupt.wait(seconds)
@@ -103,17 +106,17 @@ class Pump:
             Thread(target=self.by_duration, args=(seconds, True), daemon=True).start()
             return
 
-    def to_ml(self, seconds: pt.Seconds) -> pt.mL:
+    def duration_to_ml(self, seconds: pt.Seconds) -> pt.mL:
         if self.calibration is None:
             raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
 
-        return self.calibration.pump_duration_to_ml(seconds)
+        return self.calibration.duration_to_ml(seconds)
 
-    def to_durations(self, ml: pt.mL) -> pt.Seconds:
+    def ml_to_durations(self, ml: pt.mL) -> pt.Seconds:
         if self.calibration is None:
             raise exc.CalibrationError("Calibration not defined. Run pump calibration first.")
 
-        return self.calibration.pump_ml_to_duration(ml)
+        return self.calibration.ml_to_duration(ml)
 
     def __enter__(self):
         return self
@@ -204,16 +207,18 @@ def _pump_action(
             elif duration is not None:
                 duration = float(duration)
                 try:
-                    ml = pump.to_ml(duration)  # can be wrong if calibration is not defined
+                    ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
-                    ml = duration  # naive
+                    ml = DEFAULT_CALIBRATION.duration_to_ml(duration)  # naive
                 logger.info(f"{round(duration, 2)}s")
             elif continuously:
                 duration = 10.0
                 try:
-                    ml = pump.to_ml(duration)  # can be wrong if calibration is not defined
+                    ml = pump.duration_tmo_ml(
+                        duration
+                    )  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
-                    ml = duration  # naive
+                    ml = DEFAULT_CALIBRATION.duration_to_ml(duration)
                 logger.info(f"Running {pump_type} pump continuously.")
 
             assert duration is not None
@@ -271,7 +276,7 @@ def _pump_action(
 
 def _liquid_circulation(
     pump_type: str, duration: pt.Seconds, unit=None, experiment=None, config=config, **kwargs
-) -> None:
+) -> tuple[pt.mL, pt.mL]:
     """
     This function runs a continuous circulation of liquid using two pumps - one for waste and the other for the specified
     `pump_type`. The function takes in the `pump_type`, `unit` and `experiment` as arguments, where `pump_type` specifies
@@ -295,18 +300,18 @@ def _liquid_circulation(
     try:
         waste_calibration = _get_calibration("waste")
     except exc.CalibrationError:
-        waste_calibration = None
+        waste_calibration = DEFAULT_CALIBRATION
 
     try:
         media_calibration = _get_calibration(pump_type)
     except exc.CalibrationError:
-        media_calibration = None
+        media_calibration = DEFAULT_CALIBRATION
 
     # we "pulse" the media pump so that the waste rate < media rate. By default, we pulse at a ratio of 1 waste : 0.85 media.
     # if we know the calibrations for each pump, we will use a different rate.
     ratio = 0.85
 
-    if waste_calibration is not None and media_calibration is not None:
+    if waste_calibration != DEFAULT_CALIBRATION and media_calibration != DEFAULT_CALIBRATION:
         # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
         if media_calibration.duration_ > waste_calibration.duration_:
             ratio = min(waste_calibration.duration_ / media_calibration.duration_, ratio)
@@ -330,22 +335,31 @@ def _liquid_circulation(
             mqtt_client=client,
         ) as media_pump:
             logger.info("Running waste continuously.")
-            waste_pump.continuously(block=False)
-            time.sleep(1)
-            logger.info(f"Running {pump_type} for {duration}s.")
+            with catchtime() as running_waste_duration:
+                waste_pump.continuously(block=False)
+                time.sleep(1)
+                logger.info(f"Running {pump_type} for {duration}s.")
 
-            running_sum = 0.0
-            while not state.exit_event.is_set() and (running_sum <= duration):
-                media_pump.by_duration(min(duration, ratio), block=True)
-                state.exit_event.wait(1 - ratio)
-                running_sum += 1.0
+                running_duration = 0.0
+                running_dosing_duration = 0.0
 
-            time.sleep(1)
+                while not state.exit_event.is_set() and (running_duration < duration):
+                    media_pump.by_duration(min(duration, ratio), block=True)
+                    state.exit_event.wait(1 - ratio)
 
-            waste_pump.stop()
+                    running_duration += 1.0
+                    running_dosing_duration += min(duration, ratio)
+
+                time.sleep(1)
+                waste_pump_duration = running_waste_duration()
+                waste_pump.stop()
+
             logger.info("Stopped pumps.")
 
-    return
+    return (
+        media_calibration.duration_to_ml(running_dosing_duration),
+        waste_calibration.duration_to_ml(waste_pump_duration),
+    )
 
 
 ### Useful functions below:

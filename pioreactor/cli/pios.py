@@ -498,7 +498,6 @@ if am_I_leader():
                 raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
-
             click.echo(f"Executing `{command}` on {unit}.")
             try:
                 ssh(add_local(unit), command)
@@ -516,8 +515,10 @@ if am_I_leader():
                 return False
 
         units = remove_leader(universal_identifier_to_all_workers(units))
-        with ThreadPoolExecutor(max_workers=len(units)) as executor:
-            executor.map(_thread_function, units)
+
+        if len(units) > 0:
+            with ThreadPoolExecutor(max_workers=len(units)) as executor:
+                executor.map(_thread_function, units)
 
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
@@ -562,7 +563,7 @@ if am_I_leader():
         from pioreactor.pubsub import publish
 
         def _thread_function(unit: str) -> bool:
-            for (setting, value) in extra_args.items():
+            for setting, value in extra_args.items():
                 publish(f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value)
             return True
 
