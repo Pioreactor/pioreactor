@@ -312,3 +312,8 @@ def test_waste_pump_cant_run_when_media_circulation_is_running():
 def test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate():
     assert False
     # TODO
+
+
+def test_media_circulation_works_without_calibration():
+    assert False
+    # TODO

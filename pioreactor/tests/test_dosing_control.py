@@ -20,7 +20,6 @@ from pioreactor.automations import DosingAutomationJob
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import AltMediaCalculator
 from pioreactor.automations.dosing.base import VialVolumeCalculator
-from pioreactor.automations.dosing.continuous_cycle import ContinuousCycle
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
 from pioreactor.automations.dosing.turbidostat import Turbidostat
@@ -160,7 +159,6 @@ def test_turbidostat_automation() -> None:
     with Turbidostat(
         target_normalized_od=target_od, duration=60, volume=0.25, unit=unit, experiment=experiment
     ) as algo:
-
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             encode(structs.GrowthRate(growth_rate=0.01, timestamp=current_utc_datetime())),
@@ -215,7 +213,6 @@ def test_pid_morbidostat_automation() -> None:
         unit=unit,
         experiment=experiment,
     ) as algo:
-
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/growth_rate_calculating/growth_rate",
             encode(structs.GrowthRate(growth_rate=0.08, timestamp=current_utc_datetime())),
@@ -339,7 +336,6 @@ def test_changing_parameters_over_mqtt_with_unknown_parameter() -> None:
             unit=unit,
             experiment=experiment,
         ):
-
             pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/garbage/set", 0.07)
             # there should be a log published with "Unable to set garbage in dosing_automation"
             pause()
@@ -521,7 +517,6 @@ def test_throughput_calculator_manual_set() -> None:
         unit=unit,
         experiment=experiment,
     ) as algo:
-
         pause()
         assert algo.automation_job.media_throughput == 1.0
         assert algo.automation_job.alt_media_throughput == 1.5
@@ -1010,7 +1005,6 @@ def test_custom_class_will_register_and_run() -> None:
     experiment = "test_custom_class_will_register_and_run"
 
     class NaiveTurbidostat(DosingAutomationJob):
-
         automation_name = "naive_turbidostat"
         published_settings = {
             "target_od": {"datatype": "float", "settable": True, "unit": "AU"},
@@ -1057,18 +1051,7 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
     algo.clean_up()
 
 
-def test_changing_duty_cycle_over_mqtt() -> None:
-    experiment = "test_changing_duty_cycle_over_mqtt"
-    with ContinuousCycle(unit=unit, experiment=experiment) as algo:
-
-        assert algo.duty_cycle == 100
-        pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_automation/duty_cycle/set", 50)
-        pause()
-        assert algo.duty_cycle == 50
-
-
 def test_AltMediaCalculator() -> None:
-
     ac = AltMediaCalculator()
     vial_volume = 14
 
@@ -1420,7 +1403,6 @@ def test_alt_media_calcualtor_from_0_volume():
 
 
 def test_adding_pumps_and_calling_them_from_execute_io_action():
-
     experiment = "test_adding_pumps_and_calling_them_from_execute_io_action"
     unit = get_unit_name()
 
