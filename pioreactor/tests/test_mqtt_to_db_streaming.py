@@ -24,7 +24,6 @@ from pioreactor.whoami import get_unit_name
 
 
 def test_testing_data_is_filtered() -> None:
-
     unit = "unit"
     exp = get_latest_testing_experiment_name()  # contains _testing_ prefix
 
@@ -103,7 +102,7 @@ def test_dosing_events_land_in_db() -> None:
     connection = sqlite3.connect(config["storage"]["database"])
     cursor = connection.cursor()
 
-    cursor.executescript("DROP TABLE IF EXISTS doing_events;")
+    cursor.executescript("DROP TABLE IF EXISTS dosing_events;")
     cursor.executescript(
         "DROP TRIGGER IF EXISTS update_pioreactor_unit_activity_data_from_dosing_events;"
     )
@@ -127,7 +126,6 @@ def test_dosing_events_land_in_db() -> None:
     ]
 
     with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
-
         from pioreactor.actions.pump import add_media
 
         add_media(
