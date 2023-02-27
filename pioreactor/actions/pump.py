@@ -118,10 +118,10 @@ class Pump:
 
         return self.calibration.ml_to_duration(ml)
 
-    def __enter__(self):
+    def __enter__(self) -> Pump:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         self.clean_up()
 
 
@@ -214,9 +214,7 @@ def _pump_action(
             elif continuously:
                 duration = 10.0
                 try:
-                    ml = pump.duration_tmo_ml(
-                        duration
-                    )  # can be wrong if calibration is not defined
+                    ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
                     ml = DEFAULT_CALIBRATION.duration_to_ml(duration)
                 logger.info(f"Running {pump_type} pump continuously.")
@@ -270,7 +268,7 @@ def _pump_action(
         if state.exit_event.is_set():
             # ended early
             shortened_duration = time.monotonic() - pump_start_time
-            return pump.to_ml(shortened_duration)
+            return pump.duration_to_ml(shortened_duration)
         return ml
 
 
