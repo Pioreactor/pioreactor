@@ -290,8 +290,17 @@ def _liquid_circulation(
     unit = unit or get_unit_name()
     duration = float(duration)
 
-    waste_calibration, media_calibration = _get_calibration("waste"), _get_calibration(pump_type)
     waste_pin, media_pin = _get_pin("waste", config), _get_pin(pump_type, config)
+
+    try:
+        waste_calibration = _get_calibration("waste")
+    except exc.CalibrationError:
+        waste_calibration = None
+
+    try:
+        media_calibration = _get_calibration(pump_type)
+    except exc.CalibrationError:
+        media_calibration = None
 
     # we "pulse" the media pump so that the waste rate < media rate. By default, we pulse at a ratio of 1 waste : 0.85 media.
     # if we know the calibrations for each pump, we will use a different rate.
