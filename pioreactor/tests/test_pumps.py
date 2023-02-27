@@ -342,6 +342,39 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
     assert (waste_removed - 2) >= media_added
 
 
+def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate():
+    exp = "test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate"
+
+    with local_persistant_storage("current_pump_calibration") as cache:
+        cache["media"] = encode(
+            structs.MediaPumpCalibration(
+                name="setup_function",
+                duration_=0.15,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="media",
+            )
+        )
+        cache["waste"] = encode(
+            structs.WastePumpCalibration(
+                name="setup_function",
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="waste",
+            )
+        )
+
+    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    assert (waste_removed - 2) >= media_added
+
+
 def test_media_circulation_works_without_calibration_since_we_are_entering_duration():
     exp = "test_media_circulation_works_without_calibration_since_we_are_entering_duration"
     with local_persistant_storage("current_pump_calibration") as cache:
