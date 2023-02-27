@@ -11,6 +11,7 @@
 
   Namely, new functions `circulate_media` and `circulate_alt_media` are introduced that will cycle both a pump and the waste pump simultaneously. The waste pump starts first and ends second.
 
+ - removed the dosing automation `continous cycling`. It was redundant, and a leftover from an old feature.
 
 #### Bug fixes
  - Fixed `pio kill <job>` to actually kill a job
