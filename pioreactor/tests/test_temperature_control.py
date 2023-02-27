@@ -115,7 +115,7 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
     with temperature_control.TemperatureController(
         "only_record_temperature", unit=unit, experiment=experiment
     ) as t:
-        t.tmp_driver.get_temperature = lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1
+        setattr(t.tmp_driver, "get_temperature", lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1)
         pause()
         t._update_heater(50)
         pause()
@@ -132,7 +132,6 @@ def test_thermostat_doesnt_fail_when_initial_target_is_less_than_initial_tempera
     with temperature_control.TemperatureController(
         "thermostat", unit=unit, experiment=experiment, target_temperature=20
     ) as t:
-
         pause(3)
         assert t.automation_job.state == "ready"
         assert t.heater_duty_cycle == 0
@@ -147,7 +146,7 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
         target_temperature=25,
     ) as t:
         # monkey patch the driver
-        t.tmp_driver.get_temperature = lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1
+        setattr(t.tmp_driver, "get_temperature", lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1)
         pause()
         pause()
         t._update_heater(50)
@@ -201,7 +200,6 @@ def test_setting_pid_control_after_startup_will_start_some_heating() -> None:
     with temperature_control.TemperatureController(
         "thermostat", unit=unit, experiment=experiment, target_temperature=35
     ) as t:
-
         pause(3)
         assert t.automation_job.state == "ready"
         assert t.heater_duty_cycle > 0
@@ -738,7 +736,6 @@ def test_using_external_thermocouple() -> None:
         experiment=experiment,
         using_third_party_thermocouple=True,
     ) as tc:
-
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_control/automation/set",
             encode(structs.TemperatureAutomation(automation_name="my_super_simple_automation")),
@@ -776,7 +773,6 @@ def test_using_external_thermocouple() -> None:
 
 
 def test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation():
-
     experiment = "test_that_if_a_user_tries_to_change_thermostat_X_to_thermostat_Y_we_just_change_the_attr_instead_of_the_entire_automation"
 
     with temperature_control.TemperatureController(

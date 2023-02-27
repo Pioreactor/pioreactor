@@ -32,6 +32,7 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 T = t.TypeVar("T")
+BJT = t.TypeVar("BJT", bound="_BackgroundJob")
 
 
 def cast_bytes_to_type(value: bytes, type_: str):
@@ -911,10 +912,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if name in self.published_settings:
             self._publish_attr(name)
 
-    def __enter__(self):
+    def __enter__(self: BJT) -> BJT:
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(self, *args) -> None:
         self.clean_up()
 
 
