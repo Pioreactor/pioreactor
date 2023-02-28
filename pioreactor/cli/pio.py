@@ -449,10 +449,51 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
 
 
 @update.command(name="firmware")
-@click.option("-b", "--branch", help="update to a branch on github")
-def update_firmware(branch: Optional[str]) -> None:
-    # TODO
-    return
+@click.option("-v", "--version", help="install a specific version, default is latest")
+def update_firmware(version: Optional[str]) -> None:
+    logger = create_logger(
+        "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+    )
+    commands_and_priority: list[tuple[str, int]] = []
+
+    if version is None:
+        version = "latest"
+    else:
+        version = f"tags/{version}"
+
+    release_metadata = loads(
+        get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}").body
+    )
+    version_installed = release_metadata["tag_name"]
+
+    for asset in release_metadata["assets"]:
+        url = asset["browser_download_url"]
+        asset_name = asset["name"]
+
+        if asset_name == "main.elf":
+            commands_and_priority.extend(
+                [
+                    (f"sudo wget -O /usr/local/bin/main.elf {url}", 0),
+                    ("sudo bash /usr/local/bin/load_rp2040.sh", 1),
+                ]
+            )
+
+    for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
+        logger.debug(command)
+        p = subprocess.run(
+            command,
+            shell=True,
+            universal_newlines=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        if p.returncode != 0:
+            logger.debug(p.stderr)
+            logger.error("Update failed. See logs.")
+            # end early
+            raise click.Abort()
+
+    logger.notice(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 
 
 pio.add_command(plugin_management.click_install_plugin)

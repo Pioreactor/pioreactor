@@ -151,12 +151,14 @@ def start_dosing_control(
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
 
-    kwargs["duration"] = duration
-    kwargs["skip_first_run"] = skip_first_run
-
     try:
         return DosingController(
-            automation_name, unit=unit, experiment=experiment, **kwargs
+            automation_name,
+            unit=unit,
+            experiment=experiment,
+            duration=duration,
+            skip_first_run=skip_first_run,
+            **kwargs,
         )  # noqa: F841
 
     except Exception as e:

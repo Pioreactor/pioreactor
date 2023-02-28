@@ -161,7 +161,7 @@ def _pump_action(
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt, don't use
-) -> float:
+) -> pt.mL:
     """
     Returns the mL cycled. However,
     If calibration is not defined or available on disk, returns gibberish.
@@ -374,13 +374,13 @@ circulate_alt_media = partial(_liquid_circulation, "alt_media")
 def add_media(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    ml: Optional[float] = None,
-    duration: Optional[float] = None,
+    ml: Optional[pt.mL] = None,
+    duration: Optional[pt.Seconds] = None,
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.MediaPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt
-) -> float:
+) -> pt.mL:
     """
     Parameters
     ------------
@@ -419,13 +419,13 @@ def add_media(
 def remove_waste(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    ml: Optional[float] = None,
-    duration: Optional[float] = None,
+    ml: Optional[pt.mL] = None,
+    duration: Optional[pt.Seconds] = None,
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.WastePumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt
-) -> float:
+) -> pt.mL:
     """
     Parameters
     ------------
@@ -463,13 +463,13 @@ def remove_waste(
 def add_alt_media(
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    ml: Optional[float] = None,
-    duration: Optional[float] = None,
+    ml: Optional[pt.mL] = None,
+    duration: Optional[pt.Seconds] = None,
     source_of_event: Optional[str] = None,
     calibration: Optional[structs.AltMediaPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt
-) -> float:
+) -> pt.mL:
     """
     Parameters
     ------------
@@ -516,8 +516,8 @@ def add_alt_media(
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_add_alt_media(
-    ml: Optional[float],
-    duration: Optional[float],
+    ml: Optional[pt.mL],
+    duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
 ):
@@ -548,8 +548,8 @@ def click_add_alt_media(
     help="who is calling this function - for logging",
 )
 def click_remove_waste(
-    ml: Optional[float],
-    duration: Optional[float],
+    ml: Optional[pt.mL],
+    duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
 ):
@@ -580,8 +580,8 @@ def click_remove_waste(
     help="who is calling this function - data goes into database and MQTT",
 )
 def click_add_media(
-    ml: Optional[float],
-    duration: Optional[float],
+    ml: Optional[pt.mL],
+    duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
 ):
