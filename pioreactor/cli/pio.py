@@ -267,6 +267,7 @@ def version(verbose: bool) -> None:
         click.echo(f"HAT serial number:      {serial_number}")
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {whoami.get_rpi_machine()}")
+        click.echo(f"Image version:          {whoami.get_image_git_hash()}")
         if whoami.am_I_leader():
             try:
                 result = get("http://127.0.0.1/api/ui_version")
