@@ -273,7 +273,12 @@ def _pump_action(
 
 
 def _liquid_circulation(
-    pump_type: str, duration: pt.Seconds, unit=None, experiment=None, config=config, **kwargs
+    pump_type: str,
+    duration: pt.Seconds,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    config=config,
+    **kwargs,
 ) -> tuple[pt.mL, pt.mL]:
     """
     This function runs a continuous circulation of liquid using two pumps - one for waste and the other for the specified

@@ -25,7 +25,7 @@ class PIDMorbidostat(DosingAutomationJob):
         "duration": {"datatype": "float", "settable": True, "unit": "min"},
     }
 
-    def __init__(self, target_growth_rate=None, target_od=None, volume=None, **kwargs):
+    def __init__(self, target_growth_rate: float | str, target_od: float | str, **kwargs):
         super(PIDMorbidostat, self).__init__(**kwargs)
         assert target_od is not None, "`target_od` must be set"
         assert target_growth_rate is not None, "`target_growth_rate` must be set"
@@ -57,11 +57,6 @@ class PIDMorbidostat(DosingAutomationJob):
             job_name=self.job_name,
             target_name="growth_rate",
         )
-
-        if volume is not None:
-            self.logger.info(
-                "Ignoring volume parameter; volume set by target growth rate and duration."
-            )
 
         assert isinstance(self.duration, float)
         self.volume = round(self.target_growth_rate * self.VIAL_VOLUME * (self.duration / 60), 4)

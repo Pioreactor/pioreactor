@@ -74,8 +74,11 @@ if am_I_leader():
 
         if specific:
             for unit in units:
-                with open(f"/home/pioreactor/.pioreactor/config_{unit}.ini") as f:
-                    cur.execute(sql, (timestamp, f"config_{unit}.ini", f.read()))
+                try:
+                    with open(f"/home/pioreactor/.pioreactor/config_{unit}.ini") as f:
+                        cur.execute(sql, (timestamp, f"config_{unit}.ini", f.read()))
+                except FileNotFoundError:
+                    pass
 
         if shared:
             with open("/home/pioreactor/.pioreactor/config.ini") as f:
