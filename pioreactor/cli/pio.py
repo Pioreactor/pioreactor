@@ -269,11 +269,13 @@ def version(verbose: bool) -> None:
         click.echo(f"Raspberry Pi:           {whoami.get_rpi_machine()}")
         if whoami.am_I_leader():
             try:
-                click.echo(
-                    f"Pioreactor UI:          {get('http://127.0.0.1/api/ui_version').body.decode()}"
-                )
+                result = get("http://127.0.0.1/api/ui_version")
+                result.raise_for_status()
+                ui_version = result.body.decode()
             except Exception:
-                pass
+                ui_version = "<Failed to fetch>"
+
+            click.echo(f"Pioreactor UI:          {ui_version}")
     else:
         click.echo(pioreactor.__version__)
 
@@ -451,6 +453,9 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
 @update.command(name="firmware")
 @click.option("-v", "--version", help="install a specific version, default is latest")
 def update_firmware(version: Optional[str]) -> None:
+    """
+    Update the RP2040 firmware
+    """
     logger = create_logger(
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
@@ -462,7 +467,7 @@ def update_firmware(version: Optional[str]) -> None:
         version = f"tags/{version}"
 
     release_metadata = loads(
-        get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}").body
+        get(f"https://api.github.com/repos/pioreactor/pico-build/releases/{version}").body
     )
     version_installed = release_metadata["tag_name"]
 
