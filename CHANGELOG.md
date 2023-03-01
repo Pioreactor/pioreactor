@@ -9,9 +9,7 @@
  - Refactor internal pumping code. There's more flexibility that allows for solving parts of #384. Including:
   - creating cleaning scripts
   - creating cycling scripts, that also respect the rates of specific pumps vs waste (so that you don't overflow if addition rate > removal rate)
-
-  Namely, new functions `circulate_media` and `circulate_alt_media` are introduced that will cycle both a pump and the waste pump simultaneously. The waste pump starts first and ends second.
-
+  - Namely, new functions `circulate_media` and `circulate_alt_media` are introduced that will cycle both a pump and the waste pump simultaneously. The waste pump starts first and ends second.
  - removed the dosing automation `continous cycling`. It was redundant, and a leftover from an old feature.
 
 #### Bug fixes
