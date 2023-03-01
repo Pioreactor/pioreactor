@@ -3,25 +3,24 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from os import getpid
 from typing import Iterator
 
 from pioreactor.types import GpioPin
 from pioreactor.utils import local_intermittent_storage
 
-GPIO_IN_USE = "in_use"
-
 
 def set_gpio_availability(pin: GpioPin, available: bool) -> None:
     with local_intermittent_storage("gpio_in_use") as cache:
         if not available:
-            cache[pin] = GPIO_IN_USE
+            cache[pin] = getpid()
         else:
             cache.pop(pin)
 
 
 def is_gpio_available(pin: GpioPin) -> bool:
     with local_intermittent_storage("gpio_in_use") as cache:
-        return cache.get(pin) == GPIO_IN_USE
+        return cache.get(pin) is not None
 
 
 @contextmanager

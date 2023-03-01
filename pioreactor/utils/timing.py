@@ -13,6 +13,20 @@ from time import perf_counter
 
 @contextmanager
 def catchtime() -> t.Generator[t.Callable, None, None]:
+    """
+    A context manager that measures the elapsed time between entering and exiting the context.
+
+    Yields:
+        A function that returns the elapsed time (in seconds) since the context was entered.
+
+    Usage:
+        with catchtime() as elapsed_time:
+            # some code here
+        print(f"Elapsed time: {elapsed_time():.2f} seconds")
+
+    Returns:
+        A generator that yields a function.
+    """
     start = perf_counter()
     yield lambda: perf_counter() - start
 

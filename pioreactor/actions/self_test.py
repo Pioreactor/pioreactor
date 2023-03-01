@@ -35,7 +35,6 @@ from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
 from pioreactor.logging import Logger
 from pioreactor.pubsub import Client
-from pioreactor.pubsub import create_client
 from pioreactor.types import LedChannel
 from pioreactor.types import PdChannel
 from pioreactor.utils import is_pio_job_running
@@ -390,7 +389,6 @@ def click_self_test(k: str) -> int:
     unit = get_unit_name()
     testing_experiment = get_latest_testing_experiment_name()
     experiment = get_latest_experiment_name()
-    client = create_client(client_id=f"self_test-{unit}-{testing_experiment}")
     logger = create_logger("self_test", unit=unit, experiment=experiment)
     logger.info("Starting self-test...")
 
@@ -408,7 +406,8 @@ def click_self_test(k: str) -> int:
         test_positive_correlation_between_rpm_and_stirring,
     ]
 
-    with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test"):
+    with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test") as state:
+        client = state.client
         if any(
             is_pio_job_running(
                 ["od_reading", "temperature_control", "stirring", "dosing_control", "led_control"]

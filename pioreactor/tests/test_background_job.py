@@ -54,6 +54,26 @@ def test_states() -> None:
     bj.clean_up()
 
 
+def test_init_state_is_sent_to_mqtt() -> None:
+    # regression test
+    exp = "test_init_state_is_sent_to_mqtt"
+    unit = get_unit_name()
+    states = []
+
+    def update_state(msg: MQTTMessage) -> None:
+        states.append(msg.payload.decode())
+
+    subscribe_and_callback(
+        update_state, f"pioreactor/{unit}/{exp}/background_job/$state", allow_retained=False
+    )
+
+    with BackgroundJob(unit=unit, experiment=exp):
+        pass
+
+    assert len(states) == 3
+    assert states == ["init", "ready", "disconnected"]
+
+
 def test_jobs_connecting_and_disconnecting_will_still_log_to_mqtt() -> None:
     # see note in base.py about create_logger
     unit = get_unit_name()

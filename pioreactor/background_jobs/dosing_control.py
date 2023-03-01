@@ -110,11 +110,11 @@ class DosingController(BackgroundJob):
             self.automation_name = self.automation.automation_name
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations.",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations."
             )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -151,12 +151,14 @@ def start_dosing_control(
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
 
-    kwargs["duration"] = duration
-    kwargs["skip_first_run"] = skip_first_run
-
     try:
         return DosingController(
-            automation_name, unit=unit, experiment=experiment, **kwargs
+            automation_name,
+            unit=unit,
+            experiment=experiment,
+            duration=duration,
+            skip_first_run=skip_first_run,
+            **kwargs,
         )  # noqa: F841
 
     except Exception as e:

@@ -102,6 +102,7 @@ from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.background_jobs.base import LoggerMixin
 from pioreactor.config import config
+from pioreactor.hardware import ADC_CHANNEL_FUNCS
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import QOS
 from pioreactor.utils import argextrema
@@ -187,7 +188,7 @@ class ADCReader(LoggerMixin):
 
         max_signal = 0.0
         for pd_channel in self.channels:
-            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
+            adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
             max_signal = max(
                 self.adc.from_raw_to_voltage(self.adc.read_from_channel(adc_channel)), max_signal
             )
@@ -419,7 +420,7 @@ class ADCReader(LoggerMixin):
                 for counter in range(oversampling_count):
                     with catchtime() as time_sampling_took_to_run:
                         for pd_channel in self.channels:
-                            adc_channel = hardware.ADC_CHANNEL_FUNCS[pd_channel]
+                            adc_channel = ADC_CHANNEL_FUNCS[pd_channel]
                             timestamps[pd_channel][counter] = time_since_start()
                             aggregated_signals[pd_channel][counter] = self.adc.read_from_channel(
                                 adc_channel
@@ -562,8 +563,8 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     Unlike other models (see git history), instead of recording the _initial_ led value, we hardcode it to something. Why?
     In PhotodiodeIrLedReferenceTracker (see git history), the transform OD reading is proportional to the initial LED value:
 
-    OD = RAW / (REF / initial)
-       = initial * RAW / REF
+    OD = RAW / (EMA(REF) / initial)
+       = initial * ( RAW / EMA(REF) )
 
     This has problems because as the LED ages, the INITIAL will decrease, and then any calibrations will be start to be off.
 
@@ -571,12 +572,14 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     So in this class, we hardcode the INITIAL to be a STATIC value for all experiments:
 
-    OD = RAW / (REF / INITIAL)
-       = STATIC * RAW / REF
-       = INITIAL * RAW / REF
+    OD = RAW / (EMA(REF) / STATIC)
+       = STATIC * ( RAW / EMA(REF) )
+
+    Note: STATIC is just a scale value that makes the data / charts easier to work with. It doesn't (shouldn't) effect anything
+    downstream. Note too that as we are normalizing OD readings, the output has arbitrary units.
     """
 
-    INITIAL = 0.01
+    INITIAL = 0.01 if hardware.hardware_version_info < (1, 1) else 1.0
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()

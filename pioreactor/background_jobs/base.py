@@ -32,6 +32,7 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 T = t.TypeVar("T")
+BJT = t.TypeVar("BJT", bound="_BackgroundJob")
 
 
 def cast_bytes_to_type(value: bytes, type_: str):
@@ -43,7 +44,7 @@ def cast_bytes_to_type(value: bytes, type_: str):
         elif type_ == "integer":
             return int(value)
         elif type_ == "boolean":
-            return value.decode().lower() in ["true", "1", "y", "on", "yes"]
+            return value.decode().lower() in ("true", "1", "y", "on", "yes")
         elif type_ == "json":
             return loads(value)
         elif type_ == "Automation":
@@ -68,7 +69,6 @@ def format_with_optional_units(value: pt.PublishableSettingDataType, units: t.Op
 
 
 class LoggerMixin:
-
     _logger_name: t.Optional[str] = None
     _logger = None
 
@@ -236,7 +236,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def __init__(self, experiment: str, unit: str, source: str = "app") -> None:
         if self.job_name in self.DISALLOWED_JOB_NAMES:
-            raise ValueError("job name not allowed")
+            raise ValueError("Job name not allowed")
 
         self.experiment = experiment
         self.unit = unit
@@ -263,7 +263,17 @@ class _BackgroundJob(metaclass=PostInitCaller):
         self.pub_client = self._create_pub_client()
         self.sub_client = self._create_sub_client()
 
+        # add state
+        self.published_settings = self.published_settings | {
+            "state": {
+                "datatype": "string",
+                "settable": True,
+                "persist": True,
+            }
+        }
+
         self.set_state(self.INIT)
+
         self._set_up_exit_protocol()
         self._blocking_event = threading.Event()
 
@@ -273,6 +283,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
             # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
+            self._publish_properties_to_broker(self.published_settings)
+            self._publish_settings_to_broker(self.published_settings)
 
         except ValueError as e:
             self.logger.debug(e, exc_info=True)
@@ -283,15 +295,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # this happens _after_ pub clients are set up
         # The following is implicity done, too, in add_to_published_settings
         # self._publish_properties_to_broker(self.published_settings)
-        self.add_to_published_settings(
-            "state",
-            {
-                "datatype": "string",
-                "settable": True,
-                "persist": True,
-            },
-        )
-        self._publish_settings_to_broker(self.published_settings)
 
         self.start_general_passive_listeners()
 
@@ -424,7 +427,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return
 
     def set_state(self, new_state: pt.JobState) -> None:
-        if new_state not in [self.INIT, self.READY, self.DISCONNECTED, self.SLEEPING, self.LOST]:
+        if new_state not in {self.INIT, self.READY, self.DISCONNECTED, self.SLEEPING, self.LOST}:
             self.logger.error(f"saw {new_state}: not a valid state")
             return
 
@@ -494,8 +497,8 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     @staticmethod
     def _check_published_settings(published_settings: dict[str, pt.PublishableSetting]) -> None:
-        necessary_properies = set(["datatype", "settable"])
-        optional_properties = set(["unit", "persist"])
+        necessary_properies = {"datatype", "settable"}
+        optional_properties = {"unit", "persist"}
         all_properties = optional_properties.union(necessary_properies)
         for setting, properties in published_settings.items():
             # look for extra properties
@@ -730,7 +733,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # ideally, the on_disconnected shouldn't care what state it was in prior to being called.
         try:
             self.on_disconnected()
-
         except Exception as e:
             # since on_disconnected errors are common (see point below), we don't bother
             # making the visible to the user.
@@ -872,7 +874,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            None,
+            b"",
             retain=True,
         )
 
@@ -880,23 +882,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if not metadata_on_attr.get("persist", False):
                 self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                    None,
+                    b"",
                     retain=True,
                 )
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$settable",
-                None,
+                b"",
                 retain=True,
             )
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$datatype",
-                None,
+                b"",
                 retain=True,
             )
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$unit",
-                None,
+                b"",
                 retain=True,
             )
 
@@ -910,10 +912,10 @@ class _BackgroundJob(metaclass=PostInitCaller):
         if name in self.published_settings:
             self._publish_attr(name)
 
-    def __enter__(self):
+    def __enter__(self: BJT) -> BJT:
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(self, *args) -> None:
         self.clean_up()
 
 
@@ -1016,7 +1018,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
             )
 
     def _setup_actions(self, msg: pt.MQTTMessage) -> None:
-
         if not msg.payload:
             # OD reading stopped: reset and exit
             if hasattr(self, "sneak_in_timer"):

@@ -170,11 +170,21 @@ class PumpCalibration(Calibration):
     pump: str
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
-    duration_: float
+    duration_: t.Annotated[float, Meta(ge=0)]
     bias_: float
     voltage: float
     volumes: t.Optional[list[float]] = None
     durations: t.Optional[list[float]] = None
+
+    def ml_to_duration(self, ml: pt.mL) -> pt.Seconds:
+        duration_ = self.duration_
+        bias_ = self.bias_
+        return t.cast(pt.Seconds, (ml - bias_) / duration_)
+
+    def duration_to_ml(self, duration: pt.Seconds) -> pt.mL:
+        duration_ = self.duration_
+        bias_ = self.bias_
+        return t.cast(pt.mL, duration * duration_ + bias_)
 
 
 class MediaPumpCalibration(PumpCalibration, tag="media_pump"):  # type: ignore

@@ -253,7 +253,6 @@ class Monitor(BackgroundJob):
             self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
 
     def check_for_last_backup(self) -> None:
-
         with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
                 latest_backup_at = datetime.strptime(
@@ -276,7 +275,7 @@ class Monitor(BackgroundJob):
 
         def check_against_processes_running(msg: MQTTMessage) -> None:
             job = msg.topic.split("/")[3]
-            if (msg.payload.decode() in [self.READY, self.INIT, self.SLEEPING]) and (
+            if (msg.payload.decode() in (self.READY, self.INIT, self.SLEEPING)) and (
                 not utils.is_pio_job_running(job)
             ):
                 self.publish(
@@ -450,7 +449,6 @@ class Monitor(BackgroundJob):
         self.led_in_use = True
 
         for _ in range(4):
-
             self.led_on()
             sleep(0.14)
             self.led_off()
@@ -483,6 +481,8 @@ class Monitor(BackgroundJob):
         self.led_in_use = False
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
+        # we use a thread here since we want to exit this callback without blocking it.
+        # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
         import subprocess
         from shlex import (
@@ -497,34 +497,29 @@ class Monitor(BackgroundJob):
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
             state = {ch: payload.pop(ch) for ch in ALL_LED_CHANNELS if ch in payload}
-            exp = whoami._get_latest_experiment_name()
-
-            led_intensity(
-                state,
-                unit=self.unit,
-                experiment=exp,
-                pubsub_client=self.pub_client,
-                **payload,
-            )
-
-        elif job_name in ("add_media", "add_alt_media", "remove_waste"):
-            from pioreactor.actions.pump import add_media, add_alt_media, remove_waste
-
-            # we use a thread here since we want to exit this callback without blocking it.
-            # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
-
-            if job_name == "add_media":
-                pump_action = add_media  # type: ignore
-            elif job_name == "add_alt_media":
-                pump_action = add_alt_media  # type: ignore
-            elif job_name == "remove_waste":
-                pump_action = remove_waste  # type: ignore
-            else:
-                raise ValueError()
-
-            payload["config"] = config.get_config()  # techdebt
+            payload["pubsub_client"] = self.pub_client
             payload["unit"] = self.unit
-            payload["experiment"] = whoami._get_latest_experiment_name()
+            payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            Thread(
+                target=led_intensity,
+                args=(state,),
+                kwargs=payload,
+            ).start()
+
+        elif job_name in (
+            "add_media",
+            "add_alt_media",
+            "remove_waste",
+            "circulate_media",
+            "circulate_alt_media",
+        ):
+            from pioreactor.actions import pump as pump_actions
+
+            pump_action = getattr(pump_actions, job_name)
+
+            payload["unit"] = self.unit
+            payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            payload["config"] = config.get_config()  # techdebt
             Thread(target=pump_action, kwargs=payload, daemon=True).start()
 
         else:
@@ -543,7 +538,12 @@ class Monitor(BackgroundJob):
 
             self.logger.debug(f"Running `{command}` from Monitor job.")
 
-            subprocess.run(command, shell=True)
+            Thread(
+                target=subprocess.run,
+                args=(command,),
+                kwargs={"shell": True, "start_new_session": True},
+                daemon=True,
+            ).start()
 
     def flicker_error_code_from_mqtt(self, message: MQTTMessage) -> None:
         if self.led_in_use:

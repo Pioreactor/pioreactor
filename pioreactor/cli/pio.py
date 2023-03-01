@@ -65,7 +65,7 @@ def pio(ctx) -> None:
     default=100,
     type=int,
 )
-def logs(n) -> None:
+def logs(n: int) -> None:
     """
     Tail & stream the logs from this unit to the terminal. CTRL-C to exit.
     TODO: this consumes a full CPU core!
@@ -127,6 +127,7 @@ def log(message: str, level: str, name: str, local_only: bool):
             to_mqtt=not local_only,
         )
         getattr(logger, level)(message)
+        sleep(0.5)  # wait to make sure msg gets to mqtt
     except Exception:
         # don't let a logging error bring down a script...
         pass
@@ -134,11 +135,9 @@ def log(message: str, level: str, name: str, local_only: bool):
 
 @pio.command(name="blink", short_help="blink LED")
 def blink() -> None:
-
     monitor_running = is_pio_job_running("monitor")
 
     if not monitor_running:
-
         import RPi.GPIO as GPIO  # type: ignore
 
         GPIO.setmode(GPIO.BCM)
@@ -152,11 +151,9 @@ def blink() -> None:
             GPIO.output(LED_PIN, GPIO.LOW)
 
         with temporarily_set_gpio_unavailable(LED_PIN):
-
             GPIO.setup(LED_PIN, GPIO.OUT)
 
             for _ in range(4):
-
                 led_on()
                 sleep(0.14)
                 led_off()
@@ -193,7 +190,6 @@ def kill(job: list[str], all_jobs: bool) -> None:
             pass
 
     if all_jobs:
-
         # kill all running pioreactor processes
         with local_intermittent_storage("pio_jobs_running") as cache:
             for j in cache:
@@ -238,10 +234,10 @@ def kill(job: list[str], all_jobs: bool) -> None:
                 assert cache[led] == 0.0, f"LED {led} is not off!"
 
     else:
-        with local_persistant_storage("pio_jobs_running") as cache:
+        with local_intermittent_storage("pio_jobs_running") as cache:
             for j in cache:
                 if j in job:
-                    pid = cache[job]
+                    pid = cache[j]
                     safe_kill(int(pid))
 
 
@@ -271,13 +267,16 @@ def version(verbose: bool) -> None:
         click.echo(f"HAT serial number:      {serial_number}")
         click.echo(f"Operating system:       {platform.platform()}")
         click.echo(f"Raspberry Pi:           {whoami.get_rpi_machine()}")
+        click.echo(f"Image version:          {whoami.get_image_git_hash()}")
         if whoami.am_I_leader():
             try:
-                click.echo(
-                    f"Pioreactor UI:          {get('http://127.0.0.1/api/ui_version').body.decode()}"
-                )
+                result = get("http://127.0.0.1/api/ui_version")
+                result.raise_for_status()
+                ui_version = result.body.decode()
             except Exception:
-                pass
+                ui_version = "<Failed to fetch>"
+
+            click.echo(f"Pioreactor UI:          {ui_version}")
     else:
         click.echo(pioreactor.__version__)
 
@@ -290,11 +289,17 @@ def view_cache(cache: str) -> None:
 
     tmp_dir = tempfile.gettempdir()
 
+    persistant_dir = (
+        "/home/pioreactor/.pioreactor/storage/"
+        if not whoami.is_testing_env()
+        else ".pioreactor/storage"
+    )
+
     # is it a temp cache or persistant cache?
     if os.path.isdir(f"{tmp_dir}/{cache}"):
         cacher = local_intermittent_storage
 
-    elif os.path.isdir(f"home/pioreactor/.pioreactor/storage/{cache}"):
+    elif os.path.isdir(f"{persistant_dir}/{cache}"):
         cacher = local_persistant_storage
 
     else:
@@ -319,6 +324,7 @@ def update_settings(ctx, job: str) -> None:
     ----------
 
     > pio update-settings stirring --target_rpm 500
+    > pio update-settings stirring --target-rpm 500
     > pio update-settings dosing_control --automation '{"type": "dosing", "automation_name": "silent", "args": {}}
 
     """
@@ -329,7 +335,8 @@ def update_settings(ctx, job: str) -> None:
 
     assert len(extra_args) > 0
 
-    for (setting, value) in extra_args.items():
+    for setting, value in extra_args.items():
+        setting = setting.replace("-", "_")
         pubsub.publish(
             f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE
         )
@@ -391,32 +398,33 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
             # post_update.sh runs (if exists)
 
             # TODO: potential supply chain attack is to add malicious assets to releases
-            # TODO: good use of the Python switch statement below
             url = asset["browser_download_url"]
-            if asset["name"] == "pre_update.sh":
+            asset_name = asset["name"]
+
+            if asset_name == "pre_update.sh":
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/pre_update.sh {url}", 0),
                         ("sudo bash /tmp/pre_update.sh", 1),
                     ]
                 )
-            elif asset["name"].startswith("pioreactor") and asset["name"].endswith(".whl"):
+            elif asset_name.startswith("pioreactor") and asset_name.endswith(".whl"):
                 commands_and_priority.extend([(f'sudo pip3 install "pioreactor @ {url}"', 2)])
-            elif asset["name"] == "update.sh":
+            elif asset_name == "update.sh":
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/update.sh {url}", 3),
                         ("sudo bash /tmp/update.sh", 4),
                     ]
                 )
-            elif asset["name"] == "update.sql":
+            elif asset_name == "update.sql":
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/update.sql {url}", 5),
                         (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 6),
                     ]
                 )
-            elif asset["name"] == "post_update.sh":
+            elif asset_name == "post_update.sh":
                 # ex: post_update.sh can be used to restart machines
                 commands_and_priority.extend(
                     [
@@ -444,10 +452,54 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
 
 
 @update.command(name="firmware")
-@click.option("-b", "--branch", help="update to a branch on github")
-def update_firmware(branch: Optional[str]) -> None:
-    # TODO
-    return
+@click.option("-v", "--version", help="install a specific version, default is latest")
+def update_firmware(version: Optional[str]) -> None:
+    """
+    Update the RP2040 firmware
+    """
+    logger = create_logger(
+        "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+    )
+    commands_and_priority: list[tuple[str, int]] = []
+
+    if version is None:
+        version = "latest"
+    else:
+        version = f"tags/{version}"
+
+    release_metadata = loads(
+        get(f"https://api.github.com/repos/pioreactor/pico-build/releases/{version}").body
+    )
+    version_installed = release_metadata["tag_name"]
+
+    for asset in release_metadata["assets"]:
+        url = asset["browser_download_url"]
+        asset_name = asset["name"]
+
+        if asset_name == "main.elf":
+            commands_and_priority.extend(
+                [
+                    (f"sudo wget -O /usr/local/bin/main.elf {url}", 0),
+                    ("sudo bash /usr/local/bin/load_rp2040.sh", 1),
+                ]
+            )
+
+    for command, _ in sorted(commands_and_priority, key=lambda t: t[1]):
+        logger.debug(command)
+        p = subprocess.run(
+            command,
+            shell=True,
+            universal_newlines=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        if p.returncode != 0:
+            logger.debug(p.stderr)
+            logger.error("Update failed. See logs.")
+            # end early
+            raise click.Abort()
+
+    logger.notice(f"Updated Pioreactor firmware to version {version_installed}.")  # type: ignore
 
 
 pio.add_command(plugin_management.click_install_plugin)
@@ -595,7 +647,7 @@ if whoami.am_I_leader():
 
             return ip, state, reachable
 
-        def display_data_for(hostname_status) -> bool:
+        def display_data_for(hostname_status: tuple[str, str]) -> bool:
             hostname, status = hostname_status
 
             ip, state, reachable = get_network_metadata(hostname)

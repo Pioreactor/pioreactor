@@ -7,11 +7,13 @@ import tempfile
 from contextlib import contextmanager
 from threading import Event
 from typing import Callable
+from typing import cast
 from typing import Generator
 from typing import overload
 
 from diskcache import Cache  # type: ignore
 
+from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor import whoami
 from pioreactor.pubsub import create_client
@@ -20,6 +22,24 @@ from pioreactor.pubsub import subscribe_and_callback
 
 
 class callable_stack:
+    """
+    A class for managing a stack of callable objects in Python.
+
+    Example:
+    >>> def greet(name):
+    ... print(f"Hello, {name}!")
+    ...
+    >>> def goodbye(name):
+    ... print(f"Goodbye, {name}!")
+    ...
+    >>> my_stack = callable_stack()
+    >>> my_stack.append(greet)
+    >>> my_stack.append(goodbye)
+    >>> my_stack('Alice')
+    Goodbye, Alice!
+    Hello, Alice!
+    """
+
     def __init__(self) -> None:
         self.callables: list[Callable] = []
 
@@ -70,7 +90,7 @@ class publish_ready_to_disconnected_state:
     """
     Wrap a block of code to have "state" in MQTT. See od_normalization, self_test, pump
 
-    You can use MQTT ".../$state/set" tools to disconnect it.
+    You can use send a "disconnected" to "pioreactor/<unit>/<exp>/<name>/$state/set" to stop/disconnect it.
 
     Example
     ----------
@@ -96,11 +116,12 @@ class publish_ready_to_disconnected_state:
         self.unit = unit
         self.experiment = experiment
         self.name = name
+        self.state = "init"
         self.exit_event = Event()
 
         last_will = {
             "topic": f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "payload": "lost",
+            "payload": b"lost",
             "qos": QOS.EXACTLY_ONCE,
             "retain": True,
         }
@@ -113,7 +134,7 @@ class publish_ready_to_disconnected_state:
         self.start_passive_listeners()
 
     def _exit(self, *args) -> None:
-        # recall: I can't publish in a callback!
+        # recall: we can't publish in a callback!
         self.exit_event.set()
 
     def __enter__(self) -> publish_ready_to_disconnected_state:
@@ -124,9 +145,10 @@ class publish_ready_to_disconnected_state:
         except ValueError:
             pass
 
+        self.state = "ready"
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "ready",
+            self.state,
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
@@ -137,9 +159,10 @@ class publish_ready_to_disconnected_state:
         return self
 
     def __exit__(self, *args) -> None:
+        self.state = "disconnected"
         self.client.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.name}/$state",
-            "disconnected",
+            b"disconnected",
             qos=QOS.AT_LEAST_ONCE,
             retain=True,
         )
@@ -152,7 +175,7 @@ class publish_ready_to_disconnected_state:
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:
-        if message.payload.decode() == "disconnected":
+        if message.payload == b"disconnected":
             self._exit()
 
     def start_passive_listeners(self) -> None:
@@ -268,22 +291,6 @@ def is_pio_job_running(target_jobs):
         return results
 
 
-def pump_ml_to_duration(ml: float, duration_: float = 0, bias_: float = 0) -> float:
-    """
-    ml: the desired volume
-    duration_ : the coefficient from calibration
-    """
-    return (ml - bias_) / duration_
-
-
-def pump_duration_to_ml(duration: float, duration_: float = 0, bias_: float = 0) -> float:
-    """
-    duration: the desired volume
-    duration_ : the coefficient from calibration
-    """
-    return duration * duration_ + bias_
-
-
 def get_cpu_temperature() -> float:
     if whoami.is_testing_env():
         return 22.0
@@ -307,6 +314,25 @@ def argextrema(x: list) -> tuple[int, int]:
 
 
 class SummableDict(dict):
+    """
+    SummableDict is a subclass of dict that allows for easy addition of two dictionaries by key.
+    If a key exists in both dictionaries, the values are added together.
+    If a key only exists in one dictionary, it is included in the result with its original value.
+
+    Example
+    ---------
+    # create two SummableDicts
+    d1 = SummableDict({'a': 1, 'b': 2})
+    d2 = SummableDict({'b': 3, 'c': 4})
+
+    # add them together
+    result = d1 + d2
+
+    # result should be {'a': 1, 'b': 5, 'c': 4}
+
+
+    """
+
     def __init__(self, *arg, **kwargs):
         dict.__init__(self, *arg, **kwargs)
 

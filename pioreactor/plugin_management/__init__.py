@@ -115,11 +115,3 @@ def get_plugins() -> dict[str, Plugin]:
         )
 
     return plugins
-
-
-__all__ = (
-    "click_uninstall_plugin",
-    "click_install_plugin",
-    "click_list_plugins",
-    "get_plugins",
-)

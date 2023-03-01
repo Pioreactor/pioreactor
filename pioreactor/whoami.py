@@ -29,7 +29,6 @@ def get_latest_experiment_name() -> str:
 
 
 def _get_latest_experiment_name() -> str:
-
     if os.environ.get("EXPERIMENT") is not None:
         return os.environ["EXPERIMENT"]
     elif is_testing_env():
@@ -73,7 +72,6 @@ def get_hostname() -> str:
 
 @cache
 def get_unit_name() -> str:
-
     hostname = get_hostname()
 
     if hostname == "raspberrypi":
@@ -113,6 +111,14 @@ def get_rpi_machine() -> str:
             return f.read()
     else:
         return "Raspberry Pi 3 - testing"
+
+
+def get_image_git_hash() -> str:
+    try:
+        with open("/home/pioreactor/.pioreactor/.image_info") as f:
+            return f.read().strip().split("=")[1]
+    except FileNotFoundError:
+        return "<Failed to fetch>"
 
 
 if is_testing_env():

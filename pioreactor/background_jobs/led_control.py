@@ -23,7 +23,6 @@ from pioreactor.whoami import get_unit_name
 
 
 class LEDController(BackgroundJob):
-
     # this is automagically populated
     available_automations = {}  # type: ignore
     job_name = "led_control"
@@ -56,7 +55,6 @@ class LEDController(BackgroundJob):
         self.automation_name = self.automation.automation_name
 
     def set_automation(self, algo_metadata: LEDAutomation) -> None:
-
         assert isinstance(algo_metadata, LEDAutomation)
 
         try:
@@ -76,11 +74,11 @@ class LEDController(BackgroundJob):
             self.automation_name = self.automation.automation_name
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations.",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations."
             )
 
         except Exception as e:

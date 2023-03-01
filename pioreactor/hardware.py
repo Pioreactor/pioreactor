@@ -24,24 +24,24 @@ PWM_TO_PIN: dict[PwmChannel, GpioPin] = {
 
 # led and button GPIO pins
 PCB_LED_PIN: GpioPin = 23
-PCB_BUTTON_PIN: GpioPin = 24 if hardware_version_info <= (1, 0) else 4
+PCB_BUTTON_PIN: GpioPin = 24 if (0, 0) < hardware_version_info <= (1, 0) else 4
 
 # hall sensor
-HALL_SENSOR_PIN: GpioPin = 25 if hardware_version_info <= (1, 0) else 21
+HALL_SENSOR_PIN: GpioPin = 25 if (0, 0) < hardware_version_info <= (1, 0) else 21
 
 # I2C GPIO pins
 SDA: GpioPin = 2
 SCL: GpioPin = 3
 
 # I2C channels used
-ADC = 0x48 if hardware_version_info <= (1, 0) else 0x30
-DAC = 0x49 if hardware_version_info <= (1, 0) else 0x30
+ADC = 0x48 if (0, 0) < hardware_version_info <= (1, 0) else 0x30
+DAC = 0x49 if (0, 0) < hardware_version_info <= (1, 0) else 0x30
 TEMP = 0x4F
 
 # ADC map of function to hardware ADC channel
 ADC_CHANNEL_FUNCS: dict[str | PdChannel, AdcChannel]
 
-if hardware_version_info <= (1, 0):
+if (0, 0) < hardware_version_info <= (1, 0):
     ADC_CHANNEL_FUNCS = {
         "1": 0 if hardware_version_info <= (0, 1) else 1,
         "2": 1 if hardware_version_info <= (0, 1) else 0,
@@ -50,8 +50,8 @@ if hardware_version_info <= (1, 0):
     }
 else:
     ADC_CHANNEL_FUNCS = {
-        "1": 3,
-        "2": 2,
+        "1": 2,
+        "2": 3,
         "version": 0,
         "aux": 1,
     }

@@ -25,9 +25,9 @@ class LightDarkCycle(LEDAutomationJob):
 
     def __init__(
         self,
-        light_intensity: float,
-        light_duration_hours: int,
-        dark_duration_hours: int,
+        light_intensity: float | str,
+        light_duration_hours: int | str,
+        dark_duration_hours: int | str,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -43,7 +43,6 @@ class LightDarkCycle(LEDAutomationJob):
         return self.trigger_leds(self.hours_online)
 
     def trigger_leds(self, hours: int) -> events.AutomationEvent:
-
         cycle_duration = self.light_duration_hours + self.dark_duration_hours
 
         if ((hours % cycle_duration) < self.light_duration_hours) and (not self.light_active):
@@ -62,22 +61,18 @@ class LightDarkCycle(LEDAutomationJob):
 
         else:
             return events.NoEvent(f"{hours}h: no change.")
-            
+
     def set_dark_duration_hours(self, hours: int):
-        
         self.dark_duration_hours = hours
-        
+
         self.trigger_leds(self.hours_online)
-        
-        
+
     def set_light_duration_hours(self, hours: int):
-        
         self.light_duration_hours = hours
-        
+
         self.trigger_leds(self.hours_online)
 
-
-    def set_light_intensity(self, intensity):
+    def set_light_intensity(self, intensity: float | str):
         # this is the settr of light_intensity attribute, eg. called when updated over MQTT
         self.light_intensity = float(intensity)
         if self.light_active:

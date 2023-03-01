@@ -55,7 +55,7 @@ def add_hash_suffix(s: str) -> str:
 
 
 class Client(PahoClient):
-    def __enter__(self):
+    def __enter__(self) -> Client:
         return self
 
     def __exit__(self, *args):
@@ -191,7 +191,6 @@ def subscribe(
     retry_count = 1
     for retry_count in range(retries):
         try:
-
             lock: Optional[threading.Lock]
 
             def on_connect(client: Client, userdata, flags, rc) -> None:
@@ -251,7 +250,6 @@ def subscribe(
             sleep(3 * retry_count)  # linear backoff
 
     else:
-
         logger = create_logger(name or "pubsub.subscribe", to_mqtt=False)
         logger.error(f"Unable to connect to host: {hostname}. Exiting.")
         raise ConnectionRefusedError(f"Unable to connect to host: {hostname}.")
@@ -289,7 +287,6 @@ def subscribe_and_callback(
     def wrap_callback(actual_callback: Callable[[MQTTMessage], Any]) -> Callable:
         def _callback(client: Client, userdata: dict, message):
             try:
-
                 if not allow_retained and message.retain:
                     return
 
@@ -375,7 +372,7 @@ class collect_all_logs_of_level:
         if log["level"] == self.log_level:
             self.bucket.append(log)
 
-    def __enter__(self):
+    def __enter__(self) -> list[dict]:
         return self.bucket
 
     def __exit__(self, *args):

@@ -65,7 +65,7 @@ class ADS1115_ADC(_ADC):
             gain=self.gain,
             address=hardware.ADC,
         )
-        for channel in [0, 1, 2, 3]:
+        for channel in (0, 1, 2, 3):
             self.analog_in[channel] = AnalogIn(self._ads, channel)
 
     def check_on_gain(self, value: pt.Voltage, tol=0.85) -> None:
@@ -100,7 +100,7 @@ class Pico_ADC(_ADC):
         assert 0 <= channel <= 3
         result = bytearray(2)
         self.i2c.writeto_then_readfrom(
-            0x30, bytes([channel + 4]), result
+            hardware.ADC, bytes([channel + 4]), result
         )  # + 4 is the i2c pointer offset
         return int.from_bytes(result, byteorder="little", signed=False)
 
@@ -115,4 +115,4 @@ class Pico_ADC(_ADC):
         pass
 
 
-ADC = ADS1115_ADC if hardware_version_info <= (1, 0) else Pico_ADC
+ADC = ADS1115_ADC if (0, 0) < hardware_version_info <= (1, 0) else Pico_ADC

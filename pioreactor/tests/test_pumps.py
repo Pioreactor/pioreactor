@@ -12,11 +12,16 @@ from msgspec.json import encode
 from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
+from pioreactor.actions.pump import circulate_media
+from pioreactor.actions.pump import Pump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
+from pioreactor.exc import PWMError
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
+from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import timing
 from pioreactor.whoami import get_unit_name
 
 unit = get_unit_name()
@@ -88,13 +93,13 @@ def test_pump_fails_if_calibration_not_present():
         del cache["waste"]
 
     with pytest.raises(CalibrationError):
-        add_media(duration=1.0, unit=unit, experiment=exp)
+        add_media(ml=1.0, unit=unit, experiment=exp)
 
     with pytest.raises(CalibrationError):
-        add_alt_media(duration=1.0, unit=unit, experiment=exp)
+        add_alt_media(ml=1.0, unit=unit, experiment=exp)
 
     with pytest.raises(CalibrationError):
-        remove_waste(duration=1.0, unit=unit, experiment=exp)
+        remove_waste(ml=1.0, unit=unit, experiment=exp)
 
 
 def test_pump_io_doesnt_allow_negative() -> None:
@@ -145,7 +150,7 @@ def test_pump_will_disconnect_via_mqtt() -> None:
 
     pause()
     pause()
-    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", "disconnected")
+    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
     pause()
     pause()
 
@@ -178,14 +183,11 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
 
     pause()
     pause()
-    publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", "disconnected")
-    pause()
-    pause()
-
-    pause()
+    with timing.catchtime() as elapsed_time:
+        publish(f"pioreactor/{unit}/{exp}/add_media/$state/set", b"disconnected", qos=1)
+        assert elapsed_time() < 1.5
 
     resulting_ml = t.join()
-
     assert resulting_ml > 0
 
 
@@ -198,3 +200,186 @@ def test_pump_publishes_to_state():
         assert r.payload.decode() == "disconnected"
     else:
         assert False
+
+
+def test_pump_can_be_interrupted():
+    experiment = "test_pump_can_be_interrupted"
+    calibration = structs.MediaPumpCalibration(
+        name="setup_function",
+        duration_=1.0,
+        bias_=0.0,
+        dc=100,
+        hz=100,
+        timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        pump="media",
+    )
+
+    with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
+        p.continuously(block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache[13] == 100
+
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
+
+        p.by_duration(seconds=100, block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache[13] == 100
+
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
+
+        p.by_volume(ml=100, block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache[13] == 100
+
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
+
+
+def test_pumps_can_run_in_background():
+    experiment = "test_pumps_can_run_in_background"
+
+    calibration = structs.MediaPumpCalibration(
+        name="setup_function",
+        duration_=1.0,
+        bias_=0.0,
+        dc=60,
+        hz=100,
+        timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        voltage=-1.0,
+        pump="media",
+    )
+    with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
+
+        p.by_volume(ml=100, block=False)
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 60
+
+        p.stop()
+        pause()
+        with local_intermittent_storage("pwm_dc") as cache:
+            assert cache.get(13, 0) == 0
+
+
+def test_media_circulation():
+    exp = "test_media_circulation"
+    media_added, waste_removed = circulate_media(5, unit, exp)
+    assert waste_removed > media_added
+
+
+def test_media_circulation_cant_run_when_waste_pump_is_running():
+    from threading import Thread
+
+    exp = "test_media_circulation_cant_run_when_waste_pump_is_running"
+    t = Thread(target=remove_waste, kwargs={"duration": 3.0, "experiment": exp, "unit": unit})
+    t.start()
+    time.sleep(0.1)
+
+    with pytest.raises(PWMError):
+        circulate_media(5.0, unit, exp)
+
+    t.join()
+
+
+def test_waste_pump_cant_run_when_media_circulation_is_running():
+    from threading import Thread
+
+    exp = "test_waste_pump_cant_run_when_media_circulation_is_running"
+    t = Thread(target=circulate_media, kwargs={"duration": 3.0, "experiment": exp, "unit": unit})
+    t.start()
+    time.sleep(0.1)
+
+    with pytest.raises(PWMError):
+        remove_waste(unit, exp, duration=5.0)
+
+    t.join()
+
+
+def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate():
+    exp = "test_media_circulation_will_control_media_pump_if_it_has_a_higher_rate"
+
+    with local_persistant_storage("current_pump_calibration") as cache:
+        cache["media"] = encode(
+            structs.MediaPumpCalibration(
+                name="setup_function",
+                duration_=10.0,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="media",
+            )
+        )
+        cache["waste"] = encode(
+            structs.WastePumpCalibration(
+                name="setup_function",
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="waste",
+            )
+        )
+
+    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    assert (waste_removed - 2) >= media_added
+
+
+def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate():
+    exp = "test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate"
+
+    with local_persistant_storage("current_pump_calibration") as cache:
+        cache["media"] = encode(
+            structs.MediaPumpCalibration(
+                name="setup_function",
+                duration_=0.15,
+                bias_=0.0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="media",
+            )
+        )
+        cache["waste"] = encode(
+            structs.WastePumpCalibration(
+                name="setup_function",
+                duration_=1.0,
+                bias_=0,
+                dc=60,
+                hz=100,
+                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                voltage=-1.0,
+                pump="waste",
+            )
+        )
+
+    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    assert (waste_removed - 2) >= media_added
+
+
+def test_media_circulation_works_without_calibration_since_we_are_entering_duration():
+    exp = "test_media_circulation_works_without_calibration_since_we_are_entering_duration"
+    with local_persistant_storage("current_pump_calibration") as cache:
+        del cache["media"]
+        del cache["waste"]
+
+    media_added, waste_removed = circulate_media(5.0, unit, exp)
+    assert waste_removed >= media_added

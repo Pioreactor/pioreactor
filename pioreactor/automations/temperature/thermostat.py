@@ -19,7 +19,7 @@ class Thermostat(TemperatureAutomationJob):
         "target_temperature": {"datatype": "float", "unit": "℃", "settable": True}
     }
 
-    def __init__(self, target_temperature: float, **kwargs) -> None:
+    def __init__(self, target_temperature: float | str, **kwargs) -> None:
         super().__init__(**kwargs)
         assert target_temperature is not None, "target_temperature must be set"
         self.target_temperature = float(target_temperature)

@@ -7,20 +7,8 @@ based on signals from sensors, or simply based on time.
 from __future__ import annotations
 
 from .chemostat import Chemostat
-from .continuous_cycle import ContinuousCycle
 from .fed_batch import FedBatch
 from .morbidostat import Morbidostat
 from .pid_morbidostat import PIDMorbidostat
 from .silent import Silent
 from .turbidostat import Turbidostat
-
-
-__all__ = (
-    "Chemostat",
-    "ContinuousCycle",
-    "Morbidostat",
-    "PIDMorbidostat",
-    "Turbidostat",
-    "Silent",
-    "FedBatch",
-)

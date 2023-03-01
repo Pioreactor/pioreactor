@@ -291,11 +291,11 @@ class TemperatureController(BackgroundJob):
 
         except KeyError:
             self.logger.debug(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}",
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations.",
                 exc_info=True,
             )
             self.logger.warning(
-                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}"
+                f"Unable to find automation {algo_metadata.automation_name}. Available automations are {list(self.available_automations.keys())}. Note: You need to restart this job to have access to newly-added automations."
             )
         except Exception as e:
             self.logger.debug(f"Change failed because of {str(e)}", exc_info=True)
@@ -308,7 +308,6 @@ class TemperatureController(BackgroundJob):
         return True
 
     def _check_if_exceeds_max_temp(self, temp: float) -> None:
-
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
@@ -322,7 +321,6 @@ class TemperatureController(BackgroundJob):
             call("sudo shutdown now --poweroff", shell=True)
 
         elif temp > self.MAX_TEMP_TO_DISABLE_HEATING:
-
             self.blink_error_code(error_codes.PCB_TEMPERATURE_TOO_HIGH)
 
             self.logger.warning(
@@ -337,7 +335,6 @@ class TemperatureController(BackgroundJob):
                 )
 
         elif temp > self.MAX_TEMP_TO_REDUCE_HEATING:
-
             self.logger.debug(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_REDUCE_HEATING}℃ - currently {temp}℃. This is close to our maximum recommended value. The heating PWM channel will be reduced to 90% its current value. Take caution when touching the heating surface and wetware."
             )
@@ -394,7 +391,6 @@ class TemperatureController(BackgroundJob):
 
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
         with self.pwm.lock_temporarily():
-
             previous_heater_dc = self.heater_duty_cycle
 
             features: dict[str, Any] = {}

@@ -1,3 +1,23 @@
+### 23.3.1
+
+ - Performance improvements
+ - Python dependencies for Pioreactor UI are now handled by this project.
+ - Better initialization of jobs from UI
+ - Version information now presented in UI
+ - More support for HAT version 1.1
+ - more Linux permission updates.
+ - Refactor internal pumping code. There's more flexibility that allows for solving parts of #384. Including:
+  - creating cleaning scripts
+  - creating cycling scripts, that also respect the rates of specific pumps vs waste (so that you don't overflow if addition rate > removal rate)
+
+  Namely, new functions `circulate_media` and `circulate_alt_media` are introduced that will cycle both a pump and the waste pump simultaneously. The waste pump starts first and ends second.
+
+ - removed the dosing automation `continous cycling`. It was redundant, and a leftover from an old feature.
+
+#### Bug fixes
+ - Fixed `pio kill <job>` to actually kill a job
+ - Fix for running PID morbidostat
+
 ### 23.2.17
 
 #### Bug fixes
