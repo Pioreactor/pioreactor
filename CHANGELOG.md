@@ -1,4 +1,4 @@
-### Upcoming
+### 23.3.1
 
  - Performance improvements
  - Python dependencies for Pioreactor UI are now handled by this project.
