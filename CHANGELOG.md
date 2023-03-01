@@ -5,6 +5,7 @@
  - Better initialization of jobs from UI
  - Version information now presented in UI
  - More support for HAT version 1.1
+ - more Linux permission updates.
  - Refactor internal pumping code. There's more flexibility that allows for solving parts of #384. Including:
   - creating cleaning scripts
   - creating cycling scripts, that also respect the rates of specific pumps vs waste (so that you don't overflow if addition rate > removal rate)
