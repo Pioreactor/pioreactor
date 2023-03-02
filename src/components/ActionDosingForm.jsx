@@ -8,7 +8,6 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
-import FormLabel from '@mui/material/FormLabel';
 import InputAdornment from '@mui/material/InputAdornment';
 
 
@@ -177,7 +176,7 @@ export default function ActionPumpForm(props) {
       <div style={{display: "flex", marginTop: '5px'}}>
         <LoadingButton
           loading={clicked && (props?.job?.state === "disconnected")}
-          disabled={(formErrorML && dosingMethod === 'volume') || (formErrorDuration && dosingMethod == 'duration') || (props?.job?.state === "ready")}
+          disabled={(formErrorML && dosingMethod === 'volume') || (formErrorDuration && dosingMethod === 'duration') || (props?.job?.state === "ready")}
           type="submit"
           variant="contained"
           size="small"

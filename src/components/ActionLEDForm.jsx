@@ -50,7 +50,7 @@ export default function ActionLEDForm(props) {
 
   function onChange(e) {
     setIntensity(e.target.value);
-    if (e.target.value === '' || re.test(e.target.value)) {
+    if (e.target.value === EMPTYSTATE || re.test(e.target.value)) {
       setErrorForm(false)
     } else {
       setErrorForm(true)
@@ -92,6 +92,7 @@ export default function ActionLEDForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
+          disabled={intensity === EMPTYSTATE}
           style={{marginLeft: "7px"}}
         >
           Update

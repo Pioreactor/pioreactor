@@ -4,9 +4,7 @@ import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import { makeStyles } from "@mui/styles";
 import LoadingButton from '@mui/lab/LoadingButton';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
-import FormLabel from '@mui/material/FormLabel';
 import InputAdornment from '@mui/material/InputAdornment';
 
 
@@ -37,7 +35,6 @@ export default function ActionCirculatingForm(props) {
   const [clicked, setClicked] = useState(false)
 
   const [formErrorDuration, setFormErrorDuration] = useState(false)
-  const [formErrorML, setFormErrorML] = useState(false)
 
 
   function onSubmit(e) {

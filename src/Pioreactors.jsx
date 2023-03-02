@@ -4,7 +4,6 @@ import { Client, Message } from "paho-mqtt";
 import React, {useState, useEffect} from "react";
 
 import Grid from '@mui/material/Grid';
-import PropTypes from 'prop-types';
 import { useMediaQuery } from "@mui/material";
 
 import { makeStyles } from '@mui/styles';
@@ -177,7 +176,8 @@ const useStyles = makeStyles((theme) => ({
       justifyContent: "space-between",
     }
   },
-  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"}
+  headerButtons: {display: "flex", flexDirection: "row", justifyContent: "flex-start", flexFlow: "wrap"},
+  patientButton: {width: "70px", marginTop: "5px", height: "31px", marginRight: '3px'},
 }));
 
 function PythonBoolToJS(pythonBoolAsString){
@@ -210,13 +210,6 @@ function TabPanel(props) {
     </div>
   );
 }
-
-TabPanel.propTypes = {
-  children: PropTypes.node,
-  index: PropTypes.any.isRequired,
-  value: PropTypes.any.isRequired,
-};
-
 
 function UnitSettingDisplaySubtext(props){
   const classes = useStyles();
@@ -556,6 +549,7 @@ function PioreactorHeader(props) {
 
 
 function PatientButton(props) {
+  const classes = useStyles()
   const [buttonText, setButtonText] = useState(props.buttonText)
 
   useEffect(
@@ -576,7 +570,7 @@ function PatientButton(props) {
   return (
     <Button
       disableElevation
-      style={{width: "70px", marginTop: "5px", height: "31px"}}
+      className={classes.patientButton}
       color={props.color}
       variant={props.variant}
       disabled={props.disabled}
@@ -685,7 +679,7 @@ function CalibrateDialog(props) {
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
               For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
-              media's un-inoculated optical density. Read more about <a href="">using blanks</a>.
+              media's un-inoculated optical density. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
             </Typography>
 
             {blankODButton}
@@ -1262,7 +1256,7 @@ function SettingsActionsDialog(props) {
                 </Typography>
 
                 <Button
-                  style={{width: "70px", marginTop: "5px"}}
+                  className={classes.patientButton}
                   size="small"
                   color="primary"
                   variant="contained"
@@ -1271,7 +1265,7 @@ function SettingsActionsDialog(props) {
                   Start
                 </Button>
                 <Button
-                  style={{width: "70px", marginTop: "5px"}}
+                  className={classes.patientButton}
                   size="small"
                   color="primary"
                   disabled={true}
@@ -1336,7 +1330,7 @@ function SettingsActionsDialog(props) {
                 </Typography>
 
                 <Button
-                  style={{width: "70px", marginTop: "5px"}}
+                  className={classes.patientButton}
                   size="small"
                   color="primary"
                   variant="contained"
@@ -1345,7 +1339,7 @@ function SettingsActionsDialog(props) {
                   Start
                 </Button>
                 <Button
-                  style={{width: "70px", marginTop: "5px"}}
+                  className={classes.patientButton}
                   size="small"
                   color="primary"
                   disabled={true}
@@ -1410,7 +1404,7 @@ function SettingsActionsDialog(props) {
                 </Typography>
 
                 <Button
-                  style={{width: "70px", marginTop: "5px"}}
+                  className={classes.patientButton}
                   size="small"
                   color="primary"
                   variant="contained"
@@ -1419,7 +1413,7 @@ function SettingsActionsDialog(props) {
                   Start
                 </Button>
                 <Button
-                  style={{width: "70px", marginTop: "5px"}}
+                  className={classes.patientButton}
                   size="small"
                   color="primary"
                   disabled={true}
@@ -1551,7 +1545,7 @@ function SettingsActionsDialog(props) {
             Add media
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the media pump for a set duration (s), moving a set volume (mL), or continuously.
+            Run the media pump for a set duration (s), moving a set volume (mL), or continuously add until stopped.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
@@ -1562,7 +1556,7 @@ function SettingsActionsDialog(props) {
             Remove waste
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the waste pump for a set duration (s), moving a set volume (mL), or continuously.
+            Run the waste pump for a set duration (s), moving a set volume (mL), or continuously remove until stopped.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to remove waste:
@@ -1573,7 +1567,7 @@ function SettingsActionsDialog(props) {
             Add alternative media
           </Typography>
           <Typography variant="body2" component="p" gutterBottom>
-            Run the alt-media pump for a set duration (s), moving a set volume (mL), or continuously.
+            Run the alt-media pump for a set duration (s), moving a set volume (mL), or continuously add until stopped.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add alt-media:
@@ -2108,8 +2102,8 @@ function SettingsActionsDialogAll({config, experiment}) {
           <Typography  gutterBottom>
             Add media
           </Typography>
-          <Typography variant="body2" component="p">
-            Run the media pumps for a set duration (seconds), moving a set volume (mL), or continuously.
+          <Typography variant="body2" component="p" gutterBottom>
+            Run the media pumps for a set duration (seconds), moving a set volume (mL), or continuously add until stopped.
           </Typography>
           <Typography variant="body2" component="p">
             Specify how you’d like to add media:
@@ -2119,17 +2113,23 @@ function SettingsActionsDialogAll({config, experiment}) {
           <Typography  gutterBottom>
             Remove waste
           </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Run the waste pumps for a set duration (seconds), moving a set volume (mL), or continuously add until stopped.
+          </Typography>
           <Typography variant="body2" component="p">
-            Run the waste pumps for a set duration (seconds), moving a set volume (mL), or continuously.
+            Specify how you’d like to remove media:
           </Typography>
           <ActionDosingForm action="remove_waste" unit={unit} />
           <Divider className={classes.divider} />
           <Typography gutterBottom>
             Add alternative media
           </Typography>
-          <Typography variant="body2" component="p">
+          <Typography variant="body2" component="p" gutterBottom>
             Run the alternative media pumps for a set duration (seconds), moving a set
-            volume (mL), or continuously.
+            volume (mL), or continuously add until stopped.
+          </Typography>
+          <Typography variant="body2" component="p">
+            Specify how you’d like to add alt-media:
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={unit} />
           <Divider className={classes.divider} />
@@ -2205,7 +2205,7 @@ function SettingTextField(props){
 
     const onSubmit = () => {
         props.onUpdate(props.id, value);
-        if (value != "") {
+        if (value !== "") {
           props.setSnackbarMessage(`Updating to ${value}${(!props.units) ? "" : (" "+props.units)}.`)
         } else {
           props.setSnackbarMessage("Updating.")
@@ -2287,7 +2287,7 @@ function ActiveUnits(props){
   )
   var emptyState = (
     <div style={{textAlign: "center", marginBottom: '50px', marginTop: "50px"}}>
-      <Typography>
+      <Typography component='div' variant='body2'>
         <Box fontWeight="fontWeightRegular">
           No active Pioreactors. Do you need to update `cluster.inventory` section in the <a href="/config">configuration</a>?
         </Box>
