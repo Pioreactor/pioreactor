@@ -791,7 +791,7 @@ function SelfTestDialog(props) {
 
     switch (jobState){
       case "disconnected":
-       return (<div>
+       return (<div key={"disconnected_" + job}>
                <PatientButton
                 color="primary"
                 variant="contained"
@@ -800,7 +800,7 @@ function SelfTestDialog(props) {
                />
               </div>)
       case "ready":
-       return (<div>
+       return (<div key={"ready_" + job}>
                <PatientButton
                 color="primary"
                 variant="contained"
@@ -1062,7 +1062,7 @@ function SettingsActionsDialog(props) {
   function createUserButtonsBasedOnState(jobState, job){
     switch (jobState){
       case "lost":
-        return (<div key={"patient_buttons_" + job}>
+        return (<div key={"patient_buttons_lost" + job}>
                   <PatientButton
                     color="primary"
                     variant="contained"
@@ -1071,46 +1071,55 @@ function SettingsActionsDialog(props) {
                   />
         </div>)
       case "disconnected":
-       return (<div key={"patient_buttons_" + job}>
+       return (<div key={"patient_buttons_disconnected" + job}>
                  <PatientButton
                   color="primary"
                   variant="contained"
                   onClick={startPioreactorJob(job)}
                   buttonText="Start"
                  />
+                <PatientButton
+                  color="secondary"
+                  disabled={true}
+                  buttonText="Stop"
+                />
               </div>)
       case "init":
-        return (<div key={"patient_buttons_" + job}>
-                  <PatientButton
-                    color="primary"
-                    variant="contained"
-                    onClick={()=>(false)}
-                    buttonText=<CircularProgress color="inherit" size={22}/>
-                    disabled={true}
-                  />
-                  <PatientButton
-                    color="secondary"
-                    onClick={stopPioreactorJob(job)}
-                    buttonText="Stop"
-                  />
-        </div>)
+        return (
+          <div key={"patient_buttons_init" + job}>
+            <PatientButton
+              color="primary"
+              variant="contained"
+              onClick={()=>(false)}
+              buttonText=<CircularProgress color="inherit" size={22}/>
+              disabled={true}
+            />
+            <PatientButton
+              color="secondary"
+              onClick={stopPioreactorJob(job)}
+              buttonText="Stop"
+            />
+          </div>
+        )
       case "ready":
-        return (<div key={"patient_buttons_" + job}>
-                  <PatientButton
-                    color="secondary"
-                    variant="contained"
-                    onClick={setPioreactorJobState(job, "sleeping")}
-                    buttonText="Pause"
-                  />
-                  <PatientButton
-                    color="secondary"
-                    onClick={stopPioreactorJob(job)}
-                    buttonText="Stop"
-                  />
-        </div>)
+        return (
+          <div key={"patient_buttons_ready" + job}>
+            <PatientButton
+              color="secondary"
+              variant="contained"
+              onClick={setPioreactorJobState(job, "sleeping")}
+              buttonText="Pause"
+            />
+            <PatientButton
+              color="secondary"
+              onClick={stopPioreactorJob(job)}
+              buttonText="Stop"
+            />
+          </div>
+          )
       case "sleeping":
         return (
-          <div key={"patient_buttons_" + job}>
+          <div key={"patient_buttons_sleeping" + job}>
             <PatientButton
               color="primary"
               variant="contained"
@@ -1125,7 +1134,7 @@ function SettingsActionsDialog(props) {
           </div>
           )
       default:
-        return(<div key={"patient_buttons_" + job}></div>)
+        return(<div key={"patient_buttons_empty" + job}></div>)
     }
    }
   const LEDMap = props.config['leds']
@@ -1261,6 +1270,14 @@ function SettingsActionsDialog(props) {
                 >
                   Start
                 </Button>
+                <Button
+                  style={{width: "70px", marginTop: "5px"}}
+                  size="small"
+                  color="primary"
+                  disabled={true}
+                >
+                  Stop
+                </Button>
 
                </React.Fragment>
               }
@@ -1327,7 +1344,14 @@ function SettingsActionsDialog(props) {
                 >
                   Start
                 </Button>
-
+                <Button
+                  style={{width: "70px", marginTop: "5px"}}
+                  size="small"
+                  color="primary"
+                  disabled={true}
+                >
+                  Stop
+                </Button>
                </React.Fragment>
               }
             </div>
@@ -1394,7 +1418,14 @@ function SettingsActionsDialog(props) {
                 >
                   Start
                 </Button>
-
+                <Button
+                  style={{width: "70px", marginTop: "5px"}}
+                  size="small"
+                  color="primary"
+                  disabled={true}
+                >
+                  Stop
+                </Button>
                </React.Fragment>
               }
             </div>
