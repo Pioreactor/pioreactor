@@ -243,7 +243,9 @@ class Stirrer(BackgroundJob):
             job_name=self.job_name,
             run_immediately=True,
             run_after=6,
-            poll_for_seconds=4,  # technically should be a function of the RPM: lower RPM, longer to get sufficient estimate with low variance.
+            kwargs={
+                "poll_for_seconds": 4
+            },  # technically should be a function of the RPM: lower RPM, longer to get sufficient estimate with low variance.
         )
 
     def initialize_rpm_to_dc_lookup(self, target_rpm: float) -> Callable:

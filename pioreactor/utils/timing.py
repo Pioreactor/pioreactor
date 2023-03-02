@@ -89,8 +89,8 @@ class RepeatedTimer:
         job_name: t.Optional[str] = None,
         run_immediately: bool = False,
         run_after: t.Optional[float] = None,
-        *args,
-        **kwargs,
+        args=(),
+        kwargs={},
     ) -> None:
         from pioreactor.logging import create_logger
 

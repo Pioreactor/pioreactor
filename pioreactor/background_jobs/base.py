@@ -1059,7 +1059,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 "For optimal OD readings, keep `pre_delay_duration` more than 0.1 seconds."
             )
 
-        def sneak_in() -> None:
+        def sneak_in(ads_interval, post_delay, pre_delay) -> None:
             if self.state != self.READY:
                 return
 
@@ -1093,7 +1093,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
             )
             self.clean_up()
 
-        self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
+        self.sneak_in_timer = RepeatedTimer(
+            ads_interval,
+            sneak_in,
+            args=(ads_interval, post_delay, pre_delay),
+            run_immediately=False,
+        )
 
         time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
 
