@@ -45,7 +45,7 @@ export default function ActionCirculatingForm(props) {
     if (duration !== EMPTYSTATE) {
       setClicked(true)
 
-      var params = { duration: duration, source_of_event: "UI"}
+      var params = { duration: parseFloat(duration), source_of_event: "UI"}
       var msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
 
       fetch(`/api/run/${props.action}/${props.unit}`, {

@@ -53,10 +53,10 @@ export default function ActionPumpForm(props) {
       var params = {}
       var msg = ""
       if (dosingMethod === 'volume'){
-        params = { ml: mL, source_of_event: "UI"};
+        params = { ml: parseFloat(mL), source_of_event: "UI"};
         msg = actionToAct[props.action] + (" until " + mL + "mL is reached.")
       } else if (dosingMethod === 'duration') {
-        params = { duration: duration, source_of_event: "UI"}
+        params = { duration: parseFloat(duration), source_of_event: "UI"}
         msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
       } else {
         params = {continuously: true, source_of_event: "UI"}
