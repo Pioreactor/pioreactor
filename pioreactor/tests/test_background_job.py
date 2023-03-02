@@ -393,7 +393,6 @@ def test_cleans_up_mqtt() -> None:
 
 
 def test_dodging() -> None:
-
     config["just_pause"] = {}
     config["just_pause"]["post_delay_duration"] = "0.75"
     config["just_pause"]["pre_delay_duration"] = "0.25"
@@ -441,8 +440,48 @@ def test_dodging() -> None:
     ODReader._post_read.clear()
 
 
-def test_disabled_dodging() -> None:
+def test_dodging_when_od_reading_stops_first() -> None:
+    config["just_pause"] = {}
+    config["just_pause"]["post_delay_duration"] = "0.75"
+    config["just_pause"]["pre_delay_duration"] = "0.25"
+    config["just_pause"]["enable_dodging_od"] = "1"
 
+    class JustPause(BackgroundJobWithDodging):
+        job_name = "just_pause"
+
+        def __init__(self):
+            super().__init__(
+                unit=get_unit_name(), experiment="test_dodging_when_od_reading_stops_first"
+            )
+
+        def action_to_do_before_od_reading(self):
+            self.logger.notice(f"   Pausing at {time.time()} 🛑")
+
+        def action_to_do_after_od_reading(self):
+            self.logger.notice(f"   Unpausing at {time.time()} 🟢")
+
+    st = start_od_reading(
+        "90",
+        None,
+        unit=get_unit_name(),
+        experiment="test_dodging_when_od_reading_stops_first",
+        fake_data=True,
+        use_calibration=False,
+    )
+    time.sleep(5)
+
+    with collect_all_logs_of_level(
+        "ERROR", unit=get_unit_name(), experiment="test_dodging_when_od_reading_stops_first"
+    ) as bucket:
+        with JustPause():
+            time.sleep(5)
+            st.clean_up()
+            time.sleep(5)
+
+        assert len(bucket) == 0
+
+
+def test_disabled_dodging() -> None:
     exp = "test_disabled_dodging"
     config["just_pause"] = {}
     config["just_pause"]["post_delay_duration"] = "0.2"
