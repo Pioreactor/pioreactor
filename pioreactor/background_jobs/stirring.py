@@ -136,7 +136,6 @@ class RpmFromFrequency(RpmCalculator):
         self._start_time = None
 
     def __call__(self, seconds_to_observe: float) -> float:
-
         self.clear_aggregates()
         self.turn_on_collection()
         self.sleep_for(seconds_to_observe)
@@ -244,7 +243,9 @@ class Stirrer(BackgroundJob):
             job_name=self.job_name,
             run_immediately=True,
             run_after=6,
-            poll_for_seconds=4,  # technically should be a function of the RPM: lower RPM, longer to get sufficient estimate with low variance.
+            kwargs={
+                "poll_for_seconds": 4
+            },  # technically should be a function of the RPM: lower RPM, longer to get sufficient estimate with low variance.
         )
 
     def initialize_rpm_to_dc_lookup(self, target_rpm: float) -> Callable:
@@ -253,7 +254,6 @@ class Stirrer(BackgroundJob):
             return lambda rpm: self.duty_cycle
 
         with local_persistant_storage("stirring_calibration") as cache:
-
             if "linear_v1" in cache:
                 self.logger.debug("Found stirring calibration `linear_v1`.")
                 parameters = json.loads(cache["linear_v1"])
@@ -305,7 +305,7 @@ class Stirrer(BackgroundJob):
             timeout=3,
         )
 
-        if first_od_obs_time_msg is not None:
+        if first_od_obs_time_msg is not None and first_od_obs_time_msg.payload:
             first_od_obs_time = float(first_od_obs_time_msg.payload)
         else:
             self.kick_stirring()

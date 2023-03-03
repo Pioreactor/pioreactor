@@ -874,7 +874,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         """
         self.publish(
             f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/$properties",
-            b"",
+            None,
             retain=True,
         )
 
@@ -882,23 +882,23 @@ class _BackgroundJob(metaclass=PostInitCaller):
             if not metadata_on_attr.get("persist", False):
                 self.publish(
                     f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}",
-                    b"",
+                    None,
                     retain=True,
                 )
 
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$settable",
-                b"",
+                None,
                 retain=True,
             )
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$datatype",
-                b"",
+                None,
                 retain=True,
             )
             self.publish(
                 f"pioreactor/{self.unit}/{self.experiment}/{self.job_name}/{attr}/$unit",
-                b"",
+                None,
                 retain=True,
             )
 
@@ -1059,7 +1059,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
                 "For optimal OD readings, keep `pre_delay_duration` more than 0.1 seconds."
             )
 
-        def sneak_in() -> None:
+        def sneak_in(ads_interval, post_delay, pre_delay) -> None:
             if self.state != self.READY:
                 return
 
@@ -1073,7 +1073,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         ads_start_time_msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/first_od_obs_time"
         )
-        if ads_start_time_msg is not None:
+        if ads_start_time_msg:
             ads_start_time = float(ads_start_time_msg.payload)
         else:
             return
@@ -1081,7 +1081,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         ads_interval_msg = subscribe(
             f"pioreactor/{self.unit}/{self.experiment}/od_reading/interval"
         )
-        if ads_interval_msg is not None:
+        if ads_interval_msg:
             ads_interval = float(ads_interval_msg.payload)
         else:
             return
@@ -1093,7 +1093,12 @@ class BackgroundJobWithDodging(_BackgroundJob):
             )
             self.clean_up()
 
-        self.sneak_in_timer = RepeatedTimer(ads_interval, sneak_in, run_immediately=False)
+        self.sneak_in_timer = RepeatedTimer(
+            ads_interval,
+            sneak_in,
+            args=(ads_interval, post_delay, pre_delay),
+            run_immediately=False,
+        )
 
         time_to_next_ads_reading = ads_interval - ((time() - ads_start_time) % ads_interval)
 

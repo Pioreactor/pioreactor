@@ -35,7 +35,14 @@ from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
 
 
-JOBS_TO_SKIP_KILLING = ["monitor", "watchdog", "mqtt_to_db_streaming"]
+JOBS_TO_SKIP_KILLING = [
+    "monitor",
+    "watchdog",
+    "mqtt_to_db_streaming",
+    "temperature_automation",
+    "dosing_automation",
+    "led_automation",
+]
 
 
 @click.group(invoke_without_command=True)
@@ -177,7 +184,7 @@ def blink() -> None:
 @click.option("--all-jobs", is_flag=True, help="kill all Pioreactor jobs running")
 def kill(job: list[str], all_jobs: bool) -> None:
     """
-    stop a job(s).
+    stop job(s).
     """
 
     from sh import kill  # type: ignore
@@ -191,11 +198,14 @@ def kill(job: list[str], all_jobs: bool) -> None:
 
     if all_jobs:
         # kill all running pioreactor processes
+        jobs_killed_already = []
         with local_intermittent_storage("pio_jobs_running") as cache:
             for j in cache:
                 if j not in JOBS_TO_SKIP_KILLING:
                     pid = cache[j]
-                    safe_kill(int(pid))
+                    if pid not in jobs_killed_already:
+                        safe_kill(int(pid))
+                        jobs_killed_already.append(pid)
 
         # kill all pumping
         with pubsub.create_client() as client:
