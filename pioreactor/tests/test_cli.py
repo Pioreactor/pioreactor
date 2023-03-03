@@ -8,6 +8,7 @@ import pytest
 from click.testing import CliRunner
 
 from pioreactor import whoami
+from pioreactor.background_jobs.dosing_control import start_dosing_control
 from pioreactor.cli.pio import pio
 from pioreactor.cli.pios import pios
 from pioreactor.pubsub import collect_all_logs_of_level
@@ -91,3 +92,27 @@ def test_pios_update_settings():
     pause()
     pause()
     assert len(bucket) > 1
+
+
+def test_pio_kill_cleans_up_automations_correctly():
+    with start_dosing_control("silent"):
+        pause()
+
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            assert "dosing_automation" in cache
+
+        pause()
+        pause()
+        pause()
+        pause()
+
+        runner = CliRunner()
+        result = runner.invoke(pio, ["kill", "--all-jobs"])
+
+        assert result.exit_code == 0
+        pause()
+        pause()
+        pause()
+
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            assert "dosing_automation" not in cache

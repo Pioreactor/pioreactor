@@ -1,3 +1,6 @@
+### Upcoming
+ - fix bug in ending experiments not cleaning up properly.
+
 ### 23.3.1
 
  - Performance improvements
