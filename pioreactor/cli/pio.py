@@ -35,7 +35,14 @@ from pioreactor.utils.gpio_helpers import temporarily_set_gpio_unavailable
 from pioreactor.utils.networking import add_local
 
 
-JOBS_TO_SKIP_KILLING = ["monitor", "watchdog", "mqtt_to_db_streaming"]
+JOBS_TO_SKIP_KILLING = [
+    "monitor",
+    "watchdog",
+    "mqtt_to_db_streaming",
+    "temperature_automation",
+    "dosing_automation",
+    "led_automation",
+]
 
 
 @click.group(invoke_without_command=True)

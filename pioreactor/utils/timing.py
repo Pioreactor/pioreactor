@@ -145,7 +145,7 @@ class RepeatedTimer:
         if hasattr(self, "start_time"):
             return self.interval - ((perf_counter() - self.start_time) % self.interval)
         else:
-            # technically this is wrong, but it fixes an edge case.
+            # TODO technically this is wrong, but it fixes an edge case.
             return 0
 
     @property
