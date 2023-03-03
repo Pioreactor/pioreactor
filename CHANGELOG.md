@@ -1,5 +1,5 @@
-### Upcoming
- - fix bug in ending experiments not cleaning up properly.
+### 23.3.2
+ - fix bug in ending experiments not cleaning up automations properly.
 
 ### 23.3.1
 
