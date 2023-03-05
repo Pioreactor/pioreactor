@@ -217,7 +217,6 @@ class ADCReader(LoggerMixin):
         )
 
     def check_on_max(self, value: pt.Voltage) -> None:
-
         if value > 3.2:
             self.logger.error(
                 f"An ADC channel is recording a very high voltage, {round(value, 2)}V. We are shutting down components and jobs to keep the ADC safe."
@@ -527,7 +526,6 @@ class ADCReader(LoggerMixin):
 
 
 class IrLedReferenceTracker(LoggerMixin):
-
     _logger_name = "ir_led_ref"
     channel: pt.PdChannel
 
@@ -570,16 +568,14 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
 
     Note: The reason we have INITIAL is so that our transformed OD reading is not some uninterpretable large number (as RAW / REF would be).
 
-    So in this class, we hardcode the INITIAL to be a STATIC value for all experiments:
+    OD = RAW / (EMA(REF) / INITIAL)
+       = INITIAL * ( RAW / EMA(REF) )
 
-    OD = RAW / (EMA(REF) / STATIC)
-       = STATIC * ( RAW / EMA(REF) )
-
-    Note: STATIC is just a scale value that makes the data / charts easier to work with. It doesn't (shouldn't) effect anything
+    Note: INITIAL is just a scale value that makes the data / charts easier to work with. It doesn't (shouldn't) effect anything
     downstream. Note too that as we are normalizing OD readings, the output has arbitrary units.
     """
 
-    INITIAL = 0.01 if hardware.hardware_version_info < (1, 1) else 1.0
+    INITIAL = 1.0
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()
@@ -671,7 +667,6 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     )
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[float], float]:
-
         if calibration_data.curve_type == "poly":
             """
             Finds the smallest root in the range [minOD, maxOD] calibrated against.
@@ -980,7 +975,6 @@ class ODReader(BackgroundJob):
         self.record_from_adc_timer.unpause()
 
     def on_disconnected(self) -> None:
-
         # turn off the LED after we have take our last ADC reading..
         try:
             self.stop_ir_led()
@@ -1023,7 +1017,6 @@ class ODReader(BackgroundJob):
         return self.calibration_transformer(self.ir_led_reference_tracker(batched_readings))
 
     def _publish_batch(self, od_readings: structs.ODReadings) -> None:
-
         if self.state != self.READY:
             return
 
@@ -1113,7 +1106,6 @@ def start_od_reading(
     experiment: Optional[str] = None,
     use_calibration: bool = config.getboolean("od_config", "use_calibration"),
 ) -> ODReader:
-
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
 
