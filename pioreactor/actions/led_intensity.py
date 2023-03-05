@@ -12,6 +12,7 @@ import click
 from msgspec.json import encode
 
 from pioreactor import structs
+from pioreactor.exc import HardwareNotFoundError
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
@@ -178,7 +179,7 @@ def led_intensity(
                 dac = DAC()
                 dac.set_intensity_to(getattr(dac, channel), intensity)
 
-            except ValueError as e:
+            except (ValueError, HardwareNotFoundError) as e:
                 logger.debug(e, exc_info=True)
                 logger.error(
                     "Unable to find I²C for LED driver. Is the Pioreactor HAT attached to the Raspberry Pi?"

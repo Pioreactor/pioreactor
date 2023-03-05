@@ -36,9 +36,13 @@ from pioreactor.utils.networking import add_local
 
 
 JOBS_TO_SKIP_KILLING = [
+    # this is used in `pio kill --all-jobs`, but accessible so that plugins can edit it.
+    # don't kill our permanent jobs
     "monitor",
     "watchdog",
     "mqtt_to_db_streaming",
+    # don't kill automations, let the parent controller do it.
+    # probably all BackgroundSubJob should be here.
     "temperature_automation",
     "dosing_automation",
     "led_automation",
@@ -59,7 +63,7 @@ def pio(ctx) -> None:
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
-    # this check could go somewhere else. This check won't execute if calling pioreactor from a script.
+    # this check could go somewhere else. TODO This check won't execute if calling pioreactor from a script.
     if not check_firstboot_successful():
         raise SystemError(
             "/usr/local/bin/firstboot.sh found on disk. firstboot.sh likely failed. Try looking for errors in `sudo systemctl status firstboot.service`."
@@ -244,11 +248,14 @@ def kill(job: list[str], all_jobs: bool) -> None:
                 assert cache[led] == 0.0, f"LED {led} is not off!"
 
     else:
+        jobs_killed_already = []
         with local_intermittent_storage("pio_jobs_running") as cache:
             for j in cache:
                 if j in job:
                     pid = cache[j]
-                    safe_kill(int(pid))
+                    if pid not in jobs_killed_already:
+                        safe_kill(int(pid))
+                        jobs_killed_already.append(pid)
 
 
 @pio.group(short_help="run a job")
