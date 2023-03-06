@@ -16,7 +16,6 @@ from typing import Optional
 import click
 
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.logging import create_logger
 from pioreactor.structs import LEDAutomation
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -107,21 +106,14 @@ def start_led_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> LEDController:
-    try:
-        return LEDController(
-            automation_name=automation_name,
-            unit=unit or get_unit_name(),
-            experiment=experiment or get_latest_experiment_name(),
-            skip_first_run=skip_first_run,
-            duration=duration,
-            **kwargs,
-        )
-
-    except Exception as e:
-        logger = create_logger("led_automation")
-        logger.error(e)
-        logger.debug(e, exc_info=True)
-        raise e
+    return LEDController(
+        automation_name=automation_name,
+        unit=unit or get_unit_name(),
+        experiment=experiment or get_latest_experiment_name(),
+        skip_first_run=skip_first_run,
+        duration=duration,
+        **kwargs,
+    )
 
 
 @click.command(

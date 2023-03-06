@@ -1,5 +1,6 @@
 ### Upcoming
- -
+ - Removed the scaling difference between hardware versions in OD Reading.
+ - Moving some Python dependencies into this repo.
 
 ### 23.3.2
  - fix bug in ending experiments not cleaning up automations properly.
