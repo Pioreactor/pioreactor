@@ -46,22 +46,6 @@ from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 
 
-def is_TI_device():
-    # WARNING: this may wipe the temperature sensor if used during operation.
-    from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
-    import busio  # type: ignore
-
-    comm_port = busio.I2C(hardware.SCL, hardware.SDA)
-    read_buffer = bytearray(2)
-    write_buffer = bytearray([0x04])
-    i2c = I2CDevice(comm_port, hardware.TEMP)
-    try:
-        i2c.write_then_readinto(write_buffer, read_buffer)
-        return False
-    except Exception:
-        return True
-
-
 class TemperatureController(BackgroundJob):
     """
 
