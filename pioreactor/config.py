@@ -22,7 +22,6 @@ def __getattr__(attr):  # type: ignore
 
 
 class ConfigParserMod(configparser.ConfigParser):
-
     # https://stackoverflow.com/a/19359720/1895939
     optionxform = str  # type: ignore
     BOOLEAN_STATES = {
@@ -91,8 +90,8 @@ def get_config() -> ConfigParserMod:
     config = ConfigParserMod()
 
     if is_testing_env():
-        global_config_path = "./config.dev.ini"
-        local_config_path = ""
+        global_config_path = os.environ.get("GLOBAL_CONFIG", "./config.dev.ini")
+        local_config_path = os.environ.get("LOCAL_CONFIG", "")
     else:
         global_config_path = "/home/pioreactor/.pioreactor/config.ini"
         local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
