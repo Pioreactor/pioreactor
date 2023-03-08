@@ -78,6 +78,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
 
         self.temperature_control_parent = temperature_control_parent
 
+    def on_init_to_ready(self):
         self.start_passive_listeners()
 
     def update_heater(self, new_duty_cycle: float) -> bool:

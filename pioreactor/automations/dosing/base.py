@@ -237,11 +237,9 @@ class DosingAutomationJob(BackgroundSubJob):
             },
         )
 
-        # we delay setting this up until _after_ the subclasses __init__ has resolved
-        self._post_init = lambda: self.set_duration(duration)
+        self.set_duration(duration)
 
     def on_init_to_ready(self):
-        self._post_init()
         self.start_passive_listeners()
 
     def set_duration(self, duration: Optional[float]) -> None:

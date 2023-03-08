@@ -96,7 +96,9 @@ class LEDAutomationJob(BackgroundSubJob):
         )
 
         self.set_duration(duration)
-        self.start_passive_listeners()  # move this to on_init_to_ready?
+
+    def on_init_to_ready(self):
+        self.start_passive_listeners()
 
     def set_duration(self, duration: float) -> None:
         self.duration = float(duration)
