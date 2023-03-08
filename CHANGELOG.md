@@ -1,6 +1,8 @@
-### Upcoming
+### 23.3.8
  - Removed the scaling difference between hardware versions in OD Reading.
  - Moving some Python dependencies into this repo.
+ - More error handling around hardware versions
+ - fix `self_test.test_ambient_light_interference` test failing for HAT 1.1.
 
 ### 23.3.2
  - fix bug in ending experiments not cleaning up automations properly.
