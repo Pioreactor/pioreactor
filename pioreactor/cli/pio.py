@@ -426,6 +426,9 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                     ]
                 )
             elif asset_name.startswith("pioreactor") and asset_name.endswith(".whl"):
+                assert (
+                    version_installed in url
+                ), f"Hm, pip installing {url} but this doesn't match version installing: {version_installed}"
                 commands_and_priority.extend([(f'sudo pip3 install "pioreactor @ {url}"', 2)])
             elif asset_name == "update.sh":
                 commands_and_priority.extend(
