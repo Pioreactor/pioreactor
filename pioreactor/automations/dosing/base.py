@@ -156,12 +156,15 @@ class DosingAutomationJob(BackgroundSubJob):
     job_name = "dosing_automation"
     published_settings: dict[str, pt.PublishableSetting] = {}
 
-    _latest_growth_rate: Optional[float] = None
-    _latest_normalized_od: Optional[float] = None
-    _latest_od: Optional[dict[pt.PdChannel, float]] = None
     previous_normalized_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
     previous_od: Optional[dict[pt.PdChannel, float]] = None
+    # latest_normalized_od: float  // defined as properties
+    # latest_growth_rate: float  // defined as properties
+    # latest_od: dict[pt.PdChannel, float]  // defined as properties
+    _latest_growth_rate: Optional[float] = None
+    _latest_normalized_od: Optional[float] = None
+    _latest_od: Optional[dict[pt.PdChannel, float]] = None
 
     latest_event: Optional[events.AutomationEvent] = None
     _latest_settings_ended_at: Optional[datetime] = None
