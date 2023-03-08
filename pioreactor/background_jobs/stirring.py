@@ -73,6 +73,7 @@ class RpmCalculator:
 
         # ignore any changes that occur within 15ms - at 1000rpm (very fast), the
         # delta between changes is ~60ms, so 15ms is good enough.
+        # TODO: sometimes this fails with `RuntimeError: Failed to add edge detection`
         self.GPIO.add_event_detect(
             self.hall_sensor_pin, self.GPIO.FALLING, callback=self.callback, bouncetime=15
         )
