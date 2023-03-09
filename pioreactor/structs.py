@@ -43,7 +43,14 @@ class Automation(Struct):
         s = ""
         s += f"{self.automation_name}"
         s += "("
-        s += ", ".join(f"{k}={v}" for k, v in self.args.items())
+        for i, (k, v) in enumerate(self.args.items()):
+            if k == "skip_first_run":
+                v = bool(int(v))
+            if i == 0:
+                s += f"{k}={v}"
+            else:
+                s += f", {k}={v}"
+
         s += ")"
         return s
 
