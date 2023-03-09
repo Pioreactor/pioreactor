@@ -1,4 +1,4 @@
-### 23.3.8
+### 23.3.9
  - Removed the scaling difference between hardware versions in OD Reading.
  - Moving some Python dependencies into this repo.
  - More error handling around hardware versions
