@@ -16,6 +16,8 @@ CORE_REQUIREMENTS = [
     "colorlog==6.7.0",
     "msgspec==0.13.1",
     "diskcache==5.4.0",
+    "wheel==0.38.4",
+    "crudini==0.9.4",
     # tech debt - this needed to be in the core req
     # leader requirement
     # this direct dependency also prevents us from uploading to PyPI...

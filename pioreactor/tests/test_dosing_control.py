@@ -1488,3 +1488,32 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
             time.sleep(30)
 
         assert len(bucket) >= 1
+
+
+@pytest.mark.xfail
+def test_a_failing_automation_cleans_duration_attr_in_mqtt_up() -> None:
+    experiment = "test_a_failing_automation_cleans_itself_up"
+
+    pubsub.publish(
+        f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", None, retain=True
+    )
+
+    class Failure(DosingAutomationJob):
+        automation_name = "failure"
+
+        published_settings = {
+            "duration": {"datatype": "float", "settable": True, "unit": "min"},
+        }
+
+        def __init__(self, volume: float | str, **kwargs) -> None:
+            super().__init__(**kwargs)
+            raise exc.CalibrationError("Media pump calibration must be performed first.")
+
+    with pytest.raises(exc.CalibrationError):
+        with start_dosing_control("failure", 60, False, get_unit_name(), experiment, volume=10):
+            pass
+
+    result = pubsub.subscribe(
+        f"pioreactor/{get_unit_name()}/{experiment}/dosing_automation/duration", timeout=2
+    )
+    assert result is None

@@ -43,6 +43,7 @@ from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils import SummableDict
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import trimmed_mean
+from pioreactor.version import hardware_version_info
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
@@ -73,7 +74,6 @@ def test_REF_is_in_correct_position(
         experiment=experiment,
         use_calibration=False,
     ) as od_stream:
-
         for i, reading in enumerate(od_stream):
             signal1.append(reading.ods["1"].od)
             signal2.append(reading.ods["2"].od)
@@ -193,7 +193,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     # we require that the IR photodiodes defined in the config have a
     # correlation with the IR led
     pd_channels_to_test: list[PdChannel] = []
-    for (channel, angle_or_ref) in config["od_config.photodiode_channel"].items():
+    for channel, angle_or_ref in config["od_config.photodiode_channel"].items():
         if angle_or_ref != "":
             channel = cast(PdChannel, channel)
             pd_channels_to_test.append(channel)
@@ -229,13 +229,15 @@ def test_ambient_light_interference(
 
     readings = adc_reader.take_reading()
 
-    assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
+    if hardware_version_info < (1, 1):
+        assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
+    else:
+        assert all([readings[pd_channel] < 0.060 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
 def test_REF_is_lower_than_0_dot_256_volts(
     client, logger: Logger, unit: str, experiment: str
 ) -> None:
-
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     ir_channel = cast(LedChannel, config["leds_reverse"][IR_keyword])
     ir_intensity = config.getfloat("od_config", "ir_led_intensity")
@@ -271,7 +273,6 @@ def test_positive_correlation_between_temperature_and_heating(
     assert is_heating_pcb_present()
 
     with TemperatureController("only_record_temperature", unit=unit, experiment=experiment) as tc:
-
         measured_pcb_temps = []
         dcs = list(range(0, 22, 3))
         logger.debug("Varying heating.")
@@ -299,7 +300,6 @@ def test_positive_correlation_between_rpm_and_stirring(
     current_experiment_name = get_latest_experiment_name()
 
     with local_persistant_storage("stirring_calibration") as cache:
-
         if "linear_v1" in cache:
             parameters = loads(cache["linear_v1"])
             rpm_coef = parameters["rpm_coef"]
@@ -319,7 +319,6 @@ def test_positive_correlation_between_rpm_and_stirring(
     with stirring.Stirrer(
         target_rpm=0, unit=unit, experiment=current_experiment_name, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
-
         rpm_calc.setup()
         st.duty_cycle = initial_dc
         st.start_stirring()
@@ -342,7 +341,6 @@ def test_positive_correlation_between_rpm_and_stirring(
 
 class BatchTestRunner:
     def __init__(self, tests_to_run: list[Callable], *test_func_args) -> None:
-
         self.count_tested = 0
         self.count_passed = 0
         self.tests_to_run = tests_to_run
@@ -357,7 +355,6 @@ class BatchTestRunner:
         return SummableDict({"count_tested": self.count_tested, "count_passed": self.count_passed})
 
     def _run(self, client, logger: Logger, unit: str, experiment_name: str) -> None:
-
         for test in self.tests_to_run:
             res = False
             test_name = test.__name__

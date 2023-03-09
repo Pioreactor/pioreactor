@@ -6,13 +6,13 @@ from typing import cast
 
 import busio  # type: ignore
 
+from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import types as pt
 from pioreactor.version import hardware_version_info
 
 
 class _ADC:
-
     gain: float = 1
 
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
@@ -29,7 +29,6 @@ class _ADC:
 
 
 class ADS1115_ADC(_ADC):
-
     DATA_RATE = 128
     ADS1X15_GAIN_THRESHOLDS = {
         2 / 3: (4.096, 6.144),
@@ -99,10 +98,15 @@ class Pico_ADC(_ADC):
     def read_from_channel(self, channel: pt.AdcChannel) -> pt.AnalogValue:
         assert 0 <= channel <= 3
         result = bytearray(2)
-        self.i2c.writeto_then_readfrom(
-            hardware.ADC, bytes([channel + 4]), result
-        )  # + 4 is the i2c pointer offset
-        return int.from_bytes(result, byteorder="little", signed=False)
+        try:
+            self.i2c.writeto_then_readfrom(
+                hardware.ADC, bytes([channel + 4]), result
+            )  # + 4 is the i2c pointer offset
+            return int.from_bytes(result, byteorder="little", signed=False)
+        except OSError:
+            raise exc.HardwareNotFoundError(
+                f"Unable to find i2c channel {hardware.ADC}. Is the HAT attached? Is the firmware loaded?"
+            )
 
     def from_voltage_to_raw(self, voltage: pt.Voltage) -> pt.AnalogValue:
         return int((voltage / 3.3) * 4095 * 16)

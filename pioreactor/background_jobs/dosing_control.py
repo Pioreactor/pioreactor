@@ -27,7 +27,6 @@ import click
 
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.logging import create_logger
 from pioreactor.structs import DosingAutomation
 
 
@@ -148,24 +147,14 @@ def start_dosing_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> DosingController:
-    unit = unit or whoami.get_unit_name()
-    experiment = experiment or whoami.get_latest_experiment_name()
-
-    try:
-        return DosingController(
-            automation_name,
-            unit=unit,
-            experiment=experiment,
-            duration=duration,
-            skip_first_run=skip_first_run,
-            **kwargs,
-        )  # noqa: F841
-
-    except Exception as e:
-        logger = create_logger("dosing_automation")
-        logger.error(e)
-        logger.debug(e, exc_info=True)
-        raise e
+    return DosingController(
+        automation_name,
+        unit=unit or whoami.get_unit_name(),
+        experiment=experiment or whoami.get_latest_experiment_name(),
+        duration=duration,
+        skip_first_run=skip_first_run,
+        **kwargs,
+    )
 
 
 @click.command(

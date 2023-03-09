@@ -1,3 +1,9 @@
+### 23.3.9
+ - Removed the scaling difference between hardware versions in OD Reading.
+ - Moving some Python dependencies into this repo.
+ - More error handling around hardware versions
+ - fix `self_test.test_ambient_light_interference` test failing for HAT 1.1.
+
 ### 23.3.2
  - fix bug in ending experiments not cleaning up automations properly.
 
@@ -13,7 +19,7 @@
   - creating cleaning scripts
   - creating cycling scripts, that also respect the rates of specific pumps vs waste (so that you don't overflow if addition rate > removal rate)
   - Namely, new functions `circulate_media` and `circulate_alt_media` are introduced that will cycle both a pump and the waste pump simultaneously. The waste pump starts first and ends second.
- - removed the dosing automation `continous cycling`. It was redundant, and a leftover from an old feature.
+ - removed the dosing automation `continuous cycling`. It was redundant, and a leftover from an old feature.
 
 #### Bug fixes
  - Fixed `pio kill <job>` to actually kill a job

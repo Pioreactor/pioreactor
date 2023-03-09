@@ -36,7 +36,6 @@ from pioreactor import exc
 from pioreactor import hardware
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
-from pioreactor.logging import create_logger
 from pioreactor.structs import Temperature
 from pioreactor.structs import TemperatureAutomation
 from pioreactor.utils import clamp
@@ -45,22 +44,6 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
-
-
-def is_TI_device():
-    # WARNING: this may wipe the temperature sensor if used during operation.
-    from adafruit_bus_device.i2c_device import I2CDevice  # type: ignore
-    import busio  # type: ignore
-
-    comm_port = busio.I2C(hardware.SCL, hardware.SDA)
-    read_buffer = bytearray(2)
-    write_buffer = bytearray([0x04])
-    i2c = I2CDevice(comm_port, hardware.TEMP)
-    try:
-        i2c.write_then_readinto(write_buffer, read_buffer)
-        return False
-    except Exception:
-        return True
 
 
 class TemperatureController(BackgroundJob):
@@ -581,18 +564,12 @@ def start_temperature_control(
     experiment: Optional[str] = None,
     **kwargs,
 ) -> TemperatureController:
-    try:
-        return TemperatureController(
-            automation_name=automation_name,
-            unit=unit or whoami.get_unit_name(),
-            experiment=experiment or whoami.get_latest_experiment_name(),
-            **kwargs,
-        )
-    except Exception as e:
-        logger = create_logger("temperature_automation")
-        logger.error(e)
-        logger.debug(e, exc_info=True)
-        raise e
+    return TemperatureController(
+        automation_name=automation_name,
+        unit=unit or whoami.get_unit_name(),
+        experiment=experiment or whoami.get_latest_experiment_name(),
+        **kwargs,
+    )
 
 
 @click.command(

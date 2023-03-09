@@ -7,11 +7,11 @@ from typing import cast
 import busio  # type: ignore
 
 from pioreactor import hardware
+from pioreactor.exc import HardwareNotFoundError
 from pioreactor.version import hardware_version_info
 
 
 class _DAC:
-
     A = 0
     B = 1
     C = 2
@@ -23,7 +23,6 @@ class _DAC:
 
 
 class DAC43608_DAC(_DAC):
-
     A = 8
     B = 9
     C = 10
@@ -60,9 +59,14 @@ class Pico_DAC(_DAC):
         self.i2c = busio.I2C(hardware.SCL, hardware.SDA)
 
     def set_intensity_to(self, channel: int, intensity: float) -> None:
-        # to 8 bit integer
-        eight_bit = round((intensity / 100) * 255)
-        self.i2c.writeto(hardware.DAC, bytes([channel, eight_bit]))
+        try:
+            # to 8 bit integer
+            eight_bit = round((intensity / 100) * 255)
+            self.i2c.writeto(hardware.DAC, bytes([channel, eight_bit]))
+        except OSError:
+            raise HardwareNotFoundError(
+                f"Unable to find i2c channel {hardware.DAC}. Is the HAT attached? Is the firmware loaded?"
+            )
 
 
 DAC = DAC43608_DAC if (0, 0) < hardware_version_info <= (1, 0) else Pico_DAC

@@ -71,7 +71,6 @@ class ThroughputCalculator:
 
 
 class VialVolumeCalculator:
-
     max_volume = config.getfloat("bioreactor", "max_volume_ml")
 
     @classmethod
@@ -157,12 +156,15 @@ class DosingAutomationJob(BackgroundSubJob):
     job_name = "dosing_automation"
     published_settings: dict[str, pt.PublishableSetting] = {}
 
-    _latest_growth_rate: Optional[float] = None
-    _latest_normalized_od: Optional[float] = None
-    _latest_od: Optional[dict[pt.PdChannel, float]] = None
     previous_normalized_od: Optional[float] = None
     previous_growth_rate: Optional[float] = None
     previous_od: Optional[dict[pt.PdChannel, float]] = None
+    # latest_normalized_od: float  // defined as properties
+    # latest_growth_rate: float  // defined as properties
+    # latest_od: dict[pt.PdChannel, float]  // defined as properties
+    _latest_growth_rate: Optional[float] = None
+    _latest_normalized_od: Optional[float] = None
+    _latest_od: Optional[dict[pt.PdChannel, float]] = None
 
     latest_event: Optional[events.AutomationEvent] = None
     _latest_settings_ended_at: Optional[datetime] = None
@@ -237,6 +239,7 @@ class DosingAutomationJob(BackgroundSubJob):
 
         self.set_duration(duration)
 
+    def on_init_to_ready(self):
         self.start_passive_listeners()
 
     def set_duration(self, duration: Optional[float]) -> None:
@@ -640,7 +643,6 @@ class DosingAutomationJob(BackgroundSubJob):
         return AltMediaCalculator
 
     def _init_vial_volume_calculator(self, initial_vial_volume) -> Type[VialVolumeCalculator]:
-
         assert initial_vial_volume >= 0
 
         self.add_to_published_settings(
