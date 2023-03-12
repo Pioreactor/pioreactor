@@ -100,7 +100,7 @@ def get_plugins() -> dict[str, Plugin]:
     # Get the stem names (file name, without directory and '.py') of any
     # python files in your directory, load each module by name and run
     # the required function.
-    py_files = glob.glob(os.path.join(MODULE_DIR, "*.py"))
+    py_files = sorted(glob.glob(os.path.join(MODULE_DIR, "*.py")))
 
     for py_file in py_files:
         try:
@@ -118,3 +118,6 @@ def get_plugins() -> dict[str, Plugin]:
             print(f"{plugin.name} plugin load error: {e}")
 
     return plugins
+
+
+load_plugins = get_plugins
