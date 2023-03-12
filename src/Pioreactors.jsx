@@ -1693,10 +1693,9 @@ function SettingsActionsDialogAll({config, experiment}) {
             }
           })
         .then((listOfJobs) => {
-          // TODO
           var jobs_ = {}
           for (const job of listOfJobs){
-            var metaData_ = {state: "disconnected", publishedSettings: {}, metadata: {display_name: job.display_name, subtext: job.subtext, display: job.display, description: job.description, key: job.job_name, source:job.source}}
+            var metaData_ = {publishedSettings: {}, metadata: {display_name: job.display_name, display: job.display, description: job.description, key: job.job_name, source:job.source}}
             for(var i = 0; i < job["published_settings"].length; ++i){
               var field = job["published_settings"][i]
               metaData_.publishedSettings[field.key] = {value: field.default || null, label: field.label, type: field.type, unit: field.unit || null, display: field.display, description: field.description}
@@ -2037,7 +2036,7 @@ function SettingsActionsDialogAll({config, experiment}) {
               Object.entries(settings)
                 .filter(([setting_key, setting],_) => setting.display)
                 .map(([setting_key, setting],_) =>
-              <React.Fragment key={setting_key}>
+              <React.Fragment key={job_key + setting_key}>
                 <Typography  gutterBottom>
                   {setting.label}
                 </Typography>

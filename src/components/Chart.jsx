@@ -286,7 +286,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
     if (this.state.seriesMap[name].data.length === 1){
       marker = <VictoryScatter
           size={4}
-          key={"line-" + reformattedName + this.props.title}
+          key={"line-" + reformattedName + this.props.id}
           name={reformattedName}
           style={{
             data: {
@@ -298,7 +298,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
     else {
         marker = <VictoryLine
           interpolation={this.props.interpolation}
-          key={"line-" + reformattedName + this.props.title}
+          key={"line-" + reformattedName + this.props.id}
           name={reformattedName}
           style={{
             labels: {fill: this.state.seriesMap[name].color},
@@ -313,7 +313,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
 
     return (
       <VictoryGroup
-        key={this.props.title}
+        key={this.props.id}
         data={(this.state.hiddenSeries.has(reformattedName)) ? [] : this.state.seriesMap[name].data}
         x="x"
         y={(datum) => this.yTransformation(datum.y)}

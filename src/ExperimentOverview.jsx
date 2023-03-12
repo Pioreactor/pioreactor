@@ -62,27 +62,28 @@ function Overview(props) {
             .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
             .map(([chart_key, chart]) =>
               <React.Fragment key={`grid-chart-${chart_key}`}>
-              <Grid item xs={12} >
-                <Chart
-                  config={config}
-                  dataSource={chart.data_source}
-                  title={chart.title}
-                  topic={chart.mqtt_topic}
-                  payloadKey={chart.payload_key}
-                  yAxisLabel={chart.y_axis_label}
-                  experiment={experimentMetadata.experiment}
-                  deltaHours={chart.delta_hours || experimentMetadata.delta_hours}
-                  interpolation={chart.interpolation || "stepAfter"}
-                  yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                  lookback={eval(chart.lookback) || 10000}
-                  fixedDecimals={chart.fixed_decimals}
-                  relabelMap={relabelMap}
-                  yTransformation={eval(chart.y_transformation || "(y) => y")}
-                  dataSourceColumn={chart.data_source_column}
-                  key={`chart-${chart_key}`}
-                  isODReading={chart_key === "raw_optical_density"}
-                />
-              </Grid>
+                <Grid item xs={12} >
+                  <Chart
+                    key={`chart-${chart_key}`}
+                    config={config}
+                    dataSource={chart.data_source}
+                    title={chart.title}
+                    topic={chart.mqtt_topic}
+                    payloadKey={chart.payload_key}
+                    yAxisLabel={chart.y_axis_label}
+                    experiment={experimentMetadata.experiment}
+                    deltaHours={experimentMetadata.delta_hours} // for increased resolution on temperature chart, put in a conditional 1 here.
+                    interpolation={chart.interpolation || "stepAfter"}
+                    yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
+                    lookback={eval(chart.lookback) || 10000}
+                    fixedDecimals={chart.fixed_decimals}
+                    relabelMap={relabelMap}
+                    yTransformation={eval(chart.y_transformation || "(y) => y")}
+                    dataSourceColumn={chart.data_source_column}
+                    id={chart_key}
+                    isODReading={chart_key === "raw_optical_density"}
+                  />
+                </Grid>
               </React.Fragment>
 
         )}
