@@ -75,8 +75,13 @@ def get_ip() -> Optional[str]:
         return None
 
 
-def discover_workers_on_network() -> Generator[str, None, None]:
+def discover_workers_on_network(terminate: bool = False) -> Generator[str, None, None]:
     """
+    Parameters
+    ----------
+    terminate: bool
+        terminate after dumping a more or less complete list
+
     Example
     --------
 
@@ -84,7 +89,7 @@ def discover_workers_on_network() -> Generator[str, None, None]:
     >     print(worker)
     """
     from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
-    from queue import Queue
+    from queue import Queue, Empty
 
     class Listener(ServiceListener):
         def __init__(self) -> None:
@@ -101,7 +106,10 @@ def discover_workers_on_network() -> Generator[str, None, None]:
             pass
 
         def __next__(self) -> str:
-            return self.hostnames.get()
+            try:
+                return self.hostnames.get(timeout=2 if terminate else None)
+            except Empty:
+                raise StopIteration
 
         def __iter__(self):
             return self
