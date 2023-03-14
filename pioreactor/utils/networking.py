@@ -84,9 +84,15 @@ def discover_workers_on_network(terminate: bool = False) -> Generator[str, None,
 
     Example
     --------
-
     > for worker in discover_workers_on_network():
     >     print(worker)
+
+
+    Notes
+    ------
+
+    This is very similar to `avahi-browse _pio-worker._tcp -t`
+
     """
     from zeroconf import ServiceBrowser, ServiceListener, Zeroconf
     from queue import Queue, Empty

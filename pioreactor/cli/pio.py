@@ -762,3 +762,7 @@ if whoami.am_I_leader():
                 raise click.Abort()
 
         logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
+
+
+if __name__ == "__main__":
+    pio()

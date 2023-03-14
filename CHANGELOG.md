@@ -1,5 +1,9 @@
 ### Upcoming
  - files in `~/.pioreactor/plugins` are now loaded lexographically. Previously it was up the the filesystem.
+ - Performance improvements for PioreactorUI
+
+#### Bug fixes
+ - fixed bug in adding new pioreactor not passing an avahi check. TODO: write into update.sh
 
 ### 23.3.9
  - Removed the scaling difference between hardware versions in OD Reading.
