@@ -4,7 +4,7 @@
  - Added new indexes to the SQLite database to improve read performance. This change will only impact new installs of Pioreactor.
 
 #### Bug fixes
- - fixed bug in adding new pioreactor not passing an avahi check. TODO: write into update.sh
+ - fixed bug in adding new pioreactor not passing an avahi check.
 
 ### 23.3.9
  - Removed the scaling difference between hardware versions in OD Reading.
