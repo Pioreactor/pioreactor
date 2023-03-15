@@ -76,7 +76,7 @@ def get_plugins() -> dict[str, Plugin]:
                 "entry_points",
             )
         except Exception as e:
-            print(f"{plugin_name} plugin load error: {e}")
+            print(f"{plugin.name} plugin load error: {e}")
 
     # get file-based plugins.
     # Users can put .py files into the MODULE_DIR folder below.
