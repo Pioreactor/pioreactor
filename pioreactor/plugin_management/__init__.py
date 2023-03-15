@@ -103,8 +103,8 @@ def get_plugins() -> dict[str, Plugin]:
     py_files = sorted(glob.glob(os.path.join(MODULE_DIR, "*.py")))
 
     for py_file in py_files:
+        module_name = pathlib.Path(py_file).stem
         try:
-            module_name = pathlib.Path(py_file).stem
             module = importlib.import_module(module_name)
             plugin_name = getattr(module, "__plugin_name__", module_name)
             plugins[plugin_name] = Plugin(
@@ -116,7 +116,7 @@ def get_plugins() -> dict[str, Plugin]:
                 "plugins_folder",
             )
         except Exception as e:
-            print(f"{plugin_name} plugin load error: {e}")
+            print(f"{py_file} encountered plugin load error: {e}")
 
     return plugins
 
