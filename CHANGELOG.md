@@ -1,6 +1,7 @@
 ### Upcoming
  - files in `~/.pioreactor/plugins` are now loaded lexographically. Previously it was up the the filesystem.
  - Performance improvements for PioreactorUI
+ - Added new indexes to the SQLite database to improve read performance. This change will only impact new installs of Pioreactor.
 
 #### Bug fixes
  - fixed bug in adding new pioreactor not passing an avahi check. TODO: write into update.sh
