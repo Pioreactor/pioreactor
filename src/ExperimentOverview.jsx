@@ -72,7 +72,7 @@ function Overview(props) {
                     payloadKey={chart.payload_key}
                     yAxisLabel={chart.y_axis_label}
                     experiment={experimentMetadata.experiment}
-                    deltaHours={experimentMetadata.delta_hours} // for increased resolution on temperature chart, put in a conditional 1 here.
+                    deltaHours={chart_key === "temperature" ? 1 : experimentMetadata.delta_hours }
                     interpolation={chart.interpolation || "stepAfter"}
                     yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
                     lookback={eval(chart.lookback) || 10000}

@@ -36,7 +36,7 @@ class EditableCodeDiv extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      code: "",
+      code: "Loading...",
       openSnackbar: false,
       filename: "config.ini",
       snackbarMsg: "",

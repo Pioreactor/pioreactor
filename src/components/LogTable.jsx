@@ -69,8 +69,11 @@ class LogTable extends React.Component {
       .then(response => {
         return response.json();
       })
-      .then(data => {
-        this.setState({listOfLogs: data});
+      .then(logs => {
+        this.setState({listOfLogs: logs.map((log, index) => {
+          return {...log, key: index};
+          })
+        })
       }).catch((e) => {
         console.log(e)
       });

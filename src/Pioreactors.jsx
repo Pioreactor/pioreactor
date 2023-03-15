@@ -487,7 +487,7 @@ function AddNewPioreactor(props){
           id="new-pioreactor-name"
           label="Hostname"
           variant="outlined"
-          className={classes.textFieldWide}
+          className={classes.textField}
           onChange={handleNameChange}
           value={name}
           InputProps={{
@@ -496,7 +496,9 @@ function AddNewPioreactor(props){
                 <PioreactorIcon style={{fontSize: "1.1em"}}/>
               </InputAdornment>
             ),
-          }}
+            endAdornment: <InputAdornment position="end">.local</InputAdornment>,
+          }
+        }
         />
       </div>
 
