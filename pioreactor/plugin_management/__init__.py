@@ -66,8 +66,7 @@ def get_plugins() -> dict[str, Plugin]:
     for plugin in pioreactor_plugins:
         try:
             md = entry_point.metadata(plugin.name)
-            plugin_name = md["Name"]
-            plugins[plugin_name] = Plugin(
+            plugins[md["Name"]] = Plugin(
                 plugin.load(),
                 md["Summary"],
                 md["Version"],
@@ -76,7 +75,7 @@ def get_plugins() -> dict[str, Plugin]:
                 "entry_points",
             )
         except Exception as e:
-            print(f"{plugin_name} plugin load error: {e}")
+            print(f"{plugin.name} plugin load error: {e}")
 
     # get file-based plugins.
     # Users can put .py files into the MODULE_DIR folder below.
