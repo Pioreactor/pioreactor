@@ -164,6 +164,8 @@ if am_I_leader():
         else:
             command = "pio update app"
 
+        units = universal_identifier_to_all_workers(units)
+
         if not y:
             confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
             if confirm != "Y":
@@ -183,7 +185,6 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
 
-        units = universal_identifier_to_all_workers(units)
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
@@ -449,6 +450,8 @@ if am_I_leader():
         # pipe all output to null
         command = " ".join(["nohup", core_command, ">/dev/null", "2>&1", "&"])
 
+        units = universal_identifier_to_all_active_workers(units)
+
         if not y:
             confirm = input(f"Confirm running `{core_command}` on {units}? Y/n: ").strip()
             if confirm != "Y":
@@ -471,7 +474,6 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
 
-        units = universal_identifier_to_all_active_workers(units)
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
             results = executor.map(_thread_function, units)
 
@@ -498,6 +500,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_255  # type: ignore
 
         command = "sudo reboot"
+        units = remove_leader(universal_identifier_to_all_workers(units))
 
         if not y:
             confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
@@ -520,8 +523,6 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e}")
                 logger.debug(e, exc_info=True)
                 return False
-
-        units = remove_leader(universal_identifier_to_all_workers(units))
 
         if len(units) > 0:
             with ThreadPoolExecutor(max_workers=len(units)) as executor:

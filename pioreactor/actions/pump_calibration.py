@@ -61,7 +61,6 @@ def get_metadata_from_user() -> str:
 
 
 def which_pump_are_you_calibrating() -> tuple[str, Callable]:
-
     with local_persistant_storage("current_pump_calibration") as cache:
         has_media = "media" in cache
         has_waste = "waste" in cache
@@ -132,13 +131,12 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
         + click.style(f"PWM channel {config.get('PWM_reverse', pump_type)}.", bold=True)
     )
     click.echo("We'll run the pumps continuously until the tubes are completely filled with water.")
-    click.echo(
-        click.style("3. Press CTRL+C when the tubes are completely filled with water.", bold=True)
-    )
+    click.echo()
 
-    while not click.confirm(click.style("Ready?", fg="green")):
+    while not click.confirm(click.style("Ready to start pumping?", fg="green")):
         pass
 
+    click.style("Press CTRL+C when the tubes are completely filled with water.", bold=True)
     try:
         execute_pump(
             continuously=True,
@@ -302,7 +300,6 @@ def save_results(
     volumes: list[float],
     unit: str,
 ) -> structs.PumpCalibration:
-
     struct: Type[structs.AnyPumpCalibration]
 
     if pump_type == "media":
@@ -344,7 +341,6 @@ def save_results(
 
 
 def pump_calibration(min_duration: float, max_duration: float) -> None:
-
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
@@ -352,7 +348,6 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
     logger.info("Starting pump calibration.")
 
     with publish_ready_to_disconnected_state(unit, experiment, "pump_calibration"):
-
         introduction()
         name = get_metadata_from_user()
         pump_type, execute_pump = which_pump_are_you_calibrating()

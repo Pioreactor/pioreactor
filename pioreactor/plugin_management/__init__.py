@@ -100,13 +100,14 @@ def get_plugins() -> dict[str, Plugin]:
     # Get the stem names (file name, without directory and '.py') of any
     # python files in your directory, load each module by name and run
     # the required function.
-    py_files = glob.glob(os.path.join(MODULE_DIR, "*.py"))
+    py_files = sorted(glob.glob(os.path.join(MODULE_DIR, "*.py")))
 
     for py_file in py_files:
+        module_name = pathlib.Path(py_file).stem
         try:
-            module_name = pathlib.Path(py_file).stem
             module = importlib.import_module(module_name)
-            plugins[getattr(module, "__plugin_name__", module_name)] = Plugin(
+            plugin_name = getattr(module, "__plugin_name__", module_name)
+            plugins[plugin_name] = Plugin(
                 module,
                 getattr(module, "__plugin_summary__", BLANK),
                 getattr(module, "__plugin_version__", BLANK),
@@ -115,6 +116,9 @@ def get_plugins() -> dict[str, Plugin]:
                 "plugins_folder",
             )
         except Exception as e:
-            print(f"{plugin.name} plugin load error: {e}")
+            print(f"{py_file} encountered plugin load error: {e}")
 
     return plugins
+
+
+load_plugins = get_plugins

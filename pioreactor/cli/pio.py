@@ -628,10 +628,16 @@ if whoami.am_I_leader():
         name="discover-workers",
         short_help="discover all pioreactor workers on the network",
     )
-    def discover_workers() -> None:
+    @click.option(
+        "-t",
+        "--terminate",
+        is_flag=True,
+        help="Terminate after dumping a more or less complete list",
+    )
+    def discover_workers(terminate: bool) -> None:
         from pioreactor.utils.networking import discover_workers_on_network
 
-        for hostname in discover_workers_on_network():
+        for hostname in discover_workers_on_network(terminate):
             click.echo(hostname)
 
     @pio.command(name="cluster-status", short_help="report information on the pioreactor cluster")
@@ -756,3 +762,7 @@ if whoami.am_I_leader():
                 raise click.Abort()
 
         logger.notice(f"Updated PioreactorUI to version {version_installed}.")  # type: ignore
+
+
+if __name__ == "__main__":
+    pio()

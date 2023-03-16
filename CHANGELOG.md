@@ -1,3 +1,12 @@
+### 23.3.16
+ - files in `~/.pioreactor/plugins` are now loaded lexographically. Previously it was up the the filesystem.
+ - Performance improvements for PioreactorUI
+ - Added new indexes to the SQLite database to improve read performance. This change will only impact new installs of Pioreactor.
+ - Improvements in error handling when plugins can't load.
+
+#### Bug fixes
+ - fixed bug in adding new pioreactor not passing an avahi check.
+
 ### 23.3.9
  - Removed the scaling difference between hardware versions in OD Reading.
  - Moving some Python dependencies into this repo.
