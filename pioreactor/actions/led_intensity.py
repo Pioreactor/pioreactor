@@ -178,12 +178,15 @@ def led_intensity(
 
                 dac = DAC()
                 dac.set_intensity_to(getattr(dac, channel), intensity)
-
             except (ValueError, HardwareNotFoundError) as e:
                 logger.debug(e, exc_info=True)
                 logger.error(
                     "Unable to find I²C for LED driver. Is the Pioreactor HAT attached to the Raspberry Pi? Is the firmware loaded?"
                 )
+                updated_successfully = False
+                return updated_successfully
+            except AssertionError as e:
+                logger.error(e)
                 updated_successfully = False
                 return updated_successfully
 
