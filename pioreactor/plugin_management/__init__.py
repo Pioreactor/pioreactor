@@ -32,8 +32,8 @@ import importlib
 import importlib.metadata as entry_point
 import os
 import sys
-import typing as t
 from pathlib import Path
+from typing import Any
 
 from msgspec import Struct
 
@@ -44,7 +44,7 @@ from pioreactor.whoami import is_testing_env
 
 
 class Plugin(Struct):
-    module: t.Any
+    module: Any
     description: str
     version: str
     homepage: str
@@ -52,18 +52,37 @@ class Plugin(Struct):
     source: str
 
 
+def discover_plugins_in_local_folder() -> list[Path]:
+    if is_testing_env():
+        MODULE_DIR = Path("plugins_dev")
+    else:
+        MODULE_DIR = Path("/home/pioreactor/.pioreactor/plugins")
+
+    sys.path.append(str(MODULE_DIR))
+
+    # Get the stem names (file name, without directory and '.py') of any
+    # python files in your directory, load each module by name and run
+    # the required function.
+    return sorted(MODULE_DIR.glob("*.py"))
+
+
+def discover_plugins_in_entry_points() -> list[entry_point.EntryPoint]:
+    eps = entry_point.entry_points()
+    return eps.get("pioreactor.plugins", [])
+
+
 def get_plugins() -> dict[str, Plugin]:
     """
     This function is really time consuming...
     """
 
+    plugins: dict[str, Plugin] = {}
+
     # get entry point plugins
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
-    eps = entry_point.entry_points()
-    pioreactor_plugins: t.List[entry_point.EntryPoint] = eps.get("pioreactor.plugins", [])
-    plugins: dict[str, Plugin] = {}
-    for plugin in pioreactor_plugins:
+
+    for plugin in discover_plugins_in_entry_points():
         try:
             md = entry_point.metadata(plugin.name)
             plugins[md["Name"]] = Plugin(
@@ -89,20 +108,7 @@ def get_plugins() -> dict[str, Plugin]:
     # __plugin_homepage__
     BLANK = "Unknown"
 
-    # The directory containing your modules needs to be on the search path.
-    if is_testing_env():
-        MODULE_DIR = Path("plugins_dev")
-    else:
-        MODULE_DIR = Path("/home/pioreactor/.pioreactor/plugins")
-
-    sys.path.append(str(MODULE_DIR))
-
-    # Get the stem names (file name, without directory and '.py') of any
-    # python files in your directory, load each module by name and run
-    # the required function.
-    py_files = sorted(MODULE_DIR.glob("*.py"))
-
-    for py_file in py_files:
+    for py_file in discover_plugins_in_local_folder():
         module_name = py_file.stem
         try:
             module = importlib.import_module(module_name)

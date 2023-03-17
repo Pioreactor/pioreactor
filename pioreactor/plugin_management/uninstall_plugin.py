@@ -7,13 +7,20 @@ from shlex import quote
 import click
 
 from pioreactor.logging import create_logger
+from pioreactor.plugin_management import discover_plugins_in_local_folder
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def uninstall_plugin(name_of_plugin: str) -> None:
-
     logger = create_logger("uninstall_plugin", experiment=UNIVERSAL_EXPERIMENT)
     logger.debug(f"Uninstalling plugin {name_of_plugin}.")
+
+    # is it a local plugin file?
+    for py_file in discover_plugins_in_local_folder():
+        if py_file.name == name_of_plugin:
+            py_file.unlink()
+            logger.notice(f"Successfully uninstalled plugin {name_of_plugin} from local plugins folder.")  # type: ignore
+            return
 
     result = subprocess.run(
         [
@@ -31,6 +38,8 @@ def uninstall_plugin(name_of_plugin: str) -> None:
         logger.error(f"Failed to uninstall plugin {name_of_plugin}. See logs.")
         logger.debug(result.stdout)
         logger.debug(result.stderr)
+
+    return
 
 
 @click.command(name="uninstall-plugin", short_help="uninstall an existing plugin")

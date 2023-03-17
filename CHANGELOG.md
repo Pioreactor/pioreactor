@@ -1,3 +1,6 @@
+### Upcoming
+ - Python files in `plugins/` folder on leader are viewable on the /plugins page in the UI.
+
 ### 23.3.16
  - files in `~/.pioreactor/plugins` are now loaded lexographically. Previously it was up the the filesystem.
  - Performance improvements for PioreactorUI
