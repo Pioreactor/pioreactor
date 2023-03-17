@@ -530,9 +530,14 @@ if am_I_leader():
 
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
+        print(get_leader_hostname())
+        print(units)
+        print(universal_identifier_to_all_workers(units))
+
         if get_leader_hostname() in universal_identifier_to_all_workers(units):
             import os
 
+            print(command)
             os.system(command)
 
     @pios.command(
