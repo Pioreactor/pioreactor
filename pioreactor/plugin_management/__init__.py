@@ -31,9 +31,9 @@ import glob
 import importlib
 import importlib.metadata as entry_point
 import os
-import pathlib
 import sys
 import typing as t
+from pathlib import Path
 
 from msgspec import Struct
 
@@ -91,19 +91,19 @@ def get_plugins() -> dict[str, Plugin]:
 
     # The directory containing your modules needs to be on the search path.
     if is_testing_env():
-        MODULE_DIR = "plugins_dev"
+        MODULE_DIR = Path("plugins_dev")
     else:
-        MODULE_DIR = "/home/pioreactor/.pioreactor/plugins"
+        MODULE_DIR = Path("/home/pioreactor/.pioreactor/plugins")
 
-    sys.path.append(MODULE_DIR)
+    sys.path.append(str(MODULE_DIR))
 
     # Get the stem names (file name, without directory and '.py') of any
     # python files in your directory, load each module by name and run
     # the required function.
-    py_files = sorted(glob.glob(os.path.join(MODULE_DIR, "*.py")))
+    py_files = sorted(MODULE_DIR.glob("*.py"))
 
     for py_file in py_files:
-        module_name = pathlib.Path(py_file).stem
+        module_name = py_file.stem
         try:
             module = importlib.import_module(module_name)
             plugin_name = getattr(module, "__plugin_name__", module_name)
@@ -113,7 +113,7 @@ def get_plugins() -> dict[str, Plugin]:
                 getattr(module, "__plugin_version__", BLANK),
                 getattr(module, "__plugin_homepage__", BLANK),
                 getattr(module, "__plugin_author__", BLANK),
-                "plugins_folder",
+                f"plugins/{py_file.name}",
             )
         except Exception as e:
             print(f"{py_file} encountered plugin load error: {e}")
