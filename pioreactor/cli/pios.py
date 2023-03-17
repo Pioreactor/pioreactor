@@ -500,7 +500,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_255  # type: ignore
 
         command = "sudo reboot"
-        units = remove_leader(universal_identifier_to_all_workers(units))
+        units = universal_identifier_to_all_workers(units)
         also_reboot_leader = get_leader_hostname() in units
         units_san_leader = remove_leader(units)
 
