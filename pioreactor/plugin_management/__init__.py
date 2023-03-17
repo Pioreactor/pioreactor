@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 """
 How do plugins work? There are a few patterns we use to "register" plugins with the core app.
 
@@ -25,22 +27,20 @@ Adding to ~/.pioreactor/plugins
      __plugin_homepage__
 
 """
-from __future__ import annotations
 
 import glob
 import importlib
-import importlib.metadata as entry_point
 import os
-import sys
-from pathlib import Path
 from typing import Any
 
 from msgspec import Struct
+import importlib.metadata as entry_point
 
 from .install_plugin import click_install_plugin
 from .list_plugins import click_list_plugins
 from .uninstall_plugin import click_uninstall_plugin
-from pioreactor.whoami import is_testing_env
+from .utils import discover_plugins_in_entry_points
+from .utils import discover_plugins_in_local_folder
 
 
 class Plugin(Struct):
@@ -50,25 +50,6 @@ class Plugin(Struct):
     homepage: str
     author: str
     source: str
-
-
-def discover_plugins_in_local_folder() -> list[Path]:
-    if is_testing_env():
-        MODULE_DIR = Path("plugins_dev")
-    else:
-        MODULE_DIR = Path("/home/pioreactor/.pioreactor/plugins")
-
-    sys.path.append(str(MODULE_DIR))
-
-    # Get the stem names (file name, without directory and '.py') of any
-    # python files in your directory, load each module by name and run
-    # the required function.
-    return sorted(MODULE_DIR.glob("*.py"))
-
-
-def discover_plugins_in_entry_points() -> list[entry_point.EntryPoint]:
-    eps = entry_point.entry_points()
-    return eps.get("pioreactor.plugins", [])
 
 
 def get_plugins() -> dict[str, Plugin]:

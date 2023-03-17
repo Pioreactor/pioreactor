@@ -7,7 +7,7 @@ from shlex import quote
 import click
 
 from pioreactor.logging import create_logger
-from pioreactor.plugin_management import discover_plugins_in_local_folder
+from pioreactor.plugin_management.utils import discover_plugins_in_local_folder
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
