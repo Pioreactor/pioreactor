@@ -501,6 +501,8 @@ if am_I_leader():
 
         command = "sudo reboot"
         units = remove_leader(universal_identifier_to_all_workers(units))
+        also_reboot_leader = get_leader_hostname() in units
+        units_san_leader = remove_leader(units)
 
         if not y:
             confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
@@ -524,20 +526,15 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
 
-        if len(units) > 0:
-            with ThreadPoolExecutor(max_workers=len(units)) as executor:
-                executor.map(_thread_function, units)
+        if len(units_san_leader) > 0:
+            with ThreadPoolExecutor(max_workers=len(units_san_leader)) as executor:
+                executor.map(_thread_function, units_san_leader)
 
         # we delay rebooting leader (if asked), since it would prevent
         # executing the reboot cmd on other workers
-        print(get_leader_hostname())
-        print(units)
-        print(universal_identifier_to_all_workers(units))
-
-        if get_leader_hostname() in universal_identifier_to_all_workers(units):
+        if also_reboot_leader:
             import os
 
-            print(command)
             os.system(command)
 
     @pios.command(
