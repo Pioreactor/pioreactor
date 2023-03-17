@@ -17,7 +17,7 @@ def uninstall_plugin(name_of_plugin: str) -> None:
 
     # is it a local plugin file?
     for py_file in discover_plugins_in_local_folder():
-        if py_file.name == name_of_plugin:
+        if py_file.stem == name_of_plugin:
             py_file.unlink()
             logger.notice(f"Successfully uninstalled plugin {name_of_plugin} from local plugins folder.")  # type: ignore
             return
