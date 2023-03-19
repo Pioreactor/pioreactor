@@ -38,10 +38,15 @@ const useStyles = makeStyles((theme) => ({
     width: "60%"
   },
   textField:{
-    marginTop: theme.spacing(1),
-    marginBottom: theme.spacing(1),
+    marginTop: theme.spacing(0),
+    marginBottom: theme.spacing(2),
     width: "100%"
 
+  },
+  thinTextField:{
+    marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(0),
+    width: "100%"
   },
   formControl: {
     margin: theme.spacing(3),
@@ -133,15 +138,30 @@ function ExperimentSummaryForm(props) {
   const classes = useStyles();
   const timestamp = moment.utc()
   const [formError, setFormError] = React.useState(false);
-  const [helperText, setHelperText] = React.useState("");
+  const [helperText, setHelperText] = React.useState(" ");
   const [expName, setExpName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [organismUsed, setOrganismUsed] = React.useState("");
   const [mediaUsed, setMediaUsed] = React.useState("");
   const [historicalMediaUsed, setHistoricalMediaUsed] = React.useState([]);
   const [historicalOrganismUsed, setHistoricalOrganismUsed] = React.useState([]);
+  const [historicalExperiments, setHistoricalExperiments] = React.useState({});
 
   React.useEffect(() => {
+    function getHistoricalExperiments() {
+      fetch("/api/experiments")
+        .then((response) => {
+          if (response.ok){
+            return response.json();
+          }
+        }).then(json => json.reduce((acc, {experiment}) => {
+              acc[experiment] = 1;
+              return acc;
+            }, {}))
+        .then(data => setHistoricalExperiments(data))
+    }
+
+
     function populateDropDowns() {
       fetch("/api/historical_media")
         .then((response) => {
@@ -160,6 +180,7 @@ function ExperimentSummaryForm(props) {
         .then(json => setHistoricalOrganismUsed(json))
     }
     populateDropDowns();
+    getHistoricalExperiments();
   }, [])
 
 
@@ -194,8 +215,6 @@ function ExperimentSummaryForm(props) {
       return
     }
 
-    // TODO: confirm we are connected to MQTT and it received the new experiment name...
-
     fetch('/api/experiments',{
         method: "POST",
         body: JSON.stringify({experiment : expName.trim(), created_at: timestamp.toISOString(), description: description, mediaUsed: mediaUsed, organismUsed: organismUsed }),
@@ -204,23 +223,43 @@ function ExperimentSummaryForm(props) {
           'Content-Type': 'application/json'
         }
       }).then(res => {
-        if (res.status === 200){
-          setHelperText("")
+        if (res.ok){
+          setHelperText(" ")
           setFormError(false);
           killExistingJobs()
           props.handleNext()
         }
-        else{
+        else if (res.status === 409) {
           setFormError(true);
-          setHelperText("Experiment name already used.")
+          setHelperText("Experiment name already used. Please choose another.")
+        }
+        else {
+          setFormError(true);
+          setHelperText("Sever error. See UI logs.")
         }
       }
      )
   }
 
   const onExpNameChange = (e) => {
-    setExpName(e.target.value)
+    var experimentNameProposed = e.target.value
+    setExpName(experimentNameProposed)
+    // realtime validation
+    if (experimentNameProposed.trim() in historicalExperiments){
+      setFormError(true);
+      setHelperText("Experiment name already used. Please choose another.")
+    }
+    else if (experimentNameProposed.includes("#") || experimentNameProposed.includes("+") || experimentNameProposed.includes("/")) {
+      setFormError(true)
+      setHelperText("Can't use #, / or + characters in experiment name.")
+    }
+    else {
+      setHelperText(" ")
+      setFormError(false)
+    }
   }
+
+
   const onDescChange = (e) => {
     setDescription(e.target.value)
   }
@@ -236,7 +275,7 @@ function ExperimentSummaryForm(props) {
               label="Experiment name"
               value={expName}
               required
-              className={classes.textField}
+              className={classes.thinTextField}
               onChange={onExpNameChange}
               helperText={helperText}
               />
@@ -247,7 +286,8 @@ function ExperimentSummaryForm(props) {
             <TextField
               label="Description (optional)"
               maxRows={4}
-              placeholder="Add a description: what is your hypothesis? What is the experiment protocol? This description can always be changed later."
+              rows={2}
+              placeholder="Add a description. This description can be changed later."
               multiline
               value={description}
               className={classes.textField}
