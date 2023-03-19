@@ -2,7 +2,7 @@
   "name": "ui",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://localhost:5000",
+  "proxy": "http://localhost:4999",
   "dependencies": {
     "@emeraldpay/hashicon-react": "^0.5.1",
     "@emotion/react": "^11.9.0",
