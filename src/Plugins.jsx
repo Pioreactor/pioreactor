@@ -19,6 +19,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import Avatar from '@mui/material/Avatar';
 import GetAppIcon from '@mui/icons-material/GetApp';
 import CircularProgress from '@mui/material/CircularProgress';
+import { Link } from 'react-router-dom';
+
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -102,7 +104,10 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
       })
   }
 
-  const handleSnackbarClose = () => {
+  const handleSnackbarClose = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
     setSnackbarOpen(false)
   }
 
@@ -138,12 +143,16 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
                 Install
               </Button>
               <Button
-                href={plugin.homepage}
-                target="_blank" rel="noopener"
+                component={Link}
+                target="_blank"
+                rel="noopener noreferrer"
+                to={plugin.homepage}
+                target="_blank"
+                rel="noopener"
                 variant="text"
                 size="small"
                 color="primary"
-                aria-label="view more"
+                aria-label="view homepage"
                 disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
                 endIcon={<OpenInNewIcon />}
                 className={classes.secondaryActionButton}
@@ -161,8 +170,7 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
       open={snackbarOpen}
       onClose={handleSnackbarClose}
       message={snackbarMsg}
-      autoHideDuration={15000}
-      resumeHideDuration={2000}
+      autoHideDuration={10000}
       key="snackbar-available"
     />
     </React.Fragment>
@@ -176,7 +184,10 @@ function ListInstalledPlugins({installedPlugins}){
   const [snackbarMsg, setSnackbarMsg] = React.useState("")
   const classes = useStyles();
 
-  const handleSnackbarClose = () => {
+  const handleSnackbarClose = (e, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
     setSnackbarOpen(false)
   }
 
@@ -206,35 +217,56 @@ function ListInstalledPlugins({installedPlugins}){
               </ListItemAvatar>
               <ListItemText
                 primary={`${plugin.name} ${(plugin.version === "Unknown")  ? "" : "(" + plugin.version + ")"}`}
-                secondary={plugin.description}
+                secondary={`${plugin.description === "Unknown" ? "No description provided." : plugin.description}`}
                 style={{maxWidth: "525px"}}
               />
               <ListItemSecondaryAction sx={{display: {xs: 'contents', md: 'block'}}}>
                 <Button
-                  onClick={uninstallPlugin(plugin.name)}
+                  onClick={uninstallPlugin(plugin.source.startsWith("plugins/") ? plugin.source.slice(8, -3) : plugin.name)}
                   variant="text"
                   size="small"
                   color="primary"
                   aria-label="delete"
                   endIcon={<DeleteIcon />}
-                  disabled={plugin.source === "plugins_folder"}
                   className={classes.primaryActionButton}
                 >
-                  {plugin.source === "plugins_folder" ? "Delete from plugins folder" : "Uninstall" }
+                  Uninstall
                 </Button>
-                <Button
-                  href={plugin.homepage}
-                  target="_blank" rel="noopener"
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  aria-label="delete"
-                  disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
-                  endIcon={<OpenInNewIcon />}
-                  className={classes.secondaryActionButton}
-                >
-                  View
-                </Button>
+                { !plugin.source.startsWith("plugins/") &&
+                  <Button
+                    component={Link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    to={plugin.homepage}
+                    target="_blank"
+                    rel="noopener"
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    aria-label="view homepage"
+                    disabled={!plugin.homepage || (plugin.homepage === "Unknown")}
+                    endIcon={<OpenInNewIcon />}
+                    className={classes.secondaryActionButton}
+                  >
+                    View
+                  </Button>
+                }
+                { plugin.source.startsWith("plugins/") &&
+                  <Button
+                    component={Link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    to={`/api/installed_plugins/${plugin.source.slice(8)}`}
+                    variant="text"
+                    size="small"
+                    color="primary"
+                    aria-label="view homepage"
+                    endIcon={<OpenInNewIcon />}
+                    className={classes.secondaryActionButton}
+                  >
+                    View
+                  </Button>
+                }
               </ListItemSecondaryAction>
             </ListItem>,
           )}
@@ -246,7 +278,6 @@ function ListInstalledPlugins({installedPlugins}){
         onClose={handleSnackbarClose}
         message={snackbarMsg}
         autoHideDuration={7000}
-        resumeHideDuration={2000}
         key="snackbar-installation"
       />
       </React.Fragment>

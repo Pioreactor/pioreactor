@@ -1051,7 +1051,10 @@ function SettingsActionsDialog(props) {
     setTimeout(()=> setTabValue(0), 200) // we put a timeout here so the switching tabs doesn't occur during the close transition.
   };
 
-  const handleSnackbarClose = () => {
+  const handleSnackbarClose = (e, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
     setSnackbarOpen(false)
   }
 
@@ -1626,7 +1629,7 @@ function SettingsActionsDialog(props) {
           </Typography>
 
           <LoadingButton
-            loadingIndicator="Rebooting..."
+            loadingIndicator="Rebooting"
             loading={rebooting}
             variant="contained"
             color="primary"
@@ -1808,7 +1811,10 @@ function SettingsActionsDialogAll({config, experiment}) {
 
   };
 
-  const handleSnackbarClose = () => {
+  const handleSnackbarClose = (e, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
     setSnackbarOpen(false)
   }
 

@@ -57,7 +57,10 @@ export default function ActionLEDForm(props) {
     }
   }
 
-  const handleSnackbarClose = () => {
+  const handleSnackbarClose = (e, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
     setOpenSnackbar(false);
   };
 
