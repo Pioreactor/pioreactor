@@ -197,7 +197,7 @@ def _pump_action(
             if ml is not None:
                 ml = float(ml)
                 if calibration is None:
-                    exc.CalibrationError(
+                    raise exc.CalibrationError(
                         f"Calibration not defined. Run {pump_type} pump calibration first."
                     )
 
