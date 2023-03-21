@@ -19,6 +19,9 @@ class FedBatch(DosingAutomationJob):
 
     def __init__(self, volume, **kwargs):
         super().__init__(**kwargs)
+        self.logger.warning(
+            "When using the fed-batch automation, no liquid is removed. Carefully monitor the level of liquid to avoid overflow!"
+        )
         self.volume = float(volume)
 
     def execute(self):
@@ -29,6 +32,6 @@ class FedBatch(DosingAutomationJob):
             experiment=self.experiment,
         )
         if vol != self.volume:
-            self.logger.warning("under-dosed!")
+            self.logger.warning("Under-dosed!")
 
         return events.AddMediaEvent(f"Added {vol} mL")

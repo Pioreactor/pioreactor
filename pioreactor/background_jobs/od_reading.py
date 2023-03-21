@@ -73,7 +73,7 @@ Dataflow of raw signal to final output:
 
 In the ODReader class, we publish the `first_od_obs_time` to MQTT so other jobs can read it and
 make decisions. For example, if a bubbler/visible light LED is active, it should time itself
-s.t. it is _not_ running when an turbidity measurement is about to occur.
+s.t. it is _not_ running when an turbidity measurement is about to occur. See BackgroundJobWithDodging class.
 
 """
 from __future__ import annotations
@@ -1106,6 +1106,22 @@ def start_od_reading(
     experiment: Optional[str] = None,
     use_calibration: bool = config.getboolean("od_config", "use_calibration"),
 ) -> ODReader:
+    """
+    This function prepares ODReader and other necessary transformation objects. It's a higher level API than using ODReader.
+
+    Note on od_angle_channels
+    --------------------------
+
+    Position is important for these arguments. If your config looks like:
+
+        [od_config.photodiode_channel]
+        1=REF
+        2=90
+
+    then the correct syntax is `start_od_reading("REF", "90").
+
+    """
+
     unit = unit or whoami.get_unit_name()
     experiment = experiment or whoami.get_latest_experiment_name()
 

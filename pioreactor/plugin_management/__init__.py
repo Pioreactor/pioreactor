@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 """
 How do plugins work? There are a few patterns we use to "register" plugins with the core app.
 
@@ -25,26 +27,24 @@ Adding to ~/.pioreactor/plugins
      __plugin_homepage__
 
 """
-from __future__ import annotations
 
 import glob
 import importlib
-import importlib.metadata as entry_point
 import os
-import pathlib
-import sys
-import typing as t
+from typing import Any
 
 from msgspec import Struct
+import importlib.metadata as entry_point
 
 from .install_plugin import click_install_plugin
 from .list_plugins import click_list_plugins
 from .uninstall_plugin import click_uninstall_plugin
-from pioreactor.whoami import is_testing_env
+from .utils import discover_plugins_in_entry_points
+from .utils import discover_plugins_in_local_folder
 
 
 class Plugin(Struct):
-    module: t.Any
+    module: Any
     description: str
     version: str
     homepage: str
@@ -57,13 +57,13 @@ def get_plugins() -> dict[str, Plugin]:
     This function is really time consuming...
     """
 
+    plugins: dict[str, Plugin] = {}
+
     # get entry point plugins
     # Users can use Python's entry point system to create rich plugins, see
     # example here: https://github.com/Pioreactor/pioreactor-air-bubbler
-    eps = entry_point.entry_points()
-    pioreactor_plugins: t.List[entry_point.EntryPoint] = eps.get("pioreactor.plugins", [])
-    plugins: dict[str, Plugin] = {}
-    for plugin in pioreactor_plugins:
+
+    for plugin in discover_plugins_in_entry_points():
         try:
             md = entry_point.metadata(plugin.name)
             plugins[md["Name"]] = Plugin(
@@ -89,21 +89,8 @@ def get_plugins() -> dict[str, Plugin]:
     # __plugin_homepage__
     BLANK = "Unknown"
 
-    # The directory containing your modules needs to be on the search path.
-    if is_testing_env():
-        MODULE_DIR = "plugins_dev"
-    else:
-        MODULE_DIR = "/home/pioreactor/.pioreactor/plugins"
-
-    sys.path.append(MODULE_DIR)
-
-    # Get the stem names (file name, without directory and '.py') of any
-    # python files in your directory, load each module by name and run
-    # the required function.
-    py_files = sorted(glob.glob(os.path.join(MODULE_DIR, "*.py")))
-
-    for py_file in py_files:
-        module_name = pathlib.Path(py_file).stem
+    for py_file in discover_plugins_in_local_folder():
+        module_name = py_file.stem
         try:
             module = importlib.import_module(module_name)
             plugin_name = getattr(module, "__plugin_name__", module_name)
@@ -113,7 +100,7 @@ def get_plugins() -> dict[str, Plugin]:
                 getattr(module, "__plugin_version__", BLANK),
                 getattr(module, "__plugin_homepage__", BLANK),
                 getattr(module, "__plugin_author__", BLANK),
-                "plugins_folder",
+                f"plugins/{py_file.name}",
             )
         except Exception as e:
             print(f"{py_file} encountered plugin load error: {e}")
