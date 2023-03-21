@@ -1,4 +1,4 @@
-### Upcoming
+### 23.3.21
  - Python files in `plugins/` folder on leader are viewable on the /plugins page in the UI.
  - Python files in `plugins/` folder on leader are uninstallable (aka deleted) on the /plugins page in the UI.
  - `pio uninstall-plugin` will delete Python plugins in the .pioreactor/plugins/ dir if provided the _python file name_, sans `.py`.
