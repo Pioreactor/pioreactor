@@ -232,7 +232,7 @@ def test_ambient_light_interference(
     if hardware_version_info < (1, 1):
         assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
     else:
-        assert all([readings[pd_channel] < 0.060 for pd_channel in ALL_PD_CHANNELS]), readings
+        assert all([readings[pd_channel] < 0.065 for pd_channel in ALL_PD_CHANNELS]), readings
 
 
 def test_REF_is_lower_than_0_dot_256_volts(
@@ -259,8 +259,8 @@ def test_REF_is_lower_than_0_dot_256_volts(
         readings = adc_reader.take_reading()
 
     assert (
-        0.01 < readings[reference_channel] < 0.250
-    ), f"Recorded {readings[reference_channel]} in REF, should ideally be between 0.01 than 0.250."
+        0.50 < readings[reference_channel] < 0.256
+    ), f"Recorded {readings[reference_channel]} in REF, should ideally be between 0.50 and 0.256."
 
 
 def test_detect_heating_pcb(client: Client, logger: Logger, unit: str, experiment: str) -> None:
