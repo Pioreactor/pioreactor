@@ -23,6 +23,8 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Tooltip from '@mui/material/Tooltip';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 
@@ -100,7 +102,7 @@ export default function SideNavAndHeader() {
           return response.json();
         })
         .then((data) => {
-          setLatestVersion(data['name'])
+          setLatestVersion(data['tag_name'])
         }).catch(e => {
           // no internet?
         });
@@ -121,6 +123,10 @@ export default function SideNavAndHeader() {
 
   const helpNode = <React.Fragment>
                      Help <OpenInNewIcon style={{fontSize:"15px", verticalAlign: "middle"}}/>
+                    </React.Fragment>
+
+  const forumNode = <React.Fragment>
+                     Forums <OpenInNewIcon style={{fontSize:"15px", verticalAlign: "middle"}}/>
                     </React.Fragment>
 
   const list = () => (
@@ -201,10 +207,17 @@ export default function SideNavAndHeader() {
         </ListItem>
 
 
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: true })} target="_blank" rel="noopener noreferrer" component={Link} to={{pathname: "https://forum.pioreactor.com"}}  key="forums">
+            <ListItemIcon className={classes.listItemIcon}><ChatOutlinedIcon/> </ListItemIcon>
+            <ListItemText primary={forumNode} primaryTypographyProps={{color: "rgba(0, 0, 0, 0.87)"}}/>
+          </ListItemButton>
+        </ListItem>
+
+
       </List>
     </div>
   );
-
   return (
     <React.Fragment>
       <div className={classes.appBarRoot}>

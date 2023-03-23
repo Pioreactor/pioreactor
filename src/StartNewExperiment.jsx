@@ -27,8 +27,9 @@ const useStyles = makeStyles((theme) => ({
   cardContent: {
     padding: "10px"
   },
-  button: {
+  skipButton: {
     marginRight: theme.spacing(1),
+    float: "right",
   },
   instructions: {
     marginTop: theme.spacing(2),
@@ -394,7 +395,7 @@ function StartNewExperimentContainer(props) {
                   variant="text"
                   to="/overview"
                   component={Link}
-                  className={classes.button}
+                  className={classes.skipButton}
                 >
                 Skip
                 </Button>
