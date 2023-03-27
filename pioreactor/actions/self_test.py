@@ -127,9 +127,9 @@ def test_all_positive_correlations_between_pds_and_leds(
     led_intensity(
         {channel: 0 for channel in ALL_LED_CHANNELS},
         unit=unit,
-        source_of_event="self_test",
         experiment=current_experiment_name,
         verbose=False,
+        source_of_event="self_test",
     )
 
     for led_channel in ALL_LED_CHANNELS:
