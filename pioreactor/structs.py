@@ -173,6 +173,7 @@ class Temperature(Struct):
 
 class Calibration(Struct, tag=True, tag_field="type"):
     created_at: t.Annotated[datetime, Meta(tz=True)]
+    pioreactor_unit: str
     name: str
 
     @property
@@ -181,7 +182,6 @@ class Calibration(Struct, tag=True, tag_field="type"):
 
 
 class PumpCalibration(Calibration):
-    name: str
     pump: str
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
@@ -220,7 +220,6 @@ AnyPumpCalibration = t.Union[
 
 
 class ODCalibration(Calibration):
-    name: str
     angle: pt.PdAngle
     maximum_od600: float
     minimum_od600: float

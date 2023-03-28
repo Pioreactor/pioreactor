@@ -221,6 +221,7 @@ def run_tests(
     min_duration: float,
     max_duration: float,
     pump_type: str,
+    unit: str,
 ) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
@@ -235,6 +236,7 @@ def run_tests(
         bias_=0,
         created_at=current_utc_datetime(),
         voltage=voltage_in_aux(),
+        pioreactor_unit=unit,
     )
 
     results: list[float] = []
@@ -321,6 +323,7 @@ def save_results(
 
     pump_calibration_result = struct(
         name=name,
+        pioreactor_unit=unit,
         created_at=current_utc_datetime(),
         pump=pump_type,
         duration_=duration_,
@@ -347,6 +350,7 @@ def publish_to_leader(calibration_result: structs.AnyPumpCalibration) -> bool:
     try:
         res = put(f"http://{leader_address}/api/calibrations", encode(calibration_result))
         if not res.ok:
+            print(res.status_code)
             success = False
     except Exception as e:
         print(e)
@@ -381,7 +385,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 default=False,
             )
 
-        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_type)
+        durations, volumes = run_tests(
+            execute_pump, hz, dc, min_duration, max_duration, pump_type, unit
+        )
 
         (slope, std_slope), (
             bias,
@@ -411,9 +417,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             unit=unit,
         )
 
-        logger.info(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
+        logger.debug(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
 
-        logger.info(
+        logger.debug(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be okay for outside this range too."
         )
 
@@ -495,9 +501,11 @@ def change_current(name: str) -> None:
             current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
 
         res = patch(
-            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}"
+            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+            body={"current": 1},
         )
         if not res.ok:
+            print(res.status_code)
             click.echo("Could not update in database on leader ❌")
 
         if old_calibration:

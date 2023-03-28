@@ -33,6 +33,7 @@ DEFAULT_CALIBRATION = structs.PumpCalibration(
     # TODO: provide better estimates for duration_ and bias_ based on some historical data.
     # it can even be a function of voltage
     name="default",
+    pioreactor_unit=get_unit_name(),
     created_at=default_datetime_for_pioreactor(),
     pump="",
     hz=200.0,  # is this an okay default?
