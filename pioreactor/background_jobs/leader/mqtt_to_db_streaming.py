@@ -68,7 +68,7 @@ class MqttToDBStreamer(BackgroundJob):
             {
                 "topic": topic_to_table.topic,
                 "callback": self.create_on_message_callback(
-                    topic_to_table.parser, topic_to_table.table  # type: ignore
+                    topic_to_table.parser, topic_to_table.table
                 ),
                 "table": topic_to_table.table,
             }
@@ -254,7 +254,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "timestamp": current_utc_datetime(),
         "message": event.message,
         "data": dumps(event.data) if (event.data is not None) else "",
-        "event_name": event.__class__.__struct_tag__,  # type: ignore
+        "event_name": event.type,
     }
 
 
@@ -318,21 +318,6 @@ def parse_stirring_rates(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "pioreactor_unit": metadata.pioreactor_unit,
         "timestamp": rpms.timestamp,
         "measured_rpm": rpms.measured_rpm,
-    }
-
-
-def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
-    metadata = produce_metadata(topic)
-    calibration = msgspec_loads(
-        payload, type=structs.subclass_union(structs.Calibration)
-    )  # type: ignore
-
-    return {
-        "pioreactor_unit": metadata.pioreactor_unit,
-        "created_at": calibration.created_at,
-        "type": calibration.type,  # type: ignore
-        "data": payload,
-        "name": calibration.name,
     }
 
 
@@ -431,11 +416,6 @@ def add_default_source_to_sinks() -> list[TopicToParserToTable]:
                 "pioreactor/+/+/temperature_automation/latest_event",
                 parse_automation_event,
                 "temperature_automation_events",
-            ),
-            TopicToParserToTable(
-                "pioreactor/+/+/calibrations",
-                parse_calibrations,
-                "calibrations",
             ),
             TopicToParserToTable(
                 "pioreactor/+/+/pwms/dc",
