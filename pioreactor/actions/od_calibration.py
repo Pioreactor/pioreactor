@@ -362,6 +362,7 @@ def save_results(
 
     data_blob = struct(
         created_at=current_utc_datetime(),
+        pioreactor_unit=unit,
         name=name,
         angle=angle,
         maximum_od600=maximum_od600,

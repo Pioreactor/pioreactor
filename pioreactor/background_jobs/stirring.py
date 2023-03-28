@@ -11,6 +11,7 @@ from typing import Optional
 
 import click
 
+import pioreactor.types as pt
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
@@ -54,7 +55,7 @@ class RpmCalculator:
 
     """
 
-    hall_sensor_pin = hardware.HALL_SENSOR_PIN
+    hall_sensor_pin: pt.GpioPin = hardware.HALL_SENSOR_PIN
 
     def __init__(self) -> None:
         pass
@@ -62,7 +63,6 @@ class RpmCalculator:
     def setup(self) -> None:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
-
         set_gpio_availability(self.hall_sensor_pin, False)
 
         import RPi.GPIO as GPIO  # type: ignore

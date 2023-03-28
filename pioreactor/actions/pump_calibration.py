@@ -160,6 +160,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
                 dc=dc,
                 bias_=0,
                 voltage=voltage_in_aux(),
+                pioreactor_unit=unit,
             ),
         )
     except KeyboardInterrupt:

@@ -40,9 +40,10 @@ def setup_function():
                 bias_=0.0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="media",
+                pioreactor_unit=unit,
             )
         )
         cache["alt_media"] = encode(
@@ -52,9 +53,10 @@ def setup_function():
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="alt_media",
+                pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
@@ -64,9 +66,10 @@ def setup_function():
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="waste",
+                pioreactor_unit=unit,
             )
         )
 
@@ -210,9 +213,10 @@ def test_pump_can_be_interrupted():
         bias_=0.0,
         dc=100,
         hz=100,
-        timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
         pump="media",
+        pioreactor_unit=unit,
     )
 
     with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
@@ -256,9 +260,10 @@ def test_pumps_can_run_in_background():
         bias_=0.0,
         dc=60,
         hz=100,
-        timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+        created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
         voltage=-1.0,
         pump="media",
+        pioreactor_unit=unit,
     )
     with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
         with local_intermittent_storage("pwm_dc") as cache:
@@ -320,9 +325,10 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
                 bias_=0.0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="media",
+                pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
@@ -332,9 +338,10 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_higher_flow_rate(
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="waste",
+                pioreactor_unit=unit,
             )
         )
 
@@ -353,9 +360,10 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
                 bias_=0.0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="media",
+                pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
@@ -365,9 +373,10 @@ def test_media_circulation_will_control_media_pump_if_it_has_a_lower_flow_rate()
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="waste",
+                pioreactor_unit=unit,
             )
         )
 

@@ -135,9 +135,10 @@ def test_dosing_events_land_in_db() -> None:
                 bias_=0.0,
                 dc=60,
                 hz=100,
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 voltage=-1.0,
                 pump="media",
+                pioreactor_unit=unit,
             ),
         )
 
