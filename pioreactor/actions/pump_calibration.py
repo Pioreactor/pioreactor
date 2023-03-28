@@ -349,7 +349,11 @@ def save_results(
 def publish_to_leader(calibration_result: structs.AnyPumpCalibration) -> bool:
     success = True
     try:
-        res = put(f"http://{leader_address}/api/calibrations", encode(calibration_result))
+        res = put(
+            f"http://{leader_address}/api/calibrations",
+            encode(calibration_result),
+            headers={"Content-Type": "application/json"},
+        )
         if not res.ok:
             print(res.status_code)
             success = False
@@ -357,9 +361,7 @@ def publish_to_leader(calibration_result: structs.AnyPumpCalibration) -> bool:
         print(e)
         success = False
     if not success:
-        click.echo(
-            f"Could not update in database on leader at http://{leader_address}/api/calibrations ❌"
-        )
+        click.echo(f"Could not publish to leader at http://{leader_address}/api/calibrations ❌")
     return success
 
 
@@ -503,11 +505,11 @@ def change_current(name: str) -> None:
 
         res = patch(
             f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
-            body={"current": 1},
+            json={"current": 1},
         )
         if not res.ok:
             print(res.status_code)
-            click.echo("Could not update in database on leader ❌")
+            click.echo("Could not update current in database on leader ❌")
 
         if old_calibration:
             click.echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")

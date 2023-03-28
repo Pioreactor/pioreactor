@@ -516,7 +516,11 @@ def display(name: str | None) -> None:
 def publish_to_leader(calibration_result: structs.Calibration) -> bool:
     success = True
     try:
-        res = put(f"http://{leader_address}/api/calibrations", encode(calibration_result))
+        res = put(
+            f"http://{leader_address}/api/calibrations",
+            encode(calibration_result),
+            headers={"Content-Type": "application/json"},
+        )
         if not res.ok:
             success = False
     except Exception as e:
@@ -548,7 +552,8 @@ def change_current(name: str) -> None:
             current_calibrations[angle] = encode(new_calibration)
 
         res = patch(
-            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}"
+            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+            json={"current": 1},
         )
         if not res.ok:
             click.echo("Could not update in database on leader ❌")
