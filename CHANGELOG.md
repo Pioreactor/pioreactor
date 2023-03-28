@@ -1,3 +1,6 @@
+### Upcoming
+ - edits to the `calibrations` table in the database require a full drop and recreation.
+
 ### 23.3.21
  - Python files in `plugins/` folder on leader are viewable on the /plugins page in the UI.
  - Python files in `plugins/` folder on leader are uninstallable (aka deleted) on the /plugins page in the UI.

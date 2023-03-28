@@ -25,6 +25,7 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
@@ -32,7 +33,7 @@ DEFAULT_CALIBRATION = structs.PumpCalibration(
     # TODO: provide better estimates for duration_ and bias_ based on some historical data.
     # it can even be a function of voltage
     name="default",
-    timestamp="2000-01-01 00:00:00",
+    created_at=default_datetime_for_pioreactor(),
     pump="",
     hz=200.0,  # is this an okay default?
     dc=100.0,

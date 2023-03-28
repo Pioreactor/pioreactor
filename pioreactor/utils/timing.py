@@ -44,6 +44,10 @@ def current_utc_timestamp() -> str:
     return to_iso_format(current_utc_datetime())
 
 
+def default_datetime_for_pioreactor() -> datetime:
+    return datetime(2000, 1, 1)
+
+
 def to_datetime(timestamp: str) -> datetime:
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
 

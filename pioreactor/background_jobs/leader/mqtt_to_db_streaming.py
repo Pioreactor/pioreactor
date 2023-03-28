@@ -48,14 +48,12 @@ class TopicToParserToTable(Struct):
 
 
 class MqttToDBStreamer(BackgroundJob):
-
     topics_to_tables_from_plugins: list[TopicToParserToTable] = []
     job_name = "mqtt_to_db_streaming"
 
     def __init__(
         self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
     ) -> None:
-
         from sqlite3worker import Sqlite3Worker
 
         super().__init__(experiment=experiment, unit=unit)
@@ -331,9 +329,10 @@ def parse_calibrations(topic: str, payload: pt.MQTTMessagePayload) -> dict:
 
     return {
         "pioreactor_unit": metadata.pioreactor_unit,
-        "created_at": calibration.timestamp,
-        "type": calibration.__class__.__struct_tag__,  # type: ignore
+        "created_at": calibration.created_at,
+        "type": calibration.type,  # type: ignore
         "data": payload,
+        "name": calibration.name,
     }
 
 
