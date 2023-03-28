@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    - `pio run x_calibration` starts the calibration and saves it keyed by a unique name (see 2. for storage)
-    - `pio run x_calibration list` lists all saved calibrations, keyed by their unique name.
-    - `pio run x_calibration display ?name?` displays information about the current calibration to be used, or the calibration ?name? if provided
-    - `pio run x_calibration change_current <name>` changes the current calibration to <name> calibration.
+See od_calibration for the generic calibrations API.
 """
 from __future__ import annotations
 
@@ -364,10 +361,8 @@ def publish_to_leader(name: str) -> bool:
             headers={"Content-Type": "application/json"},
         )
         if not res.ok:
-            print(res.status_code)
             success = False
-    except Exception as e:
-        print(e)
+    except Exception:
         success = False
     if not success:
         click.echo(f"Could not publish to leader at http://{leader_address}/api/calibrations ❌")
@@ -517,13 +512,14 @@ def change_current(name: str) -> None:
             json={"current": 1},
         )
         if not res.ok:
-            print(res.status_code)
             click.echo("Could not update current in database on leader ❌")
 
         if old_calibration:
-            click.echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")
+            click.echo(
+                f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration."
+            )
         else:
-            click.echo(f"Set {new_calibration.name} to current calibration  ✅")
+            click.echo(f"Set {new_calibration.name} to current calibration.")
 
     except Exception as e:
         click.echo(f"Failed to swap. {e}")
