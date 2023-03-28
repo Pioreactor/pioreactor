@@ -75,21 +75,24 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
 
         if has_media:
             media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).created_at
+            media_name = decode(cache["media"], type=structs.MediaPumpCalibration).name
 
         if has_waste:
             waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).created_at
+            waste_name = decode(cache["waste"], type=structs.WastePumpCalibration).name
 
         if has_alt_media:
             alt_media_timestamp = decode(
                 cache["alt_media"], type=structs.AltMediaPumpCalibration
             ).created_at
+            alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).name
 
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
-1. Media       {f'[last ran {media_timestamp:%d %b, %Y}]' if has_media else '[missing calibration]'}
-2. Alt-media   {f'[last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[missing calibration]'}
-3. Waste       {f'[last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[missing calibration]'}
+1. Media       {f'[{media_name}, last ran {media_timestamp:%d %b, %Y}]' if has_media else '[No calibration]'}
+2. Alt-media   {f'[{alt_media_name}, last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[No calibration]'}
+3. Waste       {f'[{waste_name}, last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[No calibration]'}
 """,
             fg="green",
         ),
@@ -100,7 +103,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     if r == "1":
         if has_media:
             click.confirm(
-                click.style("Confirm over-writing existing calibration?", fg="green"),
+                click.style("Confirm replacing current calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -108,7 +111,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     elif r == "2":
         if has_alt_media:
             click.confirm(
-                click.style("Confirm over-writing existing calibration?", fg="green"),
+                click.style("Confirm replacing current calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -116,7 +119,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     elif r == "3":
         if has_waste:
             click.confirm(
-                click.style("Confirm over-writing existing calibration?", fg="green"),
+                click.style("Confirm replacing current calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -340,14 +343,20 @@ def save_results(
     with local_persistant_storage("pump_calibrations") as cache:
         cache[name] = encode(pump_calibration_result)
 
-    publish_to_leader(pump_calibration_result)
+    publish_to_leader(name)
     change_current(name)
 
     return pump_calibration_result
 
 
-def publish_to_leader(calibration_result: structs.AnyPumpCalibration) -> bool:
+def publish_to_leader(name: str) -> bool:
     success = True
+
+    with local_persistant_storage("pump_calibrations") as all_calibrations:
+        calibration_result = decode(
+            all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
+        )
+
     try:
         res = put(
             f"http://{leader_address}/api/calibrations",
@@ -385,7 +394,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             is_ready = click.confirm(
                 click.style("Do you want to change the frequency or duty cycle?", fg="green"),
                 prompt_suffix=" ",
-                default=False,
+                default=True,
             )
 
         durations, volumes = run_tests(
@@ -589,6 +598,12 @@ def click_list():
     Print a list of all pump calibrations done, indexed by name
     """
     list_()
+
+
+@click_pump_calibration.command(name="publish")
+@click.argument("name", type=click.STRING)
+def click_publish(name: str):
+    publish_to_leader(name)
 
 
 if __name__ == "__main__":

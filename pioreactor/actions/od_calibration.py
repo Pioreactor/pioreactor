@@ -7,12 +7,14 @@ All calibrations, including od_calibration, should behave similarly:
     - `pio run x_calibration list` lists all saved calibrations, keyed by their unique name.
     - `pio run x_calibration display ?name?` displays information about the current calibration to be used, or the calibration ?name? if provided
     - `pio run x_calibration change_current <name>` changes the current calibration to <name> calibration.
+    - `pio run x_calibration publish <name>` publishes the calibration to the leader.
 
 2. On disk, all run calibrations should be stored in local persistent storage under `x_calibrations` keyed by a unique name, and the current calibration
 should be stored in `x_current_calibration`, with appropriate key that is not the unique name, but something consistant.
 3. A struct should be created / sub-classed from structs.Calibration that will encode / decode the calibration data blob.
-4. All calibrations' data blobs should be published to the topic `pioreactor/<unit>/UNIVERSAL_EXPERIMENT/calibrations`
-5. When a new calibration is set as current, a PATCH request to `/api/calibrations/<pioreactor_unit>/<calibration_type>/<calibration_name>` should be sent.
+4. When a new calibration is created, a PUT request to `/api/calibrations/` should be sent. The body is the json-encoded Calibration struct.
+5. When a new calibration is set as current (change_current), a PATCH request to `/api/calibrations/<pioreactor_unit>/<calibration_type>/<calibration_name>` should be sent.
+6. Create a new experiment should both publish to leader and set as current.
 
 """
 from __future__ import annotations
@@ -380,7 +382,7 @@ def save_results(
     with local_persistant_storage("od_calibrations") as cache:
         cache[name] = encode(data_blob)
 
-    publish_to_leader(data_blob)
+    publish_to_leader(name)
     change_current(name)
 
     return data_blob
@@ -513,8 +515,14 @@ def display(name: str | None) -> None:
                 click.echo()
 
 
-def publish_to_leader(calibration_result: structs.Calibration) -> bool:
+def publish_to_leader(name: str) -> bool:
     success = True
+
+    with local_persistant_storage("od_calibrations") as all_calibrations:
+        calibration_result = decode(
+            all_calibrations[name], type=structs.subclass_union(structs.ODCalibration)
+        )
+
     try:
         res = put(
             f"http://{leader_address}/api/calibrations",
@@ -616,3 +624,9 @@ def click_change_current(name: str):
 @click_od_calibration.command(name="list")
 def click_list():
     list_()
+
+
+@click_od_calibration.command(name="publish")
+@click.argument("name", type=click.STRING)
+def click_publish(name: str):
+    publish_to_leader(name)
