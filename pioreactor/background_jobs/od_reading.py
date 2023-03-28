@@ -382,6 +382,9 @@ class ADCReader(LoggerMixin):
         return (float(C), float(A), float(phi)), AIC
 
     def clear_batched_readings(self) -> None:
+        """
+        Remove all data from batched_readings. This has the effect of removing hysteresis from the inference.
+        """
         self.batched_readings = {}
 
     @staticmethod

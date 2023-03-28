@@ -40,13 +40,19 @@ class ConfigParserMod(configparser.ConfigParser):
         reversed_section = {v: k for k, v in section_without_empties.items()}
         return reversed_section
 
-    def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
+    def _get_conv(self, section, option, conv, *, raw=False, vars=None, fallback=None, **kwargs):
+        return self._get(section, conv, option, raw=raw, vars=vars, fallback=fallback, **kwargs)
+
+    def getboolean(self, section: str, option: str, *args, **kwargs):  # type: ignore
         try:
-            return super().get(section, option, *args, **kwargs)
-        except (configparser.NoSectionError, configparser.NoOptionError):
+            return super().getboolean(section, option, *args, **kwargs)
+        except (configparser.NoSectionError, configparser.NoOptionError) as e:
+            if "fallback" in kwargs:
+                return
+
             from pioreactor.logging import create_logger
 
-            create_logger("read config").error(
+            create_logger("read config").warning(
                 f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
@@ -54,7 +60,26 @@ class ConfigParserMod(configparser.ConfigParser):
 
 """
             )
-            raise
+            raise e
+
+    def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
+        try:
+            return super().get(section, option, *args, **kwargs)
+        except (configparser.NoSectionError, configparser.NoOptionError) as e:
+            if "fallback" in kwargs:
+                return
+
+            from pioreactor.logging import create_logger
+
+            create_logger("read config").warning(
+                f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
+
+[{section}]
+{option}=some value
+
+"""
+            )
+            raise e
 
 
 def get_config() -> ConfigParserMod:

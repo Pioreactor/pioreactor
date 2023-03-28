@@ -29,7 +29,7 @@ def od_statistics(
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
     n_samples: int = 30,
-    ignore_rpm: bool = False,
+    use_rpm: bool = True,
     logger=None,
 ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
     """
@@ -55,7 +55,7 @@ def od_statistics(
             target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
             experiment=testing_experiment,
-            ignore_rpm=ignore_rpm,
+            use_rpm=use_rpm,
         )
         st.block_until_rpm_is_close_to_target(timeout=120)  # wait for maximum 2 minutes
     else:
