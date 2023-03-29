@@ -6,10 +6,10 @@ set -e
 export LC_ALL=C
 
 
-# since we are changing the db, we should restart this
-sudo systemctl restart pioreactor_startup_run@mqtt_to_db_streaming.service
+# since we are changing the db, we should restart this. This only works on leader
+sudo systemctl restart pioreactor_startup_run@mqtt_to_db_streaming.service || true
 
-# Run a python script to convert existing calibrations to the new style
+# Run a python snippet to convert existing calibrations to the new style
 python3 - << EOF
 # -*- coding: utf-8 -*-
 import json

@@ -90,7 +90,6 @@ class GrowthRateCalculator(BackgroundJob):
         ignore_cache: bool = False,
         from_mqtt=True,
     ):
-
         super(GrowthRateCalculator, self).__init__(unit=unit, experiment=experiment)
 
         self.from_mqtt = from_mqtt
@@ -198,7 +197,6 @@ class GrowthRateCalculator(BackgroundJob):
         import numpy as np
 
         try:
-
             scaling_obs_variances = np.array(
                 [
                     self.od_variances[channel]
@@ -241,10 +239,12 @@ class GrowthRateCalculator(BackgroundJob):
         self.logger.info("Completed OD normalization metrics.")
 
         with local_persistant_storage("od_normalization_mean") as cache:
-            cache[self.experiment] = dumps(means)
+            if self.experiment not in cache:
+                cache[self.experiment] = dumps(means)
 
         with local_persistant_storage("od_normalization_variance") as cache:
-            cache[self.experiment] = dumps(variances)
+            if self.experiment not in cache:
+                cache[self.experiment] = dumps(variances)
 
         return means, variances
 
@@ -257,7 +257,7 @@ class GrowthRateCalculator(BackgroundJob):
             od_normalization_factors = self.get_od_normalization_from_cache()
             od_variances = self.get_od_variances_from_cache()
             initial_growth_rate = self.get_growth_rate_from_cache()
-            initial_od = self.get_od_from_cache()
+            initial_od = self.get_filtered_od_from_cache()
 
         initial_acc = 0.0
         od_blank = self.get_od_blank_from_cache()
@@ -295,12 +295,12 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("growth_rate") as cache:
             return cache.get(self.experiment, 0.0)
 
-    def get_od_from_cache(self) -> float:
+    def get_filtered_od_from_cache(self) -> float:
         with local_persistant_storage("od_filtered") as cache:
             return cache.get(self.experiment, 1.0)
 
     def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
-        # we check if the broker has variance/mean stats
+        # we check if we've computed mean stats
         with local_persistant_storage("od_normalization_mean") as cache:
             result = cache.get(self.experiment, None)
             if result is not None:
@@ -312,7 +312,7 @@ class GrowthRateCalculator(BackgroundJob):
         return means
 
     def get_od_variances_from_cache(self) -> dict[pt.PdChannel, float]:
-        # we check if the broker has variance/mean stats
+        # we check if we've computed variance stats
         with local_persistant_storage("od_normalization_variance") as cache:
             result = cache.get(self.experiment, None)
             if result:
@@ -390,7 +390,6 @@ class GrowthRateCalculator(BackgroundJob):
     def _update_state_from_observation(
         self, od_readings: structs.ODReadings
     ) -> tuple[structs.GrowthRate, structs.ODFiltered, structs.KalmanFilterOutput]:
-
         timestamp = od_readings.timestamp
         scaled_observations = self.scale_raw_observations(
             self._batched_raw_od_readings_to_dict(od_readings.ods)
@@ -424,7 +423,6 @@ class GrowthRateCalculator(BackgroundJob):
             self.logger.error(f"Updating Kalman Filter failed with {str(e)}")
             return self.growth_rate, self.od_filtered, self.kalman_filter_outputs
         else:
-
             # TODO: EKF values can be nans...
 
             latest_od_filtered, latest_growth_rate = float(updated_state[0]), float(

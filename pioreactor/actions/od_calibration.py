@@ -10,7 +10,7 @@ All calibrations, including od_calibration, should behave similarly:
     - `pio run x_calibration publish <name>` publishes the calibration to the leader.
 
 2. On disk, all run calibrations should be stored in local persistent storage under `x_calibrations` keyed by a unique name, and the current calibration
-should be stored in `x_current_calibration`, with appropriate key that is not the unique name, but something consistant.
+should be stored in `x_current_calibration`, with appropriate key that is not the unique name, but something consistent. Note: name cannot be `current`.
 3. A struct should be created / sub-classed from structs.Calibration that will encode / decode the calibration data blob.
 4. When a new calibration is created, a PUT request to `/api/calibrations/` should be sent. The body is the json-encoded Calibration struct.
 5. When a new calibration is set as current (change_current), a PATCH request to `/api/calibrations/<pioreactor_unit>/<calibration_type>/<calibration_name>` should be sent.
