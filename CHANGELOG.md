@@ -1,7 +1,9 @@
 ### Upcoming
  - edits to the `calibrations` table in the database require a full drop and recreation.
  - calibration structs `timestamp` -> `created_at` ??
- - Backend work to complete calibrations utilities.
+ - Backend work to complete calibrations utilities:
+   - New API endpoints on the webserver to store calibrations, get calibrations, set as current.
+   - New CLI: `pio run pump_calibration publish` will publish a calibration to the webserver
 
 ### 23.3.21
  - Python files in `plugins/` folder on leader are viewable on the /plugins page in the UI.

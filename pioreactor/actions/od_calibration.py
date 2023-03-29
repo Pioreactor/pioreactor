@@ -14,7 +14,8 @@ should be stored in `x_current_calibration`, with appropriate key that is not th
 3. A struct should be created / sub-classed from structs.Calibration that will encode / decode the calibration data blob.
 4. When a new calibration is created, a PUT request to `/api/calibrations/` should be sent. The body is the json-encoded Calibration struct.
 5. When a new calibration is set as current (change_current), a PATCH request to `/api/calibrations/<pioreactor_unit>/<calibration_type>/<calibration_name>` should be sent.
-6. Create a new experiment should both publish to leader and set as current.
+6. Creating a new calibration should both publish to leader and set as current.
+
 
 """
 from __future__ import annotations

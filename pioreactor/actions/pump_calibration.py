@@ -389,7 +389,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             is_ready = click.confirm(
                 click.style("Do you want to change the frequency or duty cycle?", fg="green"),
                 prompt_suffix=" ",
-                default=True,
+                default=False,
             )
 
         durations, volumes = run_tests(
