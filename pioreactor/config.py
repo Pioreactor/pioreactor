@@ -43,12 +43,12 @@ class ConfigParserMod(configparser.ConfigParser):
     def _get_conv(self, section, option, conv, *, raw=False, vars=None, fallback=None, **kwargs):
         return self._get(section, conv, option, raw=raw, vars=vars, fallback=fallback, **kwargs)
 
-    def getboolean(self, section: str, option: str, *args, **kwargs):  # type: ignore
+    def getboolean(self, section: str, option: str, *args, **kwargs) -> bool:  # type: ignore
         try:
             return super().getboolean(section, option, *args, **kwargs)
         except (configparser.NoSectionError, configparser.NoOptionError) as e:
             if "fallback" in kwargs:
-                return
+                return kwargs["fallback"]
 
             from pioreactor.logging import create_logger
 

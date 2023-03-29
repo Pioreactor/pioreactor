@@ -54,6 +54,8 @@ def change_leds_intensities_temporarily(
         led_intensity(desired_state, **kwargs)
 
         yield
+    except Exception:
+        old_state = {}
     finally:
         led_intensity(old_state, **kwargs)
 

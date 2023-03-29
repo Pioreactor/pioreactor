@@ -470,6 +470,9 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
             except Exception as e:
+                logger = create_logger(
+                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
+                )
                 logger.error(f"Unable to connect to unit {unit}. {e}")
                 logger.debug(e, exc_info=True)
                 return False

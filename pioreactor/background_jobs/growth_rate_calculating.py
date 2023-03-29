@@ -350,6 +350,7 @@ class GrowthRateCalculator(BackgroundJob):
             )
             for channel, raw_signal in observations.items()
         }
+
         if any(v <= 0.0 for v in scaled_signals.values()):
             self.logger.warning(f"Negative normalized value(s) observed: {scaled_signals}")
             self.logger.debug(f"od_normalization_factors: {self.od_normalization_factors}")

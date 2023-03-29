@@ -218,7 +218,14 @@ class Stirrer(BackgroundJob):
         else:
             self.logger.debug("Operating without RPM closed loop.")
 
-        pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "stirring")]
+        channel: Optional[pt.PwmChannel] = config.get("PWM_reverse", "stirring")
+
+        if channel is None:
+            self.logger.error(f"Add stirring to `PWM` section to config_{self.unit}.ini.")
+            self.clean_up()
+            return
+
+        pin: pt.GpioPin = hardware.PWM_TO_PIN[channel]
         self.pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         self.pwm.lock()
 
