@@ -13,7 +13,7 @@ from pioreactor import structs
 from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import circulate_media
-from pioreactor.actions.pump import Pump
+from pioreactor.actions.pump import PWMPump
 from pioreactor.actions.pump import remove_waste
 from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
@@ -219,7 +219,7 @@ def test_pump_can_be_interrupted():
         pioreactor_unit=unit,
     )
 
-    with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
+    with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
         p.continuously(block=False)
         pause()
         with local_intermittent_storage("pwm_dc") as cache:
@@ -265,7 +265,7 @@ def test_pumps_can_run_in_background():
         pump="media",
         pioreactor_unit=unit,
     )
-    with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
+    with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
         with local_intermittent_storage("pwm_dc") as cache:
             assert cache.get(13, 0) == 0
 

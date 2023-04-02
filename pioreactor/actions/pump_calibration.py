@@ -241,9 +241,7 @@ def run_tests(
     )
 
     results: list[float] = []
-    durations_to_test = (
-        [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
-    )
+    durations_to_test = [min_duration] * 5 + [max_duration] * 5
 
     for i, duration in enumerate(durations_to_test):
         while True:
@@ -488,11 +486,16 @@ def display(name: str | None) -> None:
 
 
 def change_current(name: str) -> None:
-    try:
-        with local_persistant_storage("pump_calibrations") as all_calibrations:
+    with local_persistant_storage("pump_calibrations") as all_calibrations:
+        try:
             new_calibration = decode(
                 all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
             )  # decode name from list of all names
+        except KeyError:
+            create_logger("pump_calibration").error(
+                f"Failed to swap. Calibration `{name}` not found."
+            )
+            raise click.Abort()
 
         pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
 
@@ -520,10 +523,6 @@ def change_current(name: str) -> None:
             )
         else:
             click.echo(f"Set {new_calibration.name} to current calibration.")
-
-    except Exception as e:
-        click.echo(f"Failed to swap. {e}")
-        click.Abort()
 
 
 def list_():
