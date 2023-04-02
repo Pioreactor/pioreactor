@@ -1,4 +1,4 @@
-DROP TABLE calibrations;
+DROP TABLE IF EXISTS calibrations;
 
 CREATE TABLE IF NOT EXISTS calibrations (
     pioreactor_unit          TEXT NOT NULL,
