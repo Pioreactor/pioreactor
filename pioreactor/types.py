@@ -4,15 +4,30 @@ from __future__ import annotations
 
 import typing as t
 
+mL = float
+Seconds = float
 
 class DosingProgram(t.Protocol):
     """
+    Used in Dosing automations
     Should return a non-negative float representing (approx) how much liquid was moved, in ml.
     """
 
-    def __call__(self, unit: str, experiment: str, ml: float, source_of_event: str) -> float:
+    def __call__(self, unit: str, experiment: str, ml: float, source_of_event: str) -> mL:
         # don't forget to return a float!
         ...
+
+
+class Pump(t.Protocol):
+    """
+
+    Used to create/override a pump
+    Should return a non-negative float representing (approx) how much liquid was moved, in ml.
+    """
+    def __call__(self, ml: float, duration: float, continously: bool,  source_of_event: str, unit: str, experiment: str) -> mL:
+        # don't forget to return a float!
+        ...
+
 
 
 MQTTMessagePayload = t.Union[bytes, bytearray]
@@ -122,5 +137,4 @@ GpioPin = t.Literal[
     21,
 ]
 
-mL = float
-Seconds = float
+

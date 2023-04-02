@@ -123,9 +123,9 @@ def test_dosing_events_land_in_db() -> None:
     ]
 
     with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
-        from pioreactor.actions.pump import add_media
+        from pioreactor.actions.pump import pumping_actions
 
-        add_media(
+        pumping_actions.add_media(
             unit,
             exp,
             ml=1,

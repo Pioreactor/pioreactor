@@ -14,9 +14,7 @@ from msgspec.json import decode
 from msgspec.json import encode
 
 from pioreactor import structs
-from pioreactor.actions.pump import add_alt_media
-from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import remove_waste
+from pioreactor.actions.pump import pumping_actions
 from pioreactor.config import config
 from pioreactor.config import leader_address
 from pioreactor.hardware import voltage_in_aux
@@ -31,6 +29,7 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
+from pioreactor import types as pt
 
 
 def introduction() -> None:
@@ -64,7 +63,7 @@ def get_metadata_from_user() -> str:
     return name
 
 
-def which_pump_are_you_calibrating() -> tuple[str, Callable]:
+def which_pump_are_you_calibrating() -> tuple[str, Callable[..., pt.mL]]:
     with local_persistant_storage("current_pump_calibration") as cache:
         has_media = "media" in cache
         has_waste = "waste" in cache
@@ -90,10 +89,11 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
 1. Media       {f'[{media_name}, last ran {media_timestamp:%d %b, %Y}]' if has_media else '[No calibration]'}
 2. Alt-media   {f'[{alt_media_name}, last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[No calibration]'}
 3. Waste       {f'[{waste_name}, last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[No calibration]'}
+4. Other
 """,
             fg="green",
         ),
-        type=click.Choice(["1", "2", "3"]),
+        type=click.Choice(["1", "2", "3", "4"]),
         show_choices=True,
     )
 
@@ -104,7 +104,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
                 abort=True,
                 prompt_suffix=" ",
             )
-        return ("media", add_media)
+        return ("media", pumping_actions.add_media)
     elif r == "2":
         if has_alt_media:
             click.confirm(
@@ -112,7 +112,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
                 abort=True,
                 prompt_suffix=" ",
             )
-        return ("alt_media", add_alt_media)
+        return ("alt_media", pumping_actions.add_alt_media)
     elif r == "3":
         if has_waste:
             click.confirm(
@@ -120,9 +120,16 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
                 abort=True,
                 prompt_suffix=" ",
             )
-        return ("waste", remove_waste)
+        return ("waste", pumping_actions.remove_waste)
+    elif r == "4":
+        pump_function = get_custom_pump_function()
+        return ("other", pump_function)
     else:
         raise ValueError()
+
+
+def get_custom_pump_function() -> Callable[..., pt.mL]:
+    raise NotImplementedError("TODO!")
 
 
 def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:
@@ -242,7 +249,7 @@ def run_tests(
 
     results: list[float] = []
     durations_to_test = (
-        [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
+        [min_duration] * 5  + [max_duration] * 5
     )
 
     for i, duration in enumerate(durations_to_test):
@@ -320,7 +327,7 @@ def save_results(
     elif pump_type == "alt_media":
         struct = structs.AltMediaPumpCalibration
     else:
-        raise ValueError()
+        struct = structs.PumpCalibration
 
     pump_calibration_result = struct(
         name=name,
@@ -488,42 +495,43 @@ def display(name: str | None) -> None:
 
 
 def change_current(name: str) -> None:
-    try:
-        with local_persistant_storage("pump_calibrations") as all_calibrations:
+    with local_persistant_storage("pump_calibrations") as all_calibrations:
+        try:
             new_calibration = decode(
                 all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
             )  # decode name from list of all names
+        except KeyError as e:
+            create_logger("pump_calibration").error(f"Failed to swap. Calibration `{name}` not found.")
+            raise click.Abort()
 
-        pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
+    pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
 
-        with local_persistant_storage("current_pump_calibration") as current_calibrations:
-            if pump_type_from_new_calibration in current_calibrations:
-                old_calibration = decode(
-                    current_calibrations[pump_type_from_new_calibration],
-                    type=structs.subclass_union(structs.PumpCalibration),
-                )
-            else:
-                old_calibration = None
-
-            current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
-
-        res = patch(
-            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
-            json={"current": 1},
-        )
-        if not res.ok:
-            click.echo("Could not update current in database on leader ❌")
-
-        if old_calibration:
-            click.echo(
-                f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration."
+    with local_persistant_storage("current_pump_calibration") as current_calibrations:
+        if pump_type_from_new_calibration in current_calibrations:
+            old_calibration = decode(
+                current_calibrations[pump_type_from_new_calibration],
+                type=structs.subclass_union(structs.PumpCalibration),
             )
         else:
-            click.echo(f"Set {new_calibration.name} to current calibration.")
+            old_calibration = None
 
-    except Exception as e:
-        click.echo(f"Failed to swap. {e}")
-        click.Abort()
+        current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
+
+    res = patch(
+        f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+        json={"current": 1},
+    )
+    if not res.ok:
+        click.echo("Could not update current in database on leader ❌")
+
+    if old_calibration:
+        click.echo(
+            f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration."
+        )
+    else:
+        click.echo(f"Set {new_calibration.name} to current calibration.")
+
+
 
 
 def list_():

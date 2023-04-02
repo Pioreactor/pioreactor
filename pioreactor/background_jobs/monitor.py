@@ -484,6 +484,8 @@ class Monitor(BackgroundJob):
         # we use a thread here since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
+        from pioreactor.actions.pump import pumping_actions
+
         import subprocess
         from shlex import (
             quote,
@@ -506,16 +508,9 @@ class Monitor(BackgroundJob):
                 kwargs=payload,
             ).start()
 
-        elif job_name in (
-            "add_media",
-            "add_alt_media",
-            "remove_waste",
-            "circulate_media",
-            "circulate_alt_media",
-        ):
-            from pioreactor.actions import pump as pump_actions
+        elif job_name in vars(pumping_actions):
 
-            pump_action = getattr(pump_actions, job_name)
+            pump_action = getattr(pumping_actions, job_name)
 
             payload["unit"] = self.unit
             payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt

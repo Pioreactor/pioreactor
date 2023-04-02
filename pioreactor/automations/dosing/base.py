@@ -18,9 +18,7 @@ from msgspec.json import encode
 from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
-from pioreactor.actions.pump import add_alt_media
-from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import remove_waste
+from pioreactor.actions.pump import pumping_actions
 from pioreactor.automations import events
 from pioreactor.background_jobs.dosing_control import DosingController
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
@@ -139,7 +137,6 @@ class AltMediaCalculator:
             current_vial_volume + total_addition
         )
 
-
 class DosingAutomationJob(BackgroundSubJob):
     """
     This is the super class that automations inherit from. The `run` function will
@@ -175,13 +172,13 @@ class DosingAutomationJob(BackgroundSubJob):
     # overwrite to use your own dosing programs.
     # interface must look like types.DosingProgram
     add_media_to_bioreactor: pt.DosingProgram = partial(
-        add_media, duration=None, calibration=None, continuously=False
+        pumping_actions.add_media, duration=None, calibration=None, continuously=False
     )
     remove_waste_from_bioreactor: pt.DosingProgram = partial(
-        remove_waste, duration=None, calibration=None, continuously=False
+        pumping_actions.remove_waste, duration=None, calibration=None, continuously=False
     )
     add_alt_media_to_bioreactor: pt.DosingProgram = partial(
-        add_alt_media, duration=None, calibration=None, continuously=False
+        pumping_actions.add_alt_media, duration=None, calibration=None, continuously=False
     )
 
     # dosing metrics that are available, and published to MQTT

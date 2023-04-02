@@ -10,11 +10,8 @@ import pytest
 from msgspec.json import encode
 
 from pioreactor import structs
-from pioreactor.actions.pump import add_alt_media
-from pioreactor.actions.pump import add_media
-from pioreactor.actions.pump import circulate_media
-from pioreactor.actions.pump import Pump
-from pioreactor.actions.pump import remove_waste
+from pioreactor.actions.pump import pumping_actions
+from pioreactor.actions.pump import PWMPump
 from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
 from pioreactor.pubsub import publish
@@ -77,14 +74,14 @@ def setup_function():
 def test_pump_io() -> None:
     exp = "test_pump_io"
     ml = 0.1
-    assert ml == add_media(ml=ml, unit=unit, experiment=exp)
-    assert ml == add_alt_media(ml=ml, unit=unit, experiment=exp)
-    assert ml == remove_waste(ml=ml, unit=unit, experiment=exp)
+    assert ml == pumping_actions.add_media(ml=ml, unit=unit, experiment=exp)
+    assert ml == pumping_actions.add_alt_media(ml=ml, unit=unit, experiment=exp)
+    assert ml == pumping_actions.remove_waste(ml=ml, unit=unit, experiment=exp)
 
     ml = 1.0
-    assert ml == add_media(duration=ml, unit=unit, experiment=exp)
-    assert ml == add_alt_media(duration=ml, unit=unit, experiment=exp)
-    assert ml == remove_waste(duration=ml, unit=unit, experiment=exp)
+    assert ml == pumping_actions.add_media(duration=ml, unit=unit, experiment=exp)
+    assert ml == pumping_actions.add_alt_media(duration=ml, unit=unit, experiment=exp)
+    assert ml == pumping_actions.remove_waste(duration=ml, unit=unit, experiment=exp)
 
 
 def test_pump_fails_if_calibration_not_present():
@@ -96,40 +93,40 @@ def test_pump_fails_if_calibration_not_present():
         del cache["waste"]
 
     with pytest.raises(CalibrationError):
-        add_media(ml=1.0, unit=unit, experiment=exp)
+        pumping_actions.add_media(ml=1.0, unit=unit, experiment=exp)
 
     with pytest.raises(CalibrationError):
-        add_alt_media(ml=1.0, unit=unit, experiment=exp)
+        pumping_actions.add_alt_media(ml=1.0, unit=unit, experiment=exp)
 
     with pytest.raises(CalibrationError):
-        remove_waste(ml=1.0, unit=unit, experiment=exp)
+        pumping_actions.remove_waste(ml=1.0, unit=unit, experiment=exp)
 
 
 def test_pump_io_doesnt_allow_negative() -> None:
     exp = "test_pump_io_doesnt_allow_negative"
     with pytest.raises(AssertionError):
-        add_media(ml=-1, unit=unit, experiment=exp)
+        pumping_actions.add_media(ml=-1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
-        add_alt_media(ml=-1, unit=unit, experiment=exp)
+        pumping_actions.add_alt_media(ml=-1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
-        remove_waste(ml=-1, unit=unit, experiment=exp)
+        pumping_actions.remove_waste(ml=-1, unit=unit, experiment=exp)
 
     with pytest.raises(AssertionError):
-        add_media(duration=-1, unit=unit, experiment=exp)
+        pumping_actions.add_media(duration=-1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
-        add_alt_media(duration=-1, unit=unit, experiment=exp)
+        pumping_actions.add_alt_media(duration=-1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
-        remove_waste(duration=-1, unit=unit, experiment=exp)
+        pumping_actions.remove_waste(duration=-1, unit=unit, experiment=exp)
 
 
 def test_pump_io_cant_set_both_duration_and_ml() -> None:
     exp = "test_pump_io_cant_set_both_duration_and_ml"
     with pytest.raises(AssertionError):
-        add_media(ml=1, duration=1, unit=unit, experiment=exp)
+        pumping_actions.add_media(ml=1, duration=1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
-        add_alt_media(ml=1, duration=1, unit=unit, experiment=exp)
+        pumping_actions.add_alt_media(ml=1, duration=1, unit=unit, experiment=exp)
     with pytest.raises(AssertionError):
-        remove_waste(ml=1, duration=1, unit=unit, experiment=exp)
+        pumping_actions.remove_waste(ml=1, duration=1, unit=unit, experiment=exp)
 
 
 def test_pump_will_disconnect_via_mqtt() -> None:
@@ -148,7 +145,7 @@ def test_pump_will_disconnect_via_mqtt() -> None:
             return self._return
 
     expected_ml = 20
-    t = ThreadWithReturnValue(target=add_media, args=(unit, exp, expected_ml), daemon=True)
+    t = ThreadWithReturnValue(target=pumping_actions.add_media, args=(unit, exp, expected_ml), daemon=True)
     t.start()
 
     pause()
@@ -180,7 +177,7 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
             return self._return
 
     t = ThreadWithReturnValue(
-        target=add_media, args=(unit, exp), kwargs={"continuously": True}, daemon=True
+        target=pumping_actions.add_media, args=(unit, exp), kwargs={"continuously": True}, daemon=True
     )
     t.start()
 
@@ -219,7 +216,7 @@ def test_pump_can_be_interrupted():
         pioreactor_unit=unit,
     )
 
-    with Pump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
+    with PWMPump(unit=unit, experiment=experiment, pin=13, calibration=calibration) as p:
         p.continuously(block=False)
         pause()
         with local_intermittent_storage("pwm_dc") as cache:
