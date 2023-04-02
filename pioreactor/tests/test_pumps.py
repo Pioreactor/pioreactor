@@ -145,7 +145,9 @@ def test_pump_will_disconnect_via_mqtt() -> None:
             return self._return
 
     expected_ml = 20
-    t = ThreadWithReturnValue(target=pumping_actions.add_media, args=(unit, exp, expected_ml), daemon=True)
+    t = ThreadWithReturnValue(
+        target=pumping_actions.add_media, args=(unit, exp, expected_ml), daemon=True
+    )
     t.start()
 
     pause()
@@ -177,7 +179,10 @@ def test_continuously_running_pump_will_disconnect_via_mqtt() -> None:
             return self._return
 
     t = ThreadWithReturnValue(
-        target=pumping_actions.add_media, args=(unit, exp), kwargs={"continuously": True}, daemon=True
+        target=pumping_actions.add_media,
+        args=(unit, exp),
+        kwargs={"continuously": True},
+        daemon=True,
     )
     t.start()
 

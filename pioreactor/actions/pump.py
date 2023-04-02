@@ -16,8 +16,8 @@ from configparser import NoOptionError
 from functools import partial
 from threading import Event
 from threading import Thread
-from typing import Optional
 from types import SimpleNamespace
+from typing import Optional
 
 import click
 from msgspec.json import decode
@@ -43,13 +43,14 @@ from pioreactor.whoami import get_unit_name
 
 pumping_actions = SimpleNamespace()
 
+
 def register_pump(name=None):
     def decorate(func):
         func_name = name or func.__name__
         setattr(pumping_actions, func_name, func)
         return func
-    return decorate
 
+    return decorate
 
 
 DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
@@ -67,11 +68,11 @@ DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
 )
 
 
-
 class PWMPump:
     """
     A basic class that use the builtin PWM control to control a DC-voltage peristaltic pump.
     """
+
     def __init__(
         self,
         unit: str,
@@ -313,7 +314,6 @@ register_pump("remove_waste")(partial(_pump_action, "waste"))
 register_pump("add_alt_media")(partial(_pump_action, "alt_media"))
 
 
-
 def _liquid_circulation_via_pwm_pumps(
     pump_type: str,
     duration: pt.Seconds,
@@ -356,7 +356,10 @@ def _liquid_circulation_via_pwm_pumps(
     # if we know the calibrations for each pump, we will use a different rate.
     ratio = 0.85
 
-    if waste_calibration != DEFAULT_PWM_CALIBRATION and media_calibration != DEFAULT_PWM_CALIBRATION:
+    if (
+        waste_calibration != DEFAULT_PWM_CALIBRATION
+        and media_calibration != DEFAULT_PWM_CALIBRATION
+    ):
         # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
         if media_calibration.duration_ > waste_calibration.duration_:
             ratio = min(waste_calibration.duration_ / media_calibration.duration_, ratio)

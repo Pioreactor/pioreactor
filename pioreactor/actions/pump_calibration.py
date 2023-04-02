@@ -14,6 +14,7 @@ from msgspec.json import decode
 from msgspec.json import encode
 
 from pioreactor import structs
+from pioreactor import types as pt
 from pioreactor.actions.pump import pumping_actions
 from pioreactor.config import config
 from pioreactor.config import leader_address
@@ -29,7 +30,6 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor import types as pt
 
 
 def introduction() -> None:
@@ -248,9 +248,7 @@ def run_tests(
     )
 
     results: list[float] = []
-    durations_to_test = (
-        [min_duration] * 5  + [max_duration] * 5
-    )
+    durations_to_test = [min_duration] * 5 + [max_duration] * 5
 
     for i, duration in enumerate(durations_to_test):
         while True:
@@ -501,7 +499,9 @@ def change_current(name: str) -> None:
                 all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
             )  # decode name from list of all names
         except KeyError as e:
-            create_logger("pump_calibration").error(f"Failed to swap. Calibration `{name}` not found.")
+            create_logger("pump_calibration").error(
+                f"Failed to swap. Calibration `{name}` not found."
+            )
             raise click.Abort()
 
     pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
@@ -530,8 +530,6 @@ def change_current(name: str) -> None:
         )
     else:
         click.echo(f"Set {new_calibration.name} to current calibration.")
-
-
 
 
 def list_():

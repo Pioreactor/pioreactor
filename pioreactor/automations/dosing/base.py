@@ -137,6 +137,7 @@ class AltMediaCalculator:
             current_vial_volume + total_addition
         )
 
+
 class DosingAutomationJob(BackgroundSubJob):
     """
     This is the super class that automations inherit from. The `run` function will

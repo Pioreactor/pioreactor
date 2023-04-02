@@ -509,7 +509,6 @@ class Monitor(BackgroundJob):
             ).start()
 
         elif job_name in vars(pumping_actions):
-
             pump_action = getattr(pumping_actions, job_name)
 
             payload["unit"] = self.unit
