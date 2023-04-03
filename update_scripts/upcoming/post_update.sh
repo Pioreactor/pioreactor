@@ -10,7 +10,7 @@ export LC_ALL=C
 sudo systemctl restart pioreactor_startup_run@mqtt_to_db_streaming.service || true
 
 # Run a python snippet to convert existing calibrations to the new style
-python3 - << EOF
+sudo -u pioreactor python3 - << EOF
 # -*- coding: utf-8 -*-
 import json
 

@@ -459,7 +459,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
             command,
             shell=True,
             universal_newlines=True,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
         if p.returncode != 0:
@@ -467,6 +467,8 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
             logger.error("Update failed. See logs.")
             # end early
             raise click.Abort()
+        else:
+            logger.debug(p.stdout)
 
     logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
 
