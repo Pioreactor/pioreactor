@@ -93,7 +93,7 @@ class EditableCodeDiv extends React.Component {
   saveCurrentCode() {
     this.setState({saving: true, isError: false})
     fetch(`/api/configs/${this.state.filename}`,{
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify({code :this.state.code, filename: this.state.filename}),
         headers: {
           'Accept': 'application/json',
