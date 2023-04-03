@@ -747,3 +747,26 @@ class TestGrowthRateCalculating:
 
                 assert len(results) > 0
                 assert results[0][0].timestamp < results[1][0].timestamp < results[2][0].timestamp  # type: ignore
+
+    def test_a_non_unity_initial_nOD_works(self) -> None:
+        unit = get_unit_name()
+        experiment = "test_a_non_unity_initial_nOD_works"
+
+        with local_persistant_storage("od_normalization_mean") as cache:
+            cache[experiment] = json.dumps({"1": 0.05, "2": 0.10})
+
+        with local_persistant_storage("od_normalization_variance") as cache:
+            cache[experiment] = json.dumps({"1": 1e-6, "2": 1e-6})
+
+        publish(
+            f"pioreactor/{unit}/{experiment}/od_reading/ods",
+            create_od_raw_batched_json(
+                ["1", "2"], [1.0, 1.0], ["90", "135"], timestamp="2010-01-01T12:00:35.000000Z"
+            ),
+            retain=True,
+        )
+
+        with GrowthRateCalculator(unit=unit, experiment=experiment) as calc:
+            pause()
+            assert calc.od_normalization_factors == {"1": 0.05, "2": 0.10}
+            assert calc.initial_nOD == 15.0 == 0.5 * (1 / 0.05 + 1 / 0.10)

@@ -915,7 +915,6 @@ class ODReader(BackgroundJob):
                 sleep(0.1)
                 timestamp_of_readings = timing.current_utc_datetime()
                 od_reading_by_channel = self._read_from_adc_and_transform()
-
                 od_readings = structs.ODReadings(
                     timestamp=timestamp_of_readings,
                     ods={

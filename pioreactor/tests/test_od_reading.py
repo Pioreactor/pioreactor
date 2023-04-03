@@ -14,6 +14,7 @@ from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
+from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
@@ -789,3 +790,34 @@ def test_calibration_errors_when_pd_channel_differs():
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
+
+
+def test_ODReader_with_multiple_angles_and_a_ref():
+    """
+    Technically not possible, since there are only two PD channels.
+
+    """
+    experiment = "test_ODReader_with_multiple_angles_and_a_ref"
+
+    ir_led_reference_channel = "version"  # hack
+    channel_angle_map = {"1": "45", "2": "90"}
+    channels = ["1", "2", ir_led_reference_channel]
+
+    # use IR LED reference to normalize?
+    ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
+        ir_led_reference_channel,
+    )
+
+    with ODReader(
+        channel_angle_map,
+        interval=3,
+        unit=get_unit_name(),
+        experiment=experiment,
+        adc_reader=ADCReader(channels=channels, fake_data=True, interval=3, dynamic_gain=False),
+        ir_led_reference_tracker=ir_led_reference_tracker,
+        calibration_transformer=NullCalibrationTransformer(),
+    ) as odr:
+        for i, signal in enumerate(odr):
+            print(signal)
+            if i == 3:
+                break

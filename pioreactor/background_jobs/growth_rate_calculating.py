@@ -40,6 +40,7 @@ from collections import defaultdict
 from datetime import datetime
 from json import dumps
 from json import loads
+from statistics import mean
 from typing import Generator
 
 from click import command
@@ -109,16 +110,18 @@ class GrowthRateCalculator(BackgroundJob):
 
         try:
             (
-                self.initial_growth_rate,
-                self.initial_od,
                 self.od_normalization_factors,
                 self.od_variances,
                 self.od_blank,
-                self.initial_acc,
             ) = self.get_precomputed_values()
+            (
+                self.initial_nOD,
+                self.initial_growth_rate,
+                self.initial_acc,
+            ) = self.get_initial_values()
         except Exception as e:
             # something happened - abort
-            self.logger.debug("Aborting `get_precomputed_values`.", exc_info=True)
+            self.logger.debug("Aborting early`.", exc_info=True)
             self.clean_up()
             raise e
 
@@ -142,11 +145,12 @@ class GrowthRateCalculator(BackgroundJob):
 
         initial_state = np.array(
             [
-                self.initial_od,
+                self.initial_nOD,
                 self.initial_growth_rate,
                 self.initial_acc,
             ]
         )
+        self.logger.debug(f"Initial state: {repr(initial_state)}")
 
         initial_covariance = 1e-4 * np.eye(
             3
@@ -251,18 +255,25 @@ class GrowthRateCalculator(BackgroundJob):
 
         return means, variances
 
-    def get_precomputed_values(self) -> tuple:
+    def get_initial_values(self) -> tuple[float, float, float]:
+        if self.ignore_cache:
+            initial_growth_rate = 0.0
+            initial_nOD = 1.0
+        else:
+            initial_growth_rate = self.get_growth_rate_from_cache()
+            initial_nOD = self.get_filtered_od_from_cache_or_computed()
+        initial_acc = 0.0
+        return (initial_nOD, initial_growth_rate, initial_acc)
+
+    def get_precomputed_values(
+        self,
+    ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
         if self.ignore_cache:
             od_normalization_factors, od_variances = self._compute_and_cache_od_statistics()
-            initial_growth_rate = 0.0
-            initial_od = 1.0
         else:
             od_normalization_factors = self.get_od_normalization_from_cache()
             od_variances = self.get_od_variances_from_cache()
-            initial_growth_rate = self.get_growth_rate_from_cache()
-            initial_od = self.get_filtered_od_from_cache()
 
-        initial_acc = 0.0
         od_blank = self.get_od_blank_from_cache()
 
         # what happens if od_blank is near / less than od_normalization_factors?
@@ -276,12 +287,9 @@ class GrowthRateCalculator(BackgroundJob):
                 od_blank[channel] = 0
 
         return (
-            initial_growth_rate,
-            initial_od,
             od_normalization_factors,
             od_variances,
             od_blank,
-            initial_acc,
         )
 
     def get_od_blank_from_cache(self) -> dict[pt.PdChannel, float]:
@@ -298,9 +306,29 @@ class GrowthRateCalculator(BackgroundJob):
         with local_persistant_storage("growth_rate") as cache:
             return cache.get(self.experiment, 0.0)
 
-    def get_filtered_od_from_cache(self) -> float:
+    def get_filtered_od_from_cache_or_computed(self) -> float:
         with local_persistant_storage("od_filtered") as cache:
-            return cache.get(self.experiment, 1.0)
+            if self.experiment in cache:
+                return cache[self.experiment]
+
+        # we compute a good initial guess
+        # typically this should be near 1.0, but if the od_normalization_factors are very different (i.e. provided elsewhere.),
+        # then this could be a different value.
+        msg = subscribe(
+            f"pioreactor/{self.unit}/{self.experiment}/od_reading/ods",
+            allow_retained=True,
+            timeout=10,
+        )
+
+        if msg is None:
+            return 1.0  # default?
+
+        od_readings = decode(msg.payload, type=structs.ODReadings)
+        scaled_ods = self.scale_raw_observations(
+            self._batched_raw_od_readings_to_dict(od_readings.ods)
+        )
+
+        return mean(scaled_ods.values())
 
     def get_od_normalization_from_cache(self) -> dict[pt.PdChannel, float]:
         # we check if we've computed mean stats
