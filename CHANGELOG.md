@@ -1,4 +1,4 @@
-### 23.4.4gi
+### 23.4.4g
  - Job growth_rate_calculating will dynamically choose initial values for itgs internal statistics.
  - New entry in `stirring` section in config.ini: `use_rpm` (a boolean) can be used to engage or disengage the closed loop RPM system.
  - Calibration structs change `timestamp` -> `created_at`.
