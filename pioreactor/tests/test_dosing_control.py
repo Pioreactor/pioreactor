@@ -28,6 +28,7 @@ from pioreactor.background_jobs.dosing_control import start_dosing_control
 from pioreactor.structs import DosingEvent
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_unit_name
 
 
@@ -52,11 +53,12 @@ def setup_function() -> None:
                 bias_=0.0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="media",
                 durations=[0, 1],
                 volumes=[0, 1.5],
+                pioreactor_unit=unit,
             )
         )
         cache["alt_media"] = encode(
@@ -66,11 +68,12 @@ def setup_function() -> None:
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="alt_media",
                 durations=[0, 1],
                 volumes=[0, 1.5],
+                pioreactor_unit=unit,
             )
         )
         cache["waste"] = encode(
@@ -80,11 +83,12 @@ def setup_function() -> None:
                 bias_=0,
                 dc=60,
                 hz=100,
-                timestamp=datetime(2010, 1, 1, tzinfo=timezone.utc),
+                created_at=datetime(2010, 1, 1, tzinfo=timezone.utc),
                 voltage=-1.0,
                 pump="waste",
                 durations=[0, 1],
                 volumes=[0, 1.5],
+                pioreactor_unit=unit,
             )
         )
 
@@ -1057,7 +1061,10 @@ def test_AltMediaCalculator() -> None:
 
     media_added = 1.0
     add_media_event = DosingEvent(
-        volume_change=media_added, event="add_media", timestamp="0", source_of_event="test"
+        volume_change=media_added,
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(0),
+        source_of_event="test",
     )
     assert ac.update(add_media_event, 0.0, vial_volume) == 0.0
     assert close(ac.update(add_media_event, 0.20, vial_volume), 0.18666666666666668)
@@ -1065,24 +1072,36 @@ def test_AltMediaCalculator() -> None:
 
     alt_media_added = 1.0
     add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=alt_media_added,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(1),
+        source_of_event="test",
     )
     assert ac.update(add_alt_media_event, 0.0, vial_volume) == 1 / (vial_volume + 1)
 
     alt_media_added = 2.0
     add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=alt_media_added,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(2),
+        source_of_event="test",
     )
     assert ac.update(add_alt_media_event, 0.0, vial_volume) == 2 / (vial_volume + 2)
 
     alt_media_added = vial_volume
     add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=alt_media_added,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(3),
+        source_of_event="test",
     )
     assert ac.update(add_alt_media_event, 0, vial_volume) == 0.5
 
     add_alt_media_event = DosingEvent(
-        volume_change=alt_media_added, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=alt_media_added,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(4),
+        source_of_event="test",
     )
     assert ac.update(add_alt_media_event, 0.5, vial_volume) == 0.75
 
@@ -1313,34 +1332,51 @@ def test_vial_volume_calcualtor():
     current_volume = 0.0
 
     # adding 6ml of media
-    event = DosingEvent(volume_change=6, event="add_media", timestamp="0", source_of_event="test")
+    event = DosingEvent(
+        volume_change=6,
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(0),
+        source_of_event="test",
+    )
     current_volume = vc.update(event, current_volume)
     assert current_volume == 6
 
     # try removing media, but this doesn't do anything since the level is too low.
     event = DosingEvent(
-        volume_change=2, event="remove_waste", timestamp="0", source_of_event="test"
+        volume_change=2,
+        event="remove_waste",
+        timestamp=default_datetime_for_pioreactor(1),
+        source_of_event="test",
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume == 6
 
     # add 6ml alt_media
     event = DosingEvent(
-        volume_change=6, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=6,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(2),
+        source_of_event="test",
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume == 12
 
     # add 3ml alt_media
     event = DosingEvent(
-        volume_change=3, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=3,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(3),
+        source_of_event="test",
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume == 15
 
     # try to remove 3ml
     event = DosingEvent(
-        volume_change=3, event="remove_waste", timestamp="0", source_of_event="test"
+        volume_change=3,
+        event="remove_waste",
+        timestamp=default_datetime_for_pioreactor(4),
+        source_of_event="test",
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume != 12
@@ -1348,14 +1384,20 @@ def test_vial_volume_calcualtor():
 
     # add 2 more
     event = DosingEvent(
-        volume_change=2, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=2,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(5),
+        source_of_event="test",
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume == 16
 
     # remove 1ml
     event = DosingEvent(
-        volume_change=1, event="remove_waste", timestamp="0", source_of_event="test"
+        volume_change=1,
+        event="remove_waste",
+        timestamp=default_datetime_for_pioreactor(6),
+        source_of_event="test",
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume == 15
@@ -1372,14 +1414,22 @@ def test_alt_media_calcualtor_from_0_volume():
     )
 
     # adding 6ml of media
-    event = DosingEvent(volume_change=6, event="add_media", timestamp="0", source_of_event="test")
+    event = DosingEvent(
+        volume_change=6,
+        event="add_media",
+        timestamp=default_datetime_for_pioreactor(0),
+        source_of_event="test",
+    )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
     current_volume = vc.update(event, current_volume)
     assert current_alt_media_fraction == 0.0
 
     # removing media, but this doesn't do anything since it doesn't change the fraction
     event = DosingEvent(
-        volume_change=2, event="remove_waste", timestamp="0", source_of_event="test"
+        volume_change=2,
+        event="remove_waste",
+        timestamp=default_datetime_for_pioreactor(1),
+        source_of_event="test",
     )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
     current_volume = vc.update(event, current_volume)
@@ -1387,7 +1437,10 @@ def test_alt_media_calcualtor_from_0_volume():
 
     # add 6ml alt_media
     event = DosingEvent(
-        volume_change=6, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=6,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(2),
+        source_of_event="test",
     )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
     current_volume = vc.update(event, current_volume)
@@ -1395,7 +1448,10 @@ def test_alt_media_calcualtor_from_0_volume():
 
     # add 3ml alt_media
     event = DosingEvent(
-        volume_change=3, event="add_alt_media", timestamp="0", source_of_event="test"
+        volume_change=3,
+        event="add_alt_media",
+        timestamp=default_datetime_for_pioreactor(3),
+        source_of_event="test",
     )
     current_alt_media_fraction = ac.update(event, current_alt_media_fraction, current_volume)
     current_volume = vc.update(event, current_volume)

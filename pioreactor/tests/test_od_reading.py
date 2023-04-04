@@ -14,6 +14,7 @@ from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import CachedCalibrationTransformer
 from pioreactor.background_jobs.od_reading import NullCalibrationTransformer
 from pioreactor.background_jobs.od_reading import ODReader
+from pioreactor.background_jobs.od_reading import PhotodiodeIrLedReferenceTrackerStaticInit
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.pubsub import collect_all_logs_of_level
 from pioreactor.utils import local_persistant_storage
@@ -26,7 +27,6 @@ def pause(n=1) -> None:
 
 
 def test_sin_regression_exactly() -> None:
-
     freq = 60
     x = [i / 25 for i in range(25)]
     y = [10 + 2 * np.sin(freq * 2 * np.pi * _x) + 0.1 * np.random.randn() for _x in x]
@@ -70,7 +70,6 @@ def test_sin_regression_all_zeros_should_return_zeros() -> None:
 
 
 def test_sin_regression_real_data_and_that_60hz_is_the_minimum() -> None:
-
     y = [
         8694.0,
         8622.0,
@@ -142,7 +141,6 @@ def test_sin_regression_real_data_and_that_60hz_is_the_minimum() -> None:
 
 
 def test_sin_regression_real_data_and_that_60hz_is_the_minimum2() -> None:
-
     y = [
         6393.0,
         6470.0,
@@ -214,7 +212,6 @@ def test_sin_regression_real_data_and_that_60hz_is_the_minimum2() -> None:
 
 
 def test_sin_regression_constant_should_return_constant() -> None:
-
     adc_reader = ADCReader(channels=[])
 
     (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
@@ -225,7 +222,6 @@ def test_sin_regression_constant_should_return_constant() -> None:
 
 
 def test_sin_regression_with_linear_change_should_return_close_to_mean() -> None:
-
     adc_reader = ADCReader(channels=[])
 
     y = [float(i) for i in range(25)]
@@ -264,7 +260,6 @@ def test_sin_regression_with_slightly_higher_frequency_but_correct_freq_has_bett
 
 
 def test_sin_regression_with_strong_penalizer() -> None:
-
     adc_reader = ADCReader(channels=[])
 
     (C, A, phi), _ = adc_reader._sin_regression_with_known_freq(
@@ -274,7 +269,6 @@ def test_sin_regression_with_strong_penalizer() -> None:
 
 
 def test_ADC_picks_to_correct_freq() -> None:
-
     actual_freq = 50.0
 
     x = [i / 25 + 0.005 * np.random.randn() for i in range(25)]
@@ -297,7 +291,6 @@ def test_ADC_picks_to_correct_freq() -> None:
 
 
 def test_ADC_picks_to_correct_freq_even_if_slight_noise_in_freq() -> None:
-
     actual_freq = 50.0
 
     x = [i / 25 + 0.005 * np.random.randn() for i in range(25)]
@@ -329,7 +322,6 @@ def test_error_thrown_if_wrong_angle() -> None:
 
 
 def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values() -> None:
-
     freq = 60
     C_True = 10
     x = [i / 25 for i in range(25)]
@@ -355,7 +347,6 @@ def test_sin_regression_penalizer_C_is_independent_of_scale_of_observed_values()
 
 
 def test_sin_regression_all_negative() -> None:
-
     freq = 60
     x = [i / 25 for i in range(25)]
     y = [-2.0 for _x in x]
@@ -448,7 +439,6 @@ def test_add_post_read_callback() -> None:
 
 
 def test_outliers_are_removed_in_sin_regression() -> None:
-
     freq = 60
     x = [
         6.973999552428722e-05,
@@ -556,7 +546,6 @@ def test_calibration_not_requested():
 
 
 def test_calibration_not_present():
-
     with local_persistant_storage("current_od_calibration") as c:
         if "90" in c:
             del c["90"]
@@ -572,7 +561,7 @@ def test_calibration_simple_linear_calibration():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[2.0, 0.0],
                 name="linear",
@@ -585,6 +574,7 @@ def test_calibration_simple_linear_calibration():
                 voltages=[],
                 inferred_od600s=[],
                 pd_channel="2",
+                pioreactor_unit=get_unit_name(),
             )
         )
 
@@ -628,7 +618,7 @@ def test_calibration_simple_linear_calibration_negative_slope():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[-0.1, 2],
                 name="linear",
@@ -641,6 +631,7 @@ def test_calibration_simple_linear_calibration_negative_slope():
                 voltages=[],
                 inferred_od600s=[],
                 pd_channel="2",
+                pioreactor_unit=get_unit_name(),
             )
         )
 
@@ -674,7 +665,7 @@ def test_calibration_simple_quadratic_calibration():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",
@@ -687,6 +678,7 @@ def test_calibration_simple_quadratic_calibration():
                 voltages=[],
                 inferred_od600s=[],
                 pd_channel="2",
+                pioreactor_unit=get_unit_name(),
             )
         )
 
@@ -708,7 +700,7 @@ def test_calibration_multi_modal():
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=poly,
                 name="multi_test",
@@ -721,13 +713,13 @@ def test_calibration_multi_modal():
                 voltages=[],
                 inferred_od600s=[],
                 pd_channel="2",
+                pioreactor_unit=get_unit_name(),
             )
         )
 
     with start_od_reading("REF", "90", interval=None, fake_data=True, experiment=experiment) as od:
         assert isinstance(od.calibration_transformer, CachedCalibrationTransformer)
         for i in range(0, 1000):
-
             voltage = np.polyval(poly, i / 1000)
             print(voltage, od.calibration_transformer.models["2"](voltage))
 
@@ -736,13 +728,12 @@ def test_calibration_multi_modal():
 
 
 def test_calibration_errors_when_ir_led_differs():
-
     experiment = "test_calibration_errors_when_ir_led_differs"
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",
@@ -755,6 +746,7 @@ def test_calibration_errors_when_ir_led_differs():
                 voltages=[],
                 inferred_od600s=[],
                 pd_channel="2",
+                pioreactor_unit=get_unit_name(),
             )
         )
 
@@ -768,13 +760,12 @@ def test_calibration_errors_when_ir_led_differs():
 
 
 def test_calibration_errors_when_pd_channel_differs():
-
     experiment = "test_calibration_errors_when_pd_channel_differs"
 
     with local_persistant_storage("current_od_calibration") as c:
         c["90"] = encode(
             structs.OD90Calibration(
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 curve_type="poly",
                 curve_data_=[1.0, 0, -0.1],
                 name="quad_test",
@@ -787,6 +778,7 @@ def test_calibration_errors_when_pd_channel_differs():
                 voltages=[],
                 inferred_od600s=[],
                 pd_channel="2",
+                pioreactor_unit=get_unit_name(),
             )
         )
 
@@ -798,3 +790,34 @@ def test_calibration_errors_when_pd_channel_differs():
 
     with local_persistant_storage("current_od_calibration") as c:
         del c["90"]
+
+
+def test_ODReader_with_multiple_angles_and_a_ref():
+    """
+    Technically not possible, since there are only two PD channels.
+
+    """
+    experiment = "test_ODReader_with_multiple_angles_and_a_ref"
+
+    ir_led_reference_channel = "version"  # hack
+    channel_angle_map = {"1": "45", "2": "90"}
+    channels = ["1", "2", ir_led_reference_channel]
+
+    # use IR LED reference to normalize?
+    ir_led_reference_tracker = PhotodiodeIrLedReferenceTrackerStaticInit(
+        ir_led_reference_channel,
+    )
+
+    with ODReader(
+        channel_angle_map,
+        interval=3,
+        unit=get_unit_name(),
+        experiment=experiment,
+        adc_reader=ADCReader(channels=channels, fake_data=True, interval=3, dynamic_gain=False),
+        ir_led_reference_tracker=ir_led_reference_tracker,
+        calibration_transformer=NullCalibrationTransformer(),
+    ) as odr:
+        for i, signal in enumerate(odr):
+            print(signal)
+            if i == 3:
+                break

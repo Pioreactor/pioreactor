@@ -29,7 +29,7 @@ def od_statistics(
     experiment: Optional[str] = None,
     unit: Optional[str] = None,
     n_samples: int = 30,
-    ignore_rpm: bool = False,
+    use_rpm: bool = True,
     logger=None,
 ) -> tuple[dict[pt.PdChannel, float], dict[pt.PdChannel, float]]:
     """
@@ -50,11 +50,12 @@ def od_statistics(
     if not is_pio_job_running("stirring"):
         from pioreactor.background_jobs.stirring import start_stirring
 
+        logger.info("Starting stirring.")
         st = start_stirring(
             target_rpm=config.getfloat("stirring", "target_rpm"),
             unit=unit,
             experiment=testing_experiment,
-            ignore_rpm=ignore_rpm,
+            use_rpm=use_rpm,
         )
         st.block_until_rpm_is_close_to_target(timeout=120)  # wait for maximum 2 minutes
     else:
@@ -66,8 +67,7 @@ def od_statistics(
 
         # okay now start collecting
         for count, batched_reading in enumerate(od_stream, start=1):
-
-            for (channel, reading) in batched_reading.ods.items():
+            for channel, reading in batched_reading.ods.items():
                 readings[channel].append(reading.od)
                 angles[channel] = reading.angle
 
@@ -118,7 +118,6 @@ def od_blank(
     unit=None,
     experiment=None,
 ) -> dict[pt.PdChannel, float]:
-
     action_name = "od_blank"
     logger = create_logger(action_name)
     unit = unit or whoami.get_unit_name()
@@ -129,7 +128,6 @@ def od_blank(
     from pioreactor.background_jobs.stirring import start_stirring
 
     with publish_ready_to_disconnected_state(unit, experiment, action_name):
-
         with start_od_reading(
             od_angle_channel1,
             od_angle_channel2,
@@ -142,7 +140,6 @@ def od_blank(
             unit=unit,
             experiment=testing_experiment,
         ) as st:
-
             # warm up OD reader
             for count, _ in enumerate(od_stream, start=0):
                 if count == 5:

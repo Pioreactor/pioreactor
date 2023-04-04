@@ -105,6 +105,10 @@ class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
         name = type(self).__name__
         return name
 
+    @property
+    def type(self) -> str:
+        return self.__class__.__struct_tag__  # type: ignore
+
 
 class LEDChangeEvent(Struct):
     """
@@ -167,13 +171,17 @@ class Temperature(Struct):
     temperature: float
 
 
-class Calibration(Struct, tag=True, tag_field="type"):  # type: ignore
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
+class Calibration(Struct, tag=True, tag_field="type"):
+    created_at: t.Annotated[datetime, Meta(tz=True)]
+    pioreactor_unit: str
+    name: str
+
+    @property
+    def type(self) -> str:
+        return self.__class__.__struct_tag__  # type: ignore
 
 
 class PumpCalibration(Calibration):
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
-    name: str
     pump: str
     hz: t.Annotated[float, Meta(ge=0)]
     dc: t.Annotated[float, Meta(ge=0)]
@@ -194,15 +202,15 @@ class PumpCalibration(Calibration):
         return t.cast(pt.mL, duration * duration_ + bias_)
 
 
-class MediaPumpCalibration(PumpCalibration, tag="media_pump"):  # type: ignore
+class MediaPumpCalibration(PumpCalibration, tag="media_pump"):
     pass
 
 
-class AltMediaPumpCalibration(PumpCalibration, tag="alt_media_pump"):  # type: ignore
+class AltMediaPumpCalibration(PumpCalibration, tag="alt_media_pump"):
     pass
 
 
-class WastePumpCalibration(PumpCalibration, tag="waste_pump"):  # type: ignore
+class WastePumpCalibration(PumpCalibration, tag="waste_pump"):
     pass
 
 
@@ -212,8 +220,6 @@ AnyPumpCalibration = t.Union[
 
 
 class ODCalibration(Calibration):
-    timestamp: t.Annotated[datetime, Meta(tz=True)]
-    name: str
     angle: pt.PdAngle
     maximum_od600: float
     minimum_od600: float
@@ -227,19 +233,19 @@ class ODCalibration(Calibration):
     pd_channel: pt.PdChannel
 
 
-class OD45Calibration(ODCalibration, tag="od_45"):  # type: ignore
+class OD45Calibration(ODCalibration, tag="od_45"):
     pass
 
 
-class OD90Calibration(ODCalibration, tag="od_90"):  # type: ignore
+class OD90Calibration(ODCalibration, tag="od_90"):
     pass
 
 
-class OD135Calibration(ODCalibration, tag="od_135"):  # type: ignore
+class OD135Calibration(ODCalibration, tag="od_135"):
     pass
 
 
-class OD180Calibration(ODCalibration, tag="od_180"):  # type: ignore
+class OD180Calibration(ODCalibration, tag="od_180"):
     pass
 
 

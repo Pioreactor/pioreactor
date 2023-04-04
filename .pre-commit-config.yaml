@@ -32,9 +32,13 @@ repos:
         - "--per-file-ignores=*/__init__.py: F401"
 
 -   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.0.0'  # Use the sha / tag you want to point at
+    rev: 'v1.1.1'  # Use the sha / tag you want to point at
     hooks:
     -   id: mypy
+        additional_dependencies: [
+            msgspec==0.13.0
+        ]
+
 
 -   repo: https://github.com/asottile/reorder_python_imports
     rev: v2.6.0

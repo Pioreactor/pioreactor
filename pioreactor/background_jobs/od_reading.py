@@ -139,7 +139,6 @@ class ADCReader(LoggerMixin):
     """
 
     _logger_name = "adc_reader"
-    oversampling_count: int = 28
     _setup_complete = False
 
     def __init__(
@@ -148,6 +147,8 @@ class ADCReader(LoggerMixin):
         fake_data: bool = False,
         interval: Optional[float] = 1.0,
         dynamic_gain: bool = True,
+        penalizer: float = 525.0,
+        oversampling_count: int = 28,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
@@ -156,6 +157,8 @@ class ADCReader(LoggerMixin):
         self.channels: list[pt.PdChannel] = channels
         self.batched_readings: PdChannelToVoltage = {}
         self.adc_offsets: dict[pt.PdChannel, pt.AnalogValue] = {}
+        self.penalizer = penalizer
+        self.oversampling_count = oversampling_count
 
         self.interval = interval
         if "local_ac_hz" in config["od_config"]:
@@ -379,6 +382,9 @@ class ADCReader(LoggerMixin):
         return (float(C), float(A), float(phi)), AIC
 
     def clear_batched_readings(self) -> None:
+        """
+        Remove all data from batched_readings. This has the effect of removing hysteresis from the inference.
+        """
         self.batched_readings = {}
 
     @staticmethod
@@ -462,7 +468,7 @@ class ADCReader(LoggerMixin):
                     prior_C=(self.adc.from_voltage_to_raw(self.batched_readings[channel]))
                     if (channel in self.batched_readings)
                     else None,
-                    penalizer_C=(525.0 / self.oversampling_count / self.interval)
+                    penalizer_C=(self.penalizer / self.oversampling_count / self.interval)
                     if (self.interval is not None and self.interval > 0)
                     else None
                     # arbitrary, but should scale with number of samples, and duration between samples
@@ -909,7 +915,6 @@ class ODReader(BackgroundJob):
                 sleep(0.1)
                 timestamp_of_readings = timing.current_utc_datetime()
                 od_reading_by_channel = self._read_from_adc_and_transform()
-
                 od_readings = structs.ODReadings(
                     timestamp=timestamp_of_readings,
                     ods={

@@ -7,11 +7,15 @@ All calibrations, including od_calibration, should behave similarly:
     - `pio run x_calibration list` lists all saved calibrations, keyed by their unique name.
     - `pio run x_calibration display ?name?` displays information about the current calibration to be used, or the calibration ?name? if provided
     - `pio run x_calibration change_current <name>` changes the current calibration to <name> calibration.
+    - `pio run x_calibration publish <name>` publishes the calibration to the leader.
 
 2. On disk, all run calibrations should be stored in local persistent storage under `x_calibrations` keyed by a unique name, and the current calibration
-should be stored in `x_current_calibration`, with appropriate key that is not the unique name, but something consistant.
+should be stored in `x_current_calibration`, with appropriate key that is not the unique name, but something consistent. Note: name cannot be `current`.
 3. A struct should be created / sub-classed from structs.Calibration that will encode / decode the calibration data blob.
-4. All calibrations' data blobs should be published to the topic `pioreactor/<unit>/UNIVERSAL_EXPERIMENT/calibrations`
+4. When a new calibration is created, a PUT request to `/api/calibrations/` should be sent. The body is the json-encoded Calibration struct.
+5. When a new calibration is set as current (change_current), a PATCH request to `/api/calibrations/<pioreactor_unit>/<calibration_type>/<calibration_name>` should be sent.
+6. Creating a new calibration should both publish to leader and set as current.
+
 
 """
 from __future__ import annotations
@@ -19,7 +23,6 @@ from __future__ import annotations
 from time import sleep
 from typing import Callable
 from typing import cast
-from typing import Optional
 from typing import Type
 
 import click
@@ -31,7 +34,9 @@ from pioreactor import types as pt
 from pioreactor.background_jobs.od_reading import start_od_reading
 from pioreactor.background_jobs.stirring import start_stirring as stirring
 from pioreactor.config import config
-from pioreactor.pubsub import publish
+from pioreactor.config import leader_address
+from pioreactor.mureq import patch
+from pioreactor.mureq import put
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
@@ -39,7 +44,6 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def introduction() -> None:
@@ -66,6 +70,9 @@ def get_metadata_from_user():
             elif name in cache:
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
                     break
+            elif name == "current":
+                click.echo("Name cannot be `current`.")
+                continue
             else:
                 break
 
@@ -162,7 +169,6 @@ def plot_data(
 def start_recording_and_diluting(
     initial_od600: float, minimum_od600: float, dilution_amount: float, signal_channel
 ):
-
     inferred_od600 = initial_od600
     voltages = []
     inferred_od600s = []
@@ -190,7 +196,6 @@ def start_recording_and_diluting(
             od_reader.record_from_adc()
 
         while inferred_od600 > minimum_od600:
-
             if inferred_od600 < initial_od600 and click.confirm(
                 "Do you want to enter a new OD600 value for the current density?"
             ):
@@ -347,7 +352,6 @@ def save_results(
     signal_channel: pt.PdChannel,
     unit: str,
 ) -> structs.ODCalibration:
-
     if angle == "45":
         struct: Type[structs.ODCalibration] = structs.OD45Calibration
     elif angle == "90":
@@ -360,7 +364,8 @@ def save_results(
         raise ValueError()
 
     data_blob = struct(
-        timestamp=current_utc_datetime(),
+        created_at=current_utc_datetime(),
+        pioreactor_unit=unit,
         name=name,
         angle=angle,
         maximum_od600=maximum_od600,
@@ -378,11 +383,8 @@ def save_results(
     with local_persistant_storage("od_calibrations") as cache:
         cache[name] = encode(data_blob)
 
-    with local_persistant_storage("current_od_calibration") as cache:
-        cache[angle] = encode(data_blob)
-
-    # send to MQTT
-    publish(f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/calibrations", encode(data_blob))
+    publish_to_leader(name)
+    change_current(name)
 
     return data_blob
 
@@ -395,7 +397,6 @@ def od_calibration() -> None:
         raise ValueError("Stirring and OD reading should be turned off.")
 
     with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):
-
         introduction()
         (
             name,
@@ -515,25 +516,68 @@ def display(name: str | None) -> None:
                 click.echo()
 
 
+def publish_to_leader(name: str) -> bool:
+    success = True
+
+    with local_persistant_storage("od_calibrations") as all_calibrations:
+        calibration_result = decode(
+            all_calibrations[name], type=structs.subclass_union(structs.ODCalibration)
+        )
+
+    try:
+        res = put(
+            f"http://{leader_address}/api/calibrations",
+            encode(calibration_result),
+            headers={"Content-Type": "application/json"},
+        )
+        if not res.ok:
+            success = False
+    except Exception as e:
+        print(e)
+        success = False
+    if not success:
+        click.echo(
+            f"Could not update in database on leader at http://{leader_address}/api/calibrations ❌"
+        )
+    return success
+
+
 def change_current(name: str) -> None:
     try:
-        with local_persistant_storage("od_calibrations") as c:
-            calibration = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
+        with local_persistant_storage("od_calibrations") as all_calibrations:
+            new_calibration = decode(
+                all_calibrations[name], type=structs.subclass_union(structs.ODCalibration)
+            )
 
-        angle = calibration.angle
-        with local_persistant_storage("current_od_calibration") as c:
-            name_being_bumped = decode(
-                c[angle], type=structs.subclass_union(structs.ODCalibration)
-            ).name
-            c[angle] = encode(calibration)
-        click.echo(f"Swapped {name_being_bumped} for `{name}` ✅")
+        angle = new_calibration.angle
+        with local_persistant_storage("current_od_calibration") as current_calibrations:
+            if angle in current_calibrations:
+                old_calibration = decode(
+                    current_calibrations[angle], type=structs.subclass_union(structs.ODCalibration)
+                )
+            else:
+                old_calibration = None
+
+            current_calibrations[angle] = encode(new_calibration)
+
+        res = patch(
+            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+            json={"current": 1},
+        )
+        if not res.ok:
+            click.echo("Could not update in database on leader ❌")
+
+        if old_calibration:
+            click.echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")
+        else:
+            click.echo(f"Set {new_calibration.name} to current calibration  ✅")
+
     except Exception:
         click.echo("Failed to swap.")
         raise click.Abort()
 
 
 def list_() -> None:
-
     # get current calibrations
     current = []
     with local_persistant_storage("current_pump_calibration") as c:
@@ -550,7 +594,7 @@ def list_() -> None:
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
+                    f"{cal.name:15s} {cal.created_at:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception:
                 pass
@@ -581,3 +625,9 @@ def click_change_current(name: str):
 @click_od_calibration.command(name="list")
 def click_list():
     list_()
+
+
+@click_od_calibration.command(name="publish")
+@click.argument("name", type=click.STRING)
+def click_publish(name: str):
+    publish_to_leader(name)

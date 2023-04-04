@@ -47,6 +47,7 @@ def change_leds_intensities_temporarily(
     back to the old intensities (even if the intensities were changed inside the block.)
 
     """
+    old_state = {}
     try:
         with local_intermittent_storage("leds") as cache:
             old_state = {c: cache.get(c, 0.0) for c in desired_state.keys()}

@@ -11,6 +11,7 @@ from typing import Optional
 
 import click
 
+import pioreactor.types as pt
 from pioreactor import error_codes
 from pioreactor import exc
 from pioreactor import hardware
@@ -54,7 +55,7 @@ class RpmCalculator:
 
     """
 
-    hall_sensor_pin = hardware.HALL_SENSOR_PIN
+    hall_sensor_pin: pt.GpioPin = hardware.HALL_SENSOR_PIN
 
     def __init__(self) -> None:
         pass
@@ -62,7 +63,6 @@ class RpmCalculator:
     def setup(self) -> None:
         # we delay the setup so that when all other checks are done (like in stirring's uniqueness), we can start to
         # use the GPIO for this.
-
         set_gpio_availability(self.hall_sensor_pin, False)
 
         import RPi.GPIO as GPIO  # type: ignore
@@ -215,8 +215,17 @@ class Stirrer(BackgroundJob):
 
         if self.rpm_calculator is not None:
             self.rpm_calculator.setup()
+        else:
+            self.logger.debug("Operating without RPM closed loop.")
 
-        pin = hardware.PWM_TO_PIN[config.get("PWM_reverse", "stirring")]
+        channel: Optional[pt.PwmChannel] = config.get("PWM_reverse", "stirring")
+
+        if channel is None:
+            self.logger.error(f"Add stirring to `PWM` section to config_{self.unit}.ini.")
+            self.clean_up()
+            return
+
+        pin: pt.GpioPin = hardware.PWM_TO_PIN[channel]
         self.pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         self.pwm.lock()
 
@@ -438,15 +447,15 @@ def start_stirring(
     target_rpm: float,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    ignore_rpm: bool = False,
+    use_rpm: bool = False,
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()
 
-    if ignore_rpm:
-        rpm_calculator = None
-    else:
+    if use_rpm:
         rpm_calculator = RpmFromFrequency()
+    else:
+        rpm_calculator = None
 
     stirrer = Stirrer(
         target_rpm=target_rpm,
@@ -461,20 +470,18 @@ def start_stirring(
 @click.command(name="stirring")
 @click.option(
     "--target-rpm",
-    default=config.getfloat("stirring", "target_rpm", fallback=0),
+    default=config.getfloat("stirring", "target_rpm", fallback=400),
     help="set the target RPM",
     show_default=True,
     type=click.FloatRange(0, 1200, clamp=True),
 )
 @click.option(
-    "--ignore-rpm",
-    help="don't use feedback loop",
-    is_flag=True,
+    "--use-rpm/--ignore-rpm", default=config.getboolean("stirring", "use_rpm", fallback="true")
 )
-def click_stirring(target_rpm: float, ignore_rpm: bool):
+def click_stirring(target_rpm: float, use_rpm: bool):
     """
     Start the stirring of the Pioreactor.
     """
-    st = start_stirring(target_rpm=target_rpm, ignore_rpm=ignore_rpm)
+    st = start_stirring(target_rpm=target_rpm, use_rpm=use_rpm)
     st.block_until_rpm_is_close_to_target()
     st.block_until_disconnected()

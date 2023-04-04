@@ -5,6 +5,7 @@ import typing as t
 from contextlib import contextmanager
 from contextlib import suppress
 from datetime import datetime
+from datetime import timedelta
 from datetime import timezone
 from threading import Event
 from threading import Thread
@@ -42,6 +43,10 @@ def current_utc_datetime() -> datetime:
 def current_utc_timestamp() -> str:
     # this is timezone aware.
     return to_iso_format(current_utc_datetime())
+
+
+def default_datetime_for_pioreactor(delta_seconds=0) -> datetime:
+    return datetime(2000, 1, 1) + timedelta(seconds=delta_seconds)
 
 
 def to_datetime(timestamp: str) -> datetime:

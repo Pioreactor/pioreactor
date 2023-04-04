@@ -25,16 +25,18 @@ from pioreactor.pubsub import QOS
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import catchtime
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import default_datetime_for_pioreactor
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 
-DEFAULT_CALIBRATION = structs.PumpCalibration(
+DEFAULT_PWM_CALIBRATION = structs.PumpCalibration(
     # TODO: provide better estimates for duration_ and bias_ based on some historical data.
     # it can even be a function of voltage
     name="default",
-    timestamp="2000-01-01 00:00:00",
+    pioreactor_unit=get_unit_name(),
+    created_at=default_datetime_for_pioreactor(),
     pump="",
-    hz=200.0,  # is this an okay default?
+    hz=200.0,
     dc=100.0,
     duration_=1.0,
     bias_=0,
@@ -42,7 +44,7 @@ DEFAULT_CALIBRATION = structs.PumpCalibration(
 )
 
 
-class Pump:
+class PWMPump:
     def __init__(
         self,
         unit: str,
@@ -57,7 +59,7 @@ class Pump:
 
         self.pwm = PWM(
             self.pin,
-            (self.calibration or DEFAULT_CALIBRATION).hz,
+            (self.calibration or DEFAULT_PWM_CALIBRATION).hz,
             experiment=experiment,
             unit=unit,
             pubsub_client=mqtt_client,
@@ -69,7 +71,7 @@ class Pump:
         self.pwm.cleanup()
 
     def continuously(self, block=True) -> None:
-        calibration = self.calibration or DEFAULT_CALIBRATION
+        calibration = self.calibration or DEFAULT_PWM_CALIBRATION
         self.interrupt.clear()
 
         if block:
@@ -97,7 +99,7 @@ class Pump:
     def by_duration(self, seconds: pt.Seconds, block=True) -> None:
         assert seconds >= 0
         self.interrupt.clear()
-        calibration = self.calibration or DEFAULT_CALIBRATION
+        calibration = self.calibration or DEFAULT_PWM_CALIBRATION
         if block:
             self.pwm.start(calibration.dc)
             self.interrupt.wait(seconds)
@@ -118,7 +120,7 @@ class Pump:
 
         return self.calibration.ml_to_duration(ml)
 
-    def __enter__(self) -> Pump:
+    def __enter__(self) -> PWMPump:
         return self
 
     def __exit__(self, *args) -> None:
@@ -193,7 +195,7 @@ def _pump_action(
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         client = state.client
 
-        with Pump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
+        with PWMPump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
             if ml is not None:
                 ml = float(ml)
                 if calibration is None:
@@ -209,14 +211,14 @@ def _pump_action(
                 try:
                     ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
-                    ml = DEFAULT_CALIBRATION.duration_to_ml(duration)  # naive
+                    ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)  # naive
                 logger.info(f"{round(duration, 2)}s")
             elif continuously:
                 duration = 10.0
                 try:
                     ml = pump.duration_to_ml(duration)  # can be wrong if calibration is not defined
                 except exc.CalibrationError:
-                    ml = DEFAULT_CALIBRATION.duration_to_ml(duration)
+                    ml = DEFAULT_PWM_CALIBRATION.duration_to_ml(duration)
                 logger.info(f"Running {pump_type} pump continuously.")
 
             assert duration is not None
@@ -303,18 +305,21 @@ def _liquid_circulation(
     try:
         waste_calibration = _get_calibration("waste")
     except exc.CalibrationError:
-        waste_calibration = DEFAULT_CALIBRATION
+        waste_calibration = DEFAULT_PWM_CALIBRATION
 
     try:
         media_calibration = _get_calibration(pump_type)
     except exc.CalibrationError:
-        media_calibration = DEFAULT_CALIBRATION
+        media_calibration = DEFAULT_PWM_CALIBRATION
 
     # we "pulse" the media pump so that the waste rate < media rate. By default, we pulse at a ratio of 1 waste : 0.85 media.
     # if we know the calibrations for each pump, we will use a different rate.
     ratio = 0.85
 
-    if waste_calibration != DEFAULT_CALIBRATION and media_calibration != DEFAULT_CALIBRATION:
+    if (
+        waste_calibration != DEFAULT_PWM_CALIBRATION
+        and media_calibration != DEFAULT_PWM_CALIBRATION
+    ):
         # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
         if media_calibration.duration_ > waste_calibration.duration_:
             ratio = min(waste_calibration.duration_ / media_calibration.duration_, ratio)
@@ -324,13 +329,13 @@ def _liquid_circulation(
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         client = state.client
 
-        with Pump(
+        with PWMPump(
             unit,
             experiment,
             pin=waste_pin,
             calibration=waste_calibration,
             mqtt_client=client,
-        ) as waste_pump, Pump(
+        ) as waste_pump, PWMPump(
             unit,
             experiment,
             pin=media_pin,
@@ -369,140 +374,9 @@ def _liquid_circulation(
 
 circulate_media = partial(_liquid_circulation, "media")
 circulate_alt_media = partial(_liquid_circulation, "alt_media")
-
-
-def add_media(
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    ml: Optional[pt.mL] = None,
-    duration: Optional[pt.Seconds] = None,
-    source_of_event: Optional[str] = None,
-    calibration: Optional[structs.MediaPumpCalibration] = None,
-    continuously: bool = False,
-    config=config,  # techdebt
-) -> pt.mL:
-    """
-    Parameters
-    ------------
-    unit: str
-    experiment: str
-    ml: float
-        Amount of volume to pass, in mL
-    duration: float
-        Duration to run pump, in seconds
-    calibration: structs.PumpCalibration
-    continuously: bool
-        Run pump continuously.
-    source_of_event: str
-        A human readable description of the source
-
-
-    Returns
-    -----------
-    Amount of volume passed (approximate in some cases)
-
-    """
-    pump_type = "media"
-    return _pump_action(
-        pump_type,
-        unit,
-        experiment,
-        ml,
-        duration,
-        source_of_event,
-        calibration,
-        continuously,
-        config=config,
-    )
-
-
-def remove_waste(
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    ml: Optional[pt.mL] = None,
-    duration: Optional[pt.Seconds] = None,
-    source_of_event: Optional[str] = None,
-    calibration: Optional[structs.WastePumpCalibration] = None,
-    continuously: bool = False,
-    config=config,  # techdebt
-) -> pt.mL:
-    """
-    Parameters
-    ------------
-    unit: str
-    experiment: str
-    ml: float
-        Amount of volume to pass, in mL
-    duration: float
-        Duration to run pump, in seconds
-    calibration: structs.PumpCalibration
-    continuously: bool
-        Run pump continuously.
-    source_of_event: str
-        A human readable description of the source
-
-    Returns
-    -----------
-    Amount of volume passed (approximate in some cases)
-
-    """
-    pump_type = "waste"
-    return _pump_action(
-        pump_type,
-        unit,
-        experiment,
-        ml,
-        duration,
-        source_of_event,
-        calibration,
-        continuously,
-        config=config,
-    )
-
-
-def add_alt_media(
-    unit: Optional[str] = None,
-    experiment: Optional[str] = None,
-    ml: Optional[pt.mL] = None,
-    duration: Optional[pt.Seconds] = None,
-    source_of_event: Optional[str] = None,
-    calibration: Optional[structs.AltMediaPumpCalibration] = None,
-    continuously: bool = False,
-    config=config,  # techdebt
-) -> pt.mL:
-    """
-    Parameters
-    ------------
-    unit: str
-    experiment: str
-    ml: float
-        Amount of volume to pass, in mL
-    duration: float
-        Duration to run pump, in seconds
-    calibration: structs.PumpCalibration
-    continuously: bool
-        Run pump continuously.
-    source_of_event: str
-        A human readable description of the source
-
-
-    Returns
-    -----------
-    Amount of volume passed (approximate in some cases)
-
-    """
-    pump_type = "alt_media"
-    return _pump_action(
-        pump_type,
-        unit,
-        experiment,
-        ml,
-        duration,
-        source_of_event,
-        calibration,
-        continuously,
-        config=config,
-    )
+add_media = partial(_pump_action, "media")
+remove_waste = partial(_pump_action, "waste")
+add_alt_media = partial(_pump_action, "alt_media")
 
 
 @click.command(name="add_alt_media")

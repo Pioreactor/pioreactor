@@ -97,7 +97,7 @@ class PWM:
         else:
             self.logger = logger
 
-        self.pin = pin
+        self.pin: GpioPin = pin
         self.hz = hz
         self.duty_cycle = 0.0
 

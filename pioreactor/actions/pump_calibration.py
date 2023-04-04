@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    - `pio run x_calibration` starts the calibration and saves it keyed by a unique name (see 2. for storage)
-    - `pio run x_calibration list` lists all saved calibrations, keyed by their unique name.
-    - `pio run x_calibration display ?name?` displays information about the current calibration to be used, or the calibration ?name? if provided
-    - `pio run x_calibration change_current <name>` changes the current calibration to <name> calibration.
+See od_calibration for the generic calibrations API.
 """
 from __future__ import annotations
 
@@ -21,9 +18,11 @@ from pioreactor.actions.pump import add_alt_media
 from pioreactor.actions.pump import add_media
 from pioreactor.actions.pump import remove_waste
 from pioreactor.config import config
+from pioreactor.config import leader_address
 from pioreactor.hardware import voltage_in_aux
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import publish
+from pioreactor.mureq import patch
+from pioreactor.mureq import put
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
@@ -32,7 +31,6 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
 def introduction() -> None:
@@ -51,12 +49,18 @@ def introduction() -> None:
 def get_metadata_from_user() -> str:
     with local_persistant_storage("pump_calibrations") as cache:
         while True:
-            name = click.prompt("Provide a unique name for this calibration", type=str).strip()
-            if name not in cache:
-                break
-            else:
+            name = click.prompt("Provide a name for this calibration", type=str).strip()
+            if name == "":
+                click.echo("Name cannot be empty")
+                continue
+            elif name in cache:
                 if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
                     break
+            elif name == "current":
+                click.echo("Name cannot be `current`.")
+                continue
+            else:
+                break
     return name
 
 
@@ -67,22 +71,25 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
         has_alt_media = "alt_media" in cache
 
         if has_media:
-            media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).timestamp
+            media_timestamp = decode(cache["media"], type=structs.MediaPumpCalibration).created_at
+            media_name = decode(cache["media"], type=structs.MediaPumpCalibration).name
 
         if has_waste:
-            waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).timestamp
+            waste_timestamp = decode(cache["waste"], type=structs.WastePumpCalibration).created_at
+            waste_name = decode(cache["waste"], type=structs.WastePumpCalibration).name
 
         if has_alt_media:
             alt_media_timestamp = decode(
                 cache["alt_media"], type=structs.AltMediaPumpCalibration
-            ).timestamp
+            ).created_at
+            alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).name
 
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
-1. Media       {f'[last ran {media_timestamp:%d %b, %Y}]' if has_media else '[missing calibration]'}
-2. Alt-media   {f'[last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[missing calibration]'}
-3. Waste       {f'[last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[missing calibration]'}
+1. Media       {f'[{media_name}, last ran {media_timestamp:%d %b, %Y}]' if has_media else '[No calibration]'}
+2. Alt-media   {f'[{alt_media_name}, last ran {alt_media_timestamp:%d %b, %Y}]' if has_alt_media else '[No calibration]'}
+3. Waste       {f'[{waste_name}, last ran {waste_timestamp:%d %b, %Y}]' if has_waste else '[No calibration]'}
 """,
             fg="green",
         ),
@@ -93,7 +100,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     if r == "1":
         if has_media:
             click.confirm(
-                click.style("Confirm over-writing existing calibration?", fg="green"),
+                click.style("Confirm replacing current calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -101,7 +108,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     elif r == "2":
         if has_alt_media:
             click.confirm(
-                click.style("Confirm over-writing existing calibration?", fg="green"),
+                click.style("Confirm replacing current calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -109,7 +116,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
     elif r == "3":
         if has_waste:
             click.confirm(
-                click.style("Confirm over-writing existing calibration?", fg="green"),
+                click.style("Confirm replacing current calibration?", fg="green"),
                 abort=True,
                 prompt_suffix=" ",
             )
@@ -136,7 +143,8 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     while not click.confirm(click.style("Ready to start pumping?", fg="green")):
         pass
 
-    click.style("Press CTRL+C when the tubes are completely filled with water.", bold=True)
+    click.secho("Press CTRL+C when the tubes are completely filled with water.", bold=True)
+
     try:
         execute_pump(
             continuously=True,
@@ -145,13 +153,14 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
             experiment=get_latest_testing_experiment_name(),
             calibration=structs.PumpCalibration(
                 name="calibration",
-                timestamp=current_utc_datetime(),
+                created_at=current_utc_datetime(),
                 pump=pump_type,
                 duration_=1.0,
                 hz=hz,
                 dc=dc,
                 bias_=0,
                 voltage=voltage_in_aux(),
+                pioreactor_unit=unit,
             ),
         )
     except KeyboardInterrupt:
@@ -213,6 +222,7 @@ def run_tests(
     min_duration: float,
     max_duration: float,
     pump_type: str,
+    unit: str,
 ) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
@@ -225,14 +235,13 @@ def run_tests(
         hz=hz,
         dc=dc,
         bias_=0,
-        timestamp=current_utc_datetime(),
+        created_at=current_utc_datetime(),
         voltage=voltage_in_aux(),
+        pioreactor_unit=unit,
     )
 
     results: list[float] = []
-    durations_to_test = (
-        [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
-    )
+    durations_to_test = [min_duration] * 5 + [max_duration] * 5
 
     for i, duration in enumerate(durations_to_test):
         while True:
@@ -313,7 +322,8 @@ def save_results(
 
     pump_calibration_result = struct(
         name=name,
-        timestamp=current_utc_datetime(),
+        pioreactor_unit=unit,
+        created_at=current_utc_datetime(),
         pump=pump_type,
         duration_=duration_,
         bias_=bias_,
@@ -328,16 +338,33 @@ def save_results(
     with local_persistant_storage("pump_calibrations") as cache:
         cache[name] = encode(pump_calibration_result)
 
-    with local_persistant_storage("current_pump_calibration") as cache:
-        cache[pump_type] = encode(pump_calibration_result)
-
-    # send to MQTT
-    publish(
-        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/calibrations",
-        encode(pump_calibration_result),
-    )
+    publish_to_leader(name)
+    change_current(name)
 
     return pump_calibration_result
+
+
+def publish_to_leader(name: str) -> bool:
+    success = True
+
+    with local_persistant_storage("pump_calibrations") as all_calibrations:
+        calibration_result = decode(
+            all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
+        )
+
+    try:
+        res = put(
+            f"http://{leader_address}/api/calibrations",
+            encode(calibration_result),
+            headers={"Content-Type": "application/json"},
+        )
+        if not res.ok:
+            success = False
+    except Exception:
+        success = False
+    if not success:
+        click.echo(f"Could not publish to leader at http://{leader_address}/api/calibrations ❌")
+    return success
 
 
 def pump_calibration(min_duration: float, max_duration: float) -> None:
@@ -363,7 +390,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 default=False,
             )
 
-        durations, volumes = run_tests(execute_pump, hz, dc, min_duration, max_duration, pump_type)
+        durations, volumes = run_tests(
+            execute_pump, hz, dc, min_duration, max_duration, pump_type, unit
+        )
 
         (slope, std_slope), (
             bias,
@@ -393,9 +422,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             unit=unit,
         )
 
-        logger.info(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
+        logger.debug(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
 
-        logger.info(
+        logger.debug(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be okay for outside this range too."
         )
 
@@ -457,24 +486,43 @@ def display(name: str | None) -> None:
 
 
 def change_current(name: str) -> None:
-    try:
-        with local_persistant_storage("pump_calibrations") as all_calibrations:
+    with local_persistant_storage("pump_calibrations") as all_calibrations:
+        try:
             new_calibration = decode(
                 all_calibrations[name], type=structs.subclass_union(structs.PumpCalibration)
             )  # decode name from list of all names
+        except KeyError:
+            create_logger("pump_calibration").error(
+                f"Failed to swap. Calibration `{name}` not found."
+            )
+            raise click.Abort()
 
         pump_type_from_new_calibration = new_calibration.pump  # retrieve the pump type
 
         with local_persistant_storage("current_pump_calibration") as current_calibrations:
-            old_calibration = decode(
-                current_calibrations[pump_type_from_new_calibration],
-                type=structs.subclass_union(structs.PumpCalibration),
-            )
+            if pump_type_from_new_calibration in current_calibrations:
+                old_calibration = decode(
+                    current_calibrations[pump_type_from_new_calibration],
+                    type=structs.subclass_union(structs.PumpCalibration),
+                )
+            else:
+                old_calibration = None
+
             current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
-        click.echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")
-    except Exception as e:
-        click.echo(f"Failed to swap. {e}")
-        click.Abort()
+
+        res = patch(
+            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+            json={"current": 1},
+        )
+        if not res.ok:
+            click.echo("Could not update current in database on leader ❌")
+
+        if old_calibration:
+            click.echo(
+                f"Replaced {old_calibration.name} with {new_calibration.name} as current calibration."
+            )
+        else:
+            click.echo(f"Set {new_calibration.name} to current calibration.")
 
 
 def list_():
@@ -494,7 +542,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.timestamp:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
+                    f"{cal.name:15s} {cal.created_at:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception as e:
                 raise e
@@ -545,6 +593,12 @@ def click_list():
     Print a list of all pump calibrations done, indexed by name
     """
     list_()
+
+
+@click_pump_calibration.command(name="publish")
+@click.argument("name", type=click.STRING)
+def click_publish(name: str):
+    publish_to_leader(name)
 
 
 if __name__ == "__main__":

@@ -68,10 +68,9 @@ def is_HAT_present() -> bool:
     with I2C(SCL, SDA) as i2c:
         try:
             I2CDevice(i2c, DAC, probe=True)
-            present = True
+            return True
         except ValueError:
-            present = False
-    return present
+            return False
 
 
 def is_heating_pcb_present() -> bool:
@@ -85,11 +84,9 @@ def is_heating_pcb_present() -> bool:
     with I2C(SCL, SDA) as i2c:
         try:
             I2CDevice(i2c, TEMP, probe=True)
-            present = True
+            return True
         except ValueError:
-            present = False
-
-    return present
+            return False
 
 
 def round_to_half_integer(x: float) -> float:

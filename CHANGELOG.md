@@ -1,3 +1,12 @@
+### 23.4.4g
+ - Job growth_rate_calculating will dynamically choose initial values for itgs internal statistics.
+ - New entry in `stirring` section in config.ini: `use_rpm` (a boolean) can be used to engage or disengage the closed loop RPM system.
+ - Calibration structs change `timestamp` -> `created_at`.
+ - Backend work to complete calibrations utilities:
+  - Edits to the `calibrations` table in the database require a full drop and recreation.
+  - New API endpoints on the webserver to store calibrations, get calibrations, set as current, etc.
+  - New CLI: `pio run <x>_calibration publish` will publish a calibration to the webserver
+
 ### 23.3.21
  - Python files in `plugins/` folder on leader are viewable on the /plugins page in the UI.
  - Python files in `plugins/` folder on leader are uninstallable (aka deleted) on the /plugins page in the UI.

@@ -19,6 +19,7 @@ from http.client import HTTPConnection
 from http.client import HTTPException
 from http.client import HTTPMessage
 from http.client import HTTPSConnection
+from typing import Optional
 
 __version__ = "0.1.0"
 
@@ -58,7 +59,7 @@ def get(url, **kwargs):
     return request("GET", url=url, **kwargs)
 
 
-def post(url, body=None, **kwargs):
+def post(url, body: Optional[bytes] = None, **kwargs):
     """post performs an HTTP POST request."""
     return request("POST", url=url, body=body, **kwargs)
 
@@ -68,12 +69,12 @@ def head(url, **kwargs):
     return request("HEAD", url=url, **kwargs)
 
 
-def put(url, body=None, **kwargs):
+def put(url, body: Optional[bytes] = None, **kwargs):
     """put performs an HTTP PUT request."""
     return request("PUT", url=url, body=body, **kwargs)
 
 
-def patch(url, body=None, **kwargs):
+def patch(url, body: Optional[bytes] = None, **kwargs):
     """patch performs an HTTP PATCH request."""
     return request("PATCH", url=url, body=body, **kwargs)
 
