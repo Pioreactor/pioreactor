@@ -181,7 +181,7 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -223,7 +223,7 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -267,7 +267,7 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -392,7 +392,7 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -473,7 +473,7 @@ if am_I_leader():
                 logger = create_logger(
                     "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
                 )
-                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
                 return False
 
@@ -525,7 +525,7 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
             except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
+                logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
                 return False
 

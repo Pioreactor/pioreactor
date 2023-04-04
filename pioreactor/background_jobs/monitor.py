@@ -481,29 +481,47 @@ class Monitor(BackgroundJob):
         self.led_in_use = False
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
+        """
+        Listens to messsages on pioreactor/{self.unit}/+/run/job_name
+
+        Payload should look like:
+        {
+          "options": {
+            "option_A": "value1",
+            "option_B": "value2"
+          },
+          "args": ["arg1", "arg2"]
+        }
+
+
+        effectively runs:
+        > pio run job_name arg1 arg2 --option-A value1 --option-B value2
+
+        """
+
         # we use a thread here since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
         import subprocess
-        from shlex import (
-            quote,
-        )  # https://docs.python.org/3/library/shlex.html#shlex.quote
+        from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
-        job_name = quote(msg.topic.split("/")[-1])
-        payload = loads(msg.payload) if msg.payload else {}
+        job_name = msg.topic.split("/")[-1]
+        payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
+        options = payload.get("options", {})
+        args = payload.get("args", [])
 
         # this is a performance hack and should be changed later...
         if job_name == "led_intensity":
             from pioreactor.actions.led_intensity import led_intensity, ALL_LED_CHANNELS
 
-            state = {ch: payload.pop(ch) for ch in ALL_LED_CHANNELS if ch in payload}
-            payload["pubsub_client"] = self.pub_client
-            payload["unit"] = self.unit
-            payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            state = {ch: options.pop(ch) for ch in ALL_LED_CHANNELS if ch in options}
+            options["pubsub_client"] = self.pub_client
+            options["unit"] = self.unit
+            options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
             Thread(
                 target=led_intensity,
                 args=(state,),
-                kwargs=payload,
+                kwargs=options,
             ).start()
 
         elif job_name in (
@@ -517,24 +535,25 @@ class Monitor(BackgroundJob):
 
             pump_action = getattr(pump_actions, job_name)
 
-            payload["unit"] = self.unit
-            payload["experiment"] = whoami._get_latest_experiment_name()  # techdebt
-            payload["config"] = config.get_config()  # techdebt
-            Thread(target=pump_action, kwargs=payload, daemon=True).start()
+            options["unit"] = self.unit
+            options["experiment"] = whoami._get_latest_experiment_name()  # techdebt
+            options["config"] = config.get_config()  # techdebt
+            Thread(target=pump_action, kwargs=options, daemon=True).start()
 
         else:
             prefix = ["nohup"]
+
             core_command = ["pio", "run", job_name]
-            args: list[str] = sum(
-                [
-                    [f"--{quote(key).replace('_', '-')}", quote(str(value))]
-                    for key, value in payload.items()
-                ],
-                [],
-            )
+
+            list_of_options: list[str] = []
+            for option, value in options.items():
+                list_of_options.extend([f"--{option.replace('_', '-')}", value])
+
             suffix = [">/dev/null", "2>&1", "&"]
 
-            command = " ".join((prefix + core_command + args + suffix))
+            command = join(
+                prefix + core_command + args + list_of_options + suffix
+            )  # shell-escaped to protect against injection vulnerabilities, see join
 
             self.logger.debug(f"Running `{command}` from Monitor job.")
 
