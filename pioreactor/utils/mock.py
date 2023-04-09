@@ -42,7 +42,6 @@ class Mock_ADC(_ADC):
     OFFSET = 0.03
 
     def __init__(self, *args, **kwargs) -> None:
-
         self.max_gr = 0.25 + 0.1 * random.random()
         self.scale_factor = 0.00035 + 0.00005 * random.random()
         self.lag = 2 * 60 * 60 - 1 * 60 * 60 * random.random()
@@ -101,7 +100,6 @@ class Mock_ADC(_ADC):
 
 
 class Mock_DAC(_DAC):
-
     A = 8
     B = 9
     C = 10
@@ -128,7 +126,6 @@ class MockTMP1075:
 
 
 if is_testing_env():
-
     from rpi_hardware_pwm import HardwarePWM
 
     class MockHardwarePWM(HardwarePWM):

@@ -101,7 +101,7 @@ def correlation(x: Iterable, y: Iterable) -> float:
 
     running_sum = 0
     running_count = 0
-    for (x_, y_) in zip(x, y):
+    for x_, y_ in zip(x, y):
         running_sum += (x_ - mean_x) * (y_ - mean_y)
         running_count += 1
 

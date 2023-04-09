@@ -50,7 +50,6 @@ class WatchDog(BackgroundJob):
 
         # ignore if leader is "lost"
         if (state_message.payload.decode() == self.LOST) and (unit != self.unit):
-
             # TODO: this song-and-dance works for monitor, why not extend it to other jobs...
 
             self.logger.warning(f"{unit} seems to be lost. Trying to re-establish connection...")

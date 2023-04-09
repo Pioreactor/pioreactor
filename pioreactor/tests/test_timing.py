@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_datetime
@@ -13,18 +11,15 @@ from pioreactor.utils.timing import to_iso_format
 
 
 def test_inverse_relationship():
-
     dt = current_utc_datetime()
     assert dt == to_datetime(to_iso_format(dt))
 
 
 def test_repeated_timer_will_not_execute_if_killed_during_run_immediately_paused():
     class Counter:
-
         counter = 0
 
         def __init__(self):
-
             self.thread = RepeatedTimer(5, self.run, run_immediately=True, run_after=60).start()
 
         def run(self):
@@ -101,11 +96,9 @@ def test_repeated_timer_has_low_variance_even_for_noisy_process():
 
 def test_repeated_timer_run_immediately_works_as_intended():
     class Counter:
-
         counter = 0
 
         def __init__(self, run_immediately):
-
             self.thread = RepeatedTimer(
                 5,
                 self.run,
@@ -128,11 +121,9 @@ def test_repeated_timer_run_immediately_works_as_intended():
 
 def test_repeated_timer_run_after_works_as_intended():
     class Counter:
-
         counter = 0
 
         def __init__(self, run_after):
-
             self.thread = RepeatedTimer(
                 5, self.run, run_immediately=True, run_after=run_after
             ).start()
@@ -153,11 +144,9 @@ def test_repeated_timer_run_after_works_as_intended():
 
 def test_repeated_timer_pause_works_as_intended():
     class Counter:
-
         counter = 0
 
         def __init__(self):
-
             self.thread = RepeatedTimer(
                 3,
                 self.run,

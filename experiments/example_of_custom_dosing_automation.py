@@ -9,7 +9,6 @@ from pioreactor.whoami import get_unit_name
 
 
 class NaiveTurbidostat(DosingAutomationJob):
-
     automation_name = "naive_turbidostat"
 
     published_settings = {
@@ -27,7 +26,6 @@ class NaiveTurbidostat(DosingAutomationJob):
 
 
 if __name__ == "__main__":
-
     doser = NaiveTurbidostat(
         target_od=2.0, unit=get_unit_name(), experiment=get_latest_experiment_name()
     )

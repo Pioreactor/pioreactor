@@ -9,7 +9,6 @@ from pioreactor.actions.od_calibration import curve_to_callable
 
 
 def test_linear_data_produces_linear_curve_in_range_even_if_high_degree():
-
     od = np.sort(
         np.r_[
             2 ** np.linspace(np.log2(0.5), np.log2(1), num=10),

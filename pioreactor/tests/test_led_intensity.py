@@ -10,7 +10,6 @@ from pioreactor.whoami import get_unit_name
 
 
 def test_lock_will_prevent_led_from_updating() -> None:
-
     channel: LedChannel = "A"
 
     unit = get_unit_name()
@@ -26,11 +25,8 @@ def test_lock_will_prevent_led_from_updating() -> None:
 
 
 def test_lock_will_prevent_led_from_updating_single_channel_but_not_others_passed_in() -> None:
-
     unit = get_unit_name()
-    exp = (
-        "test_lock_will_prevent_led_from_updating_single_channel_but_not_others_passed_in"
-    )
+    exp = "test_lock_will_prevent_led_from_updating_single_channel_but_not_others_passed_in"
 
     assert led_intensity({"A": 20, "B": 20}, unit=unit, experiment=exp)
 
@@ -47,7 +43,6 @@ def test_lock_will_prevent_led_from_updating_single_channel_but_not_others_passe
 
 
 def test_change_leds_intensities_temporarily() -> None:
-
     unit = get_unit_name()
     exp = "test_change_leds_intensities_temporarily"
 
@@ -62,9 +57,7 @@ def test_change_leds_intensities_temporarily() -> None:
         assert float(cache["A"]) == 20
         assert float(cache["B"]) == 20
 
-    with change_leds_intensities_temporarily(
-        {"A": 10, "C": 10, "D": 0}, unit=unit, experiment=exp
-    ):
+    with change_leds_intensities_temporarily({"A": 10, "C": 10, "D": 0}, unit=unit, experiment=exp):
         with local_intermittent_storage("leds") as cache:
             assert float(cache["A"]) == 10
             assert float(cache["B"]) == 20
@@ -78,7 +71,6 @@ def test_change_leds_intensities_temporarily() -> None:
 
 
 def test_local_cache_is_updated() -> None:
-
     channel: LedChannel = "B"
 
     unit = get_unit_name()

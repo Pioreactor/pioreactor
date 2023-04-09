@@ -1,6 +1,20 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import glob
+import importlib
+import importlib.metadata as entry_point
+import os
+from typing import Any
+
+from msgspec import Struct
+
+from .install_plugin import click_install_plugin
+from .list_plugins import click_list_plugins
+from .uninstall_plugin import click_uninstall_plugin
+from .utils import discover_plugins_in_entry_points
+from .utils import discover_plugins_in_local_folder
+
 """
 How do plugins work? There are a few patterns we use to "register" plugins with the core app.
 
@@ -27,20 +41,6 @@ Adding to ~/.pioreactor/plugins
      __plugin_homepage__
 
 """
-
-import glob
-import importlib
-import os
-from typing import Any
-
-from msgspec import Struct
-import importlib.metadata as entry_point
-
-from .install_plugin import click_install_plugin
-from .list_plugins import click_list_plugins
-from .uninstall_plugin import click_uninstall_plugin
-from .utils import discover_plugins_in_entry_points
-from .utils import discover_plugins_in_local_folder
 
 
 class Plugin(Struct):

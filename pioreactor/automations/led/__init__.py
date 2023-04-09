@@ -7,7 +7,6 @@ from pioreactor.automations.led.base import LEDAutomationJob
 
 
 class Silent(LEDAutomationJob):
-
     automation_name = "silent"
 
     def __init__(self, **kwargs) -> None:

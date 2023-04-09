@@ -63,9 +63,7 @@ def export_experiment_data(
     with zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED) as zf, closing(
         sqlite3.connect(config["storage"]["database"])
     ) as con:
-
         for table in tables:
-
             cursor = con.cursor()
 
             # so apparently, you can't parameterize the table name in python's sqlite3, so I
@@ -89,7 +87,6 @@ def export_experiment_data(
                 _partition_by_unit = partition_by_unit
 
             if not _partition_by_unit:
-
                 if experiment is None:
                     query = f"SELECT {timestamp_to_localtimestamp_clause} * from {table} ORDER BY :order_by"
                     cursor.execute(query, {"order_by": order_by})

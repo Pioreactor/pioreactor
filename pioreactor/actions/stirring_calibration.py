@@ -26,14 +26,12 @@ from pioreactor.whoami import get_unit_name
 
 
 def stirring_calibration(min_dc: int, max_dc: int) -> None:
-
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
     action_name = "stirring_calibration"
     logger = create_logger(action_name)
 
     with publish_ready_to_disconnected_state(unit, get_latest_experiment_name(), action_name):
-
         logger.info("Starting stirring calibration.")
 
         if is_pio_job_running("stirring"):
@@ -58,7 +56,6 @@ def stirring_calibration(min_dc: int, max_dc: int) -> None:
             experiment=experiment,
             rpm_calculator=None,
         ) as st:
-
             rpm_calc.setup()
             st.duty_cycle = (
                 max_dc + min_dc

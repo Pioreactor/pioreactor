@@ -30,7 +30,6 @@ def test_check_job_states_in_monitor() -> None:
     )
 
     with Monitor(unit=unit, experiment=exp):
-
         pause(20)
         message = subscribe(f"pioreactor/{unit}/{get_latest_experiment_name()}/od_reading/$state")
         assert message is not None
@@ -38,7 +37,6 @@ def test_check_job_states_in_monitor() -> None:
 
 
 def test_update_leds_with_monitor() -> None:
-
     unit = get_unit_name()
     exp = UNIVERSAL_EXPERIMENT
 
@@ -59,7 +57,6 @@ def test_update_leds_with_monitor() -> None:
 
 
 def test_run_job_with_monitor() -> None:
-
     unit = get_unit_name()
     exp = UNIVERSAL_EXPERIMENT
 

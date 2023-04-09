@@ -6,7 +6,6 @@ from pioreactor.automations.temperature.base import TemperatureAutomationJob
 
 
 class OnlyRecordTemperature(TemperatureAutomationJob):
-
     automation_name = "only_record_temperature"
 
     def __init__(self, **kwargs) -> None:
