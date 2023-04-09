@@ -367,6 +367,53 @@ def update() -> None:
     pass
 
 
+def get_non_prerelease_tags_of_pioreactor():
+    """
+    Returns a list of all the tag names associated with non-prerelease releases
+    """
+    url = "https://api.github.com/repos/pioreactor/pioreactor/releases"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    response = get(url, headers=headers)
+
+    if response.status_code != 200:
+        raise Exception(f"Failed to retrieve releases (status code: {response.status_code})")
+
+    releases = loads(response.body)
+    non_prerelease_tags = []
+
+    for release in releases:
+        if not release["prerelease"]:
+            non_prerelease_tags.append(release["tag_name"])
+
+    return non_prerelease_tags
+
+
+def get_tag_to_install() -> str:
+    if version is None:
+        # we should only update one step at a time.
+        from pioreactor.version import __version__ as software_version
+
+        version_history = get_non_prerelease_tags_of_pioreactor()
+
+        if software_version in version_history:
+            ix = version_history.index(software_version)
+
+            if ix >= 1:
+                tag = f"tags/{version_history[ix-1]}"  # update to the succeeding version.
+            elif ix == 0:
+                tag = "latest"  # essentially a re-install?
+
+        else:
+            tag = "latest"
+
+    elif version == "latest":
+        tag = "latest"
+    else:
+        tag = f"tags/{version}"
+
+    return tag
+
+
 @update.command(name="app")
 @click.option("-b", "--branch", help="update to a branch on github")
 @click.option("--source", help="use a URL or whl file")
@@ -375,16 +422,12 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
     """
     Update the Pioreactor core software
     """
+
     logger = create_logger(
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
 
     commands_and_priority: list[tuple[str, int]] = []
-
-    if version is None:
-        version = "latest"
-    else:
-        version = f"tags/{version}"
 
     if source is not None:
         version_installed = source
@@ -400,8 +443,9 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         )
 
     else:
+        tag = get_tag_to_install()
         release_metadata = loads(
-            get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}").body
+            get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}").body
         )
         version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:
