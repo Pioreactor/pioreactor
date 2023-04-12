@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import time
+from threading import Event
+
+import pytest
 
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
@@ -167,3 +170,113 @@ def test_repeated_timer_pause_works_as_intended():
 
     time.sleep(5)
     assert c.counter > 2
+
+
+def test_repeated_timer_run_immediately():
+    event = Event()
+
+    def sample_function():
+        event.set()
+
+    rt = RepeatedTimer(2, sample_function, run_immediately=True)
+    rt.start()
+    assert event.wait(1)
+    rt.cancel()
+
+
+def test_repeated_timer_pause_unpause():
+    counter = [0]
+
+    def sample_function():
+        counter[0] += 1
+
+    rt = RepeatedTimer(0.5, sample_function)
+    rt.start()
+    time.sleep(1)
+    rt.pause()
+    current_count = counter[0]
+    time.sleep(1)
+    assert counter[0] == current_count
+    rt.unpause()
+    time.sleep(1)
+    assert counter[0] > current_count
+    rt.cancel()
+
+
+def test_repeated_timer_args_kwargs():
+    event = Event()
+
+    def sample_function(arg1, kwarg1=None):
+        assert arg1 == "test_arg"
+        assert kwarg1 == "test_kwarg"
+        event.set()
+
+    rt = RepeatedTimer(1, sample_function, args=("test_arg",), kwargs={"kwarg1": "test_kwarg"})
+    rt.start()
+    assert event.wait(2)
+    rt.cancel()
+
+
+def test_repeated_timer_cancel():
+    counter = [0]
+
+    def sample_function():
+        counter[0] += 1
+
+    rt = RepeatedTimer(0.5, sample_function)
+    rt.start()
+    time.sleep(1)
+    rt.cancel()
+    current_count = counter[0]
+    time.sleep(1)
+    assert counter[0] == current_count
+
+
+def test_repeated_timer_interval_accuracy_single_interval():
+    event = Event()
+
+    def sample_function():
+        event.set()
+
+    start_time = time.perf_counter()
+    interval = 1
+    rt = RepeatedTimer(interval, sample_function)
+    rt.start()
+    assert event.wait(2)
+    end_time = time.perf_counter()
+    rt.cancel()
+    assert pytest.approx(end_time - start_time, rel=0.1) == interval
+
+
+def test_repeated_timer_interval_accuracy_multiple_intervals():
+    counter = [0]
+
+    def sample_function():
+        counter[0] += 1
+
+    interval = 0.5
+    rt = RepeatedTimer(interval, sample_function)
+    rt.start()
+    time.sleep(2.1)  # Let the timer run for 2.1 seconds
+    rt.cancel()
+    # The timer should have run 4 times, but since there might be a delay in execution, we check for at least 3 times
+    assert counter[0] >= 3
+
+
+def test_repeated_timer_interval_accuracy_with_pause_unpause():
+    counter = [0]
+
+    def sample_function():
+        counter[0] += 1
+
+    interval = 1
+    rt = RepeatedTimer(interval, sample_function)
+    rt.start()
+    time.sleep(1)
+    rt.pause()
+    time.sleep(2)
+    rt.unpause()
+    time.sleep(1)
+    rt.cancel()
+    # The timer should have run only 2 times since we paused for 2 seconds
+    assert counter[0] == 2

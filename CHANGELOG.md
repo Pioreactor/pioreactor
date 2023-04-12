@@ -1,3 +1,7 @@
+### Upcoming
+ - `pio update app` will default to installing the succeeding release of Pioreactor app, which may or may not be the latest. This is to ensure that
+ no update script is skipped.
+
 ### 23.4.4
  - Job growth_rate_calculating will dynamically choose initial values for its internal statistics.
  - New entry in `stirring` section in config.ini: `use_rpm` (a boolean) can be used to engage or disengage the closed loop RPM system.
