@@ -1,13 +1,22 @@
 import React from "react";
 import moment from "moment";
 
+import FormLabel from '@mui/material/FormLabel';
+import FormControl from '@mui/material/FormControl';
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import Grid from "@mui/material/Grid";
 import Button from "@mui/material/Button";
 import Chart from "./components/Chart";
 import PioreactorIcon from './components/PioreactorIcon';
-import FormControl from '@mui/material/FormControl';
 import { makeStyles } from '@mui/styles';
 import Select from '@mui/material/Select';
+import {Typography} from '@mui/material';
+import Box from '@mui/material/Box';
+
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/Card';
+import {getConfig} from "./utilities"
 
 
 const useStyles = makeStyles((theme) => ({
@@ -57,11 +66,12 @@ function ExperimentSelection(props) {
   }
 
   return (
-    <div className={classes.root}>
-      <FormControl component="fieldset" className={classes.formControl}>
-
+    <div style={{maxWidth: "450px", margin: "10px"}}>
+      <FormControl fullWidth component="fieldset" className={classes.formControl}>
+        <FormLabel component="legend">Choose experiment to display</FormLabel>
         <Select
           native
+          labelId="expSelect"
           variant="standard"
           value={props.ExperimentSelection}
           onChange={handleExperimentSelectionChange}
@@ -71,24 +81,40 @@ function ExperimentSelection(props) {
           }}
         >
           {experiments.map((v) => {
-            return <option key={v.experiment} value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</option>
+            return <option value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</option>
             }
           )}
         </Select>
       </FormControl>
-
     </div>
   )
 }
 
 
 
-function Analysis(props) {
+function AnalysisContainer(props) {
+  const classes = useStyles();
 
   const [experimentSelection, setExperimentSelection] = React.useState("")
+  const [charts, setCharts] = React.useState({})
+  const [config, setConfig] = React.useState({})
+
 
   React.useEffect(() => {
     document.title = props.title;
+
+    function getCharts() {
+        fetch("/api/contrib/charts")
+        .then((response) => {
+          return response.json();
+        })
+        .then((data) => {
+          setCharts(data.reduce((map, obj) => (map[obj.chart_key] = obj, map), {}))
+        });
+      }
+    getCharts()
+    getConfig(setConfig)
+
   }, [props.title]);
 
   function handleExperimentSelectionChange(value) {
@@ -97,108 +123,72 @@ function Analysis(props) {
 
   return (
     <React.Fragment>
-      <Grid container spacing={2} justifyContent="space-between">
-        <Grid item xs={12}>
-          <ExperimentSelection
-          experimentSelection={experimentSelection}
-          handleChange={handleExperimentSelectionChange}
-          />
-        </Grid>
-        <Grid item xs={12} md={6} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
-          <Grid item xs={12}>
-            <Chart
+      <div>
+        <div className={classes.headerMenu}>
+          <Typography variant="h5" component="h2">
+            <Box fontWeight="fontWeightBold">
+              Analysis
+            </Box>
+          </Typography>
+        </div>
+      </div>
+      <Card className={classes.root}>
+        <CardContent className={classes.cardContent}>
+          <Grid container spacing={2} justifyContent="space-between">
+            <Grid item xs={12}>
+              <ExperimentSelection
+                experimentSelection={experimentSelection}
+                handleChange={handleExperimentSelectionChange}
+              />
+            </Grid>
+            <Grid item xs={12} md={12} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
+              {Object.entries(charts)
+                .filter(([chart_key, _]) => config['ui.overview.charts'] && (config['ui.overview.charts'][chart_key] === "1"))
+                .map(([chart_key, chart]) =>
+                  <React.Fragment key={`grid-chart-${chart_key}`}>
+                    <Grid item xs={6}>
+                      <Chart
+                        key={`chart-${chart_key}`}
+                        config={config}
+                        dataSource={chart.data_source}
+                        title={chart.title}
+                        topic={chart.mqtt_topic}
+                        payloadKey={chart.payload_key}
+                        yAxisLabel={chart.y_axis_label}
+                        experiment={experimentSelection}
+                        deltaHours={1}
+                        interpolation={chart.interpolation || "stepAfter"}
+                        yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
+                        lookback={eval(chart.lookback) || 10000}
+                        fixedDecimals={chart.fixed_decimals}
+                        yTransformation={eval(chart.y_transformation || "(y) => y")}
+                        dataSourceColumn={chart.data_source_column}
+                        id={chart_key}
+                        isODReading={chart_key === "raw_optical_density"}
+                      />
+                    </Grid>
+                  </React.Fragment>
 
-              dataSource="growth_rates"
-              title="Implied growth rate"
-              topic="growth_rate_calculating/growth_rate"
-              payloadKey="growth_rate"
-              yAxisLabel="Growth rate, h⁻¹"
-              experiment={experimentSelection}
-              deltaHours={20}
-              interpolation="stepAfter"
-              yAxisDomain={[-0.02, 0.1]}
-              lookback={100000}
-              fixedDecimals={2}
-            />
+            )}
+            </Grid>
           </Grid>
-
-          <Grid item xs={12}>
-            <Chart
-
-              dataSource="temperature_readings"
-              title="Temperature of vials"
-              topic="temperature_control/temperature"
-              yAxisLabel="temperature, ℃"
-              payloadKey="temperature"
-              experiment={experimentSelection}
-              interpolation="stepAfter"
-              lookback={10000}
-              deltaHours={1}
-              yAxisDomain={[22.5, 37.5]}
-              fixedDecimals={1}
-            />
-          </Grid>
-
-
-          <Grid item xs={12}>
-            <Chart
-
-              yAxisDomain={[0.00, 0.05]}
-              dataSource="alt_media_fraction"
-              interpolation="stepAfter"
-              payloadKey="alt_media_fraction"
-              title="Fraction of volume that is alternative media"
-              topic="alt_media_calculating/alt_media_fraction"
-              yAxisLabel="Fraction"
-              experiment={experimentSelection}
-              deltaHours={1} // hack to make all points display
-              fixedDecimals={3}
-              lookback={100000}
-            />
-          </Grid>
-
-        </Grid>
-        <Grid item xs={12} md={6} container spacing={2} justifyContent="flex-start" style={{height: "100%"}}>
-
-          <Grid item xs={12}>
-            <Chart
-
-              isODReading={true}
-              dataSource="od_readings_filtered"
-              title="Normalized optical density"
-              payloadKey="od_filtered"
-              topic="growth_rate_calculating/od_filtered"
-              yAxisLabel="Current OD / initial OD"
-              experiment={experimentSelection}
-              deltaHours={20}
-              interpolation="stepAfter"
-              lookback={100000}
-              fixedDecimals={2}
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <Chart
-
-              isODReading={true}
-              dataSource="od_readings"
-              title="Optical density"
-              payloadKey="od"
-              topic="od_reading/od/+"
-              yAxisLabel="Reading"
-              experiment={experimentSelection}
-              deltaHours={20}
-              interpolation="stepAfter"
-              lookback={10000}
-              fixedDecimals={3}
-            />
-          </Grid>
-
-        </Grid>
-
-      </Grid>
+        </CardContent>
+      </Card>
     </React.Fragment>
   );
+}
+
+function Analysis(props) {
+    React.useEffect(() => {
+      document.title = props.title;
+    }, [props.title]);
+    return (
+        <Grid container spacing={2} >
+          <Grid item md={12} xs={12}>
+            <AnalysisContainer/>
+          </Grid>
+        </Grid>
+    )
 }
 
 export default Analysis;

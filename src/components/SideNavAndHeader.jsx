@@ -20,10 +20,10 @@ import PioreactorIcon from './PioreactorIcon';
 import LibraryAddOutlinedIcon from '@mui/icons-material/LibraryAddOutlined';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
+import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Tooltip from '@mui/material/Tooltip';
-import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
@@ -162,8 +162,15 @@ export default function SideNavAndHeader() {
         </ListItem>
 
         <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/experiments") })} component={Link} to="/experiments"  key="experiments" selected={isSelected("/experiments")}>
+            <ListItemIcon className={classes.listItemIcon}><InsertChartOutlinedIcon color={isSelected("/experiments") ? "primary" : "inherit"}/> </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/experiments") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Past experiments" />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
           <ListItemButton className={clsx({[classes.outlined]:!isSelected("/analysis") })} selected={isSelected("/analysis")} disabled>
-            <ListItemIcon className={classes.listItemIcon}> <InsertChartOutlinedIcon color={isSelected("/analysis") ? "primary" : "inherit"}/> </ListItemIcon>
+            <ListItemIcon className={classes.listItemIcon}> <QueryStatsOutlinedIcon color={isSelected("/analysis") ? "primary" : "inherit"}/> </ListItemIcon>
             <Tooltip title="Coming soon" placement="bottom-end">
               <ListItemText primaryTypographyProps={{color: isSelected("/analysis") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Analysis" />
             </Tooltip>

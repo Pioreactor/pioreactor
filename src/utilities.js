@@ -45,8 +45,8 @@ export function getConfig(setCallback) {
     .catch((error) => {})
 }
 
-export function getRelabelMap(setCallback) {
-  fetch("/api/current_unit_labels")
+export function getRelabelMap(setCallback, experiment="current") {
+  fetch(`/api/unit_labels/${experiment}`)
       .then((response) => {
         return response.json();
       })

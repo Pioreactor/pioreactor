@@ -606,7 +606,7 @@ function CalibrateDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch(`/api/run/${job}/${props.unit}`, {method: "POST"})
+      fetch(`/api/run/${props.unit}/${job}`, {method: "POST"})
     }
   }
 
@@ -760,7 +760,7 @@ function SelfTestDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch(`/api/run/${job}/${props.unit}`, {method: "POST"})
+      fetch(`/api/run/${props.unit}/${job}`, {method: "POST"})
     }
   }
 
@@ -985,7 +985,7 @@ function SettingsActionsDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch(`/api/run/${job}/${props.unit}`, {method: "POST"})
+      fetch(`/api/run/${props.unit}/${job}`, {method: "POST"})
     }
   }
 
@@ -1027,7 +1027,7 @@ function SettingsActionsDialog(props) {
       const relabeledTo = value
       setSnackbarMessage(`Updating to ${relabeledTo}`)
       setSnackbarOpen(true)
-      fetch('/api/current_unit_labels',{
+      fetch('/api/unit_labels/current',{
           method: "PUT",
           body: JSON.stringify({label: relabeledTo, unit: props.unit}),
           headers: {
@@ -1776,7 +1776,7 @@ function SettingsActionsDialogAll({config, experiment}) {
     return function() {
       setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active Pioreactors`)
       setSnackbarOpen(true)
-      fetch(`/api/run/${job.metadata.key}/${unit}`, {method: "POST"})
+      fetch(`/api/run/${unit}/${job.metadata.key}`, {method: "POST"})
     }
   }
 

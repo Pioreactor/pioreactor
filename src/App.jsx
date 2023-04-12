@@ -15,7 +15,8 @@ import Calibrations from "./Calibrations";
 import EditConfig from "./EditConfig";
 import Updates from "./Updates";
 import Plugins from "./Plugins";
-import Analysis from "./Analysis";
+//import Analysis from "./Analysis";
+import Experiments from "./Experiments";
 import Feedback from "./Feedback";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -86,7 +87,7 @@ function MainSite() {
               <Route path="/start-new-experiment" element={<StartNewExperiment title="Pioreactor ~ Start new experiment" />}/>
               <Route path="/overview" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
               <Route path="/plugins" element={<Plugins title="Pioreactor ~ Plugins"/>}/>
-              <Route path="/analysis" element={<Analysis title="Pioreactor ~ Analysis"/>}/>
+              <Route path="/experiments" element={<Experiments title="Pioreactor ~ Past experiments"/>}/>
               <Route path="/config" element={<EditConfig title="Pioreactor ~ Configuration"/>}/>
               <Route path="/pioreactors" element={ <Pioreactors title="Pioreactor ~ Pioreactors"/>}/>
               <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>

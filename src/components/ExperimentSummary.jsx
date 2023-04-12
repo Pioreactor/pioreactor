@@ -107,7 +107,7 @@ class EditableDescription extends React.Component {
   render = () => {
     return (
       <div style={{padding: "0px 5px 0px 5px"}}>
-        <InputLabel  htmlFor="description-box"  >Description</InputLabel>
+        <InputLabel htmlFor="description-box">Description</InputLabel>
         <OutlinedInput
           placeholder={"Provide a description of your experiment."}
           id="description-box"
@@ -190,7 +190,7 @@ function ExperimentSummary(props){
           <div className={classes.headerButtons}>
             <ButtonNewExperiment/>
             <ButtonEndExperiment/>
-            <Button to="/export-data" component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
+            <Button to={`/export-data?experiment=${experiment}`} component={Link} style={{textTransform: 'none', marginRight: "0px", float: "right"}} color="primary">
               <GetAppIcon fontSize="15" classes={{root: classes.textIcon}}/> Export experiment data
             </Button>
           </div>

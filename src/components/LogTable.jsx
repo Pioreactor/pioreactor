@@ -63,7 +63,7 @@ class LogTable extends React.Component {
   }
 
   async getData() {
-    await fetch("/api/recent_logs?" + new URLSearchParams({
+    await fetch("/api/logs/recent?" + new URLSearchParams({
         min_level: this.props.config.logging.ui_log_level
       }))
       .then(response => {
@@ -147,7 +147,7 @@ class LogTable extends React.Component {
               Recent event logs
             </Box>
           </Typography>
-          <TableContainer style={{ height: "700px", width: "100%", overflowY: "scroll"}}>
+          <TableContainer style={{ height: "660px", width: "100%", overflowY: "scroll"}}>
             <Table stickyHeader size="small" aria-label="log table">
                <TableHead>
                 <TableRow>

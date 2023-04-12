@@ -13,7 +13,6 @@ import {
   createContainer
 } from "victory";
 import moment from "moment";
-import Card from "@mui/material/Card";
 
 const colors = [
   {primary: "#0077BB", "1": "#0077BB", "2": "#0077BB"},
@@ -64,7 +63,8 @@ class Chart extends React.Component {
     this.selectLegendData = this.selectLegendData.bind(this);
     this.selectVictoryLines = this.selectVictoryLines.bind(this);
     this.yTransformation = this.props.yTransformation || ((y) => y)
-    this.VictoryVoronoiContainer = createContainer("voronoi");
+    this.VictoryVoronoiContainer = (this.props.allowZoom  || false) ? createContainer("zoom", "voronoi") : createContainer("voronoi");
+
   }
 
   onConnect() {
@@ -325,7 +325,6 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
 
   render() {
     return (
-      <Card style={{ maxHeight: "100%"}}>
         <VictoryChart
           style={{ parent: { maxWidth: "700px"}}}
           title={this.props.title}
@@ -420,7 +419,6 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
           />
           {Object.keys(this.state.seriesMap).map(this.selectVictoryLines)}
         </VictoryChart>
-      </Card>
     );
   }
 }

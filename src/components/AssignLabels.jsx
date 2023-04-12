@@ -94,7 +94,7 @@ function AssignLabels(props){
 
   const onSubmit = () => {
     Object.entries(labels).map(unit_label => (
-      fetch('/api/current_unit_labels',{
+      fetch('/api/unit_labels/current',{
             method: "PUT",
             body: JSON.stringify({label: unit_label[1], unit: unit_label[0]}),
             headers: {

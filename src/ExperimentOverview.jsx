@@ -9,7 +9,8 @@ import MediaCard from "./components/MediaCard";
 import PioreactorIcon from './components/PioreactorIcon';
 import { Link } from 'react-router-dom';
 import {getConfig, getRelabelMap} from "./utilities"
-
+import Card from "@mui/material/Card";
+import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 
 function Overview(props) {
 
@@ -63,26 +64,29 @@ function Overview(props) {
             .map(([chart_key, chart]) =>
               <React.Fragment key={`grid-chart-${chart_key}`}>
                 <Grid item xs={12} >
-                  <Chart
-                    key={`chart-${chart_key}`}
-                    config={config}
-                    dataSource={chart.data_source}
-                    title={chart.title}
-                    topic={chart.mqtt_topic}
-                    payloadKey={chart.payload_key}
-                    yAxisLabel={chart.y_axis_label}
-                    experiment={experimentMetadata.experiment}
-                    deltaHours={chart_key === "temperature" ? 1 : experimentMetadata.delta_hours }
-                    interpolation={chart.interpolation || "stepAfter"}
-                    yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                    lookback={eval(chart.lookback) || 10000}
-                    fixedDecimals={chart.fixed_decimals}
-                    relabelMap={relabelMap}
-                    yTransformation={eval(chart.y_transformation || "(y) => y")}
-                    dataSourceColumn={chart.data_source_column}
-                    id={chart_key}
-                    isODReading={chart_key === "raw_optical_density"}
-                  />
+                  <Card style={{ maxHeight: "100%"}}>
+
+                    <Chart
+                      key={`chart-${chart_key}`}
+                      config={config}
+                      dataSource={chart.data_source}
+                      title={chart.title}
+                      topic={chart.mqtt_topic}
+                      payloadKey={chart.payload_key}
+                      yAxisLabel={chart.y_axis_label}
+                      experiment={experimentMetadata.experiment}
+                      deltaHours={chart_key === "temperature" ? 1 : experimentMetadata.delta_hours }
+                      interpolation={chart.interpolation || "stepAfter"}
+                      yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
+                      lookback={eval(chart.lookback) || 10000}
+                      fixedDecimals={chart.fixed_decimals}
+                      relabelMap={relabelMap}
+                      yTransformation={eval(chart.y_transformation || "(y) => y")}
+                      dataSourceColumn={chart.data_source_column}
+                      id={chart_key}
+                      isODReading={chart_key === "raw_optical_density"}
+                    />
+                  </Card>
                 </Grid>
               </React.Fragment>
 
@@ -95,7 +99,9 @@ function Overview(props) {
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['dosings'] === "1")) &&
             <Grid item xs={12} >
               <MediaCard experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
-              <Button to="/pioreactors" component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}> <PioreactorIcon style={{ fontSize: 17 }} color="primary"/> See all Pioreactor details </Button>
+              <Button to="/pioreactors" component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}>
+                <PioreactorIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> See all Pioreactor details
+              </Button>
             </Grid>
           }
 
@@ -103,6 +109,9 @@ function Overview(props) {
           {( config['ui.overview.cards'] && (config['ui.overview.cards']['event_logs'] === "1")) &&
             <Grid item xs={12}>
               <LogTable experiment={experimentMetadata.experiment} config={config} relabelMap={relabelMap}/>
+              <Button to={`/export-data?experiment=${experimentMetadata.experiment}&logs=1`} component={Link} color="primary" style={{textTransform: "none", verticalAlign: "middle", margin: "0px 3px"}}>
+                <ListAltOutlinedIcon style={{ fontSize: 17, margin: "0px 3px"}} color="primary"/> Export all logs
+              </Button>
             </Grid>
           }
 

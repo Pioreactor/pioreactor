@@ -16,6 +16,8 @@ import Select from '@mui/material/Select';
 import Box from '@mui/material/Box';
 import LoadingButton from "@mui/lab/LoadingButton";
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import { useSearchParams } from "react-router-dom";
+
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -67,7 +69,12 @@ function ExperimentSelection(props) {
       })
       .then((data) => {
         setExperiments(prevState => [ ...data, ...prevState])
-        props.handleChange(data[0].experiment)
+        if (props.experimentSelection === "") {
+          props.handleChange(data[0].experiment)
+        }
+        else if (data.filter(e => e.experiment === props.experimentSelection).length === 0) {
+          props.handleChange(data[0].experiment)
+        }
       });
     }
     getData()
@@ -76,16 +83,15 @@ function ExperimentSelection(props) {
   const handleExperimentSelectionChange = (e) => {
     props.handleChange(e.target.value)
   }
-
   return (
     <div style={{maxWidth: "450px", margin: "10px"}}>
       <FormControl fullWidth component="fieldset" className={classes.formControl}>
-        <FormLabel component="legend">Choose experiment</FormLabel>
+        <FormLabel component="legend">Experiment</FormLabel>
         <Select
           native
           labelId="expSelect"
           variant="standard"
-          value={props.ExperimentSelection}
+          value={props.experimentSelection}
           onChange={handleExperimentSelectionChange}
           inputProps={{
             name: 'experiment',
@@ -110,7 +116,7 @@ const CheckboxesGroup = (props) => {
   return (
     <div className={classes.root} style={{margin: "10px"}}>
       <FormControl component="fieldset" className={classes.formControl}>
-        <FormLabel component="legend">Choose datasets</FormLabel>
+        <FormLabel component="legend">Available datasets</FormLabel>
         <FormGroup>
           <div className={clsx(classes.recommended, classes.datasetItem)}>
               <FormControlLabel
@@ -129,6 +135,18 @@ const CheckboxesGroup = (props) => {
             />
             <Typography className={classes.datasetDescription} gutterBottom>
               This dataset is a rolled-up version of Pioreactor unit activity data (above) aggregated to the minute level. This is useful for reducing the size of the exported dataset.
+            </Typography>
+          </div>
+
+
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
+            control={<Checkbox checked={props.isChecked.logs} onChange={props.handleChange} name="logs" />}
+            label="Pioreactor logs"
+            />
+            <Typography  className={classes.datasetDescription} gutterBottom>
+              This dataset includes the append-only collection of logs from all Pioreactors. A subset of the these logs are displayed in the Log Table in the Experiment Overview.
+              These are the logs that should be provided to get assistance when troubleshooting, but choose "&lt;All experiments&gt;" above.
             </Typography>
           </div>
 
@@ -314,17 +332,6 @@ const CheckboxesGroup = (props) => {
             </Typography>
           </div>
 
-          <div className={clsx(classes.datasetItem)}>
-            <FormControlLabel
-            control={<Checkbox checked={props.isChecked.logs} onChange={props.handleChange} name="logs" />}
-            label="Pioreactor logs"
-            />
-            <Typography  className={classes.datasetDescription} gutterBottom>
-              This dataset includes the append-only collection of logs from all Pioreactors. A subset of the these logs are displayed in the Log Table in the Experiment Overview.
-              These are the logs that should be provided to get assistance when troubleshooting, but choose "&lt;All experiments&gt;" above.
-            </Typography>
-          </div>
-
         </FormGroup>
       </FormControl>
     </div>
@@ -332,37 +339,41 @@ const CheckboxesGroup = (props) => {
 
 
 function ExportDataContainer() {
+  const [queryParams, setQueryParams] = useSearchParams();
   const classes = useStyles();
   const [isRunning, setIsRunning] = React.useState(false)
   const [isError, setIsError] = React.useState(false)
   const [errorMsg, setErrorMsg] = React.useState("")
-  const [count, setCount] = React.useState(0)
+
+
   const [state, setState] = React.useState({
-    experimentSelection: "",
+    experimentSelection: queryParams.get("experiment") || "",
     datasetCheckbox: {
-      pioreactor_unit_activity_data: false,
-      growth_rates: false,
-      dosing_events: false,
-      led_change_events: false,
-      experiments: false,
-      od_readings: false,
-      od_readings_filtered: false,
-      logs: false,
-      alt_media_fraction: false,
-      dosing_automation_settings: false,
-      led_automation_settings: false,
-      temperature_automation_settings: false,
-      kalman_filter_outputs: false,
-      stirring_rates: false,
-      temperature_readings: false,
-      pioreactor_unit_labels: false,
-      led_automation_events: false,
-      dosing_automation_events: false,
-      temperature_automation_events: false,
-      pwm_dcs: false,
-      pioreactor_unit_activity_data_rollup: false,
+      pioreactor_unit_activity_data: false || queryParams.get("pioreactor_unit_activity_data") === "1",
+      growth_rates: false || queryParams.get("growth_rates") === "1",
+      dosing_events: false || queryParams.get("dosing_events") === "1",
+      led_change_events: false || queryParams.get("led_change_events") === "1",
+      experiments: false || queryParams.get("experiments") === "1",
+      od_readings: false || queryParams.get("od_readings") === "1",
+      od_readings_filtered: false || queryParams.get("od_readings_filtered") === "1",
+      logs: false || queryParams.get("logs") === "1",
+      alt_media_fractions: false || queryParams.get("alt_media_fractions") === "1",
+      dosing_automation_settings: false || queryParams.get("dosing_automation_settings") === "1",
+      led_automation_settings: false || queryParams.get("led_automation_settings") === "1",
+      temperature_automation_settings: false || queryParams.get("temperature_automation_settings") === "1",
+      kalman_filter_outputs: false || queryParams.get("kalman_filter_outputs") === "1",
+      stirring_rates: false || queryParams.get("stirring_rates") === "1",
+      temperature_readings: false || queryParams.get("temperature_readings") === "1",
+      pioreactor_unit_labels: false || queryParams.get("pioreactor_unit_labels") === "1",
+      led_automation_events: false || queryParams.get("led_automation_events") === "1",
+      dosing_automation_events: false || queryParams.get("dosing_automation_events") === "1",
+      temperature_automation_events: false || queryParams.get("temperature_automation_events") === "1",
+      pwm_dcs: false || queryParams.get("pwm_dcs") === "1",
+      pioreactor_unit_activity_data_rollup: false || queryParams.get("pioreactor_unit_activity_data_rollup") === "1",
     }
   });
+
+  const count = () => Object.values(state.datasetCheckbox).reduce((acc, checked) => acc + (checked === true ? 1 : 0), 0);
 
   const onSubmit =  (event) => {
     event.preventDefault()
@@ -400,23 +411,16 @@ function ExportDataContainer() {
   }
 
   const handleCheckboxChange = (event) => {
-    if (event.target.checked){
-      setCount(prevCount => prevCount + 1)
-    }
-    else {
-      setCount(prevCount => prevCount - 1)
-    }
-
     setState(prevState => ({
       ...prevState,
       datasetCheckbox: {...state.datasetCheckbox, [event.target.name]: event.target.checked }
     }));
   };
 
-  function handleExperimentSelectionChange(value) {
+  function handleExperimentSelectionChange(experimentName) {
     setState(prevState => ({
       ...prevState,
-      experimentSelection: value
+      experimentSelection: experimentName
     }));
   };
 
@@ -439,13 +443,12 @@ function ExportDataContainer() {
                 loadingPosition="end"
                 onClick={onSubmit}
                 endIcon={<FileDownloadIcon />}
-                disabled={count === 0}
+                disabled={count() === 0}
               >
-                Export { count > 0 ?  count : ""}
+                Export { count() > 0 ?  count() : ""}
             </LoadingButton>
           </div>
         </div>
-
       </div>
       <Card className={classes.root}>
 
@@ -456,8 +459,8 @@ function ExportDataContainer() {
             <Grid container spacing={0}>
               <Grid item xs={12} md={12}>
                 <ExperimentSelection
-                experimentSelection={state.experimentSelection}
-                handleChange={handleExperimentSelectionChange}
+                  experimentSelection={state.experimentSelection}
+                  handleChange={handleExperimentSelectionChange}
                 />
               </Grid>
               <Grid item xs={12} md={12}>

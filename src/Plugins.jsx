@@ -147,8 +147,6 @@ function ListAvailablePlugins({alreadyInstalledPluginsNames}){
                 target="_blank"
                 rel="noopener noreferrer"
                 to={plugin.homepage}
-                target="_blank"
-                rel="noopener"
                 variant="text"
                 size="small"
                 color="primary"
@@ -238,8 +236,6 @@ function ListInstalledPlugins({installedPlugins}){
                     target="_blank"
                     rel="noopener noreferrer"
                     to={plugin.homepage}
-                    target="_blank"
-                    rel="noopener"
                     variant="text"
                     size="small"
                     color="primary"

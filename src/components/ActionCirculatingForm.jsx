@@ -45,9 +45,9 @@ export default function ActionCirculatingForm(props) {
       var params = { duration: parseFloat(duration), source_of_event: "UI"}
       var msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
 
-      fetch(`/api/run/${props.action}/${props.unit}`, {
+      fetch(`/api/run/${props.unit}/${props.action}`, {
         method: "POST",
-        body: JSON.stringify(params),
+        body: JSON.stringify({options: params, args: []}),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -64,7 +64,7 @@ export default function ActionCirculatingForm(props) {
   }
 
   function stopPump(e) {
-    fetch(`/api/stop/${props.action}/${props.unit}`, {method: "POST"})
+    fetch(`/api/stop/${props.unit}/${props.action}`, {method: "POST"})
     .catch((error) => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)

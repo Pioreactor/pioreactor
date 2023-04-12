@@ -53,7 +53,7 @@ class MediaCard extends React.Component {
 
   async getRecentRates() {
 
-     await fetch("/api/recent_media_rates")
+     await fetch("/api/media_rates/current")
     .then((response) => {
       return response.json();
     })
