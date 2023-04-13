@@ -299,6 +299,7 @@ def _liquid_circulation(
     experiment = experiment or get_latest_experiment_name()
     unit = unit or get_unit_name()
     duration = float(duration)
+    logger = create_logger(action_name, experiment=experiment, unit=unit)
 
     waste_pin, media_pin = _get_pin("waste", config), _get_pin(pump_type, config)
 
@@ -323,8 +324,10 @@ def _liquid_circulation(
         # provided with calibrations, we can compute if media_rate > waste_rate, which is a danger zone!
         if media_calibration.duration_ > waste_calibration.duration_:
             ratio = min(waste_calibration.duration_ / media_calibration.duration_, ratio)
-
-    logger = create_logger(action_name, experiment=experiment, unit=unit)
+    else:
+        logger.warning(
+            "Calibrations don't exist for pump(s). Keep an eye on the liquid level to avoid overflowing!"
+        )
 
     with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
         client = state.client
