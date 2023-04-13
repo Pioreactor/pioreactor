@@ -541,7 +541,7 @@ class Monitor(BackgroundJob):
             Thread(target=pump_action, kwargs=options, daemon=True).start()
 
         else:
-            prefix = ["nohup"]
+            prefix = "nohup"
 
             core_command = ["pio", "run", job_name]
 
@@ -553,7 +553,7 @@ class Monitor(BackgroundJob):
 
             # shell-escaped to protect against injection vulnerabilities, see join docs
             # we don't escape the suffix.
-            command = join(prefix + core_command + args + list_of_options) + suffix
+            command = prefix + " " + join(core_command + args + list_of_options) + " " + suffix
 
             self.logger.debug(f"Running `{command}` from Monitor job.")
 

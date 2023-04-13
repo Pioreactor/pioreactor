@@ -42,15 +42,15 @@ def _get_latest_experiment_name() -> str:
             result = get(f"http://{leader_address}/api/experiments/latest")
             result.raise_for_status()
             return decode(result.body, type=ExperimentMetadata).experiment
-        except Exception as e:
-            from pioreactor.logging import create_logger
-
-            logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
-            logger.warning(
-                f"No experiment found. Check http://{leader_address}/api/experiments/latest for an experiment."
-            )
-            logger.debug(e, exc_info=True)
+        except Exception:
             time.sleep(2 * attempt)
+
+    from pioreactor.logging import create_logger
+
+    logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
+    logger.warning(
+        f"No experiment found. Check http://{leader_address}/api/experiments/latest for an experiment."
+    )
     return NO_EXPERIMENT
 
 
