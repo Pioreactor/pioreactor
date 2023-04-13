@@ -246,7 +246,7 @@ def kill(job: list[str], all_jobs: bool) -> None:
         # assert everything is off
         with local_intermittent_storage("leds") as cache:
             for led in cache:
-                if cache[pin] != 0.0:
+                if cache[led] != 0.0:
                     print(f"LED {led} is not off!")
 
     else:
