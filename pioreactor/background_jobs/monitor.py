@@ -549,11 +549,11 @@ class Monitor(BackgroundJob):
             for option, value in options.items():
                 list_of_options.extend([f"--{option.replace('_', '-')}", value])
 
-            suffix = [">/dev/null", "2>&1", "&"]
+            suffix = ">/dev/null 2>&1 &"
 
-            command = join(
-                prefix + core_command + args + list_of_options + suffix
-            )  # shell-escaped to protect against injection vulnerabilities, see join
+            # shell-escaped to protect against injection vulnerabilities, see join docs
+            # we don't escape the suffix.
+            command = join(prefix + core_command + args + list_of_options) + suffix
 
             self.logger.debug(f"Running `{command}` from Monitor job.")
 

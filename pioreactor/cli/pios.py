@@ -182,7 +182,7 @@ if am_I_leader():
                 return False
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
-                logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -224,7 +224,7 @@ if am_I_leader():
                 return False
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
-                logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         units = add_leader(universal_identifier_to_all_workers(units))
@@ -268,7 +268,7 @@ if am_I_leader():
                 return False
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
-                logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         units = add_leader(universal_identifier_to_all_workers(units))
@@ -322,7 +322,7 @@ if am_I_leader():
                 return True
             except Exception as e:
                 logger.error(f"Unable to connect to unit {unit}.")
-                logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         if not skip_save:
@@ -394,6 +394,7 @@ if am_I_leader():
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         units = universal_identifier_to_all_active_workers(units)
@@ -474,7 +475,7 @@ if am_I_leader():
                     "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
                 )
                 logger.error(f"Error occurred: {e}. See logs for more.")
-                logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -526,7 +527,7 @@ if am_I_leader():
                 return False
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
-                logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         if len(units_san_leader) > 0:
