@@ -44,10 +44,14 @@ def test_update_leds_with_monitor() -> None:
         pause()
         pause()
         pause()
+        pause()
+        pause()
         publish(
             f"pioreactor/{unit}/{get_latest_experiment_name()}/run/led_intensity",
-            '{"A": 10, "B": 11}',
+            '{"options": {"A": 10, "B": 11}, "args": []}',
         )
+        pause()
+        pause()
         pause()
         pause()
         pause()
