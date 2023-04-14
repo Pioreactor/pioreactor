@@ -371,7 +371,7 @@ def update() -> None:
 
 def get_non_prerelease_tags_of_pioreactor():
     """
-    Returns a list of all the tag names associated with non-prerelease releases
+    Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
     url = "https://api.github.com/repos/pioreactor/pioreactor/releases"
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -391,6 +391,19 @@ def get_non_prerelease_tags_of_pioreactor():
 
 
 def get_tag_to_install(version_desired: Optional[str]) -> str:
+    """
+    The function get_tag_to_install takes an optional argument version_desired and
+    returns a string that represents the tag of a particular version of software to install.
+
+    If version_desired is not provided or is None, the function determines the latest
+    non-prerelease version of the software installed on the system, and returns the tag
+    of the previous version as a string, or "latest" if the system is already up to date.
+
+    If version_desired is provided and is "latest", the function returns "latest" as a string.
+
+    Otherwise, the function returns the tag of the specified version as a string, preceded by "tags/".
+    """
+
     if version_desired is None:
         # we should only update one step at a time.
         from pioreactor.version import __version__ as software_version
