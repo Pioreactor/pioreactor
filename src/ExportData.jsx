@@ -118,8 +118,8 @@ const CheckboxesGroup = (props) => {
       <FormControl component="fieldset" className={classes.formControl}>
         <FormLabel component="legend">Available datasets</FormLabel>
         <FormGroup>
-          <div className={clsx(classes.recommended, classes.datasetItem)}>
-              <FormControlLabel
+          <div className={clsx(classes.datasetItem)}>
+            <FormControlLabel
               control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data} onChange={props.handleChange} name="pioreactor_unit_activity_data" />}
               label="Pioreactor unit activity data (recommended)"
             />
@@ -128,15 +128,6 @@ const CheckboxesGroup = (props) => {
             </Typography>
           </div>
 
-          <div className={clsx(classes.datasetItem)}>
-              <FormControlLabel
-              control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data_rollup} onChange={props.handleChange} name="pioreactor_unit_activity_data_rollup" />}
-              label="Pioreactor unit activity data roll-up"
-            />
-            <Typography className={classes.datasetDescription} gutterBottom>
-              This dataset is a rolled-up version of Pioreactor unit activity data (above) aggregated to the minute level. This is useful for reducing the size of the exported dataset.
-            </Typography>
-          </div>
 
 
           <div className={clsx(classes.datasetItem)}>
@@ -206,6 +197,16 @@ const CheckboxesGroup = (props) => {
             />
             <Typography  className={classes.datasetDescription} gutterBottom>
               This dataset includes a time series of how much alternative media is in each Pioreactor. This data matches what's presented in the "Fraction of volume that is alternative media" chart in the Experiment Overview.
+            </Typography>
+          </div>
+
+          <div className={clsx(classes.datasetItem)}>
+              <FormControlLabel
+              control={<Checkbox checked={props.isChecked.pioreactor_unit_activity_data_rollup} onChange={props.handleChange} name="pioreactor_unit_activity_data_rollup" />}
+              label="Pioreactor unit activity data roll-up"
+            />
+            <Typography className={classes.datasetDescription} gutterBottom>
+              This dataset is a rolled-up version of Pioreactor unit activity data (above) aggregated to the minute level. This is useful for reducing the size of the exported dataset.
             </Typography>
           </div>
 
