@@ -5,6 +5,7 @@ from __future__ import annotations
 from pioreactor.background_jobs.stirring import start_stirring
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.whoami import get_unit_name
 
 
@@ -90,4 +91,13 @@ def test_is_pio_job_running_multiple():
     assert not any(is_pio_job_running(["stirring", "od_reading"]))
 
 
-# TODO: test publish_ready_to_disconnected_state
+def test_mqtt_disconnect_exit():
+    unit = "test_unit"
+    experiment = "test_mqtt_disconnect_exit"
+    name = "test_name"
+
+    with publish_ready_to_disconnected_state(
+        unit, experiment, name, exit_on_mqtt_disconnect=True
+    ) as state:
+        state.client.disconnect()  # Simulate a disconnect
+        state.block_until_disconnected()

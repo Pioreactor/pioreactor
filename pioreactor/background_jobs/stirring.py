@@ -229,7 +229,11 @@ class Stirrer(BackgroundJob):
         self.pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         self.pwm.lock()
 
-        self.target_rpm = target_rpm
+        if self.rpm_calculator is not None:
+            self.target_rpm = target_rpm
+        else:
+            self.target_rpm = 0
+
         self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup(self.target_rpm)
         self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
@@ -248,7 +252,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            23,
+            23 if self.rpm_calculator is not None else 1_000_000,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
