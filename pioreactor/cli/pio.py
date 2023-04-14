@@ -240,12 +240,14 @@ def kill(job: list[str], all_jobs: bool) -> None:
         # assert everything is off
         with local_intermittent_storage("pwm_dc") as cache:
             for pin in cache:
-                assert cache[pin] == 0.0, f"pin {pin} is not off!"
+                if cache[pin] != 0.0:
+                    print(f"pin {pin} is not off!")
 
         # assert everything is off
         with local_intermittent_storage("leds") as cache:
             for led in cache:
-                assert cache[led] == 0.0, f"LED {led} is not off!"
+                if cache[led] != 0.0:
+                    print(f"LED {led} is not off!")
 
     else:
         jobs_killed_already = []
@@ -367,6 +369,66 @@ def update() -> None:
     pass
 
 
+def get_non_prerelease_tags_of_pioreactor():
+    """
+    Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
+    """
+    url = "https://api.github.com/repos/pioreactor/pioreactor/releases"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    response = get(url, headers=headers)
+
+    if not response.ok:
+        raise Exception(f"Failed to retrieve releases (status code: {response.status_code})")
+
+    releases = response.json()
+    non_prerelease_tags = []
+
+    for release in releases:
+        if not release["prerelease"]:
+            non_prerelease_tags.append(release["tag_name"])
+
+    return sorted(non_prerelease_tags, reverse=True)
+
+
+def get_tag_to_install(version_desired: Optional[str]) -> str:
+    """
+    The function get_tag_to_install takes an optional argument version_desired and
+    returns a string that represents the tag of a particular version of software to install.
+
+    If version_desired is not provided or is None, the function determines the latest
+    non-prerelease version of the software installed on the system, and returns the tag
+    of the previous version as a string, or "latest" if the system is already up to date.
+
+    If version_desired is provided and is "latest", the function returns "latest" as a string.
+
+    Otherwise, the function returns the tag of the specified version as a string, preceded by "tags/".
+    """
+
+    if version_desired is None:
+        # we should only update one step at a time.
+        from pioreactor.version import __version__ as software_version
+
+        version_history = get_non_prerelease_tags_of_pioreactor()
+
+        if software_version in version_history:
+            ix = version_history.index(software_version)
+
+            if ix >= 1:
+                tag = f"tags/{version_history[ix-1]}"  # update to the succeeding version.
+            elif ix == 0:
+                tag = "latest"  # essentially a re-install?
+
+        else:
+            tag = "latest"
+
+    elif version_desired == "latest":
+        tag = "latest"
+    else:
+        tag = f"tags/{version_desired}"
+
+    return tag
+
+
 @update.command(name="app")
 @click.option("-b", "--branch", help="update to a branch on github")
 @click.option("--source", help="use a URL or whl file")
@@ -375,16 +437,12 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
     """
     Update the Pioreactor core software
     """
+
     logger = create_logger(
         "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
     )
 
     commands_and_priority: list[tuple[str, int]] = []
-
-    if version is None:
-        version = "latest"
-    else:
-        version = f"tags/{version}"
 
     if source is not None:
         version_installed = source
@@ -400,8 +458,9 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         )
 
     else:
+        tag = get_tag_to_install(version)
         release_metadata = loads(
-            get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{version}").body
+            get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}").body
         )
         version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:

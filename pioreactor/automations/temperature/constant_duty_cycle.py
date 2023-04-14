@@ -5,11 +5,8 @@ from pioreactor.automations.temperature.base import TemperatureAutomationJob
 
 
 class ConstantDutyCycle(TemperatureAutomationJob):
-
     automation_name = "constant_duty_cycle"
-    published_settings = {
-        "duty_cycle": {"datatype": "float", "unit": "%", "settable": True}
-    }
+    published_settings = {"duty_cycle": {"datatype": "float", "unit": "%", "settable": True}}
 
     def __init__(self, duty_cycle, **kwargs) -> None:
         super(ConstantDutyCycle, self).__init__(**kwargs)

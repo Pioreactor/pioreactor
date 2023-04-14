@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-See od_calibration for the generic calibrations API.
+https://docs.pioreactor.com/developer-guide/adding-calibration-type
+
+This should have used calibration_type as the keys, but instead it uses media, alt_media, and waste..
 """
 from __future__ import annotations
 
@@ -27,6 +29,7 @@ from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.math_helpers import correlation
 from pioreactor.utils.math_helpers import simple_linear_regression_with_forced_nil_intercept
+from pioreactor.utils.timing import current_utc_datestamp
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_latest_testing_experiment_name
@@ -46,10 +49,18 @@ def introduction() -> None:
     )
 
 
-def get_metadata_from_user() -> str:
+def get_metadata_from_user(pump_type) -> str:
     with local_persistant_storage("pump_calibrations") as cache:
         while True:
-            name = click.prompt("Provide a name for this calibration", type=str).strip()
+            name = click.prompt(
+                click.style(
+                    f"Optional: Provide a name for this calibration. [enter] to use default name {pump_type}-{current_utc_datestamp()}",
+                    fg="green",
+                ),
+                type=str,
+                default=f"{pump_type}-{current_utc_datestamp()}",
+                show_default=False,
+            ).strip()
             if name == "":
                 click.echo("Name cannot be empty")
                 continue
@@ -173,17 +184,16 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
 
 
 def choose_settings() -> tuple[float, float]:
-    click.clear()
-    click.echo()
     hz = click.prompt(
-        click.style("Enter frequency of PWM. [enter] for default 200 hz", fg="green"),
+        click.style("Optional: Enter frequency of PWM. [enter] for default 200 hz", fg="green"),
         type=click.FloatRange(0.1, 10000),
         default=200,
         show_default=False,
     )
     dc = click.prompt(
         click.style(
-            "Enter duty cycle percent as a whole number. [enter] for default 90%", fg="green"
+            "Optional: Enter duty cycle percent as a whole number. [enter] for default 90%",
+            fg="green",
         ),
         type=click.IntRange(0, 100),
         default=90,
@@ -376,8 +386,8 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
 
     with publish_ready_to_disconnected_state(unit, experiment, "pump_calibration"):
         introduction()
-        name = get_metadata_from_user()
         pump_type, execute_pump = which_pump_are_you_calibrating()
+        name = get_metadata_from_user(pump_type)
 
         is_ready = True
         while is_ready:

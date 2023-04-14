@@ -16,6 +16,8 @@ from pioreactor.pubsub import create_client
 from pioreactor.types import GpioPin
 from pioreactor.utils import gpio_helpers
 from pioreactor.utils import local_intermittent_storage
+from pioreactor.whoami import get_latest_experiment_name
+from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
 
 if is_testing_env():
@@ -74,14 +76,14 @@ class PWM:
         self,
         pin: GpioPin,
         hz: float,
-        unit: str,
-        experiment: str,
+        unit: Optional[str] = None,
+        experiment: Optional[str] = None,
         always_use_software: bool = False,
         pubsub_client: Optional[Client] = None,
         logger: Optional[Logger] = None,
     ) -> None:
-        self.unit = unit
-        self.experiment = experiment
+        self.unit = unit or get_unit_name()
+        self.experiment = experiment or get_latest_experiment_name()
 
         if pubsub_client is None:
             self._external_client = False

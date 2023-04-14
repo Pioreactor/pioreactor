@@ -37,7 +37,6 @@ def backup_database(output_file: str) -> None:
     experiment = UNIVERSAL_EXPERIMENT
 
     with publish_ready_to_disconnected_state(unit, experiment, "backup_database"):
-
         logger = create_logger(
             "backup_database", experiment=experiment, unit=unit, to_mqtt=False
         )  # the backup would take so long that the mqtt client would disconnect.

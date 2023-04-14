@@ -153,6 +153,8 @@ if am_I_leader():
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1
+          # type: ignore
 
         logger = create_logger(
             "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -180,9 +182,9 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 logger.debug(e, exc_info=True)
                 return False
-            except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
-                logger.debug(e, exc_info=True)
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -206,6 +208,7 @@ if am_I_leader():
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1  # type: ignore
 
         logger = create_logger(
             "install_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -222,9 +225,9 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 logger.debug(e, exc_info=True)
                 return False
-            except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
-                logger.debug(e, exc_info=True)
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         units = add_leader(universal_identifier_to_all_workers(units))
@@ -250,6 +253,7 @@ if am_I_leader():
 
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1  # type: ignore
 
         logger = create_logger(
             "uninstall_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -266,9 +270,9 @@ if am_I_leader():
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 logger.debug(e, exc_info=True)
                 return False
-            except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
-                logger.debug(e, exc_info=True)
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         units = add_leader(universal_identifier_to_all_workers(units))
@@ -322,7 +326,7 @@ if am_I_leader():
                 return True
             except Exception as e:
                 logger.error(f"Unable to connect to unit {unit}.")
-                logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         if not skip_save:
@@ -368,6 +372,7 @@ if am_I_leader():
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1  # type: ignore
 
         if not y:
             confirm = input(
@@ -391,9 +396,10 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
-            except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e, exc_info=True)
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         units = universal_identifier_to_all_active_workers(units)
@@ -437,6 +443,7 @@ if am_I_leader():
         """
         from sh import ssh
         from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1  # type: ignore
         from shlex import quote  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
         extra_args = list(ctx.args)
@@ -469,12 +476,12 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
-            except Exception as e:
+            except ErrorReturnCode_1 as e:
                 logger = create_logger(
                     "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
                 )
-                logger.error(f"Unable to connect to unit {unit}. {e}")
-                logger.debug(e, exc_info=True)
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         with ThreadPoolExecutor(max_workers=len(units)) as executor:
@@ -501,6 +508,7 @@ if am_I_leader():
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1  # type: ignore
 
         command = "sudo reboot"
         units = universal_identifier_to_all_workers(units)
@@ -524,9 +532,9 @@ if am_I_leader():
                 logger.debug(e, exc_info=True)
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
-            except Exception as e:
-                logger.error(f"Unable to connect to unit {unit}. {e}")
-                logger.debug(e, exc_info=True)
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         if len(units_san_leader) > 0:

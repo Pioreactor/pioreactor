@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 
 # Append ".dev" if a dev version
-__version__ = "23.4.4"
+__version__ = "23.4.14"
 
 
 def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
@@ -18,7 +18,7 @@ def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
             text = f.read().rstrip("\x00")
             return (int(text[-2]), int(text[-1]))
     except FileNotFoundError:
-        # no eeprom? Probably a dev board, or testing env, or EEPROM not written.
+        # no eeprom? Probably dev board with no EEPROM, or testing env, or EEPROM not written.
         return (0, 0)
 
 
