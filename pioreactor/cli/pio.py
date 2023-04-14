@@ -377,21 +377,21 @@ def get_non_prerelease_tags_of_pioreactor():
     headers = {"Accept": "application/vnd.github.v3+json"}
     response = get(url, headers=headers)
 
-    if response.status_code != 200:
+    if not response.ok:
         raise Exception(f"Failed to retrieve releases (status code: {response.status_code})")
 
-    releases = loads(response.body)
+    releases = response.json()
     non_prerelease_tags = []
 
     for release in releases:
         if not release["prerelease"]:
             non_prerelease_tags.append(release["tag_name"])
 
-    return non_prerelease_tags
+    return sorted(non_prerelease_tags, reverse=True)
 
 
-def get_tag_to_install() -> str:
-    if version is None:
+def get_tag_to_install(version_desired: Optional[str]) -> str:
+    if version_desired is None:
         # we should only update one step at a time.
         from pioreactor.version import __version__ as software_version
 
@@ -408,10 +408,10 @@ def get_tag_to_install() -> str:
         else:
             tag = "latest"
 
-    elif version == "latest":
+    elif version_desired == "latest":
         tag = "latest"
     else:
-        tag = f"tags/{version}"
+        tag = f"tags/{version_desired}"
 
     return tag
 
@@ -445,7 +445,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         )
 
     else:
-        tag = get_tag_to_install()
+        tag = get_tag_to_install(version)
         release_metadata = loads(
             get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}").body
         )
