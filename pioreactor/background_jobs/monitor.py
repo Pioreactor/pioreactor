@@ -547,7 +547,7 @@ class Monitor(BackgroundJob):
 
             list_of_options: list[str] = []
             for option, value in options.items():
-                list_of_options.extend([f"--{option.replace('_', '-')}", value])
+                list_of_options.extend([f"--{option.replace('_', '-')}", str(value)])
 
             suffix = ">/dev/null 2>&1 &"
 

@@ -1,6 +1,8 @@
 ### Upcoming
  - `pio update app` will default to installing the succeeding release of Pioreactor app, which may or may not be the latest. This is to ensure that
  no update script is skipped.
+ - Added new "Past Experiments" page
+ - Fix for "Reference photodiode is correct magnitude" self test.
 
 ### 23.4.4
  - Job growth_rate_calculating will dynamically choose initial values for its internal statistics.

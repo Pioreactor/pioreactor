@@ -36,7 +36,7 @@ def _get_latest_experiment_name() -> str:
 
     from pioreactor.config import leader_address
 
-    retries = 3
+    retries = 5
     for attempt in range(retries):
         try:
             result = get(f"http://{leader_address}/api/experiments/latest")

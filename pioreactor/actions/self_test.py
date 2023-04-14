@@ -259,8 +259,8 @@ def test_REF_is_lower_than_0_dot_256_volts(
         readings = adc_reader.take_reading()
 
     assert (
-        0.50 < readings[reference_channel] < 0.256
-    ), f"Recorded {readings[reference_channel]} in REF, should ideally be between 0.50 and 0.256."
+        0.05 < readings[reference_channel] < 0.256
+    ), f"Recorded {readings[reference_channel]} in REF, should ideally be between 0.05 and 0.256."
 
 
 def test_detect_heating_pcb(client: Client, logger: Logger, unit: str, experiment: str) -> None:
