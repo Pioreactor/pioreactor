@@ -387,7 +387,11 @@ def get_non_prerelease_tags_of_pioreactor():
         if not release["prerelease"]:
             non_prerelease_tags.append(release["tag_name"])
 
-    return sorted(non_prerelease_tags, reverse=True)
+    def version_key(version):
+        major, minor, patch = version.split(".")
+        return int(major), int(minor), int(patch)
+
+    return sorted(non_prerelease_tags, reverse=True, key=version_key)
 
 
 def get_tag_to_install(version_desired: Optional[str]) -> str:
