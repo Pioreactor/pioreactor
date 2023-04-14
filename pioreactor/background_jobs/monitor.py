@@ -507,7 +507,16 @@ class Monitor(BackgroundJob):
 
         job_name = msg.topic.split("/")[-1]
         payload = loads(msg.payload) if msg.payload else {"options": {}, "args": []}
+
+        if "options" not in payload:
+            self.logger.debug(
+                "`options` key missing from payload. You should provide an empty dictionary."
+            )
         options = payload.get("options", {})
+
+        if "args" not in payload:
+            self.logger.debug("`args` key missing from payload. You should provide an empty list.")
+
         args = payload.get("args", [])
 
         # this is a performance hack and should be changed later...
