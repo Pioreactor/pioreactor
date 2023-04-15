@@ -100,4 +100,4 @@ def test_mqtt_disconnect_exit():
         unit, experiment, name, exit_on_mqtt_disconnect=True
     ) as state:
         state.client.disconnect()  # Simulate a disconnect
-        state.block_until_disconnected()
+        state.block_until_disconnected()  # exits immediately

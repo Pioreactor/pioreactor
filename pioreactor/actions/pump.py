@@ -193,7 +193,11 @@ def _pump_action(
             pass
 
     with utils.publish_ready_to_disconnected_state(
-        unit, experiment, action_name, exit_on_mqtt_disconnect=True
+        unit,
+        experiment,
+        action_name,
+        exit_on_mqtt_disconnect=True,
+        mqtt_client_kwargs={"keepalive": 10},
     ) as state:
         client = state.client
 
@@ -332,7 +336,11 @@ def _liquid_circulation(
         )
 
     with utils.publish_ready_to_disconnected_state(
-        unit, experiment, action_name, exit_on_mqtt_disconnect=True
+        unit,
+        experiment,
+        action_name,
+        exit_on_mqtt_disconnect=True,
+        mqtt_client_kwargs={"keepalive": 10},
     ) as state:
         client = state.client
 
@@ -377,7 +385,7 @@ def _liquid_circulation(
     )
 
 
-### Useful functions below:
+### high level functions below:
 
 circulate_media = partial(_liquid_circulation, "media")
 circulate_alt_media = partial(_liquid_circulation, "alt_media")

@@ -113,7 +113,12 @@ class publish_ready_to_disconnected_state:
     """
 
     def __init__(
-        self, unit: str, experiment: str, name: str, exit_on_mqtt_disconnect=False
+        self,
+        unit: str,
+        experiment: str,
+        name: str,
+        exit_on_mqtt_disconnect=False,
+        mqtt_client_kwargs=None,
     ) -> None:
         self.unit = unit
         self.experiment = experiment
@@ -128,11 +133,15 @@ class publish_ready_to_disconnected_state:
             "retain": True,
         }
 
+        default_mqtt_client_kwargs = {
+            "keepalive": 5 * 60,
+            "client_id": f"{self.name}-{self.unit}-{self.experiment}",
+        }
+
         self.client = create_client(
-            client_id=f"{self.name}-{self.unit}-{self.experiment}",
-            keepalive=5 * 60,
             last_will=last_will,
             on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
+            **(default_mqtt_client_kwargs | mqtt_client_kwargs),
         )
 
         self.start_passive_listeners()
