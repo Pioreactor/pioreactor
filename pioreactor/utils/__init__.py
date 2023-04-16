@@ -9,6 +9,7 @@ from threading import Event
 from typing import Callable
 from typing import cast
 from typing import Generator
+from typing import Optional
 from typing import overload
 
 from diskcache import Cache  # type: ignore
@@ -117,8 +118,8 @@ class publish_ready_to_disconnected_state:
         unit: str,
         experiment: str,
         name: str,
-        exit_on_mqtt_disconnect=False,
-        mqtt_client_kwargs=None,
+        exit_on_mqtt_disconnect: bool = False,
+        mqtt_client_kwargs: Optional[dict] = None,
     ) -> None:
         self.unit = unit
         self.experiment = experiment
@@ -141,7 +142,7 @@ class publish_ready_to_disconnected_state:
         self.client = create_client(
             last_will=last_will,
             on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
-            **(default_mqtt_client_kwargs | mqtt_client_kwargs),
+            **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),  # type: ignore
         )
 
         self.start_passive_listeners()

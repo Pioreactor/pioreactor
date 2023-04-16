@@ -2,6 +2,7 @@
 # test_export_experiment_data.py
 from __future__ import annotations
 
+import re
 import sqlite3
 import zipfile
 from unittest.mock import patch
@@ -64,9 +65,6 @@ def temp_zipfile(tmpdir):
     return tmpdir.join("test.zip")
 
 
-import re
-
-
 def test_export_experiment_data(temp_zipfile):
     # Set up a temporary SQLite database with sample data
     conn = sqlite3.connect(":memory:")
@@ -99,11 +97,16 @@ def test_export_experiment_data(temp_zipfile):
         assert csv_filename is not None, "CSV file not found in the zipfile"
 
         with zf.open(csv_filename) as csv_file:
-            content = csv_file.read().decode("utf-8")
+            content = csv_file.read().decode("utf-8").strip()
+            headers, rows = content.split("\r\n")
+            assert headers == "timestamp_localtime,id,name,timestamp"
+            values = rows.split(",")
+            assert values[1] == "1"
+            assert values[2] == "John"
+            assert values[3] == "2021-09-01 00:00:00"
             assert (
-                content.strip()
-                == "timestamp_localtime,id,name,timestamp\r\n2021-08-31 20:00:00,1,John,2021-09-01 00:00:00"
-            )
+                values[0][:4] == "2021"
+            )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
 
 
 def test_export_experiment_data_with_experiment(temp_zipfile):
@@ -140,8 +143,13 @@ def test_export_experiment_data_with_experiment(temp_zipfile):
         assert csv_filename is not None, "CSV file not found in the zipfile"
 
         with zf.open(csv_filename) as csv_file:
-            content = csv_file.read().decode("utf-8")
+            content = csv_file.read().decode("utf-8").strip()
+            headers, rows = content.split("\r\n")
+            assert headers == "timestamp_localtime,id,experiment,timestamp"
+            values = rows.split(",")
+            assert values[1] == "1"
+            assert values[2] == "test_export_experiment_data_with_experiment"
+            assert values[3] == "2021-09-01 00:00:00"
             assert (
-                content.strip()
-                == "timestamp_localtime,id,experiment,timestamp\r\n2021-08-31 20:00:00,1,test_export_experiment_data_with_experiment,2021-09-01 00:00:00"
-            )
+                values[0][:4] == "2021"
+            )  # can't compare exactly since it uses datetime(ts, 'locatime') in sqlite3, and the localtime will vary between CI servers.
