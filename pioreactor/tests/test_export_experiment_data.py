@@ -77,9 +77,7 @@ def test_export_experiment_data(temp_zipfile):
     conn.commit()
 
     # Mock the connection and logger objects
-    with patch("sqlite3.connect") as mock_connect, patch(
-        "pioreactor.actions.leader.export_experiment_data.create_logger"
-    ):
+    with patch("sqlite3.connect") as mock_connect:
         mock_connect.return_value = conn
 
         export_experiment_data(
@@ -105,4 +103,45 @@ def test_export_experiment_data(temp_zipfile):
             assert (
                 content.strip()
                 == "timestamp_localtime,id,name,timestamp\r\n2021-08-31 20:00:00,1,John,2021-09-01 00:00:00"
+            )
+
+
+def test_export_experiment_data_with_experiment(temp_zipfile):
+    # Set up a temporary SQLite database with sample data
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE test_table (id INTEGER, experiment TEXT, timestamp DATETIME)")
+    conn.execute(
+        "INSERT INTO test_table (id, experiment, timestamp) VALUES (1, 'test_export_experiment_data_with_experiment', '2021-09-01 00:00:00')"
+    )
+    conn.commit()
+
+    # Mock the connection and logger objects
+    with patch("sqlite3.connect") as mock_connect:
+        mock_connect.return_value = conn
+
+        export_experiment_data(
+            experiment="test_export_experiment_data_with_experiment",
+            output=temp_zipfile.strpath,
+            partition_by_unit=False,
+            tables=["test_table"],
+        )
+
+    # Check if the exported data is correct
+    with zipfile.ZipFile(temp_zipfile.strpath, mode="r") as zf:
+        # Find the file with a matching pattern
+        csv_filename = None
+        for filename in zf.namelist():
+            if re.match(
+                r"test_export_experiment_data_with_experiment-test_table-\d{14}\.csv", filename
+            ):
+                csv_filename = filename
+                break
+
+        assert csv_filename is not None, "CSV file not found in the zipfile"
+
+        with zf.open(csv_filename) as csv_file:
+            content = csv_file.read().decode("utf-8")
+            assert (
+                content.strip()
+                == "timestamp_localtime,id,experiment,timestamp\r\n2021-08-31 20:00:00,1,test_export_experiment_data_with_experiment,2021-09-01 00:00:00"
             )

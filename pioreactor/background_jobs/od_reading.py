@@ -121,23 +121,6 @@ IR_keyword = "IR"
 
 
 class ADCReader(LoggerMixin):
-    """
-    Notes
-    ------
-    It's currently highly specific to the ADS1x15 family AND it's connection to ODReader.
-    It's not advisable to use this class for other use cases - best to develop your own.
-
-    Parameters
-    ------------
-    channels: list
-        a list of channels, a subset of [1, 2, 3, 4]
-    fake_data: bool
-        generate fake ADC readings internally.
-    dynamic_gain: bool
-        dynamically change the gain based on the max reading from channels
-
-    """
-
     _logger_name = "adc_reader"
     _setup_complete = False
 
