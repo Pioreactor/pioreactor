@@ -469,8 +469,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:
             # add the following files to the release. They should ideally be idempotent!
-            # https://arslan.io/2019/07/03/how-to-write-idempotent-bash-scripts/
-            #
+
             # pre_update.sh runs (if exists)
             # `pip install pioreactor...whl` runs
             # update.sh runs (if exists)
@@ -508,7 +507,6 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                     ]
                 )
             elif asset_name == "post_update.sh":
-                # ex: post_update.sh can be used to restart machines
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/post_update.sh {url}", 99),

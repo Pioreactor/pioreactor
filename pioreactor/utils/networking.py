@@ -68,17 +68,17 @@ def is_connected_to_network() -> bool:
 def get_ip() -> Optional[str]:
     from psutil import net_if_addrs  # type: ignore
 
-    # Check for IP address of ethernet network interface 'eth0'
-    try:
-        return net_if_addrs()["eth0"][0].address
-    except Exception:
-        pass
-
     # Check for IP address of wireless network interface 'wlan0'
     try:
         return net_if_addrs()["wlan0"][0].address
     except Exception:
         return None
+
+    # Check for IP address of ethernet network interface 'eth0'
+    try:
+        return net_if_addrs()["eth0"][0].address
+    except Exception:
+        pass
 
 
 def discover_workers_on_network(terminate: bool = False) -> Generator[str, None, None]:
