@@ -1,3 +1,7 @@
+### Upcoming
+ - improved detection of under-voltage, and power supply problems.
+ - pumps will halt if a MQTT disconnect occurs. This is to prevent the edge case when pumps are running on a worker, but not controllable from the UI due to an MQTT disconnect.
+
 ### 23.4.14
 
  - `pio update app` will default to installing the succeeding release of Pioreactor app, which may or may not be the latest. This is to ensure that no update script is skipped.

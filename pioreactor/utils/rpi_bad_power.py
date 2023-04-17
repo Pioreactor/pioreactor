@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
+import os
+from typing import Optional
+
 """
 MIT License
 
@@ -27,10 +32,6 @@ Utilities for reading under voltage bit from the official Raspberry Pi Kernel.
 Modified from https://github.com/shenxn/rpi-bad-power
 Minimal Kernel needed is 4.14+
 """
-from __future__ import annotations
-
-import os
-from typing import Optional
 
 HWMON_NAME = "rpi_volt"
 
