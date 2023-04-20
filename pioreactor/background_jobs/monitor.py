@@ -351,11 +351,12 @@ class Monitor(BackgroundJob):
 
         under_voltage = new_under_voltage()
         if under_voltage is None:
-            self.logger.debug("Under-voltage detection not supported.")
+            self.logger.debug("Under-voltage detection not supported on system.")
         elif under_voltage.get():
             self.logger.warning(
                 "Under-voltage detected. Suggestion: use a larger external power supply. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
+            self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
             self.logger.debug("Power status okay.")
 
