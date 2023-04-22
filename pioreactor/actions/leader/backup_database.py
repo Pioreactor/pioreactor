@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from time import sleep
-
 import click
 
 from pioreactor.config import config
 from pioreactor.config import get_active_workers_in_inventory
 from pioreactor.logging import create_logger
-from pioreactor.utils import is_pio_job_running
+from pioreactor.pubsub import subscribe
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.utils.networking import add_local
@@ -17,17 +15,31 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
+def count_writes_occurring(unit):
+    msg_or_none = subscribe(
+        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/mqtt_to_db_streaming/inserts_in_last_60s"
+    )
+    if msg_or_none is not None:
+        count = int(msg_or_none.payload.decode())
+    else:
+        count = 0
+    return count
+
+
 def backup_database(output_file: str) -> None:
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
 
     This job actually consumes _a lot_ of resources, and I've seen the LED output
-    drop due to this running. See issue #81. For now, we will skip the backup if `od_reading` is running
+    drop due to this running. See issue #81.
+
+    To avoid database corruption, and to dodge when activities are happening, we will skip the backup if there are too many writes occurring
 
     Elsewhere, a cronjob is set up as well to run this action every N days.
 
     TODO: we should gzip before sending it, "B-tree databases like SQLite compress well so it’s recommended to compress your database"
+    TODO: backup more historical copies, too. Like a versioning system that logrotate does.
     """
 
     import sqlite3
@@ -39,30 +51,30 @@ def backup_database(output_file: str) -> None:
     with publish_ready_to_disconnected_state(unit, experiment, "backup_database"):
         logger = create_logger(
             "backup_database", experiment=experiment, unit=unit, to_mqtt=False
-        )  # the backup would take so long that the mqtt client would disconnect.
+        )  # the backup would take so long that the mqtt client would disconnect. We also don't want to write to the db.
 
-        if is_pio_job_running("od_reading"):
-            logger.warning("Won't run if OD Reading is running. Exiting")
+        if count_writes_occurring(unit) >= 2:
+            logger.debug("Too many writes to proceed with backup. Exiting.")
             return
 
         def progress(status: int, remaining: int, total: int) -> None:
             logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
             logger.debug(f"Writing to local backup {output_file}.")
 
+        current_time = current_utc_timestamp()
         logger.debug(f"Starting backup of database to {output_file}")
-        sleep(0.5)  # pause a second so the log entry above gets recorded into the DB.
 
         con = sqlite3.connect(config.get("storage", "database"))
         bck = sqlite3.connect(output_file)
 
         with bck:
-            con.backup(bck, pages=-1, progress=progress)
+            con.backup(bck, pages=5, progress=progress)
 
         bck.close()
         con.close()
 
         with local_persistant_storage("database_backups") as cache:
-            cache["latest_backup_timestamp"] = current_utc_timestamp()
+            cache["latest_backup_timestamp"] = current_time
 
         logger.info("Completed backup of database.")
 
@@ -72,7 +84,7 @@ def backup_database(output_file: str) -> None:
 
         while (backups_complete < n_backups) and (len(available_workers) > 0):
             backup_unit = available_workers.pop()
-            if backup_unit == get_unit_name():
+            if backup_unit == unit:
                 continue
 
             logger.debug(f"Attempting backing up database to {backup_unit}.")
@@ -95,7 +107,7 @@ def backup_database(output_file: str) -> None:
                 backups_complete += 1
 
                 with local_persistant_storage("database_backups") as cache:
-                    cache[f"latest_backup_in_{backup_unit}"] = current_utc_timestamp()
+                    cache[f"latest_backup_in_{backup_unit}"] = current_time
 
         return
 
