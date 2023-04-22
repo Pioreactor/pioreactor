@@ -17,7 +17,8 @@ from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 def count_writes_occurring(unit):
     msg_or_none = subscribe(
-        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/mqtt_to_db_streaming/inserts_in_last_60s"
+        f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/mqtt_to_db_streaming/inserts_in_last_60s",
+        timeout=2,
     )
     if msg_or_none is not None:
         count = int(msg_or_none.payload.decode())
@@ -59,7 +60,6 @@ def backup_database(output_file: str) -> None:
 
         def progress(status: int, remaining: int, total: int) -> None:
             logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
-            logger.debug(f"Writing to local backup {output_file}.")
 
         current_time = current_utc_timestamp()
         logger.debug(f"Starting backup of database to {output_file}")
@@ -68,7 +68,9 @@ def backup_database(output_file: str) -> None:
         bck = sqlite3.connect(output_file)
 
         with bck:
-            con.backup(bck, pages=5, progress=progress)
+            con.backup(
+                bck, pages=50, progress=progress
+            )  # why 50? A larger sqlite3 database we used in the past had 164510 pages.
 
         bck.close()
         con.close()
