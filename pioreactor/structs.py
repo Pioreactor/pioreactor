@@ -81,7 +81,7 @@ class AutomationSettings(Struct):
     pioreactor_unit: str
     experiment: str
     started_at: t.Annotated[datetime, Meta(tz=True)]
-    ended_at: t.Annotated[datetime, Meta(tz=True)]
+    ended_at: t.Optional[t.Annotated[datetime, Meta(tz=True)]]
     automation_name: str
     settings: bytes
 
