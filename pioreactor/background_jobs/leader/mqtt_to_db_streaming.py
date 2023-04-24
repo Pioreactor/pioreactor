@@ -269,7 +269,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "timestamp": current_utc_datetime(),
         "message": event.message,
         "data": dumps(event.data) if (event.data is not None) else "",
-        "event_name": event.type,
+        "event_name": event.human_readable_name,
     }
 
 

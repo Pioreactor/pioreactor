@@ -97,10 +97,11 @@ class AutomationEvent(Struct, tag=True, tag_field="event_name"):  # type: ignore
 
     def __str__(self) -> str:
         if self.message:
-            return f"{self.human_readable_name()}: {self.message}"
+            return f"{self.human_readable_name}: {self.message}"
         else:
-            return self.human_readable_name()
+            return self.human_readable_name
 
+    @property
     def human_readable_name(self) -> str:
         name = type(self).__name__
         return name
