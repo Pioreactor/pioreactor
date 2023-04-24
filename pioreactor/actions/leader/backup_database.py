@@ -15,7 +15,7 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 
 
-def count_writes_occurring(unit):
+def count_writes_occurring(unit: str) -> int:
     msg_or_none = subscribe(
         f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/mqtt_to_db_streaming/inserts_in_last_60s",
         timeout=2,
@@ -39,7 +39,6 @@ def backup_database(output_file: str) -> None:
 
     Elsewhere, a cronjob is set up as well to run this action every N days.
 
-    TODO: we should gzip before sending it, "B-tree databases like SQLite compress well so it’s recommended to compress your database"
     TODO: backup more historical copies, too. Like a versioning system that logrotate does.
     """
 
@@ -58,19 +57,19 @@ def backup_database(output_file: str) -> None:
             logger.debug("Too many writes to proceed with backup. Exiting.")
             return
 
-        def progress(status: int, remaining: int, total: int) -> None:
-            logger.debug(f"Copied {total-remaining} of {total} SQLite3 pages.")
-
         current_time = current_utc_timestamp()
+        page_size = 50
         logger.debug(f"Starting backup of database to {output_file}")
 
         con = sqlite3.connect(config.get("storage", "database"))
         bck = sqlite3.connect(output_file)
 
         with bck:
-            con.backup(
-                bck, pages=50, progress=progress
-            )  # why 50? A larger sqlite3 database we used in the past had 164510 pages.
+            # why 50? A larger sqlite3 database we used had 164510 pages.
+            # pages=5 took 4m
+            # pages=50 took 2m
+            # we don't want it too big though, else it locks up the database for too long. We had problems with pages=-1
+            con.backup(bck, pages=page_size)
 
         bck.close()
         con.close()
@@ -80,6 +79,7 @@ def backup_database(output_file: str) -> None:
 
         logger.info("Completed backup of database.")
 
+        # back up to workers, if available
         n_backups = config.getint("storage", "number_of_backup_replicates_to_workers", fallback=0)
         backups_complete = 0
         available_workers = list(get_active_workers_in_inventory())
