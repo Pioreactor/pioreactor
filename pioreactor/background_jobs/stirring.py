@@ -193,14 +193,13 @@ class Stirrer(BackgroundJob):
 
     def __init__(
         self,
-        target_rpm: float,
+        target_rpm: Optional[float],
         unit: str,
         experiment: str,
         rpm_calculator: Optional[RpmCalculator] = None,
         hertz: float = config.getfloat("stirring", "pwm_hz"),
     ) -> None:
         super(Stirrer, self).__init__(unit=unit, experiment=experiment)
-        self.logger.debug(f"Starting stirring with initial {target_rpm} RPM.")
         self.rpm_calculator = rpm_calculator
 
         if not hardware.is_HAT_present():
@@ -214,9 +213,10 @@ class Stirrer(BackgroundJob):
             raise exc.HardwareNotFoundError("Heating PCB must be present to measure RPM.")
 
         if self.rpm_calculator is not None:
+            self.logger.debug("Operating with RPM feedback loop.")
             self.rpm_calculator.setup()
         else:
-            self.logger.debug("Operating without RPM closed loop.")
+            self.logger.debug("Operating without RPM feedback loop.")
 
         channel: Optional[pt.PwmChannel] = config.get("PWM_reverse", "stirring")
 
@@ -229,12 +229,12 @@ class Stirrer(BackgroundJob):
         self.pwm = PWM(pin, hertz, unit=self.unit, experiment=self.experiment)
         self.pwm.lock()
 
-        if self.rpm_calculator is not None:
-            self.target_rpm = target_rpm
+        if target_rpm is not None and self.rpm_calculator is not None:
+            self.target_rpm: Optional[float] = float(target_rpm)
         else:
-            self.target_rpm = 0
+            self.target_rpm = None
 
-        self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup(self.target_rpm)
+        self.rpm_to_dc_lookup = self.initialize_rpm_to_dc_lookup()
         self.duty_cycle = self.rpm_to_dc_lookup(self.target_rpm)
 
         # set up PID
@@ -242,7 +242,7 @@ class Stirrer(BackgroundJob):
             Kp=config.getfloat("stirring.pid", "Kp"),
             Ki=config.getfloat("stirring.pid", "Ki"),
             Kd=config.getfloat("stirring.pid", "Kd"),
-            setpoint=self.target_rpm,
+            setpoint=self.target_rpm or 0,
             unit=self.unit,
             experiment=self.experiment,
             job_name=self.job_name,
@@ -262,11 +262,13 @@ class Stirrer(BackgroundJob):
             },  # technically should be a function of the RPM: lower RPM, longer to get sufficient estimate with low variance.
         )
 
-    def initialize_rpm_to_dc_lookup(self, target_rpm: float) -> Callable:
+    def initialize_rpm_to_dc_lookup(self) -> Callable:
         if self.rpm_calculator is None:
             # if we can't track RPM, no point in adjusting DC, use current value
+            assert self.target_rpm is None
             return lambda rpm: self.duty_cycle
 
+        assert isinstance(self.target_rpm, float)
         with local_persistant_storage("stirring_calibration") as cache:
             if "linear_v1" in cache:
                 self.logger.debug("Found stirring calibration `linear_v1`.")
@@ -276,7 +278,7 @@ class Stirrer(BackgroundJob):
 
                 # since we have calibration data, and the initial_duty_cycle could be
                 # far off, giving the below equation a bad "first step". We set it here.
-                self.duty_cycle = coef * target_rpm + intercept
+                self.duty_cycle = coef * self.target_rpm + intercept
 
                 # we scale this by 90% to make sure the PID + prediction doesn't overshoot,
                 # better to be conservative here.
@@ -297,6 +299,7 @@ class Stirrer(BackgroundJob):
                 self.rpm_calculator.clean_up()
 
     def start_stirring(self) -> None:
+        self.logger.debug(f"Starting stirring with initial {self.target_rpm} RPM.")
         self.pwm.start(100)  # get momentum to start
         sleep(0.30)
         self.set_duty_cycle(self.duty_cycle)
@@ -396,6 +399,9 @@ class Stirrer(BackgroundJob):
         self.pwm.change_duty_cycle(self.duty_cycle)
 
     def set_target_rpm(self, value: float) -> None:
+        if self.rpm_calculator is None:
+            raise ValueError("Can't set target RPM when no RPM measurement is being made")
+
         self.target_rpm = value
         self.set_duty_cycle(self.rpm_to_dc_lookup(self.target_rpm))
         self.pid.set_setpoint(self.target_rpm)
@@ -425,6 +431,7 @@ class Stirrer(BackgroundJob):
             # can't block if we aren't recording the RPM
             return False
 
+        assert isinstance(self.target_rpm, float)
         self.logger.debug(f"stirring is blocking until RPM is near {self.target_rpm}.")
 
         self.rpm_check_repeated_thread.pause()
