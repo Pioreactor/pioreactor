@@ -252,7 +252,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            23 if self.rpm_calculator is not None else 1_000_000,
+            23,
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -301,7 +301,8 @@ class Stirrer(BackgroundJob):
         sleep(0.30)
         self.set_duty_cycle(self.duty_cycle)
         sleep(0.70)
-        self.rpm_check_repeated_thread.start()  # .start is idempotent
+        if self.rpm_calculator is not None:
+            self.rpm_check_repeated_thread.start()  # .start is idempotent
 
     def kick_stirring(self) -> None:
         self.logger.debug("Kicking stirring")
