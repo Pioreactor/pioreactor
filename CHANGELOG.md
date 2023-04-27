@@ -4,6 +4,9 @@
  - improvements to backing up the SQLite3 database.
  - improvements to self-test "Reference photodiode is correct magnitude"
 
+#### Bug fixes
+ - fix bug in `pio run od_calibration list`
+
 ### 23.4.14
 
  - `pio update app` will default to installing the succeeding release of Pioreactor app, which may or may not be the latest. This is to ensure that no update script is skipped.
