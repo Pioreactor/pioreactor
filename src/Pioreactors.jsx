@@ -564,7 +564,7 @@ function PatientButton(props) {
     function f() {
       setButtonText(<CircularProgress color="inherit" size={21}/>)
       props.onClick()
-      setTimeout(() => setButtonText(props.buttonText), 15000)
+      setTimeout(() => setButtonText(props.buttonText), 30000)
     }
     return f
   }
@@ -950,6 +950,9 @@ function SelfTestDialog(props) {
             </List>
 
           <Divider className={classes.divider} />
+          <Typography variant="body2" component="p" gutterBottom>
+            Learn more about each test and <a href="https://docs.pioreactor.com/user-guide/running-self-test#explanation-of-each-test">what to do if a test fails.</a>
+          </Typography>
         </DialogContent>
       </Dialog>
   </React.Fragment>

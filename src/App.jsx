@@ -93,7 +93,7 @@ function MainSite() {
               <Route path="/updates" element={<Updates title="Pioreactor ~ Updates"/>}/>
               <Route path="/feedback" element={<Feedback title="Pioreactor ~ Feedback"/>}/>
               <Route path="/calibrations" element={<Calibrations title="Pioreactor ~ Calibrations"/>}/>
-              <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Pioreactor"/>}/>
+              <Route path="/" element={<ExperimentOverview title="Pioreactor ~ Overview"/>}/>
             </Routes>
             <ErrorSnackbar />
             <TactileButtonNotification />
