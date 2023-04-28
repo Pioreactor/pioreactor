@@ -121,23 +121,6 @@ IR_keyword = "IR"
 
 
 class ADCReader(LoggerMixin):
-    """
-    Notes
-    ------
-    It's currently highly specific to the ADS1x15 family AND it's connection to ODReader.
-    It's not advisable to use this class for other use cases - best to develop your own.
-
-    Parameters
-    ------------
-    channels: list
-        a list of channels, a subset of [1, 2, 3, 4]
-    fake_data: bool
-        generate fake ADC readings internally.
-    dynamic_gain: bool
-        dynamically change the gain based on the max reading from channels
-
-    """
-
     _logger_name = "adc_reader"
     _setup_complete = False
 
@@ -255,7 +238,7 @@ class ADCReader(LoggerMixin):
 
         elif value > 3.0:
             self.logger.warning(
-                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.3V. Suggestion: decrease the IR intensity, or change the PD angle to a lower angle."
+                f"An ADC channel is recording a very high voltage, {round(value, 2)}V. It's recommended to keep it less than 3.0V. Suggestion: decrease the IR intensity, or change the PD angle to a lower angle."
             )
             publish(
                 f"pioreactor/{whoami.get_unit_name()}/{whoami.get_latest_experiment_name()}/monitor/flicker_led_with_error_code",

@@ -19,6 +19,7 @@ from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.pubsub import QOS
 from pioreactor.utils.timing import current_utc_datetime
+from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_iso_format
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_EXPERIMENT
@@ -50,6 +51,12 @@ class TopicToParserToTable(Struct):
 class MqttToDBStreamer(BackgroundJob):
     topics_to_tables_from_plugins: list[TopicToParserToTable] = []
     job_name = "mqtt_to_db_streaming"
+    published_settings = {
+        "inserts_in_last_60s": {"datatype": "integer", "settable": False},
+    }
+
+    inserts_in_last_60s = 0
+    _inserts_in_last_60s = 0
 
     def __init__(
         self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
@@ -75,9 +82,16 @@ class MqttToDBStreamer(BackgroundJob):
             for topic_to_table in topics_to_tables
         ]
 
+        self.timer = RepeatedTimer(60, self.publish_stats).start()
+
         self.initialize_callbacks(topics_and_callbacks)
 
+    def publish_stats(self):
+        self.inserts_in_last_60s = self._inserts_in_last_60s
+        self._inserts_in_last_60s = 0
+
     def on_disconnected(self) -> None:
+        self.timer.cancel()
         self.sqliteworker.close()  # close the db safely
 
     def create_on_message_callback(
@@ -122,6 +136,7 @@ class MqttToDBStreamer(BackgroundJob):
                     self.logger.error(e)
                     self.logger.debug(f"SQL that caused error: `{SQL}`")
                     return
+                self._inserts_in_last_60s += 1
 
         return callback
 
@@ -254,7 +269,7 @@ def parse_automation_event(topic: str, payload: pt.MQTTMessagePayload) -> dict:
         "timestamp": current_utc_datetime(),
         "message": event.message,
         "data": dumps(event.data) if (event.data is not None) else "",
-        "event_name": event.type,
+        "event_name": event.human_readable_name,
     }
 
 

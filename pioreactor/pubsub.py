@@ -82,6 +82,7 @@ def create_client(
     max_connection_attempts=3,
     clean_session=None,
     on_connect: Optional[Callable] = None,
+    on_disconnect: Optional[Callable] = None,
     on_message: Optional[Callable] = None,
     userdata: Optional[dict] = None,
 ):
@@ -111,6 +112,9 @@ def create_client(
 
     if on_message:
         client.on_message = on_message
+
+    if on_disconnect:
+        client.on_disconnect = on_disconnect
 
     if last_will is not None:
         client.will_set(**last_will)

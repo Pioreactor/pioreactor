@@ -154,7 +154,8 @@ if am_I_leader():
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1
-          # type: ignore
+
+        # type: ignore
 
         logger = create_logger(
             "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
@@ -326,7 +327,7 @@ if am_I_leader():
                 return True
             except Exception as e:
                 logger.error(f"Unable to connect to unit {unit}.")
-                logger.debug(e.stderr, exc_info=True)
+                logger.debug(e, exc_info=True)
                 return False
 
         if not skip_save:

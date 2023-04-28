@@ -192,7 +192,13 @@ def _pump_action(
         except exc.CalibrationError:
             pass
 
-    with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
+    with utils.publish_ready_to_disconnected_state(
+        unit,
+        experiment,
+        action_name,
+        exit_on_mqtt_disconnect=True,
+        mqtt_client_kwargs={"keepalive": 10},
+    ) as state:
         client = state.client
 
         with PWMPump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
@@ -248,7 +254,7 @@ def _pump_action(
                 pump.by_duration(duration, block=False)
 
                 # how does this work? What's up with the (or True)?
-                # exit_event.wait returns True iff the event is set. If we timeout (good path)
+                # exit_event.wait returns True iff the event is set, i.e by an interrupt. If we timeout (good path)
                 # then we eval (False or True), hence we break out of this while loop.
                 while not (state.exit_event.wait(duration) or True):
                     pump.interrupt.set()
@@ -329,7 +335,13 @@ def _liquid_circulation(
             "Calibrations don't exist for pump(s). Keep an eye on the liquid level to avoid overflowing!"
         )
 
-    with utils.publish_ready_to_disconnected_state(unit, experiment, action_name) as state:
+    with utils.publish_ready_to_disconnected_state(
+        unit,
+        experiment,
+        action_name,
+        exit_on_mqtt_disconnect=True,
+        mqtt_client_kwargs={"keepalive": 10},
+    ) as state:
         client = state.client
 
         with PWMPump(
@@ -373,7 +385,7 @@ def _liquid_circulation(
     )
 
 
-### Useful functions below:
+### high level functions below:
 
 circulate_media = partial(_liquid_circulation, "media")
 circulate_alt_media = partial(_liquid_circulation, "alt_media")

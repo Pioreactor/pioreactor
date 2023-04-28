@@ -116,7 +116,7 @@ class Monitor(BackgroundJob):
         # problems detected, we may want to block and not let the job continue.
         self.self_checks()
         self.self_check_thread = RepeatedTimer(
-            6 * 60 * 60,
+            4 * 60 * 60,
             self.self_checks,
             job_name=self.job_name,
             run_immediately=False,
@@ -344,50 +344,21 @@ class Monitor(BackgroundJob):
         self.button_down = False
 
     def check_for_power_problems(self) -> None:
-        """
-        Note: `get_throttled` feature isn't available on the Rpi Zero
-
-        Sourced from https://github.com/raspberrypi/linux/pull/2397
-         and https://github.com/N2Github/Proje
-        """
-
-        def status_to_human_readable(status) -> str:
-            hr_status = []
-
-            # if status & 0x40000:
-            #     hr_status.append("Throttling has occurred.")
-            # if status & 0x20000:
-            #     hr_status.append("ARM frequency capping has occurred.")
-            # if status & 0x10000:
-            #     hr_status.append("Undervoltage has occurred.")
-            if status & 0x4:
-                hr_status.append("Active throttling")
-            if status & 0x2:
-                hr_status.append("Active ARM frequency capped")
-            if status & 0x1:
-                hr_status.append("Active undervoltage")
-
-            hr_status.append(
-                "Suggestion: use a larger external power supply. See docs at: https://docs.pioreactor.com/user-guide/external-power"
-            )
-            return ". ".join(hr_status)
-
-        def currently_throttling(status: int) -> int:
-            return (status & 0x2) or (status & 0x1) or (status & 0x4)
-
-        def non_ignorable_status(status: int) -> int:
-            return (status & 0x1) or (status & 0x4)
-
         if whoami.is_testing_env():
             return
 
-        with open("/sys/devices/platform/soc/soc:firmware/get_throttled") as file:
-            status = int(file.read(), 16)
+        from pioreactor.utils.rpi_bad_power import new_under_voltage
 
-        if not currently_throttling(status):
-            self.logger.debug("Power status okay.")
+        under_voltage = new_under_voltage()
+        if under_voltage is None:
+            self.logger.debug("Under-voltage detection not supported on system.")
+        elif under_voltage.get():
+            self.logger.warning(
+                "Under-voltage detected. Suggestion: use a larger external power supply. See docs at: https://docs.pioreactor.com/user-guide/external-power"
+            )
+            self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
-            self.logger.debug(f"Power status: {status_to_human_readable(status)}")
+            self.logger.debug("Power status okay.")
 
     def publish_self_statistics(self) -> None:
         import psutil  # type: ignore

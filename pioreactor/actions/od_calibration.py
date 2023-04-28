@@ -80,7 +80,7 @@ def get_metadata_from_user():
         minimum_od600 = 0.01
 
     dilution_amount = click.prompt(
-        "Provide the volume to be added to your vial (default = 1 mL)",
+        "Provide the volume to be added to your vial each iteration (default = 1 mL)",
         default=1,
         type=click.FloatRange(min=0.01, max=10, clamp=False),
     )
@@ -88,6 +88,10 @@ def get_metadata_from_user():
     number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
 
     click.echo(f"This will require about {number_of_points} measurements.")
+
+    if "REF" not in config["od_config.photodiode_channel_reverse"]:
+        raise ValueError("REF required for OD calibration.")
+        # technically it's not required? we just need a specific PD channel to calibrate from.
 
     ref_channel = config["od_config.photodiode_channel_reverse"]["REF"]
     signal_channel = "1" if ref_channel == "2" else "2"
@@ -564,9 +568,9 @@ def change_current(name: str) -> None:
 def list_() -> None:
     # get current calibrations
     current = []
-    with local_persistant_storage("current_pump_calibration") as c:
-        for pump in c.iterkeys():
-            cal = decode(c[pump], type=structs.subclass_union(structs.ODCalibration))
+    with local_persistant_storage("current_od_calibration") as c:
+        for _ in c.iterkeys():
+            cal = decode(c[_], type=structs.subclass_union(structs.ODCalibration))
             current.append(cal.name)
 
     click.secho(

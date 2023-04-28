@@ -9,6 +9,7 @@ from threading import Event
 from typing import Callable
 from typing import cast
 from typing import Generator
+from typing import Optional
 from typing import overload
 
 from diskcache import Cache  # type: ignore
@@ -112,7 +113,14 @@ class publish_ready_to_disconnected_state:
 
     """
 
-    def __init__(self, unit: str, experiment: str, name: str) -> None:
+    def __init__(
+        self,
+        unit: str,
+        experiment: str,
+        name: str,
+        exit_on_mqtt_disconnect: bool = False,
+        mqtt_client_kwargs: Optional[dict] = None,
+    ) -> None:
         self.unit = unit
         self.experiment = experiment
         self.name = name
@@ -126,16 +134,25 @@ class publish_ready_to_disconnected_state:
             "retain": True,
         }
 
+        default_mqtt_client_kwargs = {
+            "keepalive": 5 * 60,
+            "client_id": f"{self.name}-{self.unit}-{self.experiment}",
+        }
+
         self.client = create_client(
-            client_id=f"{self.name}-{self.unit}-{self.experiment}",
-            keepalive=5 * 60,
             last_will=last_will,
+            on_disconnect=self._on_disconnect if exit_on_mqtt_disconnect else None,
+            **(default_mqtt_client_kwargs | (mqtt_client_kwargs or dict())),  # type: ignore
         )
+
         self.start_passive_listeners()
 
     def _exit(self, *args) -> None:
         # recall: we can't publish in a callback!
         self.exit_event.set()
+
+    def _on_disconnect(self, *args):
+        self._exit()
 
     def __enter__(self) -> publish_ready_to_disconnected_state:
         try:

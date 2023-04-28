@@ -179,7 +179,7 @@ class RepeatedTimer:
 
         with suppress(RuntimeError):
             # possible to happen if self.thread hasn't started yet,
-            # so cancelling doesn't make sense.
+            # so cancelling doesn't do anything
             self.thread.join()
 
     def start(self) -> RepeatedTimer:
