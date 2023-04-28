@@ -569,8 +569,8 @@ def list_() -> None:
     # get current calibrations
     current = []
     with local_persistant_storage("current_od_calibration") as c:
-        for pump in c.iterkeys():
-            cal = decode(c[pump], type=structs.subclass_union(structs.ODCalibration))
+        for _ in c.iterkeys():
+            cal = decode(c[_], type=structs.subclass_union(structs.ODCalibration))
             current.append(cal.name)
 
     click.secho(

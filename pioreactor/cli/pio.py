@@ -434,7 +434,7 @@ def get_tag_to_install(version_desired: Optional[str]) -> str:
 
 
 @update.command(name="app")
-@click.option("-b", "--branch", help="update to a branch on github")
+@click.option("-b", "--branch", help="install from a branch on github")
 @click.option("--source", help="use a URL or whl file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
 def update_app(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
@@ -769,7 +769,7 @@ if whoami.am_I_leader():
             raise click.Abort()
 
     @update.command(name="ui")
-    @click.option("-b", "--branch", help="update to a branch on github")
+    @click.option("-b", "--branch", help="install from a branch on github")
     @click.option("--source", help="use a tar.gz file")
     @click.option("-v", "--version", help="install a specific version")
     def update_ui(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
