@@ -1,4 +1,4 @@
-### Upcoming
+### 23.4.28
  - improved detection of under-voltage, and power supply problems.
  - pumps will halt if a MQTT disconnect occurs. This is to prevent the edge case when pumps are running on a worker, but not controllable from the UI due to an MQTT disconnect.
  - improvements to backing up the SQLite3 database.
