@@ -48,7 +48,9 @@ class callable_stack:
         self.callables.append(function)
 
     def __call__(self, *args) -> None:
-        for function in reversed(self.callables):
+        # need to pip
+        while self.callables:
+            function = self.callables.pop()
             try:
                 function(*args)
             except Exception:
