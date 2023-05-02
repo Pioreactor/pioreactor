@@ -20,10 +20,10 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
+from pioreactor.mureq import get
 from pioreactor.pubsub import QOS
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
-from pioreactor.utils.mureq import get
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
@@ -238,6 +238,7 @@ class Monitor(BackgroundJob):
         except Exception as e:
             self.logger.debug(f"Error pinging UI: {e}", exc_info=True)
             self.logger.error(f"Error pinging UI: {e}")
+            self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
 
     def check_for_required_jobs_running(self):
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
