@@ -111,7 +111,6 @@ class Monitor(BackgroundJob):
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
         self._setup_GPIO()
-        self.led_on()
 
         # set up a self check function to periodically check vitals and log them
         # we manually run a self_check outside of a thread first, as if there are
@@ -164,9 +163,8 @@ class Monitor(BackgroundJob):
                 return
             except RuntimeError:
                 sleep(3)
-                i = +1
+                i += 1
 
-        self.logger.debug("Failed to add button detect.", exc_info=True)
         self.logger.warning("Failed to add button detect.")
 
     def check_for_network(self) -> None:
@@ -214,7 +212,6 @@ class Monitor(BackgroundJob):
                 if status == "failed" or status == "inactive":
                     self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
                     self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-                    return
 
                 elif status == "activating":
                     # try again
