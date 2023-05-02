@@ -198,9 +198,9 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
 
 def choose_settings() -> tuple[float, float]:
     hz = click.prompt(
-        click.style("Optional: Enter frequency of PWM. [enter] for default 200 hz", fg="green"),
+        click.style("Optional: Enter frequency of PWM. [enter] for default 250 hz", fg="green"),
         type=click.FloatRange(0.1, 10000),
-        default=200,
+        default=250,
         show_default=False,
     )
     dc = click.prompt(
@@ -393,7 +393,7 @@ def publish_to_leader(name: str) -> bool:
     except Exception:
         success = False
     if not success:
-        click.echo(f"Could not publish to leader at http://{leader_address}/api/calibrations ❌")
+        click.echo(f"❌ Could not publish on leader at http://{leader_address}/api/calibrations")
     return success
 
 
@@ -547,7 +547,9 @@ def change_current(name: str) -> bool:
             )
             res.raise_for_status()
         except Exception:
-            click.echo("Could not update current in database on leader ❌")
+            click.echo(
+                f"❌ Could not update on leader at http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}"
+            )
             return False
 
         if old_calibration:
