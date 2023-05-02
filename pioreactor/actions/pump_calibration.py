@@ -150,7 +150,13 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
 
 def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: str) -> None:
     # set up...
-
+    try:
+        channel_pump_is_configured_for = config.get("PWM_reverse", pump_type)
+    except KeyError:
+        click.echo(
+            f"❌ {pump_type} is not present in config.ini. Please add it to the [PWM] section and try again."
+        )
+        raise click.Abort()
     click.clear()
     click.echo()
     click.secho("Step 2", fg="green", bold=True)
@@ -159,7 +165,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
     click.echo("2. Submerge both ends of the pump's tubes into the water.")
     click.echo(
         "Make sure the pump's power is connected to "
-        + click.style(f"PWM channel {config.get('PWM_reverse', pump_type)}.", bold=True)
+        + click.style(f"PWM channel {channel_pump_is_configured_for}.", bold=True)
     )
     click.echo("We'll run the pumps continuously until the tubes are completely filled with water.")
     click.echo()

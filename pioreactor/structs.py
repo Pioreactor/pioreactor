@@ -179,7 +179,7 @@ class Calibration(Struct, tag=True, tag_field="type"):
 
     @property
     def type(self) -> str:
-        return self.__class__.__struct_tag__  # type: ignore
+        return self.__struct_config__.tag  # type: ignore
 
 
 class PumpCalibration(Calibration):

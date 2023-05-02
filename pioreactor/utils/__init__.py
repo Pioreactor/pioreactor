@@ -48,7 +48,7 @@ class callable_stack:
         self.callables.append(function)
 
     def __call__(self, *args) -> None:
-        # need to pip
+        # need to pop
         while self.callables:
             function = self.callables.pop()
             try:
