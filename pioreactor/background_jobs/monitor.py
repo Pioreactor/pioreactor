@@ -343,16 +343,20 @@ class Monitor(BackgroundJob):
 
         self.button_down = False
 
-    def check_for_power_problems(self) -> None:
-        if whoami.is_testing_env():
-            return
-
+    def rpi_is_having_power_problems(self) -> bool:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
 
         under_voltage = new_under_voltage()
         if under_voltage is None:
-            self.logger.debug("Under-voltage detection not supported on system.")
+            # not supported on system
+            return False
         elif under_voltage.get():
+            return True
+        else:
+            return False
+
+    def check_for_power_problems(self) -> None:
+        if self.rpi_is_having_power_problems():
             self.logger.warning(
                 "Under-voltage detected. Suggestion: use a larger external power supply. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )

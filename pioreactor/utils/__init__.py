@@ -49,7 +49,10 @@ class callable_stack:
 
     def __call__(self, *args) -> None:
         for function in reversed(self.callables):
-            function(*args)
+            try:
+                function(*args)
+            except Exception:
+                pass
 
 
 def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) -> None:
