@@ -23,6 +23,7 @@ from pioreactor.hardware import TEMP
 from pioreactor.pubsub import QOS
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
+from pioreactor.utils.mureq import get
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
@@ -202,18 +203,41 @@ class Monitor(BackgroundJob):
 
     def check_for_webserver(self):
         try:
-            # Run the command 'systemctl is-active lighttpd' and capture the output
-            result = subprocess.run(
-                ["systemctl", "is-active", "lighttpd"], capture_output=True, text=True
-            )
-            status = result.stdout.strip()
+            while True:
+                # Run the command 'systemctl is-active lighttpd' and capture the output
+                result = subprocess.run(
+                    ["systemctl", "is-active", "lighttpd"], capture_output=True, text=True
+                )
+                status = result.stdout.strip()
 
-            # Check if the output is 'active'
-            if status != "active":
-                self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
-                self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
+                # Check if the output is 'active'
+                if status == "failed":
+                    self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
+                    self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
+                    return
+
+                elif status == "activating":
+                    # try again
+                    pass
+
+                elif status == "active":
+                    # okay
+                    break
+
+                else:
+                    raise
+
         except Exception as e:
+            self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
             self.logger.error(f"Error checking lighttpd status: {e}")
+
+        try:
+            # can we ping ourselves? should have a response
+            res = get("http://localhost")
+            res.raise_for_status()
+        except Exception as e:
+            self.logger.debug(f"Error pinging UI: {e}", exc_info=True)
+            self.logger.error(f"Error pinging UI: {e}")
 
     def check_for_required_jobs_running(self):
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
