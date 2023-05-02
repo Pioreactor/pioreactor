@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import subprocess
 from datetime import datetime
 from json import loads
 from threading import Thread
@@ -183,12 +184,13 @@ class Monitor(BackgroundJob):
         self.check_for_power_problems()
 
         # report on CPU usage, memory, disk space
-        self.publish_self_statistics()
+        self.check_and_publish_self_statistics()
 
         if whoami.am_I_leader():
             # report on last database backup, if leader
             self.check_for_last_backup()
             self.check_for_required_jobs_running()
+            self.check_for_webserver()
 
         if whoami.am_I_active_worker():
             # check the PCB temperature
@@ -197,6 +199,21 @@ class Monitor(BackgroundJob):
         if not whoami.am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
+
+    def check_for_webserver(self):
+        try:
+            # Run the command 'systemctl is-active lighttpd' and capture the output
+            result = subprocess.run(
+                ["systemctl", "is-active", "lighttpd"], capture_output=True, text=True
+            )
+            status = result.stdout.strip()
+
+            # Check if the output is 'active'
+            if status != "active":
+                self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
+                self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
+        except Exception as e:
+            self.logger.error(f"Error checking lighttpd status: {e}")
 
     def check_for_required_jobs_running(self):
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
@@ -231,13 +248,11 @@ class Monitor(BackgroundJob):
         if observed_tmp >= 64.0:
             # something is wrong - temperature_control should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
             # we're going to just shutdown to be safe.
-            from subprocess import call
-
             self.logger.error(
                 f"Detected an extremely high temperature, {observed_tmp} ℃ on the heating PCB - shutting down for safety."
             )
 
-            call("sudo shutdown now --poweroff", shell=True)
+            subprocess.call("sudo shutdown now --poweroff", shell=True)
         self.logger.debug(f"Heating PCB temperature at {round(observed_tmp)} ℃.")
 
     def check_for_mqtt_connection_to_leader(self) -> None:
@@ -364,7 +379,7 @@ class Monitor(BackgroundJob):
         else:
             self.logger.debug("Power status okay.")
 
-    def publish_self_statistics(self) -> None:
+    def check_and_publish_self_statistics(self) -> None:
         import psutil  # type: ignore
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
@@ -477,7 +492,6 @@ class Monitor(BackgroundJob):
         # we use a thread here since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
-        import subprocess
         from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
         job_name = msg.topic.split("/")[-1]

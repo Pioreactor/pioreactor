@@ -42,18 +42,18 @@ class callable_stack:
     """
 
     def __init__(self, default_function_if_empty: Callable = lambda *args: None) -> None:
-        self.callables: list[Callable] = []
+        self._callables: list[Callable] = []
         self.default = default_function_if_empty
 
     def append(self, function: Callable) -> None:
-        self.callables.append(function)
+        self._callables.append(function)
 
     def __call__(self, *args) -> None:
-        if not self.callables:
+        if not self._callables:
             self.default(*args)
 
-        while self.callables:
-            function = self.callables.pop()
+        while self._callables:
+            function = self._callables.pop()
             function(*args)
 
 
