@@ -37,16 +37,25 @@ from pioreactor.whoami import get_unit_name
 
 
 def introduction() -> None:
+    import logging
+
+    logging.disable(logging.WARNING)
+
     click.clear()
     click.echo(
         """This routine will calibrate the pumps on your current Pioreactor. You'll need:
+
     1. A Pioreactor
     2. A vial placed on a scale with accuracy at least 0.1g
        OR an accurate graduated cylinder.
     3. A larger container filled with water
     4. A pump connected to the correct PWM channel (1, 2, 3, or 4) as determined in your Configurations.
+
+We will dose for a set duration, you'll measure how much volume was expelled, and then record it back here. After doing this a few times, we can construct a calibration line for this pump.
 """
     )
+    click.confirm(click.style("Ready?", fg="green"))
+    click.clear()
 
 
 def get_metadata_from_user(pump_type) -> str:
@@ -54,7 +63,7 @@ def get_metadata_from_user(pump_type) -> str:
         while True:
             name = click.prompt(
                 click.style(
-                    f"Optional: Provide a name for this calibration. [enter] to use default name {pump_type}-{current_utc_datestamp()}",
+                    f"Optional: Provide a name for this calibration. [enter] to use default name `{pump_type}-{current_utc_datestamp()}`",
                     fg="green",
                 ),
                 type=str,
@@ -65,7 +74,9 @@ def get_metadata_from_user(pump_type) -> str:
                 click.echo("Name cannot be empty")
                 continue
             elif name in cache:
-                if click.confirm("❗️ Name already exists. Do you wish to overwrite?"):
+                if click.confirm(
+                    click.style("❗️ Name already exists. Do you wish to overwrite?", fg="green")
+                ):
                     break
             elif name == "current":
                 click.echo("Name cannot be `current`.")
@@ -95,6 +106,7 @@ def which_pump_are_you_calibrating() -> tuple[str, Callable]:
             ).created_at
             alt_media_name = decode(cache["alt_media"], type=structs.AltMediaPumpCalibration).name
 
+    click.secho("Step 1", fg="green", bold=True)
     r = click.prompt(
         click.style(
             f"""Which pump are you calibrating?
@@ -141,6 +153,7 @@ def setup(pump_type: str, execute_pump: Callable, hz: float, dc: float, unit: st
 
     click.clear()
     click.echo()
+    click.secho("Step 2", fg="green", bold=True)
     click.echo("We need to prime the pump by filling the tubes completely with water.")
     click.echo("1. Fill a container with water.")
     click.echo("2. Submerge both ends of the pump's tubes into the water.")
@@ -236,6 +249,7 @@ def run_tests(
 ) -> tuple[list[float], list[float]]:
     click.clear()
     click.echo()
+    click.secho("Step 3", fg="green", bold=True)
     click.echo("Beginning tests.")
 
     empty_calibration = structs.PumpCalibration(
@@ -251,7 +265,10 @@ def run_tests(
     )
 
     results: list[float] = []
-    durations_to_test = [min_duration] * 5 + [max_duration] * 5
+    durations_to_test = (
+        [min_duration] * 4 + [(min_duration + max_duration) / 2] * 2 + [max_duration] * 4
+    )
+    n_samples = len(durations_to_test)
 
     for i, duration in enumerate(durations_to_test):
         while True:
@@ -275,6 +292,10 @@ def run_tests(
             click.echo("Use a small container placed on top of an accurate weighing scale.")
             click.echo(
                 "Hold the end of the outflow tube above so the container catches the expelled liquid."
+            )
+            click.echo()
+            click.secho(
+                f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]", fg="green"
             )
             while not click.confirm(click.style(f"Ready to test {duration:.2f}s?", fg="green")):
                 pass
@@ -368,8 +389,7 @@ def publish_to_leader(name: str) -> bool:
             encode(calibration_result),
             headers={"Content-Type": "application/json"},
         )
-        if not res.ok:
-            success = False
+        res.raise_for_status()
     except Exception:
         success = False
     if not success:
@@ -432,9 +452,9 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
             unit=unit,
         )
 
-        logger.debug(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
+        click.echo(f"slope={slope:0.3f} ± {std_slope:0.3f}, bias={bias:0.3f} ± {std_bias:0.3f}")
 
-        logger.debug(
+        click.echo(
             f"Calibration is best for volumes between {(slope * min_duration + bias):0.2f}mL to {(slope * max_duration + bias):0.2f}mL, but will be okay for outside this range too."
         )
 
@@ -448,7 +468,7 @@ def pump_calibration(min_duration: float, max_duration: float) -> None:
                 "Too much uncertainty in slope - you probably want to rerun this calibration..."
             )
 
-        logger.info(f"Finished {pump_type} pump calibration.")
+        click.echo(f"Finished {pump_type} pump calibration.")
 
 
 def curve_to_callable(curve_type: str, curve_data) -> Optional[Callable]:
@@ -495,7 +515,7 @@ def display(name: str | None) -> None:
                 click.echo()
 
 
-def change_current(name: str) -> None:
+def change_current(name: str) -> bool:
     with local_persistant_storage("pump_calibrations") as all_calibrations:
         try:
             new_calibration = decode(
@@ -520,12 +540,15 @@ def change_current(name: str) -> None:
 
             current_calibrations[pump_type_from_new_calibration] = encode(new_calibration)
 
-        res = patch(
-            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
-            json={"current": 1},
-        )
-        if not res.ok:
+        try:
+            res = patch(
+                f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+                json={"current": 1},
+            )
+            res.raise_for_status()
+        except Exception:
             click.echo("Could not update current in database on leader ❌")
+            return False
 
         if old_calibration:
             click.echo(
@@ -533,6 +556,7 @@ def change_current(name: str) -> None:
             )
         else:
             click.echo(f"Set {new_calibration.name} to current calibration.")
+        return True
 
 
 def list_():
