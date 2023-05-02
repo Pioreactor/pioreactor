@@ -188,7 +188,7 @@ class Monitor(BackgroundJob):
         self.check_and_publish_self_statistics()
 
         if whoami.am_I_leader():
-            # report on last database backup, if leader
+            sleep(2.5)  # wait for other processes to catch up
             self.check_for_last_backup()
             self.check_for_required_jobs_running()
             self.check_for_webserver()
@@ -210,8 +210,8 @@ class Monitor(BackgroundJob):
                 )
                 status = result.stdout.strip()
 
-                # Check if the output is 'active'
-                if status == "failed":
+                # Check if the output is okay
+                if status == "failed" or status == "inactive":
                     self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
                     self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
                     return
@@ -225,7 +225,7 @@ class Monitor(BackgroundJob):
                     break
 
                 else:
-                    raise
+                    raise ValueError(status)
 
         except Exception as e:
             self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
