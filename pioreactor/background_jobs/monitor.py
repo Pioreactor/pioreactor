@@ -188,7 +188,7 @@ class Monitor(BackgroundJob):
         self.check_and_publish_self_statistics()
 
         if whoami.am_I_leader():
-            sleep(2.5)  # wait for other processes to catch up
+            sleep(5.0)  # wait for other processes to catch up
             self.check_for_last_backup()
             self.check_for_required_jobs_running()
             self.check_for_webserver()
