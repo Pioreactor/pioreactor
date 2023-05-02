@@ -288,6 +288,7 @@ def run_tests(
                 )
 
             if i > 0:
+                click.echo()
                 click.echo(
                     "Remove the water from the measuring container or tare your weighing scale."
                 )
@@ -576,7 +577,7 @@ def list_():
             current.append(cal.name)
 
     click.secho(
-        f"{'Name':15s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
+        f"{'Name':17s} {'Date':18s} {'Pump type':12s} {'Currently in use?':20s}",
         bold=True,
     )
     with local_persistant_storage("pump_calibrations") as c:
@@ -584,7 +585,7 @@ def list_():
             try:
                 cal = decode(c[name], type=structs.subclass_union(structs.PumpCalibration))
                 click.secho(
-                    f"{cal.name:15s} {cal.created_at:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
+                    f"{cal.name:17s} {cal.created_at:%d %b, %Y}       {cal.pump:12s} {'✅' if cal.name in current else ''}",
                 )
             except Exception as e:
                 raise e
@@ -613,8 +614,7 @@ def click_pump_calibration(ctx, min_duration, max_duration):
 @click.option("-n", "--name", type=click.STRING)
 def click_display(name: str | None):
     """
-    By default, display a graph and metadata about the current pump calibrations. If name is
-    specified, provide graph and metadata about named pump calibration.
+    Display a graph and metadata about the current pump calibrations.
     """
     display(name)
 
@@ -623,8 +623,7 @@ def click_display(name: str | None):
 @click.argument("name", type=click.STRING)
 def click_change_current(name: str):
     """
-    Change the calibration to use to <name> calibration,
-    see `pio run pump_calibration list` for all.
+    Change the current calibration
     """
     change_current(name)
 
@@ -632,7 +631,7 @@ def click_change_current(name: str):
 @click_pump_calibration.command(name="list")
 def click_list():
     """
-    Print a list of all pump calibrations done, indexed by name
+    Print a list of all pump calibrations done
     """
     list_()
 
@@ -640,6 +639,9 @@ def click_list():
 @click_pump_calibration.command(name="publish")
 @click.argument("name", type=click.STRING)
 def click_publish(name: str):
+    """
+    Publish calibration to the leader's database.
+    """
     publish_to_leader(name)
 
 
