@@ -48,6 +48,11 @@ class TopicToParserToTable(Struct):
     table: str
 
 
+class TopicToCallback(Struct):
+    topic: str | list[str]
+    callback: Callable[[pt.MQTTMessage], None]
+
+
 class MqttToDBStreamer(BackgroundJob):
     topics_to_tables_from_plugins: list[TopicToParserToTable] = []
     job_name = "mqtt_to_db_streaming"
@@ -72,13 +77,10 @@ class MqttToDBStreamer(BackgroundJob):
         topics_to_tables.extend(self.topics_to_tables_from_plugins)
 
         topics_and_callbacks = [
-            {
-                "topic": topic_to_table.topic,
-                "callback": self.create_on_message_callback(
-                    topic_to_table.parser, topic_to_table.table
-                ),
-                "table": topic_to_table.table,
-            }
+            TopicToCallback(
+                topic_to_table.topic,
+                self.create_on_message_callback(topic_to_table.parser, topic_to_table.table),
+            )
             for topic_to_table in topics_to_tables
         ]
 
@@ -140,11 +142,11 @@ class MqttToDBStreamer(BackgroundJob):
 
         return callback
 
-    def initialize_callbacks(self, topics_and_callbacks: list[dict]) -> None:
+    def initialize_callbacks(self, topics_and_callbacks: list[TopicToCallback]) -> None:
         for topic_and_callback in topics_and_callbacks:
             self.subscribe_and_callback(
-                topic_and_callback["callback"],
-                topic_and_callback["topic"],
+                topic_and_callback.callback,
+                topic_and_callback.topic,
                 qos=QOS.EXACTLY_ONCE,
                 allow_retained=False,
             )

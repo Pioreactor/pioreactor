@@ -186,8 +186,8 @@ class Monitor(BackgroundJob):
         self.check_and_publish_self_statistics()
 
         if whoami.am_I_leader():
-            sleep(10.0)  # wait for other processes to catch up
             self.check_for_last_backup()
+            sleep(10.0)  # wait for other processes to catch up
             self.check_for_required_jobs_running()
             self.check_for_webserver()
 
@@ -399,7 +399,7 @@ class Monitor(BackgroundJob):
     def check_for_power_problems(self) -> None:
         if self.rpi_is_having_power_problems():
             self.logger.warning(
-                "Under-voltage detected. Suggestion: use a larger external power supply. See docs at: https://docs.pioreactor.com/user-guide/external-power"
+                "Under-voltage detected. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
             self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
