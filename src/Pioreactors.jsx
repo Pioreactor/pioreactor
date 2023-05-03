@@ -1142,6 +1142,8 @@ function SettingsActionsDialog(props) {
   const LEDMap = props.config['leds']
   const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
+  const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
+
   const stateDisplay = {
     "init":          {display: "Starting", color: readyGreen},
     "ready":         {display: "On", color: readyGreen},
@@ -1653,6 +1655,20 @@ function SettingsActionsDialog(props) {
             </Typography>
               <Typography variant="body2" component="p">
               HAT serial number: <code>{versionInfo.hat_serial}</code>
+            </Typography>
+
+
+          <Divider className={classes.divider} />
+
+          <Typography  gutterBottom>
+            Voltage on PWM rail
+          </Typography>
+
+            <Typography variant="body2" component="p">
+              Voltage: {voltageInfo.voltage}V
+            </Typography>
+              <Typography variant="body2" component="p">
+              Last updated at: {(voltageInfo.timestamp || "").slice(0, 19)} UTC
             </Typography>
 
 
@@ -2382,11 +2398,14 @@ function PioreactorCard(props){
       metadata: {display: false},
       publishedSettings: {
         versions: {
-            value: null, label: null, type: null, unit: null, display: false, description: null}
+            value: null, label: null, type: null, unit: null, display: false, description: null
         },
+        voltage_on_pwm_rail: {
+            value: null, label: null, type: null, unit: null, display: false, description: null
+        },
+      },
     },
   })
-
 
   useEffect(() => {
     setLabel(props.label)

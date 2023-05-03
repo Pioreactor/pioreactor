@@ -49,8 +49,8 @@ function UpdateToLatestConfirmDialog(props) {
 
   const handleClick = () => {
     confirm({
-      description: 'To minimize possible interruptions, we suggest updating between experiments as it may require a restart.',
-      title: "Update to latest release?",
+      description: 'To avoid possible data interruptions, we suggest updating between running experiments.',
+      title: "Update to next release?",
       confirmationText: "Update now",
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
