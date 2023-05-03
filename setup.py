@@ -18,10 +18,6 @@ CORE_REQUIREMENTS = [
     "diskcache==5.4.0",
     "wheel==0.38.4",
     "crudini==0.9.4",
-    # tech debt - this needed to be in the core req
-    # leader requirement
-    # this direct dependency also prevents us from uploading to PyPI...
-    "sqlite3worker @ https://github.com/pioreactor/sqlite3worker/archive/master.zip#egg=sqlite3worker-0.0.1",
 ]
 
 

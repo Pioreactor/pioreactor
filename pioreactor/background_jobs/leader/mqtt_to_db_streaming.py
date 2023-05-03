@@ -18,6 +18,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.pubsub import QOS
+from pioreactor.utils.sqlite_worker import Sqlite3Worker
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_iso_format
@@ -66,8 +67,6 @@ class MqttToDBStreamer(BackgroundJob):
     def __init__(
         self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
     ) -> None:
-        from sqlite3worker import Sqlite3Worker
-
         super().__init__(experiment=experiment, unit=unit)
         self.logger.debug(f'Streaming MQTT data to {config["storage"]["database"]}.')
         self.sqliteworker = Sqlite3Worker(
