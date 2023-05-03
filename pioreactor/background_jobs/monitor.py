@@ -22,9 +22,11 @@ from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
 from pioreactor.mureq import get
 from pioreactor.pubsub import QOS
+from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 
@@ -201,6 +203,9 @@ class Monitor(BackgroundJob):
             self.check_for_mqtt_connection_to_leader()
 
     def check_for_webserver(self):
+        if whoami.is_testing_env():
+            return
+
         try:
             while True:
                 # Run the command 'systemctl is-active lighttpd' and capture the output
@@ -400,11 +405,11 @@ class Monitor(BackgroundJob):
 
     def check_for_power_problems(self) -> None:
         is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()
-        self.logger.debug(f"Power supply at ~{voltage}V.")
-        self.voltage_on_pwm_rail = voltage
+        self.logger.debug(f"PWM power supply at ~{voltage:.1f}V.")
+        self.voltage_on_pwm_rail = Voltage(voltage=voltage, timestamp=current_utc_datetime())
         if is_rpi_having_power_probems:
             self.logger.warning(
-                f"Under-voltage detected. PWM power supply at {voltage}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
+                f"Under-voltage detected. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
             self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
