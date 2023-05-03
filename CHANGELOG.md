@@ -1,6 +1,9 @@
 ### Upcoming
  - UX improvements to `pio run pump_calibration`
  - `monitor` now checks for access to web service
+ - `monitor` now checks the voltage on the 5V rail and will alert if falls to much
+ - sqlite3worker is now vendored in the core app. This means we can publish on PyPI.
+
 
 ### 23.4.28
  - improved detection of under-voltage, and power supply problems.

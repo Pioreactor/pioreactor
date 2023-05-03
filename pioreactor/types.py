@@ -65,6 +65,7 @@ class PublishableSetting(t.TypedDict, total=False):
         "Temperature",
         "MeasuredRPM",
         "AutomationEvent",
+        "Voltage",
         "KalmanFilterOutput",
     ]
     unit: str
@@ -86,7 +87,7 @@ PdAngleOrREF = t.Union[PdAngle, t.Literal["REF"]]
 
 # hardware level stuff
 AnalogValue = t.Union[int, float]
-Voltage = float
+Voltage = float  # maybe should be non-negative?
 
 AdcChannel = t.Literal[0, 1, 2, 3]
 

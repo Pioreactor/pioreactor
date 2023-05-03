@@ -172,6 +172,11 @@ class Temperature(Struct):
     temperature: float
 
 
+class Voltage(Struct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    voltage: pt.Voltage
+
+
 class Calibration(Struct, tag=True, tag_field="type"):
     created_at: t.Annotated[datetime, Meta(tz=True)]
     pioreactor_unit: str

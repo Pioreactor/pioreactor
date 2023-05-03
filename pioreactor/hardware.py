@@ -97,7 +97,7 @@ def round_to_precision(x: float, p: float) -> float:
     return y
 
 
-def voltage_in_aux(precision=0.5) -> float:
+def voltage_in_aux(precision=0.1) -> float:
     # Warning: this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
         from pioreactor.utils.adcs import ADC as ADC_class

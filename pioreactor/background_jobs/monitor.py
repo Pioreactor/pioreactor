@@ -73,6 +73,7 @@ class Monitor(BackgroundJob):
         "computer_statistics": {"datatype": "json", "settable": False},
         "button_down": {"datatype": "boolean", "settable": False},
         "versions": {"datatype": "json", "settable": False},
+        "voltage_on_pwm_rail": {"datatype": "Voltage", "settable": False},
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
@@ -380,26 +381,30 @@ class Monitor(BackgroundJob):
 
         self.button_down = False
 
-    def rpi_is_having_power_problems(self) -> bool:
+    def rpi_is_having_power_problems(self) -> tuple[bool, float]:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
         from pioreactor.hardware import voltage_in_aux
 
-        if voltage_in_aux(precision=0.1) <= 4.8:
-            return False
+        voltage_read = voltage_in_aux(precision=0.1)
+        if voltage_read <= 4.8:
+            return (False, voltage_read)
 
         under_voltage = new_under_voltage()
         if under_voltage is None:
             # not supported on system
-            return False
+            return (False, voltage_read)
         elif under_voltage.get():
-            return True
+            return (True, voltage_read)
         else:
-            return False
+            return (False, voltage_read)
 
     def check_for_power_problems(self) -> None:
-        if self.rpi_is_having_power_problems():
+        is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()
+        self.logger.debug(f"Power supply at ~{voltage}V.")
+        self.voltage_on_pwm_rail = voltage
+        if is_rpi_having_power_probems:
             self.logger.warning(
-                "Under-voltage detected. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
+                f"Under-voltage detected. PWM power supply at {voltage}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
             self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
