@@ -382,6 +382,10 @@ class Monitor(BackgroundJob):
 
     def rpi_is_having_power_problems(self) -> bool:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
+        from pioreactor.hardware import voltage_in_aux
+
+        if voltage_in_aux(precision=0.1) <= 4.8:
+            return False
 
         under_voltage = new_under_voltage()
         if under_voltage is None:
