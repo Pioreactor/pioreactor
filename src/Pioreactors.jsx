@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import { Client, Message } from "paho-mqtt";
+import moment from 'moment';
 
 import React, {useState, useEffect} from "react";
 
@@ -1668,7 +1669,7 @@ function SettingsActionsDialog(props) {
               Voltage: {voltageInfo.voltage}V
             </Typography>
               <Typography variant="body2" component="p">
-              Last updated at: {(voltageInfo.timestamp || "").slice(0, 19)} UTC
+              Last updated at: {moment.utc(voltageInfo.timestamp || "", 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm:ss a') }
             </Typography>
 
 

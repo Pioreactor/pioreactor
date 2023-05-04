@@ -26,8 +26,17 @@ export default function ActionLEDForm(props) {
   const [intensity, setIntensity] = useState(EMPTYSTATE);
   const [errorForm, setErrorForm] = useState(false);
 
+  const validInput = (intensity) => {
+    if (intensity !== EMPTYSTATE && re.test(intensity)){
+      if (parseFloat(intensity) >= 0 && parseFloat(intensity) <= 100){
+        return true
+      }
+    }
+    return false
+  }
+
   function onSubmit(e) {
-    if (intensity !== EMPTYSTATE && re.test(intensity)) {
+    if (validInput(intensity)) {
       setErrorForm(false)
       setOpenSnackbar(true);
 
@@ -42,6 +51,8 @@ export default function ActionLEDForm(props) {
         }
       }
       );
+    } else if (intensity === EMPTYSTATE) {
+      setErrorForm(false)
     } else {
       setErrorForm(true)
     }
@@ -49,8 +60,11 @@ export default function ActionLEDForm(props) {
 
 
   function onChange(e) {
-    setIntensity(e.target.value);
-    if (e.target.value === EMPTYSTATE || re.test(e.target.value)) {
+    const proposedIntensity = e.target.value
+    setIntensity(proposedIntensity);
+    if (validInput(proposedIntensity)) {
+      setErrorForm(false)
+    } else if (proposedIntensity === EMPTYSTATE) {
       setErrorForm(false)
     } else {
       setErrorForm(true)
@@ -95,7 +109,7 @@ export default function ActionLEDForm(props) {
           size="small"
           color="primary"
           onClick={onSubmit}
-          disabled={intensity === EMPTYSTATE}
+          disabled={!validInput(intensity)}
           style={{marginLeft: "7px"}}
         >
           Update

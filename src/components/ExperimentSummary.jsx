@@ -204,7 +204,7 @@ function ExperimentSummary(props){
           </Box>
           <Box fontWeight="fontWeightRegular" style={{marginRight: "20px", display:"inline-block"}}>
             {(startedAt !== "") &&
-            <span title={moment(startedAt).format("YYYY-MM-DD HH:mm:ss")}>{moment(startedAt).format("dddd, MMMM D, YYYY")}</span>
+            <span title={moment(startedAt).format("YYYY-MM-DD HH:mm:ss")}>{moment(startedAt).format("dddd, MMMM D, h:mm a")}</span>
             }
           </Box>
 

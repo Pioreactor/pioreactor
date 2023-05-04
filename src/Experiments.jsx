@@ -111,7 +111,7 @@ function ExperimentSelection(props) {
           Experiment started
         </Typography>
         <Typography variant="body2" style={{whiteSpace: "pre-line"}} gutterBottom>
-          {moment(selectedExperient?.created_at).format("dddd, MMMM D, YYYY")}
+          {moment(selectedExperient?.created_at).format("MMMM D, YYYY, h:mm a")}
         </Typography>
         <Typography sx={{ fontSize: 16, pt: 1}} color="text.secondary" gutterBottom>
           Description
