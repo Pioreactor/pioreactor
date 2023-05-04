@@ -390,7 +390,7 @@ class Monitor(BackgroundJob):
         from pioreactor.utils.rpi_bad_power import new_under_voltage
         from pioreactor.hardware import voltage_in_aux
 
-        voltage_read = voltage_in_aux(precision=0.1)
+        voltage_read = voltage_in_aux(precision=0.05)
         if voltage_read <= 4.8:
             return (False, voltage_read)
 
