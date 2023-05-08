@@ -24,8 +24,8 @@ class Action(Struct):
     parameters: t.Optional[dict[str, t.Any]] = None
 
 
-BioreactorName = str
-BioreactorAlias = str
+PioreactorUnitName = str
+PioreactorAlias = str
 JobName = str
 Jobs = dict[JobName, dict[t.Literal["actions"], list[Action]]]
 
@@ -34,6 +34,6 @@ class Profile(Struct):
     experiment_name: str
     metadata: Metadata
     plugins: list[Plugin]
-    aliases: dict[BioreactorName, BioreactorAlias]
+    aliases: dict[PioreactorUnitName, PioreactorAlias]
     global_jobs: Jobs
-    bioreactors: dict[BioreactorAlias | BioreactorName, dict[t.Literal["jobs"], Jobs]]
+    pioreactors: dict[PioreactorAlias | PioreactorUnitName, dict[t.Literal["jobs"], Jobs]]

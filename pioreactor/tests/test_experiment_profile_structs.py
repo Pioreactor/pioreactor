@@ -12,7 +12,6 @@ experiment_name: plugin_version_example
 
 metadata:
   author: Jane Doe
-  date_created: 2023-05-04
   description: An experiment using plugins with minimum version requirements
 
 plugins:
@@ -22,8 +21,8 @@ plugins:
     version: ">=0.9.5"
 
 aliases:
-  bioreactor_A: BR-001
-  bioreactor_B: BR-002
+  worker1: hot
+  worker2: cold
 
 global_jobs:
   od_reading:
@@ -33,8 +32,8 @@ global_jobs:
       - type: stop
         duration: 5.0
 
-bioreactors:
-  bioreactor_A:
+pioreactors:
+  hot:
     jobs:
       stirring:
         actions:
@@ -44,7 +43,7 @@ bioreactors:
               target_rpm: 200.0
           - type: stop
             duration: 4.0
-  bioreactor_B:
+  cold:
     jobs:
       stirring:
         actions:
@@ -87,7 +86,7 @@ global_jobs:
       - type: stop
         duration: 5.0
 
-bioreactors:
+pioreactors:
   bioreactor_A:
     jobs:
       stirring:
