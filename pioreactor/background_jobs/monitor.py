@@ -495,12 +495,12 @@ class Monitor(BackgroundJob):
         self.led_on()
         sleep(2.0)
         self.led_off()
-        sleep(0.2)
+        sleep(0.25)
         for _ in range(error_code):
             self.led_on()
-            sleep(0.2)
+            sleep(0.25)
             self.led_off()
-            sleep(0.2)
+            sleep(0.25)
 
         sleep(5)
 
