@@ -93,9 +93,10 @@ class Monitor(BackgroundJob):
         # Sol2: pio update app republishes this data, OR publishes an event that Monitor listens to.
         #
         self.versions = {
-            # "software": pretty_version(version.software_version_info),
+            "software": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
             "hat_serial": version.serial_number,
+            "timestamp": current_utc_timestamp(),
         }
 
         self.logger.debug(
@@ -508,7 +509,7 @@ class Monitor(BackgroundJob):
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
         """
-        Listens to messsages on pioreactor/{self.unit}/+/run/job_name
+        Listens to mesgiatsages on pioreactor/{self.unit}/+/run/job_name
 
         Payload should look like:
         {
