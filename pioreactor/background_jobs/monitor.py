@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime
 from json import loads
 from threading import Thread
 from time import sleep
@@ -29,6 +28,7 @@ from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import to_datetime
 
 
 class Monitor(BackgroundJob):
@@ -196,7 +196,7 @@ class Monitor(BackgroundJob):
 
         if whoami.am_I_leader():
             self.check_for_last_backup()
-            sleep(10.0)  # wait for other processes to catch up
+            sleep(0 if whoami.is_testing_env() else 10)  # wait for other processes to catch up
             self.check_for_required_jobs_running()
             self.check_for_webserver()
 
@@ -304,12 +304,9 @@ class Monitor(BackgroundJob):
     def check_for_last_backup(self) -> None:
         with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
-                latest_backup_at = datetime.strptime(
-                    cache["latest_backup_timestamp"],
-                    "%Y-%m-%dT%H:%M:%S.%fZ",
-                )
+                latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
 
-                if (datetime.utcnow() - latest_backup_at).days > 30:
+                if (current_utc_datetime() - latest_backup_at).days > 30:
                     self.logger.warning("Database hasn't been backed up in over 30 days.")
 
     def check_state_of_jobs_on_machine(self) -> None:
@@ -397,7 +394,7 @@ class Monitor(BackgroundJob):
         from pioreactor.hardware import voltage_in_aux
 
         voltage_read = voltage_in_aux(precision=0.05)
-        if voltage_read <= 4.8:
+        if voltage_read <= 4.85:
             return (False, voltage_read)
 
         under_voltage = new_under_voltage()
