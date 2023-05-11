@@ -14,7 +14,7 @@ CORE_REQUIREMENTS = [
     "sh==1.14.3",
     "JSON-log-formatter==0.5.1",
     "colorlog==6.7.0",
-    "msgspec==0.14.2",
+    "msgspec==0.15.0",
     "diskcache==5.4.0",
     "wheel==0.38.4",
     "crudini==0.9.4",

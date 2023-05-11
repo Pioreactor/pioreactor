@@ -509,7 +509,7 @@ class Monitor(BackgroundJob):
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
         """
-        Listens to mesgiatsages on pioreactor/{self.unit}/+/run/job_name
+        Listens to messages on pioreactor/{self.unit}/+/run/job_name
 
         Payload should look like:
         {
