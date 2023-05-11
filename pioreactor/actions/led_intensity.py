@@ -18,6 +18,7 @@ from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
 from pioreactor.pubsub import QOS
 from pioreactor.types import LedChannel
+from pioreactor.types import LedIntensityValue
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.whoami import get_latest_experiment_name
@@ -38,7 +39,7 @@ def _list(x) -> list:
 
 @contextmanager
 def change_leds_intensities_temporarily(
-    desired_state: dict[LedChannel, float],
+    desired_state: dict[LedChannel, LedIntensityValue],
     **kwargs: Any,
 ) -> Iterator[None]:
     """
@@ -103,7 +104,7 @@ def _update_current_state(
 
 
 def led_intensity(
-    desired_state: dict[LedChannel, float],
+    desired_state: dict[LedChannel, LedIntensityValue],
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
     verbose: bool = True,
@@ -254,10 +255,10 @@ def led_intensity(
 )
 @click.option("--no-log", is_flag=True, help="Add to log")
 def click_led_intensity(
-    a: Optional[float] = None,
-    b: Optional[float] = None,
-    c: Optional[float] = None,
-    d: Optional[float] = None,
+    a: Optional[LedIntensityValue] = None,
+    b: Optional[LedIntensityValue] = None,
+    c: Optional[LedIntensityValue] = None,
+    d: Optional[LedIntensityValue] = None,
     source_of_event: Optional[str] = None,
     no_log: bool = False,
 ) -> bool:
@@ -267,7 +268,7 @@ def click_led_intensity(
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
 
-    state: dict[LedChannel, float] = {}
+    state: dict[LedChannel, LedIntensityValue] = {}
     if a is not None:
         state["A"] = a
     if b is not None:

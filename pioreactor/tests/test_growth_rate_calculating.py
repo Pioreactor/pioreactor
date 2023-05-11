@@ -361,7 +361,7 @@ class TestGrowthRateCalculating:
                     volume_change=1.0,
                     event="add_media",
                     source_of_event="algo",
-                    timestamp="2010-01-01T12:00:48.000000Z",
+                    timestamp=to_datetime("2010-01-01T12:00:48.000000Z"),
                 )
             ),
         )
@@ -397,7 +397,7 @@ class TestGrowthRateCalculating:
                     volume_change=1.0,
                     event="add_media",
                     source_of_event="algo",
-                    timestamp="2010-01-01T12:01:55.000000Z",
+                    timestamp=to_datetime("2010-01-01T12:01:55.000000Z"),
                 )
             ),
         )

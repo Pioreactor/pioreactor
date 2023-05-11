@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import typing as t
 
+from msgspec import Meta
+
 
 class DosingProgram(t.Protocol):
     """
@@ -90,6 +92,8 @@ AnalogValue = t.Union[int, float]
 Voltage = float  # maybe should be non-negative?
 
 AdcChannel = t.Literal[0, 1, 2, 3]
+
+LedIntensityValue = t.Annotated[float, Meta(ge=0, le=100)]
 
 # All GPIO pins below are BCM numbered
 GpioPin = t.Literal[
