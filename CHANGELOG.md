@@ -1,9 +1,11 @@
 ### Upcoming
  - UX improvements to `pio run pump_calibration`
+ - `monitor` is more robust, so as to give users better access to information instead of hard-failing.
  - `monitor` now checks for access to web service
  - `monitor` now checks the voltage on the PWM rail and will alert if falls to much. If not using the an AUX power supply, this is directly tied to the RPi's power supply.
  - `monitor` also publishes the read voltage as a published setting. This is available in the /pioreactor card under System in the UI.
  - sqlite3worker is now vendored in the core app. This means we can publish on PyPI.
+ - improved `systemctl` start up.
 
 
 ### 23.4.28

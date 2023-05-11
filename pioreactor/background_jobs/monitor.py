@@ -114,12 +114,17 @@ class Monitor(BackgroundJob):
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
-        self._setup_GPIO()
+
+        try:
+            # if these fail, don't kill the entire job - sucks for onboarding.
+            self._setup_GPIO()
+            self.self_checks()
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
 
         # set up a self check function to periodically check vitals and log them
         # we manually run a self_check outside of a thread first, as if there are
         # problems detected, we may want to block and not let the job continue.
-        self.self_checks()
         self.self_check_thread = RepeatedTimer(
             4 * 60 * 60,
             self.self_checks,
