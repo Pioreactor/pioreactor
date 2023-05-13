@@ -45,6 +45,12 @@ def briefer_pause() -> float:
     return d
 
 
+def pause_between_subdoses() -> float:
+    d = float(config.get("dosing_automation", "pause_between_subdoses_seconds", fallback=5.0))
+    time.sleep(d)
+    return d
+
+
 class ThroughputCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
@@ -418,7 +424,7 @@ class DosingAutomationJob(BackgroundSubJob):
                         source_of_event=source_of_event,
                     )
                     volumes_moved[pump] += volume_moved_ml
-                    brief_pause()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
+                    pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
             if (

@@ -394,7 +394,7 @@ class Monitor(BackgroundJob):
         from pioreactor.hardware import voltage_in_aux
 
         voltage_read = voltage_in_aux(precision=0.05)
-        if voltage_read <= 4.85:
+        if voltage_read <= 4.9:
             return (False, voltage_read)
 
         under_voltage = new_under_voltage()
@@ -412,7 +412,7 @@ class Monitor(BackgroundJob):
         self.voltage_on_pwm_rail = Voltage(voltage=voltage, timestamp=current_utc_datetime())
         if is_rpi_having_power_probems:
             self.logger.warning(
-                f"Under-voltage detected. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
+                f"Low-voltage detected on rail. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
             self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
