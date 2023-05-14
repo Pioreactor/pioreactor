@@ -37,4 +37,4 @@ class Profile(Struct):
     plugins: list[Plugin]
     aliases: dict[PioreactorUnitName, PioreactorAlias]
     common: Jobs
-    pioreactors: dict[PioreactorAlias | PioreactorUnitName, dict[t.Literal["jobs"], Jobs]]
+    pioreactors: dict[t.Union[PioreactorAlias, PioreactorUnitName], dict[t.Literal["jobs"], Jobs]]
