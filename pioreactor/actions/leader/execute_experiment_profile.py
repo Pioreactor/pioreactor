@@ -98,8 +98,8 @@ def execute_experiment_profile(profile_filename: str) -> None:
                     hours_to_seconds(action.hours_elapsed),
                     execute_action(
                         UNIVERSAL_IDENTIFIER,
-                        job,
                         experiment,
+                        job,
                         action.type,
                         action.options,
                         action.args,
