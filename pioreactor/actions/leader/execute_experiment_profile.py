@@ -84,8 +84,8 @@ def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
                 encode({"unit": unit_name, "label": label}),
                 headers={"Content-Type": "application/json"},
             )
-    except Exception as e:
-        raise e
+    except Exception:
+        pass
 
 
 def execute_experiment_profile(profile_filename: str) -> None:
@@ -102,6 +102,7 @@ def execute_experiment_profile(profile_filename: str) -> None:
         )
 
         labels_to_units = {v: k for k, v in profile.labels.items()}
+        publish_labels_to_ui(profile.labels)
 
         timers = []
 
