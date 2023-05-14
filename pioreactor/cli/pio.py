@@ -623,6 +623,7 @@ if whoami.am_I_leader():
     run.add_command(jobs.watchdog.click_watchdog)
     run.add_command(actions.export_experiment_data.click_export_experiment_data)
     run.add_command(actions.backup_database.click_backup_database)
+    run.add_command(actions.execute_experiment_profile.click_execute_experiment_profile)
 
     @pio.command(short_help="access the db CLI")
     def db() -> None:

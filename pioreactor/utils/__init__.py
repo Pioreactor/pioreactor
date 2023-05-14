@@ -193,7 +193,6 @@ class publish_ready_to_disconnected_state:
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache.pop(self.name)
-
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:

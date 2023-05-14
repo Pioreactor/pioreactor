@@ -20,8 +20,9 @@ class Plugin(Struct):
 
 class Action(Struct):
     type: t.Literal["start", "pause", "resume", "stop", "update"]
-    duration: float
-    parameters: t.Optional[dict[str, t.Any]] = None
+    hours_elapsed: float
+    options: t.Optional[dict[str, t.Any]] = None
+    args: t.Optional[list[str]] = None
 
 
 PioreactorUnitName = str
@@ -31,9 +32,9 @@ Jobs = dict[JobName, dict[t.Literal["actions"], list[Action]]]
 
 
 class Profile(Struct):
-    experiment_name: str
+    experiment_profile_name: str
     metadata: Metadata
     plugins: list[Plugin]
     aliases: dict[PioreactorUnitName, PioreactorAlias]
-    global_jobs: Jobs
+    common: Jobs
     pioreactors: dict[PioreactorAlias | PioreactorUnitName, dict[t.Literal["jobs"], Jobs]]

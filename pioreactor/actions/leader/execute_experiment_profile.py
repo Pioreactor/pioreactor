@@ -2,58 +2,67 @@
 from __future__ import annotations
 
 from threading import Timer
+from typing import Callable
 
 import click
+from msgspec.json import encode
 from msgspec.yaml import decode
 
-from pioreactor.config import config
-from pioreactor.config import get_active_workers_in_inventory
-from pioreactor.experiment_profiles.structs import Profile
+from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.logging import create_logger
-from pioreactor.pubsub import subscribe
-from pioreactor.utils import local_persistant_storage
+from pioreactor.pubsub import publish
 from pioreactor.utils import publish_ready_to_disconnected_state
+from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
-from pioreactor.whoami import UNIVERSAL_EXPERIMENT
+from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
-def execute_action(job_name, unit, action, parameters=None):
+def execute_action(unit, experiment, job_name, action, options=None, args=None) -> Callable:
     # Handle each action type accordingly
     if action == "start":
         # start the job with the provided parameters
-        start_job(job_name, unit, parameters)
+        return start_job(unit, experiment, job_name, options, args)
     elif action == "pause":
         # pause the job
-        pause_job(job_name, unit)
+        return pause_job(unit, experiment, job_name)
     elif action == "resume":
         # resume the job
-        resume_job(job_name, unit)
+        return resume_job(unit, experiment, job_name)
     elif action == "stop":
         # stop the job
-        stop_job(job_name, unit)
+        return stop_job(unit, experiment, job_name)
     elif action == "update":
         # update the job with the provided parameters
-        update_job(job_name, unit, parameters)
+        return update_job(unit, experiment, job_name, options)
+    else:
+        raise ValueError(f"Not a valid action. {action}")
 
 
-def start_job(job_name, unit, parameters):
-    print(f"Starting {job_name} with parameters: {parameters}")
+def start_job(unit, experiment, job_name, options, args):
+    return lambda: publish(
+        f"pioreactor/{unit}/{experiment}/run/{job_name}",
+        encode({"options": options or {}, "args": args or []}),
+    )
 
 
-def pause_job(job_name, unit):
-    print(f"Pausing {job_name}")
+def pause_job(unit, experiment, job_name):
+    return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
 
-def resume_job(job_name, unit):
-    print(f"Resuming {job_name}")
+def resume_job(unit, experiment, job_name):
+    return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
 
-def stop_job(job_name, unit):
-    print(f"Stopping {job_name}")
+def stop_job(unit, experiment, job_name):
+    return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
 
 
-def update_job(job_name, unit, parameters):
-    print(f"Updating {job_name} with parameters: {parameters}")
+def update_job(unit, experiment, job_name, options):
+    def _update():
+        for setting, value in options.items():
+            publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
+
+    return _update
 
 
 def hours_to_seconds(hours: float) -> float:
@@ -67,18 +76,73 @@ def load_and_verify_profile_file(profile_filename: str) -> Profile:
 
 def execute_experiment_profile(profile_filename: str) -> None:
     unit = get_unit_name()
-    experiment = ""
+    experiment = get_latest_experiment_name()
     logger = create_logger("execute_experiment_profile")
-    with publish_ready_to_disconnected_state(unit, experiment, "execute_experiment_profile"):
-        profile = load_and_verify_profile_file()
+    with publish_ready_to_disconnected_state(
+        unit, experiment, "execute_experiment_profile"
+    ) as state:
+        profile = load_and_verify_profile_file(profile_filename)
 
-        # process global jobs
+        logger.info(
+            f"Starting profile {profile.experiment_profile_name}, sourced from {profile_filename}."
+        )
+
+        aliases_to_units = {v: k for k, v in profile.aliases.items()}
+
+        timers = []
+
+        # process common jobs
+        for job in profile.common:
+            for action in profile.common[job]["actions"]:
+                t = Timer(
+                    hours_to_seconds(action.hours_elapsed),
+                    execute_action(
+                        UNIVERSAL_IDENTIFIER,
+                        job,
+                        experiment,
+                        action.type,
+                        action.options,
+                        action.args,
+                    ),
+                )
+                timers.append(t)
+
+        # process specific jobs
+        for unit_or_alias in profile.pioreactors:
+            unit = aliases_to_units.get(unit_or_alias, unit_or_alias)
+            jobs = profile.pioreactors[unit_or_alias]["jobs"]
+            for job in jobs:
+                for action in jobs[job]["actions"]:
+                    t = Timer(
+                        hours_to_seconds(action.hours_elapsed),
+                        execute_action(
+                            unit, experiment, job, action.type, action.options, action.args
+                        ),
+                    )
+                    t.daemon = True
+                    timers.append(t)
+
+        logger.debug(f"Starting execution of {len(timers)} actions.")
+        for timer in timers:
+            timer.start()
+
+        try:
+            while any((timer.is_alive() for timer in timers)) and not state.exit_event.wait(10):
+                pass
+        finally:
+            if state.exit_event.is_set():
+                # ended early
+                for timer in timers:
+                    timer.cancel()
+                logger.debug("Finished execution early. Exiting.")
+            else:
+                logger.debug("Finished execution. Exiting.")
 
 
-@click.command(name="backup_database")
+@click.command(name="execute_experiment_profile")
 @click.argument("filename")
 def click_execute_experiment_profile(filename: str) -> None:
     """
-    (leader only) Run a experiment profile.
+    (leader only) Run an experiment profile.
     """
     return execute_experiment_profile(filename)

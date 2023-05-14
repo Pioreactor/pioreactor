@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from msgspec.yaml import decode
 
-from pioreactor.experiment_profiles import structs
+from pioreactor.experiment_profiles import profile_struct as structs
 
 
 def test_simple():
     file = """
-experiment_name: plugin_version_example
+experiment_profile_name: plugin_version_example
 
 metadata:
   author: Jane Doe
@@ -24,13 +24,13 @@ aliases:
   worker1: hot
   worker2: cold
 
-global_jobs:
+common:
   od_reading:
     actions:
       - type: start
-        duration: 1.0
+        hours_elapsed: 1.0
       - type: stop
-        duration: 5.0
+        hours_elapsed: 5.0
 
 pioreactors:
   hot:
@@ -38,28 +38,28 @@ pioreactors:
       stirring:
         actions:
           - type: start
-            duration: 0.5
-            parameters:
+            hours_elapsed: 0.5
+            options:
               target_rpm: 200.0
           - type: stop
-            duration: 4.0
+            hours_elapsed: 4.0
   cold:
     jobs:
       stirring:
         actions:
           - type: start
-            duration: 1.5
-            parameters:
+            hours_elapsed: 1.5
+            options:
               target_rpm: 250.0
           - type: stop
-            duration: 6.0
+            hours_elapsed: 6.0
 """
     assert decode(file, type=structs.Profile) is not None
 
 
 def test_complex():
     file = """
-experiment_name: multi_jobs_dependencies
+experiment_profile_name: multi_jobs_dependencies
 
 metadata:
   author: John Doe
@@ -74,17 +74,17 @@ aliases:
   bioreactor_A: BR-001
   bioreactor_B: BR-002
 
-global_jobs:
+common:
   od_reading:
     actions:
       - type: start
-        duration: 0.5
+        hours_elapsed: 0.5
       - type: pause
-        duration: 2.0
+        hours_elapsed: 2.0
       - type: resume
-        duration: 2.5
+        hours_elapsed: 2.5
       - type: stop
-        duration: 5.0
+        hours_elapsed: 5.0
 
 pioreactors:
   bioreactor_A:
@@ -92,46 +92,46 @@ pioreactors:
       stirring:
         actions:
           - type: start
-            duration: 0.0
-            parameters:
+            hours_elapsed: 0.0
+            options:
               target_rpm: 200.0
           - type: update
-            duration: 1.0
-            parameters:
+            hours_elapsed: 1.0
+            options:
                target_rpm: 250.0
           - type: stop
-            duration: 5.0
+            hours_elapsed: 5.0
       dosing_control:
         actions:
           - type: start
-            duration: 1.0
-            parameters:
+            hours_elapsed: 1.0
+            options:
               automation_name: glucose_dosing
               glucose_rate: 5
           - type: stop
-            duration: 5.0
+            hours_elapsed: 5.0
   bioreactor_B:
     jobs:
       stirring:
         actions:
           - type: start
-            duration: 0.0
-            parameters:
+            hours_elapsed: 0.0
+            options:
               target_rpm: 250.0
           - type: update
-            duration: 2.0
-            parameters:
+            hours_elapsed: 2.0
+            options:
               target_rpm: 300.0
           - type: stop
-            duration: 5.0
+            hours_elapsed: 5.0
       dosing_control:
         actions:
           - type: start
-            duration: 1.0
-            parameters:
+            hours_elapsed: 1.0
+            options:
               automation_name: nitrogen_dosing
               nitrogen_rate: 10
           - type: stop
-            duration: 5.0
+            hours_elapsed: 5.0
 """
     assert decode(file, type=structs.Profile) is not None
