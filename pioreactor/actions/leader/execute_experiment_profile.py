@@ -35,7 +35,7 @@ def execute_action(unit, experiment, job_name, action, options=None, args=None) 
         # update the job with the provided parameters
         return update_job(unit, experiment, job_name, options)
     else:
-        raise ValueError(f"Not a valid action. {action}")
+        raise ValueError(f"Not a valid action: {action}")
 
 
 def start_job(unit, experiment, job_name, options, args):
