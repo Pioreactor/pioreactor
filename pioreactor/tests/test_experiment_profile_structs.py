@@ -6,7 +6,31 @@ from msgspec.yaml import decode
 from pioreactor.experiment_profiles import profile_struct as structs
 
 
-def test_simple():
+def test_smallest():
+    file = """
+experiment_profile_name: small
+"""
+    assert decode(file, type=structs.Profile) is not None
+
+
+def test_simple1():
+    file = """
+experiment_profile_name: test_simple1
+
+metadata:
+  author: Jane Doe
+  description:
+
+common:
+  od_reading:
+    actions:
+      - type: start
+        hours_elapsed: 1.0
+"""
+    assert decode(file, type=structs.Profile) is not None
+
+
+def test_simple2():
     file = """
 experiment_profile_name: plugin_version_example
 
@@ -20,7 +44,7 @@ plugins:
   - name: temperature_control_plugin
     version: ">=0.9.5"
 
-aliases:
+labels:
   worker1: hot
   worker2: cold
 
@@ -70,7 +94,7 @@ plugins:
   - name: dosing_plugin
     version: ">=1.2.0"
 
-aliases:
+labels:
   bioreactor_A: BR-001
   bioreactor_B: BR-002
 

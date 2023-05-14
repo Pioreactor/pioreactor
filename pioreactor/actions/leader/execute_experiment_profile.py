@@ -8,8 +8,10 @@ import click
 from msgspec.json import encode
 from msgspec.yaml import decode
 
+from pioreactor.config import leader_address
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.logging import create_logger
+from pioreactor.mureq import put
 from pioreactor.pubsub import publish
 from pioreactor.utils import publish_ready_to_disconnected_state
 from pioreactor.whoami import get_latest_experiment_name
@@ -41,7 +43,7 @@ def execute_action(unit, experiment, job_name, action, options=None, args=None) 
 def start_job(unit, experiment, job_name, options, args):
     return lambda: publish(
         f"pioreactor/{unit}/{experiment}/run/{job_name}",
-        encode({"options": options or {}, "args": args or []}),
+        encode({"options": options, "args": args}),
     )
 
 
@@ -74,6 +76,18 @@ def load_and_verify_profile_file(profile_filename: str) -> Profile:
         return decode(f.read(), type=Profile)
 
 
+def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
+    try:
+        for unit_name, label in labels_map.items():
+            put(
+                f"http://{leader_address}/api/unit_labels/current",
+                encode({"unit": unit_name, "label": label}),
+                headers={"Content-Type": "application/json"},
+            )
+    except Exception as e:
+        raise e
+
+
 def execute_experiment_profile(profile_filename: str) -> None:
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -87,7 +101,7 @@ def execute_experiment_profile(profile_filename: str) -> None:
             f"Starting profile {profile.experiment_profile_name}, sourced from {profile_filename}."
         )
 
-        aliases_to_units = {v: k for k, v in profile.aliases.items()}
+        labels_to_units = {v: k for k, v in profile.labels.items()}
 
         timers = []
 
@@ -108,9 +122,9 @@ def execute_experiment_profile(profile_filename: str) -> None:
                 timers.append(t)
 
         # process specific jobs
-        for unit_or_alias in profile.pioreactors:
-            unit = aliases_to_units.get(unit_or_alias, unit_or_alias)
-            jobs = profile.pioreactors[unit_or_alias]["jobs"]
+        for unit_or_label in profile.pioreactors:
+            unit = labels_to_units.get(unit_or_label, unit_or_label)
+            jobs = profile.pioreactors[unit_or_label]["jobs"]
             for job in jobs:
                 for action in jobs[job]["actions"]:
                     t = Timer(
