@@ -766,8 +766,6 @@ if whoami.am_I_leader():
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
             results = executor.map(display_data_for, worker_statuses)
 
-        if not all(results):
-            raise click.Abort()
 
     @update.command(name="ui")
     @click.option("-b", "--branch", help="install from a branch on github")

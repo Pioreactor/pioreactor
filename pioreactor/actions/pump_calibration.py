@@ -316,7 +316,7 @@ def run_tests(
             )
 
             r = click.prompt(
-                click.style("Enter amount of water expelled, or REDO", fg="green"),
+                click.style("Enter amount of water expelled (g or ml), or REDO", fg="green"),
                 confirmation_prompt=click.style("Repeat for confirmation", fg="green"),
             )
             if r == "REDO":
