@@ -434,11 +434,11 @@ def od_calibration() -> None:
         click.echo()
         click.echo(f"Finished calibration of {name} ✅")
 
-        if not config.getboolean("od_config", "od_calibration"):
+        if not config.getboolean("od_config", "use_calibration", fallback=False):
             click.echo()
             click.echo(
                 click.style(
-                    "Currently [od_config][od_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
+                    "Currently [od_config][use_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
                     bold=True,
                 )
             )
