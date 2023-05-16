@@ -36,14 +36,14 @@ def _get_latest_experiment_name() -> str:
 
     from pioreactor.config import leader_address
 
-    retries = 5
+    retries = 10
     for attempt in range(retries):
         try:
             result = get(f"http://{leader_address}/api/experiments/latest")
             result.raise_for_status()
             return decode(result.body, type=ExperimentMetadata).experiment
         except Exception:
-            time.sleep(2 * attempt)
+            time.sleep(0.5 * attempt)
 
     from pioreactor.logging import create_logger
 

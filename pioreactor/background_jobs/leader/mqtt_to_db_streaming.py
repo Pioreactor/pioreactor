@@ -18,6 +18,7 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
 from pioreactor.pubsub import QOS
+from pioreactor.utils.sqlite_worker import Sqlite3Worker
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import RepeatedTimer
 from pioreactor.utils.timing import to_iso_format
@@ -48,6 +49,11 @@ class TopicToParserToTable(Struct):
     table: str
 
 
+class TopicToCallback(Struct):
+    topic: str | list[str]
+    callback: Callable[[pt.MQTTMessage], None]
+
+
 class MqttToDBStreamer(BackgroundJob):
     topics_to_tables_from_plugins: list[TopicToParserToTable] = []
     job_name = "mqtt_to_db_streaming"
@@ -61,8 +67,6 @@ class MqttToDBStreamer(BackgroundJob):
     def __init__(
         self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
     ) -> None:
-        from sqlite3worker import Sqlite3Worker
-
         super().__init__(experiment=experiment, unit=unit)
         self.logger.debug(f'Streaming MQTT data to {config["storage"]["database"]}.')
         self.sqliteworker = Sqlite3Worker(
@@ -72,13 +76,10 @@ class MqttToDBStreamer(BackgroundJob):
         topics_to_tables.extend(self.topics_to_tables_from_plugins)
 
         topics_and_callbacks = [
-            {
-                "topic": topic_to_table.topic,
-                "callback": self.create_on_message_callback(
-                    topic_to_table.parser, topic_to_table.table
-                ),
-                "table": topic_to_table.table,
-            }
+            TopicToCallback(
+                topic_to_table.topic,
+                self.create_on_message_callback(topic_to_table.parser, topic_to_table.table),
+            )
             for topic_to_table in topics_to_tables
         ]
 
@@ -140,11 +141,11 @@ class MqttToDBStreamer(BackgroundJob):
 
         return callback
 
-    def initialize_callbacks(self, topics_and_callbacks: list[dict]) -> None:
+    def initialize_callbacks(self, topics_and_callbacks: list[TopicToCallback]) -> None:
         for topic_and_callback in topics_and_callbacks:
             self.subscribe_and_callback(
-                topic_and_callback["callback"],
-                topic_and_callback["topic"],
+                topic_and_callback.callback,
+                topic_and_callback.topic,
                 qos=QOS.EXACTLY_ONCE,
                 allow_retained=False,
             )

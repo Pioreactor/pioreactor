@@ -31,6 +31,10 @@ from pioreactor.whoami import is_testing_env
 
 
 def introduction() -> None:
+    import logging
+
+    logging.disable(logging.WARNING)
+
     click.clear()
     click.echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
@@ -161,7 +165,7 @@ def start_recording_and_diluting(
     voltages = []
     inferred_od600s = []
     current_volume_in_vial = initial_volume_in_vial = 10.0
-    number_of_plotpoints = int((20 - initial_volume_in_vial) / dilution_amount)
+    n_samples = int((20 - initial_volume_in_vial) / dilution_amount)
     click.echo("Starting OD recordings.")
 
     with start_od_reading(
@@ -193,7 +197,7 @@ def start_recording_and_diluting(
 
             voltages.append(get_voltage_from_adc())
 
-            for i in range(number_of_plotpoints):
+            for i in range(n_samples):
                 click.clear()
                 plot_data(
                     inferred_od600s,
@@ -203,6 +207,10 @@ def start_recording_and_diluting(
                     x_max=initial_od600,
                 )
                 click.echo()
+                click.secho(
+                    f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
+                    fg="green",
+                )
                 click.echo(f"Add {dilution_amount}ml of DI water to vial.")
 
                 while not click.confirm("Continue?", default=True):
@@ -430,11 +438,11 @@ def od_calibration() -> None:
         click.echo()
         click.echo(f"Finished calibration of {name} ✅")
 
-        if not config.getboolean("od_config", "od_calibration"):
+        if not config.getboolean("od_config", "use_calibration", fallback=False):
             click.echo()
             click.echo(
                 click.style(
-                    "Currently [od_config][od_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
+                    "Currently [od_config][use_calibration] is set to 0 in your config.ini. This should be set to 1 to use calibrations.",
                     bold=True,
                 )
             )

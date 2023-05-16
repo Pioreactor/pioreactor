@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from datetime import datetime
+import subprocess
 from json import loads
 from threading import Thread
 from time import sleep
@@ -19,12 +19,16 @@ from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
+from pioreactor.mureq import get
 from pioreactor.pubsub import QOS
+from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
+from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import to_datetime
 
 
 class Monitor(BackgroundJob):
@@ -71,6 +75,7 @@ class Monitor(BackgroundJob):
         "computer_statistics": {"datatype": "json", "settable": False},
         "button_down": {"datatype": "boolean", "settable": False},
         "versions": {"datatype": "json", "settable": False},
+        "voltage_on_pwm_rail": {"datatype": "Voltage", "settable": False},
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
@@ -88,9 +93,10 @@ class Monitor(BackgroundJob):
         # Sol2: pio update app republishes this data, OR publishes an event that Monitor listens to.
         #
         self.versions = {
-            # "software": pretty_version(version.software_version_info),
+            "software": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
             "hat_serial": version.serial_number,
+            "timestamp": current_utc_timestamp(),
         }
 
         self.logger.debug(
@@ -108,13 +114,17 @@ class Monitor(BackgroundJob):
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
-        self._setup_GPIO()
-        self.led_on()
+
+        try:
+            # if these fail, don't kill the entire job - sucks for onboarding.
+            self._setup_GPIO()
+            self.self_checks()
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
 
         # set up a self check function to periodically check vitals and log them
         # we manually run a self_check outside of a thread first, as if there are
         # problems detected, we may want to block and not let the job continue.
-        self.self_checks()
         self.self_check_thread = RepeatedTimer(
             4 * 60 * 60,
             self.self_checks,
@@ -162,9 +172,8 @@ class Monitor(BackgroundJob):
                 return
             except RuntimeError:
                 sleep(3)
-                i = +1
+                i += 1
 
-        self.logger.debug("Failed to add button detect.", exc_info=True)
         self.logger.warning("Failed to add button detect.")
 
     def check_for_network(self) -> None:
@@ -183,12 +192,13 @@ class Monitor(BackgroundJob):
         self.check_for_power_problems()
 
         # report on CPU usage, memory, disk space
-        self.publish_self_statistics()
+        self.check_and_publish_self_statistics()
 
         if whoami.am_I_leader():
-            # report on last database backup, if leader
             self.check_for_last_backup()
+            sleep(0 if whoami.is_testing_env() else 10)  # wait for other processes to catch up
             self.check_for_required_jobs_running()
+            self.check_for_webserver()
 
         if whoami.am_I_active_worker():
             # check the PCB temperature
@@ -197,6 +207,47 @@ class Monitor(BackgroundJob):
         if not whoami.am_I_leader():
             # check for MQTT connection to leader
             self.check_for_mqtt_connection_to_leader()
+
+    def check_for_webserver(self):
+        if whoami.is_testing_env():
+            return
+
+        try:
+            while True:
+                # Run the command 'systemctl is-active lighttpd' and capture the output
+                result = subprocess.run(
+                    ["systemctl", "is-active", "lighttpd"], capture_output=True, text=True
+                )
+                status = result.stdout.strip()
+
+                # Check if the output is okay
+                if status == "failed" or status == "inactive":
+                    self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
+                    self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
+
+                elif status == "activating":
+                    # try again
+                    pass
+
+                elif status == "active":
+                    # okay
+                    break
+
+                else:
+                    raise ValueError(status)
+
+        except Exception as e:
+            self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
+            self.logger.error(f"Error checking lighttpd status: {e}")
+
+        try:
+            # can we ping ourselves? should have a response
+            res = get("http://localhost")
+            res.raise_for_status()
+        except Exception as e:
+            self.logger.debug(f"Error pinging UI: {e}", exc_info=True)
+            self.logger.error(f"Error pinging UI: {e}")
+            self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
 
     def check_for_required_jobs_running(self):
         if not all(utils.is_pio_job_running(["watchdog", "mqtt_to_db_streaming"])):
@@ -231,13 +282,11 @@ class Monitor(BackgroundJob):
         if observed_tmp >= 64.0:
             # something is wrong - temperature_control should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
             # we're going to just shutdown to be safe.
-            from subprocess import call
-
             self.logger.error(
                 f"Detected an extremely high temperature, {observed_tmp} ℃ on the heating PCB - shutting down for safety."
             )
 
-            call("sudo shutdown now --poweroff", shell=True)
+            subprocess.call("sudo shutdown now --poweroff", shell=True)
         self.logger.debug(f"Heating PCB temperature at {round(observed_tmp)} ℃.")
 
     def check_for_mqtt_connection_to_leader(self) -> None:
@@ -255,12 +304,9 @@ class Monitor(BackgroundJob):
     def check_for_last_backup(self) -> None:
         with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
-                latest_backup_at = datetime.strptime(
-                    cache["latest_backup_timestamp"],
-                    "%Y-%m-%dT%H:%M:%S.%fZ",
-                )
+                latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
 
-                if (datetime.utcnow() - latest_backup_at).days > 30:
+                if (current_utc_datetime() - latest_backup_at).days > 30:
                     self.logger.warning("Database hasn't been backed up in over 30 days.")
 
     def check_state_of_jobs_on_machine(self) -> None:
@@ -343,24 +389,36 @@ class Monitor(BackgroundJob):
 
         self.button_down = False
 
-    def check_for_power_problems(self) -> None:
-        if whoami.is_testing_env():
-            return
-
+    def rpi_is_having_power_problems(self) -> tuple[bool, float]:
         from pioreactor.utils.rpi_bad_power import new_under_voltage
+        from pioreactor.hardware import voltage_in_aux
+
+        voltage_read = voltage_in_aux(precision=0.05)
+        if voltage_read <= 4.9:
+            return (True, voltage_read)
 
         under_voltage = new_under_voltage()
         if under_voltage is None:
-            self.logger.debug("Under-voltage detection not supported on system.")
+            # not supported on system
+            return (False, voltage_read)
         elif under_voltage.get():
+            return (True, voltage_read)
+        else:
+            return (False, voltage_read)
+
+    def check_for_power_problems(self) -> None:
+        is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()
+        self.logger.debug(f"PWM power supply at ~{voltage:.1f}V.")
+        self.voltage_on_pwm_rail = Voltage(voltage=voltage, timestamp=current_utc_datetime())
+        if is_rpi_having_power_probems:
             self.logger.warning(
-                "Under-voltage detected. Suggestion: use a larger external power supply. See docs at: https://docs.pioreactor.com/user-guide/external-power"
+                f"Low-voltage detected on rail. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
             self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
             self.logger.debug("Power status okay.")
 
-    def publish_self_statistics(self) -> None:
+    def check_and_publish_self_statistics(self) -> None:
         import psutil  # type: ignore
 
         disk_usage_percent = round(psutil.disk_usage("/").percent)
@@ -440,12 +498,12 @@ class Monitor(BackgroundJob):
         self.led_on()
         sleep(2.0)
         self.led_off()
-        sleep(0.2)
+        sleep(0.25)
         for _ in range(error_code):
             self.led_on()
-            sleep(0.2)
+            sleep(0.25)
             self.led_off()
-            sleep(0.2)
+            sleep(0.25)
 
         sleep(5)
 
@@ -453,7 +511,7 @@ class Monitor(BackgroundJob):
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
         """
-        Listens to messsages on pioreactor/{self.unit}/+/run/job_name
+        Listens to messages on pioreactor/{self.unit}/+/run/job_name
 
         Payload should look like:
         {
@@ -473,7 +531,6 @@ class Monitor(BackgroundJob):
         # we use a thread here since we want to exit this callback without blocking it.
         # a blocked callback can disconnect from MQTT broker, prevent other callbacks, etc.
 
-        import subprocess
         from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
         job_name = msg.topic.split("/")[-1]

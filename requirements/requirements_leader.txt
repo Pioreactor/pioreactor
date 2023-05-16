@@ -1,2 +1,1 @@
-sqlite3worker @ git+https://github.com/pioreactor/sqlite3worker.git
 zeroconf==0.47.1

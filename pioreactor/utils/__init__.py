@@ -41,14 +41,19 @@ class callable_stack:
     Hello, Alice!
     """
 
-    def __init__(self) -> None:
-        self.callables: list[Callable] = []
+    def __init__(self, default_function_if_empty: Callable = lambda *args: None) -> None:
+        self._callables: list[Callable] = []
+        self.default = default_function_if_empty
 
     def append(self, function: Callable) -> None:
-        self.callables.append(function)
+        self._callables.append(function)
 
     def __call__(self, *args) -> None:
-        for function in reversed(self.callables):
+        if not self._callables:
+            self.default(*args)
+
+        while self._callables:
+            function = self._callables.pop()
             function(*args)
 
 
@@ -67,17 +72,17 @@ def append_signal_handler(signal_value: signal.Signals, new_callback: Callable) 
             signal.signal(signal_value, current_callback)
         else:
             # no stack yet, default callable was present. Don't forget to add new callback, too
-            stack = callable_stack()
+            stack = callable_stack(signal.default_int_handler)
             stack.append(current_callback)
             stack.append(new_callback)
             signal.signal(signal_value, stack)
     elif (current_callback is signal.SIG_DFL) or (current_callback is signal.SIG_IGN):
         # no stack yet.
-        stack = callable_stack()
+        stack = callable_stack(signal.default_int_handler)
         stack.append(new_callback)
         signal.signal(signal_value, stack)
     elif current_callback is None:
-        signal.signal(signal_value, callable_stack())
+        signal.signal(signal_value, callable_stack(signal.default_int_handler))
     else:
         raise RuntimeError(f"Something is wrong. Observed {current_callback}.")
 
@@ -188,7 +193,6 @@ class publish_ready_to_disconnected_state:
 
         with local_intermittent_storage("pio_jobs_running") as cache:
             cache.pop(self.name)
-
         return
 
     def exit_from_mqtt(self, message: pt.MQTTMessage) -> None:

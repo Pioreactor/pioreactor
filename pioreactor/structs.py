@@ -117,16 +117,16 @@ class LEDChangeEvent(Struct):
     """
 
     channel: pt.LedChannel
-    intensity: t.Annotated[float, Meta(ge=0, le=100)]
+    intensity: pt.LedIntensityValue
     source_of_event: t.Optional[str]
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class LEDsIntensity(Struct):
-    A: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
-    B: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
-    C: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
-    D: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
+    A: pt.LedIntensityValue = 0.0
+    B: pt.LedIntensityValue = 0.0
+    C: pt.LedIntensityValue = 0.0
+    D: pt.LedIntensityValue = 0.0
 
 
 class DosingEvent(Struct):
@@ -172,6 +172,11 @@ class Temperature(Struct):
     temperature: float
 
 
+class Voltage(Struct):
+    timestamp: t.Annotated[datetime, Meta(tz=True)]
+    voltage: pt.Voltage
+
+
 class Calibration(Struct, tag=True, tag_field="type"):
     created_at: t.Annotated[datetime, Meta(tz=True)]
     pioreactor_unit: str
@@ -179,7 +184,7 @@ class Calibration(Struct, tag=True, tag_field="type"):
 
     @property
     def type(self) -> str:
-        return self.__class__.__struct_tag__  # type: ignore
+        return self.__struct_config__.tag  # type: ignore
 
 
 class PumpCalibration(Calibration):

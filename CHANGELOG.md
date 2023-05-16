@@ -1,3 +1,23 @@
+### 23.5.16
+ - UX improvements to `pio run pump_calibration`
+ - `monitor` is more robust, so as to give users better access to information instead of hard-failing.
+ - `monitor` now checks for access to web service
+ - `monitor` now checks the voltage on the PWM rail and will alert if falls to much. If not using the an AUX power supply, this is directly tied to the RPi's power supply.
+ - `monitor` also publishes the read voltage as a published setting. This is available in the /pioreactor card under System in the UI.
+ - sqlite3worker is now vendored in the core app. This means we can publish on PyPI.
+ - improved `systemctl` start up.
+ - added `[dosing_automation]` section to config.ini (existing users will have to add this manually), with an option `pause_between_subdoses_seconds` to control how long to wait between sub doses (these are the smaller doses that make up a larger dose, i.e. 0.5ml + 0.5ml = 1.0ml). Default is 5 seconds
+
+#### Beta feature: Pioreactor experiment profiles
+
+Also shipping this version is early support for experiment profiles. What are they? They are "scripts" that will start, stop, pause, resume, update jobs and actions without user interaction. They are defined with a yaml file, according to the following spec (subject to change):
+
+For examples of yaml files, see the repo: https://github.com/Pioreactor/experiment_profile_examples
+
+To use a profile, save the yaml file to your leader Pioreactor. Run it with `pio run execute_experiment_profile <path_to_yaml>`. Note that killing the `execute_experiment_profile` will only stop execution of upcoming actions, and won't stop any jobs that have already started from the profile.
+
+
+
 ### 23.4.28
  - improved detection of under-voltage, and power supply problems.
  - pumps will halt if a MQTT disconnect occurs. This is to prevent the edge case when pumps are running on a worker, but not controllable from the UI due to an MQTT disconnect.

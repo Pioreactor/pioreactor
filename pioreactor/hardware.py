@@ -89,12 +89,15 @@ def is_heating_pcb_present() -> bool:
             return False
 
 
-def round_to_half_integer(x: float) -> float:
-    y = round(x * 2) / 2
+def round_to_precision(x: float, p: float) -> float:
+    """
+    Ex: round_to_precision(x, 0.5) rounds to the nearest 0.5 (half-integer interval)
+    """
+    y = round(x / p) * p
     return y
 
 
-def voltage_in_aux() -> float:
+def voltage_in_aux(precision=0.1) -> float:
     # Warning: this _can_ mess with OD readings if running at the same time.
     if not is_testing_env():
         from pioreactor.utils.adcs import ADC as ADC_class
@@ -104,6 +107,7 @@ def voltage_in_aux() -> float:
     slope = 0.134  # from schematic
 
     adc = ADC_class()
-    return round_to_half_integer(
-        adc.from_raw_to_voltage(adc.read_from_channel(ADC_CHANNEL_FUNCS["aux"])) / slope
+    return round_to_precision(
+        adc.from_raw_to_voltage(adc.read_from_channel(ADC_CHANNEL_FUNCS["aux"])) / slope,
+        p=precision,
     )

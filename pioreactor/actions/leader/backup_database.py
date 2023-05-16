@@ -27,7 +27,7 @@ def count_writes_occurring(unit: str) -> int:
     return count
 
 
-def backup_database(output_file: str) -> None:
+def backup_database(output_file: str, force: bool = False) -> None:
     """
     This action will create a backup of the SQLite3 database into specified output. It then
     will try to copy the backup to any available worker Pioreactors as a further backup.
@@ -53,7 +53,7 @@ def backup_database(output_file: str) -> None:
             "backup_database", experiment=experiment, unit=unit, to_mqtt=False
         )  # the backup would take so long that the mqtt client would disconnect. We also don't want to write to the db.
 
-        if count_writes_occurring(unit) >= 2:
+        if not force and count_writes_occurring(unit) >= 2:
             logger.debug("Too many writes to proceed with backup. Exiting.")
             return
 
@@ -116,8 +116,9 @@ def backup_database(output_file: str) -> None:
 
 @click.command(name="backup_database")
 @click.option("--output", default="/home/pioreactor/.pioreactor/storage/pioreactor.sqlite.backup")
-def click_backup_database(output: str) -> None:
+@click.option("--force", is_flag=True, help="force backing up")
+def click_backup_database(output: str, force: bool) -> None:
     """
     (leader only) Backup db to workers.
     """
-    return backup_database(output)
+    return backup_database(output, force)
