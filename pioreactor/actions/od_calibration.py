@@ -31,6 +31,10 @@ from pioreactor.whoami import is_testing_env
 
 
 def introduction() -> None:
+    import logging
+
+    logging.disable(logging.WARNING)
+
     click.clear()
     click.echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
