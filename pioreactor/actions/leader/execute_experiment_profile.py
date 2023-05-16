@@ -19,7 +19,9 @@ from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
-def execute_action(unit, experiment, job_name, action, options=None, args=None) -> Callable:
+def execute_action(
+    unit: str, experiment: str, job_name: str, action: str, options=None, args=None
+) -> Callable:
     # Handle each action type accordingly
     if action == "start":
         # start the job with the provided parameters
