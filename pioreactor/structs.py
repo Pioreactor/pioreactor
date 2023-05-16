@@ -117,16 +117,16 @@ class LEDChangeEvent(Struct):
     """
 
     channel: pt.LedChannel
-    intensity: t.Annotated[float, Meta(ge=0, le=100)]
+    intensity: pt.LedIntensityValue
     source_of_event: t.Optional[str]
     timestamp: t.Annotated[datetime, Meta(tz=True)]
 
 
 class LEDsIntensity(Struct):
-    A: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
-    B: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
-    C: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
-    D: t.Annotated[float, Meta(ge=0, le=100)] = 0.0
+    A: pt.LedIntensityValue = 0.0
+    B: pt.LedIntensityValue = 0.0
+    C: pt.LedIntensityValue = 0.0
+    D: pt.LedIntensityValue = 0.0
 
 
 class DosingEvent(Struct):

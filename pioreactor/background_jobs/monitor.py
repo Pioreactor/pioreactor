@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import datetime
 from json import loads
 from threading import Thread
 from time import sleep
@@ -29,6 +28,7 @@ from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import to_datetime
 
 
 class Monitor(BackgroundJob):
@@ -93,9 +93,10 @@ class Monitor(BackgroundJob):
         # Sol2: pio update app republishes this data, OR publishes an event that Monitor listens to.
         #
         self.versions = {
-            # "software": pretty_version(version.software_version_info),
+            "software": pretty_version(version.software_version_info),
             "hat": pretty_version(version.hardware_version_info),
             "hat_serial": version.serial_number,
+            "timestamp": current_utc_timestamp(),
         }
 
         self.logger.debug(
@@ -113,12 +114,17 @@ class Monitor(BackgroundJob):
 
         self.button_down = False
         # set up GPIO for accessing the button and changing the LED
-        self._setup_GPIO()
+
+        try:
+            # if these fail, don't kill the entire job - sucks for onboarding.
+            self._setup_GPIO()
+            self.self_checks()
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
 
         # set up a self check function to periodically check vitals and log them
         # we manually run a self_check outside of a thread first, as if there are
         # problems detected, we may want to block and not let the job continue.
-        self.self_checks()
         self.self_check_thread = RepeatedTimer(
             4 * 60 * 60,
             self.self_checks,
@@ -190,7 +196,7 @@ class Monitor(BackgroundJob):
 
         if whoami.am_I_leader():
             self.check_for_last_backup()
-            sleep(10.0)  # wait for other processes to catch up
+            sleep(0 if whoami.is_testing_env() else 10)  # wait for other processes to catch up
             self.check_for_required_jobs_running()
             self.check_for_webserver()
 
@@ -298,12 +304,9 @@ class Monitor(BackgroundJob):
     def check_for_last_backup(self) -> None:
         with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):
-                latest_backup_at = datetime.strptime(
-                    cache["latest_backup_timestamp"],
-                    "%Y-%m-%dT%H:%M:%S.%fZ",
-                )
+                latest_backup_at = to_datetime(cache["latest_backup_timestamp"])
 
-                if (datetime.utcnow() - latest_backup_at).days > 30:
+                if (current_utc_datetime() - latest_backup_at).days > 30:
                     self.logger.warning("Database hasn't been backed up in over 30 days.")
 
     def check_state_of_jobs_on_machine(self) -> None:
@@ -391,7 +394,7 @@ class Monitor(BackgroundJob):
         from pioreactor.hardware import voltage_in_aux
 
         voltage_read = voltage_in_aux(precision=0.05)
-        if voltage_read <= 4.8:
+        if voltage_read <= 4.9:
             return (False, voltage_read)
 
         under_voltage = new_under_voltage()
@@ -409,7 +412,7 @@ class Monitor(BackgroundJob):
         self.voltage_on_pwm_rail = Voltage(voltage=voltage, timestamp=current_utc_datetime())
         if is_rpi_having_power_probems:
             self.logger.warning(
-                f"Under-voltage detected. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
+                f"Low-voltage detected on rail. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
             )
             self.flicker_led_with_error_code(error_codes.VOLTAGE_PROBLEM)
         else:
@@ -495,12 +498,12 @@ class Monitor(BackgroundJob):
         self.led_on()
         sleep(2.0)
         self.led_off()
-        sleep(0.2)
+        sleep(0.25)
         for _ in range(error_code):
             self.led_on()
-            sleep(0.2)
+            sleep(0.25)
             self.led_off()
-            sleep(0.2)
+            sleep(0.25)
 
         sleep(5)
 
@@ -508,7 +511,7 @@ class Monitor(BackgroundJob):
 
     def run_job_on_machine(self, msg: MQTTMessage) -> None:
         """
-        Listens to messsages on pioreactor/{self.unit}/+/run/job_name
+        Listens to messages on pioreactor/{self.unit}/+/run/job_name
 
         Payload should look like:
         {

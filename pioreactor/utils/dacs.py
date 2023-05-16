@@ -8,6 +8,7 @@ import busio  # type: ignore
 
 from pioreactor import hardware
 from pioreactor.exc import HardwareNotFoundError
+from pioreactor.types import FloatBetween0and100
 from pioreactor.version import hardware_version_info
 
 
@@ -17,7 +18,7 @@ class _DAC:
     C = 2
     D = 3
 
-    def set_intensity_to(self, channel: int, intensity: float) -> None:
+    def set_intensity_to(self, channel: int, intensity: FloatBetween0and100) -> None:
         # float is a value between 0 and 100 inclusive
         pass
 
@@ -33,7 +34,7 @@ class DAC43608_DAC(_DAC):
 
         self.dac = DAC43608(address=hardware.DAC)
 
-    def set_intensity_to(self, channel: int, intensity: float) -> None:
+    def set_intensity_to(self, channel: int, intensity: FloatBetween0and100) -> None:
         from DAC43608 import Channel
 
         channel = cast(Channel, channel)
@@ -58,7 +59,7 @@ class Pico_DAC(_DAC):
         # set up i2c connection to hardware.DAC
         self.i2c = busio.I2C(hardware.SCL, hardware.SDA)
 
-    def set_intensity_to(self, channel: int, intensity: float) -> None:
+    def set_intensity_to(self, channel: int, intensity: FloatBetween0and100) -> None:
         try:
             # to 8 bit integer
             eight_bit = round((intensity / 100) * 255)

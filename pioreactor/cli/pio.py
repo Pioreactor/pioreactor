@@ -11,6 +11,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from json import loads
 from shlex import quote
+from sys import exit
 from time import sleep
 from typing import Optional
 
@@ -766,6 +767,8 @@ if whoami.am_I_leader():
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
             results = executor.map(display_data_for, worker_statuses)
 
+        if not all(results):
+            exit(1)
 
     @update.command(name="ui")
     @click.option("-b", "--branch", help="install from a branch on github")

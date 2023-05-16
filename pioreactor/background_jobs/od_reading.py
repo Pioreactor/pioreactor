@@ -783,7 +783,9 @@ class ODReader(BackgroundJob):
         self._set_for_iterating = threading.Event()
 
         self.ir_channel: pt.LedChannel = self._get_ir_led_channel_from_configuration()
-        self.ir_led_intensity: float = config.getfloat("od_config", "ir_led_intensity")
+        self.ir_led_intensity: pt.LedIntensityValue = config.getfloat(
+            "od_config", "ir_led_intensity"
+        )
         self.non_ir_led_channels: list[pt.LedChannel] = [
             ch for ch in led_utils.ALL_LED_CHANNELS if ch != self.ir_channel
         ]
@@ -864,7 +866,7 @@ class ODReader(BackgroundJob):
         cls._post_read.append(function)
 
     @property
-    def ir_led_on_and_rest_off_state(self) -> dict[pt.LedChannel, float]:
+    def ir_led_on_and_rest_off_state(self) -> dict[pt.LedChannel, pt.LedIntensityValue]:
         return {
             channel: (self.ir_led_intensity if channel == self.ir_channel else 0.0)
             for channel in led_utils.ALL_LED_CHANNELS

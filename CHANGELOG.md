@@ -1,9 +1,12 @@
 ### Upcoming
  - UX improvements to `pio run pump_calibration`
+ - `monitor` is more robust, so as to give users better access to information instead of hard-failing.
  - `monitor` now checks for access to web service
- - `monitor` now checks the voltage on the 5V rail and will alert if falls to much.
+ - `monitor` now checks the voltage on the PWM rail and will alert if falls to much. If not using the an AUX power supply, this is directly tied to the RPi's power supply.
  - `monitor` also publishes the read voltage as a published setting. This is available in the /pioreactor card under System in the UI.
  - sqlite3worker is now vendored in the core app. This means we can publish on PyPI.
+ - improved `systemctl` start up.
+ - added `[dosing_automation]` section to config.ini (existing users will have to add this manually), with option `+pause_between_subdoses_seconds` to control how long to wait between sub doses (these are the smaller doses that make up a larger dose, i.e. 0.5ml + 0.5ml = 1.0ml)
 
 
 ### 23.4.28
