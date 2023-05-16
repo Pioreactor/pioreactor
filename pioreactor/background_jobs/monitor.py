@@ -395,7 +395,7 @@ class Monitor(BackgroundJob):
 
         voltage_read = voltage_in_aux(precision=0.05)
         if voltage_read <= 4.9:
-            return (False, voltage_read)
+            return (True, voltage_read)
 
         under_voltage = new_under_voltage()
         if under_voltage is None:
