@@ -6,9 +6,9 @@ from msgspec.yaml import decode
 from pioreactor.experiment_profiles import profile_struct as structs
 
 
-def test_smallest():
+def test_minimal():
     file = """
-experiment_profile_name: small
+experiment_profile_name: minimal
 """
     assert decode(file, type=structs.Profile) is not None
 
