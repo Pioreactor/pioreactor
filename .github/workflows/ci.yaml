@@ -24,6 +24,7 @@ jobs:
         run: |
           pip install -e .
           pip install -r requirements/requirements_dev.txt
+          pip install pyyaml
 
       - name: Mosquitto MQTT Broker in GitHub Actions
         uses: Namoshek/mosquitto-github-action@v1
