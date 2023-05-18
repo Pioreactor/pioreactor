@@ -195,7 +195,6 @@ class TemperatureController(BackgroundJob):
         """
         Read the current temperature from our sensor, in Celsius
         """
-        retries = 0
         running_sum, running_count = 0.0, 0
         try:
             # check temp is fast, let's do it a few times to reduce variance.
@@ -205,12 +204,10 @@ class TemperatureController(BackgroundJob):
                 sleep(0.05)
 
         except OSError as e:
-            retries += 1
-            if retries >= 3:
-                self.logger.debug(e, exc_info=True)
-                raise exc.HardwareNotFoundError(
-                    "Is the Heating PCB attached to the Pioreactor HAT? Unable to find temperature sensor."
-                )
+            self.logger.debug(e, exc_info=True)
+            raise exc.HardwareNotFoundError(
+                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find temperature sensor."
+            )
 
         averaged_temp = running_sum / running_count
         if averaged_temp == 0.0 and self.automation_name != "only_record_temperature":
@@ -346,7 +343,7 @@ class TemperatureController(BackgroundJob):
             cache["last_heating_timestamp"] = current_utc_timestamp()
 
     def setup_pwm(self) -> PWM:
-        hertz = 6  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
+        hertz = 200  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]

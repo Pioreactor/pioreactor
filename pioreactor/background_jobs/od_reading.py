@@ -481,7 +481,12 @@ class ADCReader(LoggerMixin):
                 self.adc.check_on_gain(m)
 
             return batched_estimates_
-
+        except OSError as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error(
+                "Detected i2c error - is everything well connected? Check Heating PCB connection & HAT connection."
+            )
+            raise e
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)
