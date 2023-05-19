@@ -343,7 +343,7 @@ class TemperatureController(BackgroundJob):
             cache["last_heating_timestamp"] = current_utc_timestamp()
 
     def setup_pwm(self) -> PWM:
-        hertz = 200  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
+        hertz = 8  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
