@@ -37,8 +37,6 @@ jobs:
           file_glob: true
 
   publish-on-pypi:
-    # skip this, always, as we can't upload pioreactor to PyPI, see https://github.com/pypi/warehouse/issues/9404 (specifically our sqlite3worker package.)
-    if: (1==0)
     name: 📦 Publish tagged releases to PyPI
     runs-on: ubuntu-latest
     needs: build

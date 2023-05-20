@@ -70,6 +70,7 @@ class Monitor(BackgroundJob):
 
     """
 
+    MAX_TEMP_TO_SHUTDOWN = 66.0
     job_name = "monitor"
     published_settings = {
         "computer_statistics": {"datatype": "json", "settable": False},
@@ -279,7 +280,7 @@ class Monitor(BackgroundJob):
 
         observed_tmp = tmp_driver.get_temperature()
 
-        if observed_tmp >= 64.0:
+        if observed_tmp >= self.MAX_TEMP_TO_SHUTDOWN:
             # something is wrong - temperature_control should have detected this, but didn't, so it must have failed / incorrectly cleaned up.
             # we're going to just shutdown to be safe.
             self.logger.error(
