@@ -52,14 +52,24 @@ class ConfigParserMod(configparser.ConfigParser):
 
             from pioreactor.logging import create_logger
 
-            create_logger("read config").warning(
-                f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
+            logger = create_logger("read config")
+
+            if section.endswith("_reverse"):
+                msg = f"""Not found in configuration: '{section.removesuffix("_reverse")}.{option}'. Are you missing the following in your config?
+
+[{section.removesuffix("_reverse")}]
+{option}=some value
+
+    """
+            else:
+                msg = f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
 {option}=some value
 
 """
-            )
+
+            logger.warning(msg)
             raise e
 
     def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
