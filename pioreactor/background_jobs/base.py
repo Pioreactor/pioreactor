@@ -89,6 +89,17 @@ class PostInitCaller(type):
         return obj
 
 
+# these are used elsewhere in our software
+DISALLOWED_JOB_NAMES = {
+    "run",
+    "dosing_events",
+    "leds",
+    "led_change_events",
+    "unit_label",
+    "pwm",
+}
+
+
 class _BackgroundJob(metaclass=PostInitCaller):
 
     """
@@ -216,6 +227,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # initial state is disconnected
     state: pt.JobState = DISCONNECTED
     job_name: str = "background_job"
+    _clean: bool = False
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
@@ -224,26 +236,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # See pt.PublishableSetting type
     published_settings: dict[str, pt.PublishableSetting] = dict()
 
-    # these are used elsewhere in our software
-    DISALLOWED_JOB_NAMES = {
-        "run",
-        "dosing_events",
-        "leds",
-        "led_change_events",
-        "unit_label",
-        "pwm",
-    }
-
     def __init__(self, experiment: str, unit: str, source: str = "app") -> None:
-        if self.job_name in self.DISALLOWED_JOB_NAMES:
+        if self.job_name in DISALLOWED_JOB_NAMES:
             raise ValueError("Job name not allowed.")
-        if self.job_name.lower() != self.job_name:
+        if not self.job_name.islower():
             raise ValueError("Job name should be all lowercase.")
 
         self.experiment = experiment
         self.unit = unit
         self._source = source
-        self._clean = False
 
         self.logger = create_logger(
             self.job_name,
@@ -980,6 +981,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         1.0  # WARNING: this may change slightly in the future, don't depend on this too much.
     )
     sneak_in_timer: RepeatedTimer
+    is_after_period: bool = False
 
     def __init__(self, *args, source="app", **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)  # type: ignore
@@ -1065,8 +1067,10 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if self.state != self.READY:
                 return
 
+            self.bloed = True
             self.action_to_do_after_od_reading()
             sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
+            self.is_after_period = False
             self.action_to_do_before_od_reading()
 
         # this could fail in the following way:

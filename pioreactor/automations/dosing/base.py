@@ -195,6 +195,7 @@ class DosingAutomationJob(BackgroundSubJob):
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
     vial_volume: float  # amount in the vial
+    MAX_VIAL_VOLUME_TO_WARN: float = 17.0
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -611,7 +612,7 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("vial_volume") as cache:
             cache[self.experiment] = self.vial_volume
 
-        if self.vial_volume >= 17:
+        if self.vial_volume >= self.MAX_VIAL_VOLUME_TO_WARN:
             self.logger.warning(
                 f"Vial is reporting a volume of {self.vial_volume}. Is this expected?"
             )
