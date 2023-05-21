@@ -45,6 +45,8 @@ from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
 
+SECONDS_PER_MINUTES = 60.0
+
 
 class TemperatureController(BackgroundJob):
     """
@@ -73,6 +75,14 @@ class TemperatureController(BackgroundJob):
     MAX_TEMP_TO_REDUCE_HEATING = 61.5  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
+
+    INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
+    INFERENCE_N_SAMPLES: int = 29
+    INFERENCE_EVERY_N_SECONDS: float = 4 * SECONDS_PER_MINUTES - 15
+    inference_total_time: float = INFERENCE_SAMPLES_EVERY_T_SECONDS * INFERENCE_N_SAMPLES
+    # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
+    # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
+
     job_name = "temperature_control"
 
     available_automations = {}  # type: ignore
@@ -123,9 +133,10 @@ class TemperatureController(BackgroundJob):
             ).start()
 
             self.publish_temperature_timer = RepeatedTimer(
-                4 * 60 - 15,  # starting to move this down...
+                self.INFERENCE_EVERY_N_SECONDS,
                 self.evaluate_temperature,
-                run_after=90,  # 90 is how long PWM is active for during a cycle (see evaluate_temperature's constants). This gives an automation a "full" cycle to be on.
+                run_after=self.INFERENCE_EVERY_N_SECONDS
+                - self.inference_total_time,  # This gives an automation a "full" PWM cycle to be on before an inference starts.
                 run_immediately=True,
             ).start()
 
@@ -366,8 +377,8 @@ class TemperatureController(BackgroundJob):
         """
 
         # we pause heating for (N_sample_points * time_between_samples) seconds
-        N_sample_points = 29
-        time_between_samples = 5
+        N_sample_points = self.INFERENCE_N_SAMPLES
+        time_between_samples = self.INFERENCE_SAMPLES_EVERY_T_SECONDS
 
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
         with self.pwm.lock_temporarily():
