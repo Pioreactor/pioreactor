@@ -44,8 +44,7 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
-
-SECONDS_PER_MINUTES = 60.0
+from pioreactor.utils.timing import to_datetime
 
 
 class TemperatureController(BackgroundJob):
@@ -78,7 +77,7 @@ class TemperatureController(BackgroundJob):
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
     INFERENCE_N_SAMPLES: int = 29
-    INFERENCE_EVERY_N_SECONDS: float = 4 * SECONDS_PER_MINUTES - 15
+    INFERENCE_EVERY_N_SECONDS: float = 225.0
     inference_total_time: float = INFERENCE_SAMPLES_EVERY_T_SECONDS * INFERENCE_N_SAMPLES
     # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
     # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
@@ -134,7 +133,7 @@ class TemperatureController(BackgroundJob):
 
             self.publish_temperature_timer = RepeatedTimer(
                 self.INFERENCE_EVERY_N_SECONDS,
-                self.evaluate_temperature,
+                self.infer_temperature,
                 run_after=self.INFERENCE_EVERY_N_SECONDS
                 - self.inference_total_time,  # This gives an automation a "full" PWM cycle to be on before an inference starts.
                 run_immediately=True,
@@ -163,11 +162,22 @@ class TemperatureController(BackgroundJob):
             raise e
         self.automation_name = self.automation.automation_name
 
-        if not self.using_third_party_thermocouple:
+        if not self.using_third_party_thermocouple and self._seconds_since_last_active() > 20:
+            # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
             self.temperature = Temperature(
                 temperature=self.read_external_temperature(),
                 timestamp=current_utc_datetime(),
             )
+
+    @staticmethod
+    def _seconds_since_last_active() -> float:
+        with local_intermittent_storage("last_heating_timestamp") as cache:
+            if "last_heating_timestamp" in cache:
+                return (
+                    current_utc_datetime() - to_datetime(cache["last_heating_timestamp"])
+                ).total_seconds()
+            else:
+                return 1_000_000
 
     def turn_off_heater(self) -> None:
         self._update_heater(0)
@@ -367,7 +377,7 @@ class TemperatureController(BackgroundJob):
         # TODO: improve somehow
         return 22.0
 
-    def evaluate_temperature(self) -> None:
+    def infer_temperature(self) -> None:
         """
         1. lock PWM and turn off heater
         2. start recording temperatures from the sensor
@@ -424,6 +434,7 @@ class TemperatureController(BackgroundJob):
                 temperature=self.approximate_temperature(features),
                 timestamp=current_utc_datetime(),
             )
+
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)

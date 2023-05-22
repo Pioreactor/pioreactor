@@ -682,7 +682,7 @@ def test_temperature_control_and_thermostats_relationship() -> None:
         pause()
 
         # run evaluate_and_publish_temperature, this locks the PWM from anyone updating it directly.
-        thread = threading.Thread(target=tc.evaluate_temperature, daemon=True)
+        thread = threading.Thread(target=tc.infer_temperature, daemon=True)
         thread.start()
         pause()
 
