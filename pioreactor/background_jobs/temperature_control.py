@@ -127,12 +127,12 @@ class TemperatureController(BackgroundJob):
             self.tmp_driver = TMP1075(address=hardware.TEMP)
             self.read_external_temperature_timer = RepeatedTimer(
                 53,
-                self.read_external_temperature_and_check_temp,
+                self.read_external_temperature,
                 run_immediately=False,
             ).start()
 
             self.publish_temperature_timer = RepeatedTimer(
-                self.INFERENCE_EVERY_N_SECONDS,
+                int(self.INFERENCE_EVERY_N_SECONDS),
                 self.infer_temperature,
                 run_after=self.INFERENCE_EVERY_N_SECONDS
                 - self.inference_total_time,  # This gives an automation a "full" PWM cycle to be on before an inference starts.
@@ -162,12 +162,13 @@ class TemperatureController(BackgroundJob):
             raise e
         self.automation_name = self.automation.automation_name
 
-        if not self.using_third_party_thermocouple and self._seconds_since_last_active() > 20:
-            # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
-            self.temperature = Temperature(
-                temperature=self.read_external_temperature(),
-                timestamp=current_utc_datetime(),
-            )
+        if not self.using_third_party_thermocouple:
+            if whoami.is_testing_env() or self._seconds_since_last_active() >= 10:
+                # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
+                self.temperature = Temperature(
+                    temperature=self.read_external_temperature(),
+                    timestamp=current_utc_datetime(),
+                )
 
     @staticmethod
     def _seconds_since_last_active() -> float:
@@ -209,10 +210,10 @@ class TemperatureController(BackgroundJob):
         """
         return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
 
-    def read_external_temperature_and_check_temp(self):
-        self._check_if_exceeds_max_temp(self.read_external_temperature())
-
     def read_external_temperature(self) -> float:
+        return self._check_if_exceeds_max_temp(self._read_external_temperature())
+
+    def _read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
         """
@@ -260,7 +261,9 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(
                 "Bypassing changing automations, and just updating the setting on the existing Thermostat automation."
             )
-            self.automation_job.target_temperature = float(algo_metadata.args["target_temperature"])
+            self.automation_job.set_target_temperature(
+                float(algo_metadata.args["target_temperature"])
+            )
             self.automation = algo_metadata
             return
 
@@ -308,7 +311,7 @@ class TemperatureController(BackgroundJob):
 
         return True
 
-    def _check_if_exceeds_max_temp(self, temp: float) -> None:
+    def _check_if_exceeds_max_temp(self, temp: float) -> float:
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
@@ -341,6 +344,8 @@ class TemperatureController(BackgroundJob):
             )
 
             self._update_heater(self.heater_duty_cycle * 0.9)
+
+        return temp
 
     def on_sleeping(self) -> None:
         self.automation_job.set_state(self.SLEEPING)
@@ -386,7 +391,7 @@ class TemperatureController(BackgroundJob):
         5. return heater to previous DC value and unlock heater
         """
 
-        # we pause heating for (N_sample_points * time_between_samples) seconds
+        # this will pause heating for (N_sample_points * time_between_samples) seconds
         N_sample_points = self.INFERENCE_N_SAMPLES
         time_between_samples = self.INFERENCE_SAMPLES_EVERY_T_SECONDS
 

@@ -283,7 +283,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         try:
             # this is one function in the __init__ that we may deliberately raise an error
             # if we do raise an error, the class needs to be cleaned up correctly
-            # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
+            # (hence the _cleanup bit, don't use set_state)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
             self._publish_properties_to_broker(self.published_settings)
@@ -295,10 +295,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._clean_up_resources()
             raise e
 
-        # this happens _after_ pub clients are set up
-        # The following is implicity done, too, in add_to_published_settings
-        # self._publish_properties_to_broker(self.published_settings)
-
+        # this should happen _after_ pub clients are set up
         self.start_general_passive_listeners()
 
         # next thing that run is the subclasses __init__

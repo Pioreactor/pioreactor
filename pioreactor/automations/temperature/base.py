@@ -90,6 +90,17 @@ class TemperatureAutomationJob(BackgroundSubJob):
         """
         return self.temperature_control_parent.update_heater(new_duty_cycle)
 
+    @property
+    def heater_duty_cycle(self) -> float:
+        if self.temperature_control_parent is not None:
+            return self.temperature_control_parent.heater_duty_cycle
+        else:
+            return 0
+
+    @heater_duty_cycle.setter
+    def heater_duty_cycle(self, new_duty_cycle: float):
+        return self.update_heater(new_duty_cycle)
+
     def is_heater_pwm_locked(self) -> bool:
         """
         Check if the heater PWM channels is locked

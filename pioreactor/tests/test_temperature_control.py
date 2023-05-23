@@ -121,7 +121,7 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
         pause()
         assert t.heater_duty_cycle == 50
         pause()
-        t.read_external_temperature_and_check_temp()
+        t.read_external_temperature()
         pause()
 
         assert 0 < t.heater_duty_cycle < 50
@@ -153,7 +153,7 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
         assert t.heater_duty_cycle == 50
         pause()
         pause()
-        t.read_external_temperature_and_check_temp()
+        t.read_external_temperature()
         pause()
         pause()
 
