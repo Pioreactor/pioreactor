@@ -163,6 +163,7 @@ def _pump_action(
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt, don't use
+    manually: bool = False,
 ) -> pt.mL:
     """
     Returns the mL cycled. However,
@@ -430,6 +431,7 @@ def click_add_alt_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--manually", is_flag=True, help="The media is manually removed (don't run pumps)")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -441,6 +443,7 @@ def click_remove_waste(
     duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
+    manually: bool,
 ):
     """
     Remove waste/media from unit
@@ -455,6 +458,7 @@ def click_remove_waste(
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,
+        manually=manually,
     )
 
 
