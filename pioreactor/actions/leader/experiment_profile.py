@@ -45,7 +45,7 @@ def execute_action(
 def start_job(unit, experiment, job_name, options, args, dry_run):
     if dry_run:
         return lambda: print(
-            f"Starting {job_name} on {unit} with options {options} and args {args}."
+            f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
         )
     else:
         return lambda: publish(
@@ -56,21 +56,21 @@ def start_job(unit, experiment, job_name, options, args, dry_run):
 
 def pause_job(unit, experiment, job_name, dry_run):
     if dry_run:
-        return lambda: print(f"Pausing {job_name} on {unit}.")
+        return lambda: print(f"Dry-run: Pausing {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
 
 def resume_job(unit, experiment, job_name, dry_run):
     if dry_run:
-        return lambda: print(f"Resuming {job_name} on {unit}.")
+        return lambda: print(f"Dry-run: Resuming {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
 
 def stop_job(unit, experiment, job_name, dry_run):
     if dry_run:
-        return lambda: print(f"Stopping {job_name} on {unit}.")
+        return lambda: print(f"Dry-run: Stopping {job_name} on {unit}.")
     else:
         return lambda: publish(
             f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected"
@@ -82,7 +82,7 @@ def update_job(unit, experiment, job_name, options, dry_run):
 
         def _update():
             for setting, value in options.items():
-                print(f"Updating {setting} to {value} in {job_name} on {unit}.")
+                print(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
 
     else:
 

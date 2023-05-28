@@ -2,6 +2,7 @@
 
  - PIDMorbidostat has a configuration parameter `minimum_dosing_volume_ml` (default 0.1). If a calculated volume to be dosed is less than this parameter, then it's set to 0 instead.
  - New API for experiment profiles: `pio run experiment_profile`, with subcommands `execute` and `verify`. So what use to be `pio run execute_experiment_profile <filename>` is now: `pio run experiment_profile execute <filename>`
+ - new leader CLI command: `pios cp <filepath>` will move a file on your leader to the entire cluster. This is useful for distributing plugins and Python wheels across your workers.
 
 ### 23.5.16
  - UX improvements to `pio run pump_calibration`
