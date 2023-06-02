@@ -1064,7 +1064,6 @@ class BackgroundJobWithDodging(_BackgroundJob):
             if self.state != self.READY:
                 return
 
-            self.bloed = True
             self.action_to_do_after_od_reading()
             sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
             self.is_after_period = False
