@@ -11,6 +11,8 @@ import Divider from '@mui/material/Divider';
 import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router-dom';
 import EditIcon from '@mui/icons-material/Edit';
+import {getRelabelMap} from "../utilities"
+
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -70,8 +72,14 @@ function FlashLEDButton(props){
 function AssignLabels(props){
   const classes = useStyles();
   const [labels, setLabels] = useState({})
+  const [relabelMap, setRelabelMap] = useState({})
   const [client, setClient] = useState(null)
   const activeUnits = props.config['cluster.inventory'] ? Object.entries(props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]) : []
+
+
+  React.useEffect(() => {
+    getRelabelMap(setRelabelMap)
+  }, [])
 
 
   useEffect(() => {
@@ -130,7 +138,7 @@ function AssignLabels(props){
                     <span style={{lineHeight: "40px"}}>{unit}</span>
                   </div>
                   <div>
-                    <TextField size="small" placeholder="(Optional)" onChange={onLabelChange(unit)} style={{width: "140px", marginRight: "10px"}}/>
+                    <TextField size="small" defaultValue={relabelMap[unit]} placeholder="(Optional)" onChange={onLabelChange(unit)} style={{width: "140px", marginRight: "10px"}}/>
                   </div>
                   <div>
                     <FlashLEDButton client={client} disable={false} config={props.config} unit={unit}/>

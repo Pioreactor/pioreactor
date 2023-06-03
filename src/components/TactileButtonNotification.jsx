@@ -78,7 +78,7 @@ function TactileButtonNotification(props) {
       transitionDuration={{enter: 10}}
     >
     <Alert severity="info" variant="filled" icon={false}>
-      <AlertTitle style={{fontSize: 25}}>{unit + (renamedUnit ? " / " + renamedUnit : "")}</AlertTitle>
+      <AlertTitle style={{fontSize: 30}}>{unit + (renamedUnit ? " / " + renamedUnit : "")}</AlertTitle>
       Holding <b>{unit}</b>'s button down
     </Alert>
     </Snackbar>

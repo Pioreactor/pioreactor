@@ -49,6 +49,7 @@ import Alert from '@mui/material/Alert';
 
 import ChangeAutomationsDialog from "./components/ChangeAutomationsDialog"
 import ActionDosingForm from "./components/ActionDosingForm"
+import ActionManualDosingForm from "./components/ActionManualDosingForm"
 import ActionCirculatingForm from "./components/ActionCirculatingForm"
 import ActionLEDForm from "./components/ActionLEDForm"
 import PioreactorIcon from "./components/PioreactorIcon"
@@ -1529,10 +1530,10 @@ function SettingsActionsDialog(props) {
 
         <TabPanel value={tabValue} index={2}>
           <Typography  gutterBottom>
-            Circulate Media
+            Cycle Media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely circulate media in and out of your Pioreactor for a set duration (seconds).
+            Safely cycle media in and out of your Pioreactor for a set duration (seconds) by running the media and waste pump simultaneously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_media" unit={props.unit} job={props.jobs.circulate_media} />
@@ -1540,10 +1541,10 @@ function SettingsActionsDialog(props) {
           <Divider classes={{root: classes.divider}} />
 
           <Typography  gutterBottom>
-            Circulate alternative media
+            Cycle alternative media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely circulate alternative media in and out of your Pioreactor for a set duration (seconds).
+            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds) by running the alt-media and waste pump simultaneously.
           </Typography>
 
           <ActionCirculatingForm action="circulate_alt_media" unit={props.unit} job={props.jobs.circulate_alt_media} />
@@ -1585,6 +1586,15 @@ function SettingsActionsDialog(props) {
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={props.unit} job={props.jobs.add_alt_media} />
           <Divider className={classes.divider} />
+          <Typography gutterBottom>
+            Manual adjustments
+          </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics.
+          </Typography>
+          <ActionManualDosingForm unit={props.unit}/>
+
+
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
@@ -2103,10 +2113,10 @@ function SettingsActionsDialogAll({config, experiment}) {
         </TabPanel>
         <TabPanel value={tabValue} index={2}>
           <Typography  gutterBottom>
-            Circulate Media
+            Cycle Media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely circulate media in and out of your Pioreactor for a set duration (seconds).
+            Safely cycle media in and out of your Pioreactor for a set duration (seconds).
           </Typography>
 
           <ActionCirculatingForm action="circulate_media" unit={unit} />
@@ -2114,10 +2124,10 @@ function SettingsActionsDialogAll({config, experiment}) {
           <Divider classes={{root: classes.divider}} />
 
           <Typography  gutterBottom>
-            Circulate alternative media
+            Cycle alternative media
           </Typography>
           <Typography variant="body2" component="p">
-            Safely circulate alternative media in and out of your Pioreactor for a set duration (seconds).
+            Safely cycle alternative media in and out of your Pioreactor for a set duration (seconds).
           </Typography>
 
           <ActionCirculatingForm action="circulate_alt_media" unit={unit} />
@@ -2160,6 +2170,14 @@ function SettingsActionsDialogAll({config, experiment}) {
           </Typography>
           <ActionDosingForm action="add_alt_media" unit={unit} />
           <Divider className={classes.divider} />
+          <Typography gutterBottom>
+            Manual adjustments
+          </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Record adjustments before manually adding or removing from the vial. This is recorded in the database and will ensure accurate metrics.
+          </Typography>
+          <ActionManualDosingForm unit={unit}/>
+
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>

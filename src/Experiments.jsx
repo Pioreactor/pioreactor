@@ -270,7 +270,7 @@ function ExperimentsContainer(props) {
                         deltaHours={24}
                         interpolation={chart.interpolation || "stepAfter"}
                         yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                        lookback={eval(chart.lookback) || 10000}
+                        lookback={10000}
                         fixedDecimals={chart.fixed_decimals}
                         yTransformation={eval(chart.y_transformation || "(y) => y")}
                         dataSourceColumn={chart.data_source_column}

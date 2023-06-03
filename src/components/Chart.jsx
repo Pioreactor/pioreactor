@@ -22,6 +22,18 @@ const colors = [
   {primary: "#EE7733", "1": "#EE7733", "2": "#EE7733"},
   {primary: "#EE3377", "1": "#EE3377", "2": "#EE3377"},
   {primary: "#BBBBBB", "1": "#BBBBBB", "2": "#BBBBBB"},
+  {primary: "#a6cee3", "1": "#a6cee3", "2": "#a6cee3"},
+  {primary: "#1f78b4", "1": "#1f78b4", "2": "#1f78b4"},
+  {primary: "#b2df8a", "1": "#b2df8a", "2": "#b2df8a"},
+  {primary: "#33a02c", "1": "#33a02c", "2": "#33a02c"},
+  {primary: "#fb9a99", "1": "#fb9a99", "2": "#fb9a99"},
+  {primary: "#e31a1c", "1": "#e31a1c", "2": "#e31a1c"},
+  {primary: "#fdbf6f", "1": "#fdbf6f", "2": "#fdbf6f"},
+  {primary: "#ff7f00", "1": "#ff7f00", "2": "#ff7f00"},
+  {primary: "#cab2d6", "1": "#cab2d6", "2": "#cab2d6"},
+  {primary: "#6a3d9a", "1": "#6a3d9a", "2": "#6a3d9a"},
+  {primary: "#ffff99", "1": "#ffff99", "2": "#ffff99"},
+  {primary: "#b15928", "1": "#b15928", "2": "#b15928"},
 ];
 
 const colorMaps = {}
@@ -379,7 +391,7 @@ ${this.relabelAndFormatSeries(d.datum.childName)}: ${Math.round(this.yTransforma
           <VictoryAxis
             crossAxis={false}
             dependentAxis
-            domain={this.props.yAxisDomain}
+            domain={this.props.allowZoom ? null : this.props.yAxisDomain}
             tickFormat={(t) => `${t.toFixed(this.props.fixedDecimals)}`}
             label={this.props.yAxisLabel}
             axisLabelComponent={
