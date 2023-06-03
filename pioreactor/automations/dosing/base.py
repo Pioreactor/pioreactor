@@ -660,7 +660,7 @@ class DosingAutomationJob(BackgroundSubJob):
             "vial_volume",
             {
                 "datatype": "float",
-                "settable": True,
+                "settable": False,  # modify using dosing_events, ex: pio run add_media --ml 1 --manually
                 "unit": "mL",
             },
         )

@@ -5,6 +5,7 @@
  - new leader CLI command: `pios cp <filepath>` will move a file on your leader to the entire cluster. This is useful for distributing plugins and Python wheels across your workers.
  - plugins can now add `post_install.sh` and `pre_uninstall.sh` bash scripts.
  - added `[stirring]` option `duration_between_updates_seconds` to config, default is 23.0.
+ - adding `--manually` flag to pump actions, ex: `pio run add_media --ml 1 --manually`. This _doesn't_ run the pump, but still fires an dosing event, which downstream jobs listen to (ex: saves to database, will update metrics).
 
 
 ### 23.5.16

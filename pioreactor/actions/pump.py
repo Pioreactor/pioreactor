@@ -266,7 +266,7 @@ def _pump_action(
             pump_start_time = time.monotonic()
 
             if manually:
-                pass
+                return 0.0
             elif not continuously:
                 pump.by_duration(duration, block=False)
 
