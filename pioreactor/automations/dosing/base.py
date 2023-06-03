@@ -88,8 +88,11 @@ class VialVolumeCalculator:
         elif event == "add_alt_media":
             return current_vial_volume + volume
         elif event == "remove_waste":
-            # if the current volume is less than the outflow tube, no liquid is removed
-            if current_vial_volume <= cls.max_volume:
+            if new_dosing_event.source_of_event == "manually":
+                # we assume the user has extracted what they want, regardless of level or tube height.
+                return max(current_vial_volume - volume, 0.0)
+            elif current_vial_volume <= cls.max_volume:
+                # if the current volume is less than the outflow tube, no liquid is removed
                 return current_vial_volume
             else:
                 # since we do some additional "removing" after adding, we don't want to
@@ -116,6 +119,7 @@ class AltMediaCalculator:
     ) -> float:
         assert 0.0 <= current_alt_media_fraction <= 1.0
         volume, event = float(new_dosing_event.volume_change), new_dosing_event.event
+
         if event == "add_media":
             return cls._update_alt_media_fraction(
                 current_alt_media_fraction, volume, 0, current_vial_volume
@@ -614,7 +618,7 @@ class DosingAutomationJob(BackgroundSubJob):
 
         if self.vial_volume >= self.MAX_VIAL_VOLUME_TO_WARN:
             self.logger.warning(
-                f"Vial is reporting a volume of {self.vial_volume}. Is this expected?"
+                f"Vial is calculated to have a volume of {self.vial_volume} mL. Is this expected?"
             )
 
     def _update_throughput(self, dosing_event: structs.DosingEvent) -> None:

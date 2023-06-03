@@ -19,6 +19,7 @@ from pioreactor.exc import CalibrationError
 from pioreactor.exc import PWMError
 from pioreactor.pubsub import publish
 from pioreactor.pubsub import subscribe
+from pioreactor.pubsub import subscribe_and_callback
 from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import timing
@@ -392,3 +393,21 @@ def test_media_circulation_works_without_calibration_since_we_are_entering_durat
 
     media_added, waste_removed = circulate_media(5.0, unit, exp)
     assert waste_removed >= media_added
+
+
+def test_manually_doesnt_trigger_pwm_dcs():
+    ml = 1.0
+    exp = "test_manually_doesnt_trigger_pwm_dcs"
+
+    pwm_updates = []
+
+    def collect_pwm_updates(msg):
+        pwm_updates.append(msg.payload.decode())
+
+    subscribe_and_callback(
+        collect_pwm_updates, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False
+    )
+    add_media(duration=ml, unit=unit, experiment=exp, manually=True)
+
+    assert len(pwm_updates) == 1
+    assert pwm_updates[0] == r"{}"

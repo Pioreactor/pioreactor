@@ -4,6 +4,8 @@
  - New API for experiment profiles: `pio run experiment_profile`, with subcommands `execute` and `verify`. So what use to be `pio run execute_experiment_profile <filename>` is now: `pio run experiment_profile execute <filename>`
  - new leader CLI command: `pios cp <filepath>` will move a file on your leader to the entire cluster. This is useful for distributing plugins and Python wheels across your workers.
  - plugins can now add `post_install.sh` and `pre_uninstall.sh` bash scripts.
+ - added `[stirring]` option `duration_between_updates_seconds` to config, default is 23.0.
+
 
 ### 23.5.16
  - UX improvements to `pio run pump_calibration`

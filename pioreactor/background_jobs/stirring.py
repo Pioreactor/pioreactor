@@ -252,7 +252,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            23,
+            config.getfloat("stirring", "duration_between_updates_seconds", fallback=23.0),
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
