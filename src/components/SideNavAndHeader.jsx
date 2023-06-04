@@ -22,6 +22,7 @@ import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
+import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import Tooltip from '@mui/material/Tooltip';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
@@ -143,6 +144,13 @@ export default function SideNavAndHeader() {
           <ListItemButton className={clsx({[classes.outlined]: !isSelected("/pioreactors") })} component={Link} to="/pioreactors" key="pioreactors" selected={isSelected("/pioreactors")}>
             <ListItemIcon className={classes.listItemIcon}> <PioreactorIcon color={isSelected("/pioreactors") ? "primary" : "inherit"} viewBox="-3 0 24 24"/> </ListItemIcon>
             <ListItemText primaryTypographyProps={{color: isSelected("/pioreactors") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Pioreactors" />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton className={clsx({[classes.outlined]: !isSelected("/experiment-profiles") })} component={Link} to="/experiment-profiles"  key="profiles" selected={isSelected("/experiment-profiles")}>
+            <ListItemIcon className={classes.listItemIcon}><ViewTimelineOutlinedIcon color={isSelected("/experiment-profiles") ? "primary" : "inherit"}/> </ListItemIcon>
+            <ListItemText primaryTypographyProps={{color: isSelected("/experiment-profiles") ? "primary" : "rgba(0, 0, 0, 0.87)"}} primary="Profiles" />
           </ListItemButton>
         </ListItem>
 

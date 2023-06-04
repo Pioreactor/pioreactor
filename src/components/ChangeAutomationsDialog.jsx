@@ -10,6 +10,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormLabel from '@mui/material/FormLabel';
+import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import IconButton from '@mui/material/IconButton';
@@ -204,13 +205,12 @@ function ChangeAutomationsDialog(props) {
           <FormControl component="fieldset" className={classes.formControl}>
           <FormLabel component="legend">Automation</FormLabel>
             <Select
-              native
               variant="standard"
               value={automationName}
               onChange={handleAlgoSelectionChange}
               style={{maxWidth: "270px"}}
             >
-              {Object.keys(automations).map((key) => <option id={key} value={key} key={"change-io" + key}>{automations[key].display_name}</option>)}
+              {Object.keys(automations).map((key) => <MenuItem id={key} value={key} key={"change-io" + key}>{automations[key].display_name}</MenuItem>)}
 
             </Select>
             {Object.keys(automations).length > 0 && <AutomationForm fields={automations[automationName].fields} description={automations[automationName].description} updateParent={updateFromChild} name={automationName}/>}

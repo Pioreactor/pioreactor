@@ -11,6 +11,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import Checkbox from '@mui/material/Checkbox';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/Card';
+import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
 import Select from '@mui/material/Select';
 import Box from '@mui/material/Box';
@@ -88,18 +89,13 @@ function ExperimentSelection(props) {
       <FormControl fullWidth component="fieldset" className={classes.formControl}>
         <FormLabel component="legend">Experiment</FormLabel>
         <Select
-          native
           labelId="expSelect"
           variant="standard"
           value={props.experimentSelection}
           onChange={handleExperimentSelectionChange}
-          inputProps={{
-            name: 'experiment',
-            id: 'experiment',
-          }}
         >
           {experiments.map((v) => {
-            return <option value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</option>
+            return <MenuItem value={v.experiment}>{v.experiment +  (v.created_at ? ` (started ${moment(v.created_at).format("MMMM D, YYYY")})` : "")}</MenuItem>
             }
           )}
         </Select>

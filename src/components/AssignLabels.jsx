@@ -9,7 +9,6 @@ import Button from "@mui/material/Button";
 import TextField from '@mui/material/TextField';
 import Divider from '@mui/material/Divider';
 import PioreactorIcon from "./PioreactorIcon"
-import { Link } from 'react-router-dom';
 import EditIcon from '@mui/icons-material/Edit';
 import {getRelabelMap} from "../utilities"
 import CheckIcon from '@mui/icons-material/Check';
@@ -160,9 +159,9 @@ function AssignLabels(props){
                 color="primary"
                 onClick={onSubmit}
                 endIcon={confirmed ? <CheckIcon /> : <EditIcon /> }
-                disabled={count === 0}
+                disabled={(count === 0) || confirmed}
               >
-                   {confirmed ? "Assigned!" : (count > 0 ? `Assign ${count}` : "Assign")}
+                   {confirmed ? "Assigned" : (count > 0 ? `Assign ${count}` : "Assign")}
                </Button>
             </div>
           </Grid>

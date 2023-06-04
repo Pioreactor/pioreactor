@@ -9,6 +9,7 @@ import Button from '@mui/material/Button';
 import LoadingButton from '@mui/lab/LoadingButton';
 import InputLabel from '@mui/material/InputLabel';
 import Box from '@mui/material/Box';
+import MenuItem from '@mui/material/MenuItem';
 import {Typography} from '@mui/material';
 import Snackbar from '@mui/material/Snackbar';
 import Select from '@mui/material/Select';
@@ -174,18 +175,13 @@ class EditableCodeDiv extends React.Component {
             <div>
               <InputLabel id="configSelect" variant="standard">Config file</InputLabel>
               <Select
-                native
                 labelId="configSelect"
                 variant="standard"
                 value={this.state.filename}
                 onChange={this.onSelectionChange}
-                inputProps={{
-                  name: 'config',
-                  id: 'config',
-                }}
               >
                 {this.state.availableConfigs.map((v) => {
-                  return <option key={v.filename} value={v.filename}>{v.name}</option>
+                  return <MenuItem key={v.filename} value={v.filename}>{v.name}</MenuItem>
                   }
                 )}
               </Select>
@@ -196,19 +192,14 @@ class EditableCodeDiv extends React.Component {
             <div>
               <InputLabel id="configSelect" variant="standard">Versions</InputLabel>
               <Select
-                native
                 labelId="historicalConfigSelect"
                 variant="standard"
                 value={this.state.historicalConfigs.length > 0 ? this.state.historicalConfigs[this.state.timestamp_ix].timestamp : ""}
                 displayEmpty={true}
                 onChange={this.onSelectionHistoricalChange}
-                inputProps={{
-                  name: 'historicalConfig',
-                  id: 'historicalConfig',
-                }}
               >
                 {this.state.historicalConfigs.map((v, i) => {
-                  return <option key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : moment(v.timestamp).format("MMM DD [at] hh:mm a") }</option>
+                  return <MenuItem key={v.timestamp} value={v.timestamp}>{i === 0 ? "Current" : moment(v.timestamp).format("MMM DD [at] hh:mm a") }</MenuItem>
                   }
                 )}
               </Select>

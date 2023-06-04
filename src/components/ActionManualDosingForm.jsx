@@ -37,7 +37,6 @@ export default function ActionPumpForm(props) {
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMsg, setSnackbarMsg] = useState("");
   const [textfieldError, setTextfieldError] = useState(false);
-  const [clicked, setClicked] = useState(false)
   const [manualAction, setManualAction] = useState("add_media")
 
   const [formErrorML, setFormErrorML] = useState(false)
@@ -46,7 +45,6 @@ export default function ActionPumpForm(props) {
   function onSubmit(e) {
     e.preventDefault();
     if (mL > 0) {
-      setClicked(true)
 
       var msg = `Recorded ${actionToAct[manualAction]} of ${mL} mL at ${moment().format('h:mm:ss a')}.`
       var params = { ml: parseFloat(mL), source_of_event: "manually", manually: true};
@@ -62,7 +60,6 @@ export default function ActionPumpForm(props) {
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
       setML(EMPTYSTATE)
-      setTimeout(() => setClicked(false), 2500)
     }
     else {
       setTextfieldError(true)
