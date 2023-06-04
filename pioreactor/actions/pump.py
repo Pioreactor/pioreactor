@@ -226,7 +226,12 @@ def _pump_action(
         client = state.client
 
         with PWMPump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
-            if ml is not None:
+            if manually:
+                assert ml is not None
+                ml = float(ml)
+                assert ml >= 0, "ml should be greater than or equal to 0"
+                logger.info(f"{round(ml, 2)}mL (added manually)")
+            elif ml is not None:
                 ml = float(ml)
                 if calibration is None:
                     raise exc.CalibrationError(

@@ -290,7 +290,7 @@ def version(verbose: bool) -> None:
         click.echo(f"Image version:          {whoami.get_image_git_hash()}")
         if whoami.am_I_leader():
             try:
-                result = get("http://127.0.0.1/api/ui_version")
+                result = get("http://127.0.0.1/api/versions/ui")
                 result.raise_for_status()
                 ui_version = result.body.decode()
             except Exception:

@@ -1,11 +1,12 @@
 ### Upcoming
 
- - PIDMorbidostat has a configuration parameter `minimum_dosing_volume_ml` (default 0.1). If a calculated volume to be dosed is less than this parameter, then it's set to 0 instead.
- - New API for experiment profiles: `pio run experiment_profile`, with subcommands `execute` and `verify`. So what use to be `pio run execute_experiment_profile <filename>` is now: `pio run experiment_profile execute <filename>`
+ - New API for experiment profiles: `pio run experiment_profile`, with subcommands `execute` and `verify`. So what use to be `pio run execute_experiment_profile <filename>` is now: `pio run experiment_profile execute <filename>`. The `verify` subcommand is for checking the yaml file for errors.
  - new leader CLI command: `pios cp <filepath>` will move a file on your leader to the entire cluster. This is useful for distributing plugins and Python wheels across your workers.
  - plugins can now add `post_install.sh` and `pre_uninstall.sh` bash scripts.
  - added `[stirring]` option `duration_between_updates_seconds` to config, default is 23.0.
- - adding `--manually` flag to pump actions, ex: `pio run add_media --ml 1 --manually`. This _doesn't_ run the pump, but still fires an dosing event, which downstream jobs listen to (ex: saves to database, will update metrics).
+ - PIDMorbidostat has a configuration parameter `[dosing_automation.pid_morbidostat].minimum_dosing_volume_ml` (default 0.1). If a calculated volume to be dosed is less than this parameter, then it's set to 0.0 instead.
+ - adding `--manually` flag to pump actions, ex: `pio run add_media --ml 1 --manually`. This _doesn't_ run the pump, but still fires a dosing event, which downstream jobs listen to (ex: saves to database, will update metrics). See next change:
+ - Adding manual dosing adjustment form under Dosing tab in the UI.
 
 
 ### 23.5.16
