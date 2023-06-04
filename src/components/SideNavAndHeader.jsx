@@ -86,7 +86,7 @@ export default function SideNavAndHeader() {
 
   React.useEffect(() => {
     async function getCurrentApp() {
-         await fetch("/api/app_version")
+         await fetch("/api/versions/app")
         .then((response) => {
           return response.text();
         })

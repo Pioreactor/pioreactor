@@ -43,7 +43,7 @@ export default function ActionLEDForm(props) {
       const params = {[props.channel]: parseFloat(intensity), source_of_event: "UI"}
 
       fetch(`/api/run/${props.unit}/led_intensity`, {
-        method: "POST",
+        method: "PATCH",
         body: JSON.stringify({options: params, args: []}),
         headers: {
           'Accept': 'application/json',

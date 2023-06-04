@@ -435,8 +435,8 @@ function AddNewPioreactor(props){
     setIsError(false)
     setIsSuccess(false)
     setIsRunning(true)
-    setExpectedPathMsg("Installation is occurring...")
-    fetch('/api/add_new_pioreactor', {
+    setExpectedPathMsg("Setting up new Pioreactor...")
+    fetch('/api/setup_worker_pioreactor', {
         method: "POST",
         body: JSON.stringify({newPioreactorName: name}),
         headers: {
@@ -608,7 +608,7 @@ function CalibrateDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch(`/api/run/${props.unit}/${job}`, {method: "POST"})
+      fetch(`/api/run/${props.unit}/${job}`, {method: "PATCH"})
     }
   }
 
@@ -762,7 +762,7 @@ function SelfTestDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch(`/api/run/${props.unit}/${job}`, {method: "POST"})
+      fetch(`/api/run/${props.unit}/${job}`, {method: "PATCH"})
     }
   }
 
@@ -990,7 +990,7 @@ function SettingsActionsDialog(props) {
 
   function startPioreactorJob(job){
     return function() {
-      fetch(`/api/run/${props.unit}/${job}`, {method: "POST"})
+      fetch(`/api/run/${props.unit}/${job}`, {method: "PATCH"})
     }
   }
 
@@ -1004,7 +1004,7 @@ function SettingsActionsDialog(props) {
   function stopPioreactorJob(job){
     return function() {
       setPioreactorJobAttr(`${job}/$state`, "disconnected")
-      //fetch("/api/stop/" + job + "/" + props.unit, {method: "POST"}).then(res => {})
+      //fetch("/api/stop/" + job + "/" + props.unit, {method: "PATCH"}).then(res => {})
     }
   }
 
@@ -1806,7 +1806,7 @@ function SettingsActionsDialogAll({config, experiment}) {
     return function() {
       setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active Pioreactors`)
       setSnackbarOpen(true)
-      fetch(`/api/run/${unit}/${job.metadata.key}`, {method: "POST"})
+      fetch(`/api/run/${unit}/${job.metadata.key}`, {method: "PATCH"})
     }
   }
 

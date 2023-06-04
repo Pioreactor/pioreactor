@@ -96,7 +96,7 @@ function PageHeader(props) {
 
   React.useEffect(() => {
     async function getCurrentAppVersion() {
-         await fetch("/api/app_version")
+         await fetch("/api/versions/app")
         .then((response) => {
           return response.text();
         })
@@ -106,7 +106,7 @@ function PageHeader(props) {
       }
 
     async function getCurrentUIVersion() {
-         await fetch("/api/ui_version")
+         await fetch("/api/versions/ui")
         .then((response) => {
           return response.text();
         })

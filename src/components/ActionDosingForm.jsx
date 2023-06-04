@@ -63,7 +63,7 @@ export default function ActionPumpForm(props) {
       }
 
       fetch(`/api/run/${props.unit}/${props.action}`, {
-        method: "POST",
+        method: "PATCH",
         body: JSON.stringify({options: params, args: []}),
         headers: {
           'Accept': 'application/json',
@@ -81,7 +81,7 @@ export default function ActionPumpForm(props) {
   }
 
   function stopPump(e) {
-    fetch(`/api/stop/${props.unit}/${props.action}`, {method: "POST"})
+    fetch(`/api/stop/${props.unit}/${props.action}`, {method: "PATCH"})
     .catch((error) => {
       setSnackbarMsg("🛑 Failed to stop - please try again!")
       setOpenSnackbar(true)

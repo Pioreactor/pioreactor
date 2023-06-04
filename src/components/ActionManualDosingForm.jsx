@@ -52,7 +52,7 @@ export default function ActionPumpForm(props) {
       var params = { ml: parseFloat(mL), source_of_event: "manually", manually: true};
 
       fetch(`/api/run/${props.unit}/${manualAction}`, {
-        method: "POST",
+        method: "PATCH",
         body: JSON.stringify({options: params, args: []}),
         headers: {
           'Accept': 'application/json',

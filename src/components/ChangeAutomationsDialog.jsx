@@ -128,7 +128,7 @@ function ChangeAutomationsDialog(props) {
   const startJob = (event) => {
     event.preventDefault()
     fetch(`/api/run/${props.unit}/${automationType}_control`, {
-      method: "POST",
+      method: "PATCH",
       body: JSON.stringify({options:{"automation_name": automationName, ...algoSettings}, args: []}),
       headers: {
         'Accept': 'application/json',
