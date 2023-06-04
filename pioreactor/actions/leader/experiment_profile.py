@@ -117,10 +117,8 @@ def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
 def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> None:
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    logger = create_logger("execute_experiment_profile")
-    with publish_ready_to_disconnected_state(
-        unit, experiment, "execute_experiment_profile"
-    ) as state:
+    logger = create_logger("experiment_profile")
+    with publish_ready_to_disconnected_state(unit, experiment, "experiment_profile") as state:
         profile = load_and_verify_profile_file(profile_filename)
 
         logger.info(
