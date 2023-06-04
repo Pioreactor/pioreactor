@@ -15,6 +15,7 @@ import SaveIcon from '@mui/icons-material/Save';
 
 //import CleaningScript from "./components/CleaningScript"
 import AssignLabels from "./components/AssignLabels"
+import RunFromExperimentProfile from "./components/RunFromExperimentProfile"
 //import StartSensors from "./components/StartSensors"
 //import StartCalculations from "./components/StartCalculations"
 import {getConfig} from "./utilities"
@@ -286,7 +287,6 @@ function ExperimentSummaryForm(props) {
           <Grid item xs={12} md={12}>
             <TextField
               label="Description (optional)"
-              maxRows={4}
               rows={2}
               placeholder="Add a description. This description can be changed later."
               multiline
@@ -374,7 +374,8 @@ function StartNewExperimentContainer(props) {
   const steps = [
     {title: 'Experiment summary', content: <ExperimentSummaryForm config={props.config} handleNext={handleNext}/>, optional: false},
     //{title: 'Cleaning and preparation', content: <CleaningScript config={props.config}/>, optional: true},
-    {title: 'Assign labels', content: <AssignLabels config={props.config} handleNext={handleNext} />,  optional: true},
+    {title: 'Run from experiment profile', content: <RunFromExperimentProfile config={props.config} handleNext={handleNext} />,  optional: true},
+    {title: 'Assign labels', content:               <AssignLabels config={props.config} handleNext={handleNext} />,              optional: true},
     //{title: 'Start sensors', content: <StartSensors config={props.config}/>, optional: false},
     //{title: 'Start calculations', content: <StartCalculations config={props.config}/>, optional: false},
   ];
@@ -389,15 +390,10 @@ function StartNewExperimentContainer(props) {
           <div>
             <div className={classes.instructions}>{getStepContent(activeStep)}</div>
             <div>
-            {(activeStep === steps.length - 1) && (
+            {(activeStep !== 0) && (
               <div>
-                <Button
-                  variant="text"
-                  to="/overview"
-                  component={Link}
-                  className={classes.skipButton}
-                >
-                Skip
+                <Button color="inherit" onClick={handleNext} sx={{ mr: 1 }} className={classes.skipButton}>
+                  Skip / Next
                 </Button>
               </div>
               )}

@@ -12,7 +12,7 @@ import PioreactorIcon from "./PioreactorIcon"
 import { Link } from 'react-router-dom';
 import EditIcon from '@mui/icons-material/Edit';
 import {getRelabelMap} from "../utilities"
-
+import CheckIcon from '@mui/icons-material/Check';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -74,6 +74,7 @@ function AssignLabels(props){
   const [labels, setLabels] = useState({})
   const [relabelMap, setRelabelMap] = useState({})
   const [client, setClient] = useState(null)
+  const [confirmed, setConfirmed] = useState(false)
   const activeUnits = props.config['cluster.inventory'] ? Object.entries(props.config['cluster.inventory']).filter((v) => v[1] === "1").map((v) => v[0]) : []
 
 
@@ -111,7 +112,9 @@ function AssignLabels(props){
             }
         })
     ))
+    setConfirmed(true)
   }
+
   const onLabelChange = (unit) => (e) => setLabels({...labels, [unit]: e.target.value})
   const count = Object.values(labels).reduce((accumulator, value) => accumulator + (value !== ""), 0)
 
@@ -153,14 +156,13 @@ function AssignLabels(props){
           <Grid item xs={12} lg={8}>
             <div style={{display: "flex", justifyContent: "flex-end"}}>
               <Button
-                to="/overview"
-                component={Link}
                 variant="contained"
                 color="primary"
                 onClick={onSubmit}
-                endIcon={<EditIcon />}
+                endIcon={confirmed ? <CheckIcon /> : <EditIcon /> }
+                disabled={count === 0}
               >
-                 Assign {count > 0 ? count : ""}
+                   {confirmed ? "Assigned!" : (count > 0 ? `Assign ${count}` : "Assign")}
                </Button>
             </div>
           </Grid>

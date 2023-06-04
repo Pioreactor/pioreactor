@@ -2569,7 +2569,6 @@ function PioreactorCard(props){
 
   return (
     <Card className={classes.pioreactorCard} id={unit}>
-
       <CardContent className={classes.cardContent}>
         <div className={"fixme"}>
           <Typography className={clsx(classes.suptitle)} color="textSecondary">
