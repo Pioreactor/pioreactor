@@ -15,7 +15,8 @@ import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import DisplayProfile from "./components/DisplayProfile"
-
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import CloseIcon from '@mui/icons-material/Close';
 
 
 const useStyles = makeStyles((theme) => ({
@@ -86,6 +87,12 @@ function ExperimentProfilesContent(props) {
     setConfirmed(true)
   }
 
+  const onStop = () => {
+    fetch(`/api/stop/${props.config['cluster.topology']['leader_hostname']}/experiment_profile`,{
+          method: "PATCH",
+      })
+  }
+
   const onSelectExperimentProfileChange = (e) =>
     setSelectedExperimentProfile(e.target.value)
 
@@ -141,9 +148,19 @@ function ExperimentProfilesContent(props) {
             aria-label="view source code"
             style={{marginLeft: "15px"}}
             disabled={selectedExperimentProfile === ""}
+            endIcon={<OpenInNewIcon />}
           >
             View source
           </Button>
+          <Button
+            variant="text"
+            color="secondary"
+            style={{marginLeft: "20px"}}
+            onClick={onStop}
+            endIcon={ <CloseIcon /> }
+          >
+            Stop
+         </Button>
         </div>
       </Grid>
   );

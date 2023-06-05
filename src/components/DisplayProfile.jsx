@@ -11,7 +11,7 @@ const useStyles = makeStyles((theme) => ({
   DisplayProfileCard: {
     maxHeight: "350px",
     overflow: "auto",
-    backgroundColor: "rgb(247,247,247)",
+    backgroundColor: "rgb(248,248,248)",
     letterSpacing: "0em",
     margin: "10px auto 10px auto",
     position: "relative",
@@ -28,7 +28,7 @@ const humanReadableDuration = (actionType, hoursElapsed) => {
     return `${actionType} immediately`
   }
   else if (hoursElapsed < 1){
-    return `${actionType} after ${Math.round(hoursElapsed * 60)} minutes`
+    return `${actionType} after ${Math.round(hoursElapsed * 60 * 10) / 10} minutes`
   }
   else if (hoursElapsed === 1){
     return `${actionType} after ${hoursElapsed} hour`
@@ -49,12 +49,13 @@ const DisplayProfile = ({ data }) => {
         <Typography variant="h6">
           {data.experiment_profile_name}
         </Typography>
-        <Typography variant="body2">
-            <b>Author:</b> {data.metadata.author}
+        <Typography sx={{ mb: 1.5 }} color="text.secondary" gutterBottom>
+          Created by {data.metadata.author}
         </Typography>
         <Typography variant="body2">
             <b>Description:</b> {data.metadata.description}
         </Typography>
+        <br/>
         {data.labels && Object.keys(data.labels).length > 0 && (
           <>
           <Typography variant="body2">
@@ -62,15 +63,15 @@ const DisplayProfile = ({ data }) => {
           </Typography>
           {Object.keys(data.labels).map(worker => (
               <Typography key={worker} variant="body2" style={{ marginLeft: '2em' }}>
-                  {worker}: {data.labels[worker]}
+                  {worker} ⇝ {data.labels[worker]}
               </Typography>
-
           ))}
+          <br/>
           </>
         )}
 
         <Typography variant="body2">
-            <b>Common:</b>
+            <b>All Pioreactor(s) do:</b>
         </Typography>
         {data.common && Object.keys(data.common).map(job => (
             <>
@@ -89,13 +90,14 @@ const DisplayProfile = ({ data }) => {
                       ))}
                   </>
               ))}
+            <br/>
             </>
         ))}
 
         {data.pioreactors && Object.keys(data.pioreactors).map(pioreactor => (
             <>
                 <Typography key={pioreactor} variant="body2">
-                    <b>Pioreactor</b>: {pioreactor}
+                    <b>{pioreactor} does:</b>
                 </Typography>
                 {Object.keys(data.pioreactors[pioreactor].jobs).map(job => (
                     <>
@@ -116,6 +118,7 @@ const DisplayProfile = ({ data }) => {
                       ))}
                     </>
                 ))}
+            <br/>
             </>
         ))}
       </CardContent>
