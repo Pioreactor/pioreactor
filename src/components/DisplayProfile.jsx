@@ -78,7 +78,7 @@ const DisplayProfile = ({ data }) => {
               <Typography key={job} variant="body2" style={{ marginLeft: '2em' }}>
                   <b>Job</b>: {job}
               </Typography>
-              {data.common[job].actions.map((action, index) => (
+              {data.common[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
                   <>
                     <Typography key={`common-action-${index}`} variant="body2" style={{ marginLeft: '4em' }}>
                         <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
@@ -90,9 +90,9 @@ const DisplayProfile = ({ data }) => {
                       ))}
                   </>
               ))}
-            <br/>
             </>
         ))}
+        <br/>
 
         {data.pioreactors && Object.keys(data.pioreactors).map(pioreactor => (
             <>
@@ -104,7 +104,7 @@ const DisplayProfile = ({ data }) => {
                       <Typography key={`${pioreactor}-${job}`}  variant="body2" style={{ marginLeft: '2em' }}>
                           <b>Job</b>: {job}
                       </Typography>
-                      {data.pioreactors[pioreactor].jobs[job].actions.map((action, index) => (
+                      {data.pioreactors[pioreactor].jobs[job].actions.sort((a, b) => a.hours_elapsed > b.hours_elapsed).map((action, index) => (
                           <>
                             <Typography key={`${pioreactor}-action-${index}`} variant="body2" style={{ marginLeft: '4em' }}>
                                 <b>Action {index + 1}</b>: {humanReadableDuration(action.type, action.hours_elapsed)}
@@ -125,6 +125,7 @@ const DisplayProfile = ({ data }) => {
     </Card>
   );
 };
+
 
 
 export default DisplayProfile;

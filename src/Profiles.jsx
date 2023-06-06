@@ -15,9 +15,10 @@ import InputLabel from '@mui/material/InputLabel';
 import MenuItem from '@mui/material/MenuItem';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import DisplayProfile from "./components/DisplayProfile"
+import DisplaySourceCode from "./components/DisplaySourceCode"
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import CloseIcon from '@mui/icons-material/Close';
-
+import CodeIcon from '@mui/icons-material/Code';
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -58,6 +59,8 @@ function ExperimentProfilesContent(props) {
   const [experimentProfilesAvailable, setExperimentProfilesAvailable] = React.useState([])
   const [selectedExperimentProfile, setSelectedExperimentProfile] = React.useState('')
   const [confirmed, setConfirmed] = React.useState(false)
+  const [viewSource, setViewSource] = React.useState(false)
+  const [source, setSource] = React.useState("")
 
   React.useEffect(() => {
     fetch("/api/experiment_profiles")
@@ -67,7 +70,7 @@ function ExperimentProfilesContent(props) {
       .then(profiles => {
         const profilesByKey = profiles.reduce((acc, cur) => ({ ...acc, [cur.file]: cur.experimentProfile}), {})
         setExperimentProfilesAvailable(profilesByKey)
-        setSelectedExperimentProfile(Object.keys(profilesByKey)[0])
+        setSelectedExperimentProfile(Object.keys(profilesByKey)[0] ?? "")
       })
   }, [])
 
@@ -93,8 +96,25 @@ function ExperimentProfilesContent(props) {
       })
   }
 
-  const onSelectExperimentProfileChange = (e) =>
+  const onSelectExperimentProfileChange = (e) => {
     setSelectedExperimentProfile(e.target.value)
+    setViewSource(false)
+  }
+
+  const getSourceAndView = (e) => {
+    if (!viewSource){
+      fetch(`/api/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`, {
+            method: "GET",
+        }).then(res => {
+          if (res.ok) {
+            return res.text();
+          }
+        }).then(text => {
+          setSource(text)
+        })
+    }
+    setViewSource(!viewSource)
+  }
 
 
   return (
@@ -119,11 +139,32 @@ function ExperimentProfilesContent(props) {
             </FormControl>
           </div>
         </Grid>
-        <Grid item xs={6} />
+        <Grid item xs={4} />
+        <Grid container xs={2} direction="column" alignItems="flex-end">
+          <Grid item xs={6} />
+          <Grid item xs={6} >
+            <Button
+              variant="text"
+              size="small"
+              color="primary"
+              aria-label="view source code"
+              disabled={selectedExperimentProfile === ""}
+              endIcon={< CodeIcon />}
+              onClick={getSourceAndView}
+              style={{marginRight: "10px"}}
+            >
+              View source
+            </Button>
+          </Grid>
+
+        </Grid>
 
         <Grid item xs={12}>
-          {selectedExperimentProfile !== "" &&
+          {selectedExperimentProfile !== "" && !viewSource &&
             <DisplayProfile data={experimentProfilesAvailable[selectedExperimentProfile]} />
+          }
+          {selectedExperimentProfile !== "" && viewSource &&
+            <DisplaySourceCode sourceCode={source}/>
           }
         </Grid>
         <div style={{display: "flex", justifyContent: "flex-end"}}>
@@ -135,23 +176,8 @@ function ExperimentProfilesContent(props) {
               endIcon={ <PlayArrowIcon /> }
               disabled={(selectedExperimentProfile === "") || confirmed}
             >
-                Execute
+              Execute
            </Button>
-          <Button
-            component={Link}
-            target="_blank"
-            rel="noopener noreferrer"
-            to={`/api/experiment_profiles/${selectedExperimentProfile.split('/').pop()}`}
-            variant="text"
-            size="small"
-            color="primary"
-            aria-label="view source code"
-            style={{marginLeft: "15px"}}
-            disabled={selectedExperimentProfile === ""}
-            endIcon={<OpenInNewIcon />}
-          >
-            View source
-          </Button>
           <Button
             variant="text"
             color="secondary"
