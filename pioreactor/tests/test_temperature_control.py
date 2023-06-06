@@ -29,14 +29,14 @@ def test_thermostat_automation() -> None:
     ) as algo:
         pause(2)
 
-        # 55 is too high - clamps to 50
+        # 55 is too high - clamps to MAX_TARGET_TEMP
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set",
             55,
         )
         pause(2)
 
-        assert algo.automation_job.target_temperature == 50
+        assert algo.automation_job.target_temperature == algo.automation_job.MAX_TARGET_TEMP
 
         pubsub.publish(
             f"pioreactor/{unit}/{experiment}/temperature_automation/target_temperature/set",

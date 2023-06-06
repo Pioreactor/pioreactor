@@ -407,9 +407,9 @@ def test_manually_doesnt_trigger_pwm_dcs():
     subscribe_and_callback(
         collect_pwm_updates, f"pioreactor/{unit}/{exp}/pwms/dc", allow_retained=False
     )
-    assert add_media(duration=ml, unit=unit, experiment=exp, manually=True) == 0.0
-    assert add_alt_media(duration=ml, unit=unit, experiment=exp, manually=True) == 0.0
-    assert remove_waste(duration=ml, unit=unit, experiment=exp, manually=True) == 0.0
+    assert add_media(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
+    assert add_alt_media(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
+    assert remove_waste(ml=ml, unit=unit, experiment=exp, manually=True) == 0.0
 
     assert len(pwm_updates) == 3
     assert pwm_updates[0] == r"{}"

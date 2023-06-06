@@ -42,7 +42,9 @@ def execute_action(
         raise ValueError(f"Not a valid action: {action}")
 
 
-def start_job(unit, experiment, job_name, options, args, dry_run):
+def start_job(
+    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool
+) -> Callable:
     if dry_run:
         return lambda: print(
             f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
@@ -54,21 +56,21 @@ def start_job(unit, experiment, job_name, options, args, dry_run):
         )
 
 
-def pause_job(unit, experiment, job_name, dry_run):
+def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
     if dry_run:
         return lambda: print(f"Dry-run: Pausing {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
 
-def resume_job(unit, experiment, job_name, dry_run):
+def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
     if dry_run:
         return lambda: print(f"Dry-run: Resuming {job_name} on {unit}.")
     else:
         return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
 
-def stop_job(unit, experiment, job_name, dry_run):
+def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
     if dry_run:
         return lambda: print(f"Dry-run: Stopping {job_name} on {unit}.")
     else:
@@ -77,7 +79,7 @@ def stop_job(unit, experiment, job_name, dry_run):
         )
 
 
-def update_job(unit, experiment, job_name, options, dry_run):
+def update_job(unit: str, experiment: str, job_name: str, options: dict, dry_run: bool) -> Callable:
     if dry_run:
 
         def _update():
@@ -121,7 +123,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
     with publish_ready_to_disconnected_state(unit, experiment, "experiment_profile") as state:
         profile = load_and_verify_profile_file(profile_filename)
 
-        logger.info(
+        logger.notice(  # type: ignore
             f"Starting profile {profile.experiment_profile_name}, sourced from {profile_filename}."
         )
 
