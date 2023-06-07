@@ -464,9 +464,12 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
 
     else:
         tag = get_tag_to_install(version)
-        release_metadata = loads(
-            get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}").body
-        )
+        response = get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}")
+        if response.raise_for_status():
+            logger.error(f"Version {version} not found")
+            raise click.Abort()
+
+        release_metadata = loads(response.body)
         version_installed = release_metadata["tag_name"]
         for asset in release_metadata["assets"]:
             # add the following files to the release. They should ideally be idempotent!

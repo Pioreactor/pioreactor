@@ -378,7 +378,7 @@ class Stirrer(BackgroundJob):
     def poll_and_update_dc(self, poll_for_seconds: float = 4) -> None:
         self.poll(poll_for_seconds)
 
-        if self._measured_rpm is None:
+        if self._measured_rpm is None or self.state != self.READY:
             return
 
         result = self.pid.update(self._measured_rpm)
@@ -425,7 +425,7 @@ class Stirrer(BackgroundJob):
 
         """
         running_wait_time = 0.0
-        sleep_time = 0.5
+        sleep_time = 0.2
 
         if (self.rpm_calculator is None) or is_testing_env():
             # can't block if we aren't recording the RPM

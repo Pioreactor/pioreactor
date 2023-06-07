@@ -8,8 +8,6 @@ export LC_ALL=C
 
 
 sudo mkdir /home/pioreactor/.pioreactor/experiment_profiles/
-sudo chown pioreactor:pioreactor /home/pioreactor/.pioreactor/experiment_profiles/
-
 
 cat <<EOT >> /home/pioreactor/.pioreactor/experiment_profiles/demo_stirring_example.yaml
 experiment_profile_name: demo_stirring_example
@@ -23,7 +21,7 @@ common:
     actions:
       - type: start
         hours_elapsed: 0.0
-        parameters:
+        options:
           target_rpm: 400.0
       - type: update
         hours_elapsed: 0.025
@@ -46,7 +44,7 @@ common:
     actions:
       - type: start
         hours_elapsed: 0.0
-        parameters:
+        options:
           target_rpm: 400.0
   temperature_control:
     actions:
@@ -64,6 +62,9 @@ common:
       - type: start
         hours_elapsed: 0.33
 EOT
+
+sudo chown pioreactor:pioreactor /home/pioreactor/.pioreactor/experiment_profiles/
+sudo chown pioreactor:pioreactor /home/pioreactor/.pioreactor/experiment_profiles/*
 
 
 wget -O /usr/local/bin/install_pioreactor_plugin.sh https://raw.githubusercontent.com/Pioreactor/CustoPiZer/pioreactor/workspace/scripts/files/bash/install_pioreactor_plugin.sh
