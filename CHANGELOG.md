@@ -1,4 +1,4 @@
-### Upcoming
+### 23.6.7
 
 #### Highlights
  - Support for viewing, starting and stopping _experiment profiles_ in the UI!
