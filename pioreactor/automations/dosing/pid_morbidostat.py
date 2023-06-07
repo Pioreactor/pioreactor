@@ -73,16 +73,27 @@ class PIDMorbidostat(DosingAutomationJob):
             # dilute more if our OD keeps creeping up - we want to stay in the linear range.
             if self.latest_normalized_od > self.max_od:
                 self.logger.info(
-                    f"executing triple dilution since we are above max OD, {self.max_od:.2f}AU."
+                    f"executing larger dilution since we are above max OD, {self.max_od:.2f}AU."
                 )
-                volume = 2.5 * self.volume
+                volume_ml = 2.5 * self.volume
             else:
-                volume = self.volume
+                volume_ml = self.volume
 
-            alt_media_ml = fraction_of_alt_media_to_add * volume
-            media_ml = (1 - fraction_of_alt_media_to_add) * volume
+            alt_media_ml = fraction_of_alt_media_to_add * volume_ml
+            media_ml = (1 - fraction_of_alt_media_to_add) * volume_ml
 
-            self.execute_io_action(alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume)
+            # inaccuracies if we dose too little, so don't bother.
+            minimum_dosing_volume_ml = config.getfloat(
+                "dosing_automation.pid_morbidostat", "minimum_dosing_volume_ml", fallback=0.1
+            )
+            if alt_media_ml < minimum_dosing_volume_ml:
+                volume_ml -= alt_media_ml
+                alt_media_ml = 0.0
+            if media_ml < minimum_dosing_volume_ml:
+                volume_ml -= media_ml
+                media_ml = 0.0
+
+            self.execute_io_action(alt_media_ml=alt_media_ml, media_ml=media_ml, waste_ml=volume_ml)
             return events.AddAltMediaEvent(
                 f"PID output={fraction_of_alt_media_to_add:.2f}, alt_media_ml={alt_media_ml:.2f}mL, media_ml={media_ml:.2f}mL",
                 data={

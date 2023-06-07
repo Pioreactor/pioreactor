@@ -52,14 +52,24 @@ class ConfigParserMod(configparser.ConfigParser):
 
             from pioreactor.logging import create_logger
 
-            create_logger("read config").warning(
-                f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
+            logger = create_logger("read config")
+
+            if section.endswith("_reverse"):
+                msg = f"""Not found in configuration: '{section.removesuffix("_reverse")}.{option}'. Are you missing the following in your config?
+
+[{section.removesuffix("_reverse")}]
+{option}=some value
+
+    """
+            else:
+                msg = f"""Not found in configuration: '{section}.{option}'. Are you missing the following in your config?
 
 [{section}]
 {option}=some value
 
 """
-            )
+
+            logger.warning(msg)
             raise e
 
     def get(self, section: str, option: str, *args, **kwargs):  # type: ignore
@@ -120,10 +130,11 @@ def get_config() -> ConfigParserMod:
     else:
         global_config_path = "/home/pioreactor/.pioreactor/config.ini"
         local_config_path = "/home/pioreactor/.pioreactor/unit_config.ini"
-        if not os.path.isfile(global_config_path):
-            raise FileNotFoundError(
-                "/home/pioreactor/.pioreactor/config.ini is missing from this Pioreactor. Has it completed initializing? Does it need to connect to a leader?"
-            )
+
+    if not os.path.isfile(global_config_path):
+        raise FileNotFoundError(
+            f"Configuration file at {global_config_path} is missing. Has it completed initializing? Does it need to connect to a leader? Alternatively, use the env variable GLOBAL_CONFIG to specify its location."
+        )
 
     config_files = [global_config_path, local_config_path]
 

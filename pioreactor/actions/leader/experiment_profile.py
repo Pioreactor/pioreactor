@@ -20,51 +20,77 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
 def execute_action(
-    unit: str, experiment: str, job_name: str, action: str, options=None, args=None
+    unit: str, experiment: str, job_name: str, action: str, options=None, args=None, dry_run=False
 ) -> Callable:
     # Handle each action type accordingly
     if action == "start":
         # start the job with the provided parameters
-        return start_job(unit, experiment, job_name, options, args)
+        return start_job(unit, experiment, job_name, options, args, dry_run)
     elif action == "pause":
         # pause the job
-        return pause_job(unit, experiment, job_name)
+        return pause_job(unit, experiment, job_name, dry_run)
     elif action == "resume":
         # resume the job
-        return resume_job(unit, experiment, job_name)
+        return resume_job(unit, experiment, job_name, dry_run)
     elif action == "stop":
         # stop the job
-        return stop_job(unit, experiment, job_name)
+        return stop_job(unit, experiment, job_name, dry_run)
     elif action == "update":
         # update the job with the provided parameters
-        return update_job(unit, experiment, job_name, options)
+        return update_job(unit, experiment, job_name, options, dry_run)
     else:
         raise ValueError(f"Not a valid action: {action}")
 
 
-def start_job(unit, experiment, job_name, options, args):
-    return lambda: publish(
-        f"pioreactor/{unit}/{experiment}/run/{job_name}",
-        encode({"options": options, "args": args}),
-    )
+def start_job(
+    unit: str, experiment: str, job_name: str, options: dict, args: list, dry_run: bool
+) -> Callable:
+    if dry_run:
+        return lambda: print(
+            f"Dry-run: Starting {job_name} on {unit} with options {options} and args {args}."
+        )
+    else:
+        return lambda: publish(
+            f"pioreactor/{unit}/{experiment}/run/{job_name}",
+            encode({"options": options, "args": args}),
+        )
 
 
-def pause_job(unit, experiment, job_name):
-    return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
+def pause_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
+    if dry_run:
+        return lambda: print(f"Dry-run: Pausing {job_name} on {unit}.")
+    else:
+        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "sleeping")
 
 
-def resume_job(unit, experiment, job_name):
-    return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
+def resume_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
+    if dry_run:
+        return lambda: print(f"Dry-run: Resuming {job_name} on {unit}.")
+    else:
+        return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "ready")
 
 
-def stop_job(unit, experiment, job_name):
-    return lambda: publish(f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected")
+def stop_job(unit: str, experiment: str, job_name: str, dry_run: bool) -> Callable:
+    if dry_run:
+        return lambda: print(f"Dry-run: Stopping {job_name} on {unit}.")
+    else:
+        return lambda: publish(
+            f"pioreactor/{unit}/{experiment}/{job_name}/$state/set", "disconnected"
+        )
 
 
-def update_job(unit, experiment, job_name, options):
-    def _update():
-        for setting, value in options.items():
-            publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
+def update_job(unit: str, experiment: str, job_name: str, options: dict, dry_run: bool) -> Callable:
+    if dry_run:
+
+        def _update():
+            for setting, value in options.items():
+                print(f"Dry-run: Updating {setting} to {value} in {job_name} on {unit}.")
+
+    else:
+
+        def _update():
+            for setting, value in options.items():
+                publish(f"pioreactor/{unit}/{experiment}/{job_name}/{setting}/set", value)
 
     return _update
 
@@ -90,16 +116,14 @@ def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
         pass
 
 
-def execute_experiment_profile(profile_filename: str) -> None:
+def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> None:
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
-    logger = create_logger("execute_experiment_profile")
-    with publish_ready_to_disconnected_state(
-        unit, experiment, "execute_experiment_profile"
-    ) as state:
+    logger = create_logger("experiment_profile")
+    with publish_ready_to_disconnected_state(unit, experiment, "experiment_profile") as state:
         profile = load_and_verify_profile_file(profile_filename)
 
-        logger.info(
+        logger.notice(  # type: ignore
             f"Starting profile {profile.experiment_profile_name}, sourced from {profile_filename}."
         )
 
@@ -120,6 +144,7 @@ def execute_experiment_profile(profile_filename: str) -> None:
                         action.type,
                         action.options,
                         action.args,
+                        dry_run,
                     ),
                 )
                 timers.append(t)
@@ -133,7 +158,7 @@ def execute_experiment_profile(profile_filename: str) -> None:
                     t = Timer(
                         hours_to_seconds(action.hours_elapsed),
                         execute_action(
-                            unit, experiment, job, action.type, action.options, action.args
+                            unit, experiment, job, action.type, action.options, action.args, dry_run
                         ),
                     )
                     t.daemon = True
@@ -156,10 +181,25 @@ def execute_experiment_profile(profile_filename: str) -> None:
                 logger.debug("Finished execution. Exiting.")
 
 
-@click.command(name="execute_experiment_profile")
-@click.argument("filename")
-def click_execute_experiment_profile(filename: str) -> None:
+@click.group(name="experiment_profile")
+def click_experiment_profile():
+    pass
+
+
+@click_experiment_profile.command(name="execute")
+@click.argument("filename", type=click.Path(exists=True))
+@click.option("--dry-run", is_flag=True, help="Don't actually execute, just print to screen")
+def click_execute_experiment_profile(filename: str, dry_run: bool) -> None:
     """
     (leader only) Run an experiment profile.
     """
-    return execute_experiment_profile(filename)
+    execute_experiment_profile(filename, dry_run)
+
+
+@click_experiment_profile.command(name="verify")
+@click.argument("filename", type=click.Path(exists=True))
+def click_verify_experiment_profile(filename: str) -> None:
+    """
+    (leader only) Verify an experiment profile.
+    """
+    load_and_verify_profile_file(filename)

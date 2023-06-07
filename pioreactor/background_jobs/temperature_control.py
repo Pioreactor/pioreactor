@@ -44,6 +44,7 @@ from pioreactor.utils.pwm import PWM
 from pioreactor.utils.timing import current_utc_datetime
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.utils.timing import RepeatedTimer
+from pioreactor.utils.timing import to_datetime
 
 
 class TemperatureController(BackgroundJob):
@@ -73,6 +74,14 @@ class TemperatureController(BackgroundJob):
     MAX_TEMP_TO_REDUCE_HEATING = 61.5  # ~PLA glass transition temp
     MAX_TEMP_TO_DISABLE_HEATING = 63.5
     MAX_TEMP_TO_SHUTDOWN = 66.0
+
+    INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
+    INFERENCE_N_SAMPLES: int = 29
+    INFERENCE_EVERY_N_SECONDS: float = 225.0
+    inference_total_time: float = INFERENCE_SAMPLES_EVERY_T_SECONDS * INFERENCE_N_SAMPLES
+    # PWM is on for (INFERENCE_EVERY_N_SECONDS - inference_total_time) seconds
+    # the ratio of time a PWM is on is equal to (INFERENCE_EVERY_N_SECONDS - inference_total_time) / INFERENCE_EVERY_N_SECONDS
+
     job_name = "temperature_control"
 
     available_automations = {}  # type: ignore
@@ -118,14 +127,15 @@ class TemperatureController(BackgroundJob):
             self.tmp_driver = TMP1075(address=hardware.TEMP)
             self.read_external_temperature_timer = RepeatedTimer(
                 53,
-                self.read_external_temperature_and_check_temp,
+                self.read_external_temperature,
                 run_immediately=False,
             ).start()
 
             self.publish_temperature_timer = RepeatedTimer(
-                4 * 60 - 15,  # starting to move this down...
-                self.evaluate_temperature,
-                run_after=90,  # 90 is how long PWM is active for during a cycle (see evaluate_temperature's constants). This gives an automation a "full" cycle to be on.
+                int(self.INFERENCE_EVERY_N_SECONDS),
+                self.infer_temperature,
+                run_after=self.INFERENCE_EVERY_N_SECONDS
+                - self.inference_total_time,  # This gives an automation a "full" PWM cycle to be on before an inference starts.
                 run_immediately=True,
             ).start()
 
@@ -153,10 +163,22 @@ class TemperatureController(BackgroundJob):
         self.automation_name = self.automation.automation_name
 
         if not self.using_third_party_thermocouple:
-            self.temperature = Temperature(
-                temperature=self.read_external_temperature(),
-                timestamp=current_utc_datetime(),
-            )
+            if whoami.is_testing_env() or self._seconds_since_last_active() >= 10:
+                # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
+                self.temperature = Temperature(
+                    temperature=self.read_external_temperature(),
+                    timestamp=current_utc_datetime(),
+                )
+
+    @staticmethod
+    def _seconds_since_last_active() -> float:
+        with local_intermittent_storage("last_heating_timestamp") as cache:
+            if "last_heating_timestamp" in cache:
+                return (
+                    current_utc_datetime() - to_datetime(cache["last_heating_timestamp"])
+                ).total_seconds()
+            else:
+                return 1_000_000
 
     def turn_off_heater(self) -> None:
         self._update_heater(0)
@@ -188,14 +210,13 @@ class TemperatureController(BackgroundJob):
         """
         return self.update_heater(self.heater_duty_cycle + delta_duty_cycle)
 
-    def read_external_temperature_and_check_temp(self):
-        self._check_if_exceeds_max_temp(self.read_external_temperature())
-
     def read_external_temperature(self) -> float:
+        return self._check_if_exceeds_max_temp(self._read_external_temperature())
+
+    def _read_external_temperature(self) -> float:
         """
         Read the current temperature from our sensor, in Celsius
         """
-        retries = 0
         running_sum, running_count = 0.0, 0
         try:
             # check temp is fast, let's do it a few times to reduce variance.
@@ -205,12 +226,10 @@ class TemperatureController(BackgroundJob):
                 sleep(0.05)
 
         except OSError as e:
-            retries += 1
-            if retries >= 3:
-                self.logger.debug(e, exc_info=True)
-                raise exc.HardwareNotFoundError(
-                    "Is the Heating PCB attached to the Pioreactor HAT? Unable to find temperature sensor."
-                )
+            self.logger.debug(e, exc_info=True)
+            raise exc.HardwareNotFoundError(
+                "Is the Heating PCB attached to the Pioreactor HAT? Unable to find temperature sensor."
+            )
 
         averaged_temp = running_sum / running_count
         if averaged_temp == 0.0 and self.automation_name != "only_record_temperature":
@@ -242,7 +261,9 @@ class TemperatureController(BackgroundJob):
             self.logger.debug(
                 "Bypassing changing automations, and just updating the setting on the existing Thermostat automation."
             )
-            self.automation_job.target_temperature = float(algo_metadata.args["target_temperature"])
+            self.automation_job.set_target_temperature(
+                float(algo_metadata.args["target_temperature"])
+            )
             self.automation = algo_metadata
             return
 
@@ -290,7 +311,7 @@ class TemperatureController(BackgroundJob):
 
         return True
 
-    def _check_if_exceeds_max_temp(self, temp: float) -> None:
+    def _check_if_exceeds_max_temp(self, temp: float) -> float:
         if temp > self.MAX_TEMP_TO_SHUTDOWN:
             self.logger.error(
                 f"Temperature of heating surface has exceeded {self.MAX_TEMP_TO_SHUTDOWN}℃ - currently {temp}℃. This is beyond our recommendations. Shutting down Raspberry Pi to prevent further problems. Take caution when touching the heating surface and wetware."
@@ -324,6 +345,8 @@ class TemperatureController(BackgroundJob):
 
             self._update_heater(self.heater_duty_cycle * 0.9)
 
+        return temp
+
     def on_sleeping(self) -> None:
         self.automation_job.set_state(self.SLEEPING)
 
@@ -346,7 +369,7 @@ class TemperatureController(BackgroundJob):
             cache["last_heating_timestamp"] = current_utc_timestamp()
 
     def setup_pwm(self) -> PWM:
-        hertz = 6  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
+        hertz = 8  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
         # impact (mainly: current sink), over the second. Ex: imagine freq=1hz, dc=40%, and the pump needs to run for
         # 0.3s. The influence of when the heat is one on the pump can be significant in a power-constrained system.
         pin = hardware.PWM_TO_PIN[hardware.HEATER_PWM_TO_PIN]
@@ -359,7 +382,7 @@ class TemperatureController(BackgroundJob):
         # TODO: improve somehow
         return 22.0
 
-    def evaluate_temperature(self) -> None:
+    def infer_temperature(self) -> None:
         """
         1. lock PWM and turn off heater
         2. start recording temperatures from the sensor
@@ -368,9 +391,9 @@ class TemperatureController(BackgroundJob):
         5. return heater to previous DC value and unlock heater
         """
 
-        # we pause heating for (N_sample_points * time_between_samples) seconds
-        N_sample_points = 29
-        time_between_samples = 5
+        # this will pause heating for (N_sample_points * time_between_samples) seconds
+        N_sample_points = self.INFERENCE_N_SAMPLES
+        time_between_samples = self.INFERENCE_SAMPLES_EVERY_T_SECONDS
 
         assert not self.pwm.is_locked(), "PWM is locked - it shouldn't be though!"
         with self.pwm.lock_temporarily():
@@ -416,6 +439,7 @@ class TemperatureController(BackgroundJob):
                 temperature=self.approximate_temperature(features),
                 timestamp=current_utc_datetime(),
             )
+
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error(e)

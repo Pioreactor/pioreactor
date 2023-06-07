@@ -46,12 +46,16 @@ class Thermostat(TemperatureAutomationJob):
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
         self.update_heater_with_delta(output)
         self.logger.debug(f"PID output = {output}")
+
+        if (self.target_temperature - self.latest_temperature > 0) and self.heater_duty_cycle >= 98:
+            self.logger.warning(
+                f"Target temperature {self.target_temperature} unlikely to be able to be achieved. Try raising the ambient temperature."
+            )
+
         return UpdatedHeaterDC(
             f"delta_dc={output}",
             data={
-                "current_dc": None
-                if self.temperature_control_parent is None
-                else self.temperature_control_parent.heater_duty_cycle,
+                "current_dc": self.heater_duty_cycle,
                 "delta_dc": output,
             },
         )

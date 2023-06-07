@@ -1326,8 +1326,8 @@ def test_vial_volume_is_published():
             assert float(result.payload) == 14
 
 
-def test_vial_volume_calcualtor():
-    # let's start from 0, and start adding.
+def test_vial_volume_calculator():
+    # let's start from 0 volume, and start adding.
     vc = VialVolumeCalculator
     current_volume = 0.0
 
@@ -1371,7 +1371,7 @@ def test_vial_volume_calcualtor():
     current_volume = vc.update(event, current_volume)
     assert current_volume == 15
 
-    # try to remove 3ml
+    # try to remove 3ml, should not fall below minimum
     event = DosingEvent(
         volume_change=3,
         event="remove_waste",
@@ -1380,7 +1380,7 @@ def test_vial_volume_calcualtor():
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume != 12
-    assert current_volume == 14
+    assert current_volume == 14  # TODO: this is equal to [bioreactor].max_volume_ml
 
     # add 2 more
     event = DosingEvent(
@@ -1401,6 +1401,16 @@ def test_vial_volume_calcualtor():
     )
     current_volume = vc.update(event, current_volume)
     assert current_volume == 15
+
+    # remove 10ml manually
+    event = DosingEvent(
+        volume_change=10,
+        event="remove_waste",
+        timestamp=default_datetime_for_pioreactor(7),
+        source_of_event="manually",
+    )
+    current_volume = vc.update(event, current_volume)
+    assert current_volume == 5
 
 
 def test_alt_media_calcualtor_from_0_volume():

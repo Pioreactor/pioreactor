@@ -252,7 +252,7 @@ class Stirrer(BackgroundJob):
 
         # set up thread to periodically check the rpm
         self.rpm_check_repeated_thread = RepeatedTimer(
-            23,
+            config.getfloat("stirring", "duration_between_updates_seconds", fallback=23.0),
             self.poll_and_update_dc,
             job_name=self.job_name,
             run_immediately=True,
@@ -362,7 +362,7 @@ class Stirrer(BackgroundJob):
 
         if recent_rpm == 0 and self.state == self.READY and not is_testing_env():
             self.logger.warning(
-                "Stirring RPM is 0 - attempting to restart it automatically. Target RPM may be too low."
+                "Stirring RPM is 0 - attempting to restart it automatically. Target RPM may be too low, or not reading sensor correctly."
             )
             self.blink_error_code(error_codes.STIRRING_FAILED)
 
@@ -378,7 +378,7 @@ class Stirrer(BackgroundJob):
     def poll_and_update_dc(self, poll_for_seconds: float = 4) -> None:
         self.poll(poll_for_seconds)
 
-        if self._measured_rpm is None:
+        if self._measured_rpm is None or self.state != self.READY:
             return
 
         result = self.pid.update(self._measured_rpm)
@@ -425,7 +425,7 @@ class Stirrer(BackgroundJob):
 
         """
         running_wait_time = 0.0
-        sleep_time = 0.5
+        sleep_time = 0.2
 
         if (self.rpm_calculator is None) or is_testing_env():
             # can't block if we aren't recording the RPM

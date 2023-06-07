@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-# test_execute_experiment_profile.py
 from __future__ import annotations
 
 from unittest.mock import patch
 
-from pioreactor.actions.leader.execute_experiment_profile import execute_experiment_profile
-from pioreactor.actions.leader.execute_experiment_profile import hours_to_seconds
+from pioreactor.actions.leader.experiment_profile import execute_experiment_profile
+from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.experiment_profiles.profile_struct import Action
 from pioreactor.experiment_profiles.profile_struct import Metadata
 from pioreactor.experiment_profiles.profile_struct import Plugin
@@ -21,7 +20,7 @@ def test_hours_to_seconds():
 
 
 # Test execute_experiment_profile function
-@patch("pioreactor.actions.leader.execute_experiment_profile.load_and_verify_profile_file")
+@patch("pioreactor.actions.leader.experiment_profile.load_and_verify_profile_file")
 def test_execute_experiment_profile_order(mock_load_and_verify_profile_file):
     # Setup some test data
     action1 = Action(type="start", hours_elapsed=0 / 60 / 60)

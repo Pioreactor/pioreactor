@@ -10,8 +10,6 @@ from msgspec import Struct
 class Metadata(Struct):
     author: t.Optional[str] = None
     description: t.Optional[str] = None
-    media_used: t.Optional[str] = None
-    organism_used: t.Optional[str] = None
 
 
 class Plugin(Struct):
@@ -19,7 +17,7 @@ class Plugin(Struct):
     version: str
 
 
-class Action(Struct):
+class Action(Struct, forbid_unknown_fields=True):
     type: t.Literal["start", "pause", "resume", "stop", "update"]
     hours_elapsed: float
     options: dict[str, t.Any] = {}

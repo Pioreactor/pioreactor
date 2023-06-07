@@ -16,4 +16,4 @@ Purchase [on our website](https://pioreactor.com/).
 
 ### Documentation
 
-All the documentation is [available in our wiki](https://docs.pioreactor.com/).
+All the documentation is [available on our docs site](https://docs.pioreactor.com/).

@@ -28,15 +28,6 @@ from pioreactor.whoami import is_testing_env
 ALL_LED_CHANNELS: list[LedChannel] = ["A", "B", "C", "D"]
 
 
-def _list(x) -> list:
-    if isinstance(x, list):
-        return x
-    elif isinstance(x, tuple):
-        return list(x)
-    else:
-        return [x]
-
-
 @contextmanager
 def change_leds_intensities_temporarily(
     desired_state: dict[LedChannel, LedIntensityValue],

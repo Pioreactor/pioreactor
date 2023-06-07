@@ -6,6 +6,19 @@ from typing import Generator
 from typing import Optional
 
 
+def cp_file_across_cluster(unit: str, localpath: str, remotepath: str):
+    from sh import rsync  # type: ignore
+
+    rsync(
+        "-z",
+        "--inplace",
+        "-e",
+        "ssh",
+        localpath,
+        f"{add_local(unit)}:{remotepath}",
+    )
+
+
 def is_using_local_access_point() -> bool:
     return os.path.isfile("/boot/local_access_point")
 

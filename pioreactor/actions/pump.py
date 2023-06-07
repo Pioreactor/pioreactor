@@ -153,6 +153,29 @@ def _get_calibration(pump_type: str) -> structs.AnyPumpCalibration:
             )
 
 
+def _publish_pump_action(
+    pump_action: str,
+    ml: pt.mL,
+    mqtt_client: Client,
+    unit: Optional[str] = None,
+    experiment: Optional[str] = None,
+    source_of_event: Optional[str] = None,
+) -> structs.DosingEvent:
+    dosing_event = structs.DosingEvent(
+        volume_change=ml,
+        event=pump_action,
+        source_of_event=source_of_event,
+        timestamp=current_utc_datetime(),
+    )
+
+    mqtt_client.publish(
+        f"pioreactor/{unit}/{experiment}/dosing_events",
+        encode(dosing_event),
+        qos=QOS.EXACTLY_ONCE,
+    )
+    return dosing_event
+
+
 def _pump_action(
     pump_type: str,
     unit: Optional[str] = None,
@@ -163,6 +186,7 @@ def _pump_action(
     calibration: Optional[structs.AnyPumpCalibration] = None,
     continuously: bool = False,
     config=config,  # techdebt, don't use
+    manually: bool = False,
 ) -> pt.mL:
     """
     Returns the mL cycled. However,
@@ -202,7 +226,13 @@ def _pump_action(
         client = state.client
 
         with PWMPump(unit, experiment, pin, calibration=calibration, mqtt_client=client) as pump:
-            if ml is not None:
+            if manually:
+                assert ml is not None
+                ml = float(ml)
+                assert ml >= 0, "ml should be greater than or equal to 0"
+                duration = 0.0
+                logger.info(f"{round(ml, 2)}mL (added manually)")
+            elif ml is not None:
                 ml = float(ml)
                 if calibration is None:
                     raise exc.CalibrationError(
@@ -235,22 +265,15 @@ def _pump_action(
             assert isinstance(duration, pt.Seconds)
 
             # publish this first, as downstream jobs need to know about it.
-            dosing_event = structs.DosingEvent(
-                volume_change=ml,
-                event=action_name,
-                source_of_event=source_of_event,
-                timestamp=current_utc_datetime(),
-            )
-
-            client.publish(
-                f"pioreactor/{unit}/{experiment}/dosing_events",
-                encode(dosing_event),
-                qos=QOS.EXACTLY_ONCE,
+            dosing_event = _publish_pump_action(
+                action_name, ml, client, unit, experiment, source_of_event
             )
 
             pump_start_time = time.monotonic()
 
-            if not continuously:
+            if manually:
+                return 0.0
+            elif not continuously:
                 pump.by_duration(duration, block=False)
 
                 # how does this work? What's up with the (or True)?
@@ -398,6 +421,7 @@ add_alt_media = partial(_pump_action, "alt_media")
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--manually", is_flag=True, help="The media is manually added (don't run pumps)")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -409,6 +433,7 @@ def click_add_alt_media(
     duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
+    manually: bool,
 ):
     """
     Remove waste/media from unit
@@ -423,6 +448,7 @@ def click_add_alt_media(
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,
+        manually=manually,
     )
 
 
@@ -430,6 +456,7 @@ def click_add_alt_media(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--manually", is_flag=True, help="The media is manually removed (don't run pumps)")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -441,6 +468,7 @@ def click_remove_waste(
     duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
+    manually: bool,
 ):
     """
     Remove waste/media from unit
@@ -455,6 +483,7 @@ def click_remove_waste(
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,
+        manually=manually,
     )
 
 
@@ -462,6 +491,7 @@ def click_remove_waste(
 @click.option("--ml", type=float)
 @click.option("--duration", type=float)
 @click.option("--continuously", is_flag=True, help="continuously run until stopped.")
+@click.option("--manually", is_flag=True, help="The media is manually added (don't run pumps)")
 @click.option(
     "--source-of-event",
     default="CLI",
@@ -473,6 +503,7 @@ def click_add_media(
     duration: Optional[pt.Seconds],
     continuously: bool,
     source_of_event: Optional[str],
+    manually: bool,
 ):
     """
     Add media to unit
@@ -487,4 +518,5 @@ def click_add_media(
         source_of_event=source_of_event,
         unit=unit,
         experiment=experiment,
+        manually=manually,
     )

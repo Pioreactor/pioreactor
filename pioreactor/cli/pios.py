@@ -15,6 +15,7 @@ from pioreactor.config import get_leader_hostname
 from pioreactor.config import get_workers_in_inventory
 from pioreactor.logging import create_logger
 from pioreactor.utils.networking import add_local
+from pioreactor.utils.networking import cp_file_across_cluster
 from pioreactor.utils.timing import current_utc_timestamp
 from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_latest_experiment_name
@@ -97,35 +98,20 @@ if am_I_leader():
         Note: this function occurs in a thread
         """
 
-        from sh import rsync  # type: ignore
-
         # move the global config.ini
         # there was a bug where if the leader == unit, the config.ini would get wiped
         if (get_leader_hostname() != unit) and shared:
             localpath = "/home/pioreactor/.pioreactor/config.ini"
             remotepath = "/home/pioreactor/.pioreactor/config.ini"
-            rsync(
-                "-z",
-                "--inplace",
-                "-e",
-                "ssh",
-                localpath,
-                f"{add_local(unit)}:{remotepath}",
-            )
+            cp_file_across_cluster(unit, localpath, remotepath)
 
         # move the specific unit config.ini
         if specific:
             try:
                 localpath = f"/home/pioreactor/.pioreactor/config_{unit}.ini"
                 remotepath = "/home/pioreactor/.pioreactor/unit_config.ini"
-                rsync(
-                    "-z",
-                    "--inplace",
-                    "-e",
-                    "ssh",
-                    localpath,
-                    f"{add_local(unit)}:{remotepath}",
-                )
+                cp_file_across_cluster(unit, localpath, remotepath)
+
             except Exception as e:
                 click.echo(
                     f"Did you forget to create a config_{unit}.ini to deploy to {unit}?",
@@ -133,6 +119,35 @@ if am_I_leader():
                 )
                 raise e
         return
+
+    @pios.command("cp", short_help="cp a file across clusters")
+    @click.argument("filepath", type=click.Path(exists=True))
+    @click.option(
+        "--units",
+        multiple=True,
+        default=(UNIVERSAL_IDENTIFIER,),
+        type=click.STRING,
+        help="specify a Pioreactor name, default is all active units",
+    )
+    def cp(
+        filepath: str,
+        units: tuple[str, ...],
+    ) -> None:
+        logger = create_logger("cp", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        units = remove_leader(universal_identifier_to_all_workers(units))
+
+        def _thread_function(unit: str) -> bool:
+            logger.debug(f"Moving {filepath} to {unit}...")
+            try:
+                cp_file_across_cluster(unit, filepath, filepath)
+                return True
+            except Exception as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(f"Error occurred: {e}.", exc_info=True)
+                return False
+
+        for unit in units:
+            _thread_function(unit)
 
     @pios.command("update", short_help="update PioreactorApp on workers")
     @click.option(

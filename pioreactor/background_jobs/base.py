@@ -89,6 +89,17 @@ class PostInitCaller(type):
         return obj
 
 
+# these are used elsewhere in our software
+DISALLOWED_JOB_NAMES = {
+    "run",
+    "dosing_events",
+    "leds",
+    "led_change_events",
+    "unit_label",
+    "pwm",
+}
+
+
 class _BackgroundJob(metaclass=PostInitCaller):
 
     """
@@ -216,6 +227,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # initial state is disconnected
     state: pt.JobState = DISCONNECTED
     job_name: str = "background_job"
+    _clean: bool = False
 
     # published_settings is typically overwritten in the subclasses. Attributes here will
     # be published to MQTT and available settable attributes will be editable. Currently supported
@@ -224,26 +236,15 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # See pt.PublishableSetting type
     published_settings: dict[str, pt.PublishableSetting] = dict()
 
-    # these are used elsewhere in our software
-    DISALLOWED_JOB_NAMES = {
-        "run",
-        "dosing_events",
-        "leds",
-        "led_change_events",
-        "unit_label",
-        "pwm",
-    }
-
     def __init__(self, experiment: str, unit: str, source: str = "app") -> None:
-        if self.job_name in self.DISALLOWED_JOB_NAMES:
+        if self.job_name in DISALLOWED_JOB_NAMES:
             raise ValueError("Job name not allowed.")
-        if self.job_name.lower() != self.job_name:
+        if not self.job_name.islower():
             raise ValueError("Job name should be all lowercase.")
 
         self.experiment = experiment
         self.unit = unit
         self._source = source
-        self._clean = False
 
         self.logger = create_logger(
             self.job_name,
@@ -282,7 +283,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
         try:
             # this is one function in the __init__ that we may deliberately raise an error
             # if we do raise an error, the class needs to be cleaned up correctly
-            # (hence the _cleanup bit, don't use set_state, as it will no-op since we are already in state DISCONNECTED)
+            # (hence the _cleanup bit, don't use set_state)
             # but we still raise the error afterwards.
             self._check_published_settings(self.published_settings)
             self._publish_properties_to_broker(self.published_settings)
@@ -294,10 +295,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
             self._clean_up_resources()
             raise e
 
-        # this happens _after_ pub clients are set up
-        # The following is implicity done, too, in add_to_published_settings
-        # self._publish_properties_to_broker(self.published_settings)
-
+        # this should happen _after_ pub clients are set up
         self.start_general_passive_listeners()
 
         # next thing that run is the subclasses __init__
@@ -980,6 +978,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
         1.0  # WARNING: this may change slightly in the future, don't depend on this too much.
     )
     sneak_in_timer: RepeatedTimer
+    is_after_period: bool = False
 
     def __init__(self, *args, source="app", **kwargs) -> None:
         super().__init__(*args, source=source, **kwargs)  # type: ignore
@@ -1067,6 +1066,7 @@ class BackgroundJobWithDodging(_BackgroundJob):
 
             self.action_to_do_after_od_reading()
             sleep(ads_interval - self.OD_READING_DURATION - (post_delay + pre_delay))
+            self.is_after_period = False
             self.action_to_do_before_od_reading()
 
         # this could fail in the following way:

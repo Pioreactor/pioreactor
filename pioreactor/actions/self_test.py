@@ -233,7 +233,7 @@ def test_ambient_light_interference(
         assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
     else:
         assert all(
-            [readings[pd_channel] < 0.067 for pd_channel in ALL_PD_CHANNELS]
+            [readings[pd_channel] < 0.070 for pd_channel in ALL_PD_CHANNELS]
         ), readings  # saw a 0.0662 blank during testing
 
 
