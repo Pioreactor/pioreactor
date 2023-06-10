@@ -934,7 +934,7 @@ class BackgroundJobContrib(_BackgroundJob):
     """
 
     def __init__(self, experiment: str, unit: str, plugin_name: str) -> None:
-        super().__init__(experiment=experiment, unit=unit, source="app")
+        super().__init__(experiment=experiment, unit=unit, source=plugin_name)
 
 
 class BackgroundJobWithDodging(_BackgroundJob):
