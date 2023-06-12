@@ -21,6 +21,7 @@ from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -38,7 +39,7 @@ def pios() -> None:
         raise click.Abort()
 
     if len(get_active_workers_in_inventory()) == 0:
-        logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         logger.warning("No active workers. See `cluster.inventory` section in config.ini.")
 
 
@@ -133,7 +134,7 @@ if am_I_leader():
         filepath: str,
         units: tuple[str, ...],
     ) -> None:
-        logger = create_logger("cp", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = remove_leader(universal_identifier_to_all_workers(units))
 
         def _thread_function(unit: str) -> bool:
@@ -172,9 +173,7 @@ if am_I_leader():
 
         # type: ignore
 
-        logger = create_logger(
-            "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
-        )
+        logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
             command = f"pio update app -v {version}"
         elif branch is not None:
@@ -227,7 +226,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_1  # type: ignore
 
         logger = create_logger(
-            "install_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            "install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
 
         command = f"pio install-plugin {plugin}"
@@ -272,7 +271,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_1  # type: ignore
 
         logger = create_logger(
-            "uninstall_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            "uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
 
         command = f"pio uninstall-plugin {plugin}"
@@ -328,7 +327,7 @@ if am_I_leader():
         If neither `--shared` not `--specific` are specified, both are set to true.
         """
         logger = create_logger(
-            "sync_configs", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            "sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
         units = universal_identifier_to_all_workers(units)
 
@@ -400,7 +399,7 @@ if am_I_leader():
         command = f"pio kill {' '.join(job)}"
         command += "--all-jobs" if all_jobs else ""
 
-        logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         def _thread_function(unit: str):
             logger.debug(f"Executing `{command}` on {unit}.")
@@ -486,16 +485,12 @@ if am_I_leader():
                 ssh(add_local(unit), command)
                 return True
             except ErrorReturnCode_255 as e:
-                logger = create_logger(
-                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-                )
+                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
                 logger.debug(e, exc_info=True)
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
             except ErrorReturnCode_1 as e:
-                logger = create_logger(
-                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-                )
+                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
                 logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
@@ -542,9 +537,7 @@ if am_I_leader():
                 ssh(add_local(unit), command)
                 return True
             except ErrorReturnCode_255 as e:
-                logger = create_logger(
-                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-                )
+                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
                 logger.debug(e, exc_info=True)
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False

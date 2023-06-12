@@ -646,7 +646,8 @@ if whoami.am_I_leader():
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("hostname")
-    def add_pioreactor(hostname: str) -> None:
+    @click.option("--password", "-p", default="raspberry")
+    def add_pioreactor(hostname: str, password: str) -> None:
         """
         Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
 
@@ -682,7 +683,7 @@ if whoami.am_I_leader():
                     raise click.Abort()
 
         res = subprocess.run(
-            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname],
+            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname, password],
             capture_output=True,
             text=True,
         )

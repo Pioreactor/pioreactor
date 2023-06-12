@@ -5,7 +5,7 @@
 
 #### Everything else
  - Fixed `source` in `BackgroundJobContrib` - thanks @odcambc!
- - `pio add-pioreactor` will now accept a second argument that is the password of the RPi being added (default: `raspberry`).
+ - `pio add-pioreactor` will now accept an option that is the password of the RPi being added (default: `raspberry`). Ex: `pio add-pioreactor worker1 -p mypass`
  - Improved some warning and error messages.
 
 
