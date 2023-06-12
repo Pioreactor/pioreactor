@@ -7,8 +7,10 @@ export LC_ALL=C
 
 
 
-sudo mkdir /home/pioreactor/.pioreactor/experiment_profiles/
 
+sudo mkdir -p /home/pioreactor/.pioreactor/experiment_profiles/
+
+if [ ! -f /home/pioreactor/.pioreactor/experiment_profiles/demo_stirring_example.yaml ]; then
 cat <<EOT >> /home/pioreactor/.pioreactor/experiment_profiles/demo_stirring_example.yaml
 experiment_profile_name: demo_stirring_example
 
@@ -30,8 +32,9 @@ common:
       - type: stop
         hours_elapsed: 0.05
 EOT
+fi
 
-
+if [ ! -f /home/pioreactor/.pioreactor/experiment_profiles/complex_example.yaml ]; then
 cat <<EOT >> /home/pioreactor/.pioreactor/experiment_profiles/complex_example.yaml
 experiment_profile_name: complex_example
 
@@ -62,6 +65,7 @@ common:
       - type: start
         hours_elapsed: 0.33
 EOT
+fi
 
 sudo chown pioreactor:pioreactor /home/pioreactor/.pioreactor/experiment_profiles/
 sudo chown pioreactor:pioreactor /home/pioreactor/.pioreactor/experiment_profiles/*

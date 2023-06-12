@@ -130,6 +130,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     https://asciiflow.com/#/share/eJzNVEsKgzAQvYrM2lW7Uc%2BSjehQAmksmoIi3qJ4kC7F0%2FQkTS0tRE0crYuGWWSEeZ95wRpkfEaI5FUIH0RcYQ4R1AxKBlEYhD6DSt8OwVHfFJZKNww8wnnc%2BsViTBKhjOYzRqHYXm2nKURWqBdT2xFsGDrnDYytzLsioEzVjr5sQ7b2GoOyNWOGWCbn2pzewizaR0bmyCab%2BAJyyRVJ0PBSvBzjtFphQE%2BlvEgyKTFRmBrU%2B3rZIzXL%2B3Kn1t4dqXn2M6Cafqbu%2FxxicYHUSBZpHC0VoBCIFy5PP%2F9TV%2Bgkb87BBg00T7Hk%2FaY%3D)
 
+    states-mermaid-diagram
+        init --> ready
+        init --> lost
+        ready --> lost
+        ready --> disconnected
+        ready --> sleeping
+        sleeping --> ready
+        sleeping --> lost
+        sleeping --> disconnected
+        disconnected --> lost
+
+
     1. The job starts in `init`,
         - we publish `published_settings`: a list of variables that will be sent to the broker on initialization and retained.
         - we set up how to disconnect

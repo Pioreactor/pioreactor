@@ -353,7 +353,7 @@ class Stirrer(BackgroundJob):
         if self.rpm_calculator is None:
             return None
 
-        recent_rpm = self.rpm_calculator(poll_for_seconds)
+        recent_rpm = round(self.rpm_calculator(poll_for_seconds), 1)
 
         self._measured_rpm = recent_rpm
         self.measured_rpm = structs.MeasuredRPM(
