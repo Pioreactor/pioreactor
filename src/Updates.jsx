@@ -12,11 +12,13 @@ import Snackbar from '@mui/material/Snackbar';
 import Link from '@mui/material/Link';
 import UpdateIcon from '@mui/icons-material/Update';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useConfirm } from 'material-ui-confirm';
 import LoadingButton from '@mui/lab/LoadingButton';
 import UnderlineSpan from "./components/UnderlineSpan";
+import SelectButton from "./components/SelectButton";
 
 
 const useStyles = makeStyles((theme) => ({
@@ -41,16 +43,21 @@ function UpdateToLatestConfirmDialog(props) {
   const confirm = useConfirm();
   const [updating, setUpdating] = React.useState(false)
   const [openSnackbar, setOpenSnackbar] = React.useState(false)
+  const [installDev, setInstallDev] = React.useState(false)
 
   const updateVersion = () => {
     setOpenSnackbar(true)
-    fetch("/api/update_app", {method: "POST"})
+    if (installDev){
+      fetch("/api/update_app_to_develop", {method: "POST"})
+    } else {
+      fetch("/api/update_app", {method: "POST"})
+    }
   }
 
   const handleClick = () => {
     confirm({
       description: 'To avoid possible data interruptions, we suggest updating between running experiments.',
-      title: "Update to next release?",
+      title: installDev ? "Update to development?" : "Update to next release?" ,
       confirmationText: "Update now",
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
@@ -64,18 +71,17 @@ function UpdateToLatestConfirmDialog(props) {
 
   return (
     <React.Fragment>
-      <LoadingButton
+      <SelectButton
+        buttonStyle={{textTransform: 'none'}}
+        value={installDev ? "development" : "latest"}
         onClick={handleClick}
-        style={{textTransform: 'none', float: "right", marginRight: "0px", marginLeft: "10px"}}
-        color="primary"
-        variant="contained"
-        endIcon={<UpdateIcon/>}
-        disabled={!props.isAvailable}
-        loading={updating}
-        loadingPosition="end"
-        >
-          Update to latest release
-      </LoadingButton>
+        onChange={({ target: { value } }) =>
+          setInstallDev(value === "development")
+        }
+      >
+        <MenuItem value={"latest"}>Update to next release</MenuItem>
+        <MenuItem value={"development"}>Update to development</MenuItem>
+      </SelectButton>
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
@@ -138,8 +144,10 @@ function PageHeader(props) {
             Updates
           </Box>
         </Typography>
-        <div >
-          <UpdateToLatestConfirmDialog isAvailable={(version !== "") && (latestVersion !== "") && (version !== latestVersion) } />
+        <div>
+          <div style={{float: "right", marginRight: "0px", marginLeft: "10px"}}>
+            <UpdateToLatestConfirmDialog />
+          </div>
           <Link color="inherit" underline="none" href={`https://github.com/Pioreactor/pioreactor/releases/tag/${latestVersion}`} target="_blank" rel="noopener noreferrer">
             <Button style={{textTransform: 'none', float: "right", marginRight: "0px"}} color="primary">
               <OpenInNewIcon fontSize="15" classes={{root: classes.textIcon}}/> View latest release

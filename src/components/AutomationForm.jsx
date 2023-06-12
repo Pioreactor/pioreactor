@@ -36,7 +36,6 @@ function AutomationForm(props){
           disabled={field.disabled}
           InputProps={{
             endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment>,
-            shrink: true
           }}
           variant="outlined"
           onChange={onSettingsChange}
