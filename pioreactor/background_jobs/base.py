@@ -313,7 +313,36 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # next thing that run is the subclasses __init__
 
     def __post__init__(self) -> None:
-        # this function is called AFTER the subclass' __init__ finishes
+        """
+        This function is called AFTER the subclass' __init__ finishes successfully
+
+        Typical sequence (doesn't represent not calling stack, but "blocks of code" run)
+
+        P.__init__() # check for duplicate job
+        C.__init__() # risk of job failing here
+        P.__post__init__()  # write metadata to disk
+        P.on_init_to_ready()  # default noop - can be overwritten in sub.
+        P.ready()
+        C.on_ready()
+        """
+
+        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
+            # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
+            # __init__ might fail, and not clean up pio_job_* correctly.
+            # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
+            # sol for authors: move the long-running parts to the on_init_to_ready function.
+            cache["started_at"] = current_utc_timestamp()
+            cache["is_running"] = "1"
+            cache["source"] = self._source
+            cache["experiment"] = self.experiment
+            cache["unit"] = self.unit
+            cache["leader_hostname"] = leader_hostname
+            cache["pid"] = getpid()
+            cache["ended_at"] = ""  # populated later
+
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            cache[self.job_name] = getpid()
+
         self.set_state(self.READY)
 
     def start_passive_listeners(self) -> None:
@@ -687,22 +716,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def ready(self) -> None:
         self.state = self.READY
-        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
-            # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
-            # __init__ might fail, and not clean up pio_job_* correctly.
-            # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
-            # sol for authors: move the long-running parts to the on_init_to_ready function.
-            cache["started_at"] = current_utc_timestamp()
-            cache["is_running"] = "1"
-            cache["source"] = self._source
-            cache["experiment"] = self.experiment
-            cache["unit"] = self.unit
-            cache["leader_hostname"] = leader_hostname
-            cache["pid"] = getpid()
-            cache["ended_at"] = ""  # populated later
-
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            cache[self.job_name] = getpid()
 
         try:
             self.on_ready()
