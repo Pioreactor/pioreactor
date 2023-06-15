@@ -463,8 +463,6 @@ class TemperatureController(BackgroundJob):
         2. We have prior information about what p, q are => we have prior information about A, B. We use this.
            From the equations, B = p + q, A = -p * q, so weak prior in B ~ Normal(-0.143, ...), A = Normal(-0.00042, ....)
         3. Room temp has a moderate impact on inference: ~0.30C over a wide range of values
-
-
         """
 
         if features["previous_heater_dc"] == 0:
@@ -475,7 +473,6 @@ class TemperatureController(BackgroundJob):
 
         times_series = features["time_series_of_temp"]
         room_temp = features["room_temp"]
-
         n = len(times_series)
         y = np.array(times_series) - room_temp
         x = np.arange(n)  # scaled by factor of 1/10 seconds
@@ -488,27 +485,8 @@ class TemperatureController(BackgroundJob):
             SS[i] = SS[i - 1] + 0.5 * (S[i - 1] + S[i]) * (x[i] - x[i - 1])
 
         # priors chosen based on historical data, penalty values pretty arbitrary, note: B = p + q, A = -p * q
-        # TODO: update these priors as we develop more Pioreactors
-        # observed data:
-        #  B=-0.1244534657804866,  A=-0.00012566629719875475 (May 24, 2022)
-        #  B=-0.14928314914531557, A=-0.000376953627819461
-        #  B=-0.13807398778473443, A=-0.00021395682471394434
-        #  B=-0.14123191941209473, A=-0.0005287562253399032 (May 25, 2022)
-        #  B=-0.15192316555127186, A=-0.000894869124798112
-        #  A=-0.001295916914002933, B=-0.17905413150045976 (Sept 13, 2022, two modern Pioreactors)
-        #  A=-0.0010803409392903384, B=-0.17152656184261297
-        #  A=-0.0010674444548854495, B=-0.17115312722794235
-        #  A=-0.0011996267624624331, B=-0.17190309667476145
-        #  A=-0.0011066911804701845, B=-0.17196962637032628
-        #  A=-0.001150016228923988, B=-0.18975899991350298
-        #  A=-0.001082333547509889, B=-0.18685445997491493
-        #  A=-0.0010607908095388548, B=-0.18749701076543562
-        #  A=-0.0010514517340740343, B=-0.18756448817069307
-        #  A=-0.0012910773630121675, B=-0.19066684235126932
-        #  A=-0.0010558024149891808, B=-0.1613921733824975 (Oct 10, 2022)
-
-        A_penalizer, A_prior = 100.0, -0.0011
-        B_penalizer, B_prior = 20.0, -0.170
+        A_penalizer, A_prior = 100.0, -0.0012
+        B_penalizer, B_prior = 50.0, -0.325
 
         M1 = np.array(
             [
@@ -574,12 +552,11 @@ class TemperatureController(BackgroundJob):
             raise ValueError()
 
         alpha, beta = b, p
-        temp_at_start_of_obs = room_temp + alpha * exp(beta * 0)
-        temp_at_end_of_obs = room_temp + alpha * exp(beta * n)
 
-        # This weighting is pretty arbitrary.
+        # this weighting is from evaluating the "average" temp over the period: 1/n int_0^n R + a*exp(b*s) ds
         # cast from numpy float to python float
-        return float(0.5 * temp_at_start_of_obs + 0.5 * temp_at_end_of_obs)
+        return float(room_temp + alpha * exp(beta * n))
+        # return float(room_temp + alpha * (exp(beta * n) - 1)/(beta * n))
 
 
 def start_temperature_control(

@@ -556,11 +556,14 @@ def change_current(name: str) -> None:
 
             current_calibrations[angle] = encode(new_calibration)
 
-        res = patch(
-            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
-            json={"current": 1},
-        )
-        if not res.ok:
+        try:
+            res = patch(
+                f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+                json={"current": 1},
+            )
+            if not res.ok:
+                raise Exception
+        except Exception:
             click.echo("Could not update in database on leader ❌")
 
         if old_calibration:
