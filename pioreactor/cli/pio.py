@@ -116,12 +116,16 @@ def logs(n: int) -> None:
 
 
 @pio.command(name="log", short_help="logs a message from the CLI")
-@click.option("-m", "--message", required=True, type=str, help="the message to append to the log")
+@click.option(
+    "-m", "--message", required=True, type=str, help="the message to append to the log"
+)
 @click.option(
     "-l",
     "--level",
     default="debug",
-    type=click.Choice(["debug", "info", "notice", "warning", "critical"], case_sensitive=False),
+    type=click.Choice(
+        ["debug", "info", "notice", "warning", "critical"], case_sensitive=False
+    ),
 )
 @click.option(
     "-n",
@@ -129,7 +133,9 @@ def logs(n: int) -> None:
     default="CLI",
     type=str,
 )
-@click.option("--local-only", is_flag=True, help="don't send to MQTT; write only to local disk")
+@click.option(
+    "--local-only", is_flag=True, help="don't send to MQTT; write only to local disk"
+)
 def log(message: str, level: str, name: str, local_only: bool):
     try:
         logger = create_logger(
@@ -358,7 +364,9 @@ def update_settings(ctx, job: str) -> None:
     for setting, value in extra_args.items():
         setting = setting.replace("-", "_")
         pubsub.publish(
-            f"pioreactor/{unit}/{exp}/{job}/{setting}/set", value, qos=pubsub.QOS.EXACTLY_ONCE
+            f"pioreactor/{unit}/{exp}/{job}/{setting}/set",
+            value,
+            qos=pubsub.QOS.EXACTLY_ONCE,
         )
 
 
@@ -379,7 +387,9 @@ def get_non_prerelease_tags_of_pioreactor():
     response = get(url, headers=headers)
 
     if not response.ok:
-        raise Exception(f"Failed to retrieve releases (status code: {response.status_code})")
+        raise Exception(
+            f"Failed to retrieve releases (status code: {response.status_code})"
+        )
 
     releases = response.json()
     non_prerelease_tags = []
@@ -419,7 +429,9 @@ def get_tag_to_install(version_desired: Optional[str]) -> str:
             ix = version_history.index(software_version)
 
             if ix >= 1:
-                tag = f"tags/{version_history[ix-1]}"  # update to the succeeding version.
+                tag = (
+                    f"tags/{version_history[ix-1]}"  # update to the succeeding version.
+                )
             elif ix == 0:
                 tag = "latest"  # essentially a re-install?
 
@@ -438,20 +450,26 @@ def get_tag_to_install(version_desired: Optional[str]) -> str:
 @click.option("-b", "--branch", help="install from a branch on github")
 @click.option("--source", help="use a URL or whl file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
-def update_app(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
+def update_app(
+    branch: Optional[str], source: Optional[str], version: Optional[str]
+) -> None:
     """
     Update the Pioreactor core software
     """
 
     logger = create_logger(
-        "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+        "update-app",
+        unit=whoami.get_unit_name(),
+        experiment=whoami.UNIVERSAL_EXPERIMENT,
     )
 
     commands_and_priority: list[tuple[str, int]] = []
 
     if source is not None:
         version_installed = source
-        commands_and_priority.append((f"sudo pip3 install -U --force-reinstall {source}", 1))
+        commands_and_priority.append(
+            (f"sudo pip3 install -U --force-reinstall {source}", 1)
+        )
 
     elif branch is not None:
         version_installed = quote(branch)
@@ -464,7 +482,9 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
 
     else:
         tag = get_tag_to_install(version)
-        response = get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}")
+        response = get(
+            f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}"
+        )
         if response.raise_for_status():
             logger.error(f"Version {version} not found")
             raise click.Abort()
@@ -495,7 +515,9 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                 assert (
                     version_installed in url
                 ), f"Hm, pip installing {url} but this doesn't match version specified for installing: {version_installed}"
-                commands_and_priority.extend([(f'sudo pip3 install "pioreactor @ {url}"', 2)])
+                commands_and_priority.extend(
+                    [(f'sudo pip3 install "pioreactor @ {url}"', 2)]
+                )
             elif asset_name == "update.sh":
                 commands_and_priority.extend(
                     [
@@ -507,7 +529,10 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
                 commands_and_priority.extend(
                     [
                         (f"wget -O /tmp/update.sql {url}", 5),
-                        (f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql', 6),
+                        (
+                            f'sudo sqlite3 {config["storage"]["database"]} < /tmp/update.sql',
+                            6,
+                        ),
                     ]
                 )
             elif asset_name == "post_update.sh":
@@ -545,7 +570,9 @@ def update_firmware(version: Optional[str]) -> None:
     Update the RP2040 firmware
     """
     logger = create_logger(
-        "update-app", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+        "update-app",
+        unit=whoami.get_unit_name(),
+        experiment=whoami.UNIVERSAL_EXPERIMENT,
     )
     commands_and_priority: list[tuple[str, int]] = []
 
@@ -555,7 +582,9 @@ def update_firmware(version: Optional[str]) -> None:
         version = f"tags/{version}"
 
     release_metadata = loads(
-        get(f"https://api.github.com/repos/pioreactor/pico-build/releases/{version}").body
+        get(
+            f"https://api.github.com/repos/pioreactor/pico-build/releases/{version}"
+        ).body
     )
     version_installed = release_metadata["tag_name"]
 
@@ -614,6 +643,7 @@ if whoami.am_I_active_worker():
     run.add_command(actions.stirring_calibration.click_stirring_calibration)
     run.add_command(actions.pump_calibration.click_pump_calibration)
     run.add_command(actions.od_calibration.click_od_calibration)
+    run.add_command(actions.click_od_calibration_from_standards.click_od_calibration)
 
     # TODO: this only adds to `pio run` - what if users want to add a high level command? Examples?
     for plugin in pioreactor.plugin_management.get_plugins().values():
@@ -682,7 +712,11 @@ if whoami.am_I_leader():
                     raise click.Abort()
 
         res = subprocess.run(
-            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname],
+            [
+                "bash",
+                "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh",
+                hostname,
+            ],
             capture_output=True,
             text=True,
         )
@@ -708,7 +742,9 @@ if whoami.am_I_leader():
         for hostname in discover_workers_on_network(terminate):
             click.echo(hostname)
 
-    @pio.command(name="cluster-status", short_help="report information on the pioreactor cluster")
+    @pio.command(
+        name="cluster-status", short_help="report information on the pioreactor cluster"
+    )
     def cluster_status() -> None:
         """
         Note that this only looks at the current cluster as defined in config.ini.
@@ -746,7 +782,9 @@ if whoami.am_I_leader():
 
             ip, state, reachable = get_network_metadata(hostname)
 
-            statef = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
+            statef = click.style(
+                f"{state:15s}", fg="green" if state == "ready" else "red"
+            )
             ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
@@ -754,7 +792,9 @@ if whoami.am_I_leader():
             reachablef = f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):23s}"
             statusf = f"{(click.style('Y', fg='green') if (status == '1') else click.style('N', fg='red')):14s}"
 
-            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf}")
+            click.echo(
+                f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf}"
+            )
             return reachable & (state == "ready")
 
         worker_statuses = list(config["cluster.inventory"].items())
@@ -777,7 +817,9 @@ if whoami.am_I_leader():
     @click.option("-b", "--branch", help="install from a branch on github")
     @click.option("--source", help="use a tar.gz file")
     @click.option("-v", "--version", help="install a specific version")
-    def update_ui(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
+    def update_ui(
+        branch: Optional[str], source: Optional[str], version: Optional[str]
+    ) -> None:
         """
         Update the PioreactorUI
 
@@ -785,7 +827,9 @@ if whoami.am_I_leader():
         This is what is provided from Github releases.
         """
         logger = create_logger(
-            "update-ui", unit=whoami.get_unit_name(), experiment=whoami.UNIVERSAL_EXPERIMENT
+            "update-ui",
+            unit=whoami.get_unit_name(),
+            experiment=whoami.UNIVERSAL_EXPERIMENT,
         )
         commands = []
 
@@ -806,7 +850,9 @@ if whoami.am_I_leader():
 
         else:
             latest_release_metadata = loads(
-                get(f"https://api.github.com/repos/pioreactor/pioreactorui/releases/{version}").body
+                get(
+                    f"https://api.github.com/repos/pioreactor/pioreactorui/releases/{version}"
+                ).body
             )
             version_installed = latest_release_metadata["tag_name"]
             url = f"https://github.com/Pioreactor/pioreactorui/archive/refs/tags/{version_installed}.tar.gz"
@@ -815,7 +861,9 @@ if whoami.am_I_leader():
 
         assert source is not None
         assert version_installed is not None
-        commands.append(["bash", "/usr/local/bin/update_ui.sh", source, version_installed])
+        commands.append(
+            ["bash", "/usr/local/bin/update_ui.sh", source, version_installed]
+        )
 
         for command in commands:
             logger.debug(" ".join(command))

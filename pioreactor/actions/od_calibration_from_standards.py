@@ -38,11 +38,9 @@ def introduction() -> None:
 
     click.clear()
     click.echo(
-        """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
+        """This routine will calibrate the current Pioreactor to (offline) OD600 readings using a set of standards. You'll need:
     1. A Pioreactor
-    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement
-    3. Micro-pipette
-    4. Accurate 10mL measurement tool
+    2. A set of OD600 standards in Pioreactor vials (at least 10 mL in each vial)
 """
     )
 
@@ -65,35 +63,6 @@ def get_metadata_from_user():
             else:
                 break
 
-    initial_od600 = click.prompt(
-        "Provide the OD600 measurement of your initial culture",
-        type=click.FloatRange(min=0.01, clamp=False),
-    )
-
-    minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you want to calibrate to",
-        type=click.FloatRange(min=0, max=initial_od600, clamp=False),
-    )
-
-    while minimum_od600 == initial_od600:
-        minimum_od600 = click.prompt(
-            "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
-            type=click.FloatRange(min=0, max=initial_od600, clamp=False),
-        )
-
-    if minimum_od600 == 0:
-        minimum_od600 = 0.01
-
-    dilution_amount = click.prompt(
-        "Provide the volume to be added to your vial each iteration (default = 1 mL)",
-        default=1,
-        type=click.FloatRange(min=0.01, max=10, clamp=False),
-    )
-
-    number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
-
-    click.echo(f"This will require about {number_of_points} measurements.")
-
     if "REF" not in config["od_config.photodiode_channel_reverse"]:
         raise ValueError("REF required for OD calibration.")
         # technically it's not required? we just need a specific PD channel to calibrate from.
@@ -107,15 +76,14 @@ def get_metadata_from_user():
         default=True,
     )
     angle = str(config["od_config.photodiode_channel"][signal_channel])
-    return name, initial_od600, minimum_od600, dilution_amount, angle, signal_channel
+    return name, angle, signal_channel
 
 
 def setup_HDC_instructions() -> None:
     click.clear()
     click.echo(
         """ Setting up:
-    1. Add 10ml of your culture to the glass vial, with a stir bar. Add cap.
-    2. Place into Pioreactor.
+    1. Place first standard into Pioreactor, with a stir bar.
 """
     )
 
@@ -165,19 +133,9 @@ def plot_data(
     plt.show()
 
 
-def start_recording_and_diluting(
-    st: Stirrer,
-    initial_od600: float,
-    minimum_od600: float,
-    dilution_amount: float,
-    signal_channel,
-):
-    target_rpm = st.target_rpm
-    inferred_od600 = initial_od600
+def start_recording_standards(st: Stirrer, signal_channel):
     voltages = []
-    inferred_od600s = []
-    current_volume_in_vial = initial_volume_in_vial = 10.0
-    n_samples = int((20 - initial_volume_in_vial) / dilution_amount)
+    od600_values = []
     click.echo("Starting OD recordings.")
 
     with start_od_reading(
@@ -202,105 +160,64 @@ def start_recording_and_diluting(
             # warm up
             od_reader.record_from_adc()
 
-        while inferred_od600 > minimum_od600:
-            if inferred_od600 < initial_od600 and click.confirm(
-                "Do you want to enter a new OD600 value for the current density?"
-            ):
-                inferred_od600 = click.prompt("New measured OD600", type=float)
+    while True:
+        click.echo("Recording next standard.")
+        standard_od = click.prompt("Enter OD600 measurement", type=float)
+        for i in range(4):
+            click.echo(".", nl=False)
+            sleep(0.5)
 
-            inferred_od600s.append(inferred_od600)
+        click.echo(".", nl=False)
+        voltage = get_voltage_from_adc()
+        click.echo(".", nl=False)
 
-            voltages.append(get_voltage_from_adc())
+        od600_values.append(standard_od)
+        voltages.append(voltage)
 
-            for i in range(n_samples):
-                click.clear()
-                plot_data(
-                    inferred_od600s,
-                    voltages,
-                    title="OD Calibration (ongoing)",
-                    x_min=minimum_od600,
-                    x_max=initial_od600,
-                )
-                click.echo()
-                click.secho(
-                    f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
-                    fg="green",
-                )
-                click.echo(f"Add {dilution_amount}ml of DI water to vial.")
+        for i in range(len(od600_values)):
+            click.clear()
+            plot_data(
+                od600_values,
+                voltages,
+                title="OD Calibration (ongoing)",
+                x_min=0,
+                x_max=max(od600_values),
+            )
+            click.echo()
 
-                while not click.confirm("Continue?", default=True):
-                    pass
+        if not click.confirm("Record another OD600 standard?", default=True):
+            break
 
-                current_volume_in_vial = current_volume_in_vial + dilution_amount
-
-                for i in range(4):
-                    click.echo(".", nl=False)
-                    sleep(0.5)
-
-                click.echo(".", nl=False)
-                voltages.append(get_voltage_from_adc())
-                click.echo(".", nl=False)
-
-                inferred_od600 = (
-                    inferred_od600
-                    * (current_volume_in_vial - dilution_amount)
-                    / current_volume_in_vial
-                )
-                inferred_od600s.append(inferred_od600)
-
-                if inferred_od600 <= minimum_od600:
-                    break
-
-            else:
-                # executed if the loop did not break
-                click.clear()
-                plot_data(
-                    inferred_od600s,
-                    voltages,
-                    title="OD Calibration (ongoing)",
-                    x_min=minimum_od600,
-                    x_max=initial_od600,
-                )
-                st.set_target_rpm(0)
-                click.echo()
-                click.echo(click.style("Stop❗", fg="red"))
-                click.echo("Carefully remove vial.")
-                click.echo(
-                    "(Optional: take new OD600 reading with external instrument.)"
-                )
-                click.echo("Reduce volume in vial back to 10ml.")
-                click.echo(
-                    "Confirm vial outside is dry and clean. Place back into Pioreactor."
-                )
-                while not click.confirm("Continue?", default=True):
-                    pass
-                current_volume_in_vial = initial_volume_in_vial
-                st.set_target_rpm(target_rpm)
-                st.block_until_rpm_is_close_to_target(abs_tolerance=120)
-                sleep(1.0)
-
-        click.clear()
-        plot_data(
-            inferred_od600s,
-            voltages,
-            title="OD Calibration (ongoing)",
-            x_min=minimum_od600,
-            x_max=initial_od600,
-        )
-        click.echo("Empty the vial and replace with 10 mL of the media you used.")
-        inferred_od600 = click.prompt("What is the OD600 of your blank?", type=float)
-        click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
+        click.echo()
+        click.echo(click.style("Stop❗", fg="red"))
+        click.echo("Carefully remove vial and replace with next standard.")
+        click.echo("Confirm vial outside is dry and clean.")
         while not click.confirm("Continue?", default=True):
             pass
+        sleep(1.0)
 
-        voltages.append(get_voltage_from_adc())
-        inferred_od600s.append(inferred_od600)
+    click.clear()
+    plot_data(
+        od600_values,
+        voltages,
+        title="OD Calibration (ongoing)",
+        x_min=0,
+        x_max=max(od600_values),
+    )
+    click.echo("Add media blank standard.")
+    od600_blank = click.prompt("What is the OD600 of your blank?", type=float)
+    click.echo("Confirm vial outside is dry and clean. Place into Pioreactor.")
+    while not click.confirm("Continue?", default=True):
+        pass
 
-        return inferred_od600s, voltages
+    voltages.append(get_voltage_from_adc())
+    od600_values.append(od600_blank)
+
+    return od600_values, voltages
 
 
 def calculate_curve_of_best_fit(
-    voltages: list[float], inferred_od600s: list[float], degree: int
+    voltages: list[float], od600_values: list[float], degree: int
 ) -> tuple[list[float], str]:
     import numpy as np
 
@@ -312,7 +229,7 @@ def calculate_curve_of_best_fit(
     weights[-1] = n / 2
 
     try:
-        coefs = np.polyfit(inferred_od600s, voltages, deg=degree, w=weights).tolist()
+        coefs = np.polyfit(od600_values, voltages, deg=degree, w=weights).tolist()
     except Exception:
         click.echo("Unable to fit.")
         coefs = np.zeros(degree).tolist()
@@ -324,14 +241,14 @@ def show_results_and_confirm_with_user(
     curve_data: list[float],
     curve_type: str,
     voltages: list[float],
-    inferred_od600s: list[float],
+    od600_values: list[float],
 ) -> tuple[bool, int]:
     click.clear()
 
     curve_callable = curve_to_callable(curve_type, curve_data)
 
     plot_data(
-        inferred_od600s,
+        od600_values,
         voltages,
         title="OD Calibration with curve of best fit",
         interpolation_curve=curve_callable,
@@ -365,11 +282,9 @@ def save_results(
     curve_data_: list[float],
     curve_type: str,
     voltages: list[float],
-    inferred_od600s: list[float],
+    od600_values: list[float],
     angle,
     name: str,
-    maximum_od600: float,
-    minimum_od600: float,
     signal_channel: pt.PdChannel,
     unit: str,
 ) -> structs.ODCalibration:
@@ -389,14 +304,14 @@ def save_results(
         pioreactor_unit=unit,
         name=name,
         angle=angle,
-        maximum_od600=maximum_od600,
+        maximum_od600=max(od600_values),
         minimum_od600=0,
         minimum_voltage=min(voltages),
         maximum_voltage=max(voltages),
         curve_data_=curve_data_,
         curve_type=curve_type,
         voltages=voltages,
-        inferred_od600s=inferred_od600s,
+        od600_values=od600_values,
         ir_led_intensity=float(config["od_config"]["ir_led_intensity"]),
         pd_channel=signal_channel,
     )
@@ -410,37 +325,34 @@ def save_results(
     return data_blob
 
 
-def od_calibration() -> None:
+def od_calibration_from_standards() -> None:
     unit = get_unit_name()
     experiment = get_latest_testing_experiment_name()
 
     if any(is_pio_job_running(["stirring", "od_reading"])):
         raise ValueError("Stirring and OD reading should be turned off.")
 
-    with publish_ready_to_disconnected_state(unit, experiment, "od_calibration"):
+    with publish_ready_to_disconnected_state(
+        unit, experiment, "od_calibration_from_standards"
+    ):
         introduction()
         (
             name,
-            initial_od600,
-            minimum_od600,
-            dilution_amount,
             angle,
             signal_channel,
         ) = get_metadata_from_user()
         setup_HDC_instructions()
 
         with start_stirring() as st:
-            inferred_od600s, voltages = start_recording_and_diluting(
-                st, initial_od600, minimum_od600, dilution_amount, signal_channel
-            )
+            od600_values, voltages = start_recording_standards(st, signal_channel)
 
         degree = 4
         while True:
             curve_data_, curve_type = calculate_curve_of_best_fit(
-                voltages, inferred_od600s, degree
+                voltages, od600_values, degree
             )
             okay_with_result, degree = show_results_and_confirm_with_user(
-                curve_data_, curve_type, voltages, inferred_od600s
+                curve_data_, curve_type, voltages, od600_values
             )
             if okay_with_result:
                 break
@@ -449,11 +361,9 @@ def od_calibration() -> None:
             curve_data_,
             curve_type,
             voltages,
-            inferred_od600s,
+            od600_values,
             angle,
             name,
-            initial_od600,
-            minimum_od600,
             signal_channel,
             unit,
         )
@@ -509,7 +419,7 @@ def display(name: str | None) -> None:
 
     def display_from_calibration_blob(data_blob) -> None:
         voltages = data_blob["voltages"]
-        ods = data_blob["inferred_od600s"]
+        ods = data_blob["od600_values"]
         name, angle = data_blob["name"], data_blob["angle"]
         click.echo()
         click.echo(click.style(f"Calibration `{name}`", underline=True, bold=True))
@@ -635,34 +545,34 @@ def list_() -> None:
                 pass
 
 
-@click.group(invoke_without_command=True, name="od_calibration")
+@click.group(invoke_without_command=True, name="od_calibration_from_standards")
 @click.pass_context
-def click_od_calibration(ctx):
+def click_od_calibration_from_standards(ctx):
     """
     Calibrate OD600 to voltages
     """
     if ctx.invoked_subcommand is None:
-        od_calibration()
+        od_calibration_from_standards()
 
 
-@click_od_calibration.command(name="display")
+@click_od_calibration_from_standards.command(name="display")
 @click.option("-n", "--name", type=click.STRING)
 def click_display(name: str):
     display(name)
 
 
-@click_od_calibration.command(name="change_current")
+@click_od_calibration_from_standards.command(name="change_current")
 @click.argument("name", type=click.STRING)
 def click_change_current(name: str):
     change_current(name)
 
 
-@click_od_calibration.command(name="list")
+@click_od_calibration_from_standards.command(name="list")
 def click_list():
     list_()
 
 
-@click_od_calibration.command(name="publish")
+@click_od_calibration_from_standards.command(name="publish")
 @click.argument("name", type=click.STRING)
 def click_publish(name: str):
     publish_to_leader(name)
