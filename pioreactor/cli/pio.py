@@ -643,7 +643,9 @@ if whoami.am_I_active_worker():
     run.add_command(actions.stirring_calibration.click_stirring_calibration)
     run.add_command(actions.pump_calibration.click_pump_calibration)
     run.add_command(actions.od_calibration.click_od_calibration)
-    run.add_command(actions.click_od_calibration_from_standards.click_od_calibration)
+    run.add_command(
+        actions.od_calibration_from_standards.click_od_calibration_from_standards
+    )
 
     # TODO: this only adds to `pio run` - what if users want to add a high level command? Examples?
     for plugin in pioreactor.plugin_management.get_plugins().values():
