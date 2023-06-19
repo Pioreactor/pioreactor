@@ -172,7 +172,6 @@ def start_recording_and_diluting(
     dilution_amount: float,
     signal_channel,
 ):
-    target_rpm = st.target_rpm
     inferred_od600 = initial_od600
     voltages = []
     inferred_od600s = []
@@ -261,7 +260,7 @@ def start_recording_and_diluting(
                     x_min=minimum_od600,
                     x_max=initial_od600,
                 )
-                st.set_target_rpm(0)
+                st.set_state("sleeping")
                 click.echo()
                 click.echo(click.style("Stop❗", fg="red"))
                 click.echo("Carefully remove vial.")
@@ -275,7 +274,7 @@ def start_recording_and_diluting(
                 while not click.confirm("Continue?", default=True):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
-                st.set_target_rpm(target_rpm)
+                st.set_state("ready")
                 st.block_until_rpm_is_close_to_target(abs_tolerance=120)
                 sleep(1.0)
 

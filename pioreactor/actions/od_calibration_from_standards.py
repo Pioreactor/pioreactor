@@ -134,7 +134,6 @@ def plot_data(
 
 
 def start_recording_standards(st: Stirrer, signal_channel):
-    target_rpm = st.target_rpm
     voltages = []
     od600_values = []
     click.echo("Starting OD recordings.")
@@ -175,7 +174,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
         od600_values.append(standard_od)
         voltages.append(voltage)
 
-        st.set_target_rpm(0)
+        st.set_state("sleeping")
 
         for i in range(len(od600_values)):
             click.clear()
@@ -197,7 +196,7 @@ def start_recording_standards(st: Stirrer, signal_channel):
         click.echo("Confirm vial outside is dry and clean.")
         while not click.confirm("Continue?", default=True):
             pass
-        st.set_target_rpm(target_rpm)
+        st.set_state("ready")
         st.block_until_rpm_is_close_to_target(abs_tolerance=120)
         sleep(1.0)
 
