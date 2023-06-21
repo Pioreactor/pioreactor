@@ -55,9 +55,9 @@ function UpdateToLatestConfirmDialog(props) {
 
   const handleClick = () => {
     confirm({
-      description: 'To avoid possible data interruptions, we suggest updating between running experiments. ' + (installDev ? "We recommend being on the latest release of software before doing this. Confirm you are before updating." : ""),
-      title: installDev ? "Update to development?" : "Update to next release?" ,
-      confirmationText: "Update now",
+      description: 'To avoid possible data interruptions, we suggest updating between running experiments. ' + (installDev ? "We recommend being on the latest release of software before doing this. Confirm you are on the latest software before updating." : ""),
+      title: installDev ? "Update to development build?" : "Update to next release?" ,
+      confirmationText: "Update",
       confirmationButtonProps: {color: "primary"},
       cancellationButtonProps: {color: "secondary"},
 
@@ -86,7 +86,7 @@ function UpdateToLatestConfirmDialog(props) {
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
-        message="Updating in the background - you may leave this page"
+        message="Updating in the background. This may take a few minutes. You may leave this page"
         autoHideDuration={20000}
         key="snackbar-update"
       />
