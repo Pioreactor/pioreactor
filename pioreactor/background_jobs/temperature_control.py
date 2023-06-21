@@ -71,8 +71,10 @@ class TemperatureController(BackgroundJob):
         True if supplying an external thermometer that will publish to MQTT.
     """
 
-    MAX_TEMP_TO_REDUCE_HEATING = 61.5  # ~PLA glass transition temp
-    MAX_TEMP_TO_DISABLE_HEATING = 63.5
+    MAX_TEMP_TO_REDUCE_HEATING = (
+        63.0  # ~PLA glass transition temp, and I've gone safely above this an it's not a problem.
+    )
+    MAX_TEMP_TO_DISABLE_HEATING = 65.0
     MAX_TEMP_TO_SHUTDOWN = 66.0
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
@@ -579,7 +581,6 @@ def start_temperature_control(
 )
 @click.option(
     "--automation-name",
-    default="only_record_temperature",
     help="set the automation of the system",
     show_default=True,
 )

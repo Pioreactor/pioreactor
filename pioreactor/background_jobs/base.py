@@ -468,6 +468,14 @@ class _BackgroundJob(metaclass=PostInitCaller):
         return
 
     def set_state(self, new_state: pt.JobState) -> None:
+        """
+        The preferred way to change states is to use this function (instead of self.state = state). Note:
+
+         - no-op if in the same state
+         - will call the transition callback
+
+        """
+
         if new_state not in {self.INIT, self.READY, self.DISCONNECTED, self.SLEEPING, self.LOST}:
             self.logger.error(f"saw {new_state}: not a valid state")
             return

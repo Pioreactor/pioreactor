@@ -225,21 +225,41 @@ class Monitor(BackgroundJob):
                 if status == "failed" or status == "inactive":
                     self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
                     self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-
                 elif status == "activating":
                     # try again
                     pass
-
                 elif status == "active":
                     # okay
                     break
-
                 else:
                     raise ValueError(status)
-
         except Exception as e:
             self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
             self.logger.error(f"Error checking lighttpd status: {e}")
+
+        try:
+            while True:
+                # Run the command 'systemctl is-active huey' and capture the output
+                result = subprocess.run(
+                    ["systemctl", "is-active", "huey"], capture_output=True, text=True
+                )
+                status = result.stdout.strip()
+
+                # Check if the output is okay
+                if status == "failed" or status == "inactive":
+                    self.logger.error("huey is not running. Check `systemctl status huey`.")
+                    self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
+                elif status == "activating":
+                    # try again
+                    pass
+                elif status == "active":
+                    # okay
+                    break
+                else:
+                    raise ValueError(status)
+        except Exception as e:
+            self.logger.debug(f"Error checking huey status: {e}", exc_info=True)
+            self.logger.error(f"Error checking huey status: {e}")
 
         try:
             # can we ping ourselves? should have a response

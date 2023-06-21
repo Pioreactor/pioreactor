@@ -980,3 +980,97 @@ def test_temperature_approximation15() -> None:
         "only_record_temperature", unit=unit, experiment=experiment
     ) as t:
         assert 28.815 <= t.approximate_temperature(features) <= 29.119
+
+
+@pytest.mark.xfail
+def test_temperature_approximation16() -> None:
+    unit = get_unit_name()
+
+    experiment = "test_temperature_approximation16"
+    features = {
+        "previous_heater_dc": 18.156877790712812,
+        "room_temp": 22.0,
+        "time_series_of_temp": [
+            29.625,
+            29.0625,
+            28.6125,
+            28.225,
+            27.8875,
+            27.625,
+            27.375,
+            27.1875,
+            27.0,
+            26.825,
+            26.6875,
+            26.5625,
+            26.4375,
+            26.325,
+            26.25,
+            26.1875,
+            26.125,
+            26.05,
+            26.0,
+            25.9375,
+            25.8875,
+            25.875,
+            25.8125,
+            25.7875,
+            25.75,
+            25.725,
+            25.6875,
+            25.6875,
+            25.625,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "only_record_temperature", unit=unit, experiment=experiment
+    ) as t:
+        assert 25.261 <= t.approximate_temperature(features) <= 25.430
+
+
+@pytest.mark.xfail
+def test_temperature_approximation17() -> None:
+    unit = get_unit_name()
+
+    experiment = "test_temperature_approximation17"
+    features = {
+        "previous_heater_dc": 18.518440157554934,
+        "room_temp": 22.0,
+        "time_series_of_temp": [
+            29.75,
+            29.1875,
+            28.7125,
+            28.3125,
+            28.0,
+            27.6875,
+            27.475,
+            27.25,
+            27.0625,
+            26.925,
+            26.7625,
+            26.625,
+            26.55,
+            26.4375,
+            26.3125,
+            26.25,
+            26.1875,
+            26.125,
+            26.0625,
+            26.0,
+            25.9875,
+            25.9375,
+            25.875,
+            25.8625,
+            25.8125,
+            25.8125,
+            25.75,
+            25.725,
+            25.6875,
+        ],
+    }
+
+    with temperature_control.TemperatureController(
+        "only_record_temperature", unit=unit, experiment=experiment
+    ) as t:
+        assert 25.295 <= t.approximate_temperature(features) <= 25.430

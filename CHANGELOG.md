@@ -1,12 +1,17 @@
 ### Upcoming
 
 #### Highlights
- -
+ - The UI now offers a way to upgrade to the bleeding-edge Pioreactor app and UI software, called "development". This software is unstable (and fun!).
 
 #### Everything else
  - Fixed `source` in `BackgroundJobContrib` - thanks @odcambc!
  - `pio add-pioreactor` will now accept an option that is the password of the RPi being added (default: `raspberry`). Ex: `pio add-pioreactor worker1 -p mypass`
  - Improved some warning and error messages.
+ - Improved watchdog detecting and fixing "lost" Pioreactors.
+ - Improved temperature inference accuracy.
+ - Starting to test software against Python 3.11, in anticipation of a Python 3.11 coming to Raspberry Pi OS.
+ - Improvements to bash scripts to make them more robust.
+
 
 
 ### 23.6.7

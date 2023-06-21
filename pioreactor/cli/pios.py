@@ -101,7 +101,7 @@ if am_I_leader():
 
         # move the global config.ini
         # there was a bug where if the leader == unit, the config.ini would get wiped
-        if (get_leader_hostname() != unit) and shared:
+        if shared and unit != get_leader_hostname():
             localpath = "/home/pioreactor/.pioreactor/config.ini"
             remotepath = "/home/pioreactor/.pioreactor/config.ini"
             cp_file_across_cluster(unit, localpath, remotepath)

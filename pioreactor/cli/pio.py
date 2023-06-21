@@ -535,7 +535,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         else:
             logger.debug(p.stdout)
 
-    logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
+    logger.notice(f"Updated {whoami.get_unit_name()} to version {version_installed}.")  # type: ignore
 
 
 @update.command(name="firmware")
