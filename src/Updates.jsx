@@ -16,10 +16,9 @@ import MenuItem from '@mui/material/MenuItem';
 import SystemUpdateAltIcon from '@mui/icons-material/SystemUpdateAlt';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useConfirm } from 'material-ui-confirm';
-import LoadingButton from '@mui/lab/LoadingButton';
 import UnderlineSpan from "./components/UnderlineSpan";
 import SelectButton from "./components/SelectButton";
-
+import ScienceIcon from '@mui/icons-material/Science';
 
 const useStyles = makeStyles((theme) => ({
   title: {
@@ -78,6 +77,8 @@ function UpdateToLatestConfirmDialog(props) {
         onChange={({ target: { value } }) =>
           setInstallDev(value === "development")
         }
+        disabled={updating}
+        endIcon={installDev ? <ScienceIcon /> :  <UpdateIcon />}
       >
         <MenuItem value={"latest"}>Update to next release</MenuItem>
         <MenuItem value={"development"}>Update to development</MenuItem>

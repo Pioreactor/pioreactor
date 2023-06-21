@@ -2577,7 +2577,7 @@ function PioreactorCard(props){
           <div className={classes.cardHeaderSettings}>
             <div style={{display: "flex", justifyContent: "left"}}>
               <Typography className={clsx(classes.unitTitle, {[classes.disabledText]: !isUnitActive})} gutterBottom>
-                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} style={{verticalAlign: "middle"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
+                <PioreactorIcon color={isUnitActive ? "inherit" : "disabled"} style={{verticalAlign: "middle", marginRight: "3px"}} sx={{ display: {xs: 'none', sm: 'none', md: 'inline' } }}/>
                 {(label ) ? label : unit }
               </Typography>
               <Tooltip title={indicatorLabel} placement="right">

@@ -65,6 +65,8 @@ const SelectButton = React.forwardRef((
       <Button
         className={classes.button}
         onClick={handleButtonClick}
+        endIcon={props.endIcon}
+        disabled={props.disabled}
       >
         { textPrefix }{ displayName(valueRef.current) }
       </Button>
@@ -72,6 +74,7 @@ const SelectButton = React.forwardRef((
         className={classes.buttonDropdown}
         size='small'
         onClick={() => setOpen(true)}
+        disabled={props.disabled}
       >
         <ArrowDropDownIcon />
       </Button>
