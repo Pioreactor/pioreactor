@@ -953,7 +953,7 @@ function SelfTestDialog(props) {
 
           <Divider className={classes.divider} />
           <Typography variant="body2" component="p" gutterBottom>
-            Learn more about each test and <a href="https://docs.pioreactor.com/user-guide/running-self-test#explanation-of-each-test">what to do if a test fails.</a>
+            Learn more about self tests and <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/running-self-test#explanation-of-each-test">what to do if a test fails.</a>
           </Typography>
         </DialogContent>
       </Dialog>
