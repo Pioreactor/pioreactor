@@ -464,7 +464,7 @@ class DosingAutomationJob(BackgroundSubJob):
 
     @property
     def most_stale_time(self) -> datetime:
-        return min(self.latest_normalized_od_at, self.latest_growth_rate_at)
+        return min(self.latest_normalized_od_at, self.latest_growth_rate_at, self.latest_od_at)
 
     @property
     def latest_growth_rate(self) -> float:
@@ -514,9 +514,9 @@ class DosingAutomationJob(BackgroundSubJob):
                 raise exc.JobRequiredError("`od_reading` should be Ready.")
 
         # check most stale time
-        if (current_utc_datetime() - self.most_stale_time).seconds > 5 * 60:
+        if (current_utc_datetime() - self.latest_od_at).seconds > 5 * 60:
             raise exc.JobRequiredError(
-                f"readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.most_stale_time}."
+                f"readings are too stale (over 5 minutes old) - is `od_reading` running?. Last reading occurred at {self.latest_od_at}."
             )
 
         assert self._latest_od is not None

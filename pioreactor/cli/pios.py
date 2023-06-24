@@ -121,14 +121,14 @@ if am_I_leader():
                 raise e
         return
 
-    @pios.command("cp", short_help="cp a file across clusters")
+    @pios.command("cp", short_help="cp a file across the cluster")
     @click.argument("filepath", type=click.Path(exists=True))
     @click.option(
         "--units",
         multiple=True,
         default=(UNIVERSAL_IDENTIFIER,),
         type=click.STRING,
-        help="specify a Pioreactor name, default is all active units",
+        help="specify a Pioreactor name, default is all active non-leader units",
     )
     def cp(
         filepath: str,
@@ -145,6 +145,46 @@ if am_I_leader():
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
+                return False
+
+        for unit in units:
+            _thread_function(unit)
+
+    @pios.command("rm", short_help="rm a file across the cluster")
+    @click.argument("filepath", type=click.Path(exists=True))
+    @click.option(
+        "--units",
+        multiple=True,
+        default=(UNIVERSAL_IDENTIFIER,),
+        type=click.STRING,
+        help="specify a Pioreactor name, default is all active non-leader units",
+    )
+    def rm(
+        filepath: str,
+        units: tuple[str, ...],
+    ) -> None:
+        logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+        units = remove_leader(universal_identifier_to_all_workers(units))
+
+        from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1
+        from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
+
+        command = join(["rm", filepath])
+
+        def _thread_function(unit: str) -> bool:
+            logger.debug(f"Removing {unit}:{filepath}...")
+            try:
+                ssh(add_local(unit), command)
+                return True
+            except ErrorReturnCode_255 as e:
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                logger.debug(e, exc_info=True)
+                return False
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         for unit in units:
