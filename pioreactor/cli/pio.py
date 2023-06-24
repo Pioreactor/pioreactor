@@ -747,7 +747,9 @@ if whoami.am_I_leader():
 
             ip, state, reachable = get_network_metadata(hostname)
 
-            statef = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
+            statef = click.style(
+                f"{state:15s}", fg="green" if state in ("ready", "init") else "red"
+            )
             ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"

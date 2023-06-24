@@ -3,16 +3,28 @@
 #### Highlights
  - The UI now offers a way to upgrade to the bleeding-edge Pioreactor app and UI software, called "development". This software is unstable (and fun!).
 
+#### Better thermostat
+
+ - Improved temperature inference accuracy.
+ - After some testing, we've found that the following set of PID parameters for `temperature_automation.thermostat` works better¹ than the previous set of parameters:
+```
+Kp=3.0
+Ki=0.0
+Kd=4.5
+```
+
+This set now ships with all new installations of Pioreactor software. **Existing users can update their parameters in the config.ini**
+
+¹ Better == less thermal runaways, slightly less overshooting.
+
 #### Everything else
+ - On startup, the Raspberry Pi will write its IP address to a text file `/boot/ip`. This means that if you (carefully) remove the SD card, you should be able see the IP address (hopefully it hasn't changed).
  - Fixed `source` in `BackgroundJobContrib` - thanks @odcambc!
  - `pio add-pioreactor` will now accept an option that is the password of the RPi being added (default: `raspberry`). Ex: `pio add-pioreactor worker1 -p mypass`
  - Improved some warning and error messages.
  - Improved watchdog detecting and fixing "lost" Pioreactors.
- - Improved temperature inference accuracy.
  - Starting to test software against Python 3.11, in anticipation of a Python 3.11 coming to Raspberry Pi OS.
  - Improvements to bash scripts to make them more robust.
-
-
 
 ### 23.6.7
 

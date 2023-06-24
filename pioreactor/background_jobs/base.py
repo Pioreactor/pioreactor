@@ -20,6 +20,7 @@ from pioreactor.config import leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import MQTT_TOPIC
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
@@ -424,7 +425,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def subscribe_and_callback(
         self,
         callback: t.Callable[[pt.MQTTMessage], None],
-        subscriptions: list[str] | str,
+        subscriptions: list[str | MQTT_TOPIC] | str | MQTT_TOPIC,
         allow_retained: bool = True,
         qos: int = QOS.AT_MOST_ONCE,
     ) -> None:
@@ -462,9 +463,9 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         subscriptions = [subscriptions] if isinstance(subscriptions, str) else subscriptions
 
-        for sub in subscriptions:
-            self.sub_client.message_callback_add(sub, wrap_callback(callback))
-            self.sub_client.subscribe(sub, qos=qos)
+        for topic in subscriptions:
+            self.sub_client.message_callback_add(str(topic), wrap_callback(callback))
+            self.sub_client.subscribe(str(topic), qos=qos)
         return
 
     def set_state(self, new_state: pt.JobState) -> None:
