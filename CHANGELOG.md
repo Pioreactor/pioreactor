@@ -25,6 +25,8 @@ This set now ships with all new installations of Pioreactor software. **Existing
  - Improved watchdog detecting and fixing "lost" Pioreactors.
  - Starting to test software against Python 3.11, in anticipation of a Python 3.11 coming to Raspberry Pi OS.
  - Improvements to bash scripts to make them more robust.
+ - Adding `pios rm <filepath>` to remove a file across the cluster.
+ - Adding `pio update <> -r repo` to install from a repo (default is Pioreactor's repos).
 
 ### 23.6.7
 
