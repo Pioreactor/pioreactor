@@ -55,8 +55,9 @@ JOBS_TO_SKIP_KILLING = [
 def pio(ctx) -> None:
     """
     Execute commands on this Pioreactor.
-    See full documentation here: https://docs.pioreactor.com/user-guide/cli
-    Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
+    Configuration available: /home/pioreactor/.pioreactor/config.ini
+    See full documentation: https://docs.pioreactor.com/user-guide/cli
+    Report errors or feedback: https://github.com/Pioreactor/pioreactor/issues
     """
 
     # if a user runs `pio`, we want the check_firstboot_successful to run, hence the invoke_without_command

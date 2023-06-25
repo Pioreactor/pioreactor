@@ -122,7 +122,7 @@ if am_I_leader():
         return
 
     @pios.command("cp", short_help="cp a file across the cluster")
-    @click.argument("filepath", type=click.Path(exists=True))
+    @click.argument("filepath", type=click.Path(exists=True, resolve_path=True))
     @click.option(
         "--units",
         multiple=True,
@@ -151,7 +151,7 @@ if am_I_leader():
             _thread_function(unit)
 
     @pios.command("rm", short_help="rm a file across the cluster")
-    @click.argument("filepath", type=click.Path(exists=True))
+    @click.argument("filepath", type=click.Path(exists=True, resolve_path=True))
     @click.option(
         "--units",
         multiple=True,
