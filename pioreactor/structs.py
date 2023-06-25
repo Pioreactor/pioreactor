@@ -234,7 +234,7 @@ class ODCalibration(Calibration):
     curve_type: str
     curve_data_: list[float]
     voltages: list[float]
-    inferred_od600s: list[float]
+    od600s: list[float]
     ir_led_intensity: float
     pd_channel: pt.PdChannel
 

@@ -15,7 +15,7 @@ Kd=4.5
 
 This set now ships with all new installations of Pioreactor software. **Existing users can update their parameters in the config.ini**
 
-¹ Better == less thermal runaways, slightly less overshooting.
+¹ Better == less thermal runaways, less sensitive to shocks, similar overshoot and settling time.
 
 #### Everything else
  - On startup, the Raspberry Pi will write its IP address to a text file `/boot/ip`. This means that if you (carefully) remove the SD card, you should be able see the IP address (hopefully it hasn't changed).
@@ -26,7 +26,8 @@ This set now ships with all new installations of Pioreactor software. **Existing
  - Starting to test software against Python 3.11, in anticipation of a Python 3.11 coming to Raspberry Pi OS.
  - Improvements to bash scripts to make them more robust.
  - Adding `pios rm <filepath>` to remove a file across the cluster.
- - Adding `pio update <x> -r <repo>` to install from a repo (default is Pioreactor's repos).
+ - Adding `-r` option to `pio update`. Example: `pio update <x> -r <repo>` to install from a repo (default is Pioreactor's repos).
+ - `structs.ODCalibration` has a new schema, `inferred_od600s` is now `od600s`. See `pioreactor.structs`.
 
 ### 23.6.7
 
