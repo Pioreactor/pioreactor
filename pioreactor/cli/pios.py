@@ -199,10 +199,16 @@ if am_I_leader():
         help="specify a Pioreactor name, default is all active units",
     )
     @click.option("-b", "--branch", help="update to the github branch")
+    @click.option(
+        "-r",
+        "--repo",
+        help="install from a repo on github. Format: username/project",
+        default="pioreactor/pioreactor",
+    )
     @click.option("-v", "--version", help="install a specific version, default is latest")
     @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def update(
-        units: tuple[str, ...], branch: Optional[str], version: Optional[str], y: bool
+        units: tuple[str, ...], branch: Optional[str], repo: str, version: Optional[str], y: bool
     ) -> None:
         """
         Pulls and installs the latest code
@@ -215,9 +221,9 @@ if am_I_leader():
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
-            command = f"pio update app -v {version}"
+            command = f"pio update app -v {version} -r {repo}"
         elif branch is not None:
-            command = f"pio update app -b {branch}"
+            command = f"pio update app -b {branch} -r {repo}g"
         else:
             command = "pio update app"
 

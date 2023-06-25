@@ -436,7 +436,12 @@ def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
 
 @update.command(name="app")
 @click.option("-b", "--branch", help="install from a branch on github")
-@click.option("-r", "--repo", help="install from a repo on github", default="pioreactor/pioreactor")
+@click.option(
+    "-r",
+    "--repo",
+    help="install from a repo on github. Format: username/project",
+    default="pioreactor/pioreactor",
+)
 @click.option("--source", help="use a URL or whl file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
 def update_app(
@@ -782,7 +787,10 @@ if whoami.am_I_leader():
     @update.command(name="ui")
     @click.option("-b", "--branch", help="install from a branch on github")
     @click.option(
-        "-r", "--repo", help="install from a repo on github", default="pioreactor/pioreactorui"
+        "-r",
+        "--repo",
+        help="install from a repo on github. Format: username/project",
+        default="pioreactor/pioreactor",
     )
     @click.option("--source", help="use a tar.gz file")
     @click.option("-v", "--version", help="install a specific version")
