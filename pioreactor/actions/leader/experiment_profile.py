@@ -176,9 +176,9 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                 # ended early
                 for timer in timers:
                     timer.cancel()
-                logger.debug("Finished execution early. Exiting.")
+                logger.info(f"Exiting profile {profile.experiment_profile_name} early.")
             else:
-                logger.debug("Finished execution. Exiting.")
+                logger.info(f"Finished at commands in profile {profile.experiment_profile_name}.")
 
 
 @click.group(name="experiment_profile")

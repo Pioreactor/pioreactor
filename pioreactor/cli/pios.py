@@ -216,14 +216,15 @@ if am_I_leader():
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1
+        from shlex import join
 
         # type: ignore
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
-            command = f"pio update app -v {version} -r {repo}"
+            command = join(["pio", "update", "app", "-v", version, "-r", repo])
         elif branch is not None:
-            command = f"pio update app -b {branch} -r {repo}g"
+            command = join(["pio", "update", "app", "-b", branch, "-r", repo])
         else:
             command = "pio update app"
 

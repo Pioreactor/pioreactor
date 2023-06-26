@@ -91,7 +91,9 @@ def get_metadata_from_user():
 
     number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
 
-    click.echo(f"This will require about {number_of_points} measurements.")
+    click.echo(f"This will require {number_of_points} data points.")
+    click.echo(f"You will need at least {number_of_points * dilution_amount}mL of media available.")
+    click.confirm("Continue?", abort=True, default=True)
 
     if "REF" not in config["od_config.photodiode_channel_reverse"]:
         raise ValueError("REF required for OD calibration.")
@@ -211,7 +213,7 @@ def start_recording_and_diluting(
                     f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
                     fg="green",
                 )
-                click.echo(f"Add {dilution_amount}ml of DI water to vial.")
+                click.echo(f"Add {dilution_amount}ml of media to vial.")
 
                 while not click.confirm("Continue?", default=True):
                     pass
