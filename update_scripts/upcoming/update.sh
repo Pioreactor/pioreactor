@@ -23,24 +23,28 @@ import json
 
 from pioreactor.utils import local_persistant_storage
 from pioreactor.whoami import get_unit_name
+from pioreactor.config import leader_address
+from pioreactor.mureq import put
 
 unit = get_unit_name()
 
 
-def transform_cache(cache):
+def transform_cache_and_publish(cache):
     for name in list(cache):
         cal = json.loads(cache[name])
         try:
             cal["od600s"] = cal["inferred_od600s"]
             cal.pop("inferred_od600s")
+            put(f"http://{leader_address}/api/calibrations", json.dumps(cal).encode(), headers={"Content-Type": "application/json"})
             cache[name] = json.dumps(cal, separators=(",", ":")).encode()
         except Exception as e:
             print(e)
 
+
 # od600 calibrations
 with local_persistant_storage("od_calibrations") as cache:
-    transform_cache(cache)
+    transform_cache_and_publish(cache)
 
 with local_persistant_storage("current_od_calibration") as cache:
-    transform_cache(cache)
+    transform_cache_and_publish(cache)
 EOF
