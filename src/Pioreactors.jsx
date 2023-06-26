@@ -479,7 +479,7 @@ function AddNewPioreactor(props){
         </IconButton>
       </DialogTitle>
       <DialogContent>
-      <p>Follow the instructions at <a href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
+      <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
 
       <p>After set up is complete, provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
       Your existing Pioreactor will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
@@ -562,13 +562,10 @@ function PatientButton(props) {
     }
   , [props.buttonText])
 
-  function wrappingOnClick() {
-    function f() {
+  const onClick = () => {
       setButtonText(<CircularProgress color="inherit" size={21}/>)
       props.onClick()
       setTimeout(() => setButtonText(props.buttonText), 30000)
-    }
-    return f
   }
 
   return (
@@ -579,7 +576,7 @@ function PatientButton(props) {
       variant={props.variant}
       disabled={props.disabled}
       size="small"
-      onClick={wrappingOnClick()}
+      onClick={onClick}
     >
       {buttonText}
     </Button>
