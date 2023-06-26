@@ -203,15 +203,18 @@ if am_I_leader():
         "-r",
         "--repo",
         help="install from a repo on github. Format: username/project",
-        default="pioreactor/pioreactor",
     )
     @click.option("-v", "--version", help="install a specific version, default is latest")
     @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def update(
-        units: tuple[str, ...], branch: Optional[str], repo: str, version: Optional[str], y: bool
+        units: tuple[str, ...],
+        branch: Optional[str],
+        repo: Optional[str],
+        version: Optional[str],
+        y: bool,
     ) -> None:
         """
-        Pulls and installs the latest code
+        Pulls and installs a Pioreactor software version across the cluster
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
@@ -222,11 +225,16 @@ if am_I_leader():
 
         logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
-            command = join(["pio", "update", "app", "-v", version, "-r", repo])
+            commands = ["pio", "update", "app", "-v", version]
         elif branch is not None:
-            command = join(["pio", "update", "app", "-b", branch, "-r", repo])
+            commands = ["pio", "update", "app", "-b", branch]
         else:
-            command = "pio update app"
+            commands = ["pio", "update", "app"]
+
+        if repo is not None:
+            commands.extend(["-r", repo])
+
+        command = join(commands)
 
         units = universal_identifier_to_all_workers(units)
 
