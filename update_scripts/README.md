@@ -11,7 +11,12 @@ Possible update scripts and their sequence:
 
 It's very important that update scripts are idempotent. Some tips:
 
-> Use ChatGPT to assist psuedo-check if a script is idempotent, or making suggestions.
+ - Use ChatGPT to assist psuedo-check if a script is idempotent, or making suggestions.
+ - If needed, version the github urls to a commit. Example:
+    ```
+    https://raw.githubusercontent.com/Pioreactor/CustoPiZer/e27ec/workspace/scripts/files/bash/install_pioreactor_plugin.sh
+    ```
+    where `e27ec` is the commit (or a branch name).
 
 ### bash specific tips
  - use `|| true` if a command may fail, but you want to continue anyways

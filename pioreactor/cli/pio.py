@@ -791,7 +791,7 @@ if whoami.am_I_leader():
         "-r",
         "--repo",
         help="install from a repo on github. Format: username/project",
-        default="pioreactor/pioreactor",
+        default="pioreactor/pioreactorui",
     )
     @click.option("--source", help="use a tar.gz file")
     @click.option("-v", "--version", help="install a specific version")
