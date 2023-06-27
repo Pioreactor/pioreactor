@@ -1,4 +1,4 @@
-### Upcoming
+### 23.6.27
 
 #### Highlights
  - The UI now offers a way to upgrade to the bleeding-edge Pioreactor app and UI software, called "development". This software is unstable (and fun!).
