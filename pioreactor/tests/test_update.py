@@ -29,7 +29,7 @@ def test_get_non_prerelease_tags_of_pioreactor(monkeypatch):
 
     monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
 
-    result = get_non_prerelease_tags_of_pioreactor()
+    result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
     assert result == ["22.3.1", "22.2.1", "22.1.1"]
 
     # Test when response status code is not 200
@@ -39,7 +39,7 @@ def test_get_non_prerelease_tags_of_pioreactor(monkeypatch):
     monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_bad_request)
 
     with pytest.raises(Exception):
-        get_non_prerelease_tags_of_pioreactor()
+        get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
 
 
 def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatch):
@@ -55,7 +55,7 @@ def test_get_non_prerelease_tags_of_pioreactor_sorts_calver_correctly(monkeypatc
 
     monkeypatch.setattr("pioreactor.cli.pio.get", mock_get_request)
 
-    result = get_non_prerelease_tags_of_pioreactor()
+    result = get_non_prerelease_tags_of_pioreactor("pioreactor/pioreactor")
     assert result == ["23.4.15", "23.4.5", "23.4.4", "22.12.1"]
 
 
