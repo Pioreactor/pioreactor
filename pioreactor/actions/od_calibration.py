@@ -38,10 +38,11 @@ def introduction() -> None:
     click.clear()
     click.echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
-    1. A Pioreactor
-    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement
-    3. Micro-pipette
+    1. The Pioreactor you wish to calibrate (the one you are using)
+    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement.
+    3. A micro-pipette
     4. Accurate 10mL measurement tool
+    5. Sterile media, amount to be determined shortly.
 """
     )
 
@@ -65,16 +66,16 @@ def get_metadata_from_user():
                 break
 
     initial_od600 = click.prompt(
-        "Provide the OD600 measurement of your initial culture",
+        "Provide the OD600 measurement of your initial, high density, culture",
         type=click.FloatRange(min=0.01, clamp=False),
     )
 
     minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you want to calibrate to",
+        "Provide the minimum OD600 measurement you wish to calibrate to",
         type=click.FloatRange(min=0, max=initial_od600, clamp=False),
     )
 
-    while minimum_od600 == initial_od600:
+    while minimum_od600 >= initial_od600:
         minimum_od600 = click.prompt(
             "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
             type=click.FloatRange(min=0, max=initial_od600, clamp=False),
