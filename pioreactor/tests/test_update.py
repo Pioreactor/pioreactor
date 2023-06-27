@@ -64,17 +64,17 @@ def test_get_tag_to_install(monkeypatch):
         "pioreactor.cli.pio.get_non_prerelease_tags_of_pioreactor",
         lambda: ["22.4.1", "22.3.1", "22.2.1", "22.1.1", "21.12.1"],
     )
-    assert get_tag_to_install("latest") == "latest"
-    assert get_tag_to_install("22.3.1") == "tags/22.3.1"
+    assert get_tag_to_install("latest", "pioreactor/pioreactor") == "latest"
+    assert get_tag_to_install("22.3.1", "pioreactor/pioreactor") == "tags/22.3.1"
 
     monkeypatch.setattr("pioreactor.version.__version__", "22.2.1")
-    assert get_tag_to_install(None) == "tags/22.3.1"
+    assert get_tag_to_install(None, "pioreactor/pioreactor") == "tags/22.3.1"
 
     monkeypatch.setattr("pioreactor.version.__version__", "22.3.1")
-    assert get_tag_to_install(None) == "tags/22.4.1"
+    assert get_tag_to_install(None, "pioreactor/pioreactor") == "tags/22.4.1"
 
     monkeypatch.setattr("pioreactor.version.__version__", "22.4.1")
-    assert get_tag_to_install(None) == "latest"
+    assert get_tag_to_install(None, "pioreactor/pioreactor") == "latest"
 
     monkeypatch.setattr("pioreactor.version.__version__", "30.4.1")
-    assert get_tag_to_install(None) == "latest"
+    assert get_tag_to_install(None, "pioreactor/pioreactor") == "latest"

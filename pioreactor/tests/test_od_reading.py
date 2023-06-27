@@ -572,7 +572,7 @@ def test_calibration_simple_linear_calibration():
                 minimum_voltage=0.0,
                 maximum_voltage=1.0,
                 voltages=[],
-                inferred_od600s=[],
+                od600s=[],
                 pd_channel="2",
                 pioreactor_unit=get_unit_name(),
             )
@@ -629,7 +629,7 @@ def test_calibration_simple_linear_calibration_negative_slope():
                 minimum_voltage=0.0,
                 maximum_voltage=2.0,
                 voltages=[],
-                inferred_od600s=[],
+                od600s=[],
                 pd_channel="2",
                 pioreactor_unit=get_unit_name(),
             )
@@ -676,7 +676,7 @@ def test_calibration_simple_quadratic_calibration():
                 minimum_voltage=0.0,
                 maximum_voltage=1.0,
                 voltages=[],
-                inferred_od600s=[],
+                od600s=[],
                 pd_channel="2",
                 pioreactor_unit=get_unit_name(),
             )
@@ -711,7 +711,7 @@ def test_calibration_multi_modal():
                 minimum_voltage=0.0,
                 maximum_voltage=1.0,
                 voltages=[],
-                inferred_od600s=[],
+                od600s=[],
                 pd_channel="2",
                 pioreactor_unit=get_unit_name(),
             )
@@ -744,7 +744,7 @@ def test_calibration_errors_when_ir_led_differs():
                 minimum_voltage=0.0,
                 maximum_voltage=1.0,
                 voltages=[],
-                inferred_od600s=[],
+                od600s=[],
                 pd_channel="2",
                 pioreactor_unit=get_unit_name(),
             )
@@ -776,7 +776,7 @@ def test_calibration_errors_when_pd_channel_differs():
                 minimum_voltage=0.0,
                 maximum_voltage=1.0,
                 voltages=[],
-                inferred_od600s=[],
+                od600s=[],
                 pd_channel="2",
                 pioreactor_unit=get_unit_name(),
             )
