@@ -33,6 +33,7 @@ class Thermostat(TemperatureAutomationJob):
             experiment=self.experiment,
             job_name=self.job_name,
             target_name="temperature",
+            output_limits=(-25, 25),  # avoid whiplashing
         )
 
     def execute(self) -> UpdatedHeaterDC:
@@ -46,11 +47,6 @@ class Thermostat(TemperatureAutomationJob):
         )  # 1 represents an arbitrary unit of time. The PID values will scale such that 1 makes sense.
         self.update_heater_with_delta(output)
         self.logger.debug(f"PID output = {output}")
-
-        if (self.target_temperature - self.latest_temperature > 0) and self.heater_duty_cycle >= 98:
-            self.logger.warning(
-                f"Target temperature {self.target_temperature} unlikely to be able to be achieved. Try raising the ambient temperature."
-            )
 
         return UpdatedHeaterDC(
             f"delta_dc={output}",

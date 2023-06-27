@@ -239,6 +239,7 @@ class GrowthRateCalculator(BackgroundJob):
         means, variances = od_statistics(
             self._yield_od_readings_from_mqtt(),
             action_name="od_normalization",
+            n_samples=35,
             unit=self.unit,
             experiment=self.experiment,
             logger=self.logger,

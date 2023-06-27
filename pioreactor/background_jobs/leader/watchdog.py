@@ -60,9 +60,16 @@ class WatchDog(BackgroundJob):
                 # let's return early.
                 return
 
+            # this is a hack! If the monitor job is in state READY, it will no op any transition.
+            # so we set to sleeping for a second, and the back to ready.
+            self.pub_client.publish(
+                f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.SLEEPING
+            )
+            time.sleep(1)
             self.pub_client.publish(
                 f"pioreactor/{unit}/{UNIVERSAL_EXPERIMENT}/monitor/$state/set", self.READY
             )
+            ###
             time.sleep(20)
 
             if self.state != self.READY:

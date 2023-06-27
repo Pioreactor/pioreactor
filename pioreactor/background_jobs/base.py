@@ -20,6 +20,7 @@ from pioreactor.config import leader_hostname
 from pioreactor.logging import create_logger
 from pioreactor.pubsub import Client
 from pioreactor.pubsub import create_client
+from pioreactor.pubsub import MQTT_TOPIC
 from pioreactor.pubsub import QOS
 from pioreactor.pubsub import subscribe
 from pioreactor.utils import append_signal_handlers
@@ -129,6 +130,18 @@ class _BackgroundJob(metaclass=PostInitCaller):
                           └────────────┘
 
     https://asciiflow.com/#/share/eJzNVEsKgzAQvYrM2lW7Uc%2BSjehQAmksmoIi3qJ4kC7F0%2FQkTS0tRE0crYuGWWSEeZ95wRpkfEaI5FUIH0RcYQ4R1AxKBlEYhD6DSt8OwVHfFJZKNww8wnnc%2BsViTBKhjOYzRqHYXm2nKURWqBdT2xFsGDrnDYytzLsioEzVjr5sQ7b2GoOyNWOGWCbn2pzewizaR0bmyCab%2BAJyyRVJ0PBSvBzjtFphQE%2BlvEgyKTFRmBrU%2B3rZIzXL%2B3Kn1t4dqXn2M6Cafqbu%2FxxicYHUSBZpHC0VoBCIFy5PP%2F9TV%2Bgkb87BBg00T7Hk%2FaY%3D)
+
+    states-mermaid-diagram
+        init --> ready
+        init --> lost
+        ready --> lost
+        ready --> disconnected
+        ready --> sleeping
+        sleeping --> ready
+        sleeping --> lost
+        sleeping --> disconnected
+        disconnected --> lost
+
 
     1. The job starts in `init`,
         - we publish `published_settings`: a list of variables that will be sent to the broker on initialization and retained.
@@ -301,7 +314,36 @@ class _BackgroundJob(metaclass=PostInitCaller):
         # next thing that run is the subclasses __init__
 
     def __post__init__(self) -> None:
-        # this function is called AFTER the subclass' __init__ finishes
+        """
+        This function is called AFTER the subclass' __init__ finishes successfully
+
+        Typical sequence (doesn't represent not calling stack, but "blocks of code" run)
+
+        P.__init__() # check for duplicate job
+        C.__init__() # risk of job failing here
+        P.__post__init__()  # write metadata to disk
+        P.on_init_to_ready()  # default noop - can be overwritten in sub.
+        P.ready()
+        C.on_ready()
+        """
+
+        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
+            # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
+            # __init__ might fail, and not clean up pio_job_* correctly.
+            # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
+            # sol for authors: move the long-running parts to the on_init_to_ready function.
+            cache["started_at"] = current_utc_timestamp()
+            cache["is_running"] = "1"
+            cache["source"] = self._source
+            cache["experiment"] = self.experiment
+            cache["unit"] = self.unit
+            cache["leader_hostname"] = leader_hostname
+            cache["pid"] = getpid()
+            cache["ended_at"] = ""  # populated later
+
+        with local_intermittent_storage("pio_jobs_running") as cache:
+            cache[self.job_name] = getpid()
+
         self.set_state(self.READY)
 
     def start_passive_listeners(self) -> None:
@@ -383,7 +425,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     def subscribe_and_callback(
         self,
         callback: t.Callable[[pt.MQTTMessage], None],
-        subscriptions: list[str] | str,
+        subscriptions: list[str | MQTT_TOPIC] | str | MQTT_TOPIC,
         allow_retained: bool = True,
         qos: int = QOS.AT_MOST_ONCE,
     ) -> None:
@@ -421,12 +463,20 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
         subscriptions = [subscriptions] if isinstance(subscriptions, str) else subscriptions
 
-        for sub in subscriptions:
-            self.sub_client.message_callback_add(sub, wrap_callback(callback))
-            self.sub_client.subscribe(sub, qos=qos)
+        for topic in subscriptions:
+            self.sub_client.message_callback_add(str(topic), wrap_callback(callback))
+            self.sub_client.subscribe(str(topic), qos=qos)
         return
 
     def set_state(self, new_state: pt.JobState) -> None:
+        """
+        The preferred way to change states is to use this function (instead of self.state = state). Note:
+
+         - no-op if in the same state
+         - will call the transition callback
+
+        """
+
         if new_state not in {self.INIT, self.READY, self.DISCONNECTED, self.SLEEPING, self.LOST}:
             self.logger.error(f"saw {new_state}: not a valid state")
             return
@@ -675,22 +725,6 @@ class _BackgroundJob(metaclass=PostInitCaller):
 
     def ready(self) -> None:
         self.state = self.READY
-        with local_intermittent_storage(f"job_metadata_{self.job_name}") as cache:
-            # we set the "lock" in ready as then we know the __init__ finished successfully. Previously,
-            # __init__ might fail, and not clean up pio_job_* correctly.
-            # the catch is that there is a window where two jobs can be started, see growth_rate_calculating.
-            # sol for authors: move the long-running parts to the on_init_to_ready function.
-            cache["started_at"] = current_utc_timestamp()
-            cache["is_running"] = "1"
-            cache["source"] = self._source
-            cache["experiment"] = self.experiment
-            cache["unit"] = self.unit
-            cache["leader_hostname"] = leader_hostname
-            cache["pid"] = getpid()
-            cache["ended_at"] = ""  # populated later
-
-        with local_intermittent_storage("pio_jobs_running") as cache:
-            cache[self.job_name] = getpid()
 
         try:
             self.on_ready()

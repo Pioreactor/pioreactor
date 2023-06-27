@@ -38,10 +38,11 @@ def introduction() -> None:
     click.clear()
     click.echo(
         """This routine will calibrate the current Pioreactor to (offline) OD600 readings. You'll need:
-    1. A Pioreactor
-    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement
-    3. Micro-pipette
+    1. The Pioreactor you wish to calibrate (the one you are using)
+    2. At least 10mL of a culture with density the most you'll ever observe, and its OD600 measurement.
+    3. A micro-pipette
     4. Accurate 10mL measurement tool
+    5. Sterile media, amount to be determined shortly.
 """
     )
 
@@ -65,16 +66,16 @@ def get_metadata_from_user():
                 break
 
     initial_od600 = click.prompt(
-        "Provide the OD600 measurement of your initial culture",
+        "Provide the OD600 measurement of your initial, high density, culture",
         type=click.FloatRange(min=0.01, clamp=False),
     )
 
     minimum_od600 = click.prompt(
-        "Provide the minimum OD600 measurement you want to calibrate to",
+        "Provide the minimum OD600 measurement you wish to calibrate to",
         type=click.FloatRange(min=0, max=initial_od600, clamp=False),
     )
 
-    while minimum_od600 == initial_od600:
+    while minimum_od600 >= initial_od600:
         minimum_od600 = click.prompt(
             "The minimum OD600 measurement must be less than the initial OD600 culture measurement",
             type=click.FloatRange(min=0, max=initial_od600, clamp=False),
@@ -91,7 +92,9 @@ def get_metadata_from_user():
 
     number_of_points = int(log2(initial_od600 / minimum_od600) * (10 / dilution_amount))
 
-    click.echo(f"This will require about {number_of_points} measurements.")
+    click.echo(f"This will require {number_of_points} data points.")
+    click.echo(f"You will need at least {number_of_points * dilution_amount}mL of media available.")
+    click.confirm("Continue?", abort=True, default=True)
 
     if "REF" not in config["od_config.photodiode_channel_reverse"]:
         raise ValueError("REF required for OD calibration.")
@@ -211,7 +214,7 @@ def start_recording_and_diluting(
                     f"Test {i+1} of {n_samples} [{'#' * (i+1) }{' ' * (n_samples - i - 1)}]",
                     fg="green",
                 )
-                click.echo(f"Add {dilution_amount}ml of DI water to vial.")
+                click.echo(f"Add {dilution_amount}ml of media to vial.")
 
                 while not click.confirm("Continue?", default=True):
                     pass
@@ -340,7 +343,7 @@ def save_results(
     curve_data_: list[float],
     curve_type: str,
     voltages: list[float],
-    inferred_od600s: list[float],
+    od600s: list[float],
     angle,
     name: str,
     maximum_od600: float,
@@ -371,7 +374,7 @@ def save_results(
         curve_data_=curve_data_,
         curve_type=curve_type,
         voltages=voltages,
-        inferred_od600s=inferred_od600s,
+        od600s=od600s,
         ir_led_intensity=float(config["od_config"]["ir_led_intensity"]),
         pd_channel=signal_channel,
     )
@@ -480,7 +483,7 @@ def display(name: str | None) -> None:
 
     def display_from_calibration_blob(data_blob) -> None:
         voltages = data_blob["voltages"]
-        ods = data_blob["inferred_od600s"]
+        ods = data_blob["od600s"]
         name, angle = data_blob["name"], data_blob["angle"]
         click.echo()
         click.echo(click.style(f"Calibration `{name}`", underline=True, bold=True))
@@ -556,11 +559,14 @@ def change_current(name: str) -> None:
 
             current_calibrations[angle] = encode(new_calibration)
 
-        res = patch(
-            f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
-            json={"current": 1},
-        )
-        if not res.ok:
+        try:
+            res = patch(
+                f"http://{leader_address}/api/calibrations/{get_unit_name()}/{new_calibration.type}/{new_calibration.name}",
+                json={"current": 1},
+            )
+            if not res.ok:
+                raise Exception
+        except Exception:
             click.echo("Could not update in database on leader ❌")
 
         if old_calibration:

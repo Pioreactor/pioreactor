@@ -60,6 +60,8 @@ def test_REF_is_in_correct_position(
     # this _also_ uses stirring to increase the variance in the non-REF, so...
     from statistics import variance
 
+    reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
+
     signal1 = []
     signal2 = []
 
@@ -86,18 +88,16 @@ def test_REF_is_in_correct_position(
         "2": variance(signal2) / trimmed_mean(signal2) ** 2,
     }
 
-    ref_channel = config["od_config.photodiode_channel_reverse"][REF_keyword]
-
     THRESHOLD = 1.0
-    if ref_channel == "1":
+    if reference_channel == "1":
         assert (
             THRESHOLD * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
-        ), f"{ref_channel=}, {norm_variance_per_channel=}"
+        ), f"{reference_channel=}, {norm_variance_per_channel=}"
 
-    elif ref_channel == "2":
+    elif reference_channel == "2":
         assert (
             THRESHOLD * norm_variance_per_channel["2"] < norm_variance_per_channel["1"]
-        ), f"{ref_channel=}, {norm_variance_per_channel=}"
+        ), f"{reference_channel=}, {norm_variance_per_channel=}"
 
 
 def test_all_positive_correlations_between_pds_and_leds(

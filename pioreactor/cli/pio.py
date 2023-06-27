@@ -55,8 +55,9 @@ JOBS_TO_SKIP_KILLING = [
 def pio(ctx) -> None:
     """
     Execute commands on this Pioreactor.
-    See full documentation here: https://docs.pioreactor.com/user-guide/cli
-    Report errors or feedback here: https://github.com/Pioreactor/pioreactor/issues
+    Configuration available: /home/pioreactor/.pioreactor/config.ini
+    See full documentation: https://docs.pioreactor.com/user-guide/cli
+    Report errors or feedback: https://github.com/Pioreactor/pioreactor/issues
     """
 
     # if a user runs `pio`, we want the check_firstboot_successful to run, hence the invoke_without_command
@@ -370,11 +371,11 @@ def update() -> None:
     pass
 
 
-def get_non_prerelease_tags_of_pioreactor():
+def get_non_prerelease_tags_of_pioreactor(repo):
     """
     Returns a list of all the tag names associated with non-prerelease releases, sorted in descending order
     """
-    url = "https://api.github.com/repos/pioreactor/pioreactor/releases"
+    url = f"https://api.github.com/repos/{repo}/releases"
     headers = {"Accept": "application/vnd.github.v3+json"}
     response = get(url, headers=headers)
 
@@ -395,7 +396,7 @@ def get_non_prerelease_tags_of_pioreactor():
     return sorted(non_prerelease_tags, reverse=True, key=version_key)
 
 
-def get_tag_to_install(version_desired: Optional[str]) -> str:
+def get_tag_to_install(repo: str, version_desired: Optional[str]) -> str:
     """
     The function get_tag_to_install takes an optional argument version_desired and
     returns a string that represents the tag of a particular version of software to install.
@@ -413,7 +414,7 @@ def get_tag_to_install(version_desired: Optional[str]) -> str:
         # we should only update one step at a time.
         from pioreactor.version import __version__ as software_version
 
-        version_history = get_non_prerelease_tags_of_pioreactor()
+        version_history = get_non_prerelease_tags_of_pioreactor(repo)
 
         if software_version in version_history:
             ix = version_history.index(software_version)
@@ -436,9 +437,17 @@ def get_tag_to_install(version_desired: Optional[str]) -> str:
 
 @update.command(name="app")
 @click.option("-b", "--branch", help="install from a branch on github")
+@click.option(
+    "-r",
+    "--repo",
+    help="install from a repo on github. Format: username/project",
+    default="pioreactor/pioreactor",
+)
 @click.option("--source", help="use a URL or whl file")
 @click.option("-v", "--version", help="install a specific version, default is latest")
-def update_app(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
+def update_app(
+    branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]
+) -> None:
     """
     Update the Pioreactor core software
     """
@@ -457,14 +466,14 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         version_installed = quote(branch)
         commands_and_priority.append(
             (
-                f"sudo pip3 install -U --force-reinstall https://github.com/pioreactor/pioreactor/archive/{branch}.zip",
+                f"sudo pip3 install -U --force-reinstall https://github.com/{repo}/archive/{branch}.zip",
                 1,
             )
         )
 
     else:
-        tag = get_tag_to_install(version)
-        response = get(f"https://api.github.com/repos/pioreactor/pioreactor/releases/{tag}")
+        tag = get_tag_to_install(repo, version)
+        response = get(f"https://api.github.com/repos/{repo}/releases/{tag}")
         if response.raise_for_status():
             logger.error(f"Version {version} not found")
             raise click.Abort()
@@ -535,7 +544,7 @@ def update_app(branch: Optional[str], source: Optional[str], version: Optional[s
         else:
             logger.debug(p.stdout)
 
-    logger.notice(f"Updated Pioreactor to version {version_installed}.")  # type: ignore
+    logger.notice(f"Updated {whoami.get_unit_name()} to version {version_installed}.")  # type: ignore
 
 
 @update.command(name="firmware")
@@ -646,7 +655,8 @@ if whoami.am_I_leader():
 
     @pio.command(name="add-pioreactor", short_help="add a new Pioreactor to cluster")
     @click.argument("hostname")
-    def add_pioreactor(hostname: str) -> None:
+    @click.option("--password", "-p", default="raspberry")
+    def add_pioreactor(hostname: str, password: str) -> None:
         """
         Add a new pioreactor worker to the cluster. The pioreactor should already have the worker image installed and is turned on.
 
@@ -682,7 +692,7 @@ if whoami.am_I_leader():
                     raise click.Abort()
 
         res = subprocess.run(
-            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname],
+            ["bash", "/usr/local/bin/add_new_pioreactor_worker_from_leader.sh", hostname, password],
             capture_output=True,
             text=True,
         )
@@ -746,7 +756,9 @@ if whoami.am_I_leader():
 
             ip, state, reachable = get_network_metadata(hostname)
 
-            statef = click.style(f"{state:15s}", fg="green" if state == "ready" else "red")
+            statef = click.style(
+                f"{state:15s}", fg="green" if state in ("ready", "init") else "red"
+            )
             ipf = f"{ip if (ip is not None) else 'unknown':20s}"
 
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
@@ -775,9 +787,17 @@ if whoami.am_I_leader():
 
     @update.command(name="ui")
     @click.option("-b", "--branch", help="install from a branch on github")
+    @click.option(
+        "-r",
+        "--repo",
+        help="install from a repo on github. Format: username/project",
+        default="pioreactor/pioreactorui",
+    )
     @click.option("--source", help="use a tar.gz file")
     @click.option("-v", "--version", help="install a specific version")
-    def update_ui(branch: Optional[str], source: Optional[str], version: Optional[str]) -> None:
+    def update_ui(
+        branch: Optional[str], repo: str, source: Optional[str], version: Optional[str]
+    ) -> None:
         """
         Update the PioreactorUI
 
@@ -800,16 +820,16 @@ if whoami.am_I_leader():
 
         elif branch is not None:
             version_installed = quote(branch)
-            url = f"https://github.com/Pioreactor/pioreactorui/archive/{branch}.tar.gz"
+            url = f"https://github.com/{repo}/archive/{branch}.tar.gz"
             source = "/tmp/pioreactorui.tar.gz"
             commands.append(["wget", url, "-O", source])
 
         else:
             latest_release_metadata = loads(
-                get(f"https://api.github.com/repos/pioreactor/pioreactorui/releases/{version}").body
+                get(f"https://api.github.com/repos/{repo}/releases/{version}").body
             )
             version_installed = latest_release_metadata["tag_name"]
-            url = f"https://github.com/Pioreactor/pioreactorui/archive/refs/tags/{version_installed}.tar.gz"
+            url = f"https://github.com/{repo}/archive/refs/tags/{version_installed}.tar.gz"
             source = "/tmp/pioreactorui.tar.gz"
             commands.append(["wget", url, "-O", source])
 

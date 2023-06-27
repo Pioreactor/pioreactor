@@ -15,16 +15,22 @@ import os.path
 import socket
 import ssl
 import urllib.parse
+from base64 import b64encode
 from http.client import HTTPConnection
 from http.client import HTTPException
 from http.client import HTTPMessage
 from http.client import HTTPSConnection
 from typing import Optional
 
-__version__ = "0.1.0"
 
 DEFAULT_TIMEOUT = 15.0
 DEFAULT_UA = "Python/Pioreactor"
+
+
+def basic_auth(username, password):
+    # headers = { 'Authorization' : basic_auth(username, password) }
+    token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+    return f"Basic {token}"
 
 
 def request(method, url, *, read_limit=None, **kwargs):

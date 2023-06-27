@@ -21,6 +21,7 @@ from pioreactor.whoami import am_I_leader
 from pioreactor.whoami import get_latest_experiment_name
 from pioreactor.whoami import get_unit_name
 from pioreactor.whoami import is_testing_env
+from pioreactor.whoami import UNIVERSAL_EXPERIMENT
 from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 
 
@@ -38,7 +39,7 @@ def pios() -> None:
         raise click.Abort()
 
     if len(get_active_workers_in_inventory()) == 0:
-        logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         logger.warning("No active workers. See `cluster.inventory` section in config.ini.")
 
 
@@ -100,7 +101,7 @@ if am_I_leader():
 
         # move the global config.ini
         # there was a bug where if the leader == unit, the config.ini would get wiped
-        if (get_leader_hostname() != unit) and shared:
+        if shared and unit != get_leader_hostname():
             localpath = "/home/pioreactor/.pioreactor/config.ini"
             remotepath = "/home/pioreactor/.pioreactor/config.ini"
             cp_file_across_cluster(unit, localpath, remotepath)
@@ -120,30 +121,70 @@ if am_I_leader():
                 raise e
         return
 
-    @pios.command("cp", short_help="cp a file across clusters")
-    @click.argument("filepath", type=click.Path(exists=True))
+    @pios.command("cp", short_help="cp a file across the cluster")
+    @click.argument("filepath", type=click.Path(exists=True, resolve_path=True))
     @click.option(
         "--units",
         multiple=True,
         default=(UNIVERSAL_IDENTIFIER,),
         type=click.STRING,
-        help="specify a Pioreactor name, default is all active units",
+        help="specify a Pioreactor name, default is all active non-leader units",
     )
     def cp(
         filepath: str,
         units: tuple[str, ...],
     ) -> None:
-        logger = create_logger("cp", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger = create_logger("cp", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = remove_leader(universal_identifier_to_all_workers(units))
 
         def _thread_function(unit: str) -> bool:
-            logger.debug(f"Moving {filepath} to {unit}...")
+            logger.debug(f"Moving {filepath} to {unit}:{filepath}...")
             try:
                 cp_file_across_cluster(unit, filepath, filepath)
                 return True
             except Exception as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(f"Error occurred: {e}.", exc_info=True)
+                return False
+
+        for unit in units:
+            _thread_function(unit)
+
+    @pios.command("rm", short_help="rm a file across the cluster")
+    @click.argument("filepath", type=click.Path(exists=True, resolve_path=True))
+    @click.option(
+        "--units",
+        multiple=True,
+        default=(UNIVERSAL_IDENTIFIER,),
+        type=click.STRING,
+        help="specify a Pioreactor name, default is all active non-leader units",
+    )
+    def rm(
+        filepath: str,
+        units: tuple[str, ...],
+    ) -> None:
+        logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
+        units = remove_leader(universal_identifier_to_all_workers(units))
+
+        from sh import ssh  # type: ignore
+        from sh import ErrorReturnCode_255  # type: ignore
+        from sh import ErrorReturnCode_1
+        from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
+
+        command = join(["rm", filepath])
+
+        def _thread_function(unit: str) -> bool:
+            logger.debug(f"Removing {unit}:{filepath}...")
+            try:
+                ssh(add_local(unit), command)
+                return True
+            except ErrorReturnCode_255 as e:
+                logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
+                logger.debug(e, exc_info=True)
+                return False
+            except ErrorReturnCode_1 as e:
+                logger.error(f"Error occurred: {e}. See logs for more.")
+                logger.debug(e.stderr, exc_info=True)
                 return False
 
         for unit in units:
@@ -158,29 +199,42 @@ if am_I_leader():
         help="specify a Pioreactor name, default is all active units",
     )
     @click.option("-b", "--branch", help="update to the github branch")
+    @click.option(
+        "-r",
+        "--repo",
+        help="install from a repo on github. Format: username/project",
+    )
     @click.option("-v", "--version", help="install a specific version, default is latest")
     @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def update(
-        units: tuple[str, ...], branch: Optional[str], version: Optional[str], y: bool
+        units: tuple[str, ...],
+        branch: Optional[str],
+        repo: Optional[str],
+        version: Optional[str],
+        y: bool,
     ) -> None:
         """
-        Pulls and installs the latest code
+        Pulls and installs a Pioreactor software version across the cluster
         """
         from sh import ssh  # type: ignore
         from sh import ErrorReturnCode_255  # type: ignore
         from sh import ErrorReturnCode_1
+        from shlex import join
 
         # type: ignore
 
-        logger = create_logger(
-            "update", unit=get_unit_name(), experiment=get_latest_experiment_name()
-        )
+        logger = create_logger("update", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         if version is not None:
-            command = f"pio update app -v {version}"
+            commands = ["pio", "update", "app", "-v", version]
         elif branch is not None:
-            command = f"pio update app -b {branch}"
+            commands = ["pio", "update", "app", "-b", branch]
         else:
-            command = "pio update app"
+            commands = ["pio", "update", "app"]
+
+        if repo is not None:
+            commands.extend(["-r", repo])
+
+        command = join(commands)
 
         units = universal_identifier_to_all_workers(units)
 
@@ -227,7 +281,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_1  # type: ignore
 
         logger = create_logger(
-            "install_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            "install_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
 
         command = f"pio install-plugin {plugin}"
@@ -272,7 +326,7 @@ if am_I_leader():
         from sh import ErrorReturnCode_1  # type: ignore
 
         logger = create_logger(
-            "uninstall_plugin", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            "uninstall_plugin", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
 
         command = f"pio uninstall-plugin {plugin}"
@@ -328,7 +382,7 @@ if am_I_leader():
         If neither `--shared` not `--specific` are specified, both are set to true.
         """
         logger = create_logger(
-            "sync_configs", unit=get_unit_name(), experiment=get_latest_experiment_name()
+            "sync_configs", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT
         )
         units = universal_identifier_to_all_workers(units)
 
@@ -400,7 +454,7 @@ if am_I_leader():
         command = f"pio kill {' '.join(job)}"
         command += "--all-jobs" if all_jobs else ""
 
-        logger = create_logger("CLI", unit=get_unit_name(), experiment=get_latest_experiment_name())
+        logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
 
         def _thread_function(unit: str):
             logger.debug(f"Executing `{command}` on {unit}.")
@@ -486,16 +540,12 @@ if am_I_leader():
                 ssh(add_local(unit), command)
                 return True
             except ErrorReturnCode_255 as e:
-                logger = create_logger(
-                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-                )
+                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
                 logger.debug(e, exc_info=True)
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False
             except ErrorReturnCode_1 as e:
-                logger = create_logger(
-                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-                )
+                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
                 logger.error(f"Error occurred: {e}. See logs for more.")
                 logger.debug(e.stderr, exc_info=True)
                 return False
@@ -542,9 +592,7 @@ if am_I_leader():
                 ssh(add_local(unit), command)
                 return True
             except ErrorReturnCode_255 as e:
-                logger = create_logger(
-                    "CLI", unit=get_unit_name(), experiment=get_latest_experiment_name()
-                )
+                logger = create_logger("CLI", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
                 logger.debug(e, exc_info=True)
                 logger.error(f"Unable to connect to unit {unit}. {e.stderr.decode()}")
                 return False

@@ -10,12 +10,12 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 CORE_REQUIREMENTS = [
     "click==8.1.3",
     "paho-mqtt==1.6.1",
-    "psutil==5.9.4",
+    "psutil==5.9.5",
     "sh==1.14.3",
     "JSON-log-formatter==0.5.1",
     "colorlog==6.7.0",
-    "msgspec==0.15.1",
-    "diskcache==5.4.0",
+    "msgspec==0.16.0",
+    "diskcache==5.6.1",
     "wheel==0.38.4",
     "crudini==0.9.4",
 ]
@@ -26,11 +26,11 @@ UI_REQUIREMENTS = [
     "flask==2.2.2",
     "flup6==1.1.1",
     "python-dotenv==0.21.0",
-    "huey==2.4.3",
+    "huey==2.4.5",
 ]
 
 
-LEADER_REQUIREMENTS = ["zeroconf==0.47.1"] + UI_REQUIREMENTS
+LEADER_REQUIREMENTS = ["zeroconf==0.64.1"] + UI_REQUIREMENTS
 
 
 WORKER_REQUIREMENTS = [

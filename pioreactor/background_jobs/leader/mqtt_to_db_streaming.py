@@ -17,6 +17,7 @@ from pioreactor import types as pt
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.config import config
 from pioreactor.hardware import PWM_TO_PIN
+from pioreactor.pubsub import MQTT_TOPIC
 from pioreactor.pubsub import QOS
 from pioreactor.utils.sqlite_worker import Sqlite3Worker
 from pioreactor.utils.timing import current_utc_datetime
@@ -44,13 +45,13 @@ class TopicToParserToTable(Struct):
      - parsers can return None as well, to skip adding the row to the database.
     """
 
-    topic: str | list[str]
+    topic: str | MQTT_TOPIC | list[str | MQTT_TOPIC]
     parser: Callable[[str, pt.MQTTMessagePayload], Optional[dict | list[dict]]]
     table: str
 
 
 class TopicToCallback(Struct):
-    topic: str | list[str]
+    topic: str | MQTT_TOPIC | list[str | MQTT_TOPIC]
     callback: Callable[[pt.MQTTMessage], None]
 
 
@@ -145,7 +146,7 @@ class MqttToDBStreamer(BackgroundJob):
         for topic_and_callback in topics_and_callbacks:
             self.subscribe_and_callback(
                 topic_and_callback.callback,
-                topic_and_callback.topic,
+                str(topic_and_callback.topic),
                 qos=QOS.EXACTLY_ONCE,
                 allow_retained=False,
             )

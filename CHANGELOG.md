@@ -1,3 +1,34 @@
+### 23.6.27
+
+#### Highlights
+ - The UI now offers a way to upgrade to the bleeding-edge Pioreactor app and UI software, called "development". This software is unstable (and fun!).
+
+#### Better thermostat
+
+ - Improved temperature inference accuracy.
+ - After some testing, we've found that the following set of PID parameters for `temperature_automation.thermostat` works better¹ than the previous set of parameters:
+```
+Kp=3.0
+Ki=0.0
+Kd=4.5
+```
+
+This set now ships with all new installations of Pioreactor software. **Existing users can update their parameters in the config.ini**
+
+¹ Better == less thermal runaways, less sensitive to shocks, similar overshoot and settling time.
+
+#### Everything else
+ - On startup, the Raspberry Pi will write its IP address to a text file `/boot/ip`. This means that if you (carefully) remove the SD card, you should be able see the IP address (hopefully it hasn't changed).
+ - Fixed `source` in `BackgroundJobContrib` - thanks @odcambc!
+ - `pio add-pioreactor` will now accept an option that is the password of the RPi being added (default: `raspberry`). Ex: `pio add-pioreactor worker1 -p mypass`
+ - Improved some warning and error messages.
+ - Improved watchdog detecting and fixing "lost" Pioreactors.
+ - Starting to test software against Python 3.11, in anticipation of a Python 3.11 coming to Raspberry Pi OS.
+ - Improvements to bash scripts to make them more robust.
+ - Adding `pios rm <filepath>` to remove a file across the cluster.
+ - Adding `-r` option to `pio update`. Example: `pio update <x> -r <repo>` to install from a repo (default is Pioreactor's repos).
+ - `structs.ODCalibration` has a new schema, `inferred_od600s` is now `od600s`. See `pioreactor.structs`.
+
 ### 23.6.7
 
 #### Highlights

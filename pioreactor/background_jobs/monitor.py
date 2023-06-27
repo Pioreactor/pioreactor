@@ -225,21 +225,41 @@ class Monitor(BackgroundJob):
                 if status == "failed" or status == "inactive":
                     self.logger.error("lighttpd is not running. Check `systemctl status lighttpd`.")
                     self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
-
                 elif status == "activating":
                     # try again
                     pass
-
                 elif status == "active":
                     # okay
                     break
-
                 else:
                     raise ValueError(status)
-
         except Exception as e:
             self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
             self.logger.error(f"Error checking lighttpd status: {e}")
+
+        try:
+            while True:
+                # Run the command 'systemctl is-active huey' and capture the output
+                result = subprocess.run(
+                    ["systemctl", "is-active", "huey"], capture_output=True, text=True
+                )
+                status = result.stdout.strip()
+
+                # Check if the output is okay
+                if status == "failed" or status == "inactive":
+                    self.logger.error("huey is not running. Check `systemctl status huey`.")
+                    self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
+                elif status == "activating":
+                    # try again
+                    pass
+                elif status == "active":
+                    # okay
+                    break
+                else:
+                    raise ValueError(status)
+        except Exception as e:
+            self.logger.debug(f"Error checking huey status: {e}", exc_info=True)
+            self.logger.error(f"Error checking huey status: {e}")
 
         try:
             # can we ping ourselves? should have a response
@@ -395,7 +415,7 @@ class Monitor(BackgroundJob):
         from pioreactor.hardware import voltage_in_aux
 
         voltage_read = voltage_in_aux(precision=0.05)
-        if voltage_read <= 4.9:
+        if voltage_read <= 4.80:
             return (True, voltage_read)
 
         under_voltage = new_under_voltage()
@@ -410,7 +430,9 @@ class Monitor(BackgroundJob):
     def check_for_power_problems(self) -> None:
         is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()
         self.logger.debug(f"PWM power supply at ~{voltage:.1f}V.")
-        self.voltage_on_pwm_rail = Voltage(voltage=voltage, timestamp=current_utc_datetime())
+        self.voltage_on_pwm_rail = Voltage(
+            voltage=round(voltage, 2), timestamp=current_utc_datetime()
+        )
         if is_rpi_having_power_probems:
             self.logger.warning(
                 f"Low-voltage detected on rail. PWM power supply at {voltage:.1f}V. Suggestion: use a better power supply or an AUX power. See docs at: https://docs.pioreactor.com/user-guide/external-power"
