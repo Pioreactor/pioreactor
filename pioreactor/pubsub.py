@@ -11,7 +11,7 @@ from typing import Any
 from typing import Callable
 from typing import Optional
 
-from paho.mqtt.client import Client as PahoClient  # type: ignore
+from paho.mqtt.client import Client as PahoClient
 
 from pioreactor.config import leader_address
 from pioreactor.types import MQTTMessage
@@ -89,7 +89,7 @@ def create_client(
     def default_on_connect(client: Client, userdata, flags, rc: int, properties=None):
         if rc > 1:
             from pioreactor.logging import create_logger
-            from paho.mqtt.client import connack_string  # type: ignore
+            from paho.mqtt.client import connack_string
 
             logger = create_logger("pubsub.create_client", to_mqtt=False)
             logger.error(f"Connection failed with error code {rc=}: {connack_string(rc)}")
@@ -135,7 +135,7 @@ def create_client(
 def publish(
     topic: str, message, hostname: str = leader_address, retries: int = 10, **mqtt_kwargs
 ) -> None:
-    from paho.mqtt import publish as mqtt_publish  # type: ignore
+    from paho.mqtt import publish as mqtt_publish
     import socket
 
     for retry_count in range(retries):
