@@ -14,7 +14,7 @@ class Metadata(Struct):
 
 class Plugin(Struct):
     name: str
-    version: str
+    version: str  # can be a version, or version bound with version. Ex: "1.0.2", or ">=1.02", or "==1.0.2". See
 
 
 class Action(Struct, forbid_unknown_fields=True):

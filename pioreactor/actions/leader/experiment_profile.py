@@ -5,11 +5,12 @@ from threading import Timer
 from typing import Callable
 
 import click
+import pkg_resources
 from msgspec.json import encode
 from msgspec.yaml import decode
 
 from pioreactor.config import leader_address
-from pioreactor.experiment_profiles.profile_struct import Profile
+from pioreactor.experiment_profiles import profile_struct as struct
 from pioreactor.logging import create_logger
 from pioreactor.mureq import put
 from pioreactor.pubsub import publish
@@ -99,9 +100,9 @@ def hours_to_seconds(hours: float) -> float:
     return hours * 60 * 60
 
 
-def load_and_verify_profile_file(profile_filename: str) -> Profile:
+def load_and_verify_profile_file(profile_filename: str) -> struct.Profile:
     with open(profile_filename) as f:
-        return decode(f.read(), type=Profile)
+        return decode(f.read(), type=struct.Profile)
 
 
 def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
@@ -116,6 +117,40 @@ def publish_labels_to_ui(labels_map: dict[str, str]) -> None:
         pass
 
 
+def get_installed_packages() -> dict[str, str]:
+    """Return a dictionary of installed packages and their versions"""
+    installed_packages = {d.project_name: d.version for d in pkg_resources.working_set}
+    return installed_packages
+
+
+def check_plugins(plugins: list[struct.Plugin]) -> None:
+    """Check if the specified packages with versions are installed"""
+    installed_packages = get_installed_packages()
+    not_installed = []
+
+    for plugin in plugins:
+        name = plugin.name
+        version = plugin.version
+        if name in installed_packages:
+            if version.startswith(">="):
+                # Version constraint is '>='
+                if installed_packages[name] < version[2:]:
+                    not_installed.append(plugin)
+            if version.startswith("<="):
+                # Version constraint is '<='
+                if installed_packages[name] > version[2:]:
+                    not_installed.append(plugin)
+            else:
+                # No version constraint, exact version match required
+                if installed_packages[name] != version:
+                    not_installed.append(plugin)
+        else:
+            not_installed.append(plugin)
+
+    if not_installed:
+        raise ImportError(f"Missing packages {not_installed}")
+
+
 def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> None:
     unit = get_unit_name()
     experiment = get_latest_experiment_name()
@@ -126,6 +161,13 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
         logger.notice(  # type: ignore
             f"Starting profile {profile.experiment_profile_name}, sourced from {profile_filename}."
         )
+
+        try:
+            check_plugins(profile.plugins)
+        except Exception as e:
+            logger.debug(e, exc_info=True)
+            logger.error(e)
+            raise e
 
         labels_to_units = {v: k for k, v in profile.labels.items()}
         publish_labels_to_ui(profile.labels)

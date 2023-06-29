@@ -40,6 +40,10 @@ Adding to ~/.pioreactor/plugins
      __plugin_version__
      __plugin_homepage__
 
+
+What's up with the underscore vs dashes discussion in the docs and throughout our software?
+https://chat.openai.com/share/fe432411-b1bb-47c3-be0b-8cfcc2588160
+
 """
 
 
@@ -67,7 +71,7 @@ def get_plugins() -> dict[str, Plugin]:
         try:
             md = entry_point.metadata(plugin.name)
             plugins[md["Name"]] = Plugin(
-                plugin.load(),
+                plugin.load(),  # plugin loading and execution here.
                 md["Summary"],
                 md["Version"],
                 md["Home-page"],

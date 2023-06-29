@@ -19,7 +19,9 @@ from base64 import b64encode
 from http.client import HTTPConnection
 from http.client import HTTPException
 from http.client import HTTPMessage
+from http.client import HTTPResponse
 from http.client import HTTPSConnection
+from typing import Generator
 from typing import Optional
 
 
@@ -33,7 +35,7 @@ def basic_auth(username, password):
     return f"Basic {token}"
 
 
-def request(method, url, *, read_limit=None, **kwargs):
+def request(method, url, *, read_limit=None, **kwargs) -> Response:
     """request performs an HTTP request and reads the entire response body.
 
     :param str method: HTTP method to request (e.g. 'GET', 'POST')
@@ -53,39 +55,39 @@ def request(method, url, *, read_limit=None, **kwargs):
         except IOError as e:
             raise HTTPException(str(e)) from e
         return Response(
-            response.url,
+            response.url,  # type: ignore
             response.status,
             _prepare_incoming_headers(response.headers),
             body,
         )
 
 
-def get(url, **kwargs):
+def get(url, **kwargs) -> Response:
     """get performs an HTTP GET request."""
     return request("GET", url=url, **kwargs)
 
 
-def post(url, body: Optional[bytes] = None, **kwargs):
+def post(url, body: Optional[bytes] = None, **kwargs) -> Response:
     """post performs an HTTP POST request."""
     return request("POST", url=url, body=body, **kwargs)
 
 
-def head(url, **kwargs):
+def head(url, **kwargs) -> Response:
     """head performs an HTTP HEAD request."""
     return request("HEAD", url=url, **kwargs)
 
 
-def put(url, body: Optional[bytes] = None, **kwargs):
+def put(url, body: Optional[bytes] = None, **kwargs) -> Response:
     """put performs an HTTP PUT request."""
     return request("PUT", url=url, body=body, **kwargs)
 
 
-def patch(url, body: Optional[bytes] = None, **kwargs):
+def patch(url, body: Optional[bytes] = None, **kwargs) -> Response:
     """patch performs an HTTP PATCH request."""
     return request("PATCH", url=url, body=body, **kwargs)
 
 
-def delete(url, **kwargs):
+def delete(url, **kwargs) -> Response:
     """delete performs an HTTP DELETE request."""
     return request("DELETE", url=url, **kwargs)
 
@@ -106,7 +108,7 @@ def yield_response(
     source_address=None,
     max_redirects=None,
     ssl_context=None,
-):
+) -> Generator[HTTPResponse, None, None]:
     """yield_response is a low-level API that exposes the actual
     http.client.HTTPResponse via a contextmanager.
 
@@ -144,7 +146,7 @@ def yield_response(
     enc_params = _prepare_params(params)
     body = _prepare_body(body, form, json, headers)
 
-    visited_urls = []
+    visited_urls: list[str] = []
 
     while max_redirects is None or len(visited_urls) <= max_redirects:
         url, conn, path = _prepare_request(

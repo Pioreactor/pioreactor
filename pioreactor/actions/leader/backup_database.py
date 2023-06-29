@@ -53,13 +53,14 @@ def backup_database(output_file: str, force: bool = False) -> None:
             "backup_database", experiment=experiment, unit=unit, to_mqtt=False
         )  # the backup would take so long that the mqtt client would disconnect. We also don't want to write to the db.
 
+        logger.debug(f"Starting backup of database to {output_file}")
+
         if not force and count_writes_occurring(unit) >= 2:
             logger.debug("Too many writes to proceed with backup. Exiting.")
             return
 
         current_time = current_utc_timestamp()
         page_size = 50
-        logger.debug(f"Starting backup of database to {output_file}")
 
         con = sqlite3.connect(config.get("storage", "database"))
         bck = sqlite3.connect(output_file)

@@ -382,12 +382,11 @@ class collect_all_logs_of_level:
         self.client.disconnect()
 
 
-def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None) -> None:
+def publish_to_pioreactor_cloud(endpoint: str, json=None) -> None:
     """
     Parameters
     ------------
     endpoint: the function to send to the data to
-    data: (optional) Dictionary, list of tuples, bytes, or file-like object to send in the body.
     json: (optional) json data to send in the body.
 
     """
@@ -406,8 +405,7 @@ def publish_to_pioreactor_cloud(endpoint: str, data=None, json=None) -> None:
     try:
         post(
             f"https://cloud.pioreactor.com/{endpoint}",
-            data=data,
-            json=json,
+            body=json.encode("utf-8"),
             headers=headers,
         )
     except Exception:

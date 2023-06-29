@@ -115,7 +115,7 @@ class MQTTHandler(logging.Handler):
         if (record.levelno == logging.ERROR) and config.getboolean(
             "data_sharing_with_pioreactor", "send_errors_to_Pioreactor", fallback=False
         ):
-            publish_to_pioreactor_cloud("reported_errors", data=payload)
+            publish_to_pioreactor_cloud("reported_errors", payload)
 
         # if Python exits too quickly, the last msg might never make it to the broker.
         mqtt_msg.wait_for_publish(timeout=1)
