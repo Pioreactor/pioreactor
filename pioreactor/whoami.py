@@ -9,7 +9,6 @@ from hashlib import md5
 
 from msgspec.json import decode
 
-from pioreactor.mureq import get
 from pioreactor.structs import ExperimentMetadata
 from pioreactor.version import serial_number
 
@@ -29,6 +28,9 @@ def get_latest_experiment_name() -> str:
 
 
 def _get_latest_experiment_name() -> str:
+    from pioreactor.logging import create_logger
+    from pioreactor import mureq
+
     if os.environ.get("EXPERIMENT") is not None:
         return os.environ["EXPERIMENT"]
     elif is_testing_env():
@@ -39,17 +41,21 @@ def _get_latest_experiment_name() -> str:
     retries = 10
     for attempt in range(retries):
         try:
-            result = get(f"http://{leader_address}/api/experiments/latest")
+            result = mureq.get(f"http://{leader_address}/api/experiments/latest")
             result.raise_for_status()
             return decode(result.body, type=ExperimentMetadata).experiment
+        except mureq.HTTPErrorStatus as e:
+            if e.status_code == 401:
+                # auth error, something is wrong
+                break
         except Exception:
-            time.sleep(0.5 * attempt)
-
-    from pioreactor.logging import create_logger
+            # some network error? Keep trying
+            pass
+        time.sleep(0.5 * attempt)
 
     logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
     logger.warning(
-        f"No experiment found. Check http://{leader_address}/api/experiments/latest for an experiment."
+        f"Not able to access latest experiment. Check http://{leader_address}/api/experiments/latest "
     )
     return NO_EXPERIMENT
 

@@ -24,15 +24,18 @@ from http.client import HTTPSConnection
 from typing import Generator
 from typing import Optional
 
+from pioreactor.config import config
+
 
 DEFAULT_TIMEOUT = 15.0
 DEFAULT_UA = "Python/Pioreactor"
+DEFAULT_AUTH = f'Basic {config.get("ui_basic_auth", "api_key", fallback="")}'
 
 
-def basic_auth(username, password):
-    # headers = { 'Authorization' : basic_auth(username, password) }
+def basic_auth(username: str, password: str):
+    # get(..., headers={ 'Authorization' : f'Basic {basic_auth(username, password)}'})
     token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
-    return f"Basic {token}"
+    return {token}
 
 
 def request(method, url, *, read_limit=None, **kwargs) -> Response:
@@ -258,7 +261,7 @@ class HTTPErrorStatus(HTTPException):
     called explicitly.
     """
 
-    def __init__(self, status_code):
+    def __init__(self, status_code: int):
         self.status_code = status_code
 
     def __str__(self):
@@ -345,6 +348,7 @@ def _prepare_outgoing_headers(headers):
             new_headers[k] = v
         headers = new_headers
     _setdefault_header(headers, "User-Agent", DEFAULT_UA)
+    _setdefault_header(headers, "Authorization", DEFAULT_AUTH)
     return headers
 
 

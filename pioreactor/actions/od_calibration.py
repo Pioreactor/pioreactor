@@ -95,7 +95,7 @@ def get_metadata_from_user():
 
     click.echo(f"This will require {number_of_points} data points.")
     click.echo(
-        f"You will need at least {number_of_points * dilution_amount}mL of media available."
+        f"You will need at least {number_of_points * dilution_amount + 10}mL of media available."
     )
     click.confirm("Continue?", abort=True, default=True)
 
@@ -197,10 +197,7 @@ def start_recording_and_diluting(
         def get_voltage_from_adc() -> float:
             od_readings1 = od_reader.record_from_adc()
             od_readings2 = od_reader.record_from_adc()
-            return 0.5 * (
-                od_readings1.ods[signal_channel].od
-                + od_readings2.ods[signal_channel].od
-            )
+            return 0.5 * (od_readings1.ods[signal_channel].od + od_readings2.ods[signal_channel].od)
 
         for _ in range(4):
             # warm up
@@ -208,9 +205,9 @@ def start_recording_and_diluting(
 
         while inferred_od600 > minimum_od600:
             if inferred_od600 < initial_od600 and click.confirm(
-                "Do you want to enter a new OD600 value for the current density?"
+                "Do you want to enter an updated OD600 value for the current density?"
             ):
-                inferred_od600 = click.prompt("New measured OD600", type=float)
+                inferred_od600 = click.prompt("Updated OD600", type=float)
 
             inferred_od600s.append(inferred_od600)
 
@@ -269,13 +266,9 @@ def start_recording_and_diluting(
                 click.echo()
                 click.echo(click.style("Stop❗", fg="red"))
                 click.echo("Carefully remove vial.")
-                click.echo(
-                    "(Optional: take new OD600 reading with external instrument.)"
-                )
+                click.echo("(Optional: take new OD600 reading with external instrument.)")
                 click.echo("Reduce volume in vial back to 10ml.")
-                click.echo(
-                    "Confirm vial outside is dry and clean. Place back into Pioreactor."
-                )
+                click.echo("Confirm vial outside is dry and clean. Place back into Pioreactor.")
                 while not click.confirm("Continue?", default=True):
                     pass
                 current_volume_in_vial = initial_volume_in_vial
@@ -440,9 +433,7 @@ def od_calibration() -> None:
 
         degree = 4
         while True:
-            curve_data_, curve_type = calculate_curve_of_best_fit(
-                voltages, inferred_od600s, degree
-            )
+            curve_data_, curve_type = calculate_curve_of_best_fit(voltages, inferred_od600s, degree)
             okay_with_result, degree = show_results_and_confirm_with_user(
                 curve_data_, curve_type, voltages, inferred_od600s
             )
@@ -464,9 +455,7 @@ def od_calibration() -> None:
         click.echo(click.style(f"Data for {name}", underline=True, bold=True))
         click.echo(data_blob)
         click.echo()
-        click.echo(
-            click.style(f"Calibration curve for `{name}`", underline=True, bold=True)
-        )
+        click.echo(click.style(f"Calibration curve for `{name}`", underline=True, bold=True))
         click.echo(curve_to_functional_form(curve_type, curve_data_))
         click.echo()
         click.echo(f"Finished calibration of {name} ✅")
@@ -527,12 +516,8 @@ def display(name: str | None) -> None:
             ),
         )
         click.echo()
-        click.echo(
-            click.style(f"Calibration curve for `{name}`", underline=True, bold=True)
-        )
-        click.echo(
-            curve_to_functional_form(data_blob["curve_type"], data_blob["curve_data_"])
-        )
+        click.echo(click.style(f"Calibration curve for `{name}`", underline=True, bold=True))
+        click.echo(curve_to_functional_form(data_blob["curve_type"], data_blob["curve_data_"]))
         click.echo()
         click.echo(click.style(f"Data for `{name}`", underline=True, bold=True))
         pprint(data_blob)
@@ -606,9 +591,7 @@ def change_current(name: str) -> None:
             click.echo("Could not update in database on leader ❌")
 
         if old_calibration:
-            click.echo(
-                f"Replaced {old_calibration.name} with {new_calibration.name}   ✅"
-            )
+            click.echo(f"Replaced {old_calibration.name} with {new_calibration.name}   ✅")
         else:
             click.echo(f"Set {new_calibration.name} to current calibration  ✅")
 
@@ -632,9 +615,7 @@ def list_() -> None:
     with local_persistant_storage("od_calibrations") as c:
         for name in c.iterkeys():
             try:
-                cal = decode(
-                    c[name], type=structs.subclass_union(structs.ODCalibration)
-                )
+                cal = decode(c[name], type=structs.subclass_union(structs.ODCalibration))
                 click.secho(
                     f"{cal.name:15s} {cal.created_at:%d %b, %Y}       {cal.angle:12s} {'✅' if cal.name in current else ''}",
                 )

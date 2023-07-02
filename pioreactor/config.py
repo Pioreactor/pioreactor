@@ -5,8 +5,6 @@ import configparser
 import os
 from functools import cache
 
-from pioreactor.whoami import is_testing_env
-
 
 def __getattr__(attr):  # type: ignore
     """
@@ -123,6 +121,7 @@ def get_config() -> ConfigParserMod:
 
     """
     config = ConfigParserMod()
+    from pioreactor.whoami import is_testing_env
 
     if is_testing_env():
         global_config_path = os.environ.get("GLOBAL_CONFIG", "./config.dev.ini")
@@ -177,6 +176,8 @@ def get_leader_address() -> str:
 
 
 def check_firstboot_successful() -> bool:
+    from pioreactor.whoami import is_testing_env
+
     if is_testing_env():
         return True
     return os.path.isfile("/usr/local/bin/firstboot.sh.done")
