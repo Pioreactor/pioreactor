@@ -39,6 +39,8 @@ def _get_latest_experiment_name() -> str:
     from pioreactor.config import leader_address
 
     retries = 10
+    exit_reason = ""
+
     for attempt in range(retries):
         try:
             result = mureq.get(f"http://{leader_address}/api/experiments/latest")
@@ -47,16 +49,31 @@ def _get_latest_experiment_name() -> str:
         except mureq.HTTPErrorStatus as e:
             if e.status_code == 401:
                 # auth error, something is wrong
+                exit_reason = "auth"
                 break
+        except mureq.HTTPException:
+            exit_reason = "connection_refused"
         except Exception:
-            # some network error? Keep trying
+            # some other error? Keep trying
             pass
         time.sleep(0.5 * attempt)
+    else:
+        exit_reason = "timeout"
 
     logger = create_logger("pioreactor", experiment=UNIVERSAL_EXPERIMENT, to_mqtt=False)
-    logger.warning(
-        f"Not able to access latest experiment. Check http://{leader_address}/api/experiments/latest "
-    )
+
+    if exit_reason == "auth":
+        logger.warning(
+            f"Error in authentication to UI. Check http://{leader_address} and config.ini for api_key."
+        )
+    elif exit_reason == "timeout":
+        logger.warning(
+            f"Not able to access experiments in UI. Check http://{leader_address}/api/experiments/latest"
+        )
+    elif exit_reason == "connection_refused":
+        logger.warning(
+            f"Not able to access experiments in UI. Check http://{leader_address} is online and check network."
+        )
     return NO_EXPERIMENT
 
 

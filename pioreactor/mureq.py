@@ -35,7 +35,7 @@ DEFAULT_AUTH = f'Basic {config.get("ui_basic_auth", "api_key", fallback="")}'
 def basic_auth(username: str, password: str):
     # get(..., headers={ 'Authorization' : f'Basic {basic_auth(username, password)}'})
     token = b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
-    return {token}
+    return token
 
 
 def request(method, url, *, read_limit=None, **kwargs) -> Response:
