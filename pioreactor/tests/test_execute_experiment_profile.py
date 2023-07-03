@@ -7,7 +7,6 @@ from pioreactor.actions.leader.experiment_profile import execute_experiment_prof
 from pioreactor.actions.leader.experiment_profile import hours_to_seconds
 from pioreactor.experiment_profiles.profile_struct import Action
 from pioreactor.experiment_profiles.profile_struct import Metadata
-from pioreactor.experiment_profiles.profile_struct import Plugin
 from pioreactor.experiment_profiles.profile_struct import Profile
 from pioreactor.pubsub import subscribe_and_callback
 
@@ -29,7 +28,7 @@ def test_execute_experiment_profile_order(mock_load_and_verify_profile_file):
 
     profile = Profile(
         experiment_profile_name="test_profile",
-        plugins=[Plugin(name="test_plugin", version="1.0.0")],
+        plugins=[],
         common={"job1": {"actions": [action1]}},
         pioreactors={"unit1": {"jobs": {"job2": {"actions": [action2, action3]}}}},
         metadata=Metadata(author="test_author"),

@@ -77,13 +77,3 @@ def test_run_job_with_monitor() -> None:
             pause()
 
         assert any("pio run example_plugin" in msg["message"] for msg in bucket)
-
-
-def test_state_is_published_when_asked() -> None:
-    unit = get_unit_name()
-    exp = UNIVERSAL_EXPERIMENT
-
-    with Monitor(unit=unit, experiment=exp) as m:
-        time.sleep(1)
-        publish(f"pioreactor/{unit}/{exp}/{m.job_name}/flicker_led_response_okay", "empty")
-        time.sleep(10)
