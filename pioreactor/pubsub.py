@@ -382,30 +382,38 @@ class collect_all_logs_of_level:
         self.client.disconnect()
 
 
-def publish_to_pioreactor_cloud(endpoint: str, json=None) -> None:
+def publish_to_pioreactor_cloud(
+    endpoint: str, data_dict: Optional[dict] = None, data_str: Optional[str] = None
+) -> None:
     """
     Parameters
     ------------
     endpoint: the function to send to the data to
-    json: (optional) json data to send in the body.
+    json: (optional) data to send in the body.
 
     """
     from pioreactor.mureq import post
     from pioreactor.whoami import get_hashed_serial_number, is_testing_env
     from pioreactor.utils.timing import current_utc_timestamp
+    from json import dumps
+
+    assert data_dict is not None and data_str is not None
 
     if is_testing_env():
         return
 
-    if json is not None:
-        json["hashed_serial_number"] = get_hashed_serial_number()
-        json["timestamp"] = current_utc_timestamp()
+    if data_dict is not None:
+        data_dict["hashed_serial_number"] = get_hashed_serial_number()
+        data_dict["timestamp"] = current_utc_timestamp()
+        body = dumps(data_dict).encode("utf-8")
+    elif data_str is not None:
+        body = data_str.encode("utf-8")
 
     headers = {"Content-type": "application/json", "Accept": "text/plain"}
     try:
         post(
             f"https://cloud.pioreactor.com/{endpoint}",
-            body=json.encode("utf-8"),
+            body=body,
             headers=headers,
         )
     except Exception:
