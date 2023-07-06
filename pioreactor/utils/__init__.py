@@ -236,7 +236,8 @@ def local_intermittent_storage(
     Opening the same cache in a context manager is tricky, and should be avoided.
 
     """
-    # TMPDIR is in OSX and Pioreactor img (we provide it), TMP is windows
+    # gettempdir find the directory named by the TMPDIR environment variable.
+    # TMPDIR is set in the Pioreactor img.
     tmp_dir = tempfile.gettempdir()
     with Cache(f"{tmp_dir}/{cache_name}") as cache:
         yield cache  # type: ignore

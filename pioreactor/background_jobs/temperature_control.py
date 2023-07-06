@@ -61,20 +61,15 @@ class TemperatureController(BackgroundJob):
             "timestamp": <ISO 8601 timestamp>
         }
 
-    If you have your own thermo-couple, you can publish to this topic, with the same schema
-    and all should just work™️. Set `using_third_party_thermocouple` to True in the class creation, too.
-
-
     Parameters
     ------------
-    using_third_party_thermocouple: bool
-        True if supplying an external thermometer that will publish to MQTT.
+
     """
 
     MAX_TEMP_TO_REDUCE_HEATING = (
         63.0  # ~PLA glass transition temp, and I've gone safely above this an it's not a problem.
     )
-    MAX_TEMP_TO_DISABLE_HEATING = 65.0
+    MAX_TEMP_TO_DISABLE_HEATING = 65.0  # probably okay, but can't stay here for too long
     MAX_TEMP_TO_SHUTDOWN = 66.0
 
     INFERENCE_SAMPLES_EVERY_T_SECONDS: float = 5.0
@@ -100,8 +95,6 @@ class TemperatureController(BackgroundJob):
         automation_name: str,
         unit: str,
         experiment: str,
-        eval_and_publish_immediately: bool = True,
-        using_third_party_thermocouple: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(unit=unit, experiment=experiment)
@@ -121,25 +114,23 @@ class TemperatureController(BackgroundJob):
         else:
             from TMP1075 import TMP1075  # type: ignore
 
-        self.using_third_party_thermocouple = using_third_party_thermocouple
         self.pwm = self.setup_pwm()
         self.update_heater(0)
 
-        if not self.using_third_party_thermocouple:
-            self.tmp_driver = TMP1075(address=hardware.TEMP)
-            self.read_external_temperature_timer = RepeatedTimer(
-                53,
-                self.read_external_temperature,
-                run_immediately=False,
-            ).start()
+        self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP)
+        self.read_external_temperature_timer = RepeatedTimer(
+            53,
+            self.read_external_temperature,
+            run_immediately=False,
+        ).start()
 
-            self.publish_temperature_timer = RepeatedTimer(
-                int(self.INFERENCE_EVERY_N_SECONDS),
-                self.infer_temperature,
-                run_after=self.INFERENCE_EVERY_N_SECONDS
-                - self.inference_total_time,  # This gives an automation a "full" PWM cycle to be on before an inference starts.
-                run_immediately=True,
-            ).start()
+        self.publish_temperature_timer = RepeatedTimer(
+            int(self.INFERENCE_EVERY_N_SECONDS),
+            self.infer_temperature,
+            run_after=self.INFERENCE_EVERY_N_SECONDS
+            - self.inference_total_time,  # This gives an automation a "full" PWM cycle to be on before an inference starts.
+            run_immediately=True,
+        ).start()
 
         try:
             automation_class = self.available_automations[automation_name]
@@ -164,17 +155,16 @@ class TemperatureController(BackgroundJob):
             raise e
         self.automation_name = self.automation.automation_name
 
-        if not self.using_third_party_thermocouple:
-            if whoami.is_testing_env() or self._seconds_since_last_active() >= 10:
-                # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
-                self.temperature = Temperature(
-                    temperature=self.read_external_temperature(),
-                    timestamp=current_utc_datetime(),
-                )
+        if whoami.is_testing_env() or self.seconds_since_last_active_heating() >= 10:
+            # if we turn off heating and turn on again, without some sort of time to cool, the first temperature looks wonky
+            self.temperature = Temperature(
+                temperature=self.read_external_temperature(),
+                timestamp=current_utc_datetime(),
+            )
 
     @staticmethod
-    def _seconds_since_last_active() -> float:
-        with local_intermittent_storage("last_heating_timestamp") as cache:
+    def seconds_since_last_active_heating() -> float:
+        with local_intermittent_storage("temperature_and_heating") as cache:
             if "last_heating_timestamp" in cache:
                 return (
                     current_utc_datetime() - to_datetime(cache["last_heating_timestamp"])
@@ -223,7 +213,7 @@ class TemperatureController(BackgroundJob):
         try:
             # check temp is fast, let's do it a few times to reduce variance.
             for i in range(5):
-                running_sum += self.tmp_driver.get_temperature()
+                running_sum += self.heating_pcb_tmp_driver.get_temperature()
                 running_count += 1
                 sleep(0.05)
 
@@ -240,6 +230,10 @@ class TemperatureController(BackgroundJob):
             self.logger.error("Temp sensor failure. Switching off. See issue #308")
             self._update_heater(0.0)
             self.set_automation(TemperatureAutomation(automation_name="only_record_temperature"))
+
+        with local_intermittent_storage("temperature_and_heating") as cache:
+            cache["heating_pcb_temperature"] = averaged_temp
+            cache["heating_pcb_temperature_at"] = current_utc_timestamp()
 
         return averaged_temp
 
@@ -311,6 +305,10 @@ class TemperatureController(BackgroundJob):
         self.heater_duty_cycle = clamp(0.0, round(float(new_duty_cycle), 2), 100.0)
         self.pwm.change_duty_cycle(self.heater_duty_cycle)
 
+        if self.heater_duty_cycle == 0.0:
+            with local_intermittent_storage("temperature_and_heating") as cache:
+                cache["last_heating_timestamp"] = current_utc_timestamp()
+
         return True
 
     def _check_if_exceeds_max_temp(self, temp: float) -> float:
@@ -366,9 +364,6 @@ class TemperatureController(BackgroundJob):
 
         with suppress(AttributeError):
             self.automation_job.clean_up()
-
-        with local_intermittent_storage("last_heating_timestamp") as cache:
-            cache["last_heating_timestamp"] = current_utc_timestamp()
 
     def setup_pwm(self) -> PWM:
         hertz = 8  # technically this doesn't need to be high: it could even be 1hz. However, we want to smooth it's
@@ -583,6 +578,7 @@ def start_temperature_control(
     "--automation-name",
     help="set the automation of the system",
     show_default=True,
+    required=True,
 )
 @click.pass_context
 def click_temperature_control(ctx, automation_name: str) -> None:

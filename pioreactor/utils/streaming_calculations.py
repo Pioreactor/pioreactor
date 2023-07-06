@@ -5,7 +5,7 @@ from json import dumps
 from threading import Timer
 from typing import Optional
 
-from pioreactor.pubsub import publish
+from pioreactor.pubsub import create_client
 
 
 class ExponentialMovingAverage:
@@ -376,49 +376,80 @@ class CultureGrowthEKF:
 
 
 class PID:
-    # used in dosing_control classes
-
     def __init__(
         self,
         Kp: float,
         Ki: float,
         Kd: float,
         setpoint: float,
-        K0: float = 0,
-        output_limits=(None, None),
+        output_limits: Optional[tuple[float, float]] = None,
         sample_time: Optional[float] = None,
         unit: Optional[str] = None,
         experiment: Optional[str] = None,
         job_name: Optional[str] = None,
         target_name: Optional[str] = None,
-        **kwargs,
+        derivative_smoothing=0.1,
     ):
-        from simple_pid import PID as simple_PID
+        # PID coefficients
+        self.Kp = Kp
+        self.Ki = Ki
+        self.Kd = Kd
+        self.setpoint = setpoint
 
-        self.K0 = K0
-        self.pid = simple_PID(
-            Kp,
-            Ki,
-            Kd,
-            setpoint=setpoint,
-            output_limits=output_limits,
-            sample_time=sample_time,
-            **kwargs,
-        )
+        # The windup limit for integral term
+        self.output_limits = output_limits
+
+        # Smoothing factor for derivative term
+        self.derivative_smoothing = derivative_smoothing
+
+        # State variables
+        self.error_prev = 0.0
+        self.error_sum = 0.0
+        self.derivative_prev = 0.0
+
         self.unit = unit
         self.experiment = experiment
         self.target_name = target_name
         self.job_name = job_name
+        self.client = create_client(client_id=f"pid-{self.unit}-{self.experiment}")
 
-    def set_setpoint(self, new_setpoint) -> None:
-        self.pid.setpoint = new_setpoint
+    def reset(self):
+        """
+        Resets the state variables.
+        """
+        self.error_prev = 0.0
+        self.error_sum = 0.0
+        self.derivative_prev = 0.0
 
-    def update(self, input_: float, dt=None) -> float:
-        output = self.pid(input_, dt=dt)
-        if output is not None:
-            output += self.K0
-        else:
-            output = 0
+    def set_setpoint(self, new_setpoint: float) -> None:
+        self.setpoint = new_setpoint
+
+    def update(self, input_: float, dt: float = 1.0):
+        """
+        Updates the controller's internal state with the current error and time step,
+        and returns the controller output.
+        """
+
+        error = self.setpoint - input_
+        # Update error sum with clamping for anti-windup
+        self.error_sum += error * dt
+        if self.output_limits is not None:
+            self.error_sum = max(min(self.error_sum, self.output_limits[1]), self.output_limits[0])
+
+        # Calculate error derivative with smoothing
+        derivative = (error - self.error_prev) / dt
+        derivative = (
+            self.derivative_smoothing * derivative
+            + (1.0 - self.derivative_smoothing) * self.derivative_prev
+        )
+
+        # Update state variables
+        self.error_prev = error
+        self.derivative_prev = derivative
+
+        # Calculate PID output
+        output = self.Kp * error + self.Ki * self.error_sum + self.Kd * derivative
+
         self.publish_pid_stats()
         return output
 
@@ -440,4 +471,4 @@ class PID:
             "job_name": self.job_name,
             "target_name": self.target_name,
         }
-        publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", dumps(to_send))
+        self.client.publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", dumps(to_send))

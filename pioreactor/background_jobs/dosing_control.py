@@ -165,6 +165,7 @@ def start_dosing_control(
     "--automation-name",
     help="set the automation of the system: turbidostat, morbidostat, silent, etc.",
     show_default=True,
+    required=True,
 )
 @click.option(
     "--duration",

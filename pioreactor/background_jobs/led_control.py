@@ -124,6 +124,7 @@ def start_led_control(
     "--automation-name",
     help="set the automation of the system: silent, etc.",
     show_default=True,
+    required=True,
 )
 @click.option("--duration", default=60.0, help="Time, in minutes, between every monitor check")
 @click.option(
