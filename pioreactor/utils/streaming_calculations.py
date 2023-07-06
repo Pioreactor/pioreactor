@@ -382,14 +382,14 @@ class PID:
         Ki: float,
         Kd: float,
         setpoint: float,
-        output_limits: Optional[tuple[float, float]] = None,
+        output_limits: tuple[Optional[float], Optional[float]] = (None, None),
         sample_time: Optional[float] = None,
         unit: Optional[str] = None,
         experiment: Optional[str] = None,
         job_name: Optional[str] = None,
         target_name: Optional[str] = None,
         derivative_smoothing=0.1,
-    ):
+    ) -> None:
         # PID coefficients
         self.Kp = Kp
         self.Ki = Ki
@@ -413,7 +413,7 @@ class PID:
         self.job_name = job_name
         self.client = create_client(client_id=f"pid-{self.unit}-{self.experiment}")
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Resets the state variables.
         """
@@ -424,7 +424,7 @@ class PID:
     def set_setpoint(self, new_setpoint: float) -> None:
         self.setpoint = new_setpoint
 
-    def update(self, input_: float, dt: float = 1.0):
+    def update(self, input_: float, dt: float = 1.0) -> float:
         """
         Updates the controller's internal state with the current error and time step,
         and returns the controller output.
@@ -433,8 +433,10 @@ class PID:
         error = self.setpoint - input_
         # Update error sum with clamping for anti-windup
         self.error_sum += error * dt
-        if self.output_limits is not None:
-            self.error_sum = max(min(self.error_sum, self.output_limits[1]), self.output_limits[0])
+        if self.output_limits[0] is not None:
+            self.error_sum = max(self.error_sum, self.output_limits[0])
+        if self.output_limits[1] is not None:
+            self.error_sum = min(self.error_sum, self.output_limits[1])
 
         # Calculate error derivative with smoothing
         derivative = (error - self.error_prev) / dt
@@ -450,24 +452,26 @@ class PID:
         # Calculate PID output
         output = self.Kp * error + self.Ki * self.error_sum + self.Kd * derivative
 
+        self._last_input = input_
+        self._last_output = output
+
         self.publish_pid_stats()
         return output
 
-    def publish_pid_stats(self):
+    def publish_pid_stats(self) -> None:
         # not currently being saved in database.
         to_send = {
-            "setpoint": self.pid.setpoint,
-            "output_limits_lb": self.pid.output_limits[0],
-            "output_limits_ub": self.pid.output_limits[1],
-            "Kd": self.pid.Kd,
-            "Ki": self.pid.Ki,
-            "Kp": self.pid.Kp,
-            "K0": self.K0,
-            "integral": self.pid._integral,
-            "proportional": self.pid._proportional,
-            "derivative": self.pid._derivative,
-            "latest_input": self.pid._last_input,
-            "latest_output": self.pid._last_output,
+            "setpoint": self.setpoint,
+            "output_limits_lb": self.output_limits[0],
+            "output_limits_ub": self.output_limits[1],
+            "Kd": self.Kd,
+            "Ki": self.Ki,
+            "Kp": self.Kp,
+            "integral": self.error_sum,
+            "proportional": self.error_prev,
+            "derivative": self.derivative_prev,
+            "latest_input": self._last_input,
+            "latest_output": self._last_output,
             "job_name": self.job_name,
             "target_name": self.target_name,
         }
