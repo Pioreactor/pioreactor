@@ -388,7 +388,7 @@ class PID:
         experiment: Optional[str] = None,
         job_name: Optional[str] = None,
         target_name: Optional[str] = None,
-        derivative_smoothing=0.1,
+        derivative_smoothing=0.0,
     ) -> None:
         # PID coefficients
         self.Kp = Kp
@@ -433,6 +433,7 @@ class PID:
         error = self.setpoint - input_
         # Update error sum with clamping for anti-windup
         self.error_sum += error * dt
+
         if self.output_limits[0] is not None:
             self.error_sum = max(self.error_sum, self.output_limits[0])
         if self.output_limits[1] is not None:
@@ -441,9 +442,8 @@ class PID:
         # Calculate error derivative with smoothing
         derivative = (error - self.error_prev) / dt
         derivative = (
-            self.derivative_smoothing * derivative
-            + (1.0 - self.derivative_smoothing) * self.derivative_prev
-        )
+            1 - self.derivative_smoothing
+        ) * derivative + self.derivative_smoothing * self.derivative_prev
 
         # Update state variables
         self.error_prev = error
@@ -451,6 +451,10 @@ class PID:
 
         # Calculate PID output
         output = self.Kp * error + self.Ki * self.error_sum + self.Kd * derivative
+        if self.output_limits[0] is not None:
+            output = max(output, self.output_limits[0])
+        if self.output_limits[1] is not None:
+            output = min(output, self.output_limits[1])
 
         self._last_input = input_
         self._last_output = output
@@ -467,9 +471,9 @@ class PID:
             "Kd": self.Kd,
             "Ki": self.Ki,
             "Kp": self.Kp,
-            "integral": self.error_sum,
-            "proportional": self.error_prev,
-            "derivative": self.derivative_prev,
+            "integral": self.Ki * self.error_sum,
+            "proportional": self.Kp * self.error_prev,
+            "derivative": self.Kd * self.derivative_prev,
             "latest_input": self._last_input,
             "latest_output": self._last_output,
             "job_name": self.job_name,
