@@ -403,7 +403,7 @@ class PID:
         self.derivative_smoothing = derivative_smoothing
 
         # State variables
-        self.error_prev = 0.0
+        self.error_prev: Optional[float] = None
         self.error_sum = 0.0
         self.derivative_prev = 0.0
 
@@ -417,7 +417,7 @@ class PID:
         """
         Resets the state variables.
         """
-        self.error_prev = 0.0
+        self.error_prev = None
         self.error_sum = 0.0
         self.derivative_prev = 0.0
 
@@ -440,7 +440,7 @@ class PID:
             self.error_sum = min(self.error_sum, self.output_limits[1])
 
         # Calculate error derivative with smoothing
-        derivative = (error - self.error_prev) / dt
+        derivative = ((error - self.error_prev) if self.error_prev is not None else 0) / dt
         derivative = (
             1 - self.derivative_smoothing
         ) * derivative + self.derivative_smoothing * self.derivative_prev
@@ -472,7 +472,7 @@ class PID:
             "Ki": self.Ki,
             "Kp": self.Kp,
             "integral": self.Ki * self.error_sum,
-            "proportional": self.Kp * self.error_prev,
+            "proportional": self.Kp * (self.error_prev if self.error_prev is not None else 0),
             "derivative": self.Kd * self.derivative_prev,
             "latest_input": self._last_input,
             "latest_output": self._last_output,
