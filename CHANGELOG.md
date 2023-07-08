@@ -1,3 +1,9 @@
+### Upcoming
+
+ - improved sensitivity of self-test `test_REF_is_in_correct_position`
+ - executing experiment profiles now check for required plugins
+ - Plugins can be built with a flag file LEADER_ONLY to only be installed on the leader Pioreactor.
+
 ### 23.6.27
 
 #### Highlights

@@ -120,6 +120,22 @@ REF_keyword = "REF"
 IR_keyword = "IR"
 
 
+def average_over_pd_channel_to_voltages(*pd_channel_to_voltages: PdChannelToVoltage):
+    running_count = 0
+    summed_pd_channel_to_voltage: PdChannelToVoltage = {}
+    for pd_channel_to_voltage in pd_channel_to_voltages:
+        for channel, voltage in pd_channel_to_voltage.items():
+            summed_pd_channel_to_voltage[channel] = (
+                summed_pd_channel_to_voltage.get(channel, 0) + voltage
+            )
+        running_count += 1
+
+    return {
+        channel: voltage / running_count
+        for channel, voltage in summed_pd_channel_to_voltage.items()
+    }
+
+
 class ADCReader(LoggerMixin):
     _logger_name = "adc_reader"
     _setup_complete = False
@@ -825,7 +841,11 @@ class ODReader(BackgroundJob):
                 self.stop_ir_led()
                 sleep(0.15)
 
-                blank_reading = self.adc_reader.take_reading()
+                blank_reading = average_over_pd_channel_to_voltages(
+                    self.adc_reader.take_reading(),
+                    self.adc_reader.take_reading(),
+                    self.adc_reader.take_reading(),
+                )
                 self.adc_reader.set_offsets(blank_reading)  # determine offset
 
                 # clear the history in adc_reader, so that we don't blank readings in later inference.

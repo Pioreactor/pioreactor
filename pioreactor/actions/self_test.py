@@ -62,12 +62,13 @@ def test_REF_is_in_correct_position(
     from statistics import variance
 
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
+    signal_channel = ["1", "2"][int(reference_channel == "1")]
 
     signal1 = []
     signal2 = []
 
     with stirring.start_stirring(
-        target_rpm=1200,
+        target_rpm=1250,
         unit=unit,
         experiment=experiment,
     ) as st, start_od_reading(
@@ -79,7 +80,7 @@ def test_REF_is_in_correct_position(
         experiment=experiment,
         use_calibration=False,
     ) as od_stream:
-        st.block_until_rpm_is_close_to_target(abs_tolerance=100)
+        st.block_until_rpm_is_close_to_target(abs_tolerance=150)
 
         for i, reading in enumerate(od_stream, start=1):
             signal1.append(reading.ods["1"].od)
@@ -98,18 +99,11 @@ def test_REF_is_in_correct_position(
         "2": variance(signal2) / trimmed_mean(signal2) ** 2,
     }
 
-    print(norm_variance_per_channel)
-
-    THRESHOLD = 1.0
-    if reference_channel == "1":
-        assert (
-            THRESHOLD * norm_variance_per_channel["1"] < norm_variance_per_channel["2"]
-        ), f"{reference_channel=}, {norm_variance_per_channel=}"
-
-    elif reference_channel == "2":
-        assert (
-            THRESHOLD * norm_variance_per_channel["2"] < norm_variance_per_channel["1"]
-        ), f"{reference_channel=}, {norm_variance_per_channel=}"
+    THRESHOLD = 6.0
+    assert (
+        THRESHOLD * norm_variance_per_channel[reference_channel]
+        < norm_variance_per_channel[signal_channel]
+    ), f"{reference_channel=}, {norm_variance_per_channel=}"
 
 
 def test_all_positive_correlations_between_pds_and_leds(
