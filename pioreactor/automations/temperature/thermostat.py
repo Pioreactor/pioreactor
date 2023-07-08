@@ -34,7 +34,6 @@ class Thermostat(TemperatureAutomationJob):
             job_name=self.job_name,
             target_name="temperature",
             output_limits=(-25, 25),  # avoid whiplashing
-            derivative_smoothing=0.90,
         )
 
     def execute(self) -> UpdatedHeaterDC:

@@ -57,7 +57,8 @@ def test_pioreactor_HAT_present(client: Client, logger: Logger, unit: str, exper
 def test_REF_is_in_correct_position(
     client: Client, logger: Logger, unit: str, experiment: str
 ) -> None:
-    # this _also_ uses stirring to increase the variance in the non-REF, so...
+    # this _also_ uses stirring to increase the variance in the non-REF.
+    # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
     from statistics import variance
 
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
@@ -66,8 +67,8 @@ def test_REF_is_in_correct_position(
     signal2 = []
 
     with stirring.start_stirring(
-        target_rpm=450, unit=unit, experiment=experiment
-    ), start_od_reading(
+        target_rpm=900, unit=unit, experiment=experiment
+    ) as st, start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
         interval=1.15,
@@ -76,9 +77,16 @@ def test_REF_is_in_correct_position(
         experiment=experiment,
         use_calibration=False,
     ) as od_stream:
-        for i, reading in enumerate(od_stream):
+        st.block_until_rpm_is_close_to_target(abs_tolerance=100)
+
+        for i, reading in enumerate(od_stream, start=1):
             signal1.append(reading.ods["1"].od)
             signal2.append(reading.ods["2"].od)
+
+            if i % 5 == 0 and i % 2 == 0:
+                st.set_state("ready")
+            elif i % 5 == 0:
+                st.set_state("sleeping")
 
             if i == 25:
                 break
@@ -87,6 +95,8 @@ def test_REF_is_in_correct_position(
         "1": variance(signal1) / trimmed_mean(signal1) ** 2,
         "2": variance(signal2) / trimmed_mean(signal2) ** 2,
     }
+
+    print(norm_variance_per_channel)
 
     THRESHOLD = 1.0
     if reference_channel == "1":

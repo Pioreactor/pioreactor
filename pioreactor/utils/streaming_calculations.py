@@ -400,6 +400,7 @@ class PID:
         self.output_limits = output_limits
 
         # Smoothing factor for derivative term
+        assert 0.0 <= derivative_smoothing <= 1.0
         self.derivative_smoothing = derivative_smoothing
 
         # State variables
@@ -411,7 +412,9 @@ class PID:
         self.experiment = experiment
         self.target_name = target_name
         self.job_name = job_name
-        self.client = create_client(client_id=f"pid-{self.unit}-{self.experiment}")
+        self.client = create_client(
+            client_id=f"pid-{self.unit}-{self.experiment}-{self.target_name}"
+        )
 
     def reset(self) -> None:
         """

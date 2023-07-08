@@ -419,6 +419,7 @@ class TemperatureController(BackgroundJob):
             except exc.HardwareNotFoundError as e:
                 self.logger.debug(e, exc_info=True)
                 self.logger.error(e)
+                raise e
             finally:
                 # we turned off the heater above - we should always turn if back on if there is an error.
 

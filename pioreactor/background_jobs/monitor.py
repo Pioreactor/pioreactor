@@ -429,7 +429,7 @@ class Monitor(BackgroundJob):
 
     def check_for_power_problems(self) -> None:
         is_rpi_having_power_probems, voltage = self.rpi_is_having_power_problems()
-        self.logger.debug(f"PWM power supply at ~{voltage:.1f}V.")
+        self.logger.debug(f"PWM power supply at ~{voltage:.2f}V.")
         self.voltage_on_pwm_rail = Voltage(
             voltage=round(voltage, 2), timestamp=current_utc_datetime()
         )
@@ -455,7 +455,7 @@ class Monitor(BackgroundJob):
         cpu_usage_percent = round(
             (psutil.cpu_percent() + psutil.cpu_percent() + psutil.cpu_percent()) / 3
         )  # this is a noisy process, and we average it over a small window.
-        if cpu_usage_percent <= 75:
+        if cpu_usage_percent <= 85:
             self.logger.debug(f"CPU usage at {cpu_usage_percent}%.")
         else:
             # TODO: add documentation
@@ -464,7 +464,7 @@ class Monitor(BackgroundJob):
         memory_usage_percent = 100 - round(
             100 * psutil.virtual_memory().available / psutil.virtual_memory().total
         )
-        if memory_usage_percent <= 60:
+        if memory_usage_percent <= 75:
             self.logger.debug(f"Memory usage at {memory_usage_percent}%.")
         else:
             # TODO: add documentation
