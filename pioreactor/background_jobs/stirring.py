@@ -459,7 +459,7 @@ def start_stirring(
     target_rpm: float,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,
-    use_rpm: bool = False,
+    use_rpm: bool = True,
 ) -> Stirrer:
     unit = unit or get_unit_name()
     experiment = experiment or get_latest_experiment_name()

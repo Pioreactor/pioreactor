@@ -67,7 +67,9 @@ def test_REF_is_in_correct_position(
     signal2 = []
 
     with stirring.start_stirring(
-        target_rpm=900, unit=unit, experiment=experiment
+        target_rpm=900,
+        unit=unit,
+        experiment=experiment,
     ) as st, start_od_reading(
         od_angle_channel1="90",
         od_angle_channel2="90",
