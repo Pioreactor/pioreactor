@@ -397,7 +397,7 @@ def publish_to_pioreactor_cloud(
     from pioreactor.utils.timing import current_utc_timestamp
     from json import dumps
 
-    assert data_dict is not None and data_str is not None
+    assert (data_dict is not None) or (data_str is not None)
 
     if is_testing_env():
         return

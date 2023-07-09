@@ -825,7 +825,7 @@ class ODReader(BackgroundJob):
 
         # setup the ADC by turning off all LEDs.
         with led_utils.change_leds_intensities_temporarily(
-            self.ir_led_on_and_rest_off_state,
+            {ch: 0.0 for ch in led_utils.ALL_LED_CHANNELS},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=self.job_name,
@@ -834,19 +834,19 @@ class ODReader(BackgroundJob):
         ):
             with led_utils.lock_leds_temporarily(self.non_ir_led_channels):
                 # IR led is on
-                sleep(0.1)
-
+                self.start_ir_led()
+                sleep(0.10)
                 self.adc_reader.setup_adc()  # determine best gain, max-signal, etc.
 
+                # IR led is off so we can set blanks
                 self.stop_ir_led()
-                sleep(0.15)
+                sleep(0.10)
 
-                blank_reading = average_over_pd_channel_to_voltages(
-                    self.adc_reader.take_reading(),
+                avg_blank_reading = average_over_pd_channel_to_voltages(
                     self.adc_reader.take_reading(),
                     self.adc_reader.take_reading(),
                 )
-                self.adc_reader.set_offsets(blank_reading)  # determine offset
+                self.adc_reader.set_offsets(avg_blank_reading)  # set dark offset
 
                 # clear the history in adc_reader, so that we don't blank readings in later inference.
                 self.adc_reader.clear_batched_readings()

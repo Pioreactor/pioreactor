@@ -278,7 +278,7 @@ def test_changing_morbidostat_parameters_over_mqtt() -> None:
     )
     pause()
     assert algo.target_growth_rate == new_target
-    assert algo.pid.pid.setpoint == new_target
+    assert algo.pid.setpoint == new_target
     algo.clean_up()
 
 

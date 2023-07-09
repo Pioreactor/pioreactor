@@ -24,6 +24,7 @@ from pioreactor.actions.led_intensity import led_intensity
 from pioreactor.background_jobs import stirring
 from pioreactor.background_jobs.od_reading import ADCReader
 from pioreactor.background_jobs.od_reading import ALL_PD_CHANNELS
+from pioreactor.background_jobs.od_reading import average_over_pd_channel_to_voltages
 from pioreactor.background_jobs.od_reading import IR_keyword
 from pioreactor.background_jobs.od_reading import REF_keyword
 from pioreactor.background_jobs.od_reading import start_od_reading
@@ -153,13 +154,13 @@ def test_all_positive_correlations_between_pds_and_leds(
             )
 
             # record from ADC, we'll average them
-            readings1 = adc_reader.take_reading()
-            readings2 = adc_reader.take_reading()
+            avg_reading = average_over_pd_channel_to_voltages(
+                adc_reader.take_reading(), adc_reader.take_reading()
+            )
 
             # Add to accumulating list
             for pd_channel in ALL_PD_CHANNELS:
-                reading = 0.5 * (readings1[pd_channel] + readings2[pd_channel])
-                varying_intensity_results[pd_channel].append(reading)
+                varying_intensity_results[pd_channel].append(avg_reading[pd_channel])
 
         # compute the linear correlation between the intensities and observed PD measurements
         for pd_channel in ALL_PD_CHANNELS:

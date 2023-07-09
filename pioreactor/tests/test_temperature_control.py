@@ -115,7 +115,11 @@ def test_heating_is_reduced_when_set_temp_is_exceeded() -> None:
     with temperature_control.TemperatureController(
         "only_record_temperature", unit=unit, experiment=experiment
     ) as t:
-        setattr(t.tmp_driver, "get_temperature", lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1)
+        setattr(
+            t.heating_pcb_tmp_driver,
+            "get_temperature",
+            lambda *args: t.MAX_TEMP_TO_REDUCE_HEATING + 0.1,
+        )
         pause()
         t._update_heater(50)
         pause()
@@ -146,7 +150,11 @@ def test_heating_stops_when_max_temp_is_exceeded() -> None:
         target_temperature=25,
     ) as t:
         # monkey patch the driver
-        setattr(t.tmp_driver, "get_temperature", lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1)
+        setattr(
+            t.heating_pcb_tmp_driver,
+            "get_temperature",
+            lambda *args: t.MAX_TEMP_TO_DISABLE_HEATING + 0.1,
+        )
         pause()
         pause()
         t._update_heater(50)

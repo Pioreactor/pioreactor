@@ -174,7 +174,7 @@ class LEDAutomationJob(BackgroundSubJob):
     def most_stale_time(self) -> datetime:
         return min(self.latest_normalized_od_at, self.latest_growth_rate_at)
 
-    def set_led_intensity(self, channel: pt.LedChannel, intensity: float) -> bool:
+    def set_led_intensity(self, channel: pt.LedChannel, intensity: pt.LedIntensityValue) -> bool:
         """
         This first checks the lock on the LED channel, and will wait a few seconds for it to clear,
         and error out if it waits too long.
@@ -262,7 +262,7 @@ class LEDAutomationJob(BackgroundSubJob):
             self.run_thread.join()
 
         led_intensity(
-            {channel: 0 for channel in self.edited_channels},
+            {channel: 0.0 for channel in self.edited_channels},
             unit=self.unit,
             experiment=self.experiment,
             source_of_event=f"{self.job_name}:{self.automation_name}",
