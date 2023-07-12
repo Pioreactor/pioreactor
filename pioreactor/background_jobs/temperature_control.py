@@ -115,7 +115,6 @@ class TemperatureController(BackgroundJob):
             from TMP1075 import TMP1075  # type: ignore
 
         self.pwm = self.setup_pwm()
-        self.update_heater(0)
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP)
         self.read_external_temperature_timer = RepeatedTimer(

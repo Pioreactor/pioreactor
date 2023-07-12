@@ -159,9 +159,11 @@ if am_I_leader():
         type=click.STRING,
         help="specify a Pioreactor name, default is all active non-leader units",
     )
+    @click.option("-y", is_flag=True, help="Skip asking for confirmation.")
     def rm(
         filepath: str,
         units: tuple[str, ...],
+        y: bool,
     ) -> None:
         logger = create_logger("rm", unit=get_unit_name(), experiment=UNIVERSAL_EXPERIMENT)
         units = remove_leader(universal_identifier_to_all_workers(units))
@@ -172,6 +174,11 @@ if am_I_leader():
         from shlex import join  # https://docs.python.org/3/library/shlex.html#shlex.quote
 
         command = join(["rm", filepath])
+
+        if not y:
+            confirm = input(f"Confirm running `{command}` on {units}? Y/n: ").strip()
+            if confirm != "Y":
+                raise click.Abort()
 
         def _thread_function(unit: str) -> bool:
             logger.debug(f"Removing {unit}:{filepath}...")
