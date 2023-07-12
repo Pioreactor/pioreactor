@@ -146,8 +146,8 @@ class ADCReader(LoggerMixin):
         fake_data: bool = False,
         interval: Optional[float] = 1.0,
         dynamic_gain: bool = True,
-        penalizer: float = 625.0,
-        oversampling_count: int = 28,
+        penalizer: float = 700.0,
+        oversampling_count: int = 30,
     ) -> None:
         super().__init__()
         self.fake_data = fake_data
@@ -435,7 +435,7 @@ class ADCReader(LoggerMixin):
                             0,
                             -time_sampling_took_to_run()  # the time_sampling_took_to_run() reduces the variance by accounting for the duration of each sampling.
                             + 0.85 / (oversampling_count - 1)
-                            + 0.0015
+                            + 0.0012
                             * (
                                 (counter * 0.618034) % 1
                             ),  # this is to artificially jitter the samples, so that we observe less aliasing. That constant is phi.
@@ -807,6 +807,11 @@ class ODReader(BackgroundJob):
         self.ir_led_intensity: pt.LedIntensityValue = config.getfloat(
             "od_config", "ir_led_intensity"
         )
+        if self.ir_led_intensity > 90:
+            self.logger.warning(
+                f"The value for the IR LED, {self.ir_led_intensity}%, is very high. We suggest a value 90% or less to avoid damaging the LED."
+            )
+
         self.non_ir_led_channels: list[pt.LedChannel] = [
             ch for ch in led_utils.ALL_LED_CHANNELS if ch != self.ir_channel
         ]

@@ -12,9 +12,9 @@ class ExponentialMovingAverage:
     """
     Models the following:
 
-    y_n = (1 - ⍺)·x + ⍺·y_{n-1}
+    y_n = (1 - alpha)·x + alpha·y_{n-1}
 
-    If alpha = 0, use latest value only.
+    Ex: if alpha = 0, use latest value only.
     """
 
     def __init__(self, alpha: float):
@@ -405,6 +405,7 @@ class PID:
 
         # State variables
         self.error_prev: Optional[float] = None
+        self._last_input: Optional[float] = None
         self.error_sum = 0.0
         self.derivative_prev = 0.0
 
@@ -443,7 +444,9 @@ class PID:
             self.error_sum = min(self.error_sum, self.output_limits[1])
 
         # Calculate error derivative with smoothing
-        derivative = ((error - self.error_prev) if self.error_prev is not None else 0) / dt
+        # derivative = ((error - self.error_prev) if self.error_prev is not None else 0) / dt
+        # http://brettbeauregard.com/blog/2011/04/improving-the-beginner%e2%80%99s-pid-derivative-kick/
+        derivative = -(input_ - self._last_input) / dt if self._last_input is not None else 0
         derivative = (
             1 - self.derivative_smoothing
         ) * derivative + self.derivative_smoothing * self.derivative_prev
