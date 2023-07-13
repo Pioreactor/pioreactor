@@ -63,7 +63,7 @@ Dataflow of raw signal to final output:
 │   │ │ samples from ├───►   ADC offset ├────►      sin      ├─┼──┼──►  IR output      ├───┼──┼──►  Transform via  ├───┼───┼───►
 │   │ │     ADC      │   │    removed   │    │   regression  │ │  │  │  compensation   │   │  │  │  calibration    │   │   │
 │   │ │              ├───►              ├────►               │ │  │  │                 │   │  │  │  curve          │   │   │
-│   │ └──────────────┘   └──────────────┘    └───────────────┘ │  │  └─────────────────┘   │  │  │                 │   │   │
+│   │ └──────────────┘   └──────────────┘    └───────────────┘ │  │  └─────────────────┘   │  │  │  (or no-op)     │   │   │
 │   │                                                          │  │                        │  │  └─────────────────┘   │   │
 │   │                                                          │  │                        │  │                        │   │
 │   └──────────────────────────────────────────────────────────┘  └────────────────────────┘  └────────────────────────┘   │
@@ -637,11 +637,25 @@ class NullCalibrationTransformer(CalibrationTransformer):
         self.logger.debug("Not using any calibration.")
 
 
+def noop(x):
+    return x
+
+
 class CachedCalibrationTransformer(CalibrationTransformer):
     def __init__(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
         super().__init__()
 
-        self.models: dict[pt.PdChannel, Callable] = {}
+        try:
+            self.models = self.get_models_from_disk(channel_angle_map)
+        except Exception as e:
+            self.logger.debug(e, exc_info=True)
+            self.logger.error("Unable to load calibration models", exc_info=True)
+            self.models = {"1": noop, "2": noop}
+
+    def get_models_from_disk(
+        self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]
+    ) -> dict[pt.PdChannel, Callable]:
+        models: dict[pt.PdChannel, Callable] = {}
 
         with local_persistant_storage("current_od_calibration") as c:
             for channel, angle in channel_angle_map.items():
@@ -662,7 +676,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                         self.logger.error(msg)
                         raise exc.CalibrationError(msg)
                     else:
-                        self.models[channel] = self._hydrate_model(calibration_data)
+                        models[channel] = self._hydrate_model(calibration_data)
                         self.logger.debug(f"Using calibration `{name}` for channel {channel}")
 
                     # confirm that PD channel is the same as when calibration was performed
@@ -675,6 +689,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
                     self.logger.debug(
                         f"No calibration available for channel {channel}, angle {angle}, skipping."
                     )
+        return models
 
     def _hydrate_model(self, calibration_data: structs.ODCalibration) -> Callable[[float], float]:
         if calibration_data.curve_type == "poly":
