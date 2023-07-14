@@ -637,10 +637,6 @@ class NullCalibrationTransformer(CalibrationTransformer):
         self.logger.debug("Not using any calibration.")
 
 
-def noop(x):
-    return x
-
-
 class CachedCalibrationTransformer(CalibrationTransformer):
     def __init__(self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]) -> None:
         super().__init__()
@@ -650,7 +646,7 @@ class CachedCalibrationTransformer(CalibrationTransformer):
         except Exception as e:
             self.logger.debug(e, exc_info=True)
             self.logger.error("Unable to load calibration models", exc_info=True)
-            self.models = {"1": noop, "2": noop}
+            raise e
 
     def get_models_from_disk(
         self, channel_angle_map: dict[pt.PdChannel, pt.PdAngle]
@@ -1173,7 +1169,7 @@ def start_od_reading(
     else:
         ir_led_reference_tracker = NullIrLedReferenceTracker()  # type: ignore
 
-    # use OD600 calibration?
+    # use an OD calibration?
     if use_calibration:
         calibration_transformer = CachedCalibrationTransformer(channel_angle_map)
     else:
