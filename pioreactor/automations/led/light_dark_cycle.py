@@ -10,7 +10,7 @@ from pioreactor.types import LedChannel
 
 class LightDarkCycle(LEDAutomationJob):
     """
-    Follows as h light / h dark cycle. Starts light ON.
+    Follows as min light / min dark cycle. Starts light ON.
     """
 
     automation_name: str = "light_dark_cycle"
@@ -21,15 +21,15 @@ class LightDarkCycle(LEDAutomationJob):
             "unit": "min",
         },
         "light_intensity": {"datatype": "float", "settable": True, "unit": "%"},
-        "light_duration_hours": {"datatype": "integer", "settable": True, "unit": "h"},
-        "dark_duration_hours": {"datatype": "integer", "settable": True, "unit": "h"},
+        "light_duration_minutes": {"datatype": "integer", "settable": True, "unit": "min"},
+        "dark_duration_minutes": {"datatype": "integer", "settable": True, "unit": "min"},
     }
 
     def __init__(
         self,
         light_intensity: float | str,
-        light_duration_hours: int | str,
-        dark_duration_hours: int | str,
+        light_duration_minutes: int | str,
+        dark_duration_minutes: int | str,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -37,13 +37,8 @@ class LightDarkCycle(LEDAutomationJob):
         self.light_active: bool = False
         self.channels: list[LedChannel] = ["D", "C"]
         self.set_light_intensity(light_intensity)
-        self.light_duration_hours = float(light_duration_hours)
-        self.dark_duration_hours = float(dark_duration_hours)
-
-        if 0 < self.light_duration_hours < 1 / 60.0 or 0 < self.dark_duration_hours < 1 / 60.0:
-            # users can input 0 - that's fine and deliberate. It's when they put in 0.01 that it makes no sense.
-            self.logger.error("Durations must be at least 1 minute long.")
-            raise ValueError("Durations must be at least 1 minute long.")
+        self.light_duration_minutes = float(light_duration_minutes)
+        self.dark_duration_minutes = float(dark_duration_minutes)
 
     def execute(self) -> Optional[events.AutomationEvent]:
         # runs every minute
@@ -64,9 +59,9 @@ class LightDarkCycle(LEDAutomationJob):
             An instance of AutomationEvent, indicating that LEDs' status might have changed.
             Returns None if the LEDs' state didn't change.
         """
-        cycle_duration_min = int((self.light_duration_hours + self.dark_duration_hours) * 60)
+        cycle_duration_min = int(self.light_duration_minutes + self.dark_duration_minutes)
 
-        if ((minutes % cycle_duration_min) < (self.light_duration_hours * 60)) and (
+        if ((minutes % cycle_duration_min) < (self.light_duration_minutes)) and (
             not self.light_active
         ):
             self.light_active = True
@@ -74,26 +69,27 @@ class LightDarkCycle(LEDAutomationJob):
             for channel in self.channels:
                 self.set_led_intensity(channel, self.light_intensity)
 
-            return events.ChangedLedIntensity(f"{minutes/60:.1f}h: turned on LEDs.")
+            return events.ChangedLedIntensity(f"{minutes:.1f}min: turned on LEDs.")
 
-        elif ((minutes % cycle_duration_min) >= (self.light_duration_hours * 60)) and (
+        elif ((minutes % cycle_duration_min) >= (self.light_duration_minutes)) and (
             self.light_active
         ):
             self.light_active = False
             for channel in self.channels:
                 self.set_led_intensity(channel, 0)
-            return events.ChangedLedIntensity(f"{minutes/60:.1f}h: turned off LEDs.")
+            return events.ChangedLedIntensity(f"{minutes:.1f}min: turned off LEDs.")
 
         else:
             return None
 
-    def set_dark_duration_hours(self, hours: int):
-        self.dark_duration_hours = hours
+    # minutes setters
+    def set_dark_duration_minutes(self, minutes: int):
+        self.dark_duration_minutes = minutes
 
         self.trigger_leds(self.minutes_online)
 
-    def set_light_duration_hours(self, hours: int):
-        self.light_duration_hours = hours
+    def set_light_duration_minutes(self, minutes: int):
+        self.light_duration_minutes = minutes
 
         self.trigger_leds(self.minutes_online)
 

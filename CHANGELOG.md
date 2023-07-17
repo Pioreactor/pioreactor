@@ -3,7 +3,7 @@
  - improved sensitivity of self-test `test_REF_is_in_correct_position`.
  - executing experiment profiles now check for required plugins.
  - Plugins can be built with a flag file LEADER_ONLY to only be installed on the leader Pioreactor.
- - Light/Dark cycle accepts fractional hours as well as integer hours. Note we changed the API for this automation slightly!
+ - **Breaking**: Light/Dark cycle LED automation uses minutes instead of hours!
 
 ### 23.6.27
 

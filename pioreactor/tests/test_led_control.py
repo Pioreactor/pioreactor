@@ -113,8 +113,8 @@ def test_light_dark_cycle_starts_on() -> None:
         "light_dark_cycle",
         duration=60,
         light_intensity=50,
-        light_duration_hours=16,
-        dark_duration_hours=8,
+        light_duration_minutes=60 * 16,
+        dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
@@ -133,8 +133,8 @@ def test_light_dark_cycle_turns_off_after_N_cycles() -> None:
         "light_dark_cycle",
         duration=0.01,
         light_intensity=50,
-        light_duration_hours=16,
-        dark_duration_hours=8,
+        light_duration_minutes=60 * 16,
+        dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
@@ -158,8 +158,8 @@ def test_dark_duration_hour_to_zero() -> None:
         "light_dark_cycle",
         duration=0.005,
         light_intensity=50,
-        light_duration_hours=16,
-        dark_duration_hours=8,
+        light_duration_minutes=60 * 16,
+        dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
@@ -172,7 +172,7 @@ def test_dark_duration_hour_to_zero() -> None:
 
         assert not lc.automation_job.light_active
         pause()
-        lc.automation_job.set_dark_duration_hours(0)
+        lc.automation_job.set_dark_duration_minutes(0 * 60)
         pause()
         assert lc.automation_job.light_active
 
@@ -188,28 +188,28 @@ def test_light_duration_hour_to_zero() -> None:
         "light_dark_cycle",
         duration=0.01,
         light_intensity=50,
-        light_duration_hours=16,
-        dark_duration_hours=8,
+        light_duration_minutes=60 * 16,
+        dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
         pause(6)
         assert lc.automation_job.light_active
 
-        lc.automation_job.set_light_duration_hours(0)
+        lc.automation_job.set_light_duration_minutes(60 * 0)
 
         assert not lc.automation_job.light_active
 
 
-def test_add_dark_duration_hours() -> None:
-    experiment = "test_add_dark_duration_hours"
+def test_add_dark_duration_minutes() -> None:
+    experiment = "test_add_dark_duration_minutes * 60"
     unit = get_unit_name()
     with LEDController(
         "light_dark_cycle",
         duration=0.01,
         light_intensity=50,
-        light_duration_hours=16,
-        dark_duration_hours=8,
+        light_duration_minutes=60 * 16,
+        dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
@@ -222,7 +222,7 @@ def test_add_dark_duration_hours() -> None:
 
         assert not lc.automation_job.light_active
 
-        lc.automation_job.set_dark_duration_hours(10)
+        lc.automation_job.set_dark_duration_minutes(10 * 60)
 
         assert not lc.automation_job.light_active
 
@@ -231,15 +231,15 @@ def test_add_dark_duration_hours() -> None:
             assert c["C"] == 0.0
 
 
-def test_remove_dark_duration_hours() -> None:
-    experiment = "test_remove_dark_duration_hours"
+def test_remove_dark_duration_minutes() -> None:
+    experiment = "test_remove_dark_duration_minutes * 60"
     unit = get_unit_name()
     with LEDController(
         "light_dark_cycle",
         duration=0.005,
         light_intensity=50,
-        light_duration_hours=16,
-        dark_duration_hours=8,
+        light_duration_minutes=60 * 16,
+        dark_duration_minutes=8 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
@@ -256,7 +256,7 @@ def test_remove_dark_duration_hours() -> None:
 
         assert not lc.automation_job.light_active
 
-        lc.automation_job.set_dark_duration_hours(3)
+        lc.automation_job.set_dark_duration_minutes(3 * 60)
 
         assert lc.automation_job.light_active
 
@@ -272,8 +272,8 @@ def test_fractional_hours() -> None:
         "light_dark_cycle",
         duration=0.005,
         light_intensity=50,
-        light_duration_hours=0.9,
-        dark_duration_hours=0.1,
+        light_duration_minutes=60 * 0.9,
+        dark_duration_minutes=0.1 * 60,
         unit=unit,
         experiment=experiment,
     ) as lc:
@@ -300,8 +300,8 @@ def light_dark_cycle():
         unit=get_unit_name(),
         experiment="test_light_dark_cycle",
         light_intensity=100,
-        light_duration_hours=1,
-        dark_duration_hours=1,
+        light_duration_minutes=60,
+        dark_duration_minutes=60,
     )
 
 
@@ -341,7 +341,7 @@ def test_light_turns_off_in_dark_period(light_dark_cycle):
     # Check that the LEDs were turned off
     assert isinstance(event, events.ChangedLedIntensity)
     assert "turned off LEDs" in event.message
-    assert light_dark_cycle.light_active
+    assert not light_dark_cycle.light_active
 
 
 def test_light_stays_off_in_dark_period(light_dark_cycle):
