@@ -114,6 +114,7 @@ class TemperatureController(BackgroundJob):
         else:
             from TMP1075 import TMP1075  # type: ignore
 
+        self.heater_duty_cycle = 0.0
         self.pwm = self.setup_pwm()
 
         self.heating_pcb_tmp_driver = TMP1075(address=hardware.TEMP)
