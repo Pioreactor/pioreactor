@@ -8,7 +8,7 @@ exec(compile(open("pioreactor/version.py").read(), "pioreactor/version.py", "exe
 
 
 CORE_REQUIREMENTS = [
-    "click==8.1.3",
+    "click==8.1.6",
     "paho-mqtt==1.6.1",
     "psutil==5.9.5",
     "sh==1.14.3",

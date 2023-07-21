@@ -140,7 +140,12 @@ def log(message: str, level: str, name: str, local_only: bool):
             to_mqtt=not local_only,
         )
         getattr(logger, level)(message)
-        sleep(0.5)  # wait to make sure msg gets to mqtt
+
+        # flush and close handlers
+        for handler in logger.handlers:
+            handler.flush()
+            handler.close()
+
     except Exception:
         # don't let a logging error bring down a script...
         pass
