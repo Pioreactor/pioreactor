@@ -142,7 +142,7 @@ def log(message: str, level: str, name: str, local_only: bool):
         getattr(logger, level)(message)
 
         # flush and close handlers
-        for handler in logger.handlers:
+        for handler in logger.logger.handlers:
             handler.flush()
             handler.close()
 
