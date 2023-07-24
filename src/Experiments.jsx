@@ -62,7 +62,6 @@ const useStyles = makeStyles((theme) => ({
 
 function ExperimentSelection(props) {
   const classes = useStyles();
-
   const [experiments, setExperiments] = React.useState([])
   const selectedExperient = experiments.find(o => o.experiment === props.experimentSelection);
 
@@ -262,7 +261,7 @@ function ExperimentsContainer(props) {
                         payloadKey={chart.payload_key}
                         yAxisLabel={chart.y_axis_label}
                         experiment={experimentSelection}
-                        deltaHours={24}
+                        deltaHours={10}
                         interpolation={chart.interpolation || "stepAfter"}
                         yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
                         lookback={10000}

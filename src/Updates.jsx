@@ -86,7 +86,7 @@ function UpdateToLatestConfirmDialog(props) {
       <Snackbar
         anchorOrigin={{vertical: "bottom", horizontal: "center"}}
         open={openSnackbar}
-        message="Updating in the background. This may take a few minutes. You may leave this page"
+        message="Updating in the background. This may take a few minutes. You may leave this page."
         autoHideDuration={20000}
         key="snackbar-update"
       />

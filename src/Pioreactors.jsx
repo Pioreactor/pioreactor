@@ -849,7 +849,7 @@ function SelfTestDialog(props) {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" component="p" gutterBottom>
-            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
+            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring. Add a vial with any liquid and stirbar into the Pioreactor.
           </Typography>
 
             {selfTestButton}
@@ -1676,7 +1676,7 @@ function SettingsActionsDialog(props) {
               Voltage: {voltageInfo.voltage}V
             </Typography>
               <Typography variant="body2" component="p">
-              Last updated at: {moment.utc(voltageInfo.timestamp || "", 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm:ss a') }
+              Last updated at: {moment.utc(voltageInfo.timestamp || "", 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') }
             </Typography>
 
 
