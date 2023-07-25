@@ -1,6 +1,6 @@
 ### Upcoming
 
- - Using builtin PID controller logic, instead of a library. This shouldn't require any updates to PID code or parameters.
+ - Using builtin PID controller logic, instead of a 3rd party library. This shouldn't require any updates to PID code or parameters.
  - Better error handling when the PioreactorUI API can't be reached.
  - Some initial support for Basic Auth in the PioreactorUI
  - improved sensitivity of self-test `test_REF_is_in_correct_position`.
