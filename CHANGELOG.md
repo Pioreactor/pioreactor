@@ -1,9 +1,14 @@
 ### Upcoming
 
+ - Using builtin PID controller logic, instead of a library. This shouldn't require any updates to PID code or parameters.
+ - Better error handling when the PioreactorUI API can't be reached.
+ - Some initial support for Basic Auth in the PioreactorUI
  - improved sensitivity of self-test `test_REF_is_in_correct_position`.
- - executing experiment profiles now check for required plugins.
+ - executing experiment profiles now checks for required plugins.
+ - `pio rm` now asks for confirmation before executing.
+ - Some minor noise reduction in OD reading job.
  - Plugins can be built with a flag file LEADER_ONLY to only be installed on the leader Pioreactor.
- - **Breaking**: Light/Dark cycle LED automation uses minutes instead of hours!
+ - **Breaking**: Light/Dark cycle LED automation uses minutes instead of hours now!
 
 ### 23.6.27
 
