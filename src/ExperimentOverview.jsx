@@ -76,6 +76,7 @@ function Overview(props) {
                       yAxisLabel={chart.y_axis_label}
                       experiment={experimentMetadata.experiment}
                       deltaHours={experimentMetadata.delta_hours}
+                      downSample={chart.down_sample}
                       interpolation={chart.interpolation || "stepAfter"}
                       yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
                       lookback={eval(chart.lookback) || 10000}

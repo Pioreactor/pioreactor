@@ -262,6 +262,7 @@ function ExperimentsContainer(props) {
                         yAxisLabel={chart.y_axis_label}
                         experiment={experimentSelection}
                         deltaHours={10}
+                        downSample={true}
                         interpolation={chart.interpolation || "stepAfter"}
                         yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
                         lookback={10000}

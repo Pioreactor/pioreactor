@@ -696,12 +696,12 @@ function CalibrateDialog(props) {
              Stirring calibration (optional)
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
-              You can improve the responsiveness of stirring RPM changes by running the below calibration. This calibration is
-              optional, and stirring RPM changes can still occur without running this calibration.
+              You can improve the responsiveness of stirring RPM changes by running this calibration. This calibration is
+              optional, and stirring RPM changes can still occur without running this calibration. Only needs to be performed once - results are saved to disk.
             </Typography>
 
             <Typography variant="body2" component="p" gutterBottom>
-            Add a vial, with a stirbar and ~15ml water, to the Pioreactor, then hit Start below. This calibration will take less than five minutes.
+            Add a vial, with a stirbar and ~15ml of liquid, to the Pioreactor, then hit Start below. This calibration will take less than five minutes.
             </Typography>
 
             {stirringCalibrationButton}

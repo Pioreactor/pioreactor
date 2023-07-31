@@ -22,6 +22,7 @@ import Feedback from "./Feedback";
 import SideNavAndHeader from "./components/SideNavAndHeader";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ConfirmProvider } from 'material-ui-confirm';
+import { ProSidebarProvider } from "react-pro-sidebar";
 
 import "@fontsource/roboto/300.css"
 import "@fontsource/roboto/400.css"
@@ -64,11 +65,13 @@ function App() {
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={theme}>
           <Router>
+            <ProSidebarProvider>
             <ScrollToTop/>
             <ConfirmProvider>
               <CssBaseline />
               <MainSite />
             </ConfirmProvider>
+            </ProSidebarProvider>
           </Router>
         </ThemeProvider>
       </StyledEngineProvider>

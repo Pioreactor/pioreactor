@@ -120,7 +120,7 @@ class Chart extends React.Component {
     }
     const tweak = 0.60 // increase to filter more
     const queryParams = new URLSearchParams({
-        filter_mod_N: Math.max(Math.floor(tweak * Math.min(this.props.deltaHours, this.props.lookback)), 1),
+        filter_mod_N: this.props.downSample ? Math.max(Math.floor(tweak * Math.min(this.props.deltaHours, this.props.lookback)), 1) : 1,
         lookback: this.props.lookback
     })
     await fetch(`/api/time_series/${this.props.dataSource}/${this.props.experiment}${this.props.dataSourceColumn ? "/" + this.props.dataSourceColumn : ""}?${queryParams}`)
