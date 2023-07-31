@@ -1,4 +1,4 @@
-### Upcoming
+### 23.7.31
 
  - Using builtin PID controller logic, instead of a 3rd party library. This shouldn't require any updates to PID code or parameters.
  - Better error handling when the PioreactorUI API can't be reached.
@@ -8,7 +8,8 @@
  - `pio rm` now asks for confirmation before executing.
  - Some minor noise reduction in OD reading job.
  - Plugins can be built with a flag file LEADER_ONLY to only be installed on the leader Pioreactor.
- - **Breaking**: Light/Dark cycle LED automation uses minutes instead of hours now!
+ - Stirring now pauses and restart duing OD calibration. Thanks @odcambc!
+ - **Breaking**: Light/Dark cycle LED automation uses minutes instead of hours now! Thanks @c-bun!
 
 ### 23.6.27
 
