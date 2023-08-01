@@ -264,19 +264,22 @@ def test_repeated_timer_interval_accuracy_multiple_intervals():
 
 
 def test_repeated_timer_interval_accuracy_with_pause_unpause():
-    counter = [0]
+    counter = {"_": 0}
 
     def sample_function():
-        counter[0] += 1
+        counter["_"] += 1
 
-    interval = 1
-    rt = RepeatedTimer(interval, sample_function)
+    interval = 1.0
+    rt = RepeatedTimer(interval, sample_function, run_after=0.0)
     rt.start()
-    time.sleep(1)
+    time.sleep(0.05)  # offset slightly avoid race conditions
+
+    time.sleep(1.0)
+    assert counter["_"] == 1
     rt.pause()
-    time.sleep(2)
+    time.sleep(2.0)
     rt.unpause()
-    time.sleep(1)
+    time.sleep(1.0)
     rt.cancel()
     # The timer should have run only 2 times since we paused for 2 seconds
-    assert counter[0] == 2
+    assert counter["_"] == 2

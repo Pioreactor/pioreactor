@@ -191,7 +191,6 @@ if am_I_leader():
                 return False
             except ErrorReturnCode_1 as e:
                 logger.error(f"Error occurred: {e}. See logs for more.")
-                logger.debug(e.stderr, exc_info=True)
                 return False
 
         for unit in units:
