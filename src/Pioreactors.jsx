@@ -77,6 +77,10 @@ const useStyles = makeStyles((theme) => ({
   cardContent: {
     padding: "10px 20px 20px 20px"
   },
+  code: {
+    backgroundColor: "rgba(0, 0, 0, 0.07)",
+    padding: "1px 4px"
+  },
   unitTitle: {
     fontSize: 20,
     color: "rgba(0, 0, 0, 0.87)",
@@ -1142,6 +1146,7 @@ function SettingsActionsDialog(props) {
   const buttons = Object.fromEntries(Object.entries(props.jobs).map( ([job_key, job], i) => [job_key, createUserButtonsBasedOnState(job.state, job_key)]))
   const versionInfo = JSON.parse(props.jobs.monitor.publishedSettings.versions.value || "{}")
   const voltageInfo = JSON.parse(props.jobs.monitor.publishedSettings.voltage_on_pwm_rail.value || "{}")
+  const ipInfo = props.jobs.monitor.publishedSettings.ipv4.value
 
   const stateDisplay = {
     "init":          {display: "Starting", color: readyGreen},
@@ -1254,7 +1259,7 @@ function SettingsActionsDialog(props) {
               {(temperatureControlJob.state === "ready") || (temperatureControlJob.state === "sleeping") || (temperatureControlJob.state === "init")
               ?<React.Fragment>
                 <Typography variant="body2" component="p" gutterBottom>
-                Currently running temperature automation <code>{temperatureControlJob.publishedSettings.automation_name.value}</code>.
+                Currently running temperature automation <code className={classes.code}>{temperatureControlJob.publishedSettings.automation_name.value}</code>.
                 Learn more about <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/temperature-automations">temperature automations</a>.
                 </Typography>
                 {buttons[temperatureControlJob.metadata.key]}
@@ -1635,6 +1640,47 @@ function SettingsActionsDialog(props) {
         <TabPanel value={tabValue} index={4}>
 
           <Typography  gutterBottom>
+            Version information
+          </Typography>
+
+            <Typography variant="body2" component="p">
+              HAT version: {versionInfo.hat}
+            </Typography>
+              <Typography variant="body2" component="p">
+              HAT serial number: <code className={classes.code}>{versionInfo.hat_serial}</code>
+            </Typography>
+
+
+          <Divider className={classes.divider} />
+
+          <Typography  gutterBottom>
+            Voltage on PWM rail
+          </Typography>
+
+            <Typography variant="body2" component="p">
+              Voltage: {voltageInfo.voltage}V
+            </Typography>
+            <Typography variant="body2" component="p">
+              Last updated at: {moment.utc(voltageInfo.timestamp || "", 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') }
+            </Typography>
+
+          <Divider className={classes.divider} />
+
+          <Typography  gutterBottom>
+            Addresses and hostname
+          </Typography>
+
+            <Typography variant="body2" component="p">
+              IPv4: <code className={classes.code}>{ipInfo}</code>
+            </Typography>
+
+            <Typography variant="body2" component="p">
+              Hostname: <code className={classes.code}>{props.unit}.local</code>
+            </Typography>
+
+          <Divider className={classes.divider} />
+
+          <Typography  gutterBottom>
             Reboot
           </Typography>
           <Typography variant="body2" component="p">
@@ -1652,35 +1698,10 @@ function SettingsActionsDialog(props) {
           >
             Reboot RPi
           </LoadingButton>
-          <Divider className={classes.divider} />
-
-          <Typography  gutterBottom>
-            Version information
-          </Typography>
-
-            <Typography variant="body2" component="p">
-              HAT version: {versionInfo.hat}
-            </Typography>
-              <Typography variant="body2" component="p">
-              HAT serial number: <code>{versionInfo.hat_serial}</code>
-            </Typography>
-
 
           <Divider className={classes.divider} />
 
-          <Typography  gutterBottom>
-            Voltage on PWM rail
-          </Typography>
 
-            <Typography variant="body2" component="p">
-              Voltage: {voltageInfo.voltage}V
-            </Typography>
-              <Typography variant="body2" component="p">
-              Last updated at: {moment.utc(voltageInfo.timestamp || "", 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') }
-            </Typography>
-
-
-          <Divider className={classes.divider} />
 
         </TabPanel>
 
@@ -2419,6 +2440,9 @@ function PioreactorCard(props){
         voltage_on_pwm_rail: {
             value: null, label: null, type: null, unit: null, display: false, description: null
         },
+        ipv4: {
+            value: null, label: null, type: null, unit: null, display: false, description: null
+        },
       },
     },
   })
@@ -2456,6 +2480,13 @@ function PioreactorCard(props){
     fetchContribBackgroundJobs();
   }, [])
 
+  const parseToFloatOrNot = (payloadString, typeOfSetting) => {
+    if (typeOfSetting === "numeric"){
+      return parseFloat(payloadString)
+    }
+    return payloadString
+  }
+
   useEffect(() => {
     const onConnect = () => {
       client.subscribe(["pioreactor", unit, "$experiment", "monitor", "$state"].join("/"));
@@ -2479,20 +2510,21 @@ function PioreactorCard(props){
     }
 
     const onMessageArrived = (message) => {
-      var parsedFloat = parseFloat(message.payloadString); // try to parse it as a float first
-      var payload = isNaN(parsedFloat) ? message.payloadString : parsedFloat;
+
       var [job, setting] = message.topic.split('/').slice(-2)
       if (setting === "$state"){
+        var payload = message.payloadString
         setJobs((prev) => ({...prev, [job]: {...prev[job], state: payload}}))
       } else if (job.endsWith("_automation")) {
         // needed because settings are attached to _automations, not _control
         job = job.replace("_automation", "_control")
+        var payload = parseToFloatOrNot(message.payloadString, jobs[job].publishedSettings[setting].type)
         setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
             {...prev[job].publishedSettings,
               [setting]:
                 {...prev[job].publishedSettings[setting], value: payload }}}}))
       } else {
-
+        var payload = parseToFloatOrNot(message.payloadString, jobs[job].publishedSettings[setting].type)
         setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings: {...prev[job].publishedSettings, [setting]: {...prev[job].publishedSettings[setting], value: payload }}}}))
       }
     }
