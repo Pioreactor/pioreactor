@@ -16,6 +16,7 @@ from pioreactor import utils
 from pioreactor import version
 from pioreactor import whoami
 from pioreactor.background_jobs.base import BackgroundJob
+from pioreactor.hardware import is_HAT_present
 from pioreactor.hardware import PCB_BUTTON_PIN as BUTTON_PIN
 from pioreactor.hardware import PCB_LED_PIN as LED_PIN
 from pioreactor.hardware import TEMP
@@ -77,6 +78,7 @@ class Monitor(BackgroundJob):
         "button_down": {"datatype": "boolean", "settable": False},
         "versions": {"datatype": "json", "settable": False},
         "voltage_on_pwm_rail": {"datatype": "Voltage", "settable": False},
+        "ipv4": {"datatype": "string", "settable": False},
     }
     computer_statistics: Optional[dict] = None
     led_in_use: bool = False
@@ -178,12 +180,19 @@ class Monitor(BackgroundJob):
         self.logger.warning("Failed to add button detect.")
 
     def check_for_network(self) -> None:
-        ip = get_ip()
-        while (not whoami.is_testing_env()) and ((ip == "127.0.0.1") or (ip is None)):
-            # no wifi connection? Sound the alarm.
-            self.logger.warning("Unable to connect to network...")
-            self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
-            ip = get_ip()
+        if whoami.is_testing_env():
+            self.ipv4 = "127.0.0.1"
+        else:
+            ipv4 = get_ip()
+            while ipv4 == "127.0.0.1" or ipv4 is None:
+                # no wifi connection? Sound the alarm.
+                self.logger.warning("Unable to connect to network...")
+                self.flicker_led_with_error_code(error_codes.NO_NETWORK_CONNECTION)
+                ipv4 = get_ip()
+
+            self.ipv4 = ipv4
+
+        self.logger.debug(f"IPv4 address: {self.ipv4}")
 
     def self_checks(self) -> None:
         # check active network connection
@@ -202,6 +211,7 @@ class Monitor(BackgroundJob):
             self.check_for_webserver()
 
         if whoami.am_I_active_worker():
+            self.check_for_HAT()
             # check the PCB temperature
             self.check_heater_pcb_temperature()
 
@@ -276,6 +286,10 @@ class Monitor(BackgroundJob):
                 "watchdog and mqtt_to_db_streaming should be running on leader. Double check."
             )
 
+    def check_for_HAT(self) -> None:
+        if not is_HAT_present():
+            self.logger.warning("HAT is not detected.")
+
     def check_heater_pcb_temperature(self) -> None:
         """
         Originally from #220
@@ -296,6 +310,7 @@ class Monitor(BackgroundJob):
             tmp_driver = TMP1075(address=TEMP)
         except ValueError:
             # No PCB detected using i2c - fine to exit.
+            self.logger.warning("Heater PCB is not detected.")
             return
 
         observed_tmp = tmp_driver.get_temperature()

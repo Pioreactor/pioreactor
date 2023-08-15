@@ -455,7 +455,10 @@ class DosingAutomationJob(BackgroundSubJob):
                 self.remove_waste_from_bioreactor(
                     unit=self.unit,
                     experiment=self.experiment,
-                    ml=waste_ml * 2,
+                    ml=waste_ml
+                    * config.getfloat(
+                        "dosing_automation", "waste_removal_multiplier", fallback=2.0
+                    ),
                     source_of_event=source_of_event,
                 )
                 briefer_pause()

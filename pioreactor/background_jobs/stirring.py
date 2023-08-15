@@ -22,6 +22,7 @@ from pioreactor.pubsub import subscribe
 from pioreactor.utils import clamp
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils import local_persistant_storage
+from pioreactor.utils import retry
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.pwm import PWM
 from pioreactor.utils.streaming_calculations import PID
@@ -73,9 +74,11 @@ class RpmCalculator:
 
         # ignore any changes that occur within 15ms - at 1000rpm (very fast), the
         # delta between changes is ~60ms, so 15ms is good enough.
-        # TODO: sometimes this fails with `RuntimeError: Failed to add edge detection`
-        self.GPIO.add_event_detect(
-            self.hall_sensor_pin, self.GPIO.FALLING, callback=self.callback, bouncetime=15
+        # sometimes this fails with `RuntimeError: Failed to add edge detection`, so we retry.
+        retry(
+            self.GPIO.add_event_detect,
+            args=(self.hall_sensor_pin, self.GPIO.FALLING),
+            kwargs={"callback": self.callback, "bouncetime": 15},
         )
         self.turn_off_collection()
 

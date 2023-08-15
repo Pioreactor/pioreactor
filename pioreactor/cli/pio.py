@@ -141,11 +141,6 @@ def log(message: str, level: str, name: str, local_only: bool):
         )
         getattr(logger, level)(message)
 
-        # flush and close handlers
-        for handler in logger.logger.handlers:
-            handler.flush()
-            handler.close()
-
     except Exception as e:
         # don't let a logging error bring down a script...
         print(e)
@@ -465,7 +460,9 @@ def update_app(
 
     if source is not None:
         version_installed = source
-        commands_and_priority.append((f"sudo pip3 install -U --force-reinstall {source}", 1))
+        commands_and_priority.append(
+            (f"sudo pip3 install --force-reinstall --no-index {source}", 1)
+        )
 
     elif branch is not None:
         version_installed = quote(branch)

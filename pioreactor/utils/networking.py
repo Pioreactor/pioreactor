@@ -79,6 +79,7 @@ def is_connected_to_network() -> bool:
 
 
 def get_ip() -> Optional[str]:
+    # TODO: is this always ipv4??
     from psutil import net_if_addrs  # type: ignore
 
     # Check for IP address of wireless network interface 'wlan0'
