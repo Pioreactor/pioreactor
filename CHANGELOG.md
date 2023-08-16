@@ -1,3 +1,9 @@
+### Upcoming
+ - New subcommand `delete` of `pio run od_blank` to remove the current experiment's blank values. This is also exposed in the UI.
+ - Pioreactor's IPv4 is now displayed under System in the UI.
+ - New configuration option to run the waste pump for a different multiplier (default 2).
+
+
 ### 23.7.31
 
  - Using builtin PID controller logic, instead of a 3rd party library. This shouldn't require any updates to PID code or parameters.

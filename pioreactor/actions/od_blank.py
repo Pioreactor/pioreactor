@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from contextlib import nullcontext
 from json import dumps
+from json import loads
 from typing import Iterator
 from typing import Optional
 
@@ -112,6 +113,26 @@ def od_statistics(
         return means, variances
 
 
+def delete_od_blank(unit=None, experiment=None):
+    action_name = "od_blank"
+    unit = unit or whoami.get_unit_name()
+    experiment = experiment or whoami.get_latest_experiment_name()
+
+    with local_persistant_storage(action_name) as cache:
+        if experiment not in cache:
+            return
+
+        means = loads(cache[experiment])
+        for channel, mean in means.items():
+            pubsub.publish(
+                f"pioreactor/{unit}/{experiment}/{action_name}/mean/{channel}",
+                None,
+                qos=pubsub.QOS.AT_LEAST_ONCE,
+            )
+
+        del cache[experiment]
+
+
 def od_blank(
     od_angle_channel1: pt.PdAngleOrREF,
     od_angle_channel2: pt.PdAngleOrREF,
@@ -157,7 +178,7 @@ def od_blank(
                 logger=logger,
             )
 
-            with local_persistant_storage("od_blank") as cache:
+            with local_persistant_storage(action_name) as cache:
                 cache[experiment] = dumps(means)
 
             for channel, mean in means.items():
@@ -173,7 +194,7 @@ def od_blank(
                             ),
                         )
                     ),
-                    qos=pubsub.QOS.EXACTLY_ONCE,
+                    qos=pubsub.QOS.AT_LEAST_ONCE,
                 )
 
             # publish to UI... maybe delete?
@@ -189,7 +210,8 @@ def od_blank(
     return means
 
 
-@click.command(name="od_blank")
+@click.group(invoke_without_command=True, name="od_blank")
+@click.pass_context
 @click.option(
     "--od-angle-channel1",
     default=config.get("od_config.photodiode_channel", "1", fallback=None),
@@ -210,8 +232,30 @@ def od_blank(
     show_default=True,
     help="Number of samples",
 )
-def click_od_blank(od_angle_channel1, od_angle_channel2, n_samples: int) -> None:
+def click_od_blank(ctx, od_angle_channel1, od_angle_channel2, n_samples: int) -> None:
     """
     Compute statistics about the blank OD time series
     """
-    od_blank(od_angle_channel1, od_angle_channel2, n_samples=n_samples)
+    unit = whoami.get_unit_name()
+    experiment = whoami.get_latest_experiment_name()
+
+    if ctx.invoked_subcommand is None:
+        od_blank(
+            od_angle_channel1,
+            od_angle_channel2,
+            n_samples=n_samples,
+            unit=unit,
+            experiment=experiment,
+        )
+
+
+@click_od_blank.command(name="delete")
+@click.option(
+    "--experiment",
+    help="delete particular experiment",
+)
+def click_delete_od_blank(experiment):
+    unit = whoami.get_unit_name()
+    experiment = experiment or whoami.get_latest_experiment_name()
+
+    delete_od_blank(unit, experiment)
