@@ -4,6 +4,7 @@ import Button from "@mui/material/Button";
 import Snackbar from "@mui/material/Snackbar";
 import { makeStyles } from "@mui/styles";
 import InputAdornment from '@mui/material/InputAdornment';
+import {runPioreactorJob} from "../utilities"
 
 
 const useStyles = makeStyles({
@@ -41,16 +42,7 @@ export default function ActionLEDForm(props) {
       setOpenSnackbar(true);
 
       const params = {[props.channel]: parseFloat(intensity), source_of_event: "UI"}
-
-      fetch(`/api/run/${props.unit}/led_intensity`, {
-        method: "PATCH",
-        body: JSON.stringify({options: params, args: []}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      }
-      );
+      runPioreactorJob(props.unit, "led_intensity", [], params)()
     } else if (intensity === EMPTYSTATE) {
       setErrorForm(false)
     } else {

@@ -8,6 +8,8 @@ import RadioGroup from '@mui/material/RadioGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
+import {runPioreactorJob} from "../utilities"
+
 import moment from 'moment';
 
 
@@ -47,15 +49,7 @@ export default function ActionPumpForm(props) {
 
       var msg = `Recorded ${actionToAct[manualAction]} of ${mL} mL at ${moment().format('h:mm:ss a')}.`
       var params = { ml: parseFloat(mL), source_of_event: "manually", manually: true};
-
-      fetch(`/api/run/${props.unit}/${manualAction}`, {
-        method: "PATCH",
-        body: JSON.stringify({options: params, args: []}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+      runPioreactorJob(props.unit, manualAction, [], params)()
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
       setML(EMPTYSTATE)

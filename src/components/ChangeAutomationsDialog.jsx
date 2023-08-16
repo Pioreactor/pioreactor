@@ -19,6 +19,7 @@ import Snackbar from "@mui/material/Snackbar";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import {runPioreactorJob} from "../utilities"
 
 import { Link } from 'react-router-dom';
 
@@ -128,14 +129,7 @@ function ChangeAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
-    fetch(`/api/run/${props.unit}/${automationType}_control`, {
-      method: "PATCH",
-      body: JSON.stringify({options:{"automation_name": automationName, ...algoSettings}, args: []}),
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    })
+    runPioreactorJob(props.unit, `${automationType}_control`, [], {"automation_name": automationName, ...algoSettings})()
     setOpenSnackbar(true);
     handleClose()
   }

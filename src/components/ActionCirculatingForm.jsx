@@ -6,6 +6,7 @@ import { makeStyles } from "@mui/styles";
 import LoadingButton from '@mui/lab/LoadingButton';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
+import {runPioreactorJob} from "../utilities"
 
 
 const useStyles = makeStyles({
@@ -45,14 +46,7 @@ export default function ActionCirculatingForm(props) {
       var params = { duration: parseFloat(duration), source_of_event: "UI"}
       var msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
 
-      fetch(`/api/run/${props.unit}/${props.action}`, {
-        method: "PATCH",
-        body: JSON.stringify({options: params, args: []}),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+      runPioreactorJob(props.unit, props.action, [], params)()
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
       setTimeout(() => setClicked(false), 2500)

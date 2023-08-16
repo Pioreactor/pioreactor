@@ -43,7 +43,7 @@ import ListSubheader from '@mui/material/ListSubheader';
 import IndeterminateCheckBoxOutlinedIcon from '@mui/icons-material/IndeterminateCheckBoxOutlined';
 import Switch from '@mui/material/Switch';
 import { useConfirm } from 'material-ui-confirm';
-import {getConfig, getRelabelMap} from "./utilities"
+import {getConfig, getRelabelMap, runPioreactorJob} from "./utilities"
 import Alert from '@mui/material/Alert';
 
 
@@ -587,6 +587,7 @@ function PatientButton(props) {
   )
 }
 
+
 function CalibrateDialog(props) {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
@@ -607,12 +608,6 @@ function CalibrateDialog(props) {
   };
 
 
-  function startPioreactorJob(job){
-    return function() {
-      fetch(`/api/run/${props.unit}/${job}`, {method: "PATCH"})
-    }
-  }
-
   function createUserButtonsBasedOnState(jobState, job){
 
     switch (jobState){
@@ -621,7 +616,7 @@ function CalibrateDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={startPioreactorJob(job)}
+                onClick={runPioreactorJob(props.unit, job)}
                 buttonText="Start"
                />
               </div>)
@@ -684,14 +679,16 @@ function CalibrateDialog(props) {
             </Typography>
             <Typography variant="body2" component="p" gutterBottom>
               For more accurate growth rate and biomass inferences, the Pioreactor can subtract out the
-              media's un-inoculated optical density. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
+              media's un-inoculated optical density <i>per experiment</i>. Read more about <a href="https://docs.pioreactor.com/user-guide/od-normal-growth-rate#blanking">using blanks</a>.
             </Typography>
-
-            {blankODButton}
-
-            <Typography variant="body2" component="p" style={{marginTop: "20px"}}>
+            <Typography variant="body2" component="p" style={{margin: "20px 0px"}}>
               Recorded optical densities of blank vial: <code>{props.odBlankReading ? Object.entries(JSON.parse(props.odBlankReading)).map( ([k, v]) => `${k}:${v.toFixed(5)}` ).join(", ") : "—"}</code>
             </Typography>
+
+            <div style={{display: "flex"}}>
+              {blankODButton}
+              <div><Button size="small" className={classes.patientButton} color="secondary" disabled={props.odBlankReading === null} onClick={runPioreactorJob(props.unit, "od_blank", ['clear']) }> Clear </Button></div>
+            </div>
             <Divider className={classes.divider} />
 
           </TabPanel>
@@ -761,12 +758,6 @@ function SelfTestDialog(props) {
   };
 
 
-  function startPioreactorJob(job){
-    return function() {
-      fetch(`/api/run/${props.unit}/${job}`, {method: "PATCH"})
-    }
-  }
-
   function displayIcon(key, state){
     if (props.selfTestTests == null){
       return <IndeterminateCheckBoxIcon />
@@ -794,7 +785,7 @@ function SelfTestDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={startPioreactorJob(job)}
+                onClick={runPioreactorJob(props.unit, job)}
                 buttonText="Start"
                />
               </div>)
@@ -989,11 +980,6 @@ function SettingsActionsDialog(props) {
     };
   }
 
-  function startPioreactorJob(job){
-    return function() {
-      fetch(`/api/run/${props.unit}/${job}`, {method: "PATCH"})
-    }
-  }
 
   function rebootRaspberryPi(){
     return function() {
@@ -1071,7 +1057,7 @@ function SettingsActionsDialog(props) {
                   <PatientButton
                     color="primary"
                     variant="contained"
-                    onClick={startPioreactorJob(job)}
+                    onClick={runPioreactorJob(props.unit, job)}
                     buttonText="Start"
                   />
         </div>)
@@ -1080,7 +1066,7 @@ function SettingsActionsDialog(props) {
                  <PatientButton
                   color="primary"
                   variant="contained"
-                  onClick={startPioreactorJob(job)}
+                  onClick={runPioreactorJob(props.unit, job)}
                   buttonText="Start"
                  />
                 <PatientButton
@@ -1640,6 +1626,24 @@ function SettingsActionsDialog(props) {
         <TabPanel value={tabValue} index={4}>
 
           <Typography  gutterBottom>
+            Addresses and hostname
+          </Typography>
+
+            <Typography variant="body2" component="p" gutterBottom>
+              Learn about how to <a target="_blank" rel="noopener noreferrer" href="https://docs.pioreactor.com/user-guide/accessing-raspberry-pi">access the Pioreactor's Raspberry Pi</a>.
+            </Typography>
+
+            <Typography variant="body2" component="p">
+              IPv4: <code className={classes.code}>{ipInfo}</code>
+            </Typography>
+
+            <Typography variant="body2" component="p">
+              Hostname: <code className={classes.code}>{props.unit}.local</code>
+            </Typography>
+
+          <Divider className={classes.divider} />
+
+          <Typography  gutterBottom>
             Version information
           </Typography>
 
@@ -1662,20 +1666,6 @@ function SettingsActionsDialog(props) {
             </Typography>
             <Typography variant="body2" component="p">
               Last updated at: {moment.utc(voltageInfo.timestamp || "", 'YYYY-MM-DD[T]HH:mm:ss.SSSSS[Z]').local().format('MMMM Do, h:mm a') }
-            </Typography>
-
-          <Divider className={classes.divider} />
-
-          <Typography  gutterBottom>
-            Addresses and hostname
-          </Typography>
-
-            <Typography variant="body2" component="p">
-              IPv4: <code className={classes.code}>{ipInfo}</code>
-            </Typography>
-
-            <Typography variant="body2" component="p">
-              Hostname: <code className={classes.code}>{props.unit}.local</code>
             </Typography>
 
           <Divider className={classes.divider} />
@@ -1820,14 +1810,6 @@ function SettingsActionsDialogAll({config, experiment}) {
     };
   }
 
-  function startPioreactorJob(job){
-    return function() {
-      setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active Pioreactors`)
-      setSnackbarOpen(true)
-      fetch(`/api/run/${unit}/${job.metadata.key}`, {method: "PATCH"})
-    }
-  }
-
 
   function setPioreactorJobAttr(job_attr, value) {
     var message = new Message(String(value));
@@ -1869,6 +1851,14 @@ function SettingsActionsDialogAll({config, experiment}) {
 
   function createUserButtonsBasedOnState(job){
 
+    const handleRunPioreactorJobResponse = (response) => {
+      if (response.ok) {
+        setSnackbarMessage(`Starting ${job.metadata.display_name.toLowerCase()} on all active Pioreactors`)
+        setSnackbarOpen(true)
+        return;
+      }
+    };
+
     if (job.metadata.key === "temperature_control"){
       var startAction = () => setOpenChangeTemperatureDialog(true)
     }
@@ -1879,7 +1869,7 @@ function SettingsActionsDialogAll({config, experiment}) {
       startAction = () => setOpenChangeLEDDialog(true)
     }
     else {
-      startAction = startPioreactorJob(job)
+      startAction = runPioreactorJob(unit, job.metadata.key, [], {}, handleRunPioreactorJobResponse)
     }
 
 
@@ -2435,13 +2425,13 @@ function PioreactorCard(props){
       metadata: {display: false},
       publishedSettings: {
         versions: {
-            value: null, label: null, type: null, unit: null, display: false, description: null
+            value: null, label: null, type: "json", unit: null, display: false, description: null
         },
         voltage_on_pwm_rail: {
-            value: null, label: null, type: null, unit: null, display: false, description: null
+            value: null, label: null, type: "json", unit: null, display: false, description: null
         },
         ipv4: {
-            value: null, label: null, type: null, unit: null, display: false, description: null
+            value: null, label: null, type: "string", unit: null, display: false, description: null
         },
       },
     },

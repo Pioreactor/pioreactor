@@ -54,3 +54,22 @@ export function getRelabelMap(setCallback, experiment="current") {
         setCallback(data)
   });
 }
+
+
+
+export function runPioreactorJob(unit, job, args = [], options = {}, callback) {
+  return function () {
+    fetch(`/api/run/${unit}/${job}`, {
+      method: "PATCH",
+      body: JSON.stringify({ args: args, options: options }),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      },
+    }).then(response => {
+      if (callback && typeof callback === 'function') {
+        callback(response);
+      }
+    });
+  }
+}

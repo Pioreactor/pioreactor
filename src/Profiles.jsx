@@ -17,6 +17,7 @@ import DisplayProfile from "./components/DisplayProfile"
 import DisplaySourceCode from "./components/DisplaySourceCode"
 import CloseIcon from '@mui/icons-material/Close';
 import CodeIcon from '@mui/icons-material/Code';
+import {runPioreactorJob} from "./utilities"
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -76,20 +77,12 @@ function ExperimentProfilesContent(props) {
     document.title = props.title;
   }, [props.title]);
 
-  const onSubmit = () => {
-    fetch(`/api/run/${props.config['cluster.topology']['leader_hostname']}/experiment_profile`,{
-          method: "PATCH",
-          body: JSON.stringify({args: ['execute', selectedExperimentProfile]}),
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-      })
-    setConfirmed(true)
-  }
+
+  const onSubmit = runPioreactorJob(props.config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], {}, () => setConfirmed(true))
+
 
   const onStop = () => {
-    fetch(`/api/stop/${props.config['cluster.topology']['leader_hostname']}/experiment_profile`,{
+    fetch(`/api/stop/${props.config['cluster.topology']?.leader_hostname}/experiment_profile`,{
           method: "PATCH",
       })
   }
@@ -207,7 +200,7 @@ function ProfilesContainer(props){
       <Card className={classes.root}>
         <CardContent className={classes.cardContent}>
           <ExperimentProfilesContent config={props.config}/>
-          <p style={{textAlign: "center", marginTop: "30px"}}><span role="img" aria-labelledby="Note">💡</span> Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profiles</a>.</p>
+          <p style={{textAlign: "center", marginTop: "30px"}}>Learn more about <a href="https://docs.pioreactor.com/user-guide/experiment-profiles" target="_blank" rel="noopener noreferrer">experiment profiles</a>.</p>
         </CardContent>
       </Card>
     </React.Fragment>
