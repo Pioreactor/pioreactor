@@ -188,7 +188,8 @@ class LEDAutomationJob(BackgroundSubJob):
             A float between 0-100, inclusive.
 
         """
-        for _ in range(12):
+        attempts = 12
+        for _ in range(attempts):
             success = led_intensity(
                 {channel: intensity},
                 unit=self.unit,
@@ -203,9 +204,7 @@ class LEDAutomationJob(BackgroundSubJob):
 
             time.sleep(0.6)
 
-        self.logger.warning(
-            f"Unable to update channel {channel} due to a long lock being on the channel."
-        )
+        self.logger.warning(f"{self.automation_name} was unable to update channel {channel}.")
         return False
 
     @property

@@ -648,9 +648,3 @@ def click_change_current(name: str):
 @click_od_calibration.command(name="list")
 def click_list():
     list_()
-
-
-@click_od_calibration.command(name="publish")
-@click.argument("name", type=click.STRING)
-def click_publish(name: str):
-    publish_to_leader(name)

@@ -1,12 +1,12 @@
 ### Upcoming
  - New subcommand `delete` of `pio run od_blank` to remove the current experiment's blank values. This is also exposed in the UI.
  - Pioreactor's IPv4 is now displayed under System in the UI.
+ - In config.ini, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.
  - New configuration option to run the waste pump for a different multiplier (default 2).
-
 
 ### 23.7.31
 
- - Using builtin PID controller logic, instead of a 3rd party library. This shouldn't require any updates to PID code or parameters.
+ - Using builtin PID `controller logic, instead of a 3rd party library. This shouldn't require any updates to PID code or parameters.
  - Better error handling when the PioreactorUI API can't be reached.
  - Some initial support for Basic Auth in the PioreactorUI
  - improved sensitivity of self-test `test_REF_is_in_correct_position`.
@@ -14,8 +14,9 @@
  - `pio rm` now asks for confirmation before executing.
  - Some minor noise reduction in OD reading job.
  - Plugins can be built with a flag file LEADER_ONLY to only be installed on the leader Pioreactor.
- - Stirring now pauses and restart duing OD calibration. Thanks @odcambc!
+ - Stirring now pauses and restart during OD calibration. Thanks @odcambc!
  - **Breaking**: Light/Dark cycle LED automation uses minutes instead of hours now! Thanks @c-bun!
+
 
 ### 23.6.27
 

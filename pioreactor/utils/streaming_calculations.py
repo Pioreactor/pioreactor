@@ -31,6 +31,9 @@ class ExponentialMovingAverage:
     def __call__(self) -> Optional[float]:
         return self.value
 
+    def clear(self) -> None:
+        self.value = None
+
 
 class CultureGrowthEKF:
     """

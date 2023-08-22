@@ -5,7 +5,6 @@ import time
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
-from itertools import chain
 from threading import Thread
 from typing import Any
 from typing import cast
@@ -46,7 +45,9 @@ def briefer_pause() -> float:
 
 
 def pause_between_subdoses() -> float:
-    d = float(config.get("dosing_automation", "pause_between_subdoses_seconds", fallback=5.0))
+    d = float(
+        config.get("dosing_automation.config", "pause_between_subdoses_seconds", fallback=5.0)
+    )
     time.sleep(d)
     return d
 
@@ -74,6 +75,30 @@ class ThroughputCalculator:
             raise ValueError("Unknown event type")
 
         return (current_media_throughput, current_alt_media_throughput)
+
+
+class DosePropODChangeCalculator:
+    """
+    TODO
+    This calculator is more of a "safety check", unlike the others. The idea is
+    that the pre-OD should be different than the post-OD during a pumping event.
+    In fact, ideally, it should be proportional (assuming the media has nil turbidity).
+
+    However, there are lots of timing problems, and noise, to contend with.
+
+    Ex calculations:
+    1. suppose the OD is 0.5, the vial volume is 14ml, and we dose 1ml. Ideal case: we should expect
+    the OD to drop by 1.0/14.0, so the new OD should be 0.5 * (1 - 1.0 / 14.0) = 0.464.
+
+    - Perhaps it's a good idea to keep a stack of (time, od_reading) pairs. This way we can inspect before-after more easily.
+    - or something like a EMA of OD PRE, and then when a dosing event comes in, keep a EMA of OD POST
+      and then compare OD PRE to OD POST
+    - if multiple addition pumps fire, there is not really a pause between them, so it's hard to measure specific pumps. It's easier to
+      measure total pumps.
+
+    """
+
+    pass
 
 
 class VialVolumeCalculator:
@@ -200,6 +225,7 @@ class DosingAutomationJob(BackgroundSubJob):
     alt_media_throughput: float  # amount of alt-media that has been expelled
     vial_volume: float  # amount in the vial
     MAX_VIAL_VOLUME_TO_WARN: float = 17.0
+    _expect_od_change: bool = False
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -382,9 +408,13 @@ class DosingAutomationJob(BackgroundSubJob):
 
         """
         if not all(other_pump_ml.endswith("_ml") for other_pump_ml in other_pumps_ml.keys()):
-            raise ValueError("all kwargs should end in `_ml`")
+            raise ValueError(
+                "all kwargs should end in `_ml`. Example: `execute_io_action(salty_media_ml=1.0)`"
+            )
 
-        sum_of_volumes = sum(ml for ml in other_pumps_ml.values()) + media_ml + alt_media_ml
+        all_pumps_ml = {**{"media_ml": media_ml, "alt_media_ml": alt_media_ml}, **other_pumps_ml}
+
+        sum_of_volumes = sum(ml for ml in all_pumps_ml.values())
 
         if not (waste_ml >= sum_of_volumes):
             raise ValueError(
@@ -392,30 +422,22 @@ class DosingAutomationJob(BackgroundSubJob):
             )
 
         max_ = 0.75  # arbitrary, but should be some value that the pump is well calibrated for
-        volumes_moved = SummableDict(
-            media_ml=0, alt_media_ml=0, waste_ml=0, **{p: 0 for p in other_pumps_ml}
-        )  # media, alt_media, waste
+        volumes_moved = SummableDict(waste_ml=0.0, **{p: 0.0 for p in all_pumps_ml})
         source_of_event = f"{self.job_name}:{self.automation_name}"
 
         if sum_of_volumes > max_:
             volumes_moved += self.execute_io_action(
                 waste_ml=sum_of_volumes / 2,
-                media_ml=media_ml / 2,
-                alt_media_ml=alt_media_ml / 2,
-                **{pump: volume_ml / 2 for pump, volume_ml in other_pumps_ml.items()},
+                **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
             )
             volumes_moved += self.execute_io_action(
                 waste_ml=sum_of_volumes / 2,
-                media_ml=media_ml / 2,
-                alt_media_ml=alt_media_ml / 2,
-                **{pump: volume_ml / 2 for pump, volume_ml in other_pumps_ml.items()},
+                **{pump: volume_ml / 2 for pump, volume_ml in all_pumps_ml.items()},
             )
 
         else:
             # iterate through pumps, and dose required amount. First media, then alt_media, then any others, then waste.
-            for pump, volume_ml in chain(
-                {"media_ml": media_ml, "alt_media_ml": alt_media_ml}.items(), other_pumps_ml.items()
-            ):
+            for pump, volume_ml in all_pumps_ml.items():
                 if (
                     (volume_ml > 0)
                     and (self.state in (self.READY, self.SLEEPING))
@@ -457,7 +479,7 @@ class DosingAutomationJob(BackgroundSubJob):
                     experiment=self.experiment,
                     ml=waste_ml
                     * config.getfloat(
-                        "dosing_automation", "waste_removal_multiplier", fallback=2.0
+                        "dosing_automation.config", "waste_removal_multiplier", fallback=2.0
                     ),
                     source_of_event=source_of_event,
                 )

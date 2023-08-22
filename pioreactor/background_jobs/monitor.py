@@ -24,6 +24,7 @@ from pioreactor.mureq import get
 from pioreactor.pubsub import QOS
 from pioreactor.structs import Voltage
 from pioreactor.types import MQTTMessage
+from pioreactor.utils import retry
 from pioreactor.utils.gpio_helpers import set_gpio_availability
 from pioreactor.utils.networking import get_ip
 from pioreactor.utils.timing import current_utc_datetime
@@ -163,21 +164,16 @@ class Monitor(BackgroundJob):
         self.GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=self.GPIO.PUD_DOWN)
         self.GPIO.setup(LED_PIN, GPIO.OUT)
 
-        i = 0
-        while i < 2:
-            try:
-                self.GPIO.add_event_detect(
-                    BUTTON_PIN,
-                    self.GPIO.RISING,
-                    callback=self.button_down_and_up,
-                    bouncetime=100,
-                )
-                return
-            except RuntimeError:
-                sleep(3)
-                i += 1
-
-        self.logger.warning("Failed to add button detect.")
+        try:
+            retry(
+                self.GPIO.add_event_detect,
+                retries=3,
+                delay=1.0,
+                args=(BUTTON_PIN, self.GPIO.RISING),
+                kwargs={"callback": self.button_down_and_up, "bouncetime": 100},
+            )
+        except RuntimeError:
+            self.logger.warning("Failed to add button detect.")
 
     def check_for_network(self) -> None:
         if whoami.is_testing_env():
@@ -223,8 +219,11 @@ class Monitor(BackgroundJob):
         if whoami.is_testing_env():
             return
 
+        attempt = 0
+        retries = 5
         try:
-            while True:
+            while attempt < retries:
+                attempt += 1
                 # Run the command 'systemctl is-active lighttpd' and capture the output
                 result = subprocess.run(
                     ["systemctl", "is-active", "lighttpd"], capture_output=True, text=True
@@ -247,8 +246,11 @@ class Monitor(BackgroundJob):
             self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
             self.logger.error(f"Error checking lighttpd status: {e}")
 
+        attempt = 0
+        retries = 5
         try:
-            while True:
+            while attempt < retries:
+                attempt += 1
                 # Run the command 'systemctl is-active huey' and capture the output
                 result = subprocess.run(
                     ["systemctl", "is-active", "huey"], capture_output=True, text=True

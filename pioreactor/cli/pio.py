@@ -727,7 +727,7 @@ if whoami.am_I_leader():
         """
         import socket
 
-        def get_network_metadata(hostname):
+        def get_metadata(hostname):
             # get ip
             if whoami.get_unit_name() == hostname:
                 ip = networking.get_ip()
@@ -748,15 +748,26 @@ if whoami.am_I_leader():
             else:
                 state = "unknown"
 
+            # get version
+            result = pubsub.subscribe(
+                f"pioreactor/{hostname}/{whoami.UNIVERSAL_EXPERIMENT}/monitor/versions",
+                timeout=1,
+                name="CLI",
+            )
+            if result:
+                versions = loads(result.payload.decode())
+            else:
+                versions = {"hat": "unknown", "hat_serial": "unknown"}
+
             # is reachable?
             reachable = networking.is_reachable(add_local(hostname))
 
-            return ip, state, reachable
+            return ip, state, reachable, versions
 
         def display_data_for(hostname_status: tuple[str, str]) -> bool:
             hostname, status = hostname_status
 
-            ip, state, reachable = get_network_metadata(hostname)
+            ip, state, reachable, versions = get_metadata(hostname)
 
             statef = click.style(
                 f"{state:15s}", fg="green" if state in ("ready", "init") else "red"
@@ -766,16 +777,17 @@ if whoami.am_I_leader():
             is_leaderf = f"{('Y' if hostname==get_leader_hostname() else 'N'):15s}"
             hostnamef = f"{hostname:20s}"
             reachablef = f"{(click.style('Y', fg='green') if reachable       else click.style('N', fg='red')):23s}"
-            statusf = f"{(click.style('Y', fg='green') if (status == '1') else click.style('N', fg='red')):14s}"
+            statusf = f"{(click.style('Y', fg='green') if (status == '1') else click.style('N', fg='red')):23s}"
+            versionf = f"{versions['hat']:15s}"
 
-            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf}")
+            click.echo(f"{hostnamef} {is_leaderf} {ipf} {statef} {reachablef} {statusf} {versionf}")
             return reachable & (state == "ready")
 
         worker_statuses = list(config["cluster.inventory"].items())
         n_workers = len(worker_statuses)
 
         click.secho(
-            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':14s} {'Active?':14s}",
+            f"{'Unit / hostname':20s} {'Is leader?':15s} {'IP address':20s} {'State':15s} {'Reachable?':14s} {'Active?':14s} {'HAT version':15s}",
             bold=True,
         )
         if n_workers == 0:

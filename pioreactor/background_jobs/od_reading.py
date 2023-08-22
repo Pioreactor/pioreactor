@@ -585,7 +585,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
     downstream. Note too that as we are normalizing OD readings, the output has arbitrary units.
     """
 
-    INITIAL = 1.0
+    INITIAL = 1.0  # TODO: is this the same for version 1.0 HATs and version 1.0+ HATs???
 
     def __init__(self, channel: pt.PdChannel) -> None:
         super().__init__()

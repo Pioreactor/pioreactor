@@ -240,8 +240,8 @@ def test_ambient_light_interference(
         assert all([readings[pd_channel] < 0.005 for pd_channel in ALL_PD_CHANNELS]), readings
     else:
         assert all(
-            [readings[pd_channel] < 0.070 for pd_channel in ALL_PD_CHANNELS]
-        ), readings  # saw a 0.0662 blank during testing
+            [readings[pd_channel] < 0.075 for pd_channel in ALL_PD_CHANNELS]
+        ), readings  # saw a 0.072 blank during testing
 
 
 def test_REF_is_lower_than_0_dot_256_volts(

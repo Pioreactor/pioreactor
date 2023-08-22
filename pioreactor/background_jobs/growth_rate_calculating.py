@@ -488,7 +488,18 @@ class GrowthRateCalculator(BackgroundJob):
         # here we can add custom logic to handle dosing events.
         # an improvement to this: the variance factor is proportional to the amount exchanged.
         if dosing_event.event != "remove_waste":
-            self.update_ekf_variance_after_event(minutes=0.40, factor=2500)
+            self.update_ekf_variance_after_event(
+                minutes=config.getfloat(
+                    "growth_rate_calculating.config",
+                    "ekf_variance_shift_post_dosing_minutes",
+                    fallback=0.40,
+                ),
+                factor=config.getfloat(
+                    "growth_rate_calculating.config",
+                    "ekf_variance_shift_post_dosing_factor",
+                    fallback=2500,
+                ),
+            )
 
     def start_passive_listeners(self) -> None:
         # process incoming data
@@ -541,7 +552,7 @@ class GrowthRateCalculator(BackgroundJob):
 
 
 @command(name="growth_rate_calculating")
-@option("--ignore-cache", is_flag=True, help="Ignore the cached growth_rate value")
+@option("--ignore-cache", is_flag=True, help="Ignore the cached values (rerun)")
 def click_growth_rate_calculating(ignore_cache):
     """
     Start calculating growth rate

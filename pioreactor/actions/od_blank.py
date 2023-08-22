@@ -122,6 +122,12 @@ def delete_od_blank(unit=None, experiment=None):
         if experiment not in cache:
             return
 
+        pubsub.publish(
+            f"pioreactor/{unit}/{experiment}/{action_name}/means",
+            None,
+            qos=pubsub.QOS.AT_LEAST_ONCE,
+        )
+
         means = loads(cache[experiment])
         for channel, mean in means.items():
             pubsub.publish(
@@ -197,7 +203,7 @@ def od_blank(
                     qos=pubsub.QOS.AT_LEAST_ONCE,
                 )
 
-            # publish to UI... maybe delete?
+            # publish to UI
             pubsub.publish(
                 f"pioreactor/{unit}/{experiment}/{action_name}/means",
                 encode(means),

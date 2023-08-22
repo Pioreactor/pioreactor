@@ -15,6 +15,8 @@ from typing import Optional
 
 import click
 
+from pioreactor import exc
+from pioreactor import hardware
 from pioreactor.background_jobs.base import BackgroundJob
 from pioreactor.structs import LEDAutomation
 from pioreactor.whoami import get_latest_experiment_name
@@ -32,6 +34,11 @@ class LEDController(BackgroundJob):
 
     def __init__(self, automation_name: str, unit: str, experiment: str, **kwargs) -> None:
         super(LEDController, self).__init__(unit=unit, experiment=experiment)
+
+        if not hardware.is_HAT_present():
+            self.logger.error("Pioreactor HAT must be present.")
+            self.clean_up()
+            raise exc.HardwareNotFoundError("Pioreactor HAT must be present.")
 
         try:
             automation_class = self.available_automations[automation_name]
