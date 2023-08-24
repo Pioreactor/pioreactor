@@ -792,6 +792,24 @@ def test_calibration_errors_when_pd_channel_differs():
         del c["90"]
 
 
+def test_PhotodiodeIrLedReferenceTrackerStaticInit():
+    tracker = PhotodiodeIrLedReferenceTrackerStaticInit(channel="1")
+
+    for i in range(1000):
+        v = 0.001 * np.random.randn() + 0.25
+        tracker.update(v)
+
+    assert abs(tracker.led_output_ema.get_latest() - 0.25) < 0.01
+    assert abs(tracker.led_output_emstd.get_latest() - 0.001) < 0.01
+
+    # normalize a value
+    assert abs(tracker.transform(1.0) - 4.0) < 0.1
+
+    for i in range(100):
+        v = 0.001 * np.random.randn() + 0.50  # a bump in IR
+        tracker.update(v)
+
+
 def test_ODReader_with_multiple_angles_and_a_ref():
     """
     Technically not possible, since there are only two PD channels.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from json import dumps
+from math import sqrt
 from threading import Timer
 from typing import Optional
 
@@ -12,7 +13,7 @@ class ExponentialMovingAverage:
     """
     Models the following:
 
-    y_n = (1 - alpha)·x + alpha·y_{n-1}
+    mean_n = (1 - alpha)·x + alpha·mean_{n-1}
 
     Ex: if alpha = 0, use latest value only.
     """
@@ -28,11 +29,57 @@ class ExponentialMovingAverage:
             self.value = (1 - self.alpha) * new_value + self.alpha * self.value
         return self.value
 
-    def __call__(self) -> Optional[float]:
+    def get_latest(self) -> Optional[float]:
         return self.value
 
     def clear(self) -> None:
         self.value = None
+
+
+class ExponentialMovingStd:
+    """
+    Models the following:
+
+    var_n = (1 - alpha)·(x - mean_n)(x - mean_{n-1}) + alpha·var_{n-1}
+    std_n = sqrt(var_n)
+
+    Ex: if alpha = 0, use latest value only.
+    """
+
+    def __init__(self, alpha: float, ema_alpha: Optional[float] = None):
+        self._var_value: Optional[float] = None
+        self.value: Optional[float] = None
+        self.alpha = alpha
+        self.ema = ExponentialMovingAverage(ema_alpha or self.alpha)
+
+    def update(self, new_value: float) -> Optional[float]:
+        if self.ema.get_latest() is None:
+            # need at least two data points for this algo
+            self.ema.update(new_value)
+            return self.value  # None
+
+        mean_prev = self.ema.get_latest()
+        self.ema.update(new_value)
+        mean_curr = self.ema.get_latest()
+        assert mean_prev is not None
+        assert mean_curr is not None
+
+        if self._var_value is None:
+            self._var_value = (new_value - mean_curr) * (new_value - mean_prev)
+        else:
+            self._var_value = (1 - self.alpha) * (new_value - mean_curr) * (
+                new_value - mean_prev
+            ) + self.alpha * self._var_value
+        self.value = sqrt(self._var_value)
+        return self.value
+
+    def get_latest(self) -> Optional[float]:
+        return self.value
+
+    def clear(self) -> None:
+        self.value = None
+        self._var_value = None
+        self.ema.clear()
 
 
 class CultureGrowthEKF:
@@ -472,7 +519,7 @@ class PID:
         return output
 
     def publish_pid_stats(self) -> None:
-        # not currently being saved in database.
+        # not currently being saved in database. You could by adding a table and listener to mqtt_to_db_streaming
         to_send = {
             "setpoint": self.setpoint,
             "output_limits_lb": self.output_limits[0],

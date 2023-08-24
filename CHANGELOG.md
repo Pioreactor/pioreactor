@@ -2,7 +2,8 @@
  - New subcommand `delete` of `pio run od_blank` to remove the current experiment's blank values. This is also exposed in the UI.
  - Pioreactor's IPv4 is now displayed under System in the UI.
  - In config.ini, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.
- - New configuration option to run the waste pump for a different multiplier (default 2).
+ - New configuration option `waste_removal_multiplier` to run the waste pump for a different multiplier (default 2).
+ - A warning will appear if the reference PD is showing too much noise.
 
 ### 23.7.31
 

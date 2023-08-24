@@ -110,6 +110,7 @@ from pioreactor.utils import local_intermittent_storage
 from pioreactor.utils import local_persistant_storage
 from pioreactor.utils import timing
 from pioreactor.utils.streaming_calculations import ExponentialMovingAverage
+from pioreactor.utils.streaming_calculations import ExponentialMovingStd
 from pioreactor.utils.timing import catchtime
 
 ALL_PD_CHANNELS: list[pt.PdChannel] = ["1", "2"]
@@ -492,7 +493,7 @@ class ADCReader(LoggerMixin):
             # check if using correct gain
             # this may need to be adjusted for higher rates of data collection
             if self.dynamic_gain:
-                m = self.max_signal_moving_average()
+                m = self.max_signal_moving_average.get_latest()
                 assert m is not None
                 self.adc.check_on_gain(m)
 
@@ -592,6 +593,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         self.led_output_ema = ExponentialMovingAverage(
             config.getfloat("od_config", "pd_reference_ema")
         )
+        self.led_output_emstd = ExponentialMovingStd(alpha=0.95, ema_alpha=0.8)
         self.channel = channel
         self.logger.debug(f"Using PD channel {channel} as IR LED reference.")
 
@@ -599,11 +601,24 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         # Note, in extreme circumstances, this can be negative, or even blow up to some large number.
         self.led_output_ema.update(ir_output_reading / self.INITIAL)
 
+        # check if funky things are happening by std. banding
+        self.led_output_emstd.update(ir_output_reading / self.INITIAL)
+        latest_std = self.led_output_emstd.get_latest()
+        if latest_std is not None and latest_std > 0.01:
+            self.logger.warning(
+                f"The reference PD is very noisy, {latest_std=}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
+            )
+            self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
+
     def __call__(self, batched_readings: PdChannelToVoltage) -> PdChannelToVoltage:
-        return {ch: self.transform(od_signal) for (ch, od_signal) in batched_readings.items()}
+        return {
+            ch: self.transform(od_signal)
+            for (ch, od_signal) in batched_readings.items()
+            if ch != self.channel
+        }
 
     def transform(self, od_reading: pt.Voltage) -> pt.Voltage:
-        led_output = self.led_output_ema()
+        led_output = self.led_output_ema.get_latest()
         assert led_output is not None
         if led_output <= 0.0:
             raise ValueError(
@@ -1006,6 +1021,11 @@ class ODReader(BackgroundJob):
         self.record_from_adc_timer.unpause()
 
     def on_disconnected(self) -> None:
+        try:
+            self.record_from_adc_timer.cancel()
+        except Exception:
+            pass
+
         # turn off the LED after we have take our last ADC reading..
         try:
             self.stop_ir_led()
@@ -1015,11 +1035,6 @@ class ODReader(BackgroundJob):
         # tech debt: clear _pre and _post
         self._pre_read.clear()
         self._post_read.clear()
-
-        try:
-            self.record_from_adc_timer.cancel()
-        except Exception:
-            pass
 
     def _get_ir_led_channel_from_configuration(self) -> pt.LedChannel:
         try:
