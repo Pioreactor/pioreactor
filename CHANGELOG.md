@@ -1,11 +1,12 @@
 ### Upcoming
- - New subcommand `delete` of `pio run od_blank` to remove the current experiment's blank values. This is also exposed in the UI.
- - Pioreactor's IPv4 is now displayed under System in the UI.
- - In config.ini, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.
- - New configuration option `waste_removal_multiplier` to run the waste pump for a different multiplier (default 2).
- - A warning will appear if the reference PD is measurinf too much noise.
- - New CLI tool: `pio clear-cache <cache> <key>` to remove a key from a cache.
+ - Pioreactor's IPv4 and hostname is now displayed under System in the UI.
+ - In configuration, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.
+ - new safety check that will stop automated dosing if vial liquid volume is above 18ml during dosing. This can be changed with `max_volume_to_stop` under `[dosing_automation.config]`
+ - New configuration option `waste_removal_multiplier` to run the waste pump for a different multiplier (default 2), under `[dosing_automation.config]`
+ - A warning will appear if the reference PD is measuring too much noise.
  - added another self-test test to confirm that an aturbid liquid in vial will produce a near 0 signal.
+ - New CLI command: `pio clear-cache <cache> <key>` to remove a key from a cache.
+ - New CLI subcommand `delete` of `pio run od_blank` to remove the current experiment's blank values. This is also exposed in the UI.
 
 ### 23.7.31
 

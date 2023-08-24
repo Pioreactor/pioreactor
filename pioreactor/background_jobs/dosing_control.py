@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import time
 from typing import Optional
+from typing import Union
 
 import click
 
@@ -141,7 +142,7 @@ class DosingController(BackgroundJob):
 
 def start_dosing_control(
     automation_name: str,
-    duration: Optional[float] = None,
+    duration: Optional[Union[float, str]] = None,
     skip_first_run: bool = False,
     unit: Optional[str] = None,
     experiment: Optional[str] = None,

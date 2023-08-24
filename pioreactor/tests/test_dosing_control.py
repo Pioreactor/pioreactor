@@ -18,7 +18,7 @@ from pioreactor import pubsub
 from pioreactor import structs
 from pioreactor.automations import DosingAutomationJob
 from pioreactor.automations import events
-from pioreactor.automations.dosing.base import AltMediaCalculator
+from pioreactor.automations.dosing.base import AltMediaFractionCalculator
 from pioreactor.automations.dosing.base import VialVolumeCalculator
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
@@ -1055,8 +1055,8 @@ def test_what_happens_when_no_od_data_is_coming_in() -> None:
     algo.clean_up()
 
 
-def test_AltMediaCalculator() -> None:
-    ac = AltMediaCalculator()
+def test_AltMediaFractionCalculator() -> None:
+    ac = AltMediaFractionCalculator()
     vial_volume = 14
 
     media_added = 1.0
@@ -1106,7 +1106,7 @@ def test_AltMediaCalculator() -> None:
     assert ac.update(add_alt_media_event, 0.5, vial_volume) == 0.75
 
 
-def test_latest_event_goes_to_mqtt():
+def test_latest_event_goes_to_mqtt() -> None:
     experiment = "test_latest_event_goes_to_mqtt"
 
     class FakeAutomation(DosingAutomationJob):
@@ -1141,7 +1141,7 @@ def test_latest_event_goes_to_mqtt():
         assert latest_event_from_mqtt["data"]["s"] == "test"
 
 
-def test_strings_are_okay_for_chemostat():
+def test_strings_are_okay_for_chemostat() -> None:
     unit = get_unit_name()
     experiment = "test_strings_are_okay_for_chemostat"
 
@@ -1162,7 +1162,7 @@ def test_strings_are_okay_for_chemostat():
         assert controller.automation_job.media_throughput == 0.7
 
 
-def test_chemostat_from_cli():
+def test_chemostat_from_cli() -> None:
     from pioreactor.cli.pio import pio
 
     t = Timer(
@@ -1185,7 +1185,7 @@ def test_chemostat_from_cli():
     assert len(errors) == 0
 
 
-def test_pass_in_initial_alt_media_fraction():
+def test_pass_in_initial_alt_media_fraction() -> None:
     experiment = "test_pass_in_initial_alt_media_fraction"
     unit = get_unit_name()
 
@@ -1225,7 +1225,7 @@ def test_pass_in_initial_alt_media_fraction():
         )
 
 
-def test_chemostat_from_0_volume():
+def test_chemostat_from_0_volume() -> None:
     experiment = "test_chemostat_from_0_volume"
     unit = get_unit_name()
 
@@ -1252,7 +1252,7 @@ def test_chemostat_from_0_volume():
         assert controller.automation_job.vial_volume == 1.0
 
 
-def test_execute_io_respects_dilutions_ratios():
+def test_execute_io_respects_dilutions_ratios() -> None:
     # https://forum.pioreactor.com/t/inconsistent-dosing-behavior-with-multiple-media/37/3
 
     unit = get_unit_name()
@@ -1312,7 +1312,7 @@ def test_execute_io_respects_dilutions_ratios():
         assert controller.automation_job.alt_media_fraction > 0.5
 
 
-def test_vial_volume_is_published():
+def test_vial_volume_is_published() -> None:
     unit = get_unit_name()
     experiment = "test_vial_volume_is_published"
 
@@ -1326,7 +1326,7 @@ def test_vial_volume_is_published():
             assert float(result.payload) == 14
 
 
-def test_vial_volume_calculator():
+def test_vial_volume_calculator() -> None:
     # let's start from 0 volume, and start adding.
     vc = VialVolumeCalculator
     current_volume = 0.0
@@ -1413,9 +1413,9 @@ def test_vial_volume_calculator():
     assert current_volume == 5
 
 
-def test_alt_media_calcualtor_from_0_volume():
+def test_alt_media_calcualtor_from_0_volume() -> None:
     # let's start from 0, and start adding.
-    ac = AltMediaCalculator
+    ac = AltMediaFractionCalculator
     vc = VialVolumeCalculator
 
     current_volume = 0.0
@@ -1468,7 +1468,7 @@ def test_alt_media_calcualtor_from_0_volume():
     assert current_alt_media_fraction == 0.6
 
 
-def test_adding_pumps_and_calling_them_from_execute_io_action():
+def test_adding_pumps_and_calling_them_from_execute_io_action() -> None:
     experiment = "test_adding_pumps_and_calling_them_from_execute_io_action"
     unit = get_unit_name()
 
@@ -1533,6 +1533,41 @@ def test_timeout_in_run() -> None:
             time.sleep(70)
 
         assert any("Timed out" in item["message"] for item in bucket)
+
+
+def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -> None:
+    experiment = "test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold"
+
+    with local_persistant_storage("vial_volume") as c:
+        if experiment in c:
+            del c[experiment]
+
+    with DosingController(
+        "chemostat",
+        duration=0.05,
+        volume=0.5,
+        unit=unit,
+        experiment=experiment,
+        initial_vial_volume=17.95,
+    ) as dc:
+        job = dc.automation_job
+        while job.state == "ready":
+            pause()
+
+        assert job.state == "sleeping"
+        pause()
+
+        # job is paused. Let's remove some liquid.
+        job.remove_waste_from_bioreactor(job.unit, job.experiment, ml=5.0, source_of_event="manual")
+
+        pause()
+        assert job.vial_volume <= 17.95
+
+        job.set_state("ready")
+        assert job.state == "ready"
+        pause()
+        pause()
+        pause()
 
 
 def test_warning_is_logged_if_under_remove_waste() -> None:

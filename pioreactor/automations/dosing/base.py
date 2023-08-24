@@ -9,7 +9,6 @@ from threading import Thread
 from typing import Any
 from typing import cast
 from typing import Optional
-from typing import Type
 
 from msgspec.json import decode
 from msgspec.json import encode
@@ -52,6 +51,11 @@ def pause_between_subdoses() -> float:
     return d
 
 
+"""
+Calculators should ideally be state-less
+"""
+
+
 class ThroughputCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media. Useful for knowing how much media
@@ -75,30 +79,6 @@ class ThroughputCalculator:
             raise ValueError("Unknown event type")
 
         return (current_media_throughput, current_alt_media_throughput)
-
-
-class DosePropODChangeCalculator:
-    """
-    TODO
-    This calculator is more of a "safety check", unlike the others. The idea is
-    that the pre-OD should be different than the post-OD during a pumping event.
-    In fact, ideally, it should be proportional (assuming the media has nil turbidity).
-
-    However, there are lots of timing problems, and noise, to contend with.
-
-    Ex calculations:
-    1. suppose the OD is 0.5, the vial volume is 14ml, and we dose 1ml. Ideal case: we should expect
-    the OD to drop by 1.0/14.0, so the new OD should be 0.5 * (1 - 1.0 / 14.0) = 0.464.
-
-    - Perhaps it's a good idea to keep a stack of (time, od_reading) pairs. This way we can inspect before-after more easily.
-    - or something like a EMA of OD PRE, and then when a dosing event comes in, keep a EMA of OD POST
-      and then compare OD PRE to OD POST
-    - if multiple addition pumps fire, there is not really a pause between them, so it's hard to measure specific pumps. It's easier to
-      measure total pumps.
-
-    """
-
-    pass
 
 
 class VialVolumeCalculator:
@@ -128,11 +108,10 @@ class VialVolumeCalculator:
             raise ValueError("Unknown event type")
 
 
-class AltMediaCalculator:
+class AltMediaFractionCalculator:
     """
     Computes the fraction of the vial that is from the alt-media vs the regular media.
-    State-less. Something else needs to record current_alt_media_fraction
-
+    State-less.
     """
 
     @classmethod
@@ -156,7 +135,10 @@ class AltMediaCalculator:
         elif event == "remove_waste":
             return current_alt_media_fraction
         else:
-            raise ValueError("Unknown event type")
+            # if the users added, ex, "add_salty_media", well this is the same as adding media (from the POV of alt_media_fraction)
+            return cls._update_alt_media_fraction(
+                current_alt_media_fraction, volume, 0, current_vial_volume
+            )
 
     @classmethod
     def _update_alt_media_fraction(
@@ -224,8 +206,12 @@ class DosingAutomationJob(BackgroundSubJob):
     media_throughput: float  # amount of media that has been expelled
     alt_media_throughput: float  # amount of alt-media that has been expelled
     vial_volume: float  # amount in the vial
-    MAX_VIAL_VOLUME_TO_WARN: float = 17.0
-    _expect_od_change: bool = False
+    MAX_VIAL_VOLUME_TO_WARN: float = config.getfloat(
+        "dosing_automation.config", "max_volume_to_warn", fallback=17.0
+    )
+    MAX_VIAL_VOLUME_TO_STOP: float = config.getfloat(
+        "dosing_automation.config", "max_volume_to_stop", fallback=18.0
+    )
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -260,11 +246,9 @@ class DosingAutomationJob(BackgroundSubJob):
         self.latest_growth_rate_at = current_utc_datetime()
         self.latest_od_at = current_utc_datetime()
 
-        self._alt_media_fraction_calculator = self._init_alt_media_fraction_calculator(
-            float(initial_alt_media_fraction)
-        )
-        self._volume_throughput_calculator = self._init_volume_throughput_calculator()
-        self._vial_volume_calculator = self._init_vial_volume_calculator(float(initial_vial_volume))
+        self._init_alt_media_fraction(float(initial_alt_media_fraction))
+        self._init_volume_throughput()
+        self._init_vial_volume(float(initial_vial_volume))
 
         self.add_to_published_settings(
             "latest_event",
@@ -438,12 +422,19 @@ class DosingAutomationJob(BackgroundSubJob):
         else:
             # iterate through pumps, and dose required amount. First media, then alt_media, then any others, then waste.
             for pump, volume_ml in all_pumps_ml.items():
+                if (self.vial_volume + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
+                    self.logger.error(
+                        f"Stopping all pumping since {self.vial_volume} + {volume_ml} mL is beyond safety thresholds."
+                    )
+                    self.set_state(self.SLEEPING)
+
                 if (
                     (volume_ml > 0)
-                    and (self.state in (self.READY, self.SLEEPING))
+                    and (self.state in (self.READY,))
                     and self.block_until_not_sleeping()
                 ):
                     pump_function = getattr(self, f"add_{pump.removesuffix('_ml')}_to_bioreactor")
+
                     volume_moved_ml = pump_function(
                         unit=self.unit,
                         experiment=self.experiment,
@@ -454,11 +445,7 @@ class DosingAutomationJob(BackgroundSubJob):
                     pause_between_subdoses()  # allow time for the addition to mix, and reduce the step response that can cause ringing in the output V.
 
             # remove waste last.
-            if (
-                waste_ml > 0
-                and (self.state in (self.READY, self.SLEEPING))
-                and self.block_until_not_sleeping()
-            ):
+            if waste_ml > 0 and (self.state in (self.READY,)) and self.block_until_not_sleeping():
                 waste_moved_ml = self.remove_waste_from_bioreactor(
                     unit=self.unit,
                     experiment=self.experiment,
@@ -626,7 +613,7 @@ class DosingAutomationJob(BackgroundSubJob):
         self._update_vial_volume(dosing_event)
 
     def _update_alt_media_fraction(self, dosing_event: structs.DosingEvent) -> None:
-        self.alt_media_fraction = self._alt_media_fraction_calculator.update(
+        self.alt_media_fraction = AltMediaFractionCalculator.update(
             dosing_event, self.alt_media_fraction, self.vial_volume
         )
 
@@ -635,7 +622,7 @@ class DosingAutomationJob(BackgroundSubJob):
             cache[self.experiment] = self.alt_media_fraction
 
     def _update_vial_volume(self, dosing_event: structs.DosingEvent) -> None:
-        self.vial_volume = self._vial_volume_calculator.update(dosing_event, self.vial_volume)
+        self.vial_volume = VialVolumeCalculator.update(dosing_event, self.vial_volume)
 
         # add to cache
         with local_persistant_storage("vial_volume") as cache:
@@ -650,7 +637,7 @@ class DosingAutomationJob(BackgroundSubJob):
         (
             self.media_throughput,
             self.alt_media_throughput,
-        ) = self._volume_throughput_calculator.update(
+        ) = ThroughputCalculator.update(
             dosing_event, self.media_throughput, self.alt_media_throughput
         )
 
@@ -661,9 +648,7 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("media_throughput") as cache:
             cache[self.experiment] = self.media_throughput
 
-    def _init_alt_media_fraction_calculator(
-        self, initial_alt_media_fraction
-    ) -> Type[AltMediaCalculator]:
+    def _init_alt_media_fraction(self, initial_alt_media_fraction: float) -> None:
         assert 0 <= initial_alt_media_fraction <= 1
         self.add_to_published_settings(
             "alt_media_fraction",
@@ -676,9 +661,9 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("alt_media_fraction") as cache:
             self.alt_media_fraction = cache.get(self.experiment, initial_alt_media_fraction)
 
-        return AltMediaCalculator
+        return
 
-    def _init_vial_volume_calculator(self, initial_vial_volume) -> Type[VialVolumeCalculator]:
+    def _init_vial_volume(self, initial_vial_volume: float):
         assert initial_vial_volume >= 0
 
         self.add_to_published_settings(
@@ -693,9 +678,9 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("vial_volume") as cache:
             self.vial_volume = cache.get(self.experiment, initial_vial_volume)
 
-        return VialVolumeCalculator
+        return
 
-    def _init_volume_throughput_calculator(self) -> Type[ThroughputCalculator]:
+    def _init_volume_throughput(self):
         self.add_to_published_settings(
             "alt_media_throughput",
             {
@@ -719,7 +704,7 @@ class DosingAutomationJob(BackgroundSubJob):
         with local_persistant_storage("media_throughput") as cache:
             self.media_throughput = cache.get(self.experiment, 0.0)
 
-        return ThroughputCalculator
+        return
 
     def start_passive_listeners(self) -> None:
         self.subscribe_and_callback(
