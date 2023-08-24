@@ -55,8 +55,11 @@ JOBS_TO_SKIP_KILLING = [
 def pio(ctx) -> None:
     """
     Execute commands on this Pioreactor.
+
     Configuration available: /home/pioreactor/.pioreactor/config.ini
+
     See full documentation: https://docs.pioreactor.com/user-guide/cli
+
     Report errors or feedback: https://github.com/Pioreactor/pioreactor/issues
     """
 
@@ -330,6 +333,37 @@ def view_cache(cache: str) -> None:
     with cacher(cache) as c:
         for key in sorted(list(c.iterkeys())):
             click.echo(f"{click.style(key, bold=True)} = {c[key]}")
+
+
+@pio.command(name="clear-cache", short_help="clear out the contents of a cache")
+@click.argument("cache")
+@click.argument("key")
+def clear_cache(cache: str, key: str) -> None:
+    import os.path
+    import tempfile
+
+    tmp_dir = tempfile.gettempdir()
+
+    persistant_dir = (
+        "/home/pioreactor/.pioreactor/storage/"
+        if not whoami.is_testing_env()
+        else ".pioreactor/storage"
+    )
+
+    # is it a temp cache or persistant cache?
+    if os.path.isdir(f"{tmp_dir}/{cache}"):
+        cacher = local_intermittent_storage
+
+    elif os.path.isdir(f"{persistant_dir}/{cache}"):
+        cacher = local_persistant_storage
+
+    else:
+        click.echo(f"cache {cache} not found.")
+        return
+
+    with cacher(cache) as c:
+        if key in c:
+            del c[key]
 
 
 @pio.command(
@@ -720,7 +754,7 @@ if whoami.am_I_leader():
         for hostname in discover_workers_on_network(terminate):
             click.echo(hostname)
 
-    @pio.command(name="cluster-status", short_help="report information on the pioreactor cluster")
+    @pio.command(name="cluster-status", short_help="report information on the cluster")
     def cluster_status() -> None:
         """
         Note that this only looks at the current cluster as defined in config.ini.

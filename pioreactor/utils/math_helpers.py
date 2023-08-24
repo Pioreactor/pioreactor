@@ -21,7 +21,7 @@ def trimmed_mean(x: list) -> float:
 
     x = list(x)  # copy it
     max_, min_ = max(x), min(x)
-    x.remove(max_)
+    x.remove(max_)  # even if there is a tie, this only removes the first max_ encountered.
     x.remove(min_)
     return mean(x)
 

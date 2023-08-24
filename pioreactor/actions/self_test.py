@@ -63,7 +63,7 @@ def test_REF_is_in_correct_position(
     from statistics import variance
 
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
-    signal_channel = ["1", "2"][int(reference_channel == "1")]
+    signal_channel = "2" if reference_channel == "1" else "1"
 
     signal1 = []
     signal2 = []
@@ -272,6 +272,41 @@ def test_REF_is_lower_than_0_dot_256_volts(
     ), f"Recorded {readings[reference_channel]} in REF, should ideally be between 0.05 and 0.256. Current IR LED: {ir_intensity}%."
 
 
+def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
+    # this _also_ uses stirring to increase the variance in the non-REF.
+    # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
+
+    reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
+    signal_channel = "2" if reference_channel == "1" else "1"
+    assert config.get("od_config.photodiode_channel", signal_channel, fallback=None) in [
+        "90",
+        "45",
+        "135",
+    ]
+
+    signal = []
+
+    with start_od_reading(
+        od_angle_channel1=config.get("od_config.photodiode_channel", "1", fallback=None),
+        od_angle_channel2=config.get("od_config.photodiode_channel", "2", fallback=None),
+        interval=1.15,
+        unit=unit,
+        fake_data=is_testing_env(),
+        experiment=experiment,
+        use_calibration=False,
+    ) as od_stream:
+        for i, reading in enumerate(od_stream, start=1):
+            signal.append(reading.ods[signal_channel].od)
+
+            if i == 6:
+                break
+
+    mean_signal = trimmed_mean(signal)
+
+    THRESHOLD = 0.025
+    assert mean_signal <= THRESHOLD, f"{mean_signal=} > {THRESHOLD}"
+
+
 def test_detect_heating_pcb(client: Client, logger: Logger, unit: str, experiment: str) -> None:
     assert is_heating_pcb_present()
 
@@ -387,7 +422,7 @@ class BatchTestRunner:
 
 
 @click.command(name="self_test")
-@click.option("-k", help="see pytest's -k argument", type=str, default="")
+@click.option("-k", help="see pytest's -k argument", type=str)
 def click_self_test(k: str) -> int:
     """
     Test the input/output in the Pioreactor
@@ -410,6 +445,7 @@ def click_self_test(k: str) -> int:
         test_REF_is_lower_than_0_dot_256_volts,
         test_REF_is_in_correct_position,
         test_positive_correlation_between_rpm_and_stirring,
+        test_PD_is_near_0_volts_for_blank,
     ]
 
     with publish_ready_to_disconnected_state(unit, testing_experiment, "self_test") as state:

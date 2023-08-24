@@ -3,7 +3,9 @@
  - Pioreactor's IPv4 is now displayed under System in the UI.
  - In config.ini, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.
  - New configuration option `waste_removal_multiplier` to run the waste pump for a different multiplier (default 2).
- - A warning will appear if the reference PD is showing too much noise.
+ - A warning will appear if the reference PD is measurinf too much noise.
+ - New CLI tool: `pio clear-cache <cache> <key>` to remove a key from a cache.
+ - added another self-test test to confirm that an aturbid liquid in vial will produce a near 0 signal.
 
 ### 23.7.31
 
