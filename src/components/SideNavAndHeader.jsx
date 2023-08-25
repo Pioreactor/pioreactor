@@ -1,11 +1,6 @@
 import React from 'react';
 import { makeStyles } from '@mui/styles';
 import Drawer from '@mui/material/Drawer';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItem';
-import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
-import ListItem from '@mui/material/ListItem';
 import Badge from '@mui/material/Badge';
 import Divider from '@mui/material/Divider';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -24,13 +19,9 @@ import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import ViewTimelineOutlinedIcon from '@mui/icons-material/ViewTimelineOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import Tooltip from '@mui/material/Tooltip';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { Link, useLocation } from 'react-router-dom';
-import clsx from 'clsx';
-import { Sidebar, Menu, MenuItem, SubMenu} from "react-pro-sidebar";
-import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
-import SouthIcon from '@mui/icons-material/South';
+import { Sidebar, Menu, MenuItem} from "react-pro-sidebar";
 
 const drawerWidth = 230;
 

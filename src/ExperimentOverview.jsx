@@ -79,7 +79,7 @@ function Overview(props) {
                       downSample={chart.down_sample}
                       interpolation={chart.interpolation || "stepAfter"}
                       yAxisDomain={chart.y_axis_domain ? chart.y_axis_domain : null}
-                      lookback={eval(chart.lookback) || 10000}
+                      lookback={chart.lookback ? eval(chart.lookback) : 10000}
                       fixedDecimals={chart.fixed_decimals}
                       relabelMap={relabelMap}
                       yTransformation={eval(chart.y_transformation || "(y) => y")}

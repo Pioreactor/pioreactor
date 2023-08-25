@@ -58,7 +58,6 @@ export function getRelabelMap(setCallback, experiment="current") {
 
 
 export function runPioreactorJob(unit, job, args = [], options = {}, callback) {
-  return function () {
     fetch(`/api/run/${unit}/${job}`, {
       method: "PATCH",
       body: JSON.stringify({ args: args, options: options }),
@@ -71,5 +70,4 @@ export function runPioreactorJob(unit, job, args = [], options = {}, callback) {
         callback(response);
       }
     });
-  }
 }

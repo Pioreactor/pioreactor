@@ -129,7 +129,10 @@ function PageHeader(props) {
         })
         .then((data) => {
           setLatestVersion(data['tag_name'])
-        });
+        })
+        .catch(e => {
+          console.log("No internet connection?")
+        })
       }
 
       getCurrentUIVersion()
@@ -196,7 +199,7 @@ function ChangelogContainer(){
           setChangelog(data)
         }).catch(e => {
           // no internet?
-          setChangelog("Could not request latest Changelog. Missing internet connection?")
+          setChangelog("Could not retrieve latest Changelog. Are you missing an internet connection? You can find the latest changelog at [https://github.com/pioreactor/pioreactor/master/CHANGELOG.md](https://github.com/pioreactor/pioreactor/master/CHANGELOG.md)")
         })
       }
       getData()

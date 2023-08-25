@@ -485,7 +485,14 @@ function AddNewPioreactor(props){
       <DialogContent>
       <p>Follow the instructions at <a rel="noopener noreferrer" target="_blank" href="https://docs.pioreactor.com/user-guide/software-set-up#adding-additional-workers-to-your-cluster">set up your new Pioreactor's Raspberry Pi</a>.</p>
 
-      <p>After set up is complete, provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
+      <p>After
+
+      <ol>
+       <li> image installation is complete and,</li>
+       <li> the new Pioreactor worker is powered on, </li>
+      </ol>
+
+      provide the hostname you used when installing the Pioreactor image onto the Raspberry Pi.
       Your existing Pioreactor will automatically connect the new Pioreactor to the cluster. When finished, the new Pioreactor will show up on this page (after a refresh).</p>
       <div>
         <TextField
@@ -616,7 +623,7 @@ function CalibrateDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={runPioreactorJob(props.unit, job)}
+                onClick={() => runPioreactorJob(props.unit, job)}
                 buttonText="Start"
                />
               </div>)
@@ -687,7 +694,7 @@ function CalibrateDialog(props) {
 
             <div style={{display: "flex"}}>
               {blankODButton}
-              <div><Button size="small" className={classes.patientButton} color="secondary" disabled={props.odBlankReading === null} onClick={runPioreactorJob(props.unit, "od_blank", ['clear']) }> Clear </Button></div>
+              <div><Button size="small" className={classes.patientButton} color="secondary" disabled={props.odBlankReading === null} onClick={() => runPioreactorJob(props.unit, "od_blank", ['delete']) }> Clear </Button></div>
             </div>
             <Divider className={classes.divider} />
 
@@ -785,7 +792,7 @@ function SelfTestDialog(props) {
                <PatientButton
                 color="primary"
                 variant="contained"
-                onClick={runPioreactorJob(props.unit, job)}
+                onClick={() => runPioreactorJob(props.unit, job)}
                 buttonText="Start"
                />
               </div>)
@@ -844,7 +851,10 @@ function SelfTestDialog(props) {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" component="p" gutterBottom>
-            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring. Add a vial with any liquid and stirbar into the Pioreactor.
+            Perform a check of the heating & temperature sensor, LEDs & photodiodes, and stirring.
+          </Typography>
+          <Typography variant="body2" component="p" gutterBottom>
+            Add a closed vial with water and stirbar into the Pioreactor.
           </Typography>
 
             {selfTestButton}
@@ -894,6 +904,14 @@ function SelfTestDialog(props) {
                 </ListItemIcon>
                 <ListItemText primary="Reference photodiode is in correct position" />
               </ListItem>
+
+              <ListItem className={classes.testingListItem}>
+                <ListItemIcon className={classes.testingListItemIcon}>
+                  {displayIcon("test_PD_is_near_0_volts_for_blank", props.selfTestState)}
+                </ListItemIcon>
+                <ListItemText primary="Photodiode measures near nil signal for aturbid water" />
+              </ListItem>
+
             </List>
 
             <List component="nav"
@@ -1057,7 +1075,7 @@ function SettingsActionsDialog(props) {
                   <PatientButton
                     color="primary"
                     variant="contained"
-                    onClick={runPioreactorJob(props.unit, job)}
+                    onClick={() => runPioreactorJob(props.unit, job)}
                     buttonText="Start"
                   />
         </div>)
@@ -1066,7 +1084,7 @@ function SettingsActionsDialog(props) {
                  <PatientButton
                   color="primary"
                   variant="contained"
-                  onClick={runPioreactorJob(props.unit, job)}
+                  onClick={() => runPioreactorJob(props.unit, job)}
                   buttonText="Start"
                  />
                 <PatientButton
@@ -1869,7 +1887,7 @@ function SettingsActionsDialogAll({config, experiment}) {
       startAction = () => setOpenChangeLEDDialog(true)
     }
     else {
-      startAction = runPioreactorJob(unit, job.metadata.key, [], {}, handleRunPioreactorJobResponse)
+      startAction = () => runPioreactorJob(unit, job.metadata.key, [], {}, handleRunPioreactorJobResponse)
     }
 
 

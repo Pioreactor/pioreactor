@@ -129,7 +129,7 @@ function ChangeAutomationsDialog(props) {
 
   const startJob = (event) => {
     event.preventDefault()
-    runPioreactorJob(props.unit, `${automationType}_control`, [], {"automation_name": automationName, ...algoSettings})()
+    runPioreactorJob(props.unit, `${automationType}_control`, [], {"automation_name": automationName, ...algoSettings})
     setOpenSnackbar(true);
     handleClose()
   }

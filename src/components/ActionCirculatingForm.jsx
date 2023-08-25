@@ -46,7 +46,7 @@ export default function ActionCirculatingForm(props) {
       var params = { duration: parseFloat(duration), source_of_event: "UI"}
       var msg = actionToAct[props.action] + (" for " +  duration + " seconds.")
 
-      runPioreactorJob(props.unit, props.action, [], params)()
+      runPioreactorJob(props.unit, props.action, [], params)
       setSnackbarMsg(msg)
       setOpenSnackbar(true);
       setTimeout(() => setClicked(false), 2500)

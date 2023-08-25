@@ -78,7 +78,7 @@ function ExperimentProfilesContent(props) {
   }, [props.title]);
 
 
-  const onSubmit = runPioreactorJob(props.config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], {}, () => setConfirmed(true))
+  const onSubmit = () => runPioreactorJob(props.config['cluster.topology']?.leader_hostname, 'experiment_profile', ['execute', selectedExperimentProfile], {}, () => setConfirmed(true))
 
 
   const onStop = () => {
