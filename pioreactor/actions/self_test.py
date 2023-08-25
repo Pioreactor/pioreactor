@@ -273,9 +273,6 @@ def test_REF_is_lower_than_0_dot_256_volts(
 
 
 def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experiment: str) -> None:
-    # this _also_ uses stirring to increase the variance in the non-REF.
-    # The idea is to trigger stirring on and off and the REF should not see a change in signal / variance, but the other PD should.
-
     reference_channel = cast(PdChannel, config["od_config.photodiode_channel_reverse"][REF_keyword])
     signal_channel = "2" if reference_channel == "1" else "1"
     assert config.get("od_config.photodiode_channel", signal_channel, fallback=None) in [
@@ -284,7 +281,7 @@ def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experim
         "135",
     ]
 
-    signal = []
+    signals = []
 
     with start_od_reading(
         od_angle_channel1=config.get("od_config.photodiode_channel", "1", fallback=None),
@@ -296,12 +293,12 @@ def test_PD_is_near_0_volts_for_blank(client, logger: Logger, unit: str, experim
         use_calibration=False,
     ) as od_stream:
         for i, reading in enumerate(od_stream, start=1):
-            signal.append(reading.ods[signal_channel].od)
+            signals.append(reading.ods[signal_channel].od)
 
             if i == 6:
                 break
 
-    mean_signal = trimmed_mean(signal)
+    mean_signal = trimmed_mean(signals)
 
     THRESHOLD = 0.025
     assert mean_signal <= THRESHOLD, f"{mean_signal=} > {THRESHOLD}"
@@ -322,7 +319,7 @@ def test_positive_correlation_between_temperature_and_heating(
         logger.debug("Varying heating.")
         for dc in dcs:
             tc._update_heater(dc)
-            sleep(2.0)  # two cycles TODO: can I do 1 cycle?
+            sleep(1.5)
             measured_pcb_temps.append(tc.read_external_temperature())
 
         tc._update_heater(0)
@@ -366,15 +363,15 @@ def test_positive_correlation_between_rpm_and_stirring(
         rpm_calc.setup()
         st.duty_cycle = initial_dc
         st.start_stirring()
-        sleep(1)
+        sleep(0.75)
 
         for i in range(n_samples):
             p = i / n_samples
             dc = start * (1 - p) + p * end
 
             st.set_duty_cycle(dc)
-            sleep(1)
-            measured_rpms.append(rpm_calc(4))
+            sleep(0.75)
+            measured_rpms.append(rpm_calc(3.0))
             dcs.append(dc)
 
         measured_correlation = round(correlation(dcs, measured_rpms), 2)

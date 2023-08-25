@@ -424,7 +424,7 @@ class DosingAutomationJob(BackgroundSubJob):
             for pump, volume_ml in all_pumps_ml.items():
                 if (self.vial_volume + volume_ml) >= self.MAX_VIAL_VOLUME_TO_STOP:
                     self.logger.error(
-                        f"Stopping all pumping since {self.vial_volume} + {volume_ml} mL is beyond safety thresholds."
+                        f"Stopping all pumping since {self.vial_volume} + {volume_ml} mL is beyond safety threshold {self.MAX_VIAL_VOLUME_TO_STOP} mL."
                     )
                     self.set_state(self.SLEEPING)
 
