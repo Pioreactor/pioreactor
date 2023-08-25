@@ -119,7 +119,7 @@ def test_all_positive_correlations_between_pds_and_leds(
     from pprint import pformat
 
     INTENSITIES = list(
-        range(10, 50, 5)
+        range(20, 80, 5)
     )  # better to err on the side of MORE samples than less - it's only a few extra seconds...
     current_experiment_name = get_latest_experiment_name()
     results: dict[tuple[LedChannel, PdChannel], float] = {}
