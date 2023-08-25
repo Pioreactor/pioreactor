@@ -755,7 +755,6 @@ function SelfTestDialog(props) {
   const classes = useStyles();
   const [open, setOpen] = useState(false);
 
-
   const handleClickOpen = () => {
     setOpen(true);
   };
@@ -769,10 +768,10 @@ function SelfTestDialog(props) {
     if (props.selfTestTests == null){
       return <IndeterminateCheckBoxIcon />
     }
-    else if (props.selfTestTests.publishedSettings[key].value === 1){
+    else if (props.selfTestTests.publishedSettings[key].value === true){
       return <CheckIcon className={classes.readyGreen}/>
     }
-    else if (props.selfTestTests.publishedSettings[key].value === 0){
+    else if (props.selfTestTests.publishedSettings[key].value === false){
       return <CloseIcon className={classes.lostRed}/>
     }
     else if (state === "ready") {
@@ -2435,7 +2434,6 @@ function PioreactorCard(props){
   const config = props.config
   const [jobFetchComplete, setJobFetchComplete] = useState(false)
   const [label, setLabel] = useState("")
-
   const [client, setClient] = useState(null)
   const [jobs, setJobs] = useState({
     monitor: {
@@ -2488,9 +2486,12 @@ function PioreactorCard(props){
     fetchContribBackgroundJobs();
   }, [])
 
-  const parseToFloatOrNot = (payloadString, typeOfSetting) => {
+  const parseToType = (payloadString, typeOfSetting) => {
     if (typeOfSetting === "numeric"){
       return parseFloat(payloadString)
+    }
+    else if (typeOfSetting === "boolean"){
+      return (["1", "true", "True", 1].includes(payloadString))
     }
     return payloadString
   }
@@ -2518,7 +2519,6 @@ function PioreactorCard(props){
     }
 
     const onMessageArrived = (message) => {
-
       var [job, setting] = message.topic.split('/').slice(-2)
       if (setting === "$state"){
         var payload = message.payloadString
@@ -2526,14 +2526,21 @@ function PioreactorCard(props){
       } else if (job.endsWith("_automation")) {
         // needed because settings are attached to _automations, not _control
         job = job.replace("_automation", "_control")
-        var payload = parseToFloatOrNot(message.payloadString, jobs[job].publishedSettings[setting].type)
+        var payload = parseToType(message.payloadString, jobs[job].publishedSettings[setting].type)
         setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings:
             {...prev[job].publishedSettings,
               [setting]:
                 {...prev[job].publishedSettings[setting], value: payload }}}}))
       } else {
-        var payload = parseToFloatOrNot(message.payloadString, jobs[job].publishedSettings[setting].type)
-        setJobs((prev) => ({...prev, [job]: {...prev[job], publishedSettings: {...prev[job].publishedSettings, [setting]: {...prev[job].publishedSettings[setting], value: payload }}}}))
+        var payload = parseToType(message.payloadString, jobs[job].publishedSettings[setting].type)
+        setJobs(prev => {
+          const updatedJob = { ...prev[job] };
+          const updatedSetting = { ...updatedJob.publishedSettings[setting], value: payload };
+
+          updatedJob.publishedSettings = { ...updatedJob.publishedSettings, [setting]: updatedSetting };
+
+          return { ...prev, [job]: updatedJob };
+        });
       }
     }
 
@@ -2597,12 +2604,9 @@ function PioreactorCard(props){
     }
   }
 
-
-
   const indicatorDotColor = getIndicatorDotColor(jobs.monitor.state)
   const indicatorDotShadow = 0
   const indicatorLabel = getInicatorLabel(jobs.monitor.state, isUnitActive)
-
 
   return (
     <Card className={classes.pioreactorCard} id={unit}>
@@ -2747,7 +2751,6 @@ function PioreactorCard(props){
 
 
 function InactiveUnits(props){
-
   return (
   <React.Fragment>
     <div style={{display: "flex", justifyContent: "space-between", marginBottom: "10px", marginTop: "15px"}}>
