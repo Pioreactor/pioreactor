@@ -242,6 +242,7 @@ class Monitor(BackgroundJob):
                     break
                 else:
                     raise ValueError(status)
+                sleep(1.0)
         except Exception as e:
             self.logger.debug(f"Error checking lighttpd status: {e}", exc_info=True)
             self.logger.error(f"Error checking lighttpd status: {e}")
@@ -269,17 +270,22 @@ class Monitor(BackgroundJob):
                     break
                 else:
                     raise ValueError(status)
+                sleep(1.0)
         except Exception as e:
             self.logger.debug(f"Error checking huey status: {e}", exc_info=True)
             self.logger.error(f"Error checking huey status: {e}")
 
-        try:
-            # can we ping ourselves? should have a response
+        attempt = 0
+        retries = 5
+        while attempt < retries:
+            attempt += 1
             res = get("http://localhost")
-            res.raise_for_status()
-        except Exception as e:
-            self.logger.debug(f"Error pinging UI: {e}", exc_info=True)
-            self.logger.error(f"Error pinging UI: {e}")
+            if res.ok:
+                break
+            sleep(1.0)
+        else:
+            self.logger.debug(f"Error pinging UI: {res.status}")
+            self.logger.error(f"Error pinging UI: {res.status}")
             self.flicker_led_with_error_code(error_codes.WEBSERVER_OFFLINE)
 
     def check_for_required_jobs_running(self):

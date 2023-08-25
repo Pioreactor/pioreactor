@@ -419,7 +419,7 @@ class BatchTestRunner:
 
 
 @click.command(name="self_test")
-@click.option("-k", help="see pytest's -k argument", type=str)
+@click.option("-k", help="see pytest's -k argument", type=str, default="")
 def click_self_test(k: str) -> int:
     """
     Test the input/output in the Pioreactor

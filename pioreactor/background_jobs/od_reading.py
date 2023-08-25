@@ -606,7 +606,7 @@ class PhotodiodeIrLedReferenceTrackerStaticInit(IrLedReferenceTracker):
         latest_std = self.led_output_emstd.get_latest()
         if latest_std is not None and latest_std > 0.01:
             self.logger.warning(
-                f"The reference PD is very noisy, {latest_std=}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
+                f"The reference PD is very noisy, std={latest_std:.2g}. Is the PD in channel {self.channel} correctly positioned? Is the IR LED behaving as expected?"
             )
             self.led_output_emstd.clear()  # reset it for i) reduce warnings, ii) if the user purposely changed the IR intensity, this is an approx of that
 
