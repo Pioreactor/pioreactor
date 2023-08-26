@@ -15,6 +15,7 @@ from threading import Thread
 from time import sleep
 from typing import Callable
 from typing import cast
+from typing import Optional
 
 import click
 
@@ -117,17 +118,18 @@ def test_all_positive_correlations_between_pds_and_leds(
     TODO: if this exits early, we should turn off the LEDs
     """
     from pprint import pformat
+    from random import shuffle
 
-    INTENSITIES = list(
-        range(15, 85, 5)
-    )  # better to err on the side of MORE samples than less - it's only a few extra seconds...
+    # better to err on the side of MORE samples than less - it's only a few extra seconds...
+    # we randomize to reduce effects of temperature
+    INTENSITIES = list(range(15, 85, 5))
+    shuffle(INTENSITIES)
+
     current_experiment_name = get_latest_experiment_name()
     results: dict[tuple[LedChannel, PdChannel], float] = {}
 
     adc_reader = ADCReader(
-        channels=ALL_PD_CHANNELS,
-        dynamic_gain=False,
-        fake_data=is_testing_env(),
+        channels=ALL_PD_CHANNELS, dynamic_gain=False, fake_data=is_testing_env(), penalizer=0.0
     ).setup_adc()
 
     # set all to 0, but use original experiment name, since we indeed are setting them to 0.
@@ -338,8 +340,6 @@ def test_positive_correlation_between_rpm_and_stirring(
     assert is_heating_pcb_present()
     assert voltage_in_aux() <= 18.0
 
-    current_experiment_name = get_latest_experiment_name()
-
     with local_persistant_storage("stirring_calibration") as cache:
         if "linear_v1" in cache:
             parameters = loads(cache["linear_v1"])
@@ -358,7 +358,7 @@ def test_positive_correlation_between_rpm_and_stirring(
     end = initial_dc * 0.8
 
     with stirring.Stirrer(
-        target_rpm=0, unit=unit, experiment=current_experiment_name, rpm_calculator=None
+        target_rpm=0, unit=unit, experiment=experiment, rpm_calculator=None
     ) as st, stirring.RpmFromFrequency() as rpm_calc:
         rpm_calc.setup()
         st.duty_cycle = initial_dc
@@ -419,8 +419,8 @@ class BatchTestRunner:
 
 
 @click.command(name="self_test")
-@click.option("-k", help="see pytest's -k argument", type=str, default="")
-def click_self_test(k: str) -> int:
+@click.option("-k", help="see pytest's -k argument", type=str)
+def click_self_test(k: Optional[str]) -> int:
     """
     Test the input/output in the Pioreactor
     """
@@ -463,7 +463,7 @@ def click_self_test(k: str) -> int:
         functions_to_test = {
             f
             for (name, f) in vars(sys.modules[__name__]).items()
-            if name.startswith("test_") and (k in name)
+            if name.startswith("test_") and (k in name if k else True)
         }
 
         logger.info(f"Starting self-test. Running {len(functions_to_test)} tests.")

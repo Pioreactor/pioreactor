@@ -5,6 +5,7 @@
  - New configuration option `waste_removal_multiplier` to run the waste pump for a different multiplier (default 2), under `[dosing_automation.config]`
  - A warning will appear if the reference PD is measuring too much noise.
  - added another self-test test to confirm that an aturbid liquid in vial will produce a near 0 signal.
+ - general improvements to self-test
  - New CLI command: `pio clear-cache <cache> <key>` to remove a key from a cache.
  - New CLI subcommand `delete` of `pio run od_blank` to remove the current experiment's blank values. This is also exposed in the UI.
 
