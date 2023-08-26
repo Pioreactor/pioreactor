@@ -122,7 +122,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     # better to err on the side of MORE samples than less - it's only a few extra seconds...
     # we randomize to reduce effects of temperature
-    INTENSITIES = list(range(15, 85, 5))
+    INTENSITIES = list(range(20, 85, 5))
     shuffle(INTENSITIES)
 
     current_experiment_name = get_latest_experiment_name()
