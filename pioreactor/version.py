@@ -5,7 +5,7 @@ import os
 
 # Append "dev" if a dev version
 # Append "rc0" if a rc version
-__version__ = "23.7.31.dev"
+__version__ = "23.8.28rc0"
 
 
 def _get_hardware_version() -> tuple[int, int] | tuple[int, int, str]:
