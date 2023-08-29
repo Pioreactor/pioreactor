@@ -345,6 +345,15 @@ class Monitor(BackgroundJob):
             self.set_state(self.LOST)
             self.flicker_led_with_error_code(error_codes.MQTT_CLIENT_NOT_CONNECTED_TO_LEADER)
 
+            try:
+                self.pub_client.reconnect()
+            except Exception:
+                pass
+            try:
+                self.sub_client.reconnect()
+            except Exception:
+                pass
+
     def check_for_last_backup(self) -> None:
         with utils.local_persistant_storage("database_backups") as cache:
             if cache.get("latest_backup_timestamp"):

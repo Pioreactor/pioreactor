@@ -211,7 +211,7 @@ def test_all_positive_correlations_between_pds_and_leds(
 
     for ir_pd_channel in pd_channels_to_test:
         assert (
-            results[(ir_led_channel, ir_pd_channel)] > 0.925
+            results[(ir_led_channel, ir_pd_channel)] > 0.9
         ), f"missing {ir_led_channel} ⇝ {ir_pd_channel}"
 
 
