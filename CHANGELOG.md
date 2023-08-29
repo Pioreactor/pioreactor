@@ -1,4 +1,4 @@
-### Upcoming
+### 23.8.29
  - Pioreactor's IPv4 and hostname is now displayed under System in the UI.
  - In configuration, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.
  - new safety check that will stop automated dosing if vial liquid volume is above 18ml during dosing. This can be changed with `max_volume_to_stop` under `[dosing_automation.config]`
