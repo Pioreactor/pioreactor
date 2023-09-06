@@ -92,9 +92,9 @@ class TemperatureController(BackgroundJob):
 
     def __init__(
         self,
-        automation_name: str,
         unit: str,
         experiment: str,
+        automation_name: str,
         **kwargs,
     ) -> None:
         super().__init__(unit=unit, experiment=experiment)
@@ -564,9 +564,9 @@ def start_temperature_control(
     **kwargs,
 ) -> TemperatureController:
     return TemperatureController(
-        automation_name=automation_name,
         unit=unit or whoami.get_unit_name(),
         experiment=experiment or whoami.get_latest_experiment_name(),
+        automation_name=automation_name,
         **kwargs,
     )
 

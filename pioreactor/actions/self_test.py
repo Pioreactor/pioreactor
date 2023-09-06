@@ -315,7 +315,7 @@ def test_positive_correlation_between_temperature_and_heating(
 ) -> None:
     assert is_heating_pcb_present()
 
-    with TemperatureController("only_record_temperature", unit=unit, experiment=experiment) as tc:
+    with TemperatureController(unit, experiment, "only_record_temperature") as tc:
         measured_pcb_temps = []
         dcs = list(range(0, 22, 3))
         logger.debug("Varying heating.")

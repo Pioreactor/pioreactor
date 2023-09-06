@@ -32,7 +32,7 @@ class LEDController(BackgroundJob):
         "automation_name": {"datatype": "string", "settable": False},
     }
 
-    def __init__(self, automation_name: str, unit: str, experiment: str, **kwargs) -> None:
+    def __init__(self, unit: str, experiment: str, automation_name: str, **kwargs) -> None:
         super(LEDController, self).__init__(unit=unit, experiment=experiment)
 
         if not hardware.is_HAT_present():
@@ -114,9 +114,9 @@ def start_led_control(
     **kwargs,
 ) -> LEDController:
     return LEDController(
-        automation_name=automation_name,
         unit=unit or get_unit_name(),
         experiment=experiment or get_latest_experiment_name(),
+        automation_name=automation_name,
         skip_first_run=skip_first_run,
         duration=duration,
         **kwargs,
