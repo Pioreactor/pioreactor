@@ -68,18 +68,7 @@ class TemperatureAutomationJob(BaseAutomationJob):
         self.latest_temperture_at: datetime = current_utc_datetime()
         self._latest_settings_started_at = current_utc_datetime()
 
-        self.add_to_published_settings(
-            "latest_event",
-            {
-                "datatype": "AutomationEvent",
-                "settable": False,
-            },
-        )
-
         self.temperature_control_parent = temperature_control_parent
-
-    def on_init_to_ready(self):
-        self.start_passive_listeners()
 
     def update_heater(self, new_duty_cycle: float) -> bool:
         """
@@ -115,12 +104,6 @@ class TemperatureAutomationJob(BaseAutomationJob):
         Returns true if the update was made (eg: no lock), else returns false
         """
         return self.temperature_control_parent.update_heater_with_delta(delta_duty_cycle)
-
-    def execute(self):
-        """
-        Overwrite in base class
-        """
-        raise NotImplementedError
 
     @property
     def most_stale_time(self) -> datetime:

@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import Optional
+
+from pioreactor.automations import events
 from pioreactor.background_jobs.subjobs import BackgroundSubJob
+
 
 DISALLOWED_AUTOMATION_NAMES = {
     "config",
@@ -11,7 +15,7 @@ DISALLOWED_AUTOMATION_NAMES = {
 class BaseAutomationJob(BackgroundSubJob):
     automation_name = "base_automation_job"
 
-    def __init__(self, unit: str, experiment: str):
+    def __init__(self, unit: str, experiment: str) -> None:
         super(BaseAutomationJob, self).__init__(unit, experiment)
 
         if self.automation_name in DISALLOWED_AUTOMATION_NAMES:
@@ -24,3 +28,12 @@ class BaseAutomationJob(BackgroundSubJob):
                 "settable": False,
             },
         )
+
+    def on_init_to_ready(self) -> None:
+        self.start_passive_listeners()
+
+    def execute(self) -> Optional[events.AutomationEvent]:
+        """
+        Overwrite in subclass
+        """
+        raise NotImplementedError("Overwrite in base class")

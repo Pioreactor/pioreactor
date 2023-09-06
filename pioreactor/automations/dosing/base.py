@@ -250,18 +250,7 @@ class DosingAutomationJob(BaseAutomationJob):
         self._init_volume_throughput()
         self._init_vial_volume(float(initial_vial_volume))
 
-        self.add_to_published_settings(
-            "latest_event",
-            {
-                "datatype": "AutomationEvent",
-                "settable": False,
-            },
-        )
-
         self.set_duration(duration)
-
-    def on_init_to_ready(self):
-        self.start_passive_listeners()
 
     def set_duration(self, duration: Optional[float]) -> None:
         if duration:
@@ -339,10 +328,6 @@ class DosingAutomationJob(BaseAutomationJob):
         self.latest_event = event
         self._latest_run_at = current_utc_datetime()
         return event
-
-    def execute(self) -> Optional[events.AutomationEvent]:
-        # should be defined in subclass
-        return events.NoEvent()
 
     def block_until_not_sleeping(self) -> bool:
         while self.state == self.SLEEPING:

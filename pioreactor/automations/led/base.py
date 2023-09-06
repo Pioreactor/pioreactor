@@ -89,9 +89,6 @@ class LEDAutomationJob(BaseAutomationJob):
 
         self.set_duration(duration)
 
-    def on_init_to_ready(self):
-        self.start_passive_listeners()
-
     def set_duration(self, duration: float) -> None:
         self.duration = float(duration)
         if self._latest_run_at is not None:
@@ -158,9 +155,6 @@ class LEDAutomationJob(BaseAutomationJob):
         self.latest_event = event
         self._latest_run_at = current_utc_datetime()
         return event
-
-    def execute(self) -> Optional[events.AutomationEvent]:
-        pass
 
     @property
     def most_stale_time(self) -> datetime:
