@@ -61,7 +61,7 @@ class TemperatureAutomationJob(BackgroundSubJob):
         temperature_control_parent: TemperatureController,
         **kwargs,
     ) -> None:
-        super(TemperatureAutomationJob, self).__init__(unit=unit, experiment=experiment)
+        super(TemperatureAutomationJob, self).__init__(unit, experiment)
 
         self.latest_normalized_od_at: datetime = current_utc_datetime()
         self.latest_growth_rate_at: datetime = current_utc_datetime()

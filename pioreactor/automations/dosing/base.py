@@ -238,7 +238,7 @@ class DosingAutomationJob(BackgroundSubJob):
         ),
         **kwargs,
     ) -> None:
-        super(DosingAutomationJob, self).__init__(unit=unit, experiment=experiment)
+        super(DosingAutomationJob, self).__init__(unit, experiment)
         self.skip_first_run = skip_first_run
 
         self._latest_settings_started_at = current_utc_datetime()

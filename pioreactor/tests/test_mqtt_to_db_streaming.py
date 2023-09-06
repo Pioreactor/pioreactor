@@ -48,7 +48,7 @@ def test_testing_data_is_filtered() -> None:
         )
     ]
 
-    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
+    with m2db.MqttToDBStreamer(unit, exp, parsers):
         with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
             t = TestJob(unit=unit, experiment=exp)
             t.clean_up()
@@ -80,7 +80,7 @@ def test_updated_heater_dc() -> None:
         ),
     ]
 
-    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
+    with m2db.MqttToDBStreamer(unit, exp, parsers):
         sleep(1)
         publish(
             f"pioreactor/{unit}/test/temperature_automation/latest_event",
@@ -122,7 +122,7 @@ def test_dosing_events_land_in_db() -> None:
         ),
     ]
 
-    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
+    with m2db.MqttToDBStreamer(unit, exp, parsers):
         from pioreactor.actions.pump import add_media
 
         add_media(
@@ -197,7 +197,7 @@ def test_kalman_filter_entries() -> None:
         )
     ]
 
-    m = m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp)
+    m = m2db.MqttToDBStreamer(unit, exp, parsers)
 
     # let data collect
     sleep(10)
@@ -259,7 +259,7 @@ def test_empty_payload_is_filtered_early() -> None:
         )
     ]
 
-    with m2db.MqttToDBStreamer(parsers, unit=unit, experiment=exp):
+    with m2db.MqttToDBStreamer(unit, exp, parsers):
         with collect_all_logs_of_level("ERROR", unit, exp) as bucket:
             t = TestJob(unit=unit, experiment=exp)
             t.clean_up()

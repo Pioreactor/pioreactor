@@ -66,9 +66,12 @@ class MqttToDBStreamer(BackgroundJob):
     _inserts_in_last_60s = 0
 
     def __init__(
-        self, topics_to_tables: list[TopicToParserToTable], unit: str, experiment: str
+        self,
+        unit: str,
+        experiment: str,
+        topics_to_tables: list[TopicToParserToTable],
     ) -> None:
-        super().__init__(experiment=experiment, unit=unit)
+        super().__init__(unit, experiment)
         self.logger.debug(f'Streaming MQTT data to {config["storage"]["database"]}.')
         self.sqliteworker = Sqlite3Worker(
             config["storage"]["database"], max_queue_size=250, raise_on_error=False
@@ -459,7 +462,7 @@ def register_source_to_sink(t2p2t: TopicToParserToTable | list[TopicToParserToTa
 
 def start_mqtt_to_db_streaming() -> MqttToDBStreamer:
     source_to_sinks = add_default_source_to_sinks()
-    return MqttToDBStreamer(source_to_sinks, experiment=UNIVERSAL_EXPERIMENT, unit=get_unit_name())
+    return MqttToDBStreamer(get_unit_name(), UNIVERSAL_EXPERIMENT, source_to_sinks)
 
 
 @click.command(name="mqtt_to_db_streaming")

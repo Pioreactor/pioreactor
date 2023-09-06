@@ -434,7 +434,7 @@ class TemperatureController(BackgroundJob):
 
         try:
             self.temperature = Temperature(
-                temperature=self.approximate_temperature(features),
+                temperature=round(self.approximate_temperature(features), 2),
                 timestamp=current_utc_datetime(),
             )
 

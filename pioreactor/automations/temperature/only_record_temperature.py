@@ -13,5 +13,6 @@ class OnlyRecordTemperature(TemperatureAutomationJob):
         self.update_heater(0)
 
     def execute(self) -> NoEvent:
-        self.update_heater(0)
+        if self.heater_duty_cycle != 0:
+            self.update_heater(0)
         return NoEvent()

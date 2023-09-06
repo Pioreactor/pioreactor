@@ -535,4 +535,6 @@ class PID:
             "job_name": self.job_name,
             "target_name": self.target_name,
         }
-        self.client.publish(f"pioreactor/{self.unit}/{self.experiment}/pid_log", dumps(to_send))
+        self.client.publish(
+            f"pioreactor/{self.unit}/{self.experiment}/pid_log/{self.target_name}", dumps(to_send)
+        )

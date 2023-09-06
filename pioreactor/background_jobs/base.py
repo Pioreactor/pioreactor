@@ -35,6 +35,16 @@ from pioreactor.whoami import UNIVERSAL_IDENTIFIER
 T = t.TypeVar("T")
 BJT = t.TypeVar("BJT", bound="_BackgroundJob")
 
+# these are used elsewhere in our software
+DISALLOWED_JOB_NAMES = {
+    "run",
+    "dosing_events",
+    "leds",
+    "led_change_events",
+    "unit_label",
+    "pwm",
+}
+
 
 def cast_bytes_to_type(value: bytes, type_: str):
     try:
@@ -88,17 +98,6 @@ class PostInitCaller(type):
         obj = type.__call__(cls, *args, **kwargs)
         obj.__post__init__()
         return obj
-
-
-# these are used elsewhere in our software
-DISALLOWED_JOB_NAMES = {
-    "run",
-    "dosing_events",
-    "leds",
-    "led_change_events",
-    "unit_label",
-    "pwm",
-}
 
 
 class _BackgroundJob(metaclass=PostInitCaller):
@@ -249,7 +248,7 @@ class _BackgroundJob(metaclass=PostInitCaller):
     # See pt.PublishableSetting type
     published_settings: dict[str, pt.PublishableSetting] = dict()
 
-    def __init__(self, experiment: str, unit: str, source: str = "app") -> None:
+    def __init__(self, unit: str, experiment: str, source: str = "app") -> None:
         if self.job_name in DISALLOWED_JOB_NAMES:
             raise ValueError("Job name not allowed.")
         if not self.job_name.islower():
@@ -958,8 +957,8 @@ class BackgroundJob(_BackgroundJob):
     Native jobs should inherit from this class.
     """
 
-    def __init__(self, experiment: str, unit: str) -> None:
-        super().__init__(experiment=experiment, unit=unit, source="app")
+    def __init__(self, unit: str, experiment: str) -> None:
+        super().__init__(unit, experiment, source="app")
 
 
 class BackgroundJobContrib(_BackgroundJob):
@@ -967,8 +966,8 @@ class BackgroundJobContrib(_BackgroundJob):
     Plugin jobs should inherit from this class.
     """
 
-    def __init__(self, experiment: str, unit: str, plugin_name: str) -> None:
-        super().__init__(experiment=experiment, unit=unit, source=plugin_name)
+    def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
+        super().__init__(unit, experiment, source=plugin_name)
 
 
 class BackgroundJobWithDodging(_BackgroundJob):
@@ -1165,5 +1164,5 @@ class BackgroundJobWithDodgingContrib(BackgroundJobWithDodging):
     Plugin jobs should inherit from this class.
     """
 
-    def __init__(self, experiment: str, unit: str, plugin_name: str) -> None:
-        super().__init__(source=plugin_name, experiment=experiment, unit=unit)
+    def __init__(self, unit: str, experiment: str, plugin_name: str) -> None:
+        super().__init__(unit=unit, experiment=experiment, source=plugin_name)

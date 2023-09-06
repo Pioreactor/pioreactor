@@ -220,7 +220,7 @@ def execute_experiment_profile(profile_filename: str, dry_run: bool = False) -> 
                     timer.cancel()
                 logger.info(f"Exiting profile {profile.experiment_profile_name} early.")
             else:
-                logger.info(f"Finished at commands in profile {profile.experiment_profile_name}.")
+                logger.info(f"Finished executing profile {profile.experiment_profile_name}.")
 
 
 @click.group(name="experiment_profile")
@@ -242,6 +242,6 @@ def click_execute_experiment_profile(filename: str, dry_run: bool) -> None:
 @click.argument("filename", type=click.Path(exists=True))
 def click_verify_experiment_profile(filename: str) -> None:
     """
-    (leader only) Verify an experiment profile.
+    (leader only) Verify an experiment profile for correctness.
     """
     load_and_verify_profile_file(filename)

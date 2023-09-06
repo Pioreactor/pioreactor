@@ -15,9 +15,9 @@ from pioreactor import exc
 from pioreactor import structs
 from pioreactor import types as pt
 from pioreactor.actions.led_intensity import led_intensity
+from pioreactor.automations import BaseAutomationJob
 from pioreactor.automations import events
 from pioreactor.background_jobs.led_control import LEDController
-from pioreactor.background_jobs.subjobs import BackgroundSubJob
 from pioreactor.pubsub import QOS
 from pioreactor.utils import is_pio_job_running
 from pioreactor.utils.timing import current_utc_datetime
@@ -30,7 +30,7 @@ def brief_pause() -> float:
     return d
 
 
-class LEDAutomationJob(BackgroundSubJob):
+class LEDAutomationJob(BaseAutomationJob):
     """
     This is the super class that LED automations inherit from. The `run` function will
     execute every `duration` minutes (selected at the start of the program), and call the `execute` function
@@ -79,21 +79,13 @@ class LEDAutomationJob(BackgroundSubJob):
         skip_first_run: bool = False,
         **kwargs,
     ) -> None:
-        super(LEDAutomationJob, self).__init__(unit=unit, experiment=experiment)
+        super(LEDAutomationJob, self).__init__(unit, experiment)
 
         self.skip_first_run = skip_first_run
         self._latest_settings_started_at: datetime = current_utc_datetime()
         self.latest_normalized_od_at: datetime = current_utc_datetime()
         self.latest_growth_rate_at: datetime = current_utc_datetime()
         self.edited_channels: set[pt.LedChannel] = set()
-
-        self.add_to_published_settings(
-            "latest_event",
-            {
-                "datatype": "AutomationEvent",
-                "settable": False,
-            },
-        )
 
         self.set_duration(duration)
 

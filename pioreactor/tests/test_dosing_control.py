@@ -16,9 +16,9 @@ from msgspec.json import encode
 from pioreactor import exc
 from pioreactor import pubsub
 from pioreactor import structs
-from pioreactor.automations import DosingAutomationJob
 from pioreactor.automations import events
 from pioreactor.automations.dosing.base import AltMediaFractionCalculator
+from pioreactor.automations.dosing.base import DosingAutomationJob
 from pioreactor.automations.dosing.base import VialVolumeCalculator
 from pioreactor.automations.dosing.pid_morbidostat import PIDMorbidostat
 from pioreactor.automations.dosing.silent import Silent
