@@ -1,3 +1,8 @@
+### Upcoming
+ - When installing plugins, any leader-only commands would not be run. This is fixed.
+ - Base automations now subclass from `pioreactor.automations.BaseAutomationJob`. Nothing the user needs to worry about.
+ - Fixed bug that ignored `.yml` files in the UI.
+
 ### 23.8.29
  - Pioreactor's IPv4 and hostname is now displayed under System in the UI.
  - In configuration, renamed section `dosing_automation` to `dosing_automation.config` (only applies to new installs). It's recommended for existing users to make this change, too.
