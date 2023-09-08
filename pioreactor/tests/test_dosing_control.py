@@ -372,12 +372,12 @@ def test_pause_in_dosing_automation() -> None:
 def test_pause_in_dosing_control_also_pauses_automation() -> None:
     experiment = "test_pause_in_dosing_control_also_pauses_automation"
     algo = DosingController(
+        unit,
+        experiment,
         "turbidostat",
         target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
-        unit=unit,
-        experiment=experiment,
     )
     pause()
     pubsub.publish(f"pioreactor/{unit}/{experiment}/dosing_control/$state/set", "sleeping")
@@ -424,12 +424,12 @@ def test_throughput_calculator() -> None:
         c[experiment] = 0.0
 
     with DosingController(
+        unit,
+        experiment,
         "pid_morbidostat",
         target_growth_rate=0.05,
         target_od=1.0,
         duration=60,
-        unit=unit,
-        experiment=experiment,
     ) as algo:
         assert algo.automation_job.media_throughput == 0
         pause()
@@ -493,12 +493,12 @@ def test_throughput_calculator_restart() -> None:
         c[experiment] = 1.5
 
     with DosingController(
+        unit,
+        experiment,
         "turbidostat",
         target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
-        unit=unit,
-        experiment=experiment,
     ) as algo:
         pause()
         assert algo.automation_job.media_throughput == 1.0
@@ -514,12 +514,12 @@ def test_throughput_calculator_manual_set() -> None:
         c[experiment] = 1.5
 
     with DosingController(
+        unit,
+        experiment,
         "turbidostat",
         target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
-        unit=unit,
-        experiment=experiment,
     ) as algo:
         pause()
         assert algo.automation_job.media_throughput == 1.0
@@ -544,7 +544,7 @@ def test_execute_io_action() -> None:
     with local_persistant_storage("alt_media_throughput") as c:
         c[experiment] = 0.0
 
-    with DosingController("silent", unit=unit, experiment=experiment) as ca:
+    with DosingController(unit, experiment, "silent") as ca:
         ca.automation_job.execute_io_action(media_ml=0.50, alt_media_ml=0.35, waste_ml=0.50 + 0.35)
         pause()
         assert ca.automation_job.media_throughput == 0.50
@@ -577,9 +577,7 @@ def test_execute_io_action2() -> None:
     with local_persistant_storage("alt_media_fraction") as c:
         c[experiment] = 0.0
 
-    with DosingController(
-        "silent", unit=unit, experiment=experiment, initial_vial_volume=14.0
-    ) as ca:
+    with DosingController(unit, experiment, "silent", initial_vial_volume=14.0) as ca:
         ca.automation_job.execute_io_action(media_ml=1.25, alt_media_ml=0.01, waste_ml=1.26)
         pause()
         assert ca.automation_job.media_throughput == 1.25
@@ -784,12 +782,12 @@ def test_changing_duration_over_mqtt_will_start_next_run_earlier() -> None:
 def test_changing_algo_over_mqtt_with_wrong_automation_type() -> None:
     experiment = "test_changing_algo_over_mqtt_with_wrong_automation_type"
     with DosingController(
+        unit,
+        experiment,
         "turbidostat",
         target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
-        unit=unit,
-        experiment=experiment,
     ) as algo:
         assert algo.automation.automation_name == "turbidostat"
         assert isinstance(algo.automation_job, Turbidostat)
@@ -814,12 +812,12 @@ def test_changing_algo_over_mqtt_with_wrong_automation_type() -> None:
 def test_changing_algo_over_mqtt_solo() -> None:
     experiment = "test_changing_algo_over_mqtt_solo"
     with DosingController(
+        unit,
+        experiment,
         "turbidostat",
         target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
-        unit=unit,
-        experiment=experiment,
     ) as algo:
         assert algo.automation.automation_name == "turbidostat"
         assert isinstance(algo.automation_job, Turbidostat)
@@ -847,12 +845,12 @@ def test_changing_algo_over_mqtt_solo() -> None:
 def test_changing_algo_over_mqtt_when_it_fails_will_rollback() -> None:
     experiment = "test_changing_algo_over_mqtt_when_it_fails_will_rollback"
     with DosingController(
+        unit,
+        experiment,
         "turbidostat",
         target_normalized_od=1.0,
         duration=5 / 60,
         volume=1.0,
-        unit=unit,
-        experiment=experiment,
     ) as algo:
         assert algo.automation.automation_name == "turbidostat"
         assert isinstance(algo.automation_job, Turbidostat)
@@ -888,12 +886,12 @@ def test_changing_algo_over_mqtt_will_not_produce_two_dosing_jobs() -> None:
         c[experiment] = 0.0
 
     algo = DosingController(
+        unit,
+        experiment,
         "turbidostat",
         volume=1.0,
         target_normalized_od=0.4,
         duration=60,
-        unit=unit,
-        experiment=experiment,
     )
     assert algo.automation.automation_name == "turbidostat"
     pause()
@@ -945,12 +943,12 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
         c[experiment] = 0.0
 
     algo = DosingController(
+        unit,
+        experiment,
         "turbidostat",
         volume=1.0,
         target_normalized_od=0.4,
         duration=2 / 60,
-        unit=unit,
-        experiment=experiment,
     )
     assert algo.automation.automation_name == "turbidostat"
     assert algo.automation_name == "turbidostat"
@@ -974,12 +972,12 @@ def test_changing_algo_over_mqtt_with_wrong_type_is_okay() -> None:
 def test_disconnect_cleanly() -> None:
     experiment = "test_disconnect_cleanly"
     algo = DosingController(
+        experiment,
+        unit,
         "turbidostat",
         target_normalized_od=1.0,
         duration=50,
-        unit=unit,
         volume=1.0,
-        experiment=experiment,
     )
     assert algo.automation.automation_name == "turbidostat"
     assert isinstance(algo.automation_job, Turbidostat)
@@ -991,11 +989,11 @@ def test_disconnect_cleanly() -> None:
 def test_disconnect_cleanly_during_pumping_execution() -> None:
     experiment = "test_disconnect_cleanly_during_pumping_execution"
     algo = DosingController(
+        unit,
+        experiment,
         "chemostat",
         volume=5.0,
         duration=10,
-        unit=unit,
-        experiment=experiment,
     )
     assert algo.automation.automation_name == "chemostat"
     time.sleep(4)
@@ -1024,11 +1022,11 @@ def test_custom_class_will_register_and_run() -> None:
                 self.execute_io_action(media_ml=1.0, waste_ml=1.0)
 
     with DosingController(
+        get_unit_name(),
+        experiment,
         "naive_turbidostat",
         target_od=2.0,
         duration=10,
-        unit=get_unit_name(),
-        experiment=experiment,
     ):
         pass
 
@@ -1124,10 +1122,10 @@ def test_latest_event_goes_to_mqtt() -> None:
             return events.NoEvent(message="demo", data={"d": 1.0, "s": "test"})
 
     with DosingController(
+        get_unit_name(),
+        experiment,
         "fake_automation",
         duration=0.1,
-        unit=get_unit_name(),
-        experiment=experiment,
     ) as dc:
         assert "latest_event" in dc.automation_job.published_settings
 
@@ -1506,9 +1504,9 @@ def test_execute_io_action_errors() -> None:
     experiment = "test_execute_io_action_errors"
 
     with DosingController(
+        unit,
+        experiment,
         "silent",
-        unit=unit,
-        experiment=experiment,
     ) as ca:
         with pytest.raises(ValueError):
             # missing _ml
@@ -1528,7 +1526,7 @@ def test_timeout_in_run() -> None:
     experiment = "test_timeout_in_run"
 
     with pubsub.collect_all_logs_of_level("DEBUG", unit, experiment) as bucket:
-        with DosingController("silent", unit=unit, experiment=experiment, duration=5) as ca:
+        with DosingController(unit, experiment, "silent", duration=5) as ca:
             ca.automation_job.set_state(ca.automation_job.SLEEPING)
             time.sleep(70)
 
@@ -1543,11 +1541,11 @@ def test_automation_will_pause_itself_if_pumping_goes_above_safety_threshold() -
             del c[experiment]
 
     with DosingController(
+        unit,
+        experiment,
         "chemostat",
         duration=0.05,
         volume=0.5,
-        unit=unit,
-        experiment=experiment,
         initial_vial_volume=17.95,
     ) as dc:
         job = dc.automation_job
@@ -1585,7 +1583,7 @@ def test_warning_is_logged_if_under_remove_waste() -> None:
             return
 
     with pubsub.collect_all_logs_of_level("WARNING", unit, experiment) as bucket:
-        with DosingController("bad_waste_removal", unit=unit, experiment=experiment, duration=5):
+        with DosingController(unit, experiment, "bad_waste_removal", duration=5):
             time.sleep(30)
 
         assert len(bucket) >= 1
